@@ -1,0 +1,365 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+import { buildWitanInputFromRepo } from '../repo-signals.js';
+import { createWitanReport } from '../scoring.js';
+
+// Rubric refinements surfaced by reading a well-built MIT governance library (Lua
+// governance-sdk, see docs/orchestration/goal_cejel_rubric_refinement_from_lua_2026-07-06.md):
+// cejel mis-scored several honest-engineering signals as gaps. Each item below is locked by a
+// positive fixture (the good pattern is credited/un-penalized) and a negative/regression
+// fixture (the prior behavior is preserved when the good pattern is absent).
+
+function makeTmpRepo(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'witan-lua-rubric-'));
+  execFileSync('git', ['init', '--quiet'], { cwd: dir });
+  execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir });
+  execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  return dir;
+}
+
+function writeFile(dir: string, rel: string, content: string): void {
+  const full = join(dir, rel);
+  mkdirSync(join(dir, rel.split('/').slice(0, -1).join('/')), { recursive: true });
+  writeFileSync(full, content, 'utf8');
+  execFileSync('git', ['add', rel], { cwd: dir });
+}
+
+function signalFor(dir: string, id: string) {
+  const input = buildWitanInputFromRepo({
+    productSlug: 'test',
+    productDisplayName: 'Test',
+    repoPath: dir,
+    generatedAt: '2026-07-06T00:00:00.000Z',
+  });
+  return (input.signals ?? []).find((s) => s.criterionId === id) ?? null;
+}
+
+// ─── 1. A4 — optional peer deps are not runtime attack surface ─────────────
+
+describe('A4 — optional peer deps (peerDependenciesMeta.optional) are excluded from the pinned-ratio denominator', () => {
+  it('a package with only optional peer deps + one pinned real dep scores full pinned-ratio credit', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'zero-runtime-dep-library',
+        version: '1.0.0',
+        dependencies: { zod: '3.23.8' },
+        peerDependencies: { vitest: '^1.0.0', mocha: '^10.0.0' },
+        peerDependenciesMeta: {
+          vitest: { optional: true },
+          mocha: { optional: true },
+        },
+      }),
+    );
+    writeFile(dir, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+
+    const a4 = signalFor(dir, 'A4');
+    expect(a4).not.toBeNull();
+    const pinnedRatio = a4?.metrics?.find((m) => m.name === 'pinned_dependency_ratio');
+    // Before the fix: 1 pinned out of 3 (zod + 2 unpinned peer ranges) = 0.33.
+    // After the fix: the two optional peers are excluded entirely -> 1 pinned out of 1 = full credit.
+    expect(pinnedRatio?.value).toBe(1);
+    expect(pinnedRatio?.max).toBe(1);
+  });
+
+  it('regression: a non-optional peer dep (no peerDependenciesMeta) still counts toward the denominator', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'required-peer-library',
+        version: '1.0.0',
+        dependencies: { zod: '3.23.8' },
+        peerDependencies: { react: '^18.0.0' },
+      }),
+    );
+    writeFile(dir, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
+
+    const a4 = signalFor(dir, 'A4');
+    const pinnedRatio = a4?.metrics?.find((m) => m.name === 'pinned_dependency_ratio');
+    expect(pinnedRatio?.value).toBe(1);
+    expect(pinnedRatio?.max).toBe(2);
+  });
+});
+
+// ─── 2. A5 — documented negative space is honest scoping, not a missing-claim gap ──
+
+describe('A5 — a documented limitations/threat-model section downgrades the missing-artifact finding to info', () => {
+  it('a README with an explicit Limitations section is credited and the finding is info, not warning', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'README.md',
+      [
+        '# Governance SDK',
+        '',
+        'A library for tamper-evident audit chains.',
+        '',
+        '## Limitations',
+        '',
+        'This library does not protect against a compromised signing key, and it does not cover',
+        'transport-layer confidentiality — pair it with TLS.',
+      ].join('\n'),
+    );
+    writeFile(dir, 'src/index.ts', 'export function chain(): void {}\n');
+
+    const a5 = signalFor(dir, 'A5');
+    expect(a5).not.toBeNull();
+    expect(a5?.findings?.length).toBe(1);
+    expect(a5?.findings?.[0]?.severity).toBe('info');
+    expect(
+      a5?.positiveEvidence?.some((e) => /limitations|threat model|not cover/i.test(e.label)),
+    ).toBe(true);
+  });
+
+  it('regression: a README with no negative-space section keeps the warning finding', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'README.md',
+      ['# Ordinary Library', '', 'A library that does things.'].join('\n'),
+    );
+    writeFile(dir, 'src/index.ts', 'export function doThing(): void {}\n');
+
+    const a5 = signalFor(dir, 'A5');
+    expect(a5?.findings?.length).toBe(1);
+    expect(a5?.findings?.[0]?.severity).toBe('warning');
+  });
+});
+
+// ─── 3. A1/B3 — a lean built-in test toolchain is a positive signal, not a coverage-tool ding ──
+
+describe('A1 — a lean built-in test toolchain (node:test) with no heavy test dependency is not dinged for missing coverage config', () => {
+  it('node --test + node:test import + no jest/mocha produces no "no coverage configuration" finding', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'lean-toolchain-library',
+        version: '1.0.0',
+        scripts: { test: 'node --test' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
+    );
+    writeFile(dir, 'src/index.ts', 'export function add(a: number, b: number) { return a + b; }\n');
+    writeFile(
+      dir,
+      'src/index.test.ts',
+      [
+        "import { test } from 'node:test';",
+        "import assert from 'node:assert';",
+        "import { add } from './index.js';",
+        "test('adds', () => { assert.equal(add(1, 2), 3); });",
+      ].join('\n'),
+    );
+
+    const a1 = signalFor(dir, 'A1');
+    expect(a1).not.toBeNull();
+    expect(a1?.findings?.some((f) => /no coverage configuration/i.test(f.summary))).toBe(false);
+    expect(a1?.positiveEvidence?.some((e) => /lean built-in test toolchain/i.test(e.label))).toBe(
+      true,
+    );
+  });
+
+  it('regression: node --test alongside a heavy test dependency (jest) still gets the coverage ding', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'mixed-toolchain-library',
+        version: '1.0.0',
+        scripts: { test: 'node --test' },
+        devDependencies: { jest: '29.7.0' },
+      }),
+    );
+    writeFile(dir, 'src/index.ts', 'export function add(a: number, b: number) { return a + b; }\n');
+    writeFile(dir, 'src/index.test.ts', "test('adds', () => { expect(1 + 2).toBe(3); });\n");
+
+    const a1 = signalFor(dir, 'A1');
+    expect(a1?.findings?.some((f) => /no coverage configuration/i.test(f.summary))).toBe(true);
+  });
+
+  it('regression: an ordinary vitest project with no node:test usage still gets the coverage ding', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'vitest-library',
+        version: '1.0.0',
+        scripts: { test: 'vitest run' },
+        devDependencies: { vitest: '1.6.0' },
+      }),
+    );
+    writeFile(dir, 'src/index.ts', 'export function add(a: number, b: number) { return a + b; }\n');
+    writeFile(
+      dir,
+      'src/index.test.ts',
+      "import { expect, it } from 'vitest';\nit('adds', () => { expect(1 + 2).toBe(3); });\n",
+    );
+
+    const a1 = signalFor(dir, 'A1');
+    expect(a1?.findings?.some((f) => /no coverage configuration/i.test(f.summary))).toBe(true);
+  });
+});
+
+// ─── 4. A2 — bounded crypto-comparison hygiene nudge ────────────────────────
+
+describe('A2 — crypto comparison hygiene is credited/flagged only when a signing/HMAC surface exists', () => {
+  it('constant-time compare + canonical serialization before signing scores full credit', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, '.env.example', 'API_KEY=INSERT_KEY_HERE\n');
+    writeFile(dir, '.gitignore', '.env\n');
+    writeFile(
+      dir,
+      'src/hmac.ts',
+      [
+        "import { createHmac, timingSafeEqual } from 'node:crypto';",
+        "import stableStringify from 'safe-stable-stringify';",
+        '',
+        'export function sign(payload: unknown, key: string): Buffer {',
+        '  const canonical = stableStringify(payload);',
+        "  return createHmac('sha256', key).update(canonical ?? '').digest();",
+        '}',
+        '',
+        'export function verify(computedHmac: Buffer, expectedHmac: Buffer): boolean {',
+        '  return timingSafeEqual(computedHmac, expectedHmac);',
+        '}',
+      ].join('\n'),
+    );
+
+    const a2 = signalFor(dir, 'A2');
+    expect(a2).not.toBeNull();
+    const hygiene = a2?.metrics?.find((m) => m.name === 'crypto_comparison_hygiene');
+    expect(hygiene?.value).toBe(1);
+    expect(
+      a2?.positiveEvidence?.some((e) => /constant-time secret\/hmac comparison/i.test(e.label)),
+    ).toBe(true);
+    expect(
+      a2?.positiveEvidence?.some((e) => /canonical serialization before signing/i.test(e.label)),
+    ).toBe(true);
+  });
+
+  it('a plain === on an HMAC and signing over unsorted JSON are flagged as (never critical) warnings', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, '.env.example', 'API_KEY=INSERT_KEY_HERE\n');
+    writeFile(dir, '.gitignore', '.env\n');
+    writeFile(
+      dir,
+      'src/hmac.ts',
+      [
+        "import { createHmac } from 'node:crypto';",
+        '',
+        'export function sign(payload: unknown, key: string): string {',
+        "  return createHmac('sha256', key).update(JSON.stringify(payload)).digest('hex');",
+        '}',
+        '',
+        'export function verify(computedSignature: string, providedSignature: string): boolean {',
+        '  if (computedSignature === providedSignature) return true;',
+        '  return false;',
+        '}',
+      ].join('\n'),
+    );
+
+    const a2 = signalFor(dir, 'A2');
+    const hygiene = a2?.metrics?.find((m) => m.name === 'crypto_comparison_hygiene');
+    expect(hygiene?.value).toBe(0);
+    expect(a2?.findings?.every((f) => f.severity !== 'critical')).toBe(true);
+    expect(
+      a2?.findings?.some((f) =>
+        /non-constant-time secret comparison|timing side-channel/i.test(f.summary),
+      ),
+    ).toBe(true);
+    expect(a2?.findings?.some((f) => /unsorted json|canonical key ordering/i.test(f.summary))).toBe(
+      true,
+    );
+  });
+
+  it('regression: a repo with no signing/HMAC surface never receives the crypto-hygiene metric', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, '.env.example', 'API_KEY=INSERT_KEY_HERE\n');
+    writeFile(dir, '.gitignore', '.env\n');
+    writeFile(dir, 'src/index.ts', 'export function add(a: number, b: number) { return a + b; }\n');
+
+    const a2 = signalFor(dir, 'A2');
+    expect(a2?.metrics?.some((m) => m.name === 'crypto_comparison_hygiene')).toBe(false);
+  });
+});
+
+// ─── 5. B6 — un-overridable kill-switch / fail-safe ordering ───────────────
+
+describe('B6 — an un-overridable kill-switch / fail-safe governance toggle is a bounded, positive-only signal', () => {
+  it('a fail-closed guard on a named safety toggle is credited', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'src/tactical-actions.ts',
+      [
+        'export function runTacticalAction(studio: { emergency_stop: boolean }, action: () => void): void {',
+        '  if (!studio.emergency_stop) {',
+        "    throw new Error('Tactical actions are disabled for this studio.');",
+        '  }',
+        '  action();',
+        '}',
+      ].join('\n'),
+    );
+
+    const b6 = signalFor(dir, 'B6');
+    expect(b6).not.toBeNull();
+    const killSwitch = b6?.metrics?.find((m) => m.name === 'kill_switch_fail_safe_present');
+    expect(killSwitch?.value).toBe(1);
+    expect(
+      b6?.positiveEvidence?.some((e) => /kill-switch|fail-safe governance toggle/i.test(e.label)),
+    ).toBe(true);
+  });
+
+  it('regression: a named toggle with no fail-closed guard clause is not credited', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'src/tactical-actions.ts',
+      [
+        'export const tacticalActionsEnabled = true;',
+        '',
+        'export function runTacticalAction(action: () => void): void {',
+        '  action();',
+        '}',
+      ].join('\n'),
+    );
+    // Give B6 a real privileged-op surface so it does not short-circuit to not_applicable,
+    // isolating the assertion to whether the kill-switch metric itself is (correctly) absent.
+    writeFile(
+      dir,
+      'docs/RUNBOOK.md',
+      'Privileged operations are human-executed, never agent-run.\n',
+    );
+
+    const b6 = signalFor(dir, 'B6');
+    expect(b6?.metrics?.some((m) => m.name === 'kill_switch_fail_safe_present')).toBe(false);
+  });
+
+  it('regression: a repo with no privileged-op surface and no kill switch stays not_applicable', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.ts', 'export function add(a: number, b: number) { return a + b; }\n');
+
+    const report = createWitanReport(
+      buildWitanInputFromRepo({
+        productSlug: 'no-b6-surface',
+        productDisplayName: 'No B6 Surface',
+        repoPath: dir,
+        generatedAt: '2026-07-06T00:00:00.000Z',
+      }),
+    );
+    const b6 = report.criteria.find((c) => c.id === 'B6');
+    expect(b6?.status).toBe('not_applicable');
+  });
+});

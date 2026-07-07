@@ -1,0 +1,82 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep OSS",
+          "rules": [
+            {
+              "id": "yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret",
+              "defaultConfiguration": { "level": "warning" },
+              "fullDescription": {
+                "text": "Secret exposed via a workflow-level `env:` block; scope it to the step that needs it instead."
+              },
+              "helpUri": "https://semgrep.dev/r/yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret"
+            },
+            {
+              "id": "bash.curl.security.curl-eval.curl-eval",
+              "defaultConfiguration": { "level": "error" },
+              "fullDescription": { "text": "Data is being eval'd from a `curl` response." },
+              "helpUri": "https://semgrep.dev/r/bash.curl.security.curl-eval.curl-eval"
+            },
+            {
+              "id": "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+              "defaultConfiguration": { "level": "warning" },
+              "fullDescription": { "text": "Raw SQL execute() call built from unsanitized input." },
+              "helpUri": "https://semgrep.dev/r/python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "yaml.github-actions.security.gha-workflow-env-secret.gha-workflow-env-secret",
+          "message": {
+            "text": "Workflow-level env: exposes AWS_SECRET_ACCESS_KEY to every step; scope it to the step that needs it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": ".github/workflows/deploy.yml" },
+                "region": { "startLine": 12 }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "bash.curl.security.curl-eval.curl-eval",
+          "message": {
+            "text": "eval $(curl -s https://example.com/install.sh) — remote script executed without verification."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "scripts/bootstrap.sh" },
+                "region": { "startLine": 8 }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+          "message": {
+            "text": "session.execute(f\"SELECT * FROM users WHERE id = {user_id}\") — raw query built from unsanitized input."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "egbert_core/db/queries.py" },
+                "region": { "startLine": 57 }
+              }
+            }
+          ],
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

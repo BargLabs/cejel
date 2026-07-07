@@ -1,0 +1,268 @@
+// Vendored verbatim from the private source monorepo this tool was extracted from —
+// this is the entire internal-schema surface cejel imports; every other internal
+// schema (multi-tenant, workflow, billing, etc.) is intentionally NOT part of this
+// file and never ships here.
+
+import { z } from 'zod';
+
+export const WITAN_RUBRIC_VERSION_V0 = 'witan-rubric-v0-2026-06-22';
+export const WITAN_RUBRIC_VERSION_V1 = 'witan-rubric-v1-2026-06-24';
+export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V1;
+export const WITAN_TRADING_RUBRIC_VERSION_V0 = 'witan-trading-rubric-v0-2026-07-01';
+
+export const WITAN_CRITERION_IDS = [
+  'A1',
+  'A2',
+  'A3',
+  'A4',
+  'A5',
+  'B1',
+  'B2',
+  'B3',
+  'B4',
+  'B5',
+  'B6',
+] as const;
+
+// Locked criterion ids for witan-trading-rubric-v0 — Egbert Lane B targets these ids directly,
+// so they may not be renamed without a new rubric version.
+export const WITAN_TRADING_RUBRIC_V0_CRITERION_IDS = [
+  'validation-integrity',
+  'calibration',
+  'promotion-governance',
+  'risk-governance',
+  'execution-integrity',
+  'real-outcome-evidence',
+  'data-confidence',
+  'audit-completeness',
+  'claim-reality',
+] as const;
+
+export const WitanCriterionIdSchema = z.enum([
+  ...WITAN_CRITERION_IDS,
+  ...WITAN_TRADING_RUBRIC_V0_CRITERION_IDS,
+]);
+export const WitanTradingCriterionIdSchema = z.enum(WITAN_TRADING_RUBRIC_V0_CRITERION_IDS);
+export const WitanCriterionCategorySchema = z.enum([
+  'code_trust',
+  'process_trust',
+  'validation_trust',
+  'execution_trust',
+  'governance_trust',
+]);
+export const WitanCriterionStatusSchema = z.enum([
+  'verified',
+  'info',
+  'warning',
+  'critical',
+  'unverified',
+  'not_applicable',
+]);
+export const WitanEvidenceKindSchema = z.enum([
+  'artifact',
+  'audit_log',
+  'bede_summary',
+  'ci_run',
+  'claim_reconciliation',
+  'commit',
+  'coverage',
+  'dependency_report',
+  'dispatch_log',
+  'maeve_trace',
+  'prod_check',
+  'pull_request',
+  'repository',
+  'secret_scan',
+  'test_run',
+]);
+export const WitanFindingSeveritySchema = z.enum(['critical', 'warning', 'info']);
+
+// Repo-archetype classification (goal_cejel_repo_archetype_detection_2026-07-06): a deterministic,
+// offline read of the file inventory used to decide whether a repo has a ratable source tree at
+// all. 'monorepo' and 'source' both have ratable source and score normally; 'docs_only',
+// 'binary_only', and 'empty' do not, and cejel reports an explicit insufficient-source verdict
+// instead of a confident numeric score for those archetypes.
+export const WITAN_REPO_ARCHETYPES = [
+  'source',
+  'monorepo',
+  'docs_only',
+  'binary_only',
+  'empty',
+] as const;
+export const WitanRepoArchetypeSchema = z.enum(WITAN_REPO_ARCHETYPES);
+
+export const WitanEvidencePointerSchema = z
+  .object({
+    kind: WitanEvidenceKindSchema,
+    label: z.string().min(1).max(180),
+    url: z.string().url().optional(),
+    path: z.string().min(1).max(700).optional(),
+    line: z.number().int().positive().optional(),
+    contentHash: z.string().min(8).max(160).optional(),
+    capturedAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.url ?? value.path ?? value.contentHash), {
+    message: 'Witan evidence must include a path, url, or content hash.',
+  });
+
+export const WitanFindingSchema = z
+  .object({
+    severity: WitanFindingSeveritySchema,
+    summary: z.string().min(1).max(500),
+    evidence: WitanEvidencePointerSchema,
+  })
+  .strict();
+
+export const WitanCriterionMetricSchema = z
+  .object({
+    name: z.string().min(1).max(80),
+    label: z.string().min(1).max(180),
+    value: z.number().min(0),
+    max: z.number().positive().optional(),
+    kind: z.enum(['ratio', 'saturating_count']).optional(),
+    weight: z.number().positive().max(1).default(1),
+    unit: z.string().min(1).max(40).optional(),
+    description: z.string().min(1).max(300).optional(),
+  })
+  .strict();
+
+export const WitanCriterionSignalSchema = z
+  .object({
+    criterionId: WitanCriterionIdSchema,
+    positiveEvidence: z.array(WitanEvidencePointerSchema).default([]),
+    findings: z.array(WitanFindingSchema).default([]),
+    metrics: z.array(WitanCriterionMetricSchema).default([]),
+    notes: z.string().min(1).max(1000).optional(),
+    notApplicable: z.literal(true).optional(),
+  })
+  .strict();
+
+export const WitanRepoRefSchema = z
+  .object({
+    path: z.string().min(1).max(700).optional(),
+    url: z.string().url().optional(),
+    headSha: z.string().min(7).max(64).optional(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.path ?? value.url), {
+    message: 'Witan repo reference must include a path or url.',
+  });
+
+export const WitanReportInputSchema = z
+  .object({
+    productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),
+    productDisplayName: z.string().min(1).max(120),
+    repo: WitanRepoRefSchema,
+    generatedAt: z.string().datetime({ offset: true }),
+    rubricVersion: z.string().min(1).max(120).default(WITAN_RUBRIC_VERSION),
+    signals: z.array(WitanCriterionSignalSchema).default([]),
+    archetype: WitanRepoArchetypeSchema.optional(),
+    insufficientSourceReason: z.string().min(1).max(2000).optional(),
+  })
+  .strict();
+
+export const WitanCriterionScoreSchema = z
+  .object({
+    id: WitanCriterionIdSchema,
+    title: z.string().min(1).max(160),
+    category: WitanCriterionCategorySchema,
+    score: z.number().min(0).max(4),
+    nativeScore: z.number().min(0).max(4).optional(),
+    status: WitanCriterionStatusSchema,
+    evidence: z.array(WitanEvidencePointerSchema),
+    findings: z.array(WitanFindingSchema),
+    metrics: z.array(WitanCriterionMetricSchema).default([]),
+    notes: z.string().min(1).max(1000).optional(),
+  })
+  .strict();
+
+// WitanInputSignal — external tool findings that AUGMENT (never replace) a native dimension score.
+// source format: 'sarif:<tool-name>' e.g. 'sarif:codex-security'
+export const WitanInputSignalFindingSchema = z
+  .object({
+    ruleId: z.string().min(1).max(200),
+    severity: WitanFindingSeveritySchema,
+    message: z.string().min(1).max(500),
+    location: z.string().max(700).optional(),
+  })
+  .strict();
+
+export const WitanInputSignalSchema = z
+  .object({
+    source: z.string().min(1).max(120),
+    dimension: WitanCriterionIdSchema,
+    findings: z.array(WitanInputSignalFindingSchema),
+    weight: z.number().min(0).max(1),
+  })
+  .strict();
+
+// Summary of a consumed signal as stored in the report for auditability.
+export const WitanConsumedSignalSummarySchema = z
+  .object({
+    source: z.string().min(1).max(120),
+    dimension: WitanCriterionIdSchema,
+    findingCount: z.number().int().min(0),
+    severityBreakdown: z
+      .object({
+        critical: z.number().int().min(0),
+        warning: z.number().int().min(0),
+        info: z.number().int().min(0),
+      })
+      .strict(),
+    nativeScore: z.number().min(0).max(4),
+    scoreAdjustment: z.number().min(-4).max(0),
+    adjustedScore: z.number().min(0).max(4),
+    // The individual ingested findings behind findingCount, attributed to this (source,
+    // dimension) pair — report.json's full itemized set (goal_cejel_ingest_itemize_findings).
+    // Presentation surfaces (terminal/summary.json/certificate) cap how many they display;
+    // this field always carries every finding.
+    findings: z.array(WitanInputSignalFindingSchema).default([]),
+  })
+  .strict();
+
+export const WitanReportSchema = z
+  .object({
+    productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),
+    productDisplayName: z.string().min(1).max(120),
+    repo: WitanRepoRefSchema,
+    generatedAt: z.string().datetime({ offset: true }),
+    rubricVersion: z.string().min(1).max(120),
+    codeTrustScore: z.number().min(0).max(4),
+    processTrustScore: z.number().min(0).max(4),
+    overallScore: z.number().min(0).max(4),
+    // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
+    criteria: z.array(WitanCriterionScoreSchema).min(1),
+    consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
+    // Present only when the rubric has more than two criterion categories — the legacy
+    // codeTrustScore/processTrustScore pair can't losslessly represent 3+ category buckets.
+    categoryScores: z.record(z.string(), z.number().min(0).max(4)).optional(),
+    // Repo-archetype metadata (see WitanRepoArchetypeSchema above). Both fields are omitted for
+    // callers that don't classify an archetype (e.g. the trading rubric). insufficientSourceReason
+    // is present only for the non-source archetypes ('docs_only' | 'binary_only' | 'empty') — its
+    // presence is what presentation layers (badge/terminal/verdict) key off to show an explicit
+    // insufficient-source verdict instead of a confident numeric score.
+    archetype: WitanRepoArchetypeSchema.optional(),
+    insufficientSourceReason: z.string().min(1).max(2000).optional(),
+  })
+  .strict();
+
+export type WitanRepoArchetype = z.infer<typeof WitanRepoArchetypeSchema>;
+export type WitanCriterionId = z.infer<typeof WitanCriterionIdSchema>;
+export type WitanTradingCriterionId = z.infer<typeof WitanTradingCriterionIdSchema>;
+export type WitanCriterionCategory = z.infer<typeof WitanCriterionCategorySchema>;
+export type WitanCriterionStatus = z.infer<typeof WitanCriterionStatusSchema>;
+export type WitanEvidenceKind = z.infer<typeof WitanEvidenceKindSchema>;
+export type WitanEvidencePointer = z.infer<typeof WitanEvidencePointerSchema>;
+export type WitanFinding = z.infer<typeof WitanFindingSchema>;
+export type WitanCriterionMetric = z.infer<typeof WitanCriterionMetricSchema>;
+export type WitanCriterionSignal = z.infer<typeof WitanCriterionSignalSchema>;
+export type WitanCriterionSignalPayload = z.input<typeof WitanCriterionSignalSchema>;
+export type WitanRepoRef = z.infer<typeof WitanRepoRefSchema>;
+export type WitanReportInput = z.infer<typeof WitanReportInputSchema>;
+export type WitanReportInputPayload = z.input<typeof WitanReportInputSchema>;
+export type WitanCriterionScore = z.infer<typeof WitanCriterionScoreSchema>;
+export type WitanReport = z.infer<typeof WitanReportSchema>;
+export type WitanInputSignalFinding = z.infer<typeof WitanInputSignalFindingSchema>;
+export type WitanInputSignal = z.infer<typeof WitanInputSignalSchema>;
+export type WitanConsumedSignalSummary = z.infer<typeof WitanConsumedSignalSummarySchema>;

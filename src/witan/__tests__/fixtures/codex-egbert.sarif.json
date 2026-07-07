@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [{ "id": "session-invalidation.ops-session" }, { "id": "ssrf.web-push" }]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "session-invalidation.ops-session",
+          "level": "warning",
+          "message": {
+            "text": "Stale or revoked ops sessions retain release and auto-learning read access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "egbert_core/api/routes/ops_release.py" },
+                "region": { "startLine": 45 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "ssrf.web-push",
+          "level": "error",
+          "message": {
+            "text": "Web push endpoint accepts an attacker-controlled URL and issues a server-side fetch."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "egbert_core/api/routes/notifications.py" },
+                "region": { "startLine": 88 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.0.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm test
+
+      - name: Self-certify (dogfood)
+        run: node dist/index.js .
+
+      - name: Upload trust certificate
+        uses: actions/upload-artifact@v4
+        with:
+          name: cejel-certificate
+          path: .cejel/

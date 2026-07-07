@@ -1,0 +1,54 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "version": "1.0.0"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "sql-injection",
+          "level": "error",
+          "message": { "text": "User input passed directly to SQL query." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/db/query.ts" },
+                "region": { "startLine": 42 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "hardcoded-secret",
+          "level": "error",
+          "message": { "text": "Hardcoded API key detected in source." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/config.ts" },
+                "region": { "startLine": 8 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "cve-2024-9999",
+          "level": "warning",
+          "message": { "text": "Dependency has a known critical CVE." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "package.json" }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

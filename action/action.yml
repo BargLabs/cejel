@@ -1,0 +1,69 @@
+name: 'Cejel Trust Check'
+description: >-
+  Score this repository's engineering-trust signals with Cejel (tests, secrets, isolation,
+  claim-vs-reality, CI discipline; free, offline, no signup) and post the result to the job
+  summary. Intended for push/pull_request workflows only.
+author: 'Barg Labs Studios'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  repo-path:
+    description: 'Path to the repository to score. Defaults to $GITHUB_WORKSPACE (the checkout).'
+    required: false
+    default: ''
+  min-score:
+    description: >-
+      Optional minimum overall score (0-4). Fails this step if the scored repo is below
+      the threshold. Leave empty to never fail the check.
+    required: false
+    default: ''
+  out-dir:
+    description: 'Directory to write the JSON report, HTML certificate, and badge artifacts.'
+    required: false
+    default: '.cejel'
+
+outputs:
+  score:
+    description: 'Overall Cejel trust score (0.0-4.0).'
+    value: ${{ steps.witan-run.outputs.score }}
+  verdict:
+    description: 'Verdict label (Verified / Conditional / At risk / Unverified).'
+    value: ${{ steps.witan-run.outputs.verdict }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v6
+      with:
+        version: 9.0.0
+
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd "$(dirname "${{ github.action_path }}")"
+        pnpm install --frozen-lockfile
+
+    - name: Build the Cejel CLI
+      shell: bash
+      run: |
+        cd "$(dirname "${{ github.action_path }}")"
+        pnpm run build
+
+    # Deliberately does NOT cd into this action's own checkout — repo-path/out-dir stay
+    # relative to the CALLING workflow's own workspace (the repo being scored).
+    - name: Run Cejel (offline scoring — no network calls, no signup)
+      id: witan-run
+      shell: bash
+      run: node "${{ github.action_path }}/run.mjs"
+      env:
+        WITAN_REPO_PATH: ${{ inputs.repo-path }}
+        WITAN_MIN_SCORE: ${{ inputs.min-score }}
+        WITAN_OUT_DIR: ${{ inputs.out-dir }}

@@ -1,0 +1,58 @@
+{
+  "name": "cejel",
+  "version": "0.1.1",
+  "private": false,
+  "description": "Offline trust certificate for any codebase — scores tests, secrets, isolation, claim-vs-reality, and CI discipline; especially useful for AI-written code.",
+  "keywords": [
+    "trust",
+    "trust-certificate",
+    "sarif",
+    "code-quality",
+    "security",
+    "ai-generated-code",
+    "code-review",
+    "scorecard",
+    "cli",
+    "audit",
+    "aggregator",
+    "offline"
+  ],
+  "license": "AGPL-3.0-only",
+  "author": "Barg Labs",
+  "homepage": "https://github.com/BargLabs/cejel",
+  "bugs": {
+    "url": "https://github.com/BargLabs/cejel/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BargLabs/cejel.git"
+  },
+  "type": "module",
+  "bin": {
+    "cejel": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "pnpm run build",
+    "prepack": "pnpm run build",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "zod": "^3.23.0"
+  }
+}
