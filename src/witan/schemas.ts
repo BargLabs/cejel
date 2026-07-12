@@ -1,4 +1,4 @@
-// Vendored verbatim from the private source monorepo this tool was extracted from —
+// Vendored from the private source monorepo this tool was extracted from —
 // this is the entire internal-schema surface cejel imports; every other internal
 // schema (multi-tenant, workflow, billing, etc.) is intentionally NOT part of this
 // file and never ships here.
@@ -7,7 +7,13 @@ import { z } from 'zod';
 
 export const WITAN_RUBRIC_VERSION_V0 = 'witan-rubric-v0-2026-06-22';
 export const WITAN_RUBRIC_VERSION_V1 = 'witan-rubric-v1-2026-06-24';
-export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V1;
+// v2 (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12): A1's scheduled-
+// product-health-workflow sub-signal is now detected by shape (schedule trigger + test-run
+// command), never by the literal filename `bede-nightly.yml` — see
+// docs/leaderboard/RUBRIC_CHANGELOG.md for the full corpus-wide before/after delta this
+// version bump requires and carries. Scoring algorithm is unchanged from v1 (metric-based).
+export const WITAN_RUBRIC_VERSION_V2 = 'witan-rubric-v2-2026-07-12';
+export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V2;
 export const WITAN_TRADING_RUBRIC_VERSION_V0 = 'witan-trading-rubric-v0-2026-07-01';
 
 export const WITAN_CRITERION_IDS = [
@@ -24,8 +30,8 @@ export const WITAN_CRITERION_IDS = [
   'B6',
 ] as const;
 
-// Locked criterion ids for witan-trading-rubric-v0 — Egbert Lane B targets these ids directly,
-// so they may not be renamed without a new rubric version.
+// Locked criterion ids for witan-trading-rubric-v0 — downstream trading-product integrations
+// target these ids directly, so they may not be renamed without a new rubric version.
 export const WITAN_TRADING_RUBRIC_V0_CRITERION_IDS = [
   'validation-integrity',
   'calibration',
@@ -50,18 +56,26 @@ export const WitanCriterionCategorySchema = z.enum([
   'execution_trust',
   'governance_trust',
 ]);
+// 'insufficient_data' — the scorer had NO measurable signal for this criterion (a measurement
+// gap). Excluded from the composite like 'not_applicable', but surfaced distinctly so a reader
+// knows the criterion is UNMEASURED rather than inapplicable. Distinct from 'unverified', which
+// remains the fail-closed/legacy zero that IS averaged into the composite: committed
+// pre-2026-07-10 reports carry it, and the trading rubric still scores an unsupplied dimension
+// 0.0-unverified because its evidence is caller-supplied and money surfaces fail closed
+// (goal_cejel_b2_insufficient_data_not_zero_2026-07-10).
 export const WitanCriterionStatusSchema = z.enum([
   'verified',
   'info',
   'warning',
   'critical',
   'unverified',
+  'insufficient_data',
   'not_applicable',
 ]);
 export const WitanEvidenceKindSchema = z.enum([
   'artifact',
   'audit_log',
-  'bede_summary',
+  'scheduled_health_summary',
   'ci_run',
   'claim_reconciliation',
   'commit',

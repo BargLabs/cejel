@@ -40,8 +40,8 @@ function signalFor(dir: string, id: string) {
 
 // ─── 1. A4 — optional peer deps are not runtime attack surface ─────────────
 
-describe('A4 — optional peer deps (peerDependenciesMeta.optional) are excluded from the pinned-ratio denominator', () => {
-  it('a package with only optional peer deps + one pinned real dep scores full pinned-ratio credit', () => {
+describe('A4 — optional peer deps (peerDependenciesMeta.optional) are excluded from the dependency-spec denominator', () => {
+  it('a package with only optional peer deps + one pinned real dep scores full ratio credit', () => {
     const dir = makeTmpRepo();
     writeFile(
       dir,
@@ -61,11 +61,13 @@ describe('A4 — optional peer deps (peerDependenciesMeta.optional) are excluded
 
     const a4 = signalFor(dir, 'A4');
     expect(a4).not.toBeNull();
-    const pinnedRatio = a4?.metrics?.find((m) => m.name === 'pinned_dependency_ratio');
-    // Before the fix: 1 pinned out of 3 (zod + 2 unpinned peer ranges) = 0.33.
-    // After the fix: the two optional peers are excluded entirely -> 1 pinned out of 1 = full credit.
-    expect(pinnedRatio?.value).toBe(1);
-    expect(pinnedRatio?.max).toBe(1);
+    // This fixture is a library (no deploy surface), so A4 scores on library norms and the
+    // spec set surfaces as declared_version_range_ratio; the denominator-exclusion intent is
+    // unchanged. Before the fix: 3 specs in the denominator (zod + 2 optional peer ranges).
+    // After: the two optional peers are excluded entirely -> 1 spec, full credit.
+    const rangeRatio = a4?.metrics?.find((m) => m.name === 'declared_version_range_ratio');
+    expect(rangeRatio?.value).toBe(1);
+    expect(rangeRatio?.max).toBe(1);
   });
 
   it('regression: a non-optional peer dep (no peerDependenciesMeta) still counts toward the denominator', () => {
@@ -83,9 +85,11 @@ describe('A4 — optional peer deps (peerDependenciesMeta.optional) are excluded
     writeFile(dir, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
 
     const a4 = signalFor(dir, 'A4');
-    const pinnedRatio = a4?.metrics?.find((m) => m.name === 'pinned_dependency_ratio');
-    expect(pinnedRatio?.value).toBe(1);
-    expect(pinnedRatio?.max).toBe(2);
+    // Library-norm metric (see above): react ^18.0.0 is a required peer and stays in the
+    // denominator (2 specs); both specs carry a declared constraint.
+    const rangeRatio = a4?.metrics?.find((m) => m.name === 'declared_version_range_ratio');
+    expect(rangeRatio?.value).toBe(2);
+    expect(rangeRatio?.max).toBe(2);
   });
 });
 

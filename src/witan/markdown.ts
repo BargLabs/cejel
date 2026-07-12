@@ -6,6 +6,7 @@ import type {
   WitanReport,
 } from './schemas.js';
 
+import { computeMeasuredCoverage, formatCoverageSummary } from './coverage.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
@@ -22,6 +23,27 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
           `- Not applicable: ${notApplicableCriteria.map((c) => c.id).join(', ')} — substrate-specific criteria excluded from composite (N/A for external code).`,
         ]
       : [];
+  // Insufficient-data is surfaced DISTINCTLY from not-applicable: it means the scorer had no
+  // measurable signal to read (a measurement gap), not that the criterion does not apply.
+  const insufficientDataCriteria = report.criteria.filter((c) => c.status === 'insufficient_data');
+  const insufficientDataSummaryLines =
+    insufficientDataCriteria.length > 0
+      ? [
+          `- Insufficient data: ${insufficientDataCriteria.map((c) => c.id).join(', ')} — no measurable signal for the scorer to read; excluded from composite. Unmeasured, not inapplicable, and not a measured zero.`,
+        ]
+      : [];
+
+  // Measured-coverage indicator (coverage.ts): a score reflects only measured
+  // dimensions, and a reader must be able to see how many that is. Display-only.
+  const coverage = computeMeasuredCoverage(report);
+  const coverageLines = [
+    `- Measured coverage: ${formatCoverageSummary(coverage)} dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.`,
+    ...(coverage.lowConfidence
+      ? [
+          '- Low confidence: fewer than half of the dimensions behind at least one score above were measured. Low coverage — scored on few signals, less certain than the same score measured across more dimensions.',
+        ]
+      : []),
+  ];
 
   const hasSignals = (report.consumedSignals?.length ?? 0) > 0;
   const contributingSources = renderContributingSources(report.consumedSignals ?? []);
@@ -64,7 +86,9 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
     `- Code trust: ${formatScore(report.codeTrustScore)}/4.0`,
     `- Process trust: ${formatScore(report.processTrustScore)}/4.0`,
     `- Overall: ${formatScore(report.overallScore)}/4.0`,
+    ...coverageLines,
     ...naSummaryLines,
+    ...insufficientDataSummaryLines,
     ...(report.insufficientSourceReason
       ? [
           '',
@@ -104,7 +128,12 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
 }
 
 function renderCriterionRow(criterion: WitanCriterionScore, showNative: boolean): string {
-  const scoreDisplay = criterion.status === 'not_applicable' ? 'N/A' : formatScore(criterion.score);
+  const scoreDisplay =
+    criterion.status === 'not_applicable'
+      ? 'N/A'
+      : criterion.status === 'insufficient_data'
+        ? 'no data'
+        : formatScore(criterion.score);
   const nativeDisplay =
     criterion.status === 'not_applicable'
       ? 'N/A'
@@ -172,6 +201,9 @@ function renderExternalFindings(findings: readonly WitanExternalFinding[]): stri
 
 function renderCriterionMetrics(criterion: WitanCriterionScore): string {
   if (criterion.status === 'not_applicable') return 'N/A';
+  if (criterion.status === 'insufficient_data') {
+    return 'Insufficient data — no measurable signal for this criterion';
+  }
   if (criterion.metrics.length === 0) return 'No measured depth metrics supplied';
   return criterion.metrics.map(renderMetric).join('; ');
 }
@@ -191,6 +223,12 @@ function renderMetric(metric: WitanCriterionScore['metrics'][number]): string {
 function renderCriterionEvidence(criterion: WitanCriterionScore): string[] {
   if (criterion.status === 'not_applicable') {
     return [`- ${criterion.id}: N/A — ${criterion.notes ?? 'not applicable to this repo'}`];
+  }
+
+  if (criterion.status === 'insufficient_data') {
+    return [
+      `- ${criterion.id}: Insufficient data — no measurable signal supplied or collected; excluded from composite (unmeasured, not inapplicable).`,
+    ];
   }
 
   if (criterion.evidence.length === 0 && criterion.findings.length === 0) {

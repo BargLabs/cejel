@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cejel Trust Certificate - pydantic</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --steel: #16212a;
+  --surface: #1d2b35;
+  --surface-2: #273946;
+  --line: rgba(238, 244, 247, .16);
+  --text: #eef4f7;
+  --muted: #b7c5cc;
+  --teal: #2fc8a6;
+  --warn: #e7bf72;
+  --danger: #f09a8f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--steel); color: var(--text); }
+.certificate { max-width: 1120px; margin: 0 auto; padding: 44px 32px 64px; }
+.hero, .criterion, .evidence-grid article { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+.brand { color: var(--teal); font-weight: 700; display: flex; gap: 10px; align-items: center; }
+.brand-mark { border: 1px solid var(--teal); border-radius: 50%; width: 28px; height: 28px; display: inline-grid; place-items: center; }
+h1 { font-size: 42px; line-height: 1.05; margin: 18px 0; }
+h2 { margin-top: 0; }
+.meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.meta div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.score { font-size: 54px; font-weight: 800; }
+.score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
+.verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
+.subscores { color: var(--muted); }
+.criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.criteria-list { display: grid; gap: 14px; }
+.na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.na-heading { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.na-list { display: grid; gap: 8px; font-size: 13px; }
+.na-list li { margin: 0; color: var(--muted); }
+.na-id { color: var(--muted); font-weight: 700; margin-right: 6px; }
+.criterion-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.criterion-id { color: var(--teal); font-weight: 800; }
+.criterion h3 { margin: 4px 0 0; }
+.criterion-score { font-size: 30px; font-weight: 800; margin: 14px 0; }
+.status { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); }
+ul { padding-left: 18px; }
+li { margin: 8px 0; }
+li span { color: var(--muted); margin-left: 6px; }
+code { color: var(--warn); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .certificate { padding: 28px 18px 48px; }
+  .meta, .criteria-grid, .evidence-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+  <main class="certificate">
+    <header class="hero">
+      <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
+      <h1>pydantic</h1>
+      <dl class="meta">
+        <div><dt>Date</dt><dd>2026-07-12</dd></div>
+        <div><dt>Run</dt><dd>https://github.com/pydantic/pydantic @ f59e929c999e8b2efc7b12fd0bc1685c1a186be3</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v2-2026-07-12</dd></div>
+      </dl>
+      <div class="score">3.2<span>/4.0 overall</span></div>
+      <p class="verdict">Conditional</p>
+      <p class="subscores">Code 2.9 · Process 3.5</p>
+    </header>
+    <section class="criteria-grid">
+      <section>
+        <h2>Code trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.8</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>290/125 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>5/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>213/225 ratio</span></li></ul>
+          <ul><li>Detected test file <code>pydantic-core/tests/__init__.py</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/__init__.py</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/complete_schema.py:1 · sha256:67fbb9f86ee1</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/nested_schema.py:1 · sha256:5dd7f39830db</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_complete_benchmark.py:1 · sha256:93af73fdd79c</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_micro_benchmarks.py:1 · sha256:4a88116cb64c</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_nested_benchmark.py:1 · sha256:b257d008f043</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_serialization_micro.py:1 · sha256:52fce052ee06</code></li><li>Configured test runner <code>Makefile:1 · sha256:0e9d9400ee80</code></li><li>Configured test runner <code>pydantic-core/Cargo.toml:1 · sha256:e0dfda4bea74</code></li><li>Configured test runner <code>pydantic-core/Makefile:1 · sha256:4ac502de0f82</code></li><li>Coverage configuration <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></li><li>Coverage configuration <code>pydantic-core/pyproject.toml:1 · sha256:99dd772c656a</code></li><li>Coverage configuration <code>pyproject.toml:1 · sha256:8375abce73bf</code></li><li>Coverage configuration <code>tests/plugin/pyproject.toml:1 · sha256:0e61aa9ab890</code></li><li>CI workflow runs the test suite <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">3.6</div>
+          <ul><li><strong>Declared version range ratio</strong><span>28/28 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
+          <ul><li>Dependency manifest <code>pydantic-core/Cargo.toml:1 · sha256:e0dfda4bea74</code></li><li>Dependency lockfile <code>pydantic-core/Cargo.lock:1 · sha256:79e859286a1b</code></li><li>Dependency update config <code>.github/dependabot.yml:1 · sha256:62040a26dfec</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.4</div>
+          <ul><li><strong>Claim match rate</strong><span>12/20 ratio</span></li><li><strong>Claim source depth</strong><span>9/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code></li><li>Code presence for claim reconciliation <code>pydantic-core/src/argument_markers.rs:1 · sha256:71fe74ddc7fe</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code>)</li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+        </div>
+      </section>
+      <section>
+        <h2>Process trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>PR trace primitive coverage</strong><span>11/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li><li>Pull-request CI workflow <code>.github/workflows/codspeed.yml:1 · sha256:b2580cad48fe</code></li><li>Pull-request CI workflow <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></li><li>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:1fd33fa8826b</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">3.6</div>
+          <ul><li><strong>CI verification depth</strong><span>3/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>6/4 workflows</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.9</div>
+          <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>2/2 ratio</span></li></ul>
+          <ul><li>Audit or changelog artifact <code>CITATION.cff:1 · sha256:943d40f1504a</code></li><li>Audit or changelog artifact <code>HISTORY.md:1 · sha256:4ac933062dfd</code></li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">B1</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B5</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B6</span> Privileged-operation human gating — <span class="na-reason">No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.</span></li></ul>
+        </div>
+      </section>
+    </section>
+    <section class="evidence-grid" aria-label="Evidence and gaps">
+      <article>
+        <h2>Verified evidence</h2>
+        <ul><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>pydantic-core/Cargo.toml:1 · sha256:e0dfda4bea74</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>pydantic-core/Cargo.lock:1 · sha256:79e859286a1b</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/dependabot.yml:1 · sha256:62040a26dfec</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/codspeed.yml:1 · sha256:b2580cad48fe</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:1fd33fa8826b</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></span></li></ul>
+      </article>
+      <article>
+        <h2>Open / unverified</h2>
+        <ul><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code>)</span></li></ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

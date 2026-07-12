@@ -188,7 +188,7 @@ describe('ingest — discoverIngestInputs', () => {
 });
 
 // Regression coverage for the live crash (2026-07-06, goal_cejel_scan_robustness_ingest_and_bom):
-// scoring egbert with a real Semgrep SARIF threw a Zod error — "consumedSignals[1].findings[191]
+// scoring a real-world repo with a real Semgrep SARIF threw a Zod error — "consumedSignals[1].findings[191]
 // .message — String must contain at most 500 character(s)" — because one finding's message
 // exceeded WitanInputSignalFindingSchema's cap and the whole certificate failed to validate.
 describe('ingest — clamps over-long finding fields instead of failing downstream validation', () => {

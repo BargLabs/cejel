@@ -1,5 +1,6 @@
 import {
   WITAN_RUBRIC_VERSION_V1,
+  WITAN_RUBRIC_VERSION_V2,
   WITAN_TRADING_RUBRIC_VERSION_V0,
   type WitanConsumedSignalSummary,
   type WitanCriterionId,
@@ -252,11 +253,29 @@ function mergeSignalsByCriterion(
 }
 
 // Rubric versions whose criteria carry weighted metrics as the primary signal (rather than
-// only positive-evidence/findings counts) — see the metric-scoring fallthrough below.
+// only positive-evidence/findings counts) — see the metric-scoring fallthrough below. v2
+// (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12) changed A1's
+// scheduled-workflow sub-signal detection, not the scoring algorithm, so it stays on the
+// same metric-based path as v1.
 function usesMetricScoring(rubricVersion: string): boolean {
   return (
-    rubricVersion === WITAN_RUBRIC_VERSION_V1 || rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
+    rubricVersion === WITAN_RUBRIC_VERSION_V1 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V2 ||
+    rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
+}
+
+// Status for a criterion the scorer has NO measurable signal for (no evidence, no findings,
+// no depth metrics — nothing to read). For the repo-scan rubrics this is a MEASUREMENT GAP,
+// not a measured zero: it maps to 'insufficient_data' and averageScore excludes it from the
+// composite (like not_applicable), so a repo the scorer cannot get e.g. PR-outcome data for
+// is scored on its measurable signals instead of tanked by an unmeasured 0.0
+// (goal_cejel_b2_insufficient_data_not_zero_2026-07-10). The trading rubric is the deliberate
+// exception: its evidence is CALLER-supplied (trading-product integrations target the locked
+// criterion ids directly), so an unsupplied dimension there is a fail-closed trust failure on
+// a money surface — it stays a punitive 0.0-unverified that IS averaged in.
+function unmeasuredStatus(rubricVersion: string): WitanCriterionStatus {
+  return rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0 ? 'unverified' : 'insufficient_data';
 }
 
 function scoreCriterion(
@@ -272,7 +291,7 @@ function scoreCriterion(
   if (!signal) {
     return {
       score: 0,
-      status: 'unverified',
+      status: unmeasuredStatus(rubricVersion),
       evidence: [],
       findings: [],
       metrics: [],
@@ -297,14 +316,14 @@ function scoreCriterion(
   if (evidenceCount === 0) {
     // FIX 2: In v1 rubric, metrics ARE the primary signal. If the collector emitted metrics
     // (meaning it determined the repo has a ratable surface and ran the full scan), fall
-    // through to metric scoring rather than short-circuiting to 0.0-unverified. This ensures
-    // a ratable-surface repo that produced no positive evidence scores at its honest metric
-    // floor (~2.8 via secret_cleanliness) rather than 0.0-unverified.
-    // Reserve unverified only for "no metrics, could not analyze".
+    // through to metric scoring rather than short-circuiting to a 0.0 no-data status. This
+    // ensures a ratable-surface repo that produced no positive evidence scores at its honest
+    // metric floor (~2.8 via secret_cleanliness) rather than 0.0.
+    // Reserve the unmeasured status only for "no metrics, could not analyze".
     if (!usesMetricScoring(rubricVersion) || metrics.length === 0) {
       return {
         score: 0,
-        status: 'unverified',
+        status: unmeasuredStatus(rubricVersion),
         evidence,
         findings,
         metrics,
@@ -449,7 +468,14 @@ function ensureFindingsExplainStatus(
 }
 
 function averageScore(criteria: readonly WitanCriterionScore[]): number {
-  const applicable = criteria.filter((criterion) => criterion.status !== 'not_applicable');
+  // 'insufficient_data' (a measurement gap — nothing to read) is excluded from the composite
+  // exactly like 'not_applicable'. 'unverified' stays INCLUDED at 0: it is the deliberate
+  // fail-closed zero for the caller-supplied trading rubric, and the legacy value carried by
+  // pre-2026-07-10 committed reports — see unmeasuredStatus above.
+  const applicable = criteria.filter(
+    (criterion) =>
+      criterion.status !== 'not_applicable' && criterion.status !== 'insufficient_data',
+  );
   if (applicable.length === 0) return 0;
   const total = applicable.reduce((sum, criterion) => sum + criterion.score, 0);
   return roundScore(total / applicable.length);

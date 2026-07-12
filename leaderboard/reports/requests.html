@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cejel Trust Certificate - requests</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --steel: #16212a;
+  --surface: #1d2b35;
+  --surface-2: #273946;
+  --line: rgba(238, 244, 247, .16);
+  --text: #eef4f7;
+  --muted: #b7c5cc;
+  --teal: #2fc8a6;
+  --warn: #e7bf72;
+  --danger: #f09a8f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--steel); color: var(--text); }
+.certificate { max-width: 1120px; margin: 0 auto; padding: 44px 32px 64px; }
+.hero, .criterion, .evidence-grid article { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+.brand { color: var(--teal); font-weight: 700; display: flex; gap: 10px; align-items: center; }
+.brand-mark { border: 1px solid var(--teal); border-radius: 50%; width: 28px; height: 28px; display: inline-grid; place-items: center; }
+h1 { font-size: 42px; line-height: 1.05; margin: 18px 0; }
+h2 { margin-top: 0; }
+.meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.meta div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.score { font-size: 54px; font-weight: 800; }
+.score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
+.verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
+.subscores { color: var(--muted); }
+.criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.criteria-list { display: grid; gap: 14px; }
+.na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.na-heading { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.na-list { display: grid; gap: 8px; font-size: 13px; }
+.na-list li { margin: 0; color: var(--muted); }
+.na-id { color: var(--muted); font-weight: 700; margin-right: 6px; }
+.criterion-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.criterion-id { color: var(--teal); font-weight: 800; }
+.criterion h3 { margin: 4px 0 0; }
+.criterion-score { font-size: 30px; font-weight: 800; margin: 14px 0; }
+.status { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); }
+ul { padding-left: 18px; }
+li { margin: 8px 0; }
+li span { color: var(--muted); margin-left: 6px; }
+code { color: var(--warn); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .certificate { padding: 28px 18px 48px; }
+  .meta, .criteria-grid, .evidence-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+  <main class="certificate">
+    <header class="hero">
+      <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
+      <h1>requests</h1>
+      <dl class="meta">
+        <div><dt>Date</dt><dd>2026-07-12</dd></div>
+        <div><dt>Run</dt><dd>https://github.com/psf/requests @ f361ead047be5cb873174218582f7d8b9fcd9f49</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v2-2026-07-12</dd></div>
+      </dl>
+      <div class="score">2.9<span>/4.0 overall</span></div>
+      <p class="verdict">Conditional</p>
+      <p class="subscores">Code 2.4 · Process 3.4</p>
+    </header>
+    <section class="criteria-grid">
+      <section>
+        <h2>Code trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.5</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>15/19 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>7/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>8/9 ratio</span></li></ul>
+          <ul><li>Detected test file <code>tests/__init__.py:1 · sha256:ac7f253daae0</code></li><li>Detected test file <code>tests/compat.py:1 · sha256:d58ff5e3167d</code></li><li>Detected test file <code>tests/conftest.py:1 · sha256:6d65ffb58251</code></li><li>Detected test file <code>tests/test_adapters.py:1 · sha256:102494aa704f</code></li><li>Detected test file <code>tests/test_help.py:1 · sha256:1c2ac8ca9f49</code></li><li>Detected test file <code>tests/test_hooks.py:1 · sha256:a9e5163f5385</code></li><li>Detected test file <code>tests/test_lowlevel.py:1 · sha256:db5fac7340c4</code></li><li>Detected test file <code>tests/test_packages.py:1 · sha256:90875423db05</code></li><li>Configured test runner <code>Makefile:1 · sha256:c31f5628de71</code></li><li>Configured test runner <code>docs/Makefile:1 · sha256:b7a917ab8a0f</code></li><li>Configured test runner <code>tests/certs/expired/Makefile:1 · sha256:a33636d6474f</code></li><li>Configured test runner <code>tests/certs/expired/ca/Makefile:1 · sha256:09ab0ff83129</code></li><li>Configured test runner <code>tests/certs/expired/server/Makefile:1 · sha256:1c8cf9d72554</code></li><li>Configured test runner <code>tests/certs/mtls/Makefile:1 · sha256:aa1f5be6bde4</code></li><li>Coverage configuration <code>.coveragerc:1 · sha256:8ac66b930282</code></li><li>Coverage configuration <code>pyproject.toml:1 · sha256:345f26b9f691</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.6</div>
+          <ul><li><strong>Declared version range ratio</strong><span>8/12 ratio</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
+          <ul><li>Dependency manifest <code>requirements-dev.txt:1 · sha256:aed8622c9a3d</code></li><li>Dependency update config <code>.github/dependabot.yml:1 · sha256:d2c9890d77ab</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.2</div>
+          <ul><li><strong>Claim match rate</strong><span>12/13 ratio</span></li><li><strong>Claim source depth</strong><span>1/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:2a9268c9be5f</code></li><li>Code presence for claim reconciliation <code>src/requests/__init__.py:1 · sha256:80534322a1a3</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:2a9268c9be5f</code>)</li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+        </div>
+      </section>
+      <section>
+        <h2>Process trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>PR trace primitive coverage</strong><span>9/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/close-issues.yml:1 · sha256:3f9ea1ad83af</code></li><li>Pull-request CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:50b45a295fad</code></li><li>Pull-request CI workflow <code>.github/workflows/lint.yml:1 · sha256:0cb480c5b85a</code></li><li>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:1231f289a3ee</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.7</div>
+          <ul><li><strong>CI verification depth</strong><span>1/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>5/4 workflows</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/close-issues.yml:1 · sha256:3f9ea1ad83af</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.9</div>
+          <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>2/2 ratio</span></li></ul>
+          <ul><li>Audit or changelog artifact <code>.github/SECURITY.md:1 · sha256:4d8f1a61f94c</code></li><li>Audit or changelog artifact <code>HISTORY.md:1 · sha256:f779ef32bdb0</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>1/1 present</span></li></ul>
+          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:1231f289a3ee</code></li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">B1</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B5</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li></ul>
+        </div>
+      </section>
+    </section>
+    <section class="evidence-grid" aria-label="Evidence and gaps">
+      <article>
+        <h2>Verified evidence</h2>
+        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/close-issues.yml:1 · sha256:3f9ea1ad83af</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:50b45a295fad</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/lint.yml:1 · sha256:0cb480c5b85a</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:1231f289a3ee</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:1231f289a3ee</code></span></li></ul>
+      </article>
+      <article>
+        <h2>Open / unverified</h2>
+        <ul><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:2a9268c9be5f</code>)</span></li></ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

@@ -6,20 +6,20 @@
       "tool": {
         "driver": {
           "name": "Codex Security",
-          "rules": [{ "id": "session-invalidation.ops-session" }, { "id": "ssrf.web-push" }]
+          "rules": [{ "id": "session-invalidation.admin-session" }, { "id": "ssrf.web-push" }]
         }
       },
       "results": [
         {
-          "ruleId": "session-invalidation.ops-session",
+          "ruleId": "session-invalidation.admin-session",
           "level": "warning",
           "message": {
-            "text": "Stale or revoked ops sessions retain release and auto-learning read access."
+            "text": "Stale or revoked admin sessions retain privileged read access."
           },
           "locations": [
             {
               "physicalLocation": {
-                "artifactLocation": { "uri": "egbert_core/api/routes/ops_release.py" },
+                "artifactLocation": { "uri": "server/api/routes/admin_release.py" },
                 "region": { "startLine": 45 }
               }
             }
@@ -34,7 +34,7 @@
           "locations": [
             {
               "physicalLocation": {
-                "artifactLocation": { "uri": "egbert_core/api/routes/notifications.py" },
+                "artifactLocation": { "uri": "server/api/routes/notifications.py" },
                 "region": { "startLine": 88 }
               }
             }

@@ -15,6 +15,15 @@ import type {
 
 import { stripBom } from './json-safe.js';
 
+// Additive domain-signal extension point (goal_cejel_public_extraction_ip_scrub_2026-07-10):
+// a collector appends one extra criterion signal computed from the same repo file inventory.
+// This generic seam is what keeps domain-specific rule packs out of this general scanner
+// entirely — a pack plugs in at the call site instead of being imported here.
+export type WitanDomainSignalCollector = (
+  repoPath: string,
+  repoFiles: readonly string[],
+) => WitanCriterionSignalPayload;
+
 export interface BuildWitanInputOptions {
   productSlug: string;
   productDisplayName: string;
@@ -22,6 +31,11 @@ export interface BuildWitanInputOptions {
   rubricVersion?: string;
   generatedAt?: string;
   additionalSignals?: readonly WitanCriterionSignal[];
+  // Additive domain-profile opt-in. Never set automatically — collectRepoSignals' default
+  // A1-B6 pass is unaffected either way. Each collector appends its own native signal; the
+  // caller is responsible for also scoring against a rubric that includes the collector's
+  // criterion so the extra signal actually surfaces in the report.
+  domainCollectors?: readonly WitanDomainSignalCollector[];
 }
 
 export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanReportInputPayload {
@@ -46,6 +60,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       : {}),
     signals: [
       ...collectRepoSignals(options.repoPath, generatedAt, repoFiles),
+      ...(options.domainCollectors ?? []).map((collect) => collect(options.repoPath, repoFiles)),
       ...(options.additionalSignals ?? []),
     ],
   };
@@ -160,7 +175,9 @@ function assertRepoPathExists(repoPath: string): void {
   }
 }
 
-function buildNotApplicableSignal(
+// Exported (along with isRegularFile/fileContains/evidenceForRelative below) as the small
+// generic toolkit a WitanDomainSignalCollector implementation builds on.
+export function buildNotApplicableSignal(
   criterionId: WitanCriterionSignalPayload['criterionId'],
   reason: string,
 ): WitanCriterionSignalPayload {
@@ -198,9 +215,15 @@ function collectRepoSignals(
   // runbooks/incident/security notes) via collectB4AuditEvidence — this is NOT
   // substrate-specific, so it runs on external code too (found 2026-06-30: external
   // repos with a real SECURITY.md/CHANGELOG were being blanket-N/A'd). When a repo has
-  // zero audit artifacts the collector returns an explicit not_applicable signal (a bare
-  // `null` here would score 0.0-unverified and get averaged in — see scoreCriterion in
-  // scoring.ts, goal_cejel_calibration_fix_with_strict_gate_2026-07-06).
+  // zero audit artifacts the collector returns an explicit not_applicable signal — that is
+  // the honest state (no audit surface exists), distinct from a bare `null`, which
+  // scoreCriterion now maps to insufficient_data (a measurement gap; also excluded from the
+  // composite, but surfaced as unmeasured — see unmeasuredStatus in scoring.ts,
+  // goal_cejel_b2_insufficient_data_not_zero_2026-07-10). The same not_applicable gate also
+  // fires when the ONLY audit artifact present is a static security-policy document (e.g. a
+  // lone SECURITY.md) — that is a disclosure notice, not an audit trail, and has no
+  // freshness to rate (goal_cejel_b4_archetype_gate_2026-07-11; see
+  // isFreshnessRatableAuditFile below).
   // Substrate repos hit the exact same collector, so their B4 score is unchanged.
   // The Alfred-only "report-up completeness" half is not yet a distinct signal; when it
   // is added, gate ONLY that half to substrate repos — never the generic audit-trail half.
@@ -307,19 +330,49 @@ function collectA1TestIntegrityEvidence(
     );
   }
 
-  const bedeWorkflow = ' .github/workflows/bede-nightly.yml'.trim();
-  if (repoFiles.includes(bedeWorkflow)) {
-    findings.push({
-      severity: 'warning',
-      summary:
-        'Bede workflow config exists, but no latest Bede product health summary was supplied.',
-      evidence: evidenceForRelative(
-        repoPath,
-        bedeWorkflow,
-        'bede_summary',
-        'Bede nightly workflow',
-      ),
-    });
+  // Generalized scheduled-health-workflow sub-signal (see the constants above).
+  // Not applicable when no such workflow exists (nothing to rate); a workflow whose
+  // publication status cannot be determined contributes nothing (insufficient_data —
+  // never a warning); only a workflow that demonstrably exists AND demonstrably hands
+  // its result to nothing but an ephemeral CI artifact earns the warning.
+  const scheduledHealthWorkflow = ciWorkflows.find(
+    (file) =>
+      fileContains(repoPath, file, SCHEDULE_TRIGGER_PATTERN) &&
+      fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN),
+  );
+  if (scheduledHealthWorkflow) {
+    const isPublished = fileContains(
+      repoPath,
+      scheduledHealthWorkflow,
+      PUBLISHED_RESULT_MARKER_PATTERN,
+    );
+    const isEphemeralOnly =
+      !isPublished &&
+      fileContains(repoPath, scheduledHealthWorkflow, EPHEMERAL_ARTIFACT_ONLY_PATTERN);
+    if (isPublished) {
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          scheduledHealthWorkflow,
+          'scheduled_health_summary',
+          'Scheduled product-health workflow with durably published results',
+        ),
+      );
+    } else if (isEphemeralOnly) {
+      findings.push({
+        severity: 'warning',
+        summary:
+          'A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record.',
+        evidence: evidenceForRelative(
+          repoPath,
+          scheduledHealthWorkflow,
+          'scheduled_health_summary',
+          'Scheduled product-health workflow',
+        ),
+      });
+    }
+    // Else: publication status is undeterminable from a static file-tree read —
+    // insufficient_data for this sub-signal, contributing neither evidence nor a finding.
   }
 
   if (evidence.length === 0 && findings.length === 0) return null;
@@ -356,6 +409,8 @@ function collectA1TestIntegrityEvidence(
       });
     }
   }
+
+  const nonHollowShare = measureNonHollowTestShare(repoPath, allTestFiles);
 
   return {
     criterionId: 'A1',
@@ -394,11 +449,11 @@ function collectA1TestIntegrityEvidence(
       metric(
         'non_hollow_test_share',
         'Non-hollow test share',
-        countNonHollowTestFiles(repoPath, allTestFiles),
-        Math.max(allTestFiles.length, 1),
+        nonHollowShare.nonHollowCount,
+        Math.max(nonHollowShare.ratedCount, 1),
         0.15,
         'ratio',
-        'Penalizes skipped or placeholder-only test files.',
+        'Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator.',
       ),
     ],
     notes:
@@ -1024,8 +1079,20 @@ function collectA4DependencyEvidence(
   }
 
   if (!manifest && !hasLockfile) return null;
-  if (!hasLockfile && manifest) {
-    // No lockfile means installs are non-reproducible — a genuine supply-chain risk.
+
+  // Library-vs-app dependency calibration (goal_cejel_rubric_calibration_archetype_2026-07-10).
+  // Reuses A3's archetype line (isDeployableService — the same detector behind A3's
+  // "not applicable to this library/CLI archetype"): an APP/SERVICE must pin its dependency
+  // tree (lockfile + pins = reproducible deploys), but a LIBRARY/CLI correctly declares
+  // VERSION RANGES and typically does NOT commit a lockfile — consumers resolve their own
+  // trees. Scoring library manifests against app expectations flagged correct library
+  // behavior as CRITICAL (Django A4 1.4: "1/13 pinned, no lockfile").
+  const isAppOrService = isDeployableService(repoPath, repoFiles);
+
+  if (isAppOrService && !hasLockfile && manifest) {
+    // No lockfile means installs are non-reproducible — a genuine supply-chain risk for a
+    // deployed app/service. Deliberately NOT loosened: only the library/CLI archetype is
+    // exempt from this finding.
     findings.push({
       severity: 'critical',
       summary:
@@ -1047,42 +1114,120 @@ function collectA4DependencyEvidence(
     });
   }
 
+  const automationMetric = metric(
+    'dependency_automation_ratio',
+    'Dependency automation ratio',
+    (hasUpdateConfig ? 1 : 0) + (auditConfig ? 1 : 0),
+    2,
+    0.25,
+    'ratio',
+    'Credits automated dependency updates and package-manager audit hooks.',
+  );
+
+  // APP/SERVICE norms: pinned versions + a lockfile are the reproducibility guarantee for a
+  // deployed artifact. Unchanged from the pre-archetype scoring so the app case is not loosened.
+  const appMetrics: WitanCriterionMetric[] = [
+    metric(
+      'pinned_dependency_ratio',
+      'Pinned dependency ratio',
+      pinnedDependencyCount,
+      Math.max(dependencySpecs.length, 1),
+      0.3,
+      'ratio',
+      // Reduced weight: semver ranges in manifests are normal when a lockfile fixes exact versions.
+      'Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee.',
+    ),
+    metric(
+      'lockfile_coverage',
+      'Lockfile coverage',
+      hasLockfile ? 1 : 0,
+      1,
+      0.45,
+      'present',
+      // Presence-based (not ratio) so a single root lockfile covering a monorepo workspace scores full credit.
+      'Credits presence of at least one lockfile; one root lockfile covering a monorepo is sufficient.',
+    ),
+    automationMetric,
+  ];
+
+  // LIBRARY/CLI norms: ranges are correct, a lockfile is optional. Score on the signals that
+  // ARE library-appropriate: every dependency carries an explicit version constraint (range or
+  // pin), a committed lockfile is credited when present but never required, update automation,
+  // and a sane direct-dependency count. Known-vuln/abandoned-dependency checks need network
+  // data this offline scan does not have — they are intentionally absent, not scored 0.
+  const constrainedDependencyCount = dependencySpecs.filter(hasDeclaredVersionConstraint).length;
+  const libraryMetrics: WitanCriterionMetric[] = [
+    metric(
+      'declared_version_range_ratio',
+      'Declared version range ratio',
+      constrainedDependencyCount,
+      Math.max(dependencySpecs.length, 1),
+      0.5,
+      'ratio',
+      'Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here.',
+    ),
+    ...(hasLockfile
+      ? [
+          metric(
+            'lockfile_coverage',
+            'Lockfile coverage',
+            1,
+            1,
+            0.3,
+            'present',
+            'Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees.',
+          ),
+        ]
+      : []),
+    automationMetric,
+    metric(
+      'dependency_count_sanity',
+      'Dependency count sanity',
+      libraryDependencyCountSanity(dependencySpecs.length),
+      1,
+      0.1,
+      'sane',
+      `Credits a sane direct-dependency count for a library (full credit up to ${LIBRARY_DEPENDENCY_COUNT_SANE_MAX} declared specs across manifests, declining beyond).`,
+    ),
+  ];
+
   return {
     criterionId: 'A4',
     positiveEvidence: evidence,
     findings,
-    metrics: [
-      metric(
-        'pinned_dependency_ratio',
-        'Pinned dependency ratio',
-        pinnedDependencyCount,
-        Math.max(dependencySpecs.length, 1),
-        0.3,
-        'ratio',
-        // Reduced weight: semver ranges in manifests are normal when a lockfile fixes exact versions.
-        'Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee.',
-      ),
-      metric(
-        'lockfile_coverage',
-        'Lockfile coverage',
-        hasLockfile ? 1 : 0,
-        1,
-        0.45,
-        'present',
-        // Presence-based (not ratio) so a single root lockfile covering a monorepo workspace scores full credit.
-        'Credits presence of at least one lockfile; one root lockfile covering a monorepo is sufficient.',
-      ),
-      metric(
-        'dependency_automation_ratio',
-        'Dependency automation ratio',
-        (hasUpdateConfig ? 1 : 0) + (auditConfig ? 1 : 0),
-        2,
-        0.25,
-        'ratio',
-        'Credits automated dependency updates and package-manager audit hooks.',
-      ),
-    ],
+    metrics: isAppOrService ? appMetrics : libraryMetrics,
+    notes: isAppOrService
+      ? 'A4 scored against app/service norms (deploy surface detected): pinned dependencies and a lockfile are required for reproducible installs.'
+      : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
+}
+
+// Full credit up to this many declared dependency specs (aggregated across all manifests,
+// runtime + dev); beyond it the sanity credit declines linearly. Deliberately generous so a
+// monorepo aggregating many workspace manifests is not meaningfully penalized (the metric
+// carries 0.1 weight — a nudge against pathological dependency sprawl, not a hard gate).
+const LIBRARY_DEPENDENCY_COUNT_SANE_MAX = 120;
+
+function libraryDependencyCountSanity(specCount: number): number {
+  if (specCount <= LIBRARY_DEPENDENCY_COUNT_SANE_MAX) return 1;
+  return Math.max(0, 1 - (specCount - LIBRARY_DEPENDENCY_COUNT_SANE_MAX) / 240);
+}
+
+// Library norm for a declared dependency: ANY explicit version constraint counts — an exact
+// pin, a semver/PEP-440 range (^, ~, >=, <, !=, ~=), a bare numeric version (Cargo "1.2" means
+// ^1.2), or a go.mod exact version (v1.2.3). Only a constraint-free spec (bare name, *, latest)
+// misses: it gives consumers no compatibility contract at all.
+function hasDeclaredVersionConstraint(dependency: DependencySpec): boolean {
+  if (isPinnedDependencyVersion(dependency.version)) return true;
+  const trimmed = dependency.version.trim();
+  if (trimmed.length === 0) return false;
+  if (/^(latest|\*|x)$/i.test(trimmed)) return false;
+  // CMake find_package without a version: system-managed, no declared constraint.
+  if (trimmed === 'find') return false;
+  // Range operator anywhere in the spec (requirements.txt specs keep the full line here).
+  if (/[~^<>=!]/.test(trimmed)) return true;
+  // go.mod exact versions ("v1.2.3") and bare numeric versions (Cargo "1.2" = ^1.2).
+  return /^v?\d/.test(trimmed);
 }
 
 function collectA5ClaimRealityEvidence(
@@ -1135,8 +1280,10 @@ function collectA5ClaimRealityEvidence(
     repoFiles.find((file) => /(^|\/)docs\/.*\.(md|mdx)$/.test(file));
   // A repo with no README/docs has nothing to claim, so nothing to contradict — N/A (like
   // B1/B5), not a scored 0 (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3 H2).
-  // The prior `return null` fell through to scoreCriterion's `!signal` branch, which scores
-  // 'unverified' at 0 and — unlike not_applicable — that IS counted in the category average.
+  // (Historical: the prior `return null` fell through to scoreCriterion's `!signal` branch,
+  // which then scored 'unverified' at 0 INSIDE the category average; a null now maps to
+  // insufficient_data, excluded — but explicit N/A remains the honest state here, since
+  // "nothing is claimed" is inapplicability, not a measurement gap.)
   if (!claimDoc) {
     return buildNotApplicableSignal(
       'A5',
@@ -1413,20 +1560,44 @@ function collectB4AuditEvidence(
   generatedAt: string,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
-  for (const file of repoFiles.filter(isAuditFile).slice(0, 5)) {
+  const auditFiles = repoFiles.filter(isAuditFile);
+  for (const file of auditFiles.slice(0, 5)) {
     evidence.push(evidenceForRelative(repoPath, file, 'audit_log', 'Audit or changelog artifact'));
   }
   if (evidence.length === 0) {
-    // FIX (goal_cejel_calibration_fix_with_strict_gate_2026-07-06): a `null` signal scores
-    // 0.0-unverified and is INCLUDED in the process-trust average (see averageScore in
-    // scoring.ts, which only excludes status 'not_applicable') — it does not "fall to
-    // implicit N/A" despite the comment above claiming so. A repo with zero recognized
-    // audit-trail artifacts genuinely has nothing to measure here; be honest and exclude the
-    // dimension rather than silently zeroing it into the average.
+    // FIX (goal_cejel_calibration_fix_with_strict_gate_2026-07-06): originally a `null`
+    // signal scored 0.0-unverified INSIDE the process-trust average, so this returns an
+    // explicit not_applicable instead. A null now maps to insufficient_data (also excluded
+    // — goal_cejel_b2_insufficient_data_not_zero_2026-07-10), but N/A stays correct here:
+    // a repo with zero recognized audit-trail artifacts has no audit surface at all
+    // (inapplicable), which is a different honest state than "had a surface, no data".
     return buildNotApplicableSignal(
       'B4',
       'No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ ' +
         'release-notes/runbook/provenance file) — B4 not applicable to this repo.',
+    );
+  }
+  // FIX (goal_cejel_b4_archetype_gate_2026-07-11): a security-policy file (SECURITY.md and
+  // its docs/*security* equivalent) is a static disclosure document, not a changelog/audit
+  // trail — it carries no expectation of being kept "fresh" the way a CHANGELOG or AUDIT log
+  // does. A repo whose ONLY audit-trail artifact is a security policy (e.g. ossf/scorecard,
+  // which publishes release notes via GitHub Releases rather than a committed CHANGELOG) has
+  // no surface B4 can actually rate: scoring audit_artifact_depth/audit_freshness_depth
+  // against a lone SECURITY.md produced a false CRITICAL on Google's own supply-chain
+  // auditing tool. Same archetype-aware N/A pattern as A2 (data-layer/secrets surface) and
+  // A3 (deploy surface) above — reused, not reinvented. Where a genuine changelog/audit-log/
+  // status/provenance artifact exists alongside (or instead of) the security policy, this
+  // gate does not fire and B4 scores exactly as it always has (a stale/absent CHANGELOG is
+  // still penalised — this narrows WHEN B4 applies, never HOW HARSHLY it scores).
+  const freshnessRatableFiles = auditFiles.filter(isFreshnessRatableAuditFile);
+  if (freshnessRatableFiles.length === 0) {
+    return buildNotApplicableSignal(
+      'B4',
+      'Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed ' +
+        'CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to ' +
+        'rate for an audit trail. The project may publish release history outside the ' +
+        'repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded ' +
+        'rather than scored.',
     );
   }
   // Run-year, not a literal — a hardcoded year is a time bomb (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3 H3).
@@ -1444,7 +1615,7 @@ function collectB4AuditEvidence(
       metric(
         'audit_artifact_depth',
         'Audit artifact depth',
-        repoFiles.filter(isAuditFile).length,
+        auditFiles.length,
         3,
         0.8,
         'files',
@@ -1458,8 +1629,8 @@ function collectB4AuditEvidence(
       metric(
         'audit_freshness_depth',
         'Audit freshness depth',
-        countFilesContaining(repoPath, repoFiles.filter(isAuditFile), freshnessPattern),
-        Math.max(repoFiles.filter(isAuditFile).length, 1),
+        countFilesContaining(repoPath, auditFiles, freshnessPattern),
+        Math.max(auditFiles.length, 1),
         0.2,
         'ratio',
         'Credits audit artifacts that carry freshness/current-state markers.',
@@ -1715,6 +1886,27 @@ const CI_TEST_COMMAND_PATTERN =
 // key to credit) is recognized the same as a Node repo with npm "lint"/"typecheck" scripts.
 const CI_LINT_COMMAND_PATTERN = /\b(eslint|pylint|flake8|black|ruff)\b/i;
 const CI_TYPECHECK_COMMAND_PATTERN = /\b(tsc|mypy|pyright)\b/i;
+
+// ---- Scheduled product-health workflow (generalized A1 sub-signal) -----------
+//
+// The concept, detected by SHAPE, never by filename: does this repository run a
+// cron-scheduled workflow that exercises its verification suite, and are that
+// workflow's results durably published somewhere a reader could actually check —
+// or only handed to an ephemeral, access-gated CI artifact? This repository's own
+// `.github/workflows/bede-nightly.yml` is one recognized instance of the shape
+// (schedule trigger + `pnpm test` + `actions/upload-artifact`, no durable publish
+// step) — a differently-named nightly workflow with the same shape is detected
+// identically, and a repo whose nightly workflow is named "bede-nightly.yml" but
+// lacks the shape (no schedule trigger, no test-run command) is not flagged at all
+// (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12).
+const SCHEDULE_TRIGGER_PATTERN = /(^|\n)\s*schedule:\s*\r?\n\s*-\s*cron:/;
+// Durable-publication markers: the workflow visibly does more than hand its result
+// to an ephemeral, access-gated CI artifact — it pushes a persisted, checkable
+// record (a public pages deploy, a commit back to the repo, a PR/issue comment).
+const PUBLISHED_RESULT_MARKER_PATTERN =
+  /actions\/deploy-pages|actions\/upload-pages-artifact|peaceiris\/actions-gh-pages|git\s+push\b|create-or-update-comment/i;
+const EPHEMERAL_ARTIFACT_ONLY_PATTERN = /actions\/upload-artifact/i;
+
 const RLS_PATTERN = /row level security|enable rls|create policy|tenant[_-]?id|studio[_-]?id/i;
 // DB client imports across JS/TS, Python, Go, Rust, Ruby, Java, PHP.
 const DB_CLIENT_PATTERN =
@@ -2062,19 +2254,67 @@ function isCppHeader(file: string): boolean {
   return /\.(h|hpp|hxx|h\+\+)$/.test(file);
 }
 
-function countNonHollowTestFiles(repoPath: string, files: readonly string[]): number {
-  return files.filter((file) => {
+// JS/TS assertion idioms (jest/vitest/mocha/chai/node:assert).
+const JS_TEST_ASSERTION_PATTERN = /(expect\(|assert\.|should\.|toEqual\(|toBe\(|assert\s)/;
+// C++ assertion and test-macro patterns (gtest, catch2, doctest, boost.test).
+const CPP_TEST_ASSERTION_PATTERN =
+  /\bEXPECT_|ASSERT_EQ\b|ASSERT_TRUE\b|ASSERT_FALSE\b|\bREQUIRE\s*\(|\bCHECK\s*\(|\bTEST\s*\(|\bTEST_F\s*\(|\bTEST_CASE\s*\(|\bSECTION\s*\(/;
+// Assertion idioms for the remaining major ecosystems. The pre-2026-07-10 heuristic knew only
+// the JS/TS and C++ shapes above, so a mature Python unittest suite — self.assertEqual(...) et
+// al, no bare `assert ` and no expect( — counted as HOLLOW file by file (Django scored 38/2034
+// non-hollow; goal_cejel_rubric_calibration_archetype_2026-07-10). Covers: Python unittest
+// (.assertEqual/.assertRaises/self.fail) and pytest.raises; Go testing (t.Error/t.Fatal…) and
+// testify (require.X); Rust assert!/assert_eq!/assert_ne!; JUnit/kotlin.test static-import
+// assertEquals(...) via the leading \bassert[A-Z] shape; Ruby minitest assert_equal…/RSpec
+// .to matchers (expect( is already matched above); PHPUnit $this->assertX.
+const MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN =
+  /\.assert[A-Z_]\w*\s*\(|\bassert[A-Z]\w*\s*\(|\bpytest\.raises\b|\bself\.fail\s*\(|\bt\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)\b|\brequire\.[A-Z]\w*\s*\(|\b(?:debug_)?assert(?:_eq|_ne)?!\s*\(|\bassert_\w+\b|\$this->assert\w+\s*\(/;
+// A SUITE-LEVEL skip (describe.skip/suite.skip/context.skip) disables the whole file even when
+// assertion bodies exist. Individual it.skip/test.skip markers deliberately do NOT make a file
+// hollow: the pre-2026-07-10 rule disqualified an entire file with hundreds of live assertions
+// for a single skipped case, which misreads mature suites.
+const SUITE_LEVEL_SKIP_PATTERN = /\b(?:describe|suite|context)\.skip\s*\(/;
+
+// Files whose NAME declares them to be tests (as opposed to files that merely live under a
+// test/tests/spec directory). Big suites keep substantial support scaffolding next to their
+// tests — Django's tests/<app>/models.py + urls.py, fixture files in Rust crates' tests/
+// dirs — and counting that scaffolding as "hollow test files" misreads a mature suite the
+// same way the missing-assertion-idiom bug did (Django: ~1100 of 2036 detected "test files"
+// are scaffolding with no test in them).
+const NAME_SHAPED_TEST_FILE_PATTERN =
+  /\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
+
+interface NonHollowTestShare {
+  /** Files containing live assertions (and not suite-level-skipped). */
+  nonHollowCount: number;
+  /**
+   * The honest denominator: asserting files plus name-shaped test files that fail the
+   * assertion check (true placeholders / skipped suites). A non-name-shaped file under a
+   * test directory with no assertions is support scaffolding — excluded from the share.
+   */
+  ratedCount: number;
+}
+
+function measureNonHollowTestShare(repoPath: string, files: readonly string[]): NonHollowTestShare {
+  let nonHollowCount = 0;
+  let ratedCount = 0;
+  for (const file of files) {
     const fullPath = join(repoPath, file);
-    if (!isRegularFile(fullPath)) return false;
+    if (!isRegularFile(fullPath)) continue;
     const contents = readFileSync(fullPath, 'utf8');
-    if (/\.skip\(|describe\.skip\(|it\.skip\(|test\.skip\(/.test(contents)) return false;
-    // JS/TS assertion patterns
-    if (/(expect\(|assert\.|should\.|toEqual\(|toBe\(|assert\s)/.test(contents)) return true;
-    // C++ assertion and test-macro patterns (gtest, catch2, doctest, boost.test)
-    return /\bEXPECT_|ASSERT_EQ\b|ASSERT_TRUE\b|ASSERT_FALSE\b|\bREQUIRE\s*\(|\bCHECK\s*\(|\bTEST\s*\(|\bTEST_F\s*\(|\bTEST_CASE\s*\(|\bSECTION\s*\(/.test(
-      contents,
-    );
-  }).length;
+    const nonHollow =
+      (JS_TEST_ASSERTION_PATTERN.test(contents) ||
+        CPP_TEST_ASSERTION_PATTERN.test(contents) ||
+        MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents)) &&
+      !SUITE_LEVEL_SKIP_PATTERN.test(contents);
+    if (nonHollow) {
+      nonHollowCount += 1;
+      ratedCount += 1;
+    } else if (NAME_SHAPED_TEST_FILE_PATTERN.test(file)) {
+      ratedCount += 1;
+    }
+  }
+  return { nonHollowCount, ratedCount };
 }
 
 function countFilesContaining(repoPath: string, files: readonly string[], pattern: RegExp): number {
@@ -2704,6 +2944,23 @@ function isAuditFile(file: string): boolean {
   );
 }
 
+// A security-policy document (SECURITY.md and its docs/*security* equivalent) is a static
+// vulnerability-disclosure notice, not a changelog/audit trail — real-world copies rarely
+// change after being written, so there is no "freshness" for B4 to rate. Every other
+// isAuditFile match (CHANGELOG/CHANGES/HISTORY/NEWS/RELEASE_NOTES/RELEASES/AUDIT/STATUS,
+// docs runbook/incident/changelog notes, CITATION.cff) is a genuine over-time trail.
+// goal_cejel_b4_archetype_gate_2026-07-11: distinguishes "has a security policy" from
+// "has an audit trail" so the N/A gate below can tell them apart.
+function isSecurityPolicyOnlyAuditFile(file: string): boolean {
+  return (
+    /(^|\/)SECURITY\.(md|rst|txt)$/i.test(file) || /(^|\/)docs\/.*security.*\.(md|rst)$/i.test(file)
+  );
+}
+
+function isFreshnessRatableAuditFile(file: string): boolean {
+  return isAuditFile(file) && !isSecurityPolicyOnlyAuditFile(file);
+}
+
 function isIgnoredScanFile(file: string): boolean {
   return (
     /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|README\.md|CHANGELOG\.md)$/.test(file) ||
@@ -2717,7 +2974,7 @@ function findRootPackageJson(repoFiles: readonly string[]): string | null {
 
 // Returns true only for regular files — directories and missing paths both return false.
 // This prevents EISDIR crashes when git ls-files returns submodule directory entries.
-function isRegularFile(path: string): boolean {
+export function isRegularFile(path: string): boolean {
   try {
     return statSync(path).isFile();
   } catch {
@@ -2725,7 +2982,7 @@ function isRegularFile(path: string): boolean {
   }
 }
 
-function fileContains(repoPath: string, file: string, pattern: RegExp): boolean {
+export function fileContains(repoPath: string, file: string, pattern: RegExp): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   return pattern.test(readFileSync(fullPath, 'utf8'));
@@ -3077,7 +3334,7 @@ function readPackageScripts(packageJsonPath: string): Map<string, string> {
   );
 }
 
-function evidenceForRelative(
+export function evidenceForRelative(
   repoPath: string,
   path: string,
   kind: WitanEvidencePointer['kind'],

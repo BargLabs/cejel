@@ -72,7 +72,7 @@ export function getWitanRubricCriterion(id: WitanCriterionId): WitanRubricCriter
   return criterion;
 }
 
-// witan-trading-rubric-v0 — certifies trading-product trust signals (Egbert/Edwin Lane B).
+// witan-trading-rubric-v0 — certifies trading-product trust signals.
 // Criterion ids are locked (see WITAN_TRADING_RUBRIC_V0_CRITERION_IDS in ./schemas.ts);
 // renaming an id here requires a new rubric version.
 export const WITAN_TRADING_RUBRIC_V0: readonly WitanRubricCriterion[] = [
@@ -122,3 +122,7 @@ export const WITAN_TRADING_RUBRIC_V0: readonly WitanRubricCriterion[] = [
     category: 'governance_trust',
   },
 ];
+
+// Domain-profile rubric slices live with their rule packs in their own extraction-excluded
+// modules, not here: this file ships in the public cejel tree and must carry only the
+// general rubrics above.

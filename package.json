@@ -29,7 +29,8 @@
   },
   "type": "module",
   "bin": {
-    "cejel": "./dist/index.js"
+    "cejel": "./dist/index.js",
+    "cejel-mcp": "./dist/mcp/index.js"
   },
   "files": [
     "dist",
@@ -48,6 +49,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/node": "^25.9.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",

@@ -1,6 +1,15 @@
 export * from './schemas.js';
 export { renderWitanBadgeEndpoint, renderWitanBadgeSvg } from './badge.js';
 export type { WitanBadgeEndpoint } from './badge.js';
+export {
+  LOW_CONFIDENCE_COVERAGE_THRESHOLD,
+  computeMeasuredCoverage,
+  formatCoverageCellMarkdown,
+  formatCoverageCounts,
+  formatCoverageSummary,
+  isMeasuredCriterionStatus,
+} from './coverage.js';
+export type { CategoryCoverage, CoverageCounts, MeasuredCoverage } from './coverage.js';
 export { renderReportVerdict, renderVerdict, renderWitanHtmlReport } from './html.js';
 export { renderWitanMarkdownReport } from './markdown.js';
 export {

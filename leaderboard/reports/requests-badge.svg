@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
+  <title>cejel trust: 2.9/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">2.9/4.0 conditional</text>
+  </g>
+</svg>

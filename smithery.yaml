@@ -1,0 +1,9 @@
+# Smithery (MCP registry) manifest. The server runs locally over stdio and is fully
+# offline — scoring makes no network calls, sends no telemetry, and needs no config.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    () => ({ command: 'npx', args: ['-y', '--package=cejel', 'cejel-mcp'] })

@@ -1,0 +1,794 @@
+{
+  "productSlug": "alfred",
+  "productDisplayName": "alfred",
+  "repo": {
+    "path": ".",
+    "headSha": "06b227a4670e8ce985fe24e03362eaeff4813452"
+  },
+  "generatedAt": "2026-07-12T18:21:45.694Z",
+  "rubricVersion": "witan-rubric-v2-2026-07-12",
+  "codeTrustScore": 2.5,
+  "processTrustScore": 3.6,
+  "overallScore": 3.1,
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 2.3,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "4089241dc743a3d9f345ed6302c33e04813459d0fb464bf76f522fbed07c2c39",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "c69ab62efd1c11758edbb44d42d156bb4c445bba40f3e2dad4bba446e9d2648c",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "923de0fe9f616bf16f6153dc2a52247c297f424d937db45380c7b7e94f4bf955",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "8155ae18fdad53ae1c17bbfb73cf3e762b32ca966c01eee5f34ac9f47620873a",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "a2f2a4b5c7d5a4673bb9f04f63db012d83e0370c5b22156a8738cff8ac7c8d23",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "8a44073a93d59be6395017053c6e881168953514bcc50d60f707ffced7ee4393",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "bf838e8a54ac23a2df309fc79edeb91277b9a895cd3a1e9fa390e6cdf3323d83",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "5423edb4ca389b8b99382380dbd532c5d1c41b093115d35a1f88fc916b5ee80b",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "contentHash": "bb3758e12fb93aafbe9147d907591b2f4d5385fd68213df5ed117228e71b1fb6",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "contentHash": "bb3758e12fb93aafbe9147d907591b2f4d5385fd68213df5ed117228e71b1fb6",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "CI workflow runs the test suite",
+          "contentHash": "d94131fc2de3afd9710c67d45e59b736d43ffe9eba408ceb01b6687a21cbff2f",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record.",
+          "evidence": {
+            "kind": "scheduled_health_summary",
+            "label": "Scheduled product-health workflow",
+            "contentHash": "d94131fc2de3afd9710c67d45e59b736d43ffe9eba408ceb01b6687a21cbff2f",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 330,
+          "max": 601,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 4,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 327,
+          "max": 330,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 2.4,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "Schema-per-studio isolation module and provisioning",
+          "contentHash": "7607894e622420725a4bd65ef97484e041e18286f1a2d4b806daf05a4d97939b",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "Forced RLS migration and studio policies",
+          "contentHash": "eafff306bfd620bccb9cf616d3cb87160b1142ea5a2e70513d26bb350e6d1e25",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "secret_scan",
+          "label": "Non-owner application role RLS proof",
+          "contentHash": "8740f576e78d6644de4c76a92e62026698b7f5a9d9c153466016b1ae9934070e",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Adversarial cross-studio RLS denial proof",
+          "contentHash": "8740f576e78d6644de4c76a92e62026698b7f5a9d9c153466016b1ae9934070e",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Adversarial studio data routing denial test",
+          "contentHash": "65c1b7d6dd1fdcfabf845505429bd5accfbdde7926e28c8a062904deb59eb015",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "secret_scan",
+          "label": ".env files are gitignored",
+          "contentHash": "172e11a7d91fe402adc1a9c8cad81d8eb77bd6d4ec43b2626683eaaa9d16a008",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "secret_scan",
+          "label": "Environment template",
+          "contentHash": "17b9221cd6f9820d521a81e88e629821c3ad2567799f5d7c22a8faf1ce3b6dc6",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "secret_scan",
+          "label": "Environment template",
+          "contentHash": "60cae38769abcdb3c4b2fed6e62d77db21494b151981a03c6a82b7ae1eaac5a6",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "RLS or tenant migration",
+          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "Tenant scoping signal",
+          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Secret-shaped value in a test/fixture file (path withheld — private repository) — likely fixture data, not a production leak; verify.",
+          "evidence": {
+            "kind": "secret_scan",
+            "label": "Committed secret-shaped value",
+            "contentHash": "d1c23e6f5de52b88be1177a373f4c3c91605aedfa4eb255d53e544a50c019be7",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.25,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 3,
+          "max": 3,
+          "weight": 0.1,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        },
+        {
+          "name": "rls_policy_count",
+          "label": "RLS policy count",
+          "value": 12,
+          "max": 111,
+          "kind": "saturating_count",
+          "weight": 0.4,
+          "unit": "policies",
+          "description": "Counts static row-level-security enables, forced-RLS statements, and policy definitions."
+        },
+        {
+          "name": "tenant_scope_ratio",
+          "label": "Tenant-scoped schema ratio",
+          "value": 37,
+          "max": 46,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures tenant/studio/workspace scoping evidence across data-layer files."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 2.9,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "prod_check",
+          "label": "Build or typecheck script",
+          "contentHash": "bf8dd8e2b2893eeea68a27bb02cc9613d98f253b101503e8faed672c7e4a3375",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "contentHash": "d90a520a3cf7949e9209cc0da6b3d64b64c7bd70ba26dc9e8541996a1bd75265",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "prod_check",
+          "label": "Environment template",
+          "contentHash": "17b9221cd6f9820d521a81e88e629821c3ad2567799f5d7c22a8faf1ce3b6dc6",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "prod_readiness_primitives",
+          "label": "Production-readiness primitive coverage",
+          "value": 3,
+          "max": 6,
+          "weight": 0.55,
+          "unit": "primitives",
+          "description": "Counts distinct static production-readiness primitives instead of treating presence as enough."
+        },
+        {
+          "name": "prod_workflow_depth",
+          "label": "Production workflow depth",
+          "value": 25,
+          "max": 6,
+          "kind": "saturating_count",
+          "weight": 0.2,
+          "unit": "signals",
+          "description": "Measures CI/deploy configuration depth instead of a single CI-present bit."
+        },
+        {
+          "name": "observability_depth",
+          "label": "Observability depth",
+          "value": 81,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.1,
+          "unit": "signals",
+          "description": "Counts static observability/logging/metrics implementation signals."
+        },
+        {
+          "name": "rollback_safety_depth",
+          "label": "Rollback and migration-safety depth",
+          "value": 75,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.15,
+          "unit": "signals",
+          "description": "Counts static rollback or migration-safety artifacts."
+        }
+      ]
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 2.2,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "contentHash": "a927e01eac3255621933a257a449c2d6aa6b6ad577346f5a1e57f1c7d8111d3d",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile",
+          "contentHash": "6324f0e9d81a228ae97b8482f5366b9a7d7371ad7b0f0e2345e7958fa384b98a",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "contentHash": "a927e01eac3255621933a257a449c2d6aa6b6ad577346f5a1e57f1c7d8111d3d",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "pinned_dependency_ratio",
+          "label": "Pinned dependency ratio",
+          "value": 61,
+          "max": 208,
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.45,
+          "unit": "present",
+          "description": "Credits presence of at least one lockfile; one root lockfile covering a monorepo is sufficient."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 0,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        }
+      ],
+      "notes": "A4 scored against app/service norms (deploy surface detected): pinned dependencies and a lockfile are required for reproducible installs."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2.9,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "Claim reality reconciler implementation",
+          "contentHash": "be4a4221eca8b11c0472b6a9b0c430f20e6eb097b9679cca19d6aebad6e35657",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "claim_reconciliation",
+          "label": "Claim reality reconciliation Markdown report",
+          "contentHash": "e23d16fb7574bb11b853f79e437040cfe9c89843678e7eb1fa3f87e240744350",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "claim_reconciliation",
+          "label": "Claim reality reconciliation structured report",
+          "contentHash": "f28bdbe5970d92d1d12582ec2e7ebf7dd62601e4c18b7969a53e49458f92b3fc",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 0.556,
+          "max": 1,
+          "weight": 0.6,
+          "unit": "ratio",
+          "description": "Measures supported and partially supported claims in the structured reconciliation artifact."
+        },
+        {
+          "name": "claim_registry_depth",
+          "label": "Claim registry depth",
+          "value": 9,
+          "max": 9,
+          "weight": 0.25,
+          "unit": "claims",
+          "description": "Credits the number of concrete claims reconciled without giving unlimited credit for one artifact."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 3,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Credits implementation, Markdown, and structured reconciliation artifacts."
+        }
+      ],
+      "notes": "A5 is evidenced by deterministic claim-vs-reality implementation and report artifacts, not a model-opinion verdict."
+    },
+    {
+      "id": "B1",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "internal_process_signal",
+          "label": "Alfred dispatch log",
+          "contentHash": "c2e08412e501b49f4cf8a7ca288bec795ce9780b146f324968e10caa8d3ef02b",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "commit",
+          "label": "Recent repository commit",
+          "contentHash": "06b227a4670e8ce985fe24e03362eaeff4813452"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "dispatch_trace_depth",
+          "label": "Alfred-internal process signal depth",
+          "value": 2,
+          "max": 2,
+          "weight": 1,
+          "unit": "signals",
+          "description": "Credits the Alfred-internal process signal plus bounded recent commit history depth."
+        }
+      ]
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 3.5,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "contentHash": "d90a520a3cf7949e9209cc0da6b3d64b64c7bd70ba26dc9e8541996a1bd75265",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "contentHash": "9ef686a0c67c036328162ca8eddd916d5220b7300afb5a91cbdb4b1b217b9588",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "contentHash": "2c7e83376f38c3bb440f96913c9c4389da4360336be2d60c48f7d35a51f3428e",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "pull_request",
+          "label": "Review gate configuration",
+          "contentHash": "016304abf4108d9814c779660e88f6019e84933a208f7f9eb06b08662f544ea3",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 26,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 5,
+          "max": 12,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Test script",
+          "contentHash": "bf8dd8e2b2893eeea68a27bb02cc9613d98f253b101503e8faed672c7e4a3375",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Lint script",
+          "contentHash": "bf8dd8e2b2893eeea68a27bb02cc9613d98f253b101503e8faed672c7e4a3375",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "contentHash": "d90a520a3cf7949e9209cc0da6b3d64b64c7bd70ba26dc9e8541996a1bd75265",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 5,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 13,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 3.9,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "contentHash": "b71d90871d8b05fb68c5ce0d2d43816ace6465dfcd81762f867618a2b77acf36",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "contentHash": "147a234327d28a31eb3260e0dadb1e6d12536d354ff88847f0bb33bb21976843",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "contentHash": "d14484199d1a46f45539491a709c0b46e96e315fc336f30a598e0e5951410a15",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "contentHash": "ef234e3bb33359ac7b1f4a454351d29f951cfcc7f839005973bd5779bb1cee38",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "contentHash": "160074df8986737ba220061685dc5194c10bacdcd76435779e2b2cbb2ca8cf99",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "audit_artifact_depth",
+          "label": "Audit artifact depth",
+          "value": 64,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "files",
+          "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts."
+        },
+        {
+          "name": "audit_freshness_depth",
+          "label": "Audit freshness depth",
+          "value": 56,
+          "max": 64,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Credits audit artifacts that carry freshness/current-state markers."
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 3,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "internal_process_signal",
+          "label": "Verified internal live proof trace",
+          "contentHash": "aa152abf7d3f8872d4b47abb9c15450edce007fbed96866d9af9616237e34401",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "verified_learning_trace_depth",
+          "label": "Alfred-internal process signal depth",
+          "value": 1,
+          "max": 1,
+          "weight": 0.7,
+          "unit": "traces",
+          "description": "Credits a verified internal learning record."
+        },
+        {
+          "name": "regression_fix_test_rate",
+          "label": "Regression fix test-added rate",
+          "value": 0,
+          "max": 1,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Measures how often bounded regression/fix commits also mention tests."
+        },
+        {
+          "name": "learning_artifact_depth",
+          "label": "Learning artifact depth",
+          "value": 3,
+          "max": 6,
+          "kind": "saturating_count",
+          "weight": 0.1,
+          "unit": "files",
+          "description": "Credits durable learning artifacts such as retros, incidents, and changelogs."
+        }
+      ],
+      "notes": "B5 is evidenced by a successful internal live proof run with a verified trace."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 3.4,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "Documents privileged operations as human-executed/gated",
+          "contentHash": "ccf577afb9b520cfe39fad2bfb07b2bfccb5cccd93a1200e59b9c12582b01204",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "Fail-closed privilege-membership check before role elevation",
+          "contentHash": "cd87a11058cc3763c70d5b497124d772767030af1dafa01cf6d19f19be425a8f",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "Un-overridable kill-switch / fail-safe governance toggle",
+          "contentHash": "95ea60e45d8dd5ac91a2f60aced2f98037a960abd8d673f3cd4376bf25bfbf67",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "CODEOWNERS/required-review gate on protected paths",
+          "contentHash": "147a234327d28a31eb3260e0dadb1e6d12536d354ff88847f0bb33bb21976843",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Role-membership GRANT or SUPERUSER escalation statement in a test/fixture file (path withheld — private repository) — likely a test assertion, not a production escalation; verify.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "Ungated privilege-escalation statement",
+            "contentHash": "cd87a11058cc3763c70d5b497124d772767030af1dafa01cf6d19f19be425a8f",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "human_gate_documented",
+          "label": "Human gate documented",
+          "value": 1,
+          "max": 1,
+          "weight": 0.4,
+          "unit": "present",
+          "description": "Credits explicit documentation that privileged/credentialed operations are human-executed, never agent-run."
+        },
+        {
+          "name": "fail_closed_privilege_check",
+          "label": "Fail-closed privilege check present",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credits code that checks role membership and fails closed before elevating privilege, instead of attempting elevation blind."
+        },
+        {
+          "name": "privilege_escalation_cleanliness",
+          "label": "Privilege-escalation cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "clean",
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+        },
+        {
+          "name": "protected_path_review_gate",
+          "label": "Protected-path review gate",
+          "value": 1,
+          "max": 1,
+          "weight": 0.2,
+          "unit": "present",
+          "description": "Credits a CODEOWNERS file or documented required-review/branch-protection policy — the general OSS-observable analogue of human-gating changes to sensitive paths."
+        },
+        {
+          "name": "kill_switch_fail_safe_present",
+          "label": "Un-overridable kill-switch present",
+          "value": 1,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "present",
+          "description": "Credits a governance/safety toggle that fails closed before any lower-priority config can override it (e.g. a studio-wide autonomy kill switch)."
+        }
+      ],
+      "notes": "B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths."
+    }
+  ],
+  "archetype": "monorepo",
+  "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
+}

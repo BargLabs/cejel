@@ -1,0 +1,141 @@
+{
+  "comment": "Cejel OSS leaderboard corpus: a one-run-sized elite set (~17 repositories) across web frameworks, build tooling, libraries, and a supply-chain-governance peer, plus this repository itself (alfred, and the public cejel CLI at packages/witan-cli) for transparency. Sizing rule: the corpus must be small enough that a full clone -> score -> render -> commit run completes synchronously inside one dispatch watchdog window with margin — growth happens by deliberate, regenerated additions, never by outrunning a single run (the 44-entry v2 corpus stranded a stale 6-repo board exactly this way). Selection rules: elite, widely-known projects only; permissive OSI licenses preferred and labeled per entry; behemoth trees the archetype detector cannot meaningfully score in one pass (linux, chromium, kubernetes-scale) are deliberately excluded and a per-repo clone timeout + maxTreeMB guard keeps any one repo from stalling a run. Every entry is published on the board regardless of how it scores, including any repo that outscores us; a repo that fails to clone or score is a loud ERROR row, never a silent drop. Entries are shallow-cloned (blobless, depth 1) read-only to be scored; none of their code is executed. The ranking is computed on the common externally-applicable dimension set (substrate-only dims excluded for everyone, including internal entries). Every entry also declares `visibility` (goal_cejel_redaction_policy_is_verifiability_2026-07-12): 'public' repositories cite full evidence paths and lines everywhere; 'private' repositories (this monorepo and its sub-packages) never cite a source path anywhere, in any field or format — the finding, its dimension, status, score, and content hash still stand; only the location is withheld.",
+  "entries": [
+    {
+      "name": "react",
+      "url": "https://github.com/facebook/react",
+      "category": "framework-web",
+      "expectedArchetype": "monorepo",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "vue",
+      "url": "https://github.com/vuejs/core",
+      "category": "framework-web",
+      "expectedArchetype": "monorepo",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "svelte",
+      "url": "https://github.com/sveltejs/svelte",
+      "category": "framework-web",
+      "expectedArchetype": "monorepo",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "django",
+      "url": "https://github.com/django/django",
+      "category": "framework-python",
+      "expectedArchetype": "source",
+      "license": "BSD-3-Clause",
+      "visibility": "public"
+    },
+    {
+      "name": "flask",
+      "url": "https://github.com/pallets/flask",
+      "category": "framework-python",
+      "expectedArchetype": "source",
+      "license": "BSD-3-Clause",
+      "visibility": "public"
+    },
+    {
+      "name": "fastapi",
+      "url": "https://github.com/fastapi/fastapi",
+      "category": "framework-python",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "express",
+      "url": "https://github.com/expressjs/express",
+      "category": "framework-node",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "vite",
+      "url": "https://github.com/vitejs/vite",
+      "category": "tooling-build",
+      "expectedArchetype": "monorepo",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "esbuild",
+      "url": "https://github.com/evanw/esbuild",
+      "category": "tooling-build",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "biomejs",
+      "url": "https://github.com/biomejs/biome",
+      "category": "tooling-build",
+      "expectedArchetype": "monorepo",
+      "license": "MIT OR Apache-2.0",
+      "visibility": "public"
+    },
+    {
+      "name": "requests",
+      "url": "https://github.com/psf/requests",
+      "category": "library-python",
+      "expectedArchetype": "source",
+      "license": "Apache-2.0",
+      "visibility": "public"
+    },
+    {
+      "name": "pydantic",
+      "url": "https://github.com/pydantic/pydantic",
+      "category": "library-python",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "axios",
+      "url": "https://github.com/axios/axios",
+      "category": "library-js",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "zod",
+      "url": "https://github.com/colinhacks/zod",
+      "category": "library-js",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "scorecard",
+      "url": "https://github.com/ossf/scorecard",
+      "category": "supply-chain-governance",
+      "expectedArchetype": "source",
+      "license": "Apache-2.0",
+      "visibility": "public"
+    },
+    {
+      "name": "alfred",
+      "self": true,
+      "category": "internal-substrate",
+      "expectedArchetype": "monorepo",
+      "license": "AGPL-3.0-only",
+      "visibility": "private"
+    },
+    {
+      "name": "cejel",
+      "path": "packages/witan-cli",
+      "category": "internal-tool",
+      "expectedArchetype": "source",
+      "license": "AGPL-3.0-only",
+      "visibility": "private"
+    }
+  ]
+}

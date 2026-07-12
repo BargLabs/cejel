@@ -2,20 +2,13 @@ import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import type { WitanInputSignal } from './witan/index.js';
 import {
-  buildWitanInputFromRepo,
-  createWitanReport,
-  discoverIngestInputs,
-  expandIngestPattern,
-  parseIngestFile,
   renderWitanBadgeEndpoint,
   renderWitanBadgeSvg,
   renderWitanHtmlReport,
 } from './witan/index.js';
 
-import { deriveProductIdentity } from './product-identity.js';
-import { buildWitanCliSummary } from './summary.js';
+import { runCejelScan } from './scan.js';
 import { renderTerminalCertificate } from './terminal.js';
 
 export interface WitanCliOptions {
@@ -42,16 +35,11 @@ async function main(): Promise<void> {
 export async function runWitanFreeCli(args: readonly string[]): Promise<number> {
   const options = parseArgs(args);
 
-  const identity = deriveProductIdentity(options.repoPath);
-  const input = buildWitanInputFromRepo({
-    productSlug: identity.productSlug,
-    productDisplayName: identity.productDisplayName,
+  const { report, summary } = runCejelScan({
     repoPath: options.repoPath,
+    ingestPatterns: options.ingestPatterns,
+    warnOnEmptyIngestMatch: !options.quiet,
   });
-
-  const inputSignals = resolveIngestSignals(options, !options.quiet);
-  const report = createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);
-  const summary = buildWitanCliSummary(report);
 
   mkdirSync(options.outDir, { recursive: true });
   writeFileSync(join(options.outDir, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
@@ -134,42 +122,6 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
     quiet,
     ingestPatterns,
   };
-}
-
-/**
- * Resolve --ingest patterns + .cejel/inputs/*.{sarif,json} auto-discovery into folded
- * WitanInputSignal[], deduping by resolved file path so an explicit path that also lands in
- * the auto-discovered directory is not double-counted. Warns (non-fatal) on stderr when an
- * explicit --ingest glob matches no files.
- */
-function resolveIngestSignals(
-  options: WitanCliOptions,
-  warnOnEmptyMatch: boolean,
-): WitanInputSignal[] {
-  const seen = new Set<string>();
-  const files: string[] = [];
-
-  for (const pattern of options.ingestPatterns) {
-    const matches = expandIngestPattern(pattern);
-    if (matches.length === 0 && warnOnEmptyMatch) {
-      process.stderr.write(`Cejel: --ingest pattern matched no files: ${pattern}\n`);
-    }
-    for (const match of matches) {
-      const resolved = resolve(match);
-      if (seen.has(resolved)) continue;
-      seen.add(resolved);
-      files.push(match);
-    }
-  }
-
-  for (const discovered of discoverIngestInputs(options.repoPath)) {
-    const resolved = resolve(discovered);
-    if (seen.has(resolved)) continue;
-    seen.add(resolved);
-    files.push(discovered);
-  }
-
-  return files.flatMap((file) => parseIngestFile(file));
 }
 
 function isEntryPoint(): boolean {

@@ -43,13 +43,16 @@ interface SarifDocument {
 // Maps SARIF rule patterns to Witan dimensions and weights.
 // Ordered from most specific to least; first match wins.
 
-interface DimensionRule {
+// Exported so a domain rule pack can extend the mapping via parseSarifJson/parseSarifFile's
+// extraDimensionRules parameter instead of being baked into this general adapter
+// (goal_cejel_public_extraction_ip_scrub_2026-07-10).
+export interface SarifDimensionRule {
   pattern: RegExp;
   dimension: WitanCriterionId;
   weight: number;
 }
 
-const DIMENSION_RULES: readonly DimensionRule[] = [
+const DIMENSION_RULES: readonly SarifDimensionRule[] = [
   // A2 — injection / secrets / auth (high weight)
   {
     pattern:
@@ -140,8 +143,11 @@ function mapLevel(level: string | undefined): WitanInputSignalFinding['severity'
   return 'info'; // note → info
 }
 
-function mapRuleToDimension(ruleId: string): { dimension: WitanCriterionId; weight: number } {
-  for (const rule of DIMENSION_RULES) {
+function mapRuleToDimension(
+  ruleId: string,
+  rules: readonly SarifDimensionRule[],
+): { dimension: WitanCriterionId; weight: number } {
+  for (const rule of rules) {
     if (rule.pattern.test(ruleId)) {
       return { dimension: rule.dimension, weight: rule.weight };
     }
@@ -171,8 +177,18 @@ function dedupeFindings(findings: WitanInputSignalFinding[]): WitanInputSignalFi
 // Parse a SARIF 2.1.0 JSON document (already loaded) into WitanInputSignal[].
 // Groups findings by (source × dimension) so each (source, dimension) pair
 // produces exactly one WitanInputSignal.
-export function parseSarifJson(raw: unknown): WitanInputSignal[] {
+//
+// extraDimensionRules lets a caller append a domain rule pack to the built-in generic
+// mapping (built-ins keep precedence; extras are checked after, before the A2 default).
+// Without it, only the generic security/dependency/config/test rules above apply.
+export function parseSarifJson(
+  raw: unknown,
+  extraDimensionRules?: readonly SarifDimensionRule[],
+): WitanInputSignal[] {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  const dimensionRules = extraDimensionRules
+    ? [...DIMENSION_RULES, ...extraDimensionRules]
+    : DIMENSION_RULES;
   const doc = raw as SarifDocument;
   if (!Array.isArray(doc.runs)) return [];
 
@@ -209,7 +225,7 @@ export function parseSarifJson(raw: unknown): WitanInputSignal[] {
 
       const message = result.message?.text ?? ruleId;
       const location = renderLocation(result);
-      const { dimension, weight } = mapRuleToDimension(ruleId);
+      const { dimension, weight } = mapRuleToDimension(ruleId, dimensionRules);
       const bucketKey = `${source}|${dimension}`;
 
       if (!buckets.has(bucketKey)) {
@@ -230,7 +246,10 @@ export function parseSarifJson(raw: unknown): WitanInputSignal[] {
 }
 
 // Parse a SARIF 2.1.0 file at the given path. No network — reads local file only.
-export function parseSarifFile(sarifPath: string): WitanInputSignal[] {
+export function parseSarifFile(
+  sarifPath: string,
+  extraDimensionRules?: readonly SarifDimensionRule[],
+): WitanInputSignal[] {
   const raw: unknown = JSON.parse(stripBom(readFileSync(sarifPath, 'utf8')));
-  return parseSarifJson(raw);
+  return parseSarifJson(raw, extraDimensionRules);
 }

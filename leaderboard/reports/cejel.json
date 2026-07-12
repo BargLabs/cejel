@@ -1,0 +1,403 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "cejel",
+  "repo": {
+    "path": "packages/witan-cli",
+    "headSha": "06b227a4670e8ce985fe24e03362eaeff4813452"
+  },
+  "generatedAt": "2026-07-12T18:21:45.694Z",
+  "rubricVersion": "witan-rubric-v2-2026-07-12",
+  "codeTrustScore": 2.7,
+  "processTrustScore": 4,
+  "overallScore": 3.4,
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 2.3,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "01be4bf80443b443d358a34aecc1588bc5076de53258a6c22619f35a45db547d",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "34b3efdfe7b2cfd835fc022ff3693cb1ec65505997f19c0be9c08a8d4e697c09",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "803f3b84f346464b0110b26a3b902159926eae90e0808e0df26f6e5c15d02fa7",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "8a8ce5c1aada7d5a763a77c8e8743f52876c7e79a879d8e6324cd956ddeb63d6",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "06dc4a1a67650ea1612b5fbe01b52ea3e7742b19462e677a586a846b6c660cff",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "e1d3bf9be5aff3a203256616f001a6a5edff0e9cc1eb64bec258c55269a08e73",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "b693b44e18a60f5aa3215f3c3be32016afb0c90c6462d2103058ec682131360c",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "contentHash": "bb53c8337437f3e76b3e1354f0b5b11522684fd4adaac3927eb08b18ed597186",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "contentHash": "105cb317161b2de1e4eb8669fa0a6448393bd0ee552fb6f73ff4b18e9eba2518",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "contentHash": "01be4bf80443b443d358a34aecc1588bc5076de53258a6c22619f35a45db547d",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 9,
+          "max": 7,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 9,
+          "max": 9,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 3.2,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "secret_scan",
+          "label": ".env path detected in git history",
+          "contentHash": "06b227a4670e8ce985fe24e03362eaeff4813452",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.7,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 1,
+          "max": 3,
+          "weight": 0.3,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 3.1,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "contentHash": "105cb317161b2de1e4eb8669fa0a6448393bd0ee552fb6f73ff4b18e9eba2518",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile (monorepo root)",
+          "contentHash": "6324f0e9d81a228ae97b8482f5366b9a7d7371ad7b0f0e2345e7958fa384b98a",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 9,
+          "max": 9,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 0,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 1,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2.2,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "contentHash": "9c8eec56bc571727cdcce2439fb493b61ab3663fb2bd9d884f4c2d91815fadb6",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "Code presence for claim reconciliation",
+          "contentHash": "01be4bf80443b443d358a34aecc1588bc5076de53258a6c22619f35a45db547d",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "contentHash": "9c8eec56bc571727cdcce2439fb493b61ab3663fb2bd9d884f4c2d91815fadb6",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 12,
+          "max": 13,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
+        },
+        {
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Requires a specific claim-reality artifact to reach full depth."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Test script",
+          "contentHash": "105cb317161b2de1e4eb8669fa0a6448393bd0ee552fb6f73ff4b18e9eba2518",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "ci_run",
+          "label": "CI workflow (monorepo root)",
+          "contentHash": "d90a520a3cf7949e9209cc0da6b3d64b64c7bd70ba26dc9e8541996a1bd75265",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 4,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 13,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo."
+    },
+    {
+      "id": "B5",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "source",
+  "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
+}

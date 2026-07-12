@@ -1,0 +1,637 @@
+{
+  "productSlug": "biomejs",
+  "productDisplayName": "biomejs",
+  "repo": {
+    "url": "https://github.com/biomejs/biome",
+    "headSha": "01bba129afefced1c04aa69592b1b7f337a7b609"
+  },
+  "generatedAt": "2026-07-12T18:11:15.466Z",
+  "rubricVersion": "witan-rubric-v2-2026-07-12",
+  "codeTrustScore": 2.8,
+  "processTrustScore": 3,
+  "overallScore": 2.9,
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 2.7,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/assist.rs",
+          "line": 1,
+          "contentHash": "573b5be1cc14b0f28b2a5787c95fed60f615759d24dfb4dc2b54ba7c31f69909"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/biome_json_support.rs",
+          "line": 1,
+          "contentHash": "d50764af1869d8eaf4297863a78cf423a571feb6ad3cb640c32e139bb86e6014"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/config_extends.rs",
+          "line": 1,
+          "contentHash": "47327dbcb347253100a394c4ecf0732a861c35350fe2b223f75ccb90dd98030e"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/config_path.rs",
+          "line": 1,
+          "contentHash": "7b1c3cab99260cb5c3d7b94f40cf3e15234b0ec146aae7bfa5a937e0fb7ce3d7"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/configuration.rs",
+          "line": 1,
+          "contentHash": "f4593b405a902ca5d32356098632c71fd6f53bf81b3e35c61a204794844efe7d"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/css_parsing.rs",
+          "line": 1,
+          "contentHash": "22f310515e03d8eb612a86ae02a66392acfcdc083de6a539427e80f2801e5392"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/cts_files.rs",
+          "line": 1,
+          "contentHash": "118b92335981082de808f2288caa510de09128b82f8a027042122ec58ec34003"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "crates/biome_cli/tests/cases/diagnostics.rs",
+          "line": 1,
+          "contentHash": "6c6865b26143b7ab6ab0d4dc7826e860c3c67c9b75fea85cb075caf2c0a0d56d"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "Cargo.toml",
+          "line": 1,
+          "contentHash": "747223eee56f7180960476d6809a38d66293c34155e701866ed8a128baba4e23"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "crates/biome_analyze/Cargo.toml",
+          "line": 1,
+          "contentHash": "0a40e4bb203ed0aa0613600f14ee0705156e3bbd5da907d792ab25f667841926"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "crates/biome_analyze_macros/Cargo.toml",
+          "line": 1,
+          "contentHash": "5e22e66c97eebb94c15d909357df106dcacf44c57e043ee5ac318161f320f0f5"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "crates/biome_aria/Cargo.toml",
+          "line": 1,
+          "contentHash": "4b745e00c02368cdf155394ab4232b2092d724e141da90618fe092f8d7b3f05b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "crates/biome_aria_metadata/Cargo.toml",
+          "line": 1,
+          "contentHash": "1c1e39b1ac92776589be1d9fba1f1614dbb2cf5aebbb2d39d0fab40a6df80872"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "crates/biome_cli/Cargo.toml",
+          "line": 1,
+          "contentHash": "62a93dc18cc2db41070908d555aa26aa6d97a39ac29d378ce43bad155fb06247"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "packages/@biomejs/js-api/vitest.config.ts",
+          "line": 1,
+          "contentHash": "f828699f2e6087ffcde922428f6e30643e4b0b287c70ec7cacd7d6b95c4eef50"
+        },
+        {
+          "kind": "test_run",
+          "label": "CI workflow runs the test suite",
+          "path": ".github/workflows/main.yml",
+          "line": 1,
+          "contentHash": "bba10c59142a501cc1543bb03e00e9e5387979fb8e7ddb294b21562f7cf58e72"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 4877,
+          "max": 4100,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 7,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 239,
+          "max": 265,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 3.2,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "Data layer migration",
+          "path": "crates/biome_migrate/tests/specs/migrations/all/group_level.json",
+          "line": 1,
+          "contentHash": "ebc9a6301ba7087f8902f37c72972f476799d77bebcb01bf2073b1c8cfc02383"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Secret-shaped value in a test/fixture file (crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js) — likely fixture data, not a production leak; verify.",
+          "evidence": {
+            "kind": "secret_scan",
+            "label": "Committed secret-shaped value",
+            "path": "crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js",
+            "line": 1,
+            "contentHash": "42ddda9e8f628e8c466b7c6afc63e928e4a93742e91bc387672032659b1ca73b"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.7,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 1,
+          "max": 3,
+          "weight": 0.3,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 3.2,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "packages/@biomejs/backend-jsonrpc/package.json",
+          "line": 1,
+          "contentHash": "b39f81f670f2d74f7bcc421a0af1a59cc0f54d382080c21e24de582c2a0ca843"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile",
+          "path": "Cargo.lock",
+          "line": 1,
+          "contentHash": "125c812c4ab9793928bb9017d854162101f36c735c89b6d572abd13146221106"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency update config",
+          "path": ".github/renovate.json5",
+          "line": 1,
+          "contentHash": "a2ac41dcfccc80e4eca869d7ae1661ba05216bc8c1b0cefe87cfaa5916b0d17d"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 145,
+          "max": 173,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 1,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 0.7791666666666667,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "path": ".claude/skills/README.md",
+          "line": 1,
+          "contentHash": "925ba2986d478c48a82c6f4753a53161926604905584506d425cafd6ea923dab"
+        },
+        {
+          "kind": "artifact",
+          "label": "Code presence for claim reconciliation",
+          "path": "crates/biome_analyze/src/analyzer_plugin.rs",
+          "line": 1,
+          "contentHash": "5592b04fc66d3feda2205a554742caa1735f3513fc4b4983027fead7aa8a648b"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "path": ".claude/skills/README.md",
+            "line": 1,
+            "contentHash": "925ba2986d478c48a82c6f4753a53161926604905584506d425cafd6ea923dab"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 12,
+          "max": 12,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
+        },
+        {
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Requires a specific claim-reality artifact to reach full depth."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/actions_linter.yml",
+          "line": 1,
+          "contentHash": "517c943a21f684af0667253fc7161bcf0e825775a956c933c03e7008265a06bf"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/agent_scan.yml",
+          "line": 1,
+          "contentHash": "a56db26d82be76a292db81215e2d464279cac4f269b14fd9a46aecd32f573443"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/autofix.yml",
+          "line": 1,
+          "contentHash": "60a60574b234c4dfb21c1729309ac1014190ee24b1c2fb30d155348a792f31fd"
+        },
+        {
+          "kind": "pull_request",
+          "label": "Pull request template",
+          "path": ".github/PULL_REQUEST_TEMPLATE.md",
+          "line": 1,
+          "contentHash": "543aeb946a86f8e7f4524e718d8b7ed77c5246fb555ba9c2770dec7206fc308b"
+        },
+        {
+          "kind": "pull_request",
+          "label": "Review gate configuration",
+          "path": ".github/CODEOWNERS",
+          "line": 1,
+          "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 27,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 1,
+          "max": 1,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 3.1,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/actions_linter.yml",
+          "line": 1,
+          "contentHash": "517c943a21f684af0667253fc7161bcf0e825775a956c933c03e7008265a06bf"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 13,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 3.3,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "RELEASES.md",
+          "line": 1,
+          "contentHash": "866544ca77566afb1690545ea997e3f227db4818cb6396fecfaa08a0663e2e8f"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "crates/biome_deserialize/CHANGELOG.md",
+          "line": 1,
+          "contentHash": "5601252ef9603a63498976ce2d3f8a755a5721e0f58d93239b8c9dcb6e0b5c71"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "packages/@biomejs/backend-jsonrpc/CHANGELOG.md",
+          "line": 1,
+          "contentHash": "9f04dd92dcb316f7a16b2a2b446f613ba3347cbe31c10467b791300ed33e4c6b"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "packages/@biomejs/cli-darwin-arm64/CHANGELOG.md",
+          "line": 1,
+          "contentHash": "86d0667e6a3900e28b8652d2b0b71baca00c5afdb472aac812c5d64b221b6a7f"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "packages/@biomejs/cli-darwin-x64/CHANGELOG.md",
+          "line": 1,
+          "contentHash": "551e91efcac52152615fb3c31a242c068370ccbe11524a7ed4a521a81518dd43"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "audit_artifact_depth",
+          "label": "Audit artifact depth",
+          "value": 15,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "files",
+          "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts."
+        },
+        {
+          "name": "audit_freshness_depth",
+          "label": "Audit freshness depth",
+          "value": 1,
+          "max": 15,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Credits audit artifacts that carry freshness/current-state markers."
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 1.7,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "CODEOWNERS/required-review gate on protected paths",
+          "path": ".github/CODEOWNERS",
+          "line": 1,
+          "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B6 metric-derived score is 1.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "CODEOWNERS/required-review gate on protected paths",
+            "path": ".github/CODEOWNERS",
+            "line": 1,
+            "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "human_gate_documented",
+          "label": "Human gate documented",
+          "value": 0,
+          "max": 1,
+          "weight": 0.4,
+          "unit": "present",
+          "description": "Credits explicit documentation that privileged/credentialed operations are human-executed, never agent-run."
+        },
+        {
+          "name": "fail_closed_privilege_check",
+          "label": "Fail-closed privilege check present",
+          "value": 0,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credits code that checks role membership and fails closed before elevating privilege, instead of attempting elevation blind."
+        },
+        {
+          "name": "privilege_escalation_cleanliness",
+          "label": "Privilege-escalation cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "clean",
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+        },
+        {
+          "name": "protected_path_review_gate",
+          "label": "Protected-path review gate",
+          "value": 1,
+          "max": 1,
+          "weight": 0.2,
+          "unit": "present",
+          "description": "Credits a CODEOWNERS file or documented required-review/branch-protection policy — the general OSS-observable analogue of human-gating changes to sensitive paths."
+        }
+      ],
+      "notes": "B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths."
+    }
+  ],
+  "archetype": "monorepo"
+}

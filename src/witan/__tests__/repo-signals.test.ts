@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { buildWitanInputFromRepo } from '../repo-signals.js';
@@ -32,10 +33,16 @@ function signalFor(dir: string, id: string) {
 }
 
 // ─── A4: Python (requirements.txt + pyproject.toml) ────────────────────────
+// These parser-focused fixtures carry an explicit deploy marker (Procfile /
+// docker-compose.yaml) so they classify as app/service and keep exercising the
+// app-norm metrics (pinned_dependency_ratio, required lockfile) after the
+// library-vs-app archetype split (goal_cejel_rubric_calibration_archetype_2026-07-10).
+// Library-norm behavior is covered in rubric-calibration-archetype.test.ts.
 
 describe('A4 — Python requirements.txt produces real dependency metrics', () => {
   it('reads deps from requirements.txt and credits lockfile when poetry.lock is present', () => {
     const dir = makeTmpRepo();
+    writeFile(dir, 'Procfile', 'web: gunicorn app:app\n');
     writeFile(
       dir,
       'requirements.txt',
@@ -62,6 +69,7 @@ describe('A4 — Python requirements.txt produces real dependency metrics', () =
 
   it('reads deps from pyproject.toml [project] and [tool.poetry.dependencies]', () => {
     const dir = makeTmpRepo();
+    writeFile(dir, 'Procfile', 'web: uvicorn app:app\n');
     writeFile(
       dir,
       'pyproject.toml',
@@ -97,6 +105,7 @@ describe('A4 — Python requirements.txt produces real dependency metrics', () =
 describe('A4 — vcpkg.json produces real dependency metrics', () => {
   it('reads vcpkg.json deps and credits baseline-pinned packages', () => {
     const dir = makeTmpRepo();
+    writeFile(dir, 'docker-compose.yaml', 'services:\n  app:\n    build: .\n');
     writeFile(
       dir,
       'vcpkg.json',
@@ -133,6 +142,7 @@ describe('A4 — vcpkg.json produces real dependency metrics', () => {
 describe('A4 — CMakeLists.txt find_package/FetchContent produces real dependency metrics', () => {
   it('reads find_package and FetchContent_Declare from CMakeLists.txt', () => {
     const dir = makeTmpRepo();
+    writeFile(dir, 'docker-compose.yaml', 'services:\n  app:\n    build: .\n');
     writeFile(
       dir,
       'CMakeLists.txt',
@@ -174,6 +184,7 @@ describe('A4 — CMakeLists.txt find_package/FetchContent produces real dependen
 describe('A4 — conanfile.txt produces real dependency metrics', () => {
   it('reads conan [requires] section and credits lockfile when conan.lock is present', () => {
     const dir = makeTmpRepo();
+    writeFile(dir, 'docker-compose.yaml', 'services:\n  app:\n    build: .\n');
     writeFile(
       dir,
       'conanfile.txt',
@@ -206,6 +217,7 @@ describe('A4 — conanfile.txt produces real dependency metrics', () => {
 describe('A4 — empty manifest is a real zero signal, not unverified', () => {
   it('a vcpkg.json with zero dependencies still produces metrics', () => {
     const dir = makeTmpRepo();
+    writeFile(dir, 'docker-compose.yaml', 'services:\n  app:\n    build: .\n');
     writeFile(dir, 'vcpkg.json', JSON.stringify({ name: 'myapp', dependencies: [] }));
     writeFile(dir, 'vcpkg.lock.json', '{"version": 1}\n');
 
@@ -230,6 +242,9 @@ describe('A4 — empty manifest is a real zero signal, not unverified', () => {
 describe('Monorepo — sub-package credits root lockfile + CI, no false criticals', () => {
   it('sub-package sees root pnpm-lock.yaml (A4) and root workflows (B3)', () => {
     const root = makeTmpRepo();
+    // Deploy marker inside the scanned sub-package: keeps these fixtures on the app-norm
+    // A4 path (required lockfile) after the library-vs-app archetype split.
+    writeFile(root, 'packages/api/Procfile', 'web: node src/index.js\n');
     writeFile(root, 'pnpm-lock.yaml', 'lockfileVersion: 9.0\n');
     writeFile(
       root,
@@ -260,6 +275,7 @@ describe('Monorepo — sub-package credits root lockfile + CI, no false critical
 
   it('does NOT fabricate: sub-package with NO root lockfile stays A4-critical', () => {
     const root = makeTmpRepo();
+    writeFile(root, 'packages/api/Procfile', 'web: node src/index.js\n');
     // No lockfile anywhere in the monorepo.
     writeFile(
       root,
@@ -277,6 +293,7 @@ describe('Monorepo — sub-package credits root lockfile + CI, no false critical
 
   it('root scan is unchanged: scanning the git root borrows nothing (mono is a no-op)', () => {
     const root = makeTmpRepo();
+    writeFile(root, 'Procfile', 'web: node src/index.js\n');
     writeFile(
       root,
       'package.json',
@@ -604,10 +621,10 @@ describe('A2 — test-path downgrade: same secret, test/fixture path vs src path
 // repos. Un-gated: it scores when audit artifacts exist; B1/B5 stay substrate-N/A.
 
 describe('B4 — audit-trail half scores on external (non-substrate) code', () => {
-  it('external repo with SECURITY.md → B4 scored (not N/A); B1/B5 stay N/A', () => {
+  it('external repo with CHANGELOG.md → B4 scored (not N/A); B1/B5 stay N/A', () => {
     const dir = makeTmpRepo();
     writeFile(dir, 'src/index.js', 'export const x = 1;\n');
-    writeFile(dir, 'SECURITY.md', '# Security Policy\n\nReport issues to security@example.com.\n');
+    writeFile(dir, 'CHANGELOG.md', '# Changelog\n\n## 1.0.0 - 2026-01-15\n\nInitial release.\n');
 
     const b4 = signalFor(dir, 'B4');
     expect(b4).not.toBeNull();
@@ -631,6 +648,43 @@ describe('B4 — audit-trail half scores on external (non-substrate) code', () =
     // recognized audit-trail artifacts must return an explicit not_applicable signal instead.
     expect(b4).not.toBeNull();
     expect(b4?.notApplicable).toBe(true);
+  });
+
+  // ─── goal_cejel_b4_archetype_gate_2026-07-11: archetype-aware N/A gate ────────────
+  // B4 was scoring a false CRITICAL on repos whose ONLY audit-trail artifact is a static
+  // security policy (SECURITY.md) — e.g. ossf/scorecard, which publishes release notes via
+  // GitHub Releases rather than a committed CHANGELOG. A lone security policy is not a
+  // ratable audit-trail surface (it has no expectation of "freshness"); this must be
+  // excluded, never scored punitively.
+
+  it('Guard 1 (LOAD-BEARING) — repo with ONLY a SECURITY.md and no other audit-trail artifact → B4 is not_applicable, never a punitive score', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const x = 1;\n');
+    writeFile(dir, 'SECURITY.md', '# Security Policy\n\nReport issues to security@example.com.\n');
+
+    const b4 = signalFor(dir, 'B4');
+    expect(b4).not.toBeNull();
+    // Revert this gate (score SECURITY.md-only as a ratable surface again) → RED: this repo
+    // would receive the exact false CRITICAL the goal was written to kill (1 file / cap 3,
+    // 0/1 freshness ratio).
+    expect(b4?.notApplicable).toBe(true);
+    expect(b4?.notes).toMatch(/security-policy|no ratable surface|GitHub Releases/i);
+  });
+
+  it('Guard 2 (LOAD-BEARING) — repo WITH a genuine CHANGELOG and poor/absent freshness is still scored (not softened) even alongside SECURITY.md', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const x = 1;\n');
+    writeFile(dir, 'SECURITY.md', '# Security Policy\n\nReport issues to security@example.com.\n');
+    // A genuinely stale changelog: no freshness marker (no run-year/recent/latest/current).
+    writeFile(dir, 'CHANGELOG.md', '# Changelog\n\n## 0.1.0 - 2019-02-01\n\nFirst cut.\n');
+
+    const b4 = signalFor(dir, 'B4');
+    expect(b4).not.toBeNull();
+    // Revert (blanket-softening B4 whenever SECURITY.md is present) → RED: a genuinely stale
+    // audit trail must still be penalised exactly as before this goal.
+    expect(b4?.notApplicable).toBeFalsy();
+    const freshness = b4?.metrics?.find((m) => m.name === 'audit_freshness_depth');
+    expect(freshness?.value).toBe(0);
   });
 });
 
@@ -1023,8 +1077,40 @@ describe('robustness — BOM-prefixed package.json does not crash the scan', () 
     ).not.toThrow();
 
     // The BOM'd package.json's scripts/dependencies must still be read (skip-with-note only
-    // applies to a genuinely malformed file, not a valid one wrapped in a BOM).
+    // applies to a genuinely malformed file, not a valid one wrapped in a BOM). This fixture
+    // has no deploy surface, so A4 scores on library norms — the dependency-spec parse
+    // surfaces as declared_version_range_ratio (zod ^3.0.0 = 1 constrained spec).
     const a4 = signalFor(dir, 'A4');
-    expect(a4?.metrics?.find((m) => m.name === 'pinned_dependency_ratio')).toBeDefined();
+    expect(a4?.metrics?.find((m) => m.name === 'declared_version_range_ratio')).toMatchObject({
+      value: 1,
+      max: 1,
+    });
+  });
+});
+
+// Guard 3 (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12): NO VENDOR
+// NAME DEFINES A DIMENSION. The scheduled-product-health-workflow sub-signal (A1) must be
+// detected by SHAPE (schedule trigger + test-run command), never by keying off a Barg Labs
+// filename or agent name. A static assert over the collector's own source, plus the
+// behavioral genericity tests in witan-report.test.ts, is the regression guard.
+describe('Guard 3 — no vendor name defines the scheduled-health-workflow dimension', () => {
+  it('the A1 collector never gates the scheduled-workflow finding on a literal vendor filename', () => {
+    const source = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../repo-signals.ts'),
+      'utf8',
+    );
+    const collectorStart = source.indexOf('function collectA1TestIntegrityEvidence');
+    const collectorEnd = source.indexOf('\nfunction collectA2IsolationEvidence');
+    expect(collectorStart).toBeGreaterThan(-1);
+    expect(collectorEnd).toBeGreaterThan(collectorStart);
+    const collectorSource = source.slice(collectorStart, collectorEnd);
+
+    // No Barg-Labs-specific workflow filename may appear as a quoted literal inside the A1
+    // collector body — the collector must reason purely from the workflow's shape (schedule
+    // trigger + test-run command), never by comparing repoFiles against a vendor-named path.
+    // The public evidence taxonomy uses the generic scheduled_health_summary kind for this
+    // signal; do not reintroduce a vendor/agent name in the emitted evidence kind.
+    const vendorFilenamePattern = /['"][^'"]*(bede|edgar|aelfric)[^'"]*\.ya?ml['"]/i;
+    expect(collectorSource).not.toMatch(vendorFilenamePattern);
   });
 });

@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { buildWitanInputFromRepo, createWitanReport, renderWitanMarkdownReport } from '../index.js';
 import { parseIngestFile } from '../ingest.js';
 import { parseSarifFile, parseSarifJson } from '../sarif-adapter.js';
-import CODEX_EGBERT_FIXTURE from './fixtures/codex-egbert.sarif.json';
-import SEMGREP_EGBERT_FIXTURE from './fixtures/semgrep-egbert.sarif.json';
+import CODEX_SHAPE_FIXTURE from './fixtures/codex-generic.sarif.json';
+import SEMGREP_SHAPE_FIXTURE from './fixtures/semgrep-generic.sarif.json';
 
 // ---- Fixtures ---------------------------------------------------------------
 
@@ -189,12 +189,12 @@ describe('parseSarifJson', () => {
 
 // ---- Rule-default severity (Semgrep shape vs Codex shape) -------------------
 // Regression coverage for the live bug (2026-07-06): Semgrep SARIF carries no per-result
-// `level` — severity lives on the rule's `defaultConfiguration.level`. Fixtures are trimmed
-// slices of real `cejel --ingest` runs against egbert.
+// `level` — severity lives on the rule's `defaultConfiguration.level`. Fixtures are
+// generic-shaped slices matching what real `cejel --ingest` runs produce from each tool.
 
 describe('parseSarifJson — rule-default severity (Semgrep vs Codex shape)', () => {
   it('ingests Semgrep-shape findings via rule defaultConfiguration.level, not per-result level', () => {
-    const signals = parseSarifJson(SEMGREP_EGBERT_FIXTURE);
+    const signals = parseSarifJson(SEMGREP_SHAPE_FIXTURE);
     const allFindings = signals.flatMap((s) => s.findings);
     // 3 results in the fixture; none carry a per-result `level` — all 3 must still ingest.
     expect(allFindings.length).toBe(3);
@@ -210,12 +210,14 @@ describe('parseSarifJson — rule-default severity (Semgrep vs Codex shape)', ()
   });
 
   it('still ingests Codex-shape findings via per-result level (no regression)', () => {
-    const signals = parseSarifJson(CODEX_EGBERT_FIXTURE);
+    const signals = parseSarifJson(CODEX_SHAPE_FIXTURE);
     const allFindings = signals.flatMap((s) => s.findings);
     expect(allFindings.length).toBe(2);
     expect(signals.every((s) => s.source === 'sarif:Codex Security')).toBe(true);
 
-    const sessionFinding = allFindings.find((f) => f.ruleId === 'session-invalidation.ops-session');
+    const sessionFinding = allFindings.find(
+      (f) => f.ruleId === 'session-invalidation.admin-session',
+    );
     expect(sessionFinding?.severity).toBe('warning'); // per-result level: 'warning'
     const ssrfFinding = allFindings.find((f) => f.ruleId === 'ssrf.web-push');
     expect(ssrfFinding?.severity).toBe('critical'); // per-result level: 'error'
@@ -399,7 +401,7 @@ describe('scoring integration: SARIF signals augment native score', () => {
   });
 
   // Regression coverage for the live crash (2026-07-06, goal_cejel_scan_robustness_ingest_and_bom):
-  // `cejel --ingest <sarif>` on egbert threw "consumedSignals[1].findings[191].message —
+  // `cejel --ingest <sarif>` on a real repo threw "consumedSignals[1].findings[191].message —
   // String must contain at most 500 character(s)" and failed the ENTIRE certificate over one
   // over-long Semgrep finding. End-to-end: --ingest file → createWitanReport must never throw.
   it('an ingested SARIF finding with a >500-char message does not crash report generation', () => {

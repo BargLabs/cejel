@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cejel Trust Certificate - scorecard</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --steel: #16212a;
+  --surface: #1d2b35;
+  --surface-2: #273946;
+  --line: rgba(238, 244, 247, .16);
+  --text: #eef4f7;
+  --muted: #b7c5cc;
+  --teal: #2fc8a6;
+  --warn: #e7bf72;
+  --danger: #f09a8f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--steel); color: var(--text); }
+.certificate { max-width: 1120px; margin: 0 auto; padding: 44px 32px 64px; }
+.hero, .criterion, .evidence-grid article { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+.brand { color: var(--teal); font-weight: 700; display: flex; gap: 10px; align-items: center; }
+.brand-mark { border: 1px solid var(--teal); border-radius: 50%; width: 28px; height: 28px; display: inline-grid; place-items: center; }
+h1 { font-size: 42px; line-height: 1.05; margin: 18px 0; }
+h2 { margin-top: 0; }
+.meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.meta div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.score { font-size: 54px; font-weight: 800; }
+.score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
+.verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
+.subscores { color: var(--muted); }
+.criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.criteria-list { display: grid; gap: 14px; }
+.na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.na-heading { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.na-list { display: grid; gap: 8px; font-size: 13px; }
+.na-list li { margin: 0; color: var(--muted); }
+.na-id { color: var(--muted); font-weight: 700; margin-right: 6px; }
+.criterion-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.criterion-id { color: var(--teal); font-weight: 800; }
+.criterion h3 { margin: 4px 0 0; }
+.criterion-score { font-size: 30px; font-weight: 800; margin: 14px 0; }
+.status { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); }
+ul { padding-left: 18px; }
+li { margin: 8px 0; }
+li span { color: var(--muted); margin-left: 6px; }
+code { color: var(--warn); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .certificate { padding: 28px 18px 48px; }
+  .meta, .criteria-grid, .evidence-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+  <main class="certificate">
+    <header class="hero">
+      <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
+      <h1>scorecard</h1>
+      <dl class="meta">
+        <div><dt>Date</dt><dd>2026-07-12</dd></div>
+        <div><dt>Run</dt><dd>https://github.com/ossf/scorecard @ 916bfc57fa7431467a33a5a013cba3f8a0c1ec50</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v2-2026-07-12</dd></div>
+      </dl>
+      <div class="score">3.0<span>/4.0 overall</span></div>
+      <p class="verdict">Conditional</p>
+      <p class="subscores">Code 2.3 · Process 3.6</p>
+    </header>
+    <section class="criteria-grid">
+      <section>
+        <h2>Code trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.4</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>270/16 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>3/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>186/270 ratio</span></li></ul>
+          <ul><li>Detected test file <code>attestor/command/cli_test.go:1 · sha256:8e75726c5f60</code></li><li>Detected test file <code>attestor/policy/attestation_policy_test.go:1 · sha256:19eaa945cbbf</code></li><li>Detected test file <code>checker/check_request_test.go:1 · sha256:a10638fb8687</code></li><li>Detected test file <code>checker/check_result_test.go:1 · sha256:63b3271d70f1</code></li><li>Detected test file <code>checker/client_test.go:1 · sha256:aae06114bff9</code></li><li>Detected test file <code>checker/detail_logger_impl_test.go:1 · sha256:241c41f2e7b1</code></li><li>Detected test file <code>checker/raw_result_test.go:1 · sha256:5631de1e13f8</code></li><li>Detected test file <code>checks/all_checks_test.go:1 · sha256:5f18978bddad</code></li><li>Configured test runner <code>Makefile:1 · sha256:de7ddc3cf5c3</code></li><li>Configured test runner <code>go.mod:1 · sha256:dad254a07471</code></li><li>Configured test runner <code>tools/go.mod:1 · sha256:64cc61a2ee08</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>attestor/command/cli_test.go:1 · sha256:8e75726c5f60</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A3</div><h3>Production readiness</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">1.8</div>
+          <ul><li><strong>Production-readiness primitive coverage</strong><span>2/6 primitives</span></li><li><strong>Production workflow depth</strong><span>15/6 signals</span></li><li><strong>Observability depth</strong><span>3/4 signals</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:491d592bcf1e</code></li><li>Deploy configuration <code>Dockerfile:1 · sha256:e12b8b4c85f4</code></li><li>warning: A3 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:491d592bcf1e</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.3</div>
+          <ul><li><strong>Pinned dependency ratio</strong><span>0/822 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li></ul>
+          <ul><li>Dependency manifest <code>tools/go.mod:1 · sha256:64cc61a2ee08</code></li><li>Dependency lockfile <code>go.sum:1 · sha256:52c2296d72dd</code></li><li>Dependency update config <code>.github/dependabot.yml:1 · sha256:6dedf4004d9a</code></li><li>warning: A4 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>tools/go.mod:1 · sha256:64cc61a2ee08</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.6</div>
+          <ul><li><strong>Claim match rate</strong><span>12/20 ratio</span></li><li><strong>Claim source depth</strong><span>8/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:8fed8241afd3</code></li><li>Code presence for claim reconciliation <code>cmd/internal/nuget/client.go:1 · sha256:04a66196afee</code></li><li>Documented limitations / threat model / &quot;not covered&quot; section <code>docs/osps-baseline-coverage.md:1 · sha256:4a6356f1184a</code></li><li>info: Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming. (Repository claim source <code>README.md:1 · sha256:8fed8241afd3</code>)</li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li></ul>
+        </div>
+      </section>
+      <section>
+        <h2>Process trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>PR trace primitive coverage</strong><span>16/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:491d592bcf1e</code></li><li>Pull-request CI workflow <code>.github/workflows/depsreview.yml:1 · sha256:b5f2fd32e61b</code></li><li>Pull-request CI workflow <code>.github/workflows/docker.yml:1 · sha256:83df290e4d6e</code></li><li>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:97111f8601a6</code></li><li>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:32bebdd16341</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.7</div>
+          <ul><li><strong>CI verification depth</strong><span>1/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>10/4 workflows</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:491d592bcf1e</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>1/1 present</span></li></ul>
+          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:32bebdd16341</code></li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">B1</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B4</span> Audit trail and report-up completeness — <span class="na-reason">Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.</span></li><li><span class="na-id">B5</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li></ul>
+        </div>
+      </section>
+    </section>
+    <section class="evidence-grid" aria-label="Evidence and gaps">
+      <article>
+        <h2>Verified evidence</h2>
+        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:491d592bcf1e</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/depsreview.yml:1 · sha256:b5f2fd32e61b</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/docker.yml:1 · sha256:83df290e4d6e</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:97111f8601a6</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:32bebdd16341</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:32bebdd16341</code></span></li></ul>
+      </article>
+      <article>
+        <h2>Open / unverified</h2>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>attestor/command/cli_test.go:1 · sha256:8e75726c5f60</code>)</span></li><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/codeql-analysis.yml:1 · sha256:491d592bcf1e</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>tools/go.mod:1 · sha256:64cc61a2ee08</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>info: Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming. (Repository claim source <code>README.md:1 · sha256:8fed8241afd3</code>)</span></li></ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

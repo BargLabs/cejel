@@ -69,7 +69,7 @@
           "locations": [
             {
               "physicalLocation": {
-                "artifactLocation": { "uri": "egbert_core/db/queries.py" },
+                "artifactLocation": { "uri": "server/db/queries.py" },
                 "region": { "startLine": 57 }
               }
             }

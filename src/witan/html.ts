@@ -138,13 +138,38 @@ function criteriaByCategory(
   return report.criteria.filter((criterion) => criterion.category === category);
 }
 
+// A dimension the repository's archetype was never evaluated on (e.g. the two
+// Alfred-substrate-only dimensions on external code) is not rendered as a scored
+// section — that would imply the repo was assessed on it and found wanting. It is
+// grouped separately, named, with its reason stated. This is presentation-only:
+// applicability is read straight off the existing status field (scoring.ts), not
+// a second detection path. 'insufficient_data' (a measurement gap, not
+// inapplicability) stays in the normal scored list, unchanged — see
+// goal_cejel_cert_applicable_dims_and_link_integrity_2026-07-12.
 function renderCriterionColumn(title: string, criteria: readonly WitanCriterionScore[]): string {
+  const applicable = criteria.filter((criterion) => criterion.status !== 'not_applicable');
+  const notApplicable = criteria.filter((criterion) => criterion.status === 'not_applicable');
   return `<section class="criteria-column">
         <h2>${escapeHtml(title)}</h2>
         <div class="criteria-list">
-          ${criteria.map(renderCriterionCard).join('')}
+          ${applicable.map(renderCriterionCard).join('')}
         </div>
+        ${notApplicable.length > 0 ? renderNotApplicableGroup(notApplicable) : ''}
       </section>`;
+}
+
+function renderNotApplicableGroup(criteria: readonly WitanCriterionScore[]): string {
+  return `<div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list">
+            ${criteria.map(renderNotApplicableItem).join('')}
+          </ul>
+        </div>`;
+}
+
+function renderNotApplicableItem(criterion: WitanCriterionScore): string {
+  const reason = criterion.notes ?? 'Not applicable to this repository.';
+  return `<li><span class="na-id">${escapeHtml(criterion.id)}</span> ${escapeHtml(criterion.title)} — <span class="na-reason">${escapeHtml(reason)}</span></li>`;
 }
 
 function renderCriterionCard(criterion: WitanCriterionScore): string {
@@ -162,7 +187,7 @@ function renderCriterionCard(criterion: WitanCriterionScore): string {
               </div>
               ${renderStatusChip(criterion.status)}
             </div>
-            <div class="criterion-score">${criterion.status === 'not_applicable' ? 'N/A' : formatScore(criterion.score)}</div>
+            <div class="criterion-score">${criterion.status === 'not_applicable' ? 'N/A' : criterion.status === 'insufficient_data' ? 'No data' : formatScore(criterion.score)}</div>
             <ul class="criterion-metrics">
               ${metrics.length > 0 ? metrics.map((item) => `<li>${item}</li>`).join('') : '<li>No measured depth metrics supplied.</li>'}
             </ul>
@@ -196,12 +221,16 @@ function renderOpenItems(criterion: WitanCriterionScore): string[] {
   );
 
   if (
-    criterion.status === 'unverified' &&
+    (criterion.status === 'unverified' || criterion.status === 'insufficient_data') &&
     criterion.evidence.length === 0 &&
     criterion.findings.length === 0
   ) {
+    const message =
+      criterion.status === 'insufficient_data'
+        ? 'Insufficient data — no measurable signal; excluded from composite (unmeasured, not inapplicable).'
+        : 'No concrete evidence supplied.';
     return [
-      `<li><strong>${escapeHtml(criterion.id)} - ${escapeHtml(criterion.title)}</strong><span>No concrete evidence supplied.</span></li>`,
+      `<li><strong>${escapeHtml(criterion.id)} - ${escapeHtml(criterion.title)}</strong><span>${escapeHtml(message)}</span></li>`,
     ];
   }
 
@@ -357,6 +386,12 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .criteria-column, .evidence-section { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 22px; }
 h2 { font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacing: 0; margin-bottom: 18px; }
 .criteria-list { display: grid; gap: 12px; }
+.na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
+.na-heading { font-family: var(--sans); font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+.na-list { display: grid; gap: 8px; font-size: 13px; }
+.na-list li { margin: 0; color: var(--muted); }
+.na-id { color: var(--faint); font-family: var(--mono); font-size: 11px; margin-right: 6px; }
+.na-reason { color: var(--muted); }
 .criterion { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--surface-2); }
 .criterion-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
 .criterion-id { color: var(--periwinkle); font-family: var(--mono); font-size: 12px; margin-bottom: 4px; }
@@ -372,6 +407,7 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .status[data-status="warning"] { color: var(--warn); background: var(--warn-weak); border-color: rgba(231, 191, 114, .44); }
 .status[data-status="critical"] { color: var(--danger); background: var(--danger-weak); border-color: rgba(240, 154, 143, .46); }
 .status[data-status="unverified"] { color: var(--muted); background: var(--quiet); }
+.status[data-status="insufficient_data"] { color: var(--muted); background: var(--quiet); border-style: dashed; }
 ul { margin: 0; padding-left: 18px; }
 li { margin: 8px 0; color: var(--muted); }
 .criterion-evidence { margin-top: 12px; font-size: 13px; }
