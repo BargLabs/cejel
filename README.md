@@ -1,6 +1,6 @@
 # cejel
 
-[![npm version](https://img.shields.io/npm/v/cejel.svg)](https://www.npmjs.com/package/cejel)
+[![release](https://img.shields.io/github/v/release/BargLabs/cejel)](https://github.com/BargLabs/cejel/releases/latest)
 [![license: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](./LICENSE)
 
 Cejel (*"SEH-jel"*) — a trust certificate for your codebase.
@@ -8,8 +8,8 @@ Cejel (*"SEH-jel"*) — a trust certificate for your codebase.
 Free, offline, no-signup CLI that scores the engineering signals that tell you whether to
 trust a repo — tests, secrets, isolation, claim-vs-reality, CI/audit discipline — and prints
 a trust certificate + badge. Especially valuable when AI wrote a lot of the code: that's
-exactly when you can't eyeball trust. Built on a deterministic, no-LLM
-scoring core — the free path makes zero network calls and requires no account.
+exactly when you can't eyeball trust. Built on a deterministic, no-LLM scoring core — the
+free path makes zero network calls and requires no account.
 
 Cejel is not another point scanner competing with the one you already run — it's the open,
 portable, offline trust certificate that aggregates them. Pipe in SARIF-compatible output
@@ -20,57 +20,63 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 > monorepo — the ten-product studio it was built inside — which it currently scores
 > 3.1/4.0 ("Conditional"). We score ourselves before asking you to score yourself.
 
-## Leaderboard
+## Install
 
-This repo ships the [Cejel OSS trust leaderboard](./leaderboard/leaderboard.md): the whole
-corpus scored and published in the open — elite OSS projects, Cejel itself, and the private
-studio monorepo Cejel was built inside — with a per-repository evidence report for every
-row under [`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
-[cejel.dev](https://cejel.dev). Same deterministic rubric as `npx cejel .`; nobody is
-exempt, including us.
+No account, no key, no signup.
 
-### Redaction policy
+**Single-file binary.** One file. No Node, no npm, no `node_modules`, nothing installed.
 
-A path is published exactly when the reader can check it. Every public repository on the
-board cites full evidence paths and line numbers, everywhere, in every artifact — a
-certificate whose evidence you cannot open is not evidence. The two private-repository
-entries (this monorepo's own transparency entry, and Cejel's own source sub-package inside
-it) never cite a source path, anywhere, in any field or format — but the finding itself, its
-dimension, status, score, and content hash always survive; only the location is withheld,
-marked uniformly as "path withheld — private repository". Redaction removes a location, never
-a fact: a private repository failing its own check still shows up on its certificate, by
-name. The B1 and B5 rubric dimensions are substrate-only (they measure signals specific to
-this monorepo's own internal process, not applicable to any external repository) and are
-excluded from the ranking for every repository, including ours — the same fairness rule
-either way: nobody is scored on a dimension nobody else can have.
+```bash
+curl -fsSL https://github.com/BargLabs/cejel/releases/latest/download/cejel-$(uname -s)-$(uname -m) -o cejel
+chmod +x cejel
+./cejel .
+```
 
-### Known false positives (fixed before publishing)
+**Don't take the offline claim on trust — check it.** Turn your network off, then run the
+binary. It will score your repository and write you a certificate anyway. That is the whole
+product, and you can falsify it in ten seconds:
 
-Calibrating a rubric against real, elite repositories surfaces mistakes; the record is part
-of the trust claim, not something to bury. Two dimensions produced a punitive score for the
-*absence* of a ratable surface rather than a real weakness, and both are fixed:
-Django was flagged critical on dependency hygiene for using version ranges instead of exact
-pins — normal, deliberate practice for a library, not an app; the rubric now scores
-dependency hygiene against archetype-appropriate norms. OSSF Scorecard — Google's own
-supply-chain security auditing tool — was flagged critical on audit-trail completeness for
-publishing release notes via GitHub Releases instead of a committed `CHANGELOG.md`; a
-repository with no ratable audit surface now returns "insufficient data" (excluded from the
-composite) instead of a punitive score. The board also publishes a measured-coverage
-indicator per row: a score reflects only its *measured* dimensions, and a row scored on fewer
-than half of its applicable dimensions is shown as unranked rather than ordered against
-better-evidenced rows.
+```bash
+# with Wi-Fi off, or:
+docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debian:stable-slim /cejel .
+```
+
+**npm.**
+
+```bash
+# Coming after the scoped npm package is published:
+npx @barglabs/cejel .
+```
+
+> **On the name.** The unscoped `cejel` package name is held by the registry and the scoped
+> package is prepared as `@barglabs/cejel`. Until that package is published, use the release
+> binary above or build from source; we would rather say this than have you copy a command
+> that 404s.
+
+**GitHub Action** — score every PR and publish the badge:
+
+```yaml
+- uses: BargLabs/cejel/action@v1
+  with:
+    min-score: "2.5"   # optional: fail the build below this
+```
+
+**From source** — it is AGPL and it runs offline, so reading it is rather the point:
+
+```bash
+git clone https://github.com/BargLabs/cejel && cd cejel
+pnpm install && pnpm build
+node dist/index.js .
+```
+
+Released binaries: `cejel-Darwin-arm64`, `cejel-Linux-x86_64`. A Homebrew tap and the
+remaining architectures are in progress; they are not listed here because they do not exist
+yet.
 
 ## Usage
 
-Run it with whichever package manager you already have — no install, no signup. All of
-these pull the same `cejel` package from the npm registry:
-
 ```bash
-npx cejel .          # npm
-pnpm dlx cejel .     # pnpm
-yarn dlx cejel .     # yarn
-bunx cejel .         # bun
-deno run -A npm:cejel .   # deno
+./cejel .
 ```
 
 Scores the current directory with sensible defaults: no flags, no signup, fully offline.
@@ -101,7 +107,7 @@ Cejel folds those findings into the same rubric-scored, offline trust certificat
 contributing tools shown in the certificate and report as provenance:
 
 ```bash
-npx cejel . --ingest munatrust.sarif --ingest scorecard.json
+./cejel . --ingest munatrust.sarif --ingest scorecard.json
 ```
 
 Or drop files in `.cejel/inputs/` and they're picked up automatically, no flag needed:
@@ -109,7 +115,7 @@ Or drop files in `.cejel/inputs/` and they're picked up automatically, no flag n
 ```bash
 mkdir -p .cejel/inputs
 cp munatrust-results.sarif .cejel/inputs/
-npx cejel .
+./cejel .
 ```
 
 External findings only ever adjust a dimension score *downward*, and by a bounded amount —
@@ -126,7 +132,7 @@ Three ways a scanner's output gets ingested:
    `--ingest scorecard.json`; auto-detected by its `checks` array.
 3. **Generic JSON** — for a tool that emits neither, map its output into the minimal shape
    below (or write a small adapter mirroring
-   [`scorecard-adapter.ts`](../witan/src/scorecard-adapter.ts) if the format needs real
+   [`scorecard-adapter.ts`](./src/witan/scorecard-adapter.ts) if the format needs real
    parsing):
 
    ```json
@@ -176,7 +182,7 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
-- uses: BargLabs/cejel/action@main
+- uses: BargLabs/cejel/action@v1
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```
@@ -188,14 +194,14 @@ server over stdio, so any MCP client (Claude Code, Cowork, Cursor, Codex) can re
 trust certificate as a tool call. It wraps the exact same scan the CLI runs — same scores,
 same verdict — and is listed on Smithery via the repo's `smithery.yaml`.
 
-Add it to an MCP client config:
+After the npm package is published, add it to an MCP client config:
 
 ```json
 {
   "mcpServers": {
     "cejel": {
       "command": "npx",
-      "args": ["-y", "--package=cejel", "cejel-mcp"]
+      "args": ["-y", "--package=@barglabs/cejel", "cejel-mcp"]
     }
   }
 }
@@ -214,10 +220,10 @@ and the server writes no files.
 
 ## What "offline" means here
 
-Scoring a repo — `npx cejel .` itself, and the Action's scoring step — makes zero network
-calls: no telemetry, no signup, no model call. Fetching the `cejel` package the first time
-(like any npm-distributed CLI, including this Action's own dependency install) does need
-network; that's a one-time install cost, not part of the scoring guarantee.
+Scoring a repo — `cejel .` itself, and the Action's scoring step — makes zero network
+calls: no telemetry, no signup, no model call. Fetching the `@barglabs/cejel` package the
+first time (like any npm-distributed CLI, including this Action's own dependency install)
+does need network; that's a one-time install cost, not part of the scoring guarantee.
 
 ## The public leaderboard: what we redact, what we exclude, and where we were wrong
 

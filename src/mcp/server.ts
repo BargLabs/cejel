@@ -19,6 +19,13 @@ export interface CejelMcpIdentity {
   version: string;
 }
 
+function mcpUriSchemeForPackageName(packageName: string): string {
+  return packageName
+    .replace(/^@/, '')
+    .replace(/[^a-zA-Z0-9.+-]/g, '-')
+    .toLowerCase();
+}
+
 /**
  * Thin MCP wrapper around the existing trust-certificate scan: ONE `scan` tool that calls
  * the same runCejelScan path as the CLI (never a reimplementation — the parity regression
@@ -28,8 +35,9 @@ export interface CejelMcpIdentity {
  */
 export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
   let lastScan: CejelScanResult | undefined;
-  const certificateUri = `${identity.packageName}://last-scan/certificate.html`;
-  const badgeUri = `${identity.packageName}://last-scan/badge.svg`;
+  const resourceScheme = mcpUriSchemeForPackageName(identity.packageName);
+  const certificateUri = `${resourceScheme}://last-scan/certificate.html`;
+  const badgeUri = `${resourceScheme}://last-scan/badge.svg`;
 
   const server = new McpServer({
     name: `${identity.packageName}-mcp`,

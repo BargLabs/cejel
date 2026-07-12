@@ -20,6 +20,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 // packs, installs, and RUNS the published artifact exactly as an npm consumer would,
 // entirely offline (no registry reachable, no network dependency in the assertions).
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const PACKAGE_MANIFEST = JSON.parse(
+  readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'),
+) as { name: string };
+const INSTALLED_PACKAGE_DIR = join('node_modules', ...PACKAGE_MANIFEST.name.split('/'));
 
 const OFFLINE_NPM_ENV = {
   ...process.env,
@@ -73,7 +77,7 @@ describe('cejel install-from-tarball (published artifact)', () => {
 
   it('installs with no unresolvable internal workspace-protocol runtime dependency', () => {
     const installedManifest = JSON.parse(
-      readFileSync(join(installDir, 'node_modules', 'cejel', 'package.json'), 'utf8'),
+      readFileSync(join(installDir, INSTALLED_PACKAGE_DIR, 'package.json'), 'utf8'),
     ) as { dependencies?: Record<string, string> };
 
     expect(installedManifest.dependencies ?? {}).toEqual({});
@@ -100,7 +104,7 @@ describe('cejel install-from-tarball (published artifact)', () => {
 
   it('ships LICENSE in the installed package (AGPL-3.0-only)', () => {
     const installedLicense = readFileSync(
-      join(installDir, 'node_modules', 'cejel', 'LICENSE'),
+      join(installDir, INSTALLED_PACKAGE_DIR, 'LICENSE'),
       'utf8',
     );
     expect(installedLicense).toContain('GNU Affero General Public License');
@@ -109,7 +113,7 @@ describe('cejel install-from-tarball (published artifact)', () => {
 
 // Regression guard for the pre-#333 packaging bug: `dist/` is gitignored and `npm publish`
 // packs whatever happens to be on disk, so a stale/never-built `dist/` could ship silently.
-// `prepublishOnly`/`prepack` (packages/witan-cli/package.json) must make that impossible —
+// `prepublishOnly`/`prepack` (package.json) must make that impossible —
 // prove it by deliberately staling `dist/index.js` before packing.
 describe('cejel publish path can never ship a stale dist/', () => {
   it('declares prepublishOnly and prepack scripts that run the build', () => {

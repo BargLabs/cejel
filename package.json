@@ -1,5 +1,5 @@
 {
-  "name": "cejel",
+  "name": "@barglabs/cejel",
   "version": "0.1.1",
   "private": false,
   "description": "Offline trust certificate for any codebase — scores tests, secrets, isolation, claim-vs-reality, and CI discipline; especially useful for AI-written code.",
