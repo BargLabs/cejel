@@ -1,8 +1,8 @@
 # Cejel Trust Report - zod
 
 - Product: zod
-- Rubric: witan-rubric-v2-2026-07-12
-- Generated: 2026-07-12T18:11:15.466Z
+- Rubric: witan-rubric-v3-2026-07-13
+- Generated: 2026-07-13T18:03:01.549Z
 - Repository: https://github.com/colinhacks/zod @ 912f0f51b0ced654d0069741e7160834dca742ee
 
 ## Criterion Profile

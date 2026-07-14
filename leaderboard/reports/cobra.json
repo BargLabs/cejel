@@ -1,0 +1,391 @@
+{
+  "productSlug": "cobra",
+  "productDisplayName": "cobra",
+  "repo": {
+    "url": "https://github.com/spf13/cobra",
+    "headSha": "adbc8813901bba65827259daa8e22ff94ec1f30e"
+  },
+  "generatedAt": "2026-07-13T18:57:46.878Z",
+  "rubricVersion": "witan-rubric-v3-2026-07-13",
+  "codeTrustScore": 2.8,
+  "processTrustScore": 2.3,
+  "overallScore": 2.6,
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 2.3,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "active_help_test.go",
+          "line": 1,
+          "contentHash": "7ae9d42bd41c7acb4fb5a9fb2ab67c43f3118b3631986e2da50df2111fb7a246"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "args_test.go",
+          "line": 1,
+          "contentHash": "37058f718eb5ffc7d70f917d694c04aa11fc39ba32ad8d1db9766e9d8eb009ae"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "bash_completionsV2_test.go",
+          "line": 1,
+          "contentHash": "3cf7c192417f3b1e91e8e9a35f19af8d8c965a1e4d4db97fd27b530cffe14fbe"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "bash_completions_test.go",
+          "line": 1,
+          "contentHash": "7bb8b9de6c45ba25595ca21feadea339be1851734ad26c750d3beaf715451e20"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "cobra_test.go",
+          "line": 1,
+          "contentHash": "bb9a5a989701f8df0d8797ceb0365ce3076052fcaa190aa8989b3b479bff6e09"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "command_test.go",
+          "line": 1,
+          "contentHash": "710a689a1512af3ca376a0aaaa2c0b77d10ea174f7e27db85c2f2316a087d0f3"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "completions_test.go",
+          "line": 1,
+          "contentHash": "3f8a8aabe2d279b84313fbfa08a08728008a8bc61744ab3522e7cee73b3faba9"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "doc/cmd_test.go",
+          "line": 1,
+          "contentHash": "c016acceee9185e9e37da50cce59dc1d818e4ef270c3940b1a74118c31d920fd"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "Makefile",
+          "line": 1,
+          "contentHash": "880eb1cbfbfda597ca3433cd731a0d2d6d9e7adeb55c0fd911bfdc6894fd4f79"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "go.mod",
+          "line": 1,
+          "contentHash": "cc6098fd1118fb3bb349c72bcd6e9c665d3a1b2a516ea9807ee24521ad2ddf8c"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "active_help_test.go",
+            "line": 1,
+            "contentHash": "7ae9d42bd41c7acb4fb5a9fb2ab67c43f3118b3631986e2da50df2111fb7a246"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 17,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 16,
+          "max": 17,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 3.2,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "go.mod",
+          "line": 1,
+          "contentHash": "cc6098fd1118fb3bb349c72bcd6e9c665d3a1b2a516ea9807ee24521ad2ddf8c"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile",
+          "path": "go.sum",
+          "line": 1,
+          "contentHash": "e557d41a00d687ace802030ae327b7d794989b638b5a0e9305865023a0544834"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency update config",
+          "path": ".github/dependabot.yml",
+          "line": 1,
+          "contentHash": "fce71f1c82f8fd4f9bb306faca31f50125e58ce12878d51af49480283b157a64"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 4,
+          "max": 5,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 1,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 1,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "B1",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/labeler.yml",
+          "line": 1,
+          "contentHash": "c2ec854c684df77b57c1f9d37e966133af2a8521f77710ae86ee8941b7fbec01"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/test.yml",
+          "line": 1,
+          "contentHash": "22b2338c231ccebfbbde901d6b6bcd4c9f00c376e3e03d6767e329f71864348d"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 2,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 1,
+          "max": 1,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 0.6,
+      "status": "critical",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/labeler.yml",
+          "line": 1,
+          "contentHash": "c2ec854c684df77b57c1f9d37e966133af2a8521f77710ae86ee8941b7fbec01"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "critical",
+          "summary": "B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/labeler.yml",
+            "line": 1,
+            "contentHash": "c2ec854c684df77b57c1f9d37e966133af2a8521f77710ae86ee8941b7fbec01"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored."
+    },
+    {
+      "id": "B5",
+      "title": "Alfred-internal process dimension",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "source"
+}

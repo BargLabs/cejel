@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cejel Trust Certificate - sinatra</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --steel: #16212a;
+  --surface: #1d2b35;
+  --surface-2: #273946;
+  --line: rgba(238, 244, 247, .16);
+  --text: #eef4f7;
+  --muted: #b7c5cc;
+  --teal: #2fc8a6;
+  --warn: #e7bf72;
+  --danger: #f09a8f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--steel); color: var(--text); }
+.certificate { max-width: 1120px; margin: 0 auto; padding: 44px 32px 64px; }
+.hero, .criterion, .evidence-grid article { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 24px; }
+.brand { color: var(--teal); font-weight: 700; display: flex; gap: 10px; align-items: center; }
+.brand-mark { border: 1px solid var(--teal); border-radius: 50%; width: 28px; height: 28px; display: inline-grid; place-items: center; }
+h1 { font-size: 42px; line-height: 1.05; margin: 18px 0; }
+h2 { margin-top: 0; }
+.meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.meta div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.score { font-size: 54px; font-weight: 800; }
+.score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
+.verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
+.subscores { color: var(--muted); }
+.criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.criteria-list { display: grid; gap: 14px; }
+.na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.na-heading { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.na-list { display: grid; gap: 8px; font-size: 13px; }
+.na-list li { margin: 0; color: var(--muted); }
+.na-id { color: var(--muted); font-weight: 700; margin-right: 6px; }
+.criterion-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.criterion-id { color: var(--teal); font-weight: 800; }
+.criterion h3 { margin: 4px 0 0; }
+.criterion-score { font-size: 30px; font-weight: 800; margin: 14px 0; }
+.status { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); }
+ul { padding-left: 18px; }
+li { margin: 8px 0; }
+li span { color: var(--muted); margin-left: 6px; }
+code { color: var(--warn); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .certificate { padding: 28px 18px 48px; }
+  .meta, .criteria-grid, .evidence-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+  <main class="certificate">
+    <header class="hero">
+      <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
+      <h1>sinatra</h1>
+      <dl class="meta">
+        <div><dt>Date</dt><dd>2026-07-13</dd></div>
+        <div><dt>Run</dt><dd>https://github.com/sinatra/sinatra @ 946812bdec8faf6598fed154a8d611ead612b6fd</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v3-2026-07-13</dd></div>
+      </dl>
+      <div class="score">2.4<span>/4.0 overall</span></div>
+      <p class="verdict">At risk</p>
+      <p class="subscores">Code 2.0 · Process 2.8</p>
+    </header>
+    <section class="criteria-grid">
+      <section>
+        <h2>Code trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">1.8</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>91/53 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>0/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>77/78 ratio</span></li></ul>
+          <ul><li>Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/base_spec.rb:1 · sha256:0f86f660571f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/content_security_policy_spec.rb:1 · sha256:a6836f158b55</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/cookie_tossing_spec.rb:1 · sha256:27c39fd3a46f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/escaped_params_spec.rb:1 · sha256:ee75320b93ad</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/form_token_spec.rb:1 · sha256:b89f75a7d0c1</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/frame_options_spec.rb:1 · sha256:55698f06865a</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/host_authorization_spec.rb:1 · sha256:3aea586a6342</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
+            <span class="status" data-status="insufficient_data">insufficient_data</span>
+          </div>
+          <div class="criterion-score">No data</div>
+          <ul><li>No measured depth metrics supplied.</li></ul>
+          <ul><li>No concrete evidence supplied.</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.2</div>
+          <ul><li><strong>Claim match rate</strong><span>12/13 ratio</span></li><li><strong>Claim source depth</strong><span>1/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code></li><li>Code presence for claim reconciliation <code>lib/sinatra.rb:1 · sha256:7c3157fd3ea7</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code>)</li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+        </div>
+      </section>
+      <section>
+        <h2>Process trust</h2>
+        <div class="criteria-list"><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>PR trace primitive coverage</strong><span>3/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></li><li>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
+            <span class="status" data-status="critical">critical</span>
+          </div>
+          <div class="criterion-score">0.6</div>
+          <ul><li><strong>CI verification depth</strong><span>0/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">2.5</div>
+          <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>1/2 ratio</span></li></ul>
+          <ul><li>Audit or changelog artifact <code>CHANGELOG.md:1 · sha256:21e2a2928d51</code></li><li>Audit or changelog artifact <code>SECURITY.md:1 · sha256:0a317e90d1c1</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
+            <span class="status" data-status="verified">verified</span>
+          </div>
+          <div class="criterion-score">4.0</div>
+          <ul><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>1/1 present</span></li></ul>
+          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li></ul>
+        </article></div>
+        <div class="na-group">
+          <h3 class="na-heading">Not applicable to this repository</h3>
+          <ul class="na-list"><li><span class="na-id">B1</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B5</span> Alfred-internal process dimension — <span class="na-reason">Substrate-specific: an Alfred-internal process dimension is not applicable to external code.</span></li></ul>
+        </div>
+      </section>
+    </section>
+    <section class="evidence-grid" aria-label="Evidence and gaps">
+      <article>
+        <h2>Verified evidence</h2>
+        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></span></li></ul>
+      </article>
+      <article>
+        <h2>Open / unverified</h2>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</span></li></ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

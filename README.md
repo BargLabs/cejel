@@ -44,14 +44,11 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 **npm.**
 
 ```bash
-# Coming after the scoped npm package is published:
-npx @barglabs/cejel .
+npx @cejel/cejel .
 ```
 
-> **On the name.** The unscoped `cejel` package name is held by the registry and the scoped
-> package is prepared as `@barglabs/cejel`. Until that package is published, use the release
-> binary above or build from source; we would rather say this than have you copy a command
-> that 404s.
+> **On the name.** npm rejects the unscoped `cejel` package name as too similar to an
+> existing package (`level`). The published package is the scoped `@cejel/cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
 
@@ -72,6 +69,49 @@ node dist/index.js .
 Released binaries: `cejel-Darwin-arm64`, `cejel-Linux-x86_64`. A Homebrew tap and the
 remaining architectures are in progress; they are not listed here because they do not exist
 yet.
+
+## Leaderboard
+
+This repo ships the [Cejel OSS trust leaderboard](./leaderboard/leaderboard.md): the whole
+corpus scored and published in the open — elite OSS projects, Cejel itself, and the private
+studio monorepo Cejel was built inside — with a per-repository evidence report for every
+row under [`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
+[cejel.dev](https://cejel.dev). Every score on this board is produced by the same sealed
+public scorer used by `npx @cejel/cejel .` — check out the source commit printed in the
+report, run the tool, and you will get this number. A required guard does exactly that for
+every corpus row and compares score, verdict, measured coverage, and evidence. No private
+domain collector contributes to any published score, ours included; nobody is exempt.
+
+### Redaction policy
+
+A path is published exactly when the reader can check it. Every public repository on the
+board cites full evidence paths and line numbers, everywhere, in every artifact — a
+certificate whose evidence you cannot open is not evidence. The two private-repository
+entries (this monorepo's own transparency entry, and Cejel's own source sub-package inside
+it) never cite a source path, anywhere, in any field or format — but the finding itself, its
+dimension, status, score, and content hash always survive; only the location is withheld,
+marked uniformly as "path withheld — private repository". Redaction removes a location, never
+a fact: a private repository failing its own check still shows up on its certificate, by
+name. The v3 repository scanner marks B1 and B5 not applicable for every repository,
+including ours; it does not accept structured substrate evidence for them. They remain
+defined for other rubric inputs, while the repository ranking excludes them fail-closed.
+Nobody is scored on evidence the public scanner cannot collect.
+
+### Known false positives (fixed before publishing)
+
+Calibrating a rubric against real, elite repositories surfaces mistakes; the record is part
+of the trust claim, not something to bury. Two dimensions produced a punitive score for the
+*absence* of a ratable surface rather than a real weakness, and both are fixed:
+Django was flagged critical on dependency hygiene for using version ranges instead of exact
+pins — normal, deliberate practice for a library, not an app; the rubric now scores
+dependency hygiene against archetype-appropriate norms. OSSF Scorecard — Google's own
+supply-chain security auditing tool — was flagged critical on audit-trail completeness for
+publishing release notes via GitHub Releases instead of a committed `CHANGELOG.md`; a
+repository with no ratable audit surface now returns "insufficient data" (excluded from the
+composite) instead of a punitive score. The board also publishes a measured-coverage
+indicator per row: a score reflects only its *measured* dimensions, and a row scored on fewer
+than half of its applicable dimensions is shown as unranked rather than ordered against
+better-evidenced rows.
 
 ## Usage
 
@@ -98,6 +138,32 @@ Prints a concise terminal certificate and writes to `.cejel/`:
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
 - `--quiet` — suppress the terminal certificate (files are still written)
+
+## Supported languages
+
+Cejel reads a repository's file tree, not its bytecode — it needs to recognise a file's
+source extension to say anything about it. It does not support every language, and it says so
+honestly rather than guessing:
+
+- **Deeply modelled** — JS/TS, Python: test detection, coverage, and claim-vs-reality checks
+  are tuned specifically for these ecosystems.
+- **Partially modelled** — Go, Rust, Java, Ruby, PHP, C#, C/C++, Swift, Kotlin, Dart, Elixir,
+  Scala: recognised as source and scored on the language-agnostic dimensions (CI discipline,
+  dependency hygiene, audit trail, secrets), but without ecosystem-specific test-framework
+  tuning.
+- **Recognised but unmodelled** — shell, R, Lua, Julia, Haskell, Terraform, SQL, Perl, OCaml,
+  Clojure, Erlang, Nim, Zig, F#, Groovy: counted as source so a repo isn't misread as empty,
+  but with the least ecosystem-specific tuning of the three tiers.
+- **Not yet recognised** — other ecosystems, including COBOL, Fortran, and MATLAB. Cejel does
+  not score these as "source" at all: a repository with zero
+  recognised-extension files gets the `unrecognised_ecosystem` archetype, an explicit
+  `insufficient_data` status, and **no verdict** — never a confident numeric score, and never
+  the word "Unverified" for the sole reason that cejel cannot read the language. The
+  certificate states plainly which of the 11 dimensions were and were not measured.
+
+This list will grow. It will never be "any codebase" — that claim is a promise the parser
+cannot keep, and an honest support matrix is worth more than a marketing line the code
+contradicts on the first unsupported repository someone runs it against.
 
 ## Aggregate your scanners
 
@@ -132,7 +198,7 @@ Three ways a scanner's output gets ingested:
    `--ingest scorecard.json`; auto-detected by its `checks` array.
 3. **Generic JSON** — for a tool that emits neither, map its output into the minimal shape
    below (or write a small adapter mirroring
-   [`scorecard-adapter.ts`](./src/witan/scorecard-adapter.ts) if the format needs real
+   [`scorecard-adapter.ts`](../witan/src/scorecard-adapter.ts) if the format needs real
    parsing):
 
    ```json
@@ -194,14 +260,14 @@ server over stdio, so any MCP client (Claude Code, Cowork, Cursor, Codex) can re
 trust certificate as a tool call. It wraps the exact same scan the CLI runs — same scores,
 same verdict — and is listed on Smithery via the repo's `smithery.yaml`.
 
-After the npm package is published, add it to an MCP client config:
+Add it to an MCP client config:
 
 ```json
 {
   "mcpServers": {
     "cejel": {
       "command": "npx",
-      "args": ["-y", "--package=@barglabs/cejel", "cejel-mcp"]
+      "args": ["-y", "--package=@cejel/cejel", "cejel-mcp"]
     }
   }
 }
@@ -212,8 +278,9 @@ The server exposes one tool and two resources:
 - `scan` — input `{ path, format? }`; scores the repository at `path` and returns the trust
   cert as JSON (`format: "summary"`, the default, is the compact digest; `format: "json"` is
   the full report, identical to the CLI's `report.json`).
-- `cejel://last-scan/certificate.html` and `cejel://last-scan/badge.svg` — the HTML
-  certificate and SVG badge for the most recent scan.
+- `cejel-cejel://last-scan/certificate.html` and `cejel-cejel://last-scan/badge.svg` — the
+  HTML certificate and SVG badge for the most recent scan (the URI scheme derives from the
+  npm package name, `@cejel/cejel` → `cejel-cejel`).
 
 Like the CLI, scoring over MCP is fully offline: no network calls, no telemetry, no signup,
 and the server writes no files.
@@ -221,7 +288,7 @@ and the server writes no files.
 ## What "offline" means here
 
 Scoring a repo — `cejel .` itself, and the Action's scoring step — makes zero network
-calls: no telemetry, no signup, no model call. Fetching the `@barglabs/cejel` package the
+calls: no telemetry, no signup, no model call. Fetching the `@cejel/cejel` package the
 first time (like any npm-distributed CLI, including this Action's own dependency install)
 does need network; that's a one-time install cost, not part of the scoring guarantee.
 
@@ -242,19 +309,18 @@ enforced structurally — the public artifacts are built from filtered data rath
 rendered and then scrubbed — and a build that would emit a private path fails rather than
 publishes.
 
-**What we exclude from ranking.** Two of the eleven dimensions — B1 (dispatch trace
-completeness) and B5 (verified learning trace) — measure signals that only exist inside the
-agent substrate Cejel was built in. No external repository can produce them. They are
-therefore **excluded from the ranking for every repository, including ours**: we do not
-score you on something you cannot have, and we do not award ourselves points for something
-you cannot contest. You will still see them defined in the rubric source, because the rubric
-is the published standard and hiding two of its dimensions would make it incomplete. Where a
-dimension does not apply to a repository, the certificate says *not applicable* rather than
-quietly scoring it zero.
+**What we exclude from ranking.** The v3 repository scanner does not evaluate B1 (dispatch
+trace completeness) or B5 (verified learning trace) for repository inputs, including ours:
+both are always *not applicable* in a repository certificate. They remain defined in the
+rubric for structured substrate evidence, but that evidence is not accepted by this scanner.
+The ranking excludes both dimensions fail-closed, including when it reads a legacy or
+separately produced structured report. We neither score you on evidence the public scanner
+cannot collect nor award ourselves points for evidence you cannot contest.
 
-**Where we were wrong.** Calibrating this rubric against real repositories surfaced four
-errors in our own tool, all found before publication and all fixed. We list them because a
-scoring tool that has never been wrong is a scoring tool that has not been checked:
+**Where we were wrong.** Calibrating this rubric against real repositories — and running the
+board itself like a stranger would — surfaced seven errors in our own tool, all found before
+(or, in one case, on) publication day, and all fixed. We list them because a scoring tool
+that has never been wrong is a scoring tool that has not been checked:
 
 - **Django, scored a false critical on dependency hygiene.** We applied application-shaped
   expectations to a library. Archetype now gates the dimension.
@@ -273,11 +339,25 @@ scoring tool that has never been wrong is a scoring tool that has not been check
   the *shape* (a cron-scheduled workflow that runs the verification suite, and whether its
   results are durably published or only handed to an ephemeral CI artifact); our own internal
   nightly QA workflow is one recognized instance of that shape, not its definition.
+- **Our board and our own certificates disagreed on four repositories' headline scores by
+  0.1** — two coherent bases (the board's fair cross-repo ranking basis, and each
+  certificate's own-dimension basis), one word, "Overall", printed on both. We found it on
+  launch day and fixed it: "Overall" is now byte-identical everywhere it appears — board,
+  certificate, badge, report, and JSON — and the ranking basis, where it genuinely differs,
+  has its own separate, explicitly labeled column instead of borrowing the same name.
+- **Our own row used a scoring path nobody else could run.** The board generator could add
+  internal collectors after the public scan, so its reassuring collector blacklist was not
+  the invariant it claimed to be. Rubric v3 removes that second path: every corpus row now
+  passes through the same sealed public scorer, every external source is pinned to a commit,
+  and a required guard re-scores every row and compares score, verdict, coverage, and
+  evidence. The honest correction moved Alfred's Code score from 2.5 to 2.4 and A5 from 2.9
+  to 2.4. It is less flattering and more trustworthy.
 
-Every one of these was a false alarm produced by *us*, about *other people's code*, and we
-would rather you knew that than discovered it. If you believe the board scores your
-repository wrongly, open an issue — a rubric that cannot be corrected in public has no
-business being published in public.
+Every one was a trust failure produced by *us* — false alarms about other people's code,
+silent omissions, inconsistent presentation, or a home-only scoring path — and we would
+rather you knew that than discovered it. If you believe the board scores your repository
+wrongly, open an issue — a rubric that cannot be corrected in public has no business being
+published in public.
 
 **No rubric change re-scores you silently.** Every change to scoring behavior requires a
 `WITAN_RUBRIC_VERSION` bump and a corpus-wide before/after delta published in

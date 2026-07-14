@@ -32,7 +32,8 @@ const VERDICT_SVG_FILL: Record<string, string> = {
   'Insufficient source': '#8c8c8c',
 };
 
-// Insufficient-source repos (docs/binary-only/empty — see classifyRepoArchetype) get a
+// Insufficient-source repos (docs/binary-only/unrecognised-language/empty — see
+// classifyRepoArchetype) get a
 // distinct "unrated" badge message instead of a confident-looking "N.N/4.0 <verdict>" —
 // a bare low number reads as a judgment even when it's really "there was nothing to rate"
 // (goal_cejel_repo_archetype_detection_2026-07-06).

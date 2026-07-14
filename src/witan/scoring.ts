@@ -1,6 +1,7 @@
 import {
   WITAN_RUBRIC_VERSION_V1,
   WITAN_RUBRIC_VERSION_V2,
+  WITAN_RUBRIC_VERSION_V3,
   WITAN_TRADING_RUBRIC_VERSION_V0,
   type WitanConsumedSignalSummary,
   type WitanCriterionId,
@@ -256,11 +257,14 @@ function mergeSignalsByCriterion(
 // only positive-evidence/findings counts) — see the metric-scoring fallthrough below. v2
 // (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12) changed A1's
 // scheduled-workflow sub-signal detection, not the scoring algorithm, so it stays on the
-// same metric-based path as v1.
+// same metric-based path as v1. v3 (goal_cejel_board_must_be_reproducible_2026-07-12) removed
+// four home-field evidence collectors' reachability, again not the scoring algorithm, so it
+// stays on the same metric-based path too.
 function usesMetricScoring(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V1 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V2 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V3 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }

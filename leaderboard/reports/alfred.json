@@ -3,12 +3,12 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "06b227a4670e8ce985fe24e03362eaeff4813452"
+    "headSha": "25d486947bab5037e2bae8683770e9b123958061"
   },
-  "generatedAt": "2026-07-12T18:21:45.694Z",
-  "rubricVersion": "witan-rubric-v2-2026-07-12",
-  "codeTrustScore": 2.5,
-  "processTrustScore": 3.6,
+  "generatedAt": "2026-07-14T01:34:10.282Z",
+  "rubricVersion": "witan-rubric-v3-2026-07-13",
+  "codeTrustScore": 2.4,
+  "processTrustScore": 3.7,
   "overallScore": 3.1,
   "criteria": [
     {
@@ -101,8 +101,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 330,
-          "max": 601,
+          "value": 334,
+          "max": 606,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -130,8 +130,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 327,
-          "max": 330,
+          "value": 331,
+          "max": 334,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -147,33 +147,9 @@
       "status": "warning",
       "evidence": [
         {
-          "kind": "artifact",
-          "label": "Schema-per-studio isolation module and provisioning",
-          "contentHash": "7607894e622420725a4bd65ef97484e041e18286f1a2d4b806daf05a4d97939b",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "artifact",
-          "label": "Forced RLS migration and studio policies",
-          "contentHash": "eafff306bfd620bccb9cf616d3cb87160b1142ea5a2e70513d26bb350e6d1e25",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
           "kind": "secret_scan",
-          "label": "Non-owner application role RLS proof",
-          "contentHash": "8740f576e78d6644de4c76a92e62026698b7f5a9d9c153466016b1ae9934070e",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "test_run",
-          "label": "Adversarial cross-studio RLS denial proof",
-          "contentHash": "8740f576e78d6644de4c76a92e62026698b7f5a9d9c153466016b1ae9934070e",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "test_run",
-          "label": "Adversarial studio data routing denial test",
-          "contentHash": "65c1b7d6dd1fdcfabf845505429bd5accfbdde7926e28c8a062904deb59eb015",
+          "label": ".env path detected in git history",
+          "contentHash": "25d486947bab5037e2bae8683770e9b123958061",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -310,7 +286,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 81,
+          "value": 82,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -320,7 +296,7 @@
         {
           "name": "rollback_safety_depth",
           "label": "Rollback and migration-safety depth",
-          "value": 75,
+          "value": 77,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.15,
@@ -396,98 +372,82 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 2.9,
-      "status": "info",
+      "score": 2.4,
+      "status": "warning",
       "evidence": [
         {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "contentHash": "e2bf98bc4697575ad62e3ce5831c216cc21011542fcd81db46c2655499ffcb3c",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
           "kind": "artifact",
-          "label": "Claim reality reconciler implementation",
-          "contentHash": "be4a4221eca8b11c0472b6a9b0c430f20e6eb097b9679cca19d6aebad6e35657",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "claim_reconciliation",
-          "label": "Claim reality reconciliation Markdown report",
-          "contentHash": "e23d16fb7574bb11b853f79e437040cfe9c89843678e7eb1fa3f87e240744350",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "claim_reconciliation",
-          "label": "Claim reality reconciliation structured report",
-          "contentHash": "f28bdbe5970d92d1d12582ec2e7ebf7dd62601e4c18b7969a53e49458f92b3fc",
+          "label": "Code presence for claim reconciliation",
+          "contentHash": "c69ab62efd1c11758edbb44d42d156bb4c445bba40f3e2dad4bba446e9d2648c",
           "locationWithheld": "path withheld — private repository"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "contentHash": "e2bf98bc4697575ad62e3ce5831c216cc21011542fcd81db46c2655499ffcb3c",
+            "locationWithheld": "path withheld — private repository"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "claim_match_rate",
           "label": "Claim match rate",
-          "value": 0.556,
-          "max": 1,
-          "weight": 0.6,
+          "value": 12,
+          "max": 20,
+          "weight": 0.5,
           "unit": "ratio",
-          "description": "Measures supported and partially supported claims in the structured reconciliation artifact."
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
         },
         {
-          "name": "claim_registry_depth",
-          "label": "Claim registry depth",
-          "value": 9,
-          "max": 9,
-          "weight": 0.25,
-          "unit": "claims",
-          "description": "Credits the number of concrete claims reconciled without giving unlimited credit for one artifact."
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 13,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
         },
         {
           "name": "reconciliation_artifact_depth",
           "label": "Reconciliation artifact depth",
-          "value": 3,
+          "value": 0,
           "max": 3,
           "weight": 0.15,
           "unit": "artifacts",
-          "description": "Credits implementation, Markdown, and structured reconciliation artifacts."
+          "description": "Requires a specific claim-reality artifact to reach full depth."
         }
-      ],
-      "notes": "A5 is evidenced by deterministic claim-vs-reality implementation and report artifacts, not a model-opinion verdict."
+      ]
     },
     {
       "id": "B1",
       "title": "Alfred-internal process dimension",
       "category": "process_trust",
-      "score": 4,
-      "status": "verified",
-      "evidence": [
-        {
-          "kind": "internal_process_signal",
-          "label": "Alfred dispatch log",
-          "contentHash": "c2e08412e501b49f4cf8a7ca288bec795ce9780b146f324968e10caa8d3ef02b",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "commit",
-          "label": "Recent repository commit",
-          "contentHash": "06b227a4670e8ce985fe24e03362eaeff4813452"
-        }
-      ],
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
       "findings": [],
-      "metrics": [
-        {
-          "name": "dispatch_trace_depth",
-          "label": "Alfred-internal process signal depth",
-          "value": 2,
-          "max": 2,
-          "weight": 1,
-          "unit": "signals",
-          "description": "Credits the Alfred-internal process signal plus bounded recent commit history depth."
-        }
-      ]
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
     },
     {
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 3.5,
-      "status": "verified",
+      "score": 3.4,
+      "status": "info",
       "evidence": [
         {
           "kind": "ci_run",
@@ -498,7 +458,7 @@
         {
           "kind": "ci_run",
           "label": "Pull-request CI workflow",
-          "contentHash": "9ef686a0c67c036328162ca8eddd916d5220b7300afb5a91cbdb4b1b217b9588",
+          "contentHash": "93839ac0380b345ca102fbe707f24c4a58d4844f2bc0ed553b1c3a7e36932ea5",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -529,7 +489,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 5,
+          "value": 3,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -603,7 +563,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "147a234327d28a31eb3260e0dadb1e6d12536d354ff88847f0bb33bb21976843",
+          "contentHash": "9cfe64dab503cc918f44caad9c814f47f72adbd3c46f7966a5a5d771282f70b9",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -630,7 +590,7 @@
         {
           "name": "audit_artifact_depth",
           "label": "Audit artifact depth",
-          "value": 64,
+          "value": 65,
           "max": 3,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -640,8 +600,8 @@
         {
           "name": "audit_freshness_depth",
           "label": "Audit freshness depth",
-          "value": 56,
-          "max": 64,
+          "value": 57,
+          "max": 65,
           "weight": 0.2,
           "unit": "ratio",
           "description": "Credits audit artifacts that carry freshness/current-state markers."
@@ -652,48 +612,12 @@
       "id": "B5",
       "title": "Alfred-internal process dimension",
       "category": "process_trust",
-      "score": 3,
-      "status": "info",
-      "evidence": [
-        {
-          "kind": "internal_process_signal",
-          "label": "Verified internal live proof trace",
-          "contentHash": "aa152abf7d3f8872d4b47abb9c15450edce007fbed96866d9af9616237e34401",
-          "locationWithheld": "path withheld — private repository"
-        }
-      ],
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
       "findings": [],
-      "metrics": [
-        {
-          "name": "verified_learning_trace_depth",
-          "label": "Alfred-internal process signal depth",
-          "value": 1,
-          "max": 1,
-          "weight": 0.7,
-          "unit": "traces",
-          "description": "Credits a verified internal learning record."
-        },
-        {
-          "name": "regression_fix_test_rate",
-          "label": "Regression fix test-added rate",
-          "value": 0,
-          "max": 1,
-          "weight": 0.2,
-          "unit": "ratio",
-          "description": "Measures how often bounded regression/fix commits also mention tests."
-        },
-        {
-          "name": "learning_artifact_depth",
-          "label": "Learning artifact depth",
-          "value": 3,
-          "max": 6,
-          "kind": "saturating_count",
-          "weight": 0.1,
-          "unit": "files",
-          "description": "Credits durable learning artifacts such as retros, incidents, and changelogs."
-        }
-      ],
-      "notes": "B5 is evidenced by a successful internal live proof run with a verified trace."
+      "metrics": [],
+      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
     },
     {
       "id": "B6",
@@ -723,7 +647,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "147a234327d28a31eb3260e0dadb1e6d12536d354ff88847f0bb33bb21976843",
+          "contentHash": "9cfe64dab503cc918f44caad9c814f47f72adbd3c46f7966a5a5d771282f70b9",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -783,7 +707,7 @@
           "max": 1,
           "weight": 0.15,
           "unit": "present",
-          "description": "Credits a governance/safety toggle that fails closed before any lower-priority config can override it (e.g. a studio-wide autonomy kill switch)."
+          "description": "Credits a governance/safety toggle that fails closed before any lower-priority config can override it."
         }
       ],
       "notes": "B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths."

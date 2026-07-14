@@ -28,8 +28,8 @@ async function main(): Promise<void> {
 }
 
 /**
- * Zero-config public entry: `npx cejel .` (or `npx cejel`, defaulting to the current
- * directory). Fully offline — reuses this package's deterministic, no-LLM scoring core
+ * Zero-config public entry: `npx @cejel/cejel .` (or `npx @cejel/cejel`, defaulting to the
+ * current directory). Fully offline — reuses this package's deterministic, no-LLM scoring core
  * and repo-signal collector; this module only adds ergonomic defaults + presentation.
  */
 export async function runWitanFreeCli(args: readonly string[]): Promise<number> {
@@ -129,7 +129,7 @@ function isEntryPoint(): boolean {
   if (!invokedPath) return false;
   // npm's installed node_modules/.bin/cejel is a symlink to dist/index.js: argv[1] is the
   // symlink path while import.meta.url resolves to the real file, so the comparison must
-  // go through the same realpath or `npx cejel`/`.bin/cejel` silently exits 0 doing nothing.
+  // go through the same realpath or `npx @cejel/cejel`/`.bin/cejel` silently exits 0 doing nothing.
   let resolvedPath: string;
   try {
     resolvedPath = realpathSync(invokedPath);

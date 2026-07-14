@@ -12,6 +12,84 @@ repository is not a standard, it is a rumor with a number attached — see
 `packages/witan-cli/README.md`'s "where we were wrong" section, which this changelog
 continues.
 
+## witan-rubric-v3-2026-07-13
+
+**What changed.** The leaderboard no longer has a privileged scoring route for internal
+rows. The public CLI, batch scanner, and board generator now call one sealed public scorer;
+the required board guard re-scores **every** corpus row through that function and compares
+score, criterion status, verdict, measured coverage, and the complete evidence-pointer set
+with the published report. This is a structural equivalence check, not a blacklist of known
+collector names: adding any differently named board-only input changes the claims and makes
+the required check RED.
+
+Every external corpus entry now pins a 40-character source commit. Re-scoring at the same
+pins is a rubric change and publishes the delta below. Moving a pin is a separate corpus
+change that must be declared as such; upstream default-branch movement can no longer masquerade
+as a rubric effect. Alfred and Cejel are likewise reproduced from the exact local commit
+recorded in their published reports.
+
+The repository scanner also states its B1/B5 behavior precisely: it evaluates neither
+dimension for any repository, including Alfred. Both are always `not_applicable` for this
+input type. They remain part of the wider rubric for
+structured substrate evidence, and the board excludes them fail-closed if it encounters a
+legacy or separately produced structured report.
+
+**Why.** The previous board generator could append private, internal-only collectors after
+the public scan. A collector-name blacklist asserted that known private inputs were absent,
+but could not prove the published row was obtainable from the public product. Removing that
+second path exposes the honest Alfred result: Code trust falls from **2.5 to 2.4**, driven by
+A5 falling from **2.9 to 2.4**. The headline remains 3.1 because process evidence moves from
+3.6 to 3.7 when B1/B5 stop contributing internal-only scores. The lower Code number is the
+point of this release, not an artifact to explain away.
+
+**Corpus-wide v2→v3 delta (all 17 repositories, same pinned source snapshots):**
+
+| Repository | Overall | Code trust | Process trust | A5 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| react | 3.2 → 3.2 | 2.5 → 2.5 | 3.9 → 3.9 | 2.2 → 2.2 | Conditional → Conditional | 4 → 4 |
+| vue | 2.9 → 2.9 | 2.4 → 2.4 | 3.4 → 3.4 | 2.2 → 2.2 | Conditional → Conditional | 11 → 11 |
+| svelte | 3.1 → 3.1 | 2.9 → 2.9 | 3.3 → 3.3 | 2.2 → 2.2 | Conditional → Conditional | 6 → 6 |
+| django | 3.2 → 3.2 | 2.6 → 2.6 | 3.8 → 3.8 | 0.0 → 0.0 | Conditional → Conditional | unranked → unranked |
+| flask | 2.8 → 2.8 | 2.5 → 2.5 | 3.0 → 3.0 | 2.2 → 2.2 | Conditional → Conditional | 14 → 14 |
+| fastapi | 2.9 → 2.9 | 2.5 → 2.5 | 3.2 → 3.2 | 2.0 → 2.0 | Conditional → Conditional | 13 → 13 |
+| express | 2.8 → 2.8 | 2.6 → 2.6 | 3.0 → 3.0 | 2.0 → 2.0 | Conditional → Conditional | 12 → 12 |
+| vite | 3.3 → 3.3 | 2.6 → 2.6 | 4.0 → 4.0 | 2.7 → 2.7 | Conditional → Conditional | 2 → 2 |
+| esbuild | 2.6 → 2.6 | 2.7 → 2.7 | 2.4 → 2.4 | 2.4 → 2.4 | Conditional → Conditional | 15 → 15 |
+| biomejs | 2.9 → 2.9 | 2.8 → 2.8 | 3.0 → 3.0 | 2.0 → 2.0 | Conditional → Conditional | 8 → 8 |
+| requests | 2.9 → 2.9 | 2.4 → 2.4 | 3.4 → 3.4 | 2.2 → 2.2 | Conditional → Conditional | 9 → 9 |
+| pydantic | 3.2 → 3.2 | 2.9 → 2.9 | 3.5 → 3.5 | 2.4 → 2.4 | Conditional → Conditional | 3 → 3 |
+| axios | 3.3 → 3.3 | 2.6 → 2.6 | 3.9 → 3.9 | 2.4 → 2.4 | Conditional → Conditional | 1 → 1 |
+| zod | 3.0 → 3.0 | 2.8 → 2.8 | 3.2 → 3.2 | 2.2 → 2.2 | Conditional → Conditional | 7 → 7 |
+| scorecard | 3.0 → 3.0 | 2.3 → 2.3 | 3.6 → 3.6 | 2.6 → 2.6 | Conditional → Conditional | 10 → 10 |
+| alfred (private) | 3.1 → 3.1 | **2.5 → 2.4** | 3.6 → 3.7 | **2.9 → 2.4** | Conditional → Conditional | 5 → 5 |
+| cejel (private) | 3.4 → 3.4 | 2.7 → 2.7 | 4.0 → 4.0 | 2.2 → 2.2 | Conditional → Conditional | unranked → unranked |
+
+**No external repository's score, verdict, evidence-derived rank, or A5 result moved.**
+The only score changes are Alfred's disclosed correction above. The corpus pins are the
+source commits already recorded by the v2 reports, so this table isolates the rubric/public-
+path change from upstream repository movement.
+
+**Separate corpus act composed in the same release (17 → 22 repositories).** The language-
+calibration work adds one pinned, healthy repository in each of five ecosystems. These rows
+did not exist in the v2 corpus, so `new` is the honest before-state; their low results expose
+documented B3 CI-depth and Maven A4 calibration gaps rather than being hidden or normalized.
+
+| Repository | Overall | Code trust | Process trust | A5 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| ripgrep | new → 2.2 | new → 2.4 | new → 2.0 | new → 2.2 | new → At risk | new → 16 |
+| guava | new → 1.9 | new → 1.5 | new → 2.2 | new → 2.2 | new → At risk | new → unranked |
+| cobra | new → 2.6 | new → 2.8 | new → 2.3 | new → 0.0 | new → Conditional | new → unranked |
+| sinatra | new → 2.4 | new → 2.0 | new → 2.8 | new → 2.2 | new → At risk | new → unranked |
+| automapper | new → 1.9 | new → 1.5 | new → 2.3 | new → 1.4 | new → At risk | new → unranked |
+
+## Board presentation correction — 2026-07-12
+
+No rubric version changed and no repository was re-scored. The board's public
+"Overall" column now prints the same own-certificate overall score shown in each
+repository's certificate/report, instead of a comparative-ranking-only value with the
+same label. Four repositories' displayed headline numbers moved by 0.1; the underlying
+reports, verdicts, and ranking basis did not change.
+
 ## witan-rubric-v2-2026-07-12
 
 **What changed.** A1's scheduled-product-health-workflow sub-signal — previously a literal

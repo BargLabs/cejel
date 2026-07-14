@@ -1,13 +1,5 @@
-import { resolve } from 'node:path';
-
-import type { WitanInputSignal, WitanReport } from './witan/index.js';
-import {
-  buildWitanInputFromRepo,
-  createWitanReport,
-  discoverIngestInputs,
-  expandIngestPattern,
-  parseIngestFile,
-} from './witan/index.js';
+import type { WitanReport } from './witan/index.js';
+import { scoreRepoWithPublicCejel } from './witan/index.js';
 
 import { deriveProductIdentity } from './product-identity.js';
 import { type WitanCliSummary, buildWitanCliSummary } from './summary.js';
@@ -35,48 +27,14 @@ export interface CejelScanResult {
  */
 export function runCejelScan(options: CejelScanOptions): CejelScanResult {
   const identity = deriveProductIdentity(options.repoPath);
-  const input = buildWitanInputFromRepo({
+  const report = scoreRepoWithPublicCejel({
     productSlug: identity.productSlug,
     productDisplayName: identity.productDisplayName,
     repoPath: options.repoPath,
+    ingestPatterns: options.ingestPatterns,
+    warnOnEmptyIngestMatch: options.warnOnEmptyIngestMatch,
   });
-
-  const inputSignals = resolveIngestSignals(options);
-  const report = createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);
   const summary = buildWitanCliSummary(report);
 
   return { report, summary };
-}
-
-/**
- * Resolve ingest patterns + .cejel/inputs/*.{sarif,json} auto-discovery into folded
- * WitanInputSignal[], deduping by resolved file path so an explicit path that also lands in
- * the auto-discovered directory is not double-counted. Warns (non-fatal) on stderr when an
- * explicit ingest glob matches no files.
- */
-function resolveIngestSignals(options: CejelScanOptions): WitanInputSignal[] {
-  const seen = new Set<string>();
-  const files: string[] = [];
-
-  for (const pattern of options.ingestPatterns ?? []) {
-    const matches = expandIngestPattern(pattern);
-    if (matches.length === 0 && options.warnOnEmptyIngestMatch) {
-      process.stderr.write(`Cejel: --ingest pattern matched no files: ${pattern}\n`);
-    }
-    for (const match of matches) {
-      const resolved = resolve(match);
-      if (seen.has(resolved)) continue;
-      seen.add(resolved);
-      files.push(match);
-    }
-  }
-
-  for (const discovered of discoverIngestInputs(options.repoPath)) {
-    const resolved = resolve(discovered);
-    if (seen.has(resolved)) continue;
-    seen.add(resolved);
-    files.push(discovered);
-  }
-
-  return files.flatMap((file) => parseIngestFile(file));
 }

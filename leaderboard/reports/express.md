@@ -1,8 +1,8 @@
 # Cejel Trust Report - express
 
 - Product: express
-- Rubric: witan-rubric-v2-2026-07-12
-- Generated: 2026-07-12T18:11:15.466Z
+- Rubric: witan-rubric-v3-2026-07-13
+- Generated: 2026-07-13T18:03:01.549Z
 - Repository: https://github.com/expressjs/express @ ba006766fb964571723138708eacaba0f55759cd
 
 ## Criterion Profile

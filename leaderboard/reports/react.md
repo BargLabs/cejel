@@ -1,8 +1,8 @@
 # Cejel Trust Report - react
 
 - Product: react
-- Rubric: witan-rubric-v2-2026-07-12
-- Generated: 2026-07-12T18:11:15.466Z
+- Rubric: witan-rubric-v3-2026-07-13
+- Generated: 2026-07-13T18:03:01.549Z
 - Repository: https://github.com/facebook/react @ c0c39a6b3907eaab35f43074949e2957a2a734c1
 
 ## Criterion Profile

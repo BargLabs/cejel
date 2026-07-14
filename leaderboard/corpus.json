@@ -1,9 +1,10 @@
 {
-  "comment": "Cejel OSS leaderboard corpus: a one-run-sized elite set (~17 repositories) across web frameworks, build tooling, libraries, and a supply-chain-governance peer, plus this repository itself (alfred, and the public cejel CLI at packages/witan-cli) for transparency. Sizing rule: the corpus must be small enough that a full clone -> score -> render -> commit run completes synchronously inside one dispatch watchdog window with margin — growth happens by deliberate, regenerated additions, never by outrunning a single run (the 44-entry v2 corpus stranded a stale 6-repo board exactly this way). Selection rules: elite, widely-known projects only; permissive OSI licenses preferred and labeled per entry; behemoth trees the archetype detector cannot meaningfully score in one pass (linux, chromium, kubernetes-scale) are deliberately excluded and a per-repo clone timeout + maxTreeMB guard keeps any one repo from stalling a run. Every entry is published on the board regardless of how it scores, including any repo that outscores us; a repo that fails to clone or score is a loud ERROR row, never a silent drop. Entries are shallow-cloned (blobless, depth 1) read-only to be scored; none of their code is executed. The ranking is computed on the common externally-applicable dimension set (substrate-only dims excluded for everyone, including internal entries). Every entry also declares `visibility` (goal_cejel_redaction_policy_is_verifiability_2026-07-12): 'public' repositories cite full evidence paths and lines everywhere; 'private' repositories (this monorepo and its sub-packages) never cite a source path anywhere, in any field or format — the finding, its dimension, status, score, and content hash still stand; only the location is withheld.",
+  "comment": "Cejel OSS leaderboard corpus: a one-run-sized elite set (~22 repositories) across web frameworks, build tooling, libraries, a supply-chain-governance peer, and (added goal_cejel_language_calibration_2026-07-12 to widen ecosystem coverage beyond the original two) a dedicated Rust/Java/Go/Ruby/C# entry each, plus this repository itself (alfred, and the public cejel CLI at packages/witan-cli) for transparency. Sizing rule: the corpus must be small enough that a full clone -> score -> render -> commit run completes synchronously inside one dispatch watchdog window with margin — growth happens by deliberate, regenerated additions, never by outrunning a single run (the 44-entry v2 corpus stranded a stale 6-repo board exactly this way). Selection rules: elite, widely-known projects only; permissive OSI licenses preferred and labeled per entry; behemoth trees the archetype detector cannot meaningfully score in one pass (linux, chromium, kubernetes-scale) are deliberately excluded and a per-repo clone timeout + maxTreeMB guard keeps any one repo from stalling a run. Every entry is published on the board regardless of how it scores, including any repo that outscores us; a repo that fails to clone or score is a loud ERROR row, never a silent drop. Entries are shallow-cloned (blobless, depth 1) read-only to be scored; none of their code is executed. The ranking is computed on the common externally-applicable dimension set (substrate-only dims excluded for everyone, including internal entries). Every entry also declares `visibility` (goal_cejel_redaction_policy_is_verifiability_2026-07-12): 'public' repositories cite full evidence paths and lines everywhere; 'private' repositories (this monorepo and its sub-packages) never cite a source path anywhere, in any field or format — the finding, its dimension, status, score, and content hash still stand; only the location is withheld.",
   "entries": [
     {
       "name": "react",
       "url": "https://github.com/facebook/react",
+      "commit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
       "category": "framework-web",
       "expectedArchetype": "monorepo",
       "license": "MIT",
@@ -12,6 +13,7 @@
     {
       "name": "vue",
       "url": "https://github.com/vuejs/core",
+      "commit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
       "category": "framework-web",
       "expectedArchetype": "monorepo",
       "license": "MIT",
@@ -20,6 +22,7 @@
     {
       "name": "svelte",
       "url": "https://github.com/sveltejs/svelte",
+      "commit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
       "category": "framework-web",
       "expectedArchetype": "monorepo",
       "license": "MIT",
@@ -28,6 +31,7 @@
     {
       "name": "django",
       "url": "https://github.com/django/django",
+      "commit": "65a9f14196c338d70889bd54753370606b3fb4eb",
       "category": "framework-python",
       "expectedArchetype": "source",
       "license": "BSD-3-Clause",
@@ -36,6 +40,7 @@
     {
       "name": "flask",
       "url": "https://github.com/pallets/flask",
+      "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
       "category": "framework-python",
       "expectedArchetype": "source",
       "license": "BSD-3-Clause",
@@ -44,6 +49,7 @@
     {
       "name": "fastapi",
       "url": "https://github.com/fastapi/fastapi",
+      "commit": "7cb06f360dd44efac059848df1a9beee7643b018",
       "category": "framework-python",
       "expectedArchetype": "source",
       "license": "MIT",
@@ -52,6 +58,7 @@
     {
       "name": "express",
       "url": "https://github.com/expressjs/express",
+      "commit": "ba006766fb964571723138708eacaba0f55759cd",
       "category": "framework-node",
       "expectedArchetype": "source",
       "license": "MIT",
@@ -60,6 +67,7 @@
     {
       "name": "vite",
       "url": "https://github.com/vitejs/vite",
+      "commit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
       "category": "tooling-build",
       "expectedArchetype": "monorepo",
       "license": "MIT",
@@ -68,6 +76,7 @@
     {
       "name": "esbuild",
       "url": "https://github.com/evanw/esbuild",
+      "commit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
       "category": "tooling-build",
       "expectedArchetype": "source",
       "license": "MIT",
@@ -76,6 +85,7 @@
     {
       "name": "biomejs",
       "url": "https://github.com/biomejs/biome",
+      "commit": "01bba129afefced1c04aa69592b1b7f337a7b609",
       "category": "tooling-build",
       "expectedArchetype": "monorepo",
       "license": "MIT OR Apache-2.0",
@@ -84,6 +94,7 @@
     {
       "name": "requests",
       "url": "https://github.com/psf/requests",
+      "commit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
       "category": "library-python",
       "expectedArchetype": "source",
       "license": "Apache-2.0",
@@ -92,6 +103,7 @@
     {
       "name": "pydantic",
       "url": "https://github.com/pydantic/pydantic",
+      "commit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
       "category": "library-python",
       "expectedArchetype": "source",
       "license": "MIT",
@@ -100,6 +112,7 @@
     {
       "name": "axios",
       "url": "https://github.com/axios/axios",
+      "commit": "7a6615e421578081743161eab032d009dc6583a4",
       "category": "library-js",
       "expectedArchetype": "source",
       "license": "MIT",
@@ -108,6 +121,7 @@
     {
       "name": "zod",
       "url": "https://github.com/colinhacks/zod",
+      "commit": "912f0f51b0ced654d0069741e7160834dca742ee",
       "category": "library-js",
       "expectedArchetype": "source",
       "license": "MIT",
@@ -116,9 +130,55 @@
     {
       "name": "scorecard",
       "url": "https://github.com/ossf/scorecard",
+      "commit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
       "category": "supply-chain-governance",
       "expectedArchetype": "source",
       "license": "Apache-2.0",
+      "visibility": "public"
+    },
+    {
+      "name": "ripgrep",
+      "url": "https://github.com/BurntSushi/ripgrep",
+      "commit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "category": "library-rust",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "guava",
+      "url": "https://github.com/google/guava",
+      "commit": "486837d756e6d48864620e91b0761467e2abe744",
+      "category": "library-java",
+      "expectedArchetype": "source",
+      "license": "Apache-2.0",
+      "visibility": "public"
+    },
+    {
+      "name": "cobra",
+      "url": "https://github.com/spf13/cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "category": "library-go",
+      "expectedArchetype": "source",
+      "license": "Apache-2.0",
+      "visibility": "public"
+    },
+    {
+      "name": "sinatra",
+      "url": "https://github.com/sinatra/sinatra",
+      "commit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "category": "framework-ruby",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "automapper",
+      "url": "https://github.com/AutoMapper/AutoMapper",
+      "commit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "category": "library-csharp",
+      "expectedArchetype": "source",
+      "license": "MIT",
       "visibility": "public"
     },
     {

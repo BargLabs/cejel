@@ -281,10 +281,11 @@ export function renderVerdict(score: number): string {
 }
 
 // Headline verdict for a full report — distinct from renderVerdict(score) because a repo with
-// an insufficient-source archetype ('docs_only' | 'binary_only' | 'empty') must never present a
-// confident numeric-derived verdict (see goal_cejel_repo_archetype_detection_2026-07-06). Every
-// presentation surface (badge, terminal certificate, HTML certificate) should call this instead
-// of renderVerdict(report.overallScore) directly.
+// an insufficient-source archetype ('docs_only' | 'binary_only' | 'unrecognised_ecosystem' |
+// 'empty') must never present a confident numeric-derived verdict (see
+// goal_cejel_repo_archetype_detection_2026-07-06, goal_cejel_language_calibration_2026-07-12).
+// Every presentation surface (badge, terminal certificate, HTML certificate) should call this
+// instead of renderVerdict(report.overallScore) directly.
 export function renderReportVerdict(report: WitanReport): string {
   if (report.insufficientSourceReason) return 'Insufficient source';
   return renderVerdict(report.overallScore);

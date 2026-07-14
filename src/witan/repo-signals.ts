@@ -70,12 +70,13 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
 //
 // A deterministic, offline read of the file inventory that decides whether a repo has a
 // ratable source tree at all. This is intentionally conservative: it only flags a repo as
-// insufficient-source ('docs_only' | 'binary_only' | 'empty') when there is POSITIVE evidence
-// of a docs/media or bundled-binary distribution tree with zero source-extension files —
-// never merely "few source files detected". Many legitimate scan targets (a bare
-// requirements.txt, a lockfile-only monorepo sub-package) have zero source-extension files of
-// their own and must keep scoring exactly as before via the individual collectors' own
-// archetype-aware N/A gates (see A2/A3 above) — this classifier must never gate those away.
+// insufficient-source ('docs_only' | 'binary_only' | 'unrecognised_ecosystem' | 'empty') when
+// there is POSITIVE evidence of a docs/media, bundled-binary, or unrecognised-language
+// distribution tree with zero source-extension files — never merely "few source files
+// detected". Many legitimate scan targets (a bare requirements.txt, a lockfile-only monorepo
+// sub-package) have zero source-extension files of their own and must keep scoring exactly as
+// before via the individual collectors' own archetype-aware N/A gates (see A2/A3 above) — this
+// classifier must never gate those away.
 export interface RepoArchetypeClassification {
   archetype: WitanRepoArchetype;
   sourceFileCount: number;
@@ -84,8 +85,67 @@ export interface RepoArchetypeClassification {
   insufficientSourceReason?: string;
 }
 
-const SOURCE_EXTENSION_PATTERN =
-  /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|py|go|rs|java|kt|kts|rb|php|swift|cpp|cc|cxx|c|h|hpp|cs|scala|dart|ex|exs)$/i;
+// goal_cejel_language_calibration_2026-07-12: widened to add the ecosystems that were cheap
+// to recognise (shell, R, Lua, Julia, Haskell, Terraform, SQL, Perl, OCaml, Clojure, Erlang,
+// Nim, Zig, F#, Groovy) on top of the original nineteen. Deliberately still does NOT include
+// COBOL/Fortran/MATLAB or any other language not listed here — the list is infinite, so the
+// structural fix is honest abstention (see classifyRepoArchetype's 'unrecognised_ecosystem'
+// branch below), not chasing every remaining language into this pattern.
+//
+// goal_cejel_derive_dont_enumerate_2026-07-13 (Guard 3): this array is now the ONE canonical
+// source for "which languages does cejel recognise as source, and how deeply is each
+// modelled" — SOURCE_EXTENSION_PATTERN below is COMPILED from it rather than typed
+// separately, and the public README/tests read this same array rather than a second,
+// independently-maintained list. A language added or removed here propagates everywhere by
+// construction; see claim-matches-code.test.ts (Guard 3) for the README/test-side assertion.
+export type SourceLanguageTier = 'deep' | 'partial' | 'unmodelled';
+
+export interface SourceLanguageEntry {
+  readonly name: string;
+  readonly tier: SourceLanguageTier;
+  readonly extensions: readonly string[];
+}
+
+export const SOURCE_LANGUAGES: readonly SourceLanguageEntry[] = [
+  {
+    name: 'JS/TS',
+    tier: 'deep',
+    extensions: ['ts', 'tsx', 'mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'],
+  },
+  { name: 'Python', tier: 'deep', extensions: ['py'] },
+  { name: 'Go', tier: 'partial', extensions: ['go'] },
+  { name: 'Rust', tier: 'partial', extensions: ['rs'] },
+  { name: 'Java', tier: 'partial', extensions: ['java'] },
+  { name: 'Ruby', tier: 'partial', extensions: ['rb'] },
+  { name: 'PHP', tier: 'partial', extensions: ['php'] },
+  { name: 'C#', tier: 'partial', extensions: ['cs'] },
+  { name: 'C/C++', tier: 'partial', extensions: ['cpp', 'cc', 'cxx', 'c', 'h', 'hpp'] },
+  { name: 'Swift', tier: 'partial', extensions: ['swift'] },
+  { name: 'Kotlin', tier: 'partial', extensions: ['kt', 'kts'] },
+  { name: 'Dart', tier: 'partial', extensions: ['dart'] },
+  { name: 'Elixir', tier: 'partial', extensions: ['ex', 'exs'] },
+  { name: 'Scala', tier: 'partial', extensions: ['scala'] },
+  { name: 'shell', tier: 'unmodelled', extensions: ['sh', 'bash', 'zsh'] },
+  { name: 'R', tier: 'unmodelled', extensions: ['r'] },
+  { name: 'Lua', tier: 'unmodelled', extensions: ['lua'] },
+  { name: 'Julia', tier: 'unmodelled', extensions: ['jl'] },
+  { name: 'Haskell', tier: 'unmodelled', extensions: ['hs'] },
+  { name: 'Terraform', tier: 'unmodelled', extensions: ['tf', 'tfvars'] },
+  { name: 'SQL', tier: 'unmodelled', extensions: ['sql'] },
+  { name: 'Perl', tier: 'unmodelled', extensions: ['pl', 'pm'] },
+  { name: 'OCaml', tier: 'unmodelled', extensions: ['ml', 'mli'] },
+  { name: 'Clojure', tier: 'unmodelled', extensions: ['clj', 'cljs', 'cljc'] },
+  { name: 'Erlang', tier: 'unmodelled', extensions: ['erl', 'hrl'] },
+  { name: 'Nim', tier: 'unmodelled', extensions: ['nim'] },
+  { name: 'Zig', tier: 'unmodelled', extensions: ['zig'] },
+  { name: 'F#', tier: 'unmodelled', extensions: ['fs', 'fsx'] },
+  { name: 'Groovy', tier: 'unmodelled', extensions: ['groovy', 'gvy'] },
+] as const;
+
+const SOURCE_EXTENSION_PATTERN = new RegExp(
+  `\\.(${SOURCE_LANGUAGES.flatMap((language) => language.extensions).join('|')})$`,
+  'i',
+);
 
 // Packaged/bundled binary artifacts a closed or docs-only distribution repo ships instead of
 // source — e.g. a VS Code extension .vsix, an npm tarball, a compiled binary/installer.
@@ -93,6 +153,16 @@ const BUNDLED_BINARY_EXTENSION_PATTERN =
   /\.(vsix|zip|tgz|whl|exe|dmg|pkg|msi|jar|war|apk|ipa|dll|dylib)$/i;
 
 const DOCS_OR_MEDIA_EXTENSION_PATTERN = /\.(md|mdx|rst|png|jpe?g|gif|svg|webp|ico|pdf)$/i;
+
+// Non-source, non-docs, non-binary files cejel already reads meaning from without needing to
+// recognise a programming language: manifests, lockfiles, structured config, and dotfiles that
+// are common to legitimate repos in ANY language (including ones whose source cejel does not
+// recognise). Kept deliberately broad so a Python sub-package that is only a requirements.txt +
+// lockfile slice, or a repo with nothing but a README + LICENSE, stays the existing ambiguous
+// 'source' default rather than being misread as an unrecognised-language repo — the class of
+// false-positive this pattern exists to prevent (goal_cejel_language_calibration_2026-07-12).
+const KNOWN_NON_SOURCE_EXTENSION_PATTERN =
+  /\.(json|jsonc|json5|ya?ml|toml|txt|lock|xml|csv|tsv|ini|cfg|conf|properties|env|sum|mod|graphql|gql|proto|editorconfig|gitignore|gitattributes|npmrc|nvmrc|dockerignore|log|txt\.license)$/i;
 
 const INGEST_POINTER =
   'To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.';
@@ -148,7 +218,46 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     };
   }
 
+  // 'unrecognised_ecosystem' (goal_cejel_language_calibration_2026-07-12): positive evidence of
+  // a source tree written in a language cejel does not recognise — e.g. a repeated extension
+  // that is not source, not docs/media, not a bundled binary, and not one of the manifest/
+  // lockfile/config extensions common to every ecosystem cejel DOES read. This is deliberately
+  // narrower than "sourceFileCount === 0": a repo whose only files are requirements.txt +
+  // poetry.lock, or README.md + LICENSE, has zero candidate files under this check (both
+  // extensions are in the known-non-source allow-list, or have no extension at all) and stays
+  // the existing ambiguous 'source' default — see the two regression cases in
+  // repo-archetype.test.ts this branch must not disturb.
+  const unrecognisedExtensions = collectUnrecognisedSourceExtensions(repoFiles);
+  if (unrecognisedExtensions.length > 0) {
+    const sample = unrecognisedExtensions.slice(0, 6).join(', ');
+    return {
+      archetype: 'unrecognised_ecosystem',
+      sourceFileCount,
+      totalFileCount,
+      insufficientSourceReason: `Cejel does not yet read this repository's source language(s) (${sample}) — 0 of ${totalFileCount} tracked file(s) matched a recognised source extension. Cejel abstains from a verdict rather than score a language it cannot parse; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. ${INGEST_POINTER}`,
+    };
+  }
+
   return { archetype: 'source', sourceFileCount, totalFileCount };
+}
+
+// Files with an extension that is not recognised source, not docs/media, not a bundled binary,
+// and not one of the manifest/lockfile/config extensions common to every ecosystem — see
+// KNOWN_NON_SOURCE_EXTENSION_PATTERN above. Only reachable when sourceFileCount === 0 (the
+// caller only calls this after the sourceFileCount > 0 branch has already returned).
+function collectUnrecognisedSourceExtensions(repoFiles: readonly string[]): string[] {
+  const found = new Set<string>();
+  for (const file of repoFiles) {
+    const base = basename(file);
+    const match = /\.([a-zA-Z0-9_]+)$/.exec(base);
+    const ext = match?.[1];
+    if (!ext) continue;
+    if (KNOWN_NON_SOURCE_EXTENSION_PATTERN.test(base)) continue;
+    if (DOCS_OR_MEDIA_EXTENSION_PATTERN.test(base)) continue;
+    if (BUNDLED_BINARY_EXTENSION_PATTERN.test(base)) continue;
+    found.add(`.${ext.toLowerCase()}`);
+  }
+  return [...found].sort();
 }
 
 function isLikelyMonorepo(repoFiles: readonly string[]): boolean {
@@ -207,7 +316,7 @@ function collectRepoSignals(
   const a5Signal = collectA5ClaimRealityEvidence(repoPath, repoFiles);
   const b1Signal = buildNotApplicableSignal(
     'B1',
-    'Dispatch-trace process signal is not evaluated for external repos.',
+    'Repository scans do not evaluate the dispatch-trace process dimension.',
   );
   const b2Signal = collectB2PrTraceEvidence(repoPath, repoFiles);
   const b3Signal = collectB3CiDisciplineEvidence(repoPath, repoFiles, mono);
@@ -230,7 +339,7 @@ function collectRepoSignals(
   const b4Signal = collectB4AuditEvidence(repoPath, repoFiles, generatedAt);
   const b5Signal = buildNotApplicableSignal(
     'B5',
-    'Learning-trace process signal is not evaluated for external repos.',
+    'Repository scans do not evaluate the learning-trace process dimension.',
   );
   // B6 is a generic governance signal (not Alfred-specific) — runs on every repo archetype.
   const b6Signal = collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles);
@@ -465,8 +574,7 @@ function collectA2IsolationEvidence(
   repoPath: string,
   repoFiles: readonly string[],
 ): WitanCriterionSignalPayload | null {
-  const alfredEvidence: WitanEvidencePointer[] = [];
-  const evidence: WitanEvidencePointer[] = [...alfredEvidence];
+  const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
   const gitignore = repoFiles.find((file) => basename(file) === '.gitignore');
   const envExamples = repoFiles.filter((file) => isEnvTemplatePath(file));
@@ -495,8 +603,7 @@ function collectA2IsolationEvidence(
     repoFiles.filter(isImplementationFile).slice(0, 60),
   );
 
-  // FIX 1 — Archetype-aware N/A gate (external repos only; Alfred skips via alfredEvidence).
-  // A ratable secrets surface requires at least one of:
+  // Archetype-aware N/A gate. A ratable secrets surface requires at least one of:
   //   • a committed or in-history .env* file
   //   • a .env.example/.sample/.template
   //   • a .gitignore with a .env rule
@@ -506,73 +613,69 @@ function collectA2IsolationEvidence(
   // Data layer: migration directories or DB client imports in implementation files.
   // ANTI-OVERFIT: N/A requires evidenced absence of BOTH surfaces. A repo with a committed .env
   // containing a secret → LOW/critical, never N/A. A data layer without RLS → LOW, never N/A.
-  if (alfredEvidence.length === 0) {
-    const implFiles = repoFiles.filter(isImplementationFile);
-    const gitignoreHasEnvRule =
-      gitignore != null && fileContains(repoPath, gitignore, /^\.env(\*|\b)|\.env\./m);
-    // .env* in current tree, excluding templates (.env.example/.sample/.template are in envExamples).
-    // Catches .env, .env.production, .env.staging, .env.local, etc.
-    const committedEnvFilePath = repoFiles.find(
-      (f) => /(?:^|\/)\.env(?:\.|$)/i.test(f) && !isEnvTemplatePath(f),
+  const implFiles = repoFiles.filter(isImplementationFile);
+  const gitignoreHasEnvRule =
+    gitignore != null && fileContains(repoPath, gitignore, /^\.env(\*|\b)|\.env\./m);
+  // .env* in current tree, excluding templates (.env.example/.sample/.template are in envExamples).
+  // Catches .env, .env.production, .env.staging, .env.local, etc.
+  const committedEnvFilePath = repoFiles.find(
+    (f) => /(?:^|\/)\.env(?:\.|$)/i.test(f) && !isEnvTemplatePath(f),
+  );
+  // Only scan history when the current tree has no .env* to avoid redundant scanning.
+  const hasEnvInHistory = committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath);
+  // DB client import file (checked before migrationFiles so we can use it as evidence anchor).
+  const dbLayerImportFile =
+    migrationFiles.length === 0
+      ? implFiles.slice(0, 30).find((f) => fileContains(repoPath, f, DB_CLIENT_PATTERN))
+      : undefined;
+  const hasDataLayer = migrationFiles.length > 0 || dbLayerImportFile !== undefined;
+  const hasSecretsSurface =
+    envExamples.length > 0 ||
+    committedEnvFilePath !== undefined ||
+    gitignoreHasEnvRule ||
+    hasEnvInHistory;
+
+  if (
+    !hasDataLayer &&
+    !hasSecretsSurface &&
+    !hasConfirmedSecretFinding &&
+    !cryptoHygiene.hasSurface
+  ) {
+    return buildNotApplicableSignal(
+      'A2',
+      'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
     );
-    // Only scan history when the current tree has no .env* to avoid redundant scanning.
-    const hasEnvInHistory = committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath);
-    // DB client import file (checked before migrationFiles so we can use it as evidence anchor).
-    const dbLayerImportFile =
-      migrationFiles.length === 0
-        ? implFiles.slice(0, 30).find((f) => fileContains(repoPath, f, DB_CLIENT_PATTERN))
-        : undefined;
-    const hasDataLayer = migrationFiles.length > 0 || dbLayerImportFile !== undefined;
-    const hasSecretsSurface =
-      envExamples.length > 0 ||
-      committedEnvFilePath !== undefined ||
-      gitignoreHasEnvRule ||
-      hasEnvInHistory;
-
-    if (
-      !hasDataLayer &&
-      !hasSecretsSurface &&
-      !hasConfirmedSecretFinding &&
-      !cryptoHygiene.hasSurface
-    ) {
-      return buildNotApplicableSignal(
-        'A2',
-        'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
-      );
-    }
-
-    // FIX 2 — Push at least one evidence anchor so evidenceCount > 0 after the full
-    // evidence-collection pass. This guarantees metric-based scoring fires for any repo
-    // that passes the N/A gate, preventing the null → 0.0-unverified fallback.
-    // gitignoreEnvFile and envExamples are already pushed in the main evidence loop below,
-    // so they do not need an extra push here; cover the remaining ratable-surface cases.
-    if (committedEnvFilePath) {
-      evidence.push(
-        evidenceForRelative(
-          repoPath,
-          committedEnvFilePath,
-          'secret_scan',
-          'Committed .env file in repository tree',
-        ),
-      );
-    } else if (hasEnvInHistory) {
-      evidence.push({
-        kind: 'secret_scan',
-        label: '.env path detected in git history',
-        path: '.git',
-        contentHash: readGitHead(repoPath) ?? 'env-history-scan',
-      });
-    } else if (migrationFiles[0] != null) {
-      evidence.push(
-        evidenceForRelative(repoPath, migrationFiles[0], 'artifact', 'Data layer migration'),
-      );
-    } else if (dbLayerImportFile != null) {
-      evidence.push(
-        evidenceForRelative(repoPath, dbLayerImportFile, 'artifact', 'DB client import'),
-      );
-    }
-    // hasSecretsSurface via gitignoreHasEnvRule or envExamples: pushed in main loop below.
   }
+
+  // Push at least one evidence anchor so evidenceCount > 0 after the full evidence-collection
+  // pass. This guarantees metric-based scoring fires for any repo that passes the N/A gate,
+  // preventing the null → 0.0-unverified fallback. gitignoreEnvFile and envExamples are already
+  // pushed in the main evidence loop below, so they do not need an extra push here; cover the
+  // remaining ratable-surface cases.
+  if (committedEnvFilePath) {
+    evidence.push(
+      evidenceForRelative(
+        repoPath,
+        committedEnvFilePath,
+        'secret_scan',
+        'Committed .env file in repository tree',
+      ),
+    );
+  } else if (hasEnvInHistory) {
+    evidence.push({
+      kind: 'secret_scan',
+      label: '.env path detected in git history',
+      path: '.git',
+      contentHash: readGitHead(repoPath) ?? 'env-history-scan',
+    });
+  } else if (migrationFiles[0] != null) {
+    evidence.push(
+      evidenceForRelative(repoPath, migrationFiles[0], 'artifact', 'Data layer migration'),
+    );
+  } else if (dbLayerImportFile != null) {
+    evidence.push(evidenceForRelative(repoPath, dbLayerImportFile, 'artifact', 'DB client import'));
+  }
+  // hasSecretsSurface via gitignoreHasEnvRule or envExamples: pushed in main loop below.
 
   const rlsMigration = migrationFiles.find((file) => fileContains(repoPath, file, RLS_PATTERN));
   const tenantScopedFile = migrationFiles.find((file) =>
@@ -691,10 +794,9 @@ function collectA2IsolationEvidence(
   evidence.push(...cryptoHygiene.evidence);
   findings.push(...cryptoHygiene.findings);
 
-  // After FIX 1 + FIX 2: any non-Alfred repo that reaches here has passed the N/A gate and
-  // had at least one evidence anchor pushed. Alfred repos always have alfredEvidence items.
-  // The null return now guards only the theoretically unreachable case where neither branch
-  // produced evidence (kept as a safety net, not an expected path).
+  // Any repo that reaches here has passed the N/A gate and had at least one evidence anchor
+  // pushed. The null return below guards only the theoretically unreachable case where
+  // neither branch produced evidence (kept as a safety net, not an expected path).
   if (evidence.length === 0 && findings.length === 0) return null;
 
   // For non-multi-tenant repos, RLS and tenant-scope are irrelevant: omit those
@@ -1234,47 +1336,6 @@ function collectA5ClaimRealityEvidence(
   repoPath: string,
   repoFiles: readonly string[],
 ): WitanCriterionSignalPayload | null {
-  const alfredEvidence: WitanEvidencePointer[] = [];
-  if (alfredEvidence.length > 0) {
-    const claimStats = readClaimRealityStats(repoPath);
-    return {
-      criterionId: 'A5',
-      positiveEvidence: alfredEvidence,
-      findings: [],
-      metrics: [
-        metric(
-          'claim_match_rate',
-          'Claim match rate',
-          claimStats?.matchRate ?? 0,
-          1,
-          0.6,
-          'ratio',
-          'Measures supported and partially supported claims in the structured reconciliation artifact.',
-        ),
-        metric(
-          'claim_registry_depth',
-          'Claim registry depth',
-          claimStats?.claimCount ?? 0,
-          Math.max(claimStats?.claimCount ?? 0, 8),
-          0.25,
-          'claims',
-          'Credits the number of concrete claims reconciled without giving unlimited credit for one artifact.',
-        ),
-        metric(
-          'reconciliation_artifact_depth',
-          'Reconciliation artifact depth',
-          alfredEvidence.length,
-          3,
-          0.15,
-          'artifacts',
-          'Credits implementation, Markdown, and structured reconciliation artifacts.',
-        ),
-      ],
-      notes:
-        'A5 is evidenced by deterministic claim-vs-reality implementation and report artifacts, not a model-opinion verdict.',
-    };
-  }
-
   const claimDoc =
     repoFiles.find((file) => /(^|\/)(README|readme)\.md$/.test(file)) ??
     repoFiles.find((file) => /(^|\/)docs\/.*\.(md|mdx)$/.test(file));
@@ -1780,7 +1841,7 @@ function collectB6PrivilegedOpsGatingEvidence(
           1,
           0.15,
           'present',
-          "Credits a governance/safety toggle that fails closed before any lower-priority config can override it.",
+          'Credits a governance/safety toggle that fails closed before any lower-priority config can override it.',
         ),
       ]
     : [];
@@ -1999,8 +2060,8 @@ const UNSORTED_JSON_SIGN_PATTERN =
   /\.update\s*\(\s*JSON\.stringify\s*\(|\.sign\s*\([^)]*JSON\.stringify\s*\(/;
 
 // B6 — an un-overridable kill-switch / fail-safe governance toggle: a named safety toggle
-// whose absence/false state triggers an
-// immediate guard-clause return/throw, so no lower-priority config can proceed past it.
+// whose absence/false state triggers an immediate guard-clause return/throw, so no
+// lower-priority config can proceed past it.
 // Positive-only: absence of this pattern never lowers a score, it simply omits the credit.
 const KILL_SWITCH_NAME_FRAGMENT =
   'kill[_-]?switch|emergency[_-]?stop|circuit[_-]?breaker|safety[_-]?(?:toggle|gate|switch)|governance[_-]?(?:toggle|gate)';
@@ -2694,38 +2755,6 @@ function isPinnedDependencyVersion(version: string): boolean {
   // CMake find_package without an explicit version: system-managed, not a version pin
   if (trimmed === 'find') return false;
   return /^\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?$/.test(trimmed);
-}
-
-interface ClaimRealityStats {
-  claimCount: number;
-  matchRate: number;
-}
-
-function readClaimRealityStats(repoPath: string): ClaimRealityStats | null {
-  const path = join(repoPath, 'docs/witan/claim_reality_reconciliation.json');
-  if (!isRegularFile(path)) return null;
-  const parsed = parseJsonObject(readFileSync(path, 'utf8'));
-  const claims = Array.isArray(parsed?.claims) ? parsed.claims : [];
-  if (claims.length === 0) return null;
-
-  const totalScore = claims.reduce((sum, claim) => {
-    if (!isRecord(claim) || typeof claim.status !== 'string') return sum;
-    return sum + scoreClaimRealityStatus(claim.status);
-  }, 0);
-
-  return {
-    claimCount: claims.length,
-    matchRate: Math.round((totalScore / claims.length) * 1000) / 1000,
-  };
-}
-
-function scoreClaimRealityStatus(status: string): number {
-  const normalized = status.toLowerCase();
-  if (/supported|verified|matched|true/.test(normalized) && !/unsupported/.test(normalized)) {
-    return 1;
-  }
-  if (/partial|mixed|needs[-_ ]?evidence/.test(normalized)) return 0.5;
-  return 0;
 }
 
 function workflowTargetsDefaultBranch(repoPath: string, file: string): boolean {

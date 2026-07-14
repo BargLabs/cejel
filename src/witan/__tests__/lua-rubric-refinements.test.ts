@@ -306,11 +306,11 @@ describe('B6 — an un-overridable kill-switch / fail-safe governance toggle is 
     const dir = makeTmpRepo();
     writeFile(
       dir,
-      'src/tactical-actions.ts',
+      'src/privileged-actions.ts',
       [
-        'export function runTacticalAction(studio: { emergency_stop: boolean }, action: () => void): void {',
-        '  if (!studio.emergency_stop) {',
-        "    throw new Error('Tactical actions are disabled for this studio.');",
+        'export function runPrivilegedAction(studio: { safety_toggle: boolean }, action: () => void): void {',
+        '  if (!studio.safety_toggle) {',
+        "    throw new Error('Privileged actions are disabled for this studio.');",
         '  }',
         '  action();',
         '}',

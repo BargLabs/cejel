@@ -22,6 +22,8 @@ export {
 export type { WitanExternalFinding, WitanExternalSourceSummary } from './external-findings.js';
 export { buildWitanInputFromRepo, classifyRepoArchetype } from './repo-signals.js';
 export type { BuildWitanInputOptions, RepoArchetypeClassification } from './repo-signals.js';
+export { resolvePublicIngestSignals, scoreRepoWithPublicCejel } from './public-scan.js';
+export type { PublicCejelScoreOptions } from './public-scan.js';
 export { WITAN_RUBRIC, WITAN_TRADING_RUBRIC_V0, getWitanRubricCriterion } from './rubric.js';
 export type { WitanRubricCriterion } from './rubric.js';
 export { createWitanReport } from './scoring.js';

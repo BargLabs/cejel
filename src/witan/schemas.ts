@@ -13,7 +13,14 @@ export const WITAN_RUBRIC_VERSION_V1 = 'witan-rubric-v1-2026-06-24';
 // docs/leaderboard/RUBRIC_CHANGELOG.md for the full corpus-wide before/after delta this
 // version bump requires and carries. Scoring algorithm is unchanged from v1 (metric-based).
 export const WITAN_RUBRIC_VERSION_V2 = 'witan-rubric-v2-2026-07-12';
-export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V2;
+// v3 (goal_cejel_board_must_be_reproducible_2026-07-12): removed four repository-private
+// evidence collectors (two code-trust inputs plus B1 and B5) that were reachable only from
+// this monorepo's own file paths and could never be reproduced by a stranger running `npx
+// @cejel/cejel .` on the same repository — see docs/leaderboard/RUBRIC_CHANGELOG.md for the
+// full corpus-wide before/after delta. Scoring algorithm is unchanged from v2 (metric-based);
+// only these four collectors' reachability changed, from "always active" to "never present".
+export const WITAN_RUBRIC_VERSION_V3 = 'witan-rubric-v3-2026-07-13';
+export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V3;
 export const WITAN_TRADING_RUBRIC_VERSION_V0 = 'witan-trading-rubric-v0-2026-07-01';
 
 export const WITAN_CRITERION_IDS = [
@@ -94,13 +101,19 @@ export const WitanFindingSeveritySchema = z.enum(['critical', 'warning', 'info']
 // Repo-archetype classification (goal_cejel_repo_archetype_detection_2026-07-06): a deterministic,
 // offline read of the file inventory used to decide whether a repo has a ratable source tree at
 // all. 'monorepo' and 'source' both have ratable source and score normally; 'docs_only',
-// 'binary_only', and 'empty' do not, and cejel reports an explicit insufficient-source verdict
-// instead of a confident numeric score for those archetypes.
+// 'binary_only', 'unrecognised_ecosystem', and 'empty' do not, and cejel reports an explicit
+// insufficient-source verdict instead of a confident numeric score for those archetypes.
+// 'unrecognised_ecosystem' (goal_cejel_language_calibration_2026-07-12): a non-empty,
+// non-binary, non-docs repository with zero files matching a source extension cejel
+// recognises — e.g. COBOL, Fortran, MATLAB. Distinct from the other insufficient-source
+// archetypes: the repo IS a real source tree, cejel simply cannot read its language(s), so
+// abstaining is the honest output rather than scoring it as an empty/near-empty repo would be.
 export const WITAN_REPO_ARCHETYPES = [
   'source',
   'monorepo',
   'docs_only',
   'binary_only',
+  'unrecognised_ecosystem',
   'empty',
 ] as const;
 export const WitanRepoArchetypeSchema = z.enum(WITAN_REPO_ARCHETYPES);
@@ -253,9 +266,10 @@ export const WitanReportSchema = z
     categoryScores: z.record(z.string(), z.number().min(0).max(4)).optional(),
     // Repo-archetype metadata (see WitanRepoArchetypeSchema above). Both fields are omitted for
     // callers that don't classify an archetype (e.g. the trading rubric). insufficientSourceReason
-    // is present only for the non-source archetypes ('docs_only' | 'binary_only' | 'empty') — its
-    // presence is what presentation layers (badge/terminal/verdict) key off to show an explicit
-    // insufficient-source verdict instead of a confident numeric score.
+    // is present only for the non-source archetypes ('docs_only' | 'binary_only' |
+    // 'unrecognised_ecosystem' | 'empty') — its presence is what presentation layers
+    // (badge/terminal/verdict) key off to show an explicit insufficient-source verdict instead of
+    // a confident numeric score.
     archetype: WitanRepoArchetypeSchema.optional(),
     insufficientSourceReason: z.string().min(1).max(2000).optional(),
   })

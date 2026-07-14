@@ -5,8 +5,8 @@
     "url": "https://github.com/ossf/scorecard",
     "headSha": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50"
   },
-  "generatedAt": "2026-07-12T18:11:15.466Z",
-  "rubricVersion": "witan-rubric-v2-2026-07-12",
+  "generatedAt": "2026-07-13T18:03:01.549Z",
+  "rubricVersion": "witan-rubric-v3-2026-07-13",
   "codeTrustScore": 2.3,
   "processTrustScore": 3.6,
   "overallScore": 3,

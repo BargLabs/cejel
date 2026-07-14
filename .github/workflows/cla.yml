@@ -1,0 +1,41 @@
+name: CLA
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check or record CLA signature
+        if: (github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+        uses: contributor-assistant/github-action@v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_SIGNATURES_TOKEN }}
+        with:
+          path-to-document: 'https://github.com/BargLabs/cejel/blob/main/CLA.md'
+          path-to-signatures: 'signatures/v1.json'
+          branch: 'cla-signatures'
+          allowlist: 'houman44,dependabot[bot]'
+          custom-notsigned-prcomment: |
+            Thank you for this contribution.
+
+            Before we can merge it, we need you to sign our [Contributor Licence Agreement](https://github.com/BargLabs/cejel/blob/main/CLA.md). It takes one comment and covers all your future contributions.
+
+            **Why we need one:** Cejel's CLI is AGPL, but the same code ships inside our commercial and air-gapped builds. Without your permission to do that, we cannot accept the contribution at all.
+
+            **What we promise back (clause 3):** anything accepted into Cejel stays available under an OSI-approved open source licence, permanently. We will not take your work closed.
+
+            To sign, reply below with exactly:
+          custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
+          custom-allsigned-prcomment: 'All contributors have signed the CLA. Thank you.'

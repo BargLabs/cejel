@@ -20,9 +20,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 // packs, installs, and RUNS the published artifact exactly as an npm consumer would,
 // entirely offline (no registry reachable, no network dependency in the assertions).
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const PACKAGE_MANIFEST = JSON.parse(
-  readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'),
-) as { name: string };
+const PACKAGE_MANIFEST = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')) as {
+  name: string;
+};
 const INSTALLED_PACKAGE_DIR = join('node_modules', ...PACKAGE_MANIFEST.name.split('/'));
 
 const OFFLINE_NPM_ENV = {

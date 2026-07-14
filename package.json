@@ -1,8 +1,11 @@
 {
-  "name": "@barglabs/cejel",
+  "name": "@cejel/cejel",
   "version": "0.1.1",
   "private": false,
-  "description": "Offline trust certificate for any codebase — scores tests, secrets, isolation, claim-vs-reality, and CI discipline; especially useful for AI-written code.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Offline trust certificate for your codebase — scores tests, secrets, isolation, claim-vs-reality, and CI discipline; especially useful for AI-written code. Supports JS/TS, Python, Go, Rust, Java, Ruby, PHP, C#, C/C++ and more — see README for the full language matrix.",
   "keywords": [
     "trust",
     "trust-certificate",
