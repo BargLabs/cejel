@@ -2,7 +2,7 @@
 
 - Product: requests
 - Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-13T18:03:01.549Z
+- Generated: 2026-07-16T03:09:48.024Z
 - Repository: https://github.com/psf/requests @ f361ead047be5cb873174218582f7d8b9fcd9f49
 
 ## Criterion Profile

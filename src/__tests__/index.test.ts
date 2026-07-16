@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -32,13 +32,33 @@ describe('witan CLI arg parsing', () => {
     expect(options.minScore).toBeUndefined();
   });
 
-  it('parses a positional repo path, --out-dir, and --min-score', () => {
-    const options = parseArgs(['/repo', '--out-dir', 'out', '--min-score', '2.5']);
+  it('parses a positional repo path, --out, and --min-score', () => {
+    const options = parseArgs(['/repo', '--out', 'out', '--min-score', '2.5']);
     expect(options).toMatchObject({ repoPath: '/repo', outDir: 'out', minScore: 2.5 });
+  });
+
+  it('retains --out-dir as a backwards-compatible alias', () => {
+    expect(parseArgs(['--out-dir', 'out']).outDir).toBe('out');
   });
 
   it('rejects unknown flags', () => {
     expect(() => parseArgs(['--nonsense'])).toThrow(/Unknown Cejel CLI flag/);
+  });
+
+  it('--help and -h set showHelp', () => {
+    expect(parseArgs(['--help']).showHelp).toBe(true);
+    expect(parseArgs(['-h']).showHelp).toBe(true);
+  });
+
+  it('--version and -v set showVersion', () => {
+    expect(parseArgs(['--version']).showVersion).toBe(true);
+    expect(parseArgs(['-v']).showVersion).toBe(true);
+  });
+
+  it('-h is never treated as a repo path', () => {
+    // Shipped 0.1.1 did exactly this: "Cejel: path not found: ./-h".
+    expect(parseArgs(['-h']).repoPath).toBe(resolve('.'));
+    expect(parseArgs(['-h']).repoPath).not.toBe(resolve('-h'));
   });
 
   it('collects repeated --ingest flags in order', () => {
@@ -68,6 +88,31 @@ describe('witan CLI arg parsing', () => {
 });
 
 describe('runWitanFreeCli (zero-config end-to-end)', () => {
+  it('--help exits 0 and prints usage', async () => {
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      expect(await runWitanFreeCli(['--help'])).toBe(0);
+      expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
+        'Usage:  npx @cejel/cejel [path] [options]',
+      );
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+  });
+
+  it('--version exits 0 and prints the package version', async () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      expect(await runWitanFreeCli(['--version'])).toBe(0);
+      expect(stdoutSpy).toHaveBeenCalledWith(`${manifest.version}\n`);
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+  });
+
   it('scores a repo with no flags and writes report/certificate/badge/summary files', async () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-'));
     const outDir = join(repoPath, '.witan');

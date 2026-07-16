@@ -2,7 +2,7 @@
 
 - Product: vue
 - Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-13T18:03:01.549Z
+- Generated: 2026-07-16T03:09:48.024Z
 - Repository: https://github.com/vuejs/core @ c0606e91798c8dca4f33d101e1dd836d672592c1
 
 ## Criterion Profile

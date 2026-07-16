@@ -3,9 +3,9 @@
   "productDisplayName": "cejel",
   "repo": {
     "path": "packages/witan-cli",
-    "headSha": "25d486947bab5037e2bae8683770e9b123958061"
+    "headSha": "75fa69511494da0c327562323ae4a53b2aba792e"
   },
-  "generatedAt": "2026-07-14T01:34:10.282Z",
+  "generatedAt": "2026-07-16T03:31:36.221Z",
   "rubricVersion": "witan-rubric-v3-2026-07-13",
   "codeTrustScore": 2.7,
   "processTrustScore": 4,
@@ -27,7 +27,7 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "01be4bf80443b443d358a34aecc1588bc5076de53258a6c22619f35a45db547d",
+          "contentHash": "d8f3c88af71d75e1afab900856dcb3200d364a73d983fdb578a4d193009751b0",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -51,7 +51,7 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "9adddf265b14a825b0a9572f4f39c5730bd56becb49ff44d2a6e90ee3b67a637",
+          "contentHash": "5b78f837ff73c394a40fc1f3232b421a829cfd328bd471bfdba0d8e928a8072d",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -63,13 +63,13 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "b57e749315c54f3bb8be02e72718b9f09eae67e6d6f309d8ca0a0cfa5e5f6415",
+          "contentHash": "075d469c7f4118263b242f3e060fb58f198fb331b993f778e458e25c6e3a8e84",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "contentHash": "47b7954e8dc0d084410076500c800b3795c9681cf6642cec3f942937a804ce37",
+          "contentHash": "5fe3a7689f903b254d4f719b0d2ee2ea6e4adaa3091660cc4c1213cd006bc93a",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -89,7 +89,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 10,
+          "value": 11,
           "max": 7,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -118,8 +118,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 10,
-          "max": 10,
+          "value": 11,
+          "max": 11,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -137,7 +137,7 @@
         {
           "kind": "secret_scan",
           "label": ".env path detected in git history",
-          "contentHash": "25d486947bab5037e2bae8683770e9b123958061",
+          "contentHash": "75fa69511494da0c327562323ae4a53b2aba792e",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -185,7 +185,7 @@
         {
           "kind": "dependency_report",
           "label": "Dependency manifest",
-          "contentHash": "47b7954e8dc0d084410076500c800b3795c9681cf6642cec3f942937a804ce37",
+          "contentHash": "5fe3a7689f903b254d4f719b0d2ee2ea6e4adaa3091660cc4c1213cd006bc93a",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -246,7 +246,7 @@
         {
           "kind": "claim_reconciliation",
           "label": "Repository claim source",
-          "contentHash": "de77898e9a292bea328ad06493c5aeb5709a7537140a209e23dde9d3d297e83f",
+          "contentHash": "4a2b7d85dfcf51e2b2bad450d3c7b37cb58af75858424d9f601ebc4f8af63381",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -263,7 +263,7 @@
           "evidence": {
             "kind": "claim_reconciliation",
             "label": "Repository claim source",
-            "contentHash": "de77898e9a292bea328ad06493c5aeb5709a7537140a209e23dde9d3d297e83f",
+            "contentHash": "4a2b7d85dfcf51e2b2bad450d3c7b37cb58af75858424d9f601ebc4f8af63381",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -330,7 +330,7 @@
         {
           "kind": "test_run",
           "label": "Test script",
-          "contentHash": "47b7954e8dc0d084410076500c800b3795c9681cf6642cec3f942937a804ce37",
+          "contentHash": "5fe3a7689f903b254d4f719b0d2ee2ea6e4adaa3091660cc4c1213cd006bc93a",
           "locationWithheld": "path withheld — private repository"
         },
         {

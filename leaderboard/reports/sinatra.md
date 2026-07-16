@@ -2,7 +2,7 @@
 
 - Product: sinatra
 - Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-13T18:57:46.878Z
+- Generated: 2026-07-16T03:09:48.024Z
 - Repository: https://github.com/sinatra/sinatra @ 946812bdec8faf6598fed154a8d611ead612b6fd
 
 ## Criterion Profile

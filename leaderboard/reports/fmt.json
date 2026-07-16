@@ -1,41 +1,139 @@
 {
-  "productSlug": "automapper",
-  "productDisplayName": "automapper",
+  "productSlug": "fmt",
+  "productDisplayName": "fmt",
   "repo": {
-    "url": "https://github.com/AutoMapper/AutoMapper",
-    "headSha": "dfa6dd587c5854b4beee5934beb39ba6e9569b84"
+    "url": "https://github.com/fmtlib/fmt",
+    "headSha": "a79df4504cd4e42ed004b1113fb82171e62ed822"
   },
   "generatedAt": "2026-07-16T03:09:48.024Z",
   "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 1.5,
-  "processTrustScore": 2.3,
-  "overallScore": 1.9,
+  "codeTrustScore": 2.2,
+  "processTrustScore": 3.2,
+  "overallScore": 2.7,
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 0.3,
-      "status": "warning",
+      "score": 2.8,
+      "status": "info",
       "evidence": [
         {
           "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "docs/Makefile",
+          "label": "Detected test file",
+          "path": "test/add-subdirectory-test/main.cc",
           "line": 1,
-          "contentHash": "0e940bd68779c1431a11f35063671cfeb7da0724ae1aebbaa42148b4659acfa2"
+          "contentHash": "400f01bbe88c51b36659237218922047f4d0ba62131d2daaaabbf776e71fb8b3"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/args-test.cc",
+          "line": 1,
+          "contentHash": "7f66f365eab1cd3e10070e48f0b40ae84bb57849d43d17b9e459900fdd80c1fa"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/assert-test.cc",
+          "line": 1,
+          "contentHash": "b5c1ce1f68a2ae546be93288249a8e84bde6d88a876f9b4544c5b1d4f4fa8565"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/base-test.cc",
+          "line": 1,
+          "contentHash": "78f726cc38f523721bc9acd1a18b0af1f0445fed81bc8a28b8fd229b5212ebd9"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/chrono-test.cc",
+          "line": 1,
+          "contentHash": "64b8408d67a547863c98f249ed1486d46cf7cc677fc5b012b2efc334e6f02ae2"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/color-test.cc",
+          "line": 1,
+          "contentHash": "978d8c89099f7a98abc40c4f24516b111ef50630c9163ea6e54c41eec0c2df78"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/compile-test.cc",
+          "line": 1,
+          "contentHash": "d561506df50a0c21b7d3809fdb2fe144e9408df57852230a03f66edc492580d0"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "test/cuda-test/cpp14.cc",
+          "line": 1,
+          "contentHash": "48b894a0066425e00911d72850bf3dfc10a6a278a15e44d74b24743ad489a954"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "CMakeLists.txt",
+          "line": 1,
+          "contentHash": "a5f0dc122b68a7092bba46c206152c26344eca12dd510f1df8b2f31a496fecd7"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "test/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "7098eea5c6431e007a1b06cb3c26fa0f165b209a2b3e630a18d8b5bf104a34f2"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "test/add-subdirectory-test/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "724f3726afe9b4897eaf8c4412e1dfc4e670145be135afe6ce343a8f73e40bc4"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "test/compile-error-test/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "df704a35fb89bbc6419f974d5505ab33d3c33a5bbe4f42c7ab599a9d2737723b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "test/cuda-test/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "ab9624b5a25e3a3bf2f5d3f432531dab204490dff26bc7a9a35597bb291a1aa6"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "test/find-package-test/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "8ba32aa78684d9f173b0b2f404cbb2261c64e108e628d2fc63fe0e25c6b8d103"
+        },
+        {
+          "kind": "test_run",
+          "label": "CI workflow runs the test suite",
+          "path": ".github/workflows/linux.yml",
+          "line": 1,
+          "contentHash": "a9f9981992313f2ad8532fa4552892291867d2a8ffb4d8faa7e4d3ef8914ad8b"
         }
       ],
       "findings": [
         {
-          "severity": "warning",
-          "summary": "A test runner is configured, but no concrete test files were detected.",
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
           "evidence": {
             "kind": "test_run",
-            "label": "Configured test runner",
-            "path": "docs/Makefile",
+            "label": "Detected test file",
+            "path": "test/add-subdirectory-test/main.cc",
             "line": 1,
-            "contentHash": "0e940bd68779c1431a11f35063671cfeb7da0724ae1aebbaa42148b4659acfa2"
+            "contentHash": "400f01bbe88c51b36659237218922047f4d0ba62131d2daaaabbf776e71fb8b3"
           }
         }
       ],
@@ -43,8 +141,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 0,
-          "max": 1,
+          "value": 42,
+          "max": 4,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -62,7 +160,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 1,
+          "value": 7,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -72,8 +170,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 0,
-          "max": 1,
+          "value": 23,
+          "max": 23,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -107,24 +205,43 @@
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
-      "score": 2.8,
-      "status": "info",
+      "score": 1.6,
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
           "label": "Dependency manifest",
-          "path": "docs/requirements.txt",
+          "path": "test/cuda-test/CMakeLists.txt",
           "line": 1,
-          "contentHash": "ad06f98eae2cfee681da256c76313c6b273e3d3383bc03b082cc2b13fba2f340"
+          "contentHash": "ab9624b5a25e3a3bf2f5d3f432531dab204490dff26bc7a9a35597bb291a1aa6"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency update config",
+          "path": ".github/dependabot.yml",
+          "line": 1,
+          "contentHash": "496e2016d5fca9249992ab8a3ffa9457e4f07e73e8cc698988bdf97e68ba4e14"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 1.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "test/cuda-test/CMakeLists.txt",
+            "line": 1,
+            "contentHash": "ab9624b5a25e3a3bf2f5d3f432531dab204490dff26bc7a9a35597bb291a1aa6"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
           "label": "Declared version range ratio",
-          "value": 3,
-          "max": 3,
+          "value": 1,
+          "max": 4,
           "weight": 0.5,
           "unit": "ratio",
           "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
@@ -132,7 +249,7 @@
         {
           "name": "dependency_automation_ratio",
           "label": "Dependency automation ratio",
-          "value": 0,
+          "value": 1,
           "max": 2,
           "weight": 0.25,
           "unit": "ratio",
@@ -154,7 +271,7 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 1.4,
+      "score": 2.2,
       "status": "warning",
       "evidence": [
         {
@@ -162,14 +279,14 @@
           "label": "Repository claim source",
           "path": "README.md",
           "line": 1,
-          "contentHash": "f0be14ab178e7f79e2f648aa554f73fec671caa1e40e554557d64cdd3bb3fdcc"
+          "contentHash": "26b23c0cda1567a0d8fcff90604849a5c5f94a8782c86a39b34b469ca0a9412b"
         },
         {
           "kind": "artifact",
           "label": "Code presence for claim reconciliation",
-          "path": "docs/source/conf.py",
+          "path": "include/fmt/args.h",
           "line": 1,
-          "contentHash": "0f5c3ce50fd933ac5f9ef1c259b2b3555216e1a76b1c1564dc335e8698c645ce"
+          "contentHash": "ce9705a22f68469891cba708b3c4ae459edb3f41c8a83f891e93013d485190f8"
         }
       ],
       "findings": [
@@ -181,7 +298,7 @@
             "label": "Repository claim source",
             "path": "README.md",
             "line": 1,
-            "contentHash": "f0be14ab178e7f79e2f648aa554f73fec671caa1e40e554557d64cdd3bb3fdcc"
+            "contentHash": "26b23c0cda1567a0d8fcff90604849a5c5f94a8782c86a39b34b469ca0a9412b"
           }
         }
       ],
@@ -189,8 +306,8 @@
         {
           "name": "claim_match_rate",
           "label": "Claim match rate",
-          "value": 1,
-          "max": 2,
+          "value": 12,
+          "max": 13,
           "weight": 0.5,
           "unit": "ratio",
           "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
@@ -231,29 +348,43 @@
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 4,
-      "status": "verified",
+      "score": 3.2,
+      "status": "info",
       "evidence": [
         {
           "kind": "ci_run",
           "label": "Pull-request CI workflow",
-          "path": ".github/workflows/ci.yml",
+          "path": ".github/workflows/codeql.yml",
           "line": 1,
-          "contentHash": "2da4ee81ab4d81623dc020ba3d6c14594f2dc07b45542ea5ef68db6969744aa7"
+          "contentHash": "252ba92b5c3eec25e7b12d77717918309268f0b78d742c97daf69a1c8f03be5c"
         },
         {
           "kind": "ci_run",
           "label": "Pull-request CI workflow",
-          "path": ".github/workflows/lock.yml",
+          "path": ".github/workflows/doc.yml",
           "line": 1,
-          "contentHash": "eb25785fd7d3a27f0c0ad927a5de4234f0ca4e9479c4ecaa63ab9cddb8a77ea1"
+          "contentHash": "1ec8a39044dc26ea1cd6f1b59afa4f899682f2fac7dce63623b1a87f3f12a248"
         },
         {
           "kind": "ci_run",
           "label": "Pull-request CI workflow",
-          "path": ".github/workflows/release.yml",
+          "path": ".github/workflows/fuzz.yml",
           "line": 1,
-          "contentHash": "527f44911edd7a7c7eee364adeac4c77d524d125b2ab2a1c6d8f6d84ef573559"
+          "contentHash": "1962b83eb4991b26ed08d3951f65e4a23c84a0f68b8e7064014c2cd51a3a90b8"
+        },
+        {
+          "kind": "pull_request",
+          "label": "Pull request template",
+          "path": ".github/pull_request_template.md",
+          "line": 1,
+          "contentHash": "4547e593fddf1cd9df97eb380f41a27176afac43cacd3cf793274e0fb8c4d6f6"
+        },
+        {
+          "kind": "pull_request",
+          "label": "Review gate configuration",
+          "path": ".github/CODEOWNERS",
+          "line": 1,
+          "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
         }
       ],
       "findings": [],
@@ -261,7 +392,7 @@
         {
           "name": "pr_trace_primitives",
           "label": "PR trace primitive coverage",
-          "value": 4,
+          "value": 11,
           "max": 2,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -271,7 +402,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 1,
+          "value": 0,
           "max": 1,
           "weight": 0.2,
           "unit": "ratio",
@@ -283,35 +414,23 @@
       "id": "B3",
       "title": "CI and QA discipline",
       "category": "process_trust",
-      "score": 0.6,
-      "status": "critical",
+      "score": 3.1,
+      "status": "info",
       "evidence": [
         {
           "kind": "ci_run",
           "label": "CI workflow",
-          "path": ".github/workflows/ci.yml",
+          "path": ".github/workflows/codeql.yml",
           "line": 1,
-          "contentHash": "2da4ee81ab4d81623dc020ba3d6c14594f2dc07b45542ea5ef68db6969744aa7"
+          "contentHash": "252ba92b5c3eec25e7b12d77717918309268f0b78d742c97daf69a1c8f03be5c"
         }
       ],
-      "findings": [
-        {
-          "severity": "critical",
-          "summary": "B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "CI workflow",
-            "path": ".github/workflows/ci.yml",
-            "line": 1,
-            "contentHash": "2da4ee81ab4d81623dc020ba3d6c14594f2dc07b45542ea5ef68db6969744aa7"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "ci_script_depth",
           "label": "CI verification depth",
-          "value": 0,
+          "value": 2,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.45,
@@ -321,7 +440,7 @@
         {
           "name": "default_branch_ci_depth",
           "label": "PR-gate CI workflow count",
-          "value": 1,
+          "value": 8,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.55,
@@ -334,12 +453,46 @@
       "id": "B4",
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
-      "score": 0,
-      "status": "not_applicable",
-      "evidence": [],
+      "score": 2.5,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": ".github/SECURITY.md",
+          "line": 1,
+          "contentHash": "d0a63d810fe796f2f6db5338bdc388ba637ffd987fb6087b741ce7ed14ef8a8f"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "ChangeLog.md",
+          "line": 1,
+          "contentHash": "01791cf6705047c6a19ebce5a41af276311acc16e7582427252273a56054074f"
+        }
+      ],
       "findings": [],
-      "metrics": [],
-      "notes": "Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored."
+      "metrics": [
+        {
+          "name": "audit_artifact_depth",
+          "label": "Audit artifact depth",
+          "value": 2,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "files",
+          "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts."
+        },
+        {
+          "name": "audit_freshness_depth",
+          "label": "Audit freshness depth",
+          "value": 1,
+          "max": 2,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Credits audit artifacts that carry freshness/current-state markers."
+        }
+      ]
     },
     {
       "id": "B5",
@@ -356,12 +509,39 @@
       "id": "B6",
       "title": "Privileged-operation human gating",
       "category": "process_trust",
-      "score": 0,
-      "status": "not_applicable",
-      "evidence": [],
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "CODEOWNERS/required-review gate on protected paths",
+          "path": ".github/CODEOWNERS",
+          "line": 1,
+          "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
+        }
+      ],
       "findings": [],
-      "metrics": [],
-      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+      "metrics": [
+        {
+          "name": "privilege_escalation_cleanliness",
+          "label": "Privilege-escalation cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.4,
+          "unit": "clean",
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+        },
+        {
+          "name": "protected_path_review_gate",
+          "label": "Protected-path review gate",
+          "value": 1,
+          "max": 1,
+          "weight": 0.6,
+          "unit": "present",
+          "description": "Credits a CODEOWNERS file or documented required-review/branch-protection policy — the general OSS-observable analogue of human-gating changes to sensitive paths."
+        }
+      ],
+      "notes": "B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths."
     }
   ],
   "archetype": "source"

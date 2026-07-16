@@ -2,7 +2,7 @@
 
 - Product: automapper
 - Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-13T18:57:46.878Z
+- Generated: 2026-07-16T03:09:48.024Z
 - Repository: https://github.com/AutoMapper/AutoMapper @ dfa6dd587c5854b4beee5934beb39ba6e9569b84
 
 ## Criterion Profile

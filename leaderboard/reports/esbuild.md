@@ -2,7 +2,7 @@
 
 - Product: esbuild
 - Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-13T18:03:01.549Z
+- Generated: 2026-07-16T03:09:48.024Z
 - Repository: https://github.com/evanw/esbuild @ 6ff1d8b0d8c134e867a397eef39702a223ebef9e
 
 ## Criterion Profile

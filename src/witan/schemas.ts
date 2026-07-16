@@ -124,7 +124,10 @@ export const WitanEvidencePointerSchema = z
     label: z.string().min(1).max(180),
     url: z.string().url().optional(),
     path: z.string().min(1).max(700).optional(),
-    line: z.number().int().positive().optional(),
+    // Explicit null means the finding is file-scoped and no real match position was measured —
+    // never a fabricated line (e.g. `1`) standing in for a position the detector never found
+    // (goal_cejel_a2_one_notion_of_production_code_2026-07-13).
+    line: z.number().int().positive().nullable().optional(),
     contentHash: z.string().min(8).max(160).optional(),
     capturedAt: z.string().datetime({ offset: true }).optional(),
   })
