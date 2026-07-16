@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cejel Trust Certificate - sinatra</title>
+  <title>Cejel Trust Certificate - fmt</title>
   <style>
 :root {
   color-scheme: dark;
@@ -61,15 +61,15 @@ code { color: var(--warn); overflow-wrap: anywhere; }
   <main class="certificate">
     <header class="hero">
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
-      <h1>sinatra</h1>
+      <h1>fmt</h1>
       <dl class="meta">
         <div><dt>Date</dt><dd>2026-07-16</dd></div>
-        <div><dt>Run</dt><dd>https://github.com/sinatra/sinatra @ 946812bdec8faf6598fed154a8d611ead612b6fd</dd></div>
+        <div><dt>Run</dt><dd>https://github.com/fmtlib/fmt @ a79df4504cd4e42ed004b1113fb82171e62ed822</dd></div>
         <div><dt>Rubric</dt><dd>witan-rubric-v3-2026-07-13</dd></div>
       </dl>
-      <div class="score">2.4<span>/4.0 overall</span></div>
-      <p class="verdict">At risk</p>
-      <p class="subscores">Code 2.0 · Process 2.8</p>
+      <div class="score">2.7<span>/4.0 overall</span></div>
+      <p class="verdict">Conditional</p>
+      <p class="subscores">Code 2.2 · Process 3.2</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,19 +77,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="info">info</span>
           </div>
-          <div class="criterion-score">1.8</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>91/53 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>0/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>77/78 ratio</span></li></ul>
-          <ul><li>Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/base_spec.rb:1 · sha256:0f86f660571f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/content_security_policy_spec.rb:1 · sha256:a6836f158b55</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/cookie_tossing_spec.rb:1 · sha256:27c39fd3a46f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/escaped_params_spec.rb:1 · sha256:ee75320b93ad</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/form_token_spec.rb:1 · sha256:b89f75a7d0c1</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/frame_options_spec.rb:1 · sha256:55698f06865a</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/host_authorization_spec.rb:1 · sha256:3aea586a6342</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</li></ul>
+          <div class="criterion-score">2.8</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>42/4 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>7/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>23/23 ratio</span></li></ul>
+          <ul><li>Detected test file <code>test/add-subdirectory-test/main.cc:1 · sha256:400f01bbe88c</code></li><li>Detected test file <code>test/args-test.cc:1 · sha256:7f66f365eab1</code></li><li>Detected test file <code>test/assert-test.cc:1 · sha256:b5c1ce1f68a2</code></li><li>Detected test file <code>test/base-test.cc:1 · sha256:78f726cc38f5</code></li><li>Detected test file <code>test/chrono-test.cc:1 · sha256:64b8408d67a5</code></li><li>Detected test file <code>test/color-test.cc:1 · sha256:978d8c89099f</code></li><li>Detected test file <code>test/compile-test.cc:1 · sha256:d561506df50a</code></li><li>Detected test file <code>test/cuda-test/cpp14.cc:1 · sha256:48b894a00664</code></li><li>Configured test runner <code>CMakeLists.txt:1 · sha256:a5f0dc122b68</code></li><li>Configured test runner <code>test/CMakeLists.txt:1 · sha256:7098eea5c643</code></li><li>Configured test runner <code>test/add-subdirectory-test/CMakeLists.txt:1 · sha256:724f3726afe9</code></li><li>Configured test runner <code>test/compile-error-test/CMakeLists.txt:1 · sha256:df704a35fb89</code></li><li>Configured test runner <code>test/cuda-test/CMakeLists.txt:1 · sha256:ab9624b5a25e</code></li><li>Configured test runner <code>test/find-package-test/CMakeLists.txt:1 · sha256:8ba32aa78684</code></li><li>CI workflow runs the test suite <code>.github/workflows/linux.yml:1 · sha256:a9f998199231</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>test/add-subdirectory-test/main.cc:1 · sha256:400f01bbe88c</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="insufficient_data">insufficient_data</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
-          <div class="criterion-score">No data</div>
-          <ul><li>No measured depth metrics supplied.</li></ul>
-          <ul><li>No concrete evidence supplied.</li></ul>
+          <div class="criterion-score">1.6</div>
+          <ul><li><strong>Declared version range ratio</strong><span>1/4 ratio</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
+          <ul><li>Dependency manifest <code>test/cuda-test/CMakeLists.txt:1 · sha256:ab9624b5a25e</code></li><li>Dependency update config <code>.github/dependabot.yml:1 · sha256:496e2016d5fc</code></li><li>warning: A4 metric-derived score is 1.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>test/cuda-test/CMakeLists.txt:1 · sha256:ab9624b5a25e</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
@@ -97,7 +97,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
           </div>
           <div class="criterion-score">2.2</div>
           <ul><li><strong>Claim match rate</strong><span>12/13 ratio</span></li><li><strong>Claim source depth</strong><span>1/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
-          <ul><li>Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code></li><li>Code presence for claim reconciliation <code>lib/sinatra.rb:1 · sha256:7c3157fd3ea7</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code>)</li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:26b23c0cda15</code></li><li>Code presence for claim reconciliation <code>include/fmt/args.h:1 · sha256:ce9705a22f68</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:26b23c0cda15</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
@@ -109,19 +109,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="info">info</span>
           </div>
-          <div class="criterion-score">4.0</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>3/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></li><li>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li></ul>
+          <div class="criterion-score">3.2</div>
+          <ul><li><strong>PR trace primitive coverage</strong><span>11/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/codeql.yml:1 · sha256:252ba92b5c3e</code></li><li>Pull-request CI workflow <code>.github/workflows/doc.yml:1 · sha256:1ec8a39044dc</code></li><li>Pull-request CI workflow <code>.github/workflows/fuzz.yml:1 · sha256:1962b83eb499</code></li><li>Pull request template <code>.github/pull_request_template.md:1 · sha256:4547e593fddf</code></li><li>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:524103c7d5ec</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="info">info</span>
           </div>
-          <div class="criterion-score">0.6</div>
-          <ul><li><strong>CI verification depth</strong><span>0/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
-          <ul><li>CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</li></ul>
+          <div class="criterion-score">3.1</div>
+          <ul><li><strong>CI verification depth</strong><span>2/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>8/4 workflows</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/codeql.yml:1 · sha256:252ba92b5c3e</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
@@ -129,7 +129,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
           </div>
           <div class="criterion-score">2.5</div>
           <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>1/2 ratio</span></li></ul>
-          <ul><li>Audit or changelog artifact <code>CHANGELOG.md:1 · sha256:21e2a2928d51</code></li><li>Audit or changelog artifact <code>SECURITY.md:1 · sha256:0a317e90d1c1</code></li></ul>
+          <ul><li>Audit or changelog artifact <code>.github/SECURITY.md:1 · sha256:d0a63d810fe7</code></li><li>Audit or changelog artifact <code>ChangeLog.md:1 · sha256:01791cf67050</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
@@ -137,7 +137,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
           </div>
           <div class="criterion-score">4.0</div>
           <ul><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>1/1 present</span></li></ul>
-          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li></ul>
+          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:524103c7d5ec</code></li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
@@ -148,11 +148,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></span></li></ul>
+        <ul><li><strong>B6 - Privileged-operation human gating</strong><span>CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:524103c7d5ec</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>test/add-subdirectory-test/main.cc:1 · sha256:400f01bbe88c</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 1.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>test/cuda-test/CMakeLists.txt:1 · sha256:ab9624b5a25e</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:26b23c0cda15</code>)</span></li></ul>
       </article>
     </section>
   </main>

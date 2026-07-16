@@ -2,7 +2,7 @@
 
 - Product: ripgrep
 - Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-13T18:57:46.878Z
+- Generated: 2026-07-16T03:09:48.024Z
 - Repository: https://github.com/BurntSushi/ripgrep @ d5b85d44057ff729a89be9c6549958c45d95aa99
 
 ## Criterion Profile

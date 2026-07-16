@@ -12,6 +12,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { CLI_FLAG_SPECS, CLI_FLAG_TOKENS, type CliFlagKind, type CliFlagToken } from '../index.js';
+
 // Hermetic install-from-tarball regression test. The real 2026-07-06 `npm publish`
 // attempt failed with EUNSUPPORTEDPROTOCOL because internal workspace packages were
 // declared under `dependencies` with the pnpm workspace protocol — invisible to the
@@ -22,6 +24,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const PACKAGE_MANIFEST = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')) as {
   name: string;
+  version: string;
 };
 const INSTALLED_PACKAGE_DIR = join('node_modules', ...PACKAGE_MANIFEST.name.split('/'));
 
@@ -44,6 +47,18 @@ function parseNpmPackJson(packOutput: string): Array<{ filename: string }> {
   }
   return JSON.parse(jsonBlock) as Array<{ filename: string }>;
 }
+
+function parseDocumentedFlagTokens(help: string): CliFlagToken[] {
+  const optionLines = help.split('\n').filter((line) => /^ {2}-/.test(line));
+  return optionLines.flatMap((line) => {
+    const label = line.trimStart().split(/\s{2,}/)[0] ?? '';
+    return (label.match(/-{1,2}[a-z][a-z-]*/g) ?? []) as CliFlagToken[];
+  });
+}
+
+const FLAG_KIND_BY_TOKEN = new Map<CliFlagToken, CliFlagKind>(
+  CLI_FLAG_SPECS.flatMap((spec) => spec.tokens.map((token) => [token, spec.kind] as const)),
+);
 
 describe('cejel install-from-tarball (published artifact)', () => {
   let installDir: string;
@@ -99,6 +114,73 @@ describe('cejel install-from-tarball (published artifact)', () => {
     const badgeSvg = readFileSync(join(targetRepo, '.cejel', 'badge.svg'), 'utf8');
     for (const artifact of [output, certificateHtml, reportJson, badgeSvg]) {
       expect(artifact).not.toContain('Witan');
+    }
+  });
+
+  it('executes every documented flag through the installed artifact', () => {
+    const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-flag-surface-'));
+    writeFileSync(join(targetRepo, 'index.js'), 'export const answer = 42;\n');
+    const sarifPath = join(targetRepo, 'scanner.sarif');
+    writeFileSync(
+      sarifPath,
+      JSON.stringify({
+        version: '2.1.0',
+        runs: [{ tool: { driver: { name: 'smoke' } }, results: [] }],
+      }),
+    );
+
+    const help = execFileSync(binPath, ['--help'], { cwd: targetRepo, encoding: 'utf8' });
+    const shortHelp = execFileSync(binPath, ['-h'], { cwd: targetRepo, encoding: 'utf8' });
+    const version = execFileSync(binPath, ['--version'], { cwd: targetRepo, encoding: 'utf8' });
+    const shortVersion = execFileSync(binPath, ['-v'], {
+      cwd: targetRepo,
+      encoding: 'utf8',
+    });
+
+    expect(help).toContain('Usage:  npx @cejel/cejel [path] [options]');
+    expect(shortHelp).toBe(help);
+    expect(version).toBe(`${PACKAGE_MANIFEST.version}\n`);
+    expect(shortVersion).toBe(version);
+
+    const documentedFlags = parseDocumentedFlagTokens(help);
+    expect(new Set(documentedFlags)).toEqual(new Set(CLI_FLAG_TOKENS));
+
+    for (const flag of documentedFlags) {
+      const flagKind = FLAG_KIND_BY_TOKEN.get(flag);
+      if (!flagKind) throw new Error(`Documented flag is not accepted: ${flag}`);
+
+      let args: string[];
+      let expectedOutDir: string | undefined;
+      switch (flagKind) {
+        case 'help':
+        case 'version':
+          args = [flag];
+          break;
+        case 'quiet':
+          args = [targetRepo, flag];
+          expectedOutDir = '.cejel';
+          break;
+        case 'out':
+          expectedOutDir = `out-${flag.replace(/^-+/, '')}`;
+          args = [flag, expectedOutDir, targetRepo, '--quiet'];
+          break;
+        case 'minScore':
+          args = [flag, '0', targetRepo, '--quiet'];
+          expectedOutDir = '.cejel';
+          break;
+        case 'ingest':
+          args = [flag, sarifPath, targetRepo, '--quiet'];
+          expectedOutDir = '.cejel';
+          break;
+      }
+
+      expect(() => execFileSync(binPath, args, { cwd: targetRepo, stdio: 'pipe' })).not.toThrow();
+      if (expectedOutDir) {
+        expect(
+          existsSync(join(targetRepo, expectedOutDir, 'certificate.html')),
+          `${flag} did not write its certificate`,
+        ).toBe(true);
+      }
     }
   });
 

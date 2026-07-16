@@ -3,14 +3,14 @@
 Every change to how Cejel scores a repository is recorded here, with a full before/after
 delta across the published corpus — score, verdict, and rank for every repository,
 "no repository moved" stated explicitly when that is the result. A rubric version bump
-that ships without an entry here is a bug, not a release: see Guard 1 in
-`packages/witan/src/__tests__/rubric-rescore-protocol.test.ts`, which fails the build if
+that ships without an entry here is a bug, not a release: see the rubric-rescore-protocol
+regression guard in the source monorepo's test suite, which fails the build if
 `WITAN_RUBRIC_VERSION` changes without a matching entry below.
 
 This changelog exists because a public leaderboard that can silently re-score another
-repository is not a standard, it is a rumor with a number attached — see
-`packages/witan-cli/README.md`'s "where we were wrong" section, which this changelog
-continues.
+repository is not a standard, it is a rumor with a number attached — see this repository's
+README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
+section, which this changelog continues.
 
 ## witan-rubric-v3-2026-07-13
 
@@ -82,6 +82,54 @@ documented B3 CI-depth and Maven A4 calibration gaps rather than being hidden or
 | sinatra | new → 2.4 | new → 2.0 | new → 2.8 | new → 2.2 | new → At risk | new → unranked |
 | automapper | new → 1.9 | new → 1.5 | new → 2.3 | new → 1.4 | new → At risk | new → unranked |
 
+**Further corpus-only addition (22 → 23 repositories, 2026-07-15, #488).** One dedicated
+C++ reference row, the same "widen ecosystem coverage" act as the five rows above, composed
+later in the same v3 release rather than in the original batch. No rubric behavior changed;
+`new` is the honest before-state for this row alone.
+
+| Repository | Overall | Code trust | Process trust | A5 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| fmt | new → 2.7 | new → 2.2 | new → 3.2 | new → 2.2 | new → Conditional | new → 15 |
+
+**No repository's score, verdict, or A5 result moved. Two ranks did**, mechanically and only
+because a new row sorted above them: **esbuild 15 → 16, ripgrep 16 → 17.** A rank is a position
+in a list, not a property of a repository — adding a row necessarily moves the rows beneath it.
+Nothing was re-scored to produce that shift.
+
+**Archetype classification: dominance, not presence (2026-07-15).** A behavior change, published
+here because it changes which repositories Cejel is willing to score at all. `classifyRepoArchetype`
+previously short-circuited to `source` when **any** recognised-extension file existed
+(`sourceFileCount > 0`). One recognised file in a thousand was enough. The rule is now a ratio:
+recognised source must reach `SOURCE_DOMINANCE_RATIO_THRESHOLD` (0.2) of tracked files, or the
+repository is `unrecognised_ecosystem` and gets no score, no rank, and no verdict.
+
+**Why.** The previous rule was correct at the ratios it was tested at and catastrophic below them.
+A 99%-COBOL mainframe repository carrying nine incidental `.sh` deploy scripts — 2.7% of its
+tracked files, 3.6% of its source-shaped ones — classified as `source`, was scored on those nine
+files, and drew a confident **0.0 / Unverified** on a healthy codebase. Every real legacy
+repository has a deploy script, so the abstention path was unreachable for essentially all of them
+while every test passed. The threshold was calibrated against a ratio golden set — eight cases
+spanning the ratio space, each with an expected outcome recorded and committed **before** the
+threshold number was chosen — and the choice is insensitive within a wide band: 15%, 20% or 25%
+all abstain this repository and all preserve a 50/50 mixed-language tree as `source`. The number
+was not reverse-engineered from the repository that exposed the bug.
+
+**No existing corpus row changed archetype, score, verdict, or rank.** Every scored repository's
+recognised source is dominant by a wide margin; the 0.2 threshold is nowhere near any of them. The
+change is visible only in what Cejel now declines to score.
+
+**Corpus addition composed with it (23 → 24 repositories).** The first repository on this board
+that Cejel refuses to rate. It is published, not omitted.
+
+| Repository | Overall | Code trust | Process trust | A5 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| carddemo | new → unrated | new → unrated | new → unrated | new → unrated | new → Insufficient source | new → unranked |
+
+`unrated` is the honest before/after state: there is no score to report, and a `0.0` here would be
+a claim about AWS's COBOL that we have not earned. The row's published reason names the extensions
+found (`.cpy`, `.jcl`, `.cbl`, `.bms`, `.ps`, `.ctl`) and the measured ratio (9 of 329 tracked
+files, 2.7%) rather than a bare verdict.
+
 ## Board presentation correction — 2026-07-12
 
 No rubric version changed and no repository was re-scored. The board's public
@@ -149,8 +197,7 @@ critical finding it did not already have. Alfred (internal) kept its own honest 
 ## witan-rubric-v1-2026-06-24
 
 Predates this changelog. Introduced metric-based scoring (continuous, weighted per-criterion
-metrics replacing v0's presence/absence scoring) — see `packages/witan/src/scoring.ts`'s
-`usesMetricScoring` and the golden-set calibration work in
-`docs/orchestration/goal_witan_v1_real_discrimination_then_default_2026_06_25.md`. No
-corpus-wide delta was recorded for this version; the leaderboard did not yet exist at the
-time of this bump.
+metrics replacing v0's presence/absence scoring) — see this package's `src/witan/scoring.ts`'s
+`usesMetricScoring` and the golden-set calibration work done in the source monorepo at the
+time. No corpus-wide delta was recorded for this version; the leaderboard did not yet exist
+at the time of this bump.

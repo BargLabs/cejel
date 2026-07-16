@@ -1,5 +1,5 @@
 {
-  "comment": "Cejel OSS leaderboard corpus: a one-run-sized elite set (~22 repositories) across web frameworks, build tooling, libraries, a supply-chain-governance peer, and (added goal_cejel_language_calibration_2026-07-12 to widen ecosystem coverage beyond the original two) a dedicated Rust/Java/Go/Ruby/C# entry each, plus this repository itself (alfred, and the public cejel CLI at packages/witan-cli) for transparency. Sizing rule: the corpus must be small enough that a full clone -> score -> render -> commit run completes synchronously inside one dispatch watchdog window with margin — growth happens by deliberate, regenerated additions, never by outrunning a single run (the 44-entry v2 corpus stranded a stale 6-repo board exactly this way). Selection rules: elite, widely-known projects only; permissive OSI licenses preferred and labeled per entry; behemoth trees the archetype detector cannot meaningfully score in one pass (linux, chromium, kubernetes-scale) are deliberately excluded and a per-repo clone timeout + maxTreeMB guard keeps any one repo from stalling a run. Every entry is published on the board regardless of how it scores, including any repo that outscores us; a repo that fails to clone or score is a loud ERROR row, never a silent drop. Entries are shallow-cloned (blobless, depth 1) read-only to be scored; none of their code is executed. The ranking is computed on the common externally-applicable dimension set (substrate-only dims excluded for everyone, including internal entries). Every entry also declares `visibility` (goal_cejel_redaction_policy_is_verifiability_2026-07-12): 'public' repositories cite full evidence paths and lines everywhere; 'private' repositories (this monorepo and its sub-packages) never cite a source path anywhere, in any field or format — the finding, its dimension, status, score, and content hash still stand; only the location is withheld.",
+  "comment": "Cejel OSS leaderboard corpus: a one-run-sized elite set (~24 repositories) across web frameworks, build tooling, libraries, a supply-chain-governance peer, and (added goal_cejel_language_calibration_2026-07-12 to widen ecosystem coverage beyond the original two) a dedicated Rust/Java/Go/Ruby/C#/C++ entry each, plus this repository itself (alfred, and the public cejel CLI at packages/witan-cli) for transparency. carddemo (added goal_cejel_archetype_dominance_not_presence_2026-07-15) is a real mainframe COBOL repository with a handful of incidental shell scripts — it deliberately ABSTAINS ('unrecognised_ecosystem') rather than scores, proving the archetype classifier's dominance-not-presence fix against a real repository, not a synthetic one. Sizing rule: the corpus must be small enough that a full clone -> score -> render -> commit run completes synchronously inside one dispatch watchdog window with margin — growth happens by deliberate, regenerated additions, never by outrunning a single run (the 44-entry v2 corpus stranded a stale 6-repo board exactly this way). Selection rules: elite, widely-known projects only; permissive OSI licenses preferred and labeled per entry; behemoth trees the archetype detector cannot meaningfully score in one pass (linux, chromium, kubernetes-scale) are deliberately excluded and a per-repo clone timeout + maxTreeMB guard keeps any one repo from stalling a run. Every entry is published on the board regardless of how it scores, including any repo that outscores us; a repo that fails to clone or score is a loud ERROR row, never a silent drop. Entries are shallow-cloned (blobless, depth 1) read-only to be scored; none of their code is executed. The ranking is computed on the common externally-applicable dimension set (substrate-only dims excluded for everyone, including internal entries). Every entry also declares `visibility` (goal_cejel_redaction_policy_is_verifiability_2026-07-12): 'public' repositories cite full evidence paths and lines everywhere; 'private' repositories (this monorepo and its sub-packages) never cite a source path anywhere, in any field or format — the finding, its dimension, status, score, and content hash still stand; only the location is withheld.",
   "entries": [
     {
       "name": "react",
@@ -179,6 +179,24 @@
       "category": "library-csharp",
       "expectedArchetype": "source",
       "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "fmt",
+      "url": "https://github.com/fmtlib/fmt",
+      "commit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "category": "library-cpp",
+      "expectedArchetype": "source",
+      "license": "MIT",
+      "visibility": "public"
+    },
+    {
+      "name": "carddemo",
+      "url": "https://github.com/aws-samples/aws-mainframe-modernization-carddemo",
+      "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "category": "mainframe-cobol",
+      "expectedArchetype": "unrecognised_ecosystem",
+      "license": "Apache-2.0",
       "visibility": "public"
     },
     {

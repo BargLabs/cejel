@@ -3,12 +3,12 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "25d486947bab5037e2bae8683770e9b123958061"
+    "headSha": "75fa69511494da0c327562323ae4a53b2aba792e"
   },
-  "generatedAt": "2026-07-14T01:34:10.282Z",
+  "generatedAt": "2026-07-16T03:31:36.221Z",
   "rubricVersion": "witan-rubric-v3-2026-07-13",
   "codeTrustScore": 2.4,
-  "processTrustScore": 3.7,
+  "processTrustScore": 3.8,
   "overallScore": 3.1,
   "criteria": [
     {
@@ -101,8 +101,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 334,
-          "max": 606,
+          "value": 340,
+          "max": 607,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -130,8 +130,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 331,
-          "max": 334,
+          "value": 337,
+          "max": 340,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -149,7 +149,7 @@
         {
           "kind": "secret_scan",
           "label": ".env path detected in git history",
-          "contentHash": "25d486947bab5037e2bae8683770e9b123958061",
+          "contentHash": "75fa69511494da0c327562323ae4a53b2aba792e",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -246,7 +246,7 @@
         {
           "kind": "prod_check",
           "label": "Build or typecheck script",
-          "contentHash": "bf8dd8e2b2893eeea68a27bb02cc9613d98f253b101503e8faed672c7e4a3375",
+          "contentHash": "a2b5e4604eba68c39678cb11dae2bbc997b7c200976b366c7e93eea57b8ae2cc",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -286,7 +286,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 82,
+          "value": 85,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -413,7 +413,7 @@
         {
           "name": "claim_source_depth",
           "label": "Claim source depth",
-          "value": 13,
+          "value": 14,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.35,
@@ -446,8 +446,8 @@
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 3.4,
-      "status": "info",
+      "score": 3.9,
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -489,7 +489,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 3,
+          "value": 10,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -507,13 +507,13 @@
         {
           "kind": "test_run",
           "label": "Test script",
-          "contentHash": "bf8dd8e2b2893eeea68a27bb02cc9613d98f253b101503e8faed672c7e4a3375",
+          "contentHash": "a2b5e4604eba68c39678cb11dae2bbc997b7c200976b366c7e93eea57b8ae2cc",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "ci_run",
           "label": "Lint script",
-          "contentHash": "bf8dd8e2b2893eeea68a27bb02cc9613d98f253b101503e8faed672c7e4a3375",
+          "contentHash": "a2b5e4604eba68c39678cb11dae2bbc997b7c200976b366c7e93eea57b8ae2cc",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -563,7 +563,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "9cfe64dab503cc918f44caad9c814f47f72adbd3c46f7966a5a5d771282f70b9",
+          "contentHash": "3461cbc7a91785e7e22462fd31e0cfdd558d4541a9b43f76d97791c4a443114b",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -590,7 +590,7 @@
         {
           "name": "audit_artifact_depth",
           "label": "Audit artifact depth",
-          "value": 65,
+          "value": 66,
           "max": 3,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -600,8 +600,8 @@
         {
           "name": "audit_freshness_depth",
           "label": "Audit freshness depth",
-          "value": 57,
-          "max": 65,
+          "value": 58,
+          "max": 66,
           "weight": 0.2,
           "unit": "ratio",
           "description": "Credits audit artifacts that carry freshness/current-state markers."
@@ -629,7 +629,7 @@
         {
           "kind": "artifact",
           "label": "Documents privileged operations as human-executed/gated",
-          "contentHash": "ccf577afb9b520cfe39fad2bfb07b2bfccb5cccd93a1200e59b9c12582b01204",
+          "contentHash": "430ee9c26d4821fda22235e90b922d06328cf6b5545af098fa135a84535d7a3d",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -647,7 +647,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "9cfe64dab503cc918f44caad9c814f47f72adbd3c46f7966a5a5d771282f70b9",
+          "contentHash": "3461cbc7a91785e7e22462fd31e0cfdd558d4541a9b43f76d97791c4a443114b",
           "locationWithheld": "path withheld — private repository"
         }
       ],

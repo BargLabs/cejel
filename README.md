@@ -131,13 +131,16 @@ Prints a concise terminal certificate and writes to `.cejel/`:
 ### Flags
 
 - `<path>` — repo to score (default: current directory)
-- `--out-dir <dir>` — where to write report/certificate/badge files (default: `.cejel`)
+- `--out <dir>` — where to write report/certificate/badge files (default: `.cejel`;
+  `--out-dir` remains available as a compatibility alias)
 - `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4); used by the
   GitHub Action's optional threshold gate
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
 - `--quiet` — suppress the terminal certificate (files are still written)
+- `-h`, `--help` — print usage and exit successfully
+- `-v`, `--version` — print the version derived from the package manifest and exit successfully
 
 ## Supported languages
 
@@ -318,9 +321,11 @@ separately produced structured report. We neither score you on evidence the publ
 cannot collect nor award ourselves points for evidence you cannot contest.
 
 **Where we were wrong.** Calibrating this rubric against real repositories — and running the
-board itself like a stranger would — surfaced seven errors in our own tool, all found before
-(or, in one case, on) publication day, and all fixed. We list them because a scoring tool
-that has never been wrong is a scoring tool that has not been checked:
+board itself like a stranger would — surfaced the errors below in our own tool, every one found
+by us and every one fixed. The list is its own count; we do not keep a tally in this sentence,
+because a number typed by hand beside a list that grows is exactly the kind of unchecked claim
+this tool exists to catch. We publish them because a scoring tool that has never been wrong is a
+scoring tool that has not been checked:
 
 - **Django, scored a false critical on dependency hygiene.** We applied application-shaped
   expectations to a library. Archetype now gates the dimension.
@@ -352,6 +357,26 @@ that has never been wrong is a scoring tool that has not been checked:
   and a required guard re-scores every row and compares score, verdict, coverage, and
   evidence. The honest correction moved Alfred's Code score from 2.5 to 2.4 and A5 from 2.9
   to 2.4. It is less flattering and more trustworthy.
+- **Version 0.1.1 rejected `--help` and `--version` as unknown flags, and read `-h` as a
+  directory path.** Version 0.1.2 handles both aliases before positional-path parsing and
+  derives its printed version from the package manifest.
+- **We reported a timing side-channel in our own test fixtures.** Pointed at its own
+  repository, Cejel's secret-handling dimension flagged a "non-constant-time secret
+  comparison" — in string literals inside a test file, the deliberately-insecure example code
+  that exists to prove the detector fires. It read a *file*, not a comparison, and reported a
+  vulnerability in the test written to catch that vulnerability. Two sub-rules of the same
+  dimension held two different private notions of what "production code" meant, and the one
+  that had none was the louder. Version 0.1.3 gives every rule one shared, derived answer to
+  that question, and reports the real line of a real match or nothing at all.
+- **We fixed the COBOL false-verdict, shipped it, and it was still broken.** An earlier release
+  corrected a repository written in a language we cannot read being scored anyway. The fixture
+  that proved the fix contained COBOL and nothing else. The first real COBOL repository we
+  pointed it at — AWS's mainframe credit-card demo — carried nine incidental shell scripts
+  among 329 files, and those nine were enough to short-circuit the abstention path entirely:
+  a 99%-COBOL codebase was scored on its deploy scripts and drew a confident `0.0`,
+  "Unverified". Every real legacy repository has a deploy script, so the fix that passed every
+  test was unreachable for essentially all of them. Recognised source must now be *dominant*,
+  not merely present. **A fixture cleaner than reality proves nothing.**
 
 Every one was a trust failure produced by *us* — false alarms about other people's code,
 silent omissions, inconsistent presentation, or a home-only scoring path — and we would

@@ -72,11 +72,20 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
 // ratable source tree at all. This is intentionally conservative: it only flags a repo as
 // insufficient-source ('docs_only' | 'binary_only' | 'unrecognised_ecosystem' | 'empty') when
 // there is POSITIVE evidence of a docs/media, bundled-binary, or unrecognised-language
-// distribution tree with zero source-extension files — never merely "few source files
+// distribution tree with insufficient recognised source — never merely "few source files
 // detected". Many legitimate scan targets (a bare requirements.txt, a lockfile-only monorepo
 // sub-package) have zero source-extension files of their own and must keep scoring exactly as
 // before via the individual collectors' own archetype-aware N/A gates (see A2/A3 above) — this
 // classifier must never gate those away.
+//
+// DOMINANCE, NOT PRESENCE (goal_cejel_archetype_dominance_not_presence_2026-07-15): a repo with
+// ANY recognised-source file used to short-circuit straight to 'source' regardless of how small
+// a fraction of the tree that file represented — nine incidental .sh deploy scripts scored a
+// 329-file, 99%-COBOL repository (aws-samples/aws-mainframe-modernization-carddemo) on its shell
+// scripts alone. `SOURCE_DOMINANCE_RATIO_THRESHOLD` below only engages when a competing
+// unrecognised-language signal actually exists (collectUnrecognisedSourceFiles is non-empty);
+// a repo with recognised source and nothing else is completely unaffected. See
+// docs/calibration/archetype-ratio-golden-set.md for the calibration record.
 export interface RepoArchetypeClassification {
   archetype: WitanRepoArchetype;
   sourceFileCount: number;
@@ -167,6 +176,17 @@ const KNOWN_NON_SOURCE_EXTENSION_PATTERN =
 const INGEST_POINTER =
   'To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.';
 
+// The dominance threshold calibrated against docs/calibration/archetype-ratio-golden-set.md
+// (goal_cejel_archetype_dominance_not_presence_2026-07-15) — committed in an EARLIER commit
+// than this constant (Guard 5 in repo-archetype.test.ts checks that ordering). At least this
+// fraction of a repository's source-shaped files (recognised + unrecognised-language) must be
+// in a language cejel recognises for a score to be meaningful. The golden set's upper anchor
+// (50% recognised, one stray COBOL file next to one TS file) must stay 'source'; the golden
+// set's motivating case (carddemo, ~2.7-3.6% recognised depending on denominator) must abstain.
+// Any number in a wide middle band satisfies both, which is the point: this was not reverse-
+// engineered from carddemo's file count.
+const SOURCE_DOMINANCE_RATIO_THRESHOLD = 0.2;
+
 export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchetypeClassification {
   const totalFileCount = repoFiles.length;
   const sourceFileCount = repoFiles.filter((file) => SOURCE_EXTENSION_PATTERN.test(file)).length;
@@ -180,7 +200,63 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     };
   }
 
-  if (sourceFileCount > 0) {
+  // Files with an extension that is not recognised source, not docs/media, not a bundled
+  // binary, and not one of the manifest/lockfile/config extensions common to every ecosystem —
+  // i.e. files that LOOK like implementation in some language, just not one cejel reads.
+  // Computed unconditionally (goal_cejel_archetype_dominance_not_presence_2026-07-15): this
+  // used to be reachable only when sourceFileCount === 0; it is now also the competing signal
+  // the dominance ratio below weighs recognised source against.
+  const unrecognisedSourceFiles = collectUnrecognisedSourceFiles(repoFiles);
+
+  if (sourceFileCount === 0) {
+    // Only classify as insufficient-source when there is positive evidence of a docs or
+    // bundled-binary distribution tree.
+    const binaryFiles = repoFiles.filter((file) => BUNDLED_BINARY_EXTENSION_PATTERN.test(file));
+    if (binaryFiles.length > 0) {
+      const sample = binaryFiles[0];
+      return {
+        archetype: 'binary_only',
+        sourceFileCount,
+        totalFileCount,
+        insufficientSourceReason:
+          `${sourceFileCount} source file(s) found among ${totalFileCount} tracked file(s); repo` +
+          ` appears to be a binary/bundled-distribution tree (e.g. ${sample ? basename(sample) : 'a packaged artifact'})` +
+          ` — cejel rates source, not binaries. ${INGEST_POINTER}`,
+      };
+    }
+
+    const docsFiles = repoFiles.filter((file) => DOCS_OR_MEDIA_EXTENSION_PATTERN.test(file));
+    // Require every tracked file to be docs/media — a repo with zero source AND some unrelated
+    // file cejel doesn't recognize (a LICENSE, a data file) is ambiguous, not confidently
+    // docs-only; default to normal ('source') scoring rather than risk a false insufficient-
+    // source call.
+    if (docsFiles.length > 0 && docsFiles.length === totalFileCount) {
+      return {
+        archetype: 'docs_only',
+        sourceFileCount,
+        totalFileCount,
+        insufficientSourceReason: `${sourceFileCount} source file(s) found among ${totalFileCount} tracked file(s); repo appears to be a docs/distribution tree (README/markdown/media), not a source tree — cejel rates source, not docs. ${INGEST_POINTER}`,
+      };
+    }
+
+    // 'unrecognised_ecosystem' (goal_cejel_language_calibration_2026-07-12): positive evidence
+    // of a source tree written in a language cejel does not recognise. This is deliberately
+    // narrower than "sourceFileCount === 0": a repo whose only files are requirements.txt +
+    // poetry.lock, or README.md + LICENSE, has zero candidate files under this check (both
+    // extensions are in the known-non-source allow-list, or have no extension at all) and stays
+    // the existing ambiguous 'source' default — see the two regression cases in
+    // repo-archetype.test.ts this branch must not disturb.
+    if (unrecognisedSourceFiles.length > 0) {
+      return unrecognisedEcosystemResult(sourceFileCount, totalFileCount, unrecognisedSourceFiles);
+    }
+
+    return { archetype: 'source', sourceFileCount, totalFileCount };
+  }
+
+  // sourceFileCount > 0: recognised source exists. A repo with no competing unrecognised-
+  // language signal at all is completely unaffected by this goal — same 'source'/'monorepo'
+  // outcome as before goal_cejel_archetype_dominance_not_presence_2026-07-15.
+  if (unrecognisedSourceFiles.length === 0) {
     return {
       archetype: isLikelyMonorepo(repoFiles) ? 'monorepo' : 'source',
       sourceFileCount,
@@ -188,76 +264,85 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     };
   }
 
-  // sourceFileCount === 0 from here on. Only classify as insufficient-source when there is
-  // positive evidence of a docs or bundled-binary distribution tree.
-  const binaryFiles = repoFiles.filter((file) => BUNDLED_BINARY_EXTENSION_PATTERN.test(file));
-  if (binaryFiles.length > 0) {
-    const sample = binaryFiles[0];
+  // A competing unrecognised-language signal exists — is recognised source DOMINANT, or merely
+  // incidental (carddemo's nine deploy scripts among 329 mostly-COBOL files)? Golden set:
+  // docs/calibration/archetype-ratio-golden-set.md.
+  const dominanceRatio = sourceFileCount / (sourceFileCount + unrecognisedSourceFiles.length);
+  if (dominanceRatio >= SOURCE_DOMINANCE_RATIO_THRESHOLD) {
     return {
-      archetype: 'binary_only',
+      archetype: isLikelyMonorepo(repoFiles) ? 'monorepo' : 'source',
       sourceFileCount,
       totalFileCount,
-      insufficientSourceReason:
-        `${sourceFileCount} source file(s) found among ${totalFileCount} tracked file(s); repo` +
-        ` appears to be a binary/bundled-distribution tree (e.g. ${sample ? basename(sample) : 'a packaged artifact'})` +
-        ` — cejel rates source, not binaries. ${INGEST_POINTER}`,
     };
   }
 
-  const docsFiles = repoFiles.filter((file) => DOCS_OR_MEDIA_EXTENSION_PATTERN.test(file));
-  // Require every tracked file to be docs/media — a repo with zero source AND some unrelated
-  // file cejel doesn't recognize (a LICENSE, a data file) is ambiguous, not confidently
-  // docs-only; default to normal ('source') scoring rather than risk a false insufficient-
-  // source call.
-  if (docsFiles.length > 0 && docsFiles.length === totalFileCount) {
-    return {
-      archetype: 'docs_only',
-      sourceFileCount,
-      totalFileCount,
-      insufficientSourceReason: `${sourceFileCount} source file(s) found among ${totalFileCount} tracked file(s); repo appears to be a docs/distribution tree (README/markdown/media), not a source tree — cejel rates source, not docs. ${INGEST_POINTER}`,
-    };
-  }
-
-  // 'unrecognised_ecosystem' (goal_cejel_language_calibration_2026-07-12): positive evidence of
-  // a source tree written in a language cejel does not recognise — e.g. a repeated extension
-  // that is not source, not docs/media, not a bundled binary, and not one of the manifest/
-  // lockfile/config extensions common to every ecosystem cejel DOES read. This is deliberately
-  // narrower than "sourceFileCount === 0": a repo whose only files are requirements.txt +
-  // poetry.lock, or README.md + LICENSE, has zero candidate files under this check (both
-  // extensions are in the known-non-source allow-list, or have no extension at all) and stays
-  // the existing ambiguous 'source' default — see the two regression cases in
-  // repo-archetype.test.ts this branch must not disturb.
-  const unrecognisedExtensions = collectUnrecognisedSourceExtensions(repoFiles);
-  if (unrecognisedExtensions.length > 0) {
-    const sample = unrecognisedExtensions.slice(0, 6).join(', ');
-    return {
-      archetype: 'unrecognised_ecosystem',
-      sourceFileCount,
-      totalFileCount,
-      insufficientSourceReason: `Cejel does not yet read this repository's source language(s) (${sample}) — 0 of ${totalFileCount} tracked file(s) matched a recognised source extension. Cejel abstains from a verdict rather than score a language it cannot parse; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. ${INGEST_POINTER}`,
-    };
-  }
-
-  return { archetype: 'source', sourceFileCount, totalFileCount };
+  return unrecognisedEcosystemResult(sourceFileCount, totalFileCount, unrecognisedSourceFiles);
 }
 
-// Files with an extension that is not recognised source, not docs/media, not a bundled binary,
-// and not one of the manifest/lockfile/config extensions common to every ecosystem — see
-// KNOWN_NON_SOURCE_EXTENSION_PATTERN above. Only reachable when sourceFileCount === 0 (the
-// caller only calls this after the sourceFileCount > 0 branch has already returned).
-function collectUnrecognisedSourceExtensions(repoFiles: readonly string[]): string[] {
-  const found = new Set<string>();
-  for (const file of repoFiles) {
+function collectUnrecognisedSourceFiles(repoFiles: readonly string[]): string[] {
+  return repoFiles.filter((file) => {
     const base = basename(file);
-    const match = /\.([a-zA-Z0-9_]+)$/.exec(base);
+    if (!/\.([a-zA-Z0-9_]+)$/.test(base)) return false;
+    if (KNOWN_NON_SOURCE_EXTENSION_PATTERN.test(base)) return false;
+    if (DOCS_OR_MEDIA_EXTENSION_PATTERN.test(base)) return false;
+    if (BUNDLED_BINARY_EXTENSION_PATTERN.test(base)) return false;
+    if (SOURCE_EXTENSION_PATTERN.test(base)) return false;
+    return true;
+  });
+}
+
+// Ranked by how many files carry each extension, most-common first (ties broken
+// alphabetically) — the reason should name the DOMINANT unrecognised language(s), not
+// whichever extension happens to sort first alphabetically among a long tail of one-off
+// mainframe-toolchain formats.
+function extensionsByFileCountDescending(files: readonly string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const file of files) {
+    const match = /\.([a-zA-Z0-9_]+)$/.exec(basename(file));
     const ext = match?.[1];
     if (!ext) continue;
-    if (KNOWN_NON_SOURCE_EXTENSION_PATTERN.test(base)) continue;
-    if (DOCS_OR_MEDIA_EXTENSION_PATTERN.test(base)) continue;
-    if (BUNDLED_BINARY_EXTENSION_PATTERN.test(base)) continue;
-    found.add(`.${ext.toLowerCase()}`);
+    const key = `.${ext.toLowerCase()}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  return [...found].sort();
+  return [...counts.entries()]
+    .sort(([extA, countA], [extB, countB]) => countB - countA || extA.localeCompare(extB))
+    .map(([ext]) => ext);
+}
+
+function unrecognisedEcosystemResult(
+  sourceFileCount: number,
+  totalFileCount: number,
+  unrecognisedSourceFiles: readonly string[],
+): RepoArchetypeClassification {
+  const sample = extensionsByFileCountDescending(unrecognisedSourceFiles).slice(0, 6).join(', ');
+  // The reason must name the real numbers (Guard 6) — never a bare verdict — whether recognised
+  // source is entirely absent (sourceFileCount === 0, the pre-existing case) or merely
+  // incidental (sourceFileCount > 0 but non-dominant, carddemo's shape).
+  //
+  // And it must name the OPERATIVE numbers. The decision at classifyRepoArchetype divides by
+  // `sourceFileCount + unrecognisedSourceFiles.length` — source-shaped files only, because
+  // manifests, docs, media and bundled binaries carry no language signal on either side. An
+  // earlier draft of this string published `sourceFileCount / totalFileCount` instead, so
+  // carddemo's row read "9 of 329 (2.7%)" while the threshold had actually been applied to
+  // 9-of-248 (3.6%) — a published figure that was true, and was not the one that decided the
+  // verdict. Both are far below the threshold here, so the outcome was right by luck; a
+  // repository at 25% of tracked files and 15% of source-shaped files would have abstained
+  // while its reason cited 25%, visibly contradicting its own verdict. A reported metric must
+  // reconcile to the inputs of the decision it explains.
+  const candidateCount = sourceFileCount + unrecognisedSourceFiles.length;
+  const dominancePct =
+    candidateCount > 0 ? ((sourceFileCount / candidateCount) * 100).toFixed(1) : '0.0';
+  const thresholdPct = (SOURCE_DOMINANCE_RATIO_THRESHOLD * 100).toFixed(0);
+  const measuredClause =
+    sourceFileCount > 0
+      ? `${sourceFileCount} of ${candidateCount} source-shaped file(s) (${dominancePct}%) are in a language Cejel reads — below the ${thresholdPct}% dominance threshold a score would need to be meaningful (${totalFileCount} tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio)`
+      : `0 of ${totalFileCount} tracked file(s) matched a recognised source extension`;
+  return {
+    archetype: 'unrecognised_ecosystem',
+    sourceFileCount,
+    totalFileCount,
+    insufficientSourceReason: `Cejel does not yet read this repository's dominant source language(s) (${sample}) — ${measuredClause}. Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. ${INGEST_POINTER}`,
+  };
 }
 
 function isLikelyMonorepo(repoFiles: readonly string[]): boolean {
@@ -895,7 +980,13 @@ function collectCryptoHygieneEvidence(
   let hasSurface = false;
   let insecureFound = false;
 
-  const timingSafeFile = implFiles.find((file) =>
+  // Credit (good-pattern evidence) is drawn only from PRODUCTION files: a test fixture that
+  // merely demonstrates `timingSafeEqual`/canonical-serialization text is not itself evidence
+  // of production crypto hygiene, the same "one notion of production code" the timing/unsorted-
+  // sign findings below apply on the penalty side.
+  const productionImplFiles = implFiles.filter(isProductionSourcePath);
+
+  const timingSafeFile = productionImplFiles.find((file) =>
     fileContains(repoPath, file, TIMING_SAFE_COMPARE_PATTERN),
   );
   if (timingSafeFile) {
@@ -910,7 +1001,7 @@ function collectCryptoHygieneEvidence(
     );
   }
 
-  const canonicalSignFile = implFiles.find(
+  const canonicalSignFile = productionImplFiles.find(
     (file) =>
       fileContains(repoPath, file, CANONICAL_SERIALIZE_PATTERN) &&
       fileContains(repoPath, file, SIGN_OR_HMAC_CALL_PATTERN),
@@ -927,21 +1018,41 @@ function collectCryptoHygieneEvidence(
     );
   }
 
-  const insecureCompareFile = implFiles.find((file) =>
-    fileContains(repoPath, file, INSECURE_SECRET_COMPARE_PATTERN),
-  );
+  // First file (in repo listing order) with a real, per-line insecure-compare match — same
+  // "first match wins" convention as every other detector in this function, just resolved to a
+  // real line instead of a whole-file boolean.
+  let insecureCompareFile: string | null = null;
+  let insecureCompareLine: number | null = null;
+  for (const file of implFiles) {
+    const line = findInsecureSecretCompareLine(repoPath, file);
+    if (line != null) {
+      insecureCompareFile = file;
+      insecureCompareLine = line;
+      break;
+    }
+  }
   if (insecureCompareFile) {
-    hasSurface = true;
-    insecureFound = true;
+    // ONE notion of production code, reused from the shared classifier (not a private
+    // heuristic): a match inside a test/fixture path is downgraded to info, exactly like the
+    // sibling committed-secret and GRANT-escalation detectors, and does not affect the
+    // crypto_comparison_hygiene metric — a test fixture demonstrating the bad pattern is not
+    // itself a production timing leak.
+    const isTestPath = isTestOrFixturePath(insecureCompareFile);
+    if (!isTestPath) {
+      hasSurface = true;
+      insecureFound = true;
+    }
     findings.push({
-      severity: 'warning',
-      summary:
-        'A secret/HMAC/signature value appears compared with a plain equality operator instead of a constant-time comparison — potential timing side-channel.',
-      evidence: evidenceForRelative(
+      severity: isTestPath ? 'info' : 'warning',
+      summary: isTestPath
+        ? `A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (${insecureCompareFile}) — likely a test assertion, not a production timing leak; verify.`
+        : 'A secret/HMAC/signature value appears compared with a plain equality operator instead of a constant-time comparison — potential timing side-channel.',
+      evidence: evidenceForRelativeAtLine(
         repoPath,
         insecureCompareFile,
         'artifact',
         'Non-constant-time secret comparison',
+        insecureCompareLine,
       ),
     });
   }
@@ -952,17 +1063,27 @@ function collectCryptoHygieneEvidence(
       !fileContains(repoPath, file, CANONICAL_SERIALIZE_PATTERN),
   );
   if (unsortedSignFile) {
-    hasSurface = true;
-    insecureFound = true;
+    const isTestPath = isTestOrFixturePath(unsortedSignFile);
+    if (!isTestPath) {
+      hasSurface = true;
+      insecureFound = true;
+    }
+    const unsortedSignLine = findFirstMatchingLine(
+      repoPath,
+      unsortedSignFile,
+      UNSORTED_JSON_SIGN_PATTERN,
+    );
     findings.push({
-      severity: 'warning',
-      summary:
-        'A signature/HMAC appears computed directly over JSON.stringify output with no canonical key ordering in the same file — signatures may not verify across equivalent payloads.',
-      evidence: evidenceForRelative(
+      severity: isTestPath ? 'info' : 'warning',
+      summary: isTestPath
+        ? `Signing over unsorted JSON serialization appears in a test/fixture file (${unsortedSignFile}) — likely a test assertion, not a production signing gap; verify.`
+        : 'A signature/HMAC appears computed directly over JSON.stringify output with no canonical key ordering in the same file — signatures may not verify across equivalent payloads.',
+      evidence: evidenceForRelativeAtLine(
         repoPath,
         unsortedSignFile,
         'artifact',
         'Signing over unsorted JSON serialization',
+        unsortedSignLine,
       ),
     });
   }
@@ -1918,20 +2039,63 @@ const CPP_TEST_MACRO_PATTERN =
   /\bTEST\s*\(|\bTEST_F\s*\(|\bTEST_CASE\s*\(|\bSECTION\s*\(|\bCATCH_|BOOST_AUTO_TEST_CASE\b|BOOST_FIXTURE_TEST_CASE\b/;
 const CPP_CONTENT_SCAN_LIMIT = 150;
 
-// Shared by every content-scan detector that anchors a critical finding to a file path
-// (A2 secret scan, B6 privilege-escalation scan, and any future detector of the same
-// shape). Test suites routinely embed fake secrets and example dangerous statements to
-// exercise these very detectors — flagging a test/fixture path as critical is a cry-wolf
-// false positive (cejel flagged its OWN test fixtures this way — see
-// goal_cejel_test_path_downgrade_2026-07-06). Downgrade, never silence: the identical
-// pattern in a non-test path (src/, a real migration, a workflow) still fires critical.
-const TEST_OR_FIXTURE_DIR_PATTERN =
-  /(^|\/)(__tests__|__mocks__|__fixtures__|tests|test|fixtures|testdata|e2e|cypress)(\/|$)/i;
-const TEST_OR_FIXTURE_FILE_PATTERN = /\.(test|spec|stories)\.[^/]+$/i;
+// ---- BEGIN canonical production-source classifier (single source of truth) ---------------
+// THE ONE derived notion of "is this production code" for every content-scan detector in this
+// file that anchors a finding's severity/inclusion to a file path — A2 secret scan, A2 crypto-
+// timing/signing scan, B6 privilege-escalation scan, A3 deploy-entrypoint detection, and any
+// future detector of the same shape. Test suites, mocks, fixtures, and examples routinely embed
+// fake secrets and example dangerous statements to exercise these very detectors — flagging one
+// of those paths as a live production finding is a cry-wolf false positive (cejel flagged its
+// OWN test fixtures this way twice: goal_cejel_test_path_downgrade_2026-07-06, then again on the
+// crypto-timing sub-rule in goal_cejel_a2_one_notion_of_production_code_2026-07-13 — the second
+// time was the SAME defect one rule over, because that rule had no fixture awareness at all).
+// Downgrade, never silence: the identical pattern in a real non-test path (src/, a migration, a
+// workflow) still fires at full severity.
+//
+// NO RULE MAY DEFINE ITS OWN test-directory/fixture/spec/example PATH REGEX OUTSIDE THIS BLOCK.
+// If a rule needs to know whether a path is production code, it calls isProductionSourcePath (or
+// its complement isTestOrFixturePath) below — enforced by the static "Guard 3" assert in
+// one-notion-of-production-code.test.ts.
+const NON_PRODUCTION_DIR_PATTERN =
+  /(^|\/)(__tests__|__mocks__|__fixtures__|tests?|fixtures?|testdata|e2e|cypress|examples?|samples?|demos?)(\/|$)/i;
+const NON_PRODUCTION_FILE_SUFFIX_PATTERN = /\.(test|spec|stories)\.[^/]+$/i;
 
 function isTestOrFixturePath(path: string): boolean {
-  return TEST_OR_FIXTURE_DIR_PATTERN.test(path) || TEST_OR_FIXTURE_FILE_PATTERN.test(path);
+  return NON_PRODUCTION_DIR_PATTERN.test(path) || NON_PRODUCTION_FILE_SUFFIX_PATTERN.test(path);
 }
+
+function isProductionSourcePath(path: string): boolean {
+  return !isTestOrFixturePath(path);
+}
+
+// A1 asks two narrower questions than content-scan detectors do: whether a file belongs in
+// the test-to-source ratio, and whether its NAME declares a test rather than support
+// scaffolding. Their language-specific conventions live here too, so this remains the only
+// block that owns a notion of test/fixture/example paths even though the answers differ.
+function isTestFile(file: string): boolean {
+  return (
+    /(^|\/)(__tests__|test|tests|spec)\/.*\.(?:[cm]?[jt]sx?|py|go|rs|java|rb|cpp|cc|cxx)$/.test(
+      file,
+    ) ||
+    /\.(test|spec)\.[cm]?[jt]sx?$/.test(file) ||
+    /(^|\/)test_.*\.py$/.test(file) ||
+    /_test\.go$/.test(file) ||
+    /(^|\/)test_.*\.(cpp|cc|cxx)$/.test(file) ||
+    /_(test|tests)\.(cpp|cc|cxx)$/.test(file) ||
+    /Tests?\.(java|kt)$/.test(file) ||
+    /(_test|_spec)\.(rs|rb|php|swift|kt)$/.test(file)
+  );
+}
+
+// Files whose NAME declares them to be tests (as opposed to files that merely live under a
+// test/tests/spec directory). Big suites keep substantial support scaffolding next to their
+// tests — Django's tests/<app>/models.py + urls.py, fixture files in Rust crates' tests/
+// dirs — and counting that scaffolding as "hollow test files" misreads a mature suite the
+// same way the missing-assertion-idiom bug did (Django: ~1100 of 2036 detected "test files"
+// are scaffolding with no test in them).
+const NAME_SHAPED_TEST_FILE_PATTERN =
+  /\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
+// ---- END canonical production-source classifier -------------------------------------------
 
 const TEST_RUNNER_PATTERN =
   /\b(vitest|jest|mocha|ava|tap|pytest|go test|cargo test|rspec|phpunit|gradle test|mvn test)\b/i;
@@ -2052,8 +2216,47 @@ const SIGN_OR_HMAC_CALL_PATTERN = /\bcreateHmac\s*\(|\bcreateSign\s*\(|\.sign\s*
 // (hmac/signature/mac/digest — deliberately narrower than "secret"/"token" to avoid matching
 // routine string comparisons like `type === 'secret'`), against something other than a
 // literal/undefined/null (which would be an ordinary presence check, not a security compare).
-const INSECURE_SECRET_COMPARE_PATTERN =
-  /\b\w*(?:hmac|signature|\bmac|digest)\w*\s*(?:===|!==)\s*(?!['"`]|undefined\b|null\b)\w/i;
+// Matched per LINE (not per file) so a real hit carries the actual line, never a fabricated
+// one — see findInsecureSecretCompareLine below.
+const INSECURE_SECRET_COMPARE_LINE_PATTERN =
+  /\b\w*(?:hmac|signature|\bmac|digest)\w*\s*(===|!==)\s*(?!['"`]|undefined\b|null\b)([\w.]+(?:\s*[-+]\s*\d+)?)/i;
+// The rule must establish a plausible secret VALUE, never merely a secret-shaped NAME: a
+// numeric-shaped right-hand operand — a bare number, a `.length`/`.size`/`.count` read, or an
+// index/offset-named identifier — can never itself be a timing-leak-relevant secret value (it
+// is a bounds check, e.g. `dotIndex === token.length - 1`, not a credential compare) and must
+// never fire, however secret-shaped the left-hand identifier looks
+// (goal_cejel_a2_one_notion_of_production_code_2026-07-13).
+const NUMERIC_SHAPED_OPERAND_PATTERN =
+  /^-?\d+$|\.(?:length|len|size|count)\b|(?:length|index|idx|offset|count|size|len)$/i;
+
+function lineHasInsecureSecretCompare(line: string): boolean {
+  const match = INSECURE_SECRET_COMPARE_LINE_PATTERN.exec(line);
+  const operand = match?.[2];
+  if (!operand) return false;
+  return !NUMERIC_SHAPED_OPERAND_PATTERN.test(operand.trim());
+}
+
+// Returns the real 1-based line of the first insecure comparison in the file, or null when
+// none is found — never a fabricated position (D4: a position rendered where none was
+// measured).
+function findInsecureSecretCompareLine(repoPath: string, file: string): number | null {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return null;
+  const lines = readFileSync(fullPath, 'utf8').split('\n');
+  const index = lines.findIndex((line) => lineHasInsecureSecretCompare(line));
+  return index === -1 ? null : index + 1;
+}
+
+// Real 1-based line of the first line matching pattern, or null when the file-level match
+// (already confirmed via fileContains against the whole content) does not resolve to any single
+// line — e.g. a match spanning a line break. Honest null, never a fabricated fallback.
+function findFirstMatchingLine(repoPath: string, file: string, pattern: RegExp): number | null {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return null;
+  const lines = readFileSync(fullPath, 'utf8').split('\n');
+  const index = lines.findIndex((line) => pattern.test(line));
+  return index === -1 ? null : index + 1;
+}
 // Signing/HMAC-ing a bare JSON.stringify(...) call with no canonicalization step in the same
 // file — the "sign-over-unsorted-JSON" gap named in the goal.
 const UNSORTED_JSON_SIGN_PATTERN =
@@ -2275,21 +2478,6 @@ function isHardExcludedPath(path: string): boolean {
   return HARD_EXCLUDED_PATH_PATTERN.test(path);
 }
 
-function isTestFile(file: string): boolean {
-  return (
-    /(^|\/)(__tests__|test|tests|spec)\/.*\.(?:[cm]?[jt]sx?|py|go|rs|java|rb|cpp|cc|cxx)$/.test(
-      file,
-    ) ||
-    /\.(test|spec)\.[cm]?[jt]sx?$/.test(file) ||
-    /(^|\/)test_.*\.py$/.test(file) ||
-    /_test\.go$/.test(file) ||
-    /(^|\/)test_.*\.(cpp|cc|cxx)$/.test(file) ||
-    /_(test|tests)\.(cpp|cc|cxx)$/.test(file) ||
-    /Tests?\.(java|kt)$/.test(file) ||
-    /(_test|_spec)\.(rs|rb|php|swift|kt)$/.test(file)
-  );
-}
-
 // Detect C++ test files by content for files not caught by naming conventions.
 // Limited to CPP_CONTENT_SCAN_LIMIT candidates to bound I/O on large repos.
 function collectContentBasedCppTestFiles(repoPath: string, repoFiles: readonly string[]): string[] {
@@ -2335,15 +2523,6 @@ const MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN =
 // hollow: the pre-2026-07-10 rule disqualified an entire file with hundreds of live assertions
 // for a single skipped case, which misreads mature suites.
 const SUITE_LEVEL_SKIP_PATTERN = /\b(?:describe|suite|context)\.skip\s*\(/;
-
-// Files whose NAME declares them to be tests (as opposed to files that merely live under a
-// test/tests/spec directory). Big suites keep substantial support scaffolding next to their
-// tests — Django's tests/<app>/models.py + urls.py, fixture files in Rust crates' tests/
-// dirs — and counting that scaffolding as "hollow test files" misreads a mature suite the
-// same way the missing-assertion-idiom bug did (Django: ~1100 of 2036 detected "test files"
-// are scaffolding with no test in them).
-const NAME_SHAPED_TEST_FILE_PATTERN =
-  /\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
 
 interface NonHollowTestShare {
   /** Files containing live assertions (and not suite-level-skipped). */
@@ -2849,10 +3028,9 @@ function isExplicitDeployTarget(file: string): boolean {
 const MAIN_ENTRYPOINT_FILE_PATTERN =
   /(^|\/)(main|server|app|wsgi|asgi|index|entry|start|run)\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs)$/i;
 
-// Directories containing examples, demos, tests, or fixtures.
-// app.listen / app.run in these dirs does NOT make the repo a deployable service.
-const EXAMPLE_OR_TEST_DIR_PATTERN =
-  /(?:^|\/)(examples?|samples?|demos?|tests?|__tests__|spec|fixtures?)(?:\/|$)/i;
+// app.listen / app.run under a test/example/fixture dir does NOT make the repo a deployable
+// service — uses the shared isTestOrFixturePath classifier (see canonical block above), not a
+// private regex of its own.
 
 // Active server/port-binding calls across common frameworks and languages.
 // Matches invocations (app.listen(port), uvicorn.run(app, ...), etc.) rather
@@ -2888,9 +3066,7 @@ function findServerEntrypointFile(repoPath: string, repoFiles: readonly string[]
   // Restrict to entry-point-shaped files to avoid matching framework source files
   // (e.g. gin's gin.go, express's lib/application.js) that define but never call serve.
   const candidates = repoFiles
-    .filter(
-      (file) => MAIN_ENTRYPOINT_FILE_PATTERN.test(file) && !EXAMPLE_OR_TEST_DIR_PATTERN.test(file),
-    )
+    .filter((file) => MAIN_ENTRYPOINT_FILE_PATTERN.test(file) && isProductionSourcePath(file))
     .slice(0, 30);
   return candidates.find((file) => fileContains(repoPath, file, SERVER_ENTRYPOINT_PATTERN)) ?? null;
 }
@@ -3381,6 +3557,29 @@ export function evidenceForRelative(
           contentHash: createHash('sha256').update(contents).digest('hex'),
         }
       : {}),
+  };
+}
+
+// Evidence for a finding anchored to a SPECIFIC in-file match (not mere file presence): line is
+// the real 1-based line the caller already measured, or explicit null when no real position was
+// found — never firstMeaningfulLine's "first non-blank line of the file" fallback, which is a
+// fabricated position for a match-anchored finding (D4 — cejel reported `line: 1` for its own
+// test fixture this way; see goal_cejel_a2_one_notion_of_production_code_2026-07-13).
+export function evidenceForRelativeAtLine(
+  repoPath: string,
+  path: string,
+  kind: WitanEvidencePointer['kind'],
+  label: string,
+  line: number | null,
+): WitanEvidencePointer {
+  const fullPath = join(repoPath, path);
+  const contents = isRegularFile(fullPath) ? readFileSync(fullPath, 'utf8') : '';
+  return {
+    kind,
+    label,
+    path,
+    line,
+    ...(contents ? { contentHash: createHash('sha256').update(contents).digest('hex') } : {}),
   };
 }
 

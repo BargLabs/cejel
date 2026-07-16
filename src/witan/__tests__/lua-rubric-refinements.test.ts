@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { buildWitanInputFromRepo } from '../repo-signals.js';
@@ -278,11 +279,13 @@ describe('A2 — crypto comparison hygiene is credited/flagged only when a signi
     const hygiene = a2?.metrics?.find((m) => m.name === 'crypto_comparison_hygiene');
     expect(hygiene?.value).toBe(0);
     expect(a2?.findings?.every((f) => f.severity !== 'critical')).toBe(true);
-    expect(
-      a2?.findings?.some((f) =>
-        /non-constant-time secret comparison|timing side-channel/i.test(f.summary),
-      ),
-    ).toBe(true);
+    const timingFinding = a2?.findings?.find((f) =>
+      /non-constant-time secret comparison|timing side-channel/i.test(f.summary),
+    );
+    expect(timingFinding).toBeDefined();
+    // Guard 2 (real positions, never a fabricated one): the insecure compare is the 8th line
+    // of src/hmac.ts above — the evidence must carry that REAL line, not a hardcoded 1.
+    expect(timingFinding?.evidence.line).toBe(8);
     expect(a2?.findings?.some((f) => /unsorted json|canonical key ordering/i.test(f.summary))).toBe(
       true,
     );
@@ -296,6 +299,146 @@ describe('A2 — crypto comparison hygiene is credited/flagged only when a signi
 
     const a2 = signalFor(dir, 'A2');
     expect(a2?.metrics?.some((m) => m.name === 'crypto_comparison_hygiene')).toBe(false);
+  });
+
+  // ── goal_cejel_a2_one_notion_of_production_code_2026-07-13 ──────────────────────────────
+  // cejel pointed at its OWN public repo on launch night and flagged
+  // src/witan/__tests__/lua-rubric-refinements.test.ts — the fixture file directly above this
+  // one, whose string-literal example code exists solely to test the crypto-hygiene rule — as a
+  // live "timing side-channel" in the shipped product, at line 1 (a fabricated position: it
+  // never found a comparison, it found a file). Root cause: the timing sub-rule was the only
+  // content-scan detector in this file with NO awareness of the shared test/fixture path
+  // classifier that every sibling rule (secret-shaped scan, GRANT scan) already used.
+
+  it('Guard 1 (load-bearing) + Guard 5 — a test/fixture file containing the exact false-positive shape never fires the A2 timing WARNING', () => {
+    const dir = makeTmpRepo();
+    // No genuine production signing/HMAC surface anywhere in this repo — matches cejel's own
+    // public repo, whose only "crypto" text lives inside this exact test fixture.
+    writeFile(
+      dir,
+      'src/__tests__/lua-rubric-refinements.test.ts',
+      [
+        "import { createHmac, timingSafeEqual } from 'node:crypto';",
+        '',
+        '// Fixture: string literals of example code, not real code.',
+        'const goodFixture = [',
+        '  "import { createHmac, timingSafeEqual } from \'node:crypto\';",',
+        "  'export function verify(computedHmac: Buffer, expectedHmac: Buffer): boolean {',",
+        "  '  return timingSafeEqual(computedHmac, expectedHmac);',",
+        "  '}',",
+        "].join('\\n');",
+        'const badFixture = [',
+        "  'export function verify(computedSignature: string, providedSignature: string): boolean {',",
+        "  '  if (computedSignature === providedSignature) return true;',",
+        "  '  return false;',",
+        "  '}',",
+        "].join('\\n');",
+      ].join('\n'),
+    );
+
+    const a2 = signalFor(dir, 'A2');
+    expect(
+      a2?.findings?.some((f) => f.severity === 'warning' && /timing side-channel/i.test(f.summary)),
+    ).toBe(false);
+    // Downgrade, never silence: still visible, just not as a live production warning, and it
+    // does not fabricate a position either.
+    const infoFinding = a2?.findings?.find((f) => /timing side-channel/i.test(f.summary));
+    if (infoFinding) {
+      expect(infoFinding.severity).toBe('info');
+      expect(infoFinding.evidence.path).toContain('__tests__');
+    }
+    // No genuine crypto surface exists in production code, so the metric itself is absent —
+    // "the overall score changes accordingly", not just the one finding.
+    expect(a2?.metrics?.some((m) => m.name === 'crypto_comparison_hygiene')).toBe(false);
+  });
+
+  it('Guard 2 — a genuine production timing bug still fires at warning, with its real line', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, '.env.example', 'API_KEY=INSERT_KEY_HERE\n');
+    writeFile(dir, '.gitignore', '.env\n');
+    writeFile(
+      dir,
+      'src/verify.ts',
+      [
+        "import { createHmac } from 'node:crypto';",
+        '',
+        'export function sign(payload: string, key: string): string {',
+        "  return createHmac('sha256', key).update(payload).digest('hex');",
+        '}',
+        '',
+        'export function verify(computedHmac: string, expectedHmac: string): boolean {',
+        '  return computedHmac === expectedHmac;',
+        '}',
+      ].join('\n'),
+    );
+
+    const a2 = signalFor(dir, 'A2');
+    const finding = a2?.findings?.find((f) => /timing side-channel/i.test(f.summary));
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.evidence.path).toBe('src/verify.ts');
+    expect(finding?.evidence.line).toBe(8);
+  });
+
+  it('regression — a numeric bounds check (index/length/offset) never fires the timing rule, however secret-shaped the identifier looks', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, '.env.example', 'API_KEY=INSERT_KEY_HERE\n');
+    writeFile(dir, '.gitignore', '.env\n');
+    writeFile(
+      dir,
+      'src/parse-signature.ts',
+      [
+        "import { createHmac } from 'node:crypto';",
+        '',
+        'export function sign(payload: string, key: string): string {',
+        "  return createHmac('sha256', key).update(payload).digest('hex');",
+        '}',
+        '',
+        'export function findSignatureBoundary(token: string, dotIndex: number): boolean {',
+        '  return dotIndex === token.length - 1;',
+        '}',
+        '',
+        'export function isFullSignatureLength(signatureLength: number): boolean {',
+        '  return signatureLength === 64;',
+        '}',
+      ].join('\n'),
+    );
+
+    const a2 = signalFor(dir, 'A2');
+    expect(a2?.findings?.some((f) => /timing side-channel/i.test(f.summary))).toBe(false);
+  });
+});
+
+describe('Guard 3/4 — one shared production-source classifier; no fabricated positions', () => {
+  const repoSignalsSource = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../repo-signals.ts'),
+    'utf8',
+  );
+
+  it('Guard 3 — the crypto-hygiene detector calls the shared classifier for both findings it can produce', () => {
+    const start = repoSignalsSource.indexOf('function collectCryptoHygieneEvidence');
+    const end = repoSignalsSource.indexOf('\nfunction ', start + 1);
+    expect(start).toBeGreaterThan(-1);
+    const body = repoSignalsSource.slice(start, end === -1 ? undefined : end);
+    const classifierCalls = body.match(/isTestOrFixturePath\(/g) ?? [];
+    expect(classifierCalls.length).toBe(2);
+  });
+
+  it('Guard 4 — the crypto-hygiene findings never use the generic evidenceForRelative (which fabricates line:1); they use evidenceForRelativeAtLine', () => {
+    const start = repoSignalsSource.indexOf('function collectCryptoHygieneEvidence');
+    const end = repoSignalsSource.indexOf('\nfunction ', start + 1);
+    const body = repoSignalsSource.slice(start, end === -1 ? undefined : end);
+    // Every findings.push(...) block in this function (as opposed to positive-evidence pushes,
+    // which are not "a finding" and are unaffected by this guard) must anchor its evidence via
+    // evidenceForRelativeAtLine's explicit real-line-or-null, never the generic
+    // evidenceForRelative (whose default is firstMeaningfulLine — the fabrication this goal
+    // fixed).
+    const findingBlocks = body.split('findings.push({').slice(1);
+    expect(findingBlocks.length).toBe(2);
+    for (const block of findingBlocks) {
+      const evidenceSection = block.slice(0, block.indexOf('});'));
+      expect(evidenceSection.includes('evidenceForRelativeAtLine(')).toBe(true);
+      expect(/evidence:\s*evidenceForRelative\(/.test(evidenceSection)).toBe(false);
+    }
   });
 });
 
