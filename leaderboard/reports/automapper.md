@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 2.8 | info | Declared version range ratio: 3/3 ratio; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 1.4 | warning | Claim match rate: 1/2 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 4 signals (cap 2); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 0.6 | critical | CI verification depth: 0 signals (cap 4); PR-gate CI workflow count: 1 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
 ## Summary Scores
@@ -40,14 +40,14 @@
 - A5: Repository claim source (README.md:1, sha256:f0be14ab178e)
 - A5: Code presence for claim reconciliation (docs/source/conf.py:1, sha256:0f5c3ce50fd9)
 - A5: Repository claim source (README.md:1, sha256:f0be14ab178e) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d)
 - B2: Pull-request CI workflow (.github/workflows/lock.yml:1, sha256:eb25785fd7d3)
 - B2: Pull-request CI workflow (.github/workflows/release.yml:1, sha256:527f44911edd)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d) (critical)
 - B4: N/A — Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
 ## Findings

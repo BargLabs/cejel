@@ -32,7 +32,7 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
   return createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);
 }
 
-/** Resolve the exact ingest surface available to `npx @cejel/cejel .`. */
+/** Resolve the exact ingest surface available to `npx cejel .`. */
 export function resolvePublicIngestSignals(
   options: Pick<PublicCejelScoreOptions, 'repoPath' | 'ingestPatterns' | 'warnOnEmptyIngestMatch'>,
 ): WitanInputSignal[] {

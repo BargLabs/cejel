@@ -1,0 +1,51 @@
+name: Pack design-partner interest
+description: Volunteer to validate the Quant or Healthcare Pack before either makes public verdict claims.
+title: "pack pilot: "
+labels:
+  - design-partner
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These packs are design-partner pilots, not public certifications. Do not paste trading credentials, strategy source, patient data, protected health information, or other confidential material into this issue.
+  - type: dropdown
+    id: pack
+    attributes:
+      label: Pack
+      options:
+        - Quant Pack
+        - Healthcare Pack
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Validation role
+      options:
+        - Practitioner or engineering buyer
+        - Independent domain expert
+        - Platform or ecosystem partner
+        - Potential design partner
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Describe the decision you want the pack to support without sharing confidential data.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence available for validation
+      description: List public fixtures, synthetic examples, control documents, or redacted artifacts you can use.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data-safety confirmation
+      options:
+        - label: I confirm this issue contains no credentials, proprietary strategy code, patient data, or protected health information.
+          required: true

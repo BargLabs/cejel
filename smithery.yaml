@@ -6,4 +6,4 @@ startCommand:
     type: object
     properties: {}
   commandFunction: |-
-    () => ({ command: 'npx', args: ['-y', '--package=@cejel/cejel', 'cejel-mcp'] })
+    () => ({ command: 'npx', args: ['-y', '--package=cejel', 'cejel-mcp'] })

@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 3.1 | info | Declared version range ratio: 60/60 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 6 signals (cap 2); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 4 signals (cap 4); PR-gate CI workflow count: 5 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 1.9 | warning | Audit artifact depth: 1 files (cap 3); Audit freshness depth: 1/1 ratio |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
 ## Summary Scores
@@ -50,7 +50,7 @@
 - A5: Repository claim source (.changeset/README.md:1, sha256:bf33c79d7e04)
 - A5: Code presence for claim reconciliation (packages/svelte/elements.d.ts:1, sha256:180ce9a33f1f)
 - A5: Repository claim source (.changeset/README.md:1, sha256:bf33c79d7e04) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676)
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1bccd24d65cb)
 - B2: Pull-request CI workflow (.github/workflows/ecosystem-ci-trigger.yml:1, sha256:ce15fb9dd3c8)
@@ -60,7 +60,7 @@
 - B3: CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676)
 - B4: Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916)
 - B4: Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916) (warning)
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
 ## Findings

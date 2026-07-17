@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -93,7 +94,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     try {
       expect(await runWitanFreeCli(['--help'])).toBe(0);
       expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
-        'Usage:  npx @cejel/cejel [path] [options]',
+        'Usage:  npx cejel [path] [options]',
       );
     } finally {
       stdoutSpy.mockRestore();
@@ -113,7 +114,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     }
   });
 
-  it('scores a repo with no flags and writes report/certificate/badge/summary files', async () => {
+  it('scores a repo with no flags and writes report/attestation/certificate/badge/summary files', async () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-'));
     const outDir = join(repoPath, '.witan');
     writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'sample-app', scripts: {} }));
@@ -121,8 +122,22 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     const exitCode = await runWitanFreeCli([repoPath, '--out-dir', outDir, '--quiet']);
 
     expect(exitCode).toBe(0);
-    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8'));
+    const reportJson = readFileSync(join(outDir, 'report.json'), 'utf8');
+    const report = JSON.parse(reportJson);
     expect(report.productSlug).toBe('sample-app');
+    const attestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8'));
+    expect(attestation).toMatchObject({
+      _type: 'https://in-toto.io/Statement/v1',
+      predicateType: 'https://cejel.dev/attestations/scan/v1',
+      predicate: {
+        assurance: { status: 'unsigned', issuer: 'self-generated' },
+        outcome: { status: 'scored' },
+      },
+    });
+    expect(attestation.subject[0].digest.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(attestation.subject[0].digest.sha256).toBe(
+      createHash('sha256').update(reportJson, 'utf8').digest('hex'),
+    );
     const html = readFileSync(join(outDir, 'certificate.html'), 'utf8');
     expect(html).toContain('Trust Certificate');
     const badgeJson = JSON.parse(readFileSync(join(outDir, 'badge.json'), 'utf8'));

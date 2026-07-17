@@ -356,14 +356,14 @@
     },
     {
       "id": "B1",
-      "title": "Alfred-internal process dimension",
+      "title": "Internal process dimension",
       "category": "process_trust",
       "score": 0,
       "status": "not_applicable",
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+      "notes": "Substrate-specific: an internal process dimension is not applicable to external code."
     },
     {
       "id": "B2",
@@ -529,14 +529,14 @@
     },
     {
       "id": "B5",
-      "title": "Alfred-internal process dimension",
+      "title": "Internal process dimension",
       "category": "process_trust",
       "score": 0,
       "status": "not_applicable",
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "Substrate-specific: an Alfred-internal process dimension is not applicable to external code."
+      "notes": "Substrate-specific: an internal process dimension is not applicable to external code."
     },
     {
       "id": "B6",

@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | 2.9 | info | Production-readiness primitive coverage: 3/6 primitives; Production workflow depth: 25 signals (cap 6); Observability depth: 85 signals (cap 4); Rollback and migration-safety depth: 77 signals (cap 4) |
 | A4 | Dependency hygiene | Code trust | 2.2 | warning | Pinned dependency ratio: 61/208 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.4 | warning | Claim match rate: 12/20 ratio; Claim source depth: 14 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 3.9 | verified | PR trace primitive coverage: 26 signals (cap 2); Recent PR merge ratio: 10/12 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 5 signals (cap 4); PR-gate CI workflow count: 13 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.9 | verified | Audit artifact depth: 66 files (cap 3); Audit freshness depth: 58/66 ratio |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | 3.4 | info | Human gate documented: 1/1 present; Fail-closed privilege check present: 1/1 present; Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present; Un-overridable kill-switch present: 1/1 present |
 
 ## Summary Scores
@@ -59,7 +59,7 @@
 - A5: Repository claim source (path withheld — private repository, sha256:e2bf98bc4697)
 - A5: Code presence for claim reconciliation (path withheld — private repository, sha256:c69ab62efd1c)
 - A5: Repository claim source (path withheld — private repository, sha256:e2bf98bc4697) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (path withheld — private repository, sha256:d90a520a3cf7)
 - B2: Pull-request CI workflow (path withheld — private repository, sha256:93839ac0380b)
 - B2: Pull-request CI workflow (path withheld — private repository, sha256:2c7e83376f38)
@@ -72,7 +72,7 @@
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:d14484199d1a)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:ef234e3bb333)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:160074df8986)
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: Documents privileged operations as human-executed/gated (path withheld — private repository, sha256:430ee9c26d48)
 - B6: Fail-closed privilege-membership check before role elevation (path withheld — private repository, sha256:cd87a11058cc)
 - B6: Un-overridable kill-switch / fail-safe governance toggle (path withheld — private repository, sha256:95ea60e45d8d)

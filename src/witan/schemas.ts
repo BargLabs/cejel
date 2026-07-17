@@ -16,7 +16,7 @@ export const WITAN_RUBRIC_VERSION_V2 = 'witan-rubric-v2-2026-07-12';
 // v3 (goal_cejel_board_must_be_reproducible_2026-07-12): removed four repository-private
 // evidence collectors (two code-trust inputs plus B1 and B5) that were reachable only from
 // this monorepo's own file paths and could never be reproduced by a stranger running `npx
-// @cejel/cejel .` on the same repository — see docs/leaderboard/RUBRIC_CHANGELOG.md for the
+// cejel .` on the same repository — see docs/leaderboard/RUBRIC_CHANGELOG.md for the
 // full corpus-wide before/after delta. Scoring algorithm is unchanged from v2 (metric-based);
 // only these four collectors' reachability changed, from "always active" to "never present".
 export const WITAN_RUBRIC_VERSION_V3 = 'witan-rubric-v3-2026-07-13';
@@ -50,6 +50,7 @@ export const WITAN_TRADING_RUBRIC_V0_CRITERION_IDS = [
   'audit-completeness',
   'claim-reality',
 ] as const;
+
 
 export const WitanCriterionIdSchema = z.enum([
   ...WITAN_CRITERION_IDS,
@@ -88,8 +89,6 @@ export const WitanEvidenceKindSchema = z.enum([
   'commit',
   'coverage',
   'dependency_report',
-  'dispatch_log',
-  'maeve_trace',
   'prod_check',
   'pull_request',
   'repository',
@@ -278,6 +277,85 @@ export const WitanReportSchema = z
   })
   .strict();
 
+export const WITAN_ATTESTATION_STATEMENT_TYPE = 'https://in-toto.io/Statement/v1' as const;
+export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/scan/v1' as const;
+
+export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('scored'),
+      overallScore: z.number().min(0).max(4),
+      codeTrustScore: z.number().min(0).max(4),
+      processTrustScore: z.number().min(0).max(4),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('abstained'),
+      reason: z.string().min(1).max(2000),
+    })
+    .strict(),
+]);
+
+// Unsigned in-toto statement emitted beside report.json. The envelope binds a specific report
+// digest to the observed repository revision and outcome without pretending Cejel is an
+// independent third-party signer. A customer or external reviewer can sign this statement with
+// their existing provenance mechanism; until then assurance.status remains explicitly unsigned.
+export const WitanAttestationStatementSchema = z
+  .object({
+    _type: z.literal(WITAN_ATTESTATION_STATEMENT_TYPE),
+    subject: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1).max(300),
+            digest: z
+              .object({
+                sha256: z.string().regex(/^[a-f0-9]{64}$/),
+              })
+              .strict(),
+          })
+          .strict(),
+      )
+      .length(1),
+    predicateType: z.literal(WITAN_ATTESTATION_PREDICATE_TYPE),
+    predicate: z
+      .object({
+        tool: z
+          .object({
+            name: z.literal('cejel'),
+            version: z.string().min(1).max(80),
+          })
+          .strict(),
+        generatedAt: z.string().datetime({ offset: true }),
+        rubricVersion: z.string().min(1).max(120),
+        repository: z
+          .object({
+            productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),
+            url: z.string().url().optional(),
+            headSha: z.string().min(7).max(64).optional(),
+          })
+          .strict(),
+        report: z
+          .object({
+            artifact: z.literal('report.json'),
+            sha256: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .strict(),
+        outcome: WitanAttestationOutcomeSchema,
+        assurance: z
+          .object({
+            status: z.literal('unsigned'),
+            issuer: z.literal('self-generated'),
+            signingHint: z.string().min(1).max(500),
+          })
+          .strict(),
+        limitations: z.array(z.string().min(1).max(500)).min(1).max(8),
+      })
+      .strict(),
+  })
+  .strict();
+
 export type WitanRepoArchetype = z.infer<typeof WitanRepoArchetypeSchema>;
 export type WitanCriterionId = z.infer<typeof WitanCriterionIdSchema>;
 export type WitanTradingCriterionId = z.infer<typeof WitanTradingCriterionIdSchema>;
@@ -297,3 +375,5 @@ export type WitanReport = z.infer<typeof WitanReportSchema>;
 export type WitanInputSignalFinding = z.infer<typeof WitanInputSignalFindingSchema>;
 export type WitanInputSignal = z.infer<typeof WitanInputSignalSchema>;
 export type WitanConsumedSignalSummary = z.infer<typeof WitanConsumedSignalSummarySchema>;
+export type WitanAttestationOutcome = z.infer<typeof WitanAttestationOutcomeSchema>;
+export type WitanAttestationStatement = z.infer<typeof WitanAttestationStatementSchema>;
