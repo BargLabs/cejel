@@ -1,0 +1,9 @@
+.git
+.github
+.build
+.cejel
+coverage
+dist
+leaderboard
+node_modules
+*.log

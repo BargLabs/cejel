@@ -79,7 +79,32 @@ node dist/index.js .
 
 Released binaries: `cejel-Darwin-arm64`, `cejel-Darwin-x86_64`, `cejel-Linux-aarch64`, and
 `cejel-Linux-x86_64`. The release also carries `SHA256SUMS`; each binary is executed against
-the source build and with networking denied before attachment.
+the source build and with networking denied before attachment. Releases from v0.1.6 also
+carry a Sigstore bundle containing GitHub's signed build-provenance attestation for all four
+binaries. Verify a downloaded binary with:
+
+```bash
+gh attestation verify ./cejel-Darwin-arm64 -R BargLabs/cejel
+```
+
+This is cryptographically signed provenance. It is distinct from Apple Developer ID or
+Microsoft Authenticode code-signing.
+
+**Docker / OCI.** The same MCP server is published as a non-root, multi-platform image:
+
+```bash
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.6
+```
+
+The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
+
+```bash
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.6 .
+```
+
+The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
+attestation. It is also the package referenced by [`server.json`](./server.json) for the
+Official MCP Registry.
 
 ## Leaderboard
 
@@ -283,6 +308,10 @@ The same package ships a second bin, `cejel-mcp` — a thin MCP (Model Context P
 server over stdio, so any MCP client (Claude Code, Cowork, Cursor, Codex) can request a
 trust certificate as a tool call. It wraps the exact same scan the CLI runs — same scores,
 same verdict — and is listed on Smithery via the repo's `smithery.yaml`.
+
+The canonical discovery manifest is [`server.json`](./server.json), published under
+`io.github.BargLabs/cejel` in the Official MCP Registry. Its npm ownership metadata,
+OCI ownership label, image version, and registry version are checked together before release.
 
 Add it to an MCP client config:
 
