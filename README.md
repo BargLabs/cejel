@@ -20,6 +20,10 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 > monorepo — the ten-product studio it was built inside — which it currently scores
 > 3.1/4.0 ("Conditional"). We score ourselves before asking you to score yourself.
 
+The reusable Barg Labs listing mark is kept at [`brand/barg-icon.png`](./brand/barg-icon.png)
+for directories and registries that accept a custom image. GitHub Actions Marketplace uses
+GitHub's predefined `action.yml` branding icons instead.
+
 ## Install
 
 No account, no key, no signup.
