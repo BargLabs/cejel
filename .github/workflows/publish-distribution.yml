@@ -60,6 +60,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
