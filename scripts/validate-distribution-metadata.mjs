@@ -72,6 +72,11 @@ requireIncludes(
   'uses: actions/attest@v4',
   'distribution workflow signed provenance',
 );
+requireIncludes(
+  distributionWorkflow,
+  'artifact-metadata: write',
+  'distribution workflow artifact metadata permission',
+);
 
 process.stdout.write(
   `Distribution metadata agrees on ${packageManifest.mcpName} v${packageManifest.version}.\n`,
