@@ -27,10 +27,10 @@ inputs:
 outputs:
   score:
     description: 'Overall Cejel trust score (0.0-4.0).'
-    value: ${{ steps.witan-run.outputs.score }}
+    value: ${{ steps.cejel-run.outputs.score }}
   verdict:
     description: 'Verdict label (Verified / Conditional / At risk / Unverified).'
-    value: ${{ steps.witan-run.outputs.verdict }}
+    value: ${{ steps.cejel-run.outputs.verdict }}
 
 runs:
   using: 'composite'
@@ -48,21 +48,20 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        cd "$(dirname "${{ github.action_path }}")"
+        cd "${{ github.action_path }}"
         pnpm install --frozen-lockfile
 
-    - name: Build the Cejel CLI
+    - name: Build Cejel
       shell: bash
       run: |
-        cd "$(dirname "${{ github.action_path }}")"
+        cd "${{ github.action_path }}"
         pnpm run build
 
-    # Deliberately does NOT cd into this action's own checkout — repo-path/out-dir stay
-    # relative to the CALLING workflow's own workspace (the repo being scored).
+    # repo-path and out-dir remain relative to the calling workflow's workspace.
     - name: Run Cejel (offline scoring — no network calls, no signup)
-      id: witan-run
+      id: cejel-run
       shell: bash
-      run: node "${{ github.action_path }}/run.mjs"
+      run: node "${{ github.action_path }}/action/run.mjs"
       env:
         WITAN_REPO_PATH: ${{ inputs.repo-path }}
         WITAN_MIN_SCORE: ${{ inputs.min-score }}
