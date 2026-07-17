@@ -44,15 +44,16 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 **npm.**
 
 ```bash
-npx cejel .
+npx --yes --package @cejel/cejel cejel .
 ```
 
-The npm package and executable intentionally share the same unscoped name: `cejel`.
+The npm package is scoped for registry compatibility; the installed executable is still
+`cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
-- uses: BargLabs/cejel/action@v1
+- uses: BargLabs/cejel@v1
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
@@ -251,7 +252,7 @@ Or commit/link the static SVG directly:
 
 ## GitHub Action
 
-See [`action/action.yml`](./action/action.yml) — runs Cejel on `push`/`pull_request`,
+See [`action.yml`](./action.yml) — runs Cejel on `push`/`pull_request`,
 posts the score + top findings to the job summary, and can optionally fail the check below
 a configurable `min-score` threshold. The scoring step makes no network calls and needs no
 secrets.
@@ -267,7 +268,7 @@ secrets.
 The same package ships a second bin, `cejel-mcp` — a thin MCP (Model Context Protocol)
 server over stdio, so any MCP client (Claude Code, Cowork, Cursor, Codex) can request a
 trust certificate as a tool call. It wraps the exact same scan the CLI runs — same scores,
-same verdict — and is listed on Smithery via the repo's `smithery.yaml`.
+same verdict — and is listed on Smithery as Cejel via the repo's `smithery.yaml`.
 
 Add it to an MCP client config:
 
