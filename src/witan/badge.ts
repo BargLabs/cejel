@@ -38,7 +38,7 @@ const VERDICT_SVG_FILL: Record<string, string> = {
 // a bare low number reads as a judgment even when it's really "there was nothing to rate"
 // (goal_cejel_repo_archetype_detection_2026-07-06).
 function badgeMessage(report: WitanReport, verdict: string): string {
-  if (report.insufficientSourceReason) return 'unrated: no source';
+  if (report.verdict === 'insufficient_source') return 'unrated: no source';
   return `${formatScore(report.overallScore)}/4.0 ${verdict.toLowerCase()}`;
 }
 

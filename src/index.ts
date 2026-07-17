@@ -81,7 +81,15 @@ const CLI_FLAG_KIND_BY_TOKEN = new Map<string, CliFlagKind>(
   CLI_FLAG_SPECS.flatMap((spec) => spec.tokens.map((token) => [token, spec.kind] as const)),
 );
 
+// The SEA bundle has no package.json at runtime. Its dedicated build config defines this from
+// the same manifest used by every other build; `typeof` keeps normal ESM/dev execution safe when
+// the identifier is intentionally absent.
+declare const __CEJEL_SEA_VERSION__: string | undefined;
+
 function cliVersion(): string {
+  if (typeof __CEJEL_SEA_VERSION__ === 'string' && __CEJEL_SEA_VERSION__.length > 0) {
+    return __CEJEL_SEA_VERSION__;
+  }
   const manifest = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   ) as { version?: unknown };
@@ -162,11 +170,19 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
     );
   }
 
-  if (options.minScore != null && report.overallScore < options.minScore) {
-    process.stderr.write(
-      `Cejel: overall score ${report.overallScore.toFixed(1)}/4.0 is below the required minimum ${options.minScore.toFixed(1)}/4.0\n`,
-    );
-    return 1;
+  if (options.minScore != null) {
+    if (report.verdict === 'insufficient_source') {
+      process.stderr.write(
+        `Cejel: cannot evaluate the required minimum ${options.minScore.toFixed(1)}/4.0 because this repository has insufficient source.\n`,
+      );
+      return 1;
+    }
+    if (report.overallScore < options.minScore) {
+      process.stderr.write(
+        `Cejel: overall score ${report.overallScore.toFixed(1)}/4.0 is below the required minimum ${options.minScore.toFixed(1)}/4.0\n`,
+      );
+      return 1;
+    }
   }
 
   return 0;

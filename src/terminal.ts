@@ -5,12 +5,22 @@ import type { WitanCliSummary } from './summary.js';
 /** Concise, human-readable terminal certificate for `npx cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
 export function renderTerminalCertificate(summary: WitanCliSummary): string {
-  const lines: string[] = summary.insufficientSourceReason
+  const abstained = summary.verdict === 'Insufficient source';
+  if (
+    !abstained &&
+    (summary.overallScore === null ||
+      summary.codeTrustScore === null ||
+      summary.processTrustScore === null)
+  ) {
+    throw new Error('A scored Cejel summary must carry numeric headline scores.');
+  }
+
+  const lines: string[] = abstained
     ? [
         `Cejel Trust Certificate — ${summary.productDisplayName}`,
         '',
         'Insufficient source to certify.',
-        `  ${summary.insufficientSourceReason}`,
+        `  ${summary.insufficientSourceReason ?? 'No ratable source was found.'}`,
         '',
       ]
     : [
@@ -35,7 +45,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
   // numeric judgment this archetype gate exists to avoid at the headline glance. The full
   // per-criterion detail (including any real signal like a missing lockfile or audit gap)
   // still lives in report.json/certificate.html for anyone who wants to dig in.
-  if (summary.insufficientSourceReason) {
+  if (abstained) {
     lines.push('See report.json / certificate.html for the full per-criterion detail.');
   } else if (summary.topFindings.length === 0) {
     lines.push('No evidence-backed findings.');
@@ -53,7 +63,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
   // Itemized external findings — kept in their own block, clearly separated from cejel's own
   // "Top findings" above, so the two attribution sources (cejel repo-scan vs. ingested scanner)
   // never blur together.
-  if (!summary.insufficientSourceReason && summary.externalFindingCount > 0) {
+  if (!abstained && summary.externalFindingCount > 0) {
     lines.push(
       '',
       `External findings (${summary.externalFindingCount} total, attributed to tool + criterion):`,
@@ -74,6 +84,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
   return `${lines.join('\n')}\n`;
 }
 
-function formatScore(score: number): string {
+function formatScore(score: number | null): string {
+  if (score === null) throw new Error('A scored Cejel summary must carry numeric scores.');
   return score.toFixed(1);
 }

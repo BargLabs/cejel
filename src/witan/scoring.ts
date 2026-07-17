@@ -16,6 +16,7 @@ import {
   type WitanReportInputPayload,
   WitanReportInputSchema,
   WitanReportSchema,
+  witanVerdictForScore,
 } from './schemas.js';
 
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
@@ -148,20 +149,23 @@ export function createWitanReport(
       Math.max(categoryOrder.length, 1),
   );
 
+  const abstained = parsedInput.insufficientSourceReason != null;
+
   return WitanReportSchema.parse({
     productSlug: parsedInput.productSlug,
     productDisplayName: parsedInput.productDisplayName,
     repo: parsedInput.repo,
     generatedAt: parsedInput.generatedAt,
     rubricVersion: parsedInput.rubricVersion,
-    codeTrustScore,
-    processTrustScore,
-    overallScore,
+    verdict: abstained ? 'insufficient_source' : witanVerdictForScore(overallScore),
+    codeTrustScore: abstained ? null : codeTrustScore,
+    processTrustScore: abstained ? null : processTrustScore,
+    overallScore: abstained ? null : overallScore,
     criteria,
     ...(consumedSignals.length > 0 ? { consumedSignals } : {}),
     // Only surface the full per-category map for rubrics with more than two buckets —
     // the default two-category rubric is fully represented by codeTrustScore/processTrustScore.
-    ...(categoryOrder.length > 2 ? { categoryScores: categoryScoreMap } : {}),
+    ...(!abstained && categoryOrder.length > 2 ? { categoryScores: categoryScoreMap } : {}),
     // Pass through repo-archetype metadata verbatim — createWitanReport does not compute or
     // alter it (see classifyRepoArchetype in repo-signals.ts); per-criterion scoring above is
     // unaffected by archetype, only presentation layers (badge/terminal/verdict) key off it.

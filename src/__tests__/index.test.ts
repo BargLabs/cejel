@@ -167,6 +167,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
   it('exits 0 when --min-score is easily satisfied', async () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-threshold-pass-'));
     const outDir = join(repoPath, '.witan');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
 
     const exitCode = await runWitanFreeCli([
       repoPath,

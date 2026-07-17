@@ -1,6 +1,6 @@
 node_modules/
 dist/
+.build/
 .cejel/
 coverage/
 *.log
-.vercel

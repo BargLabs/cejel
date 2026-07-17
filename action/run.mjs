@@ -53,7 +53,10 @@ if (!existsSync(summaryPath)) {
 
   const outputPath = process.env.GITHUB_OUTPUT;
   if (outputPath) {
-    appendFileSync(outputPath, `score=${summary.overallScore.toFixed(1)}\n`);
+    appendFileSync(
+      outputPath,
+      `score=${typeof summary.overallScore === 'number' ? summary.overallScore.toFixed(1) : ''}\n`,
+    );
     appendFileSync(outputPath, `verdict=${summary.verdict}\n`);
   }
 
@@ -61,6 +64,16 @@ if (!existsSync(summaryPath)) {
 }
 
 function renderStepSummary(s) {
+  if (s.verdict === 'Insufficient source') {
+    return `${[
+      `## Cejel trust check — ${s.productDisplayName}`,
+      '',
+      '**Insufficient source to certify.**',
+      '',
+      s.insufficientSourceReason ?? 'No ratable source was found.',
+      '',
+    ].join('\n')}\n`;
+  }
   const lines = [
     `## Cejel trust check — ${s.productDisplayName}`,
     '',

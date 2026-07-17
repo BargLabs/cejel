@@ -250,32 +250,91 @@ export const WitanConsumedSignalSummarySchema = z
   })
   .strict();
 
-export const WitanReportSchema = z
-  .object({
-    productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),
-    productDisplayName: z.string().min(1).max(120),
-    repo: WitanRepoRefSchema,
-    generatedAt: z.string().datetime({ offset: true }),
-    rubricVersion: z.string().min(1).max(120),
-    codeTrustScore: z.number().min(0).max(4),
-    processTrustScore: z.number().min(0).max(4),
-    overallScore: z.number().min(0).max(4),
-    // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
-    criteria: z.array(WitanCriterionScoreSchema).min(1),
-    consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
-    // Present only when the rubric has more than two criterion categories — the legacy
-    // codeTrustScore/processTrustScore pair can't losslessly represent 3+ category buckets.
-    categoryScores: z.record(z.string(), z.number().min(0).max(4)).optional(),
-    // Repo-archetype metadata (see WitanRepoArchetypeSchema above). Both fields are omitted for
-    // callers that don't classify an archetype (e.g. the trading rubric). insufficientSourceReason
-    // is present only for the non-source archetypes ('docs_only' | 'binary_only' |
-    // 'unrecognised_ecosystem' | 'empty') — its presence is what presentation layers
-    // (badge/terminal/verdict) key off to show an explicit insufficient-source verdict instead of
-    // a confident numeric score.
-    archetype: WitanRepoArchetypeSchema.optional(),
-    insufficientSourceReason: z.string().min(1).max(2000).optional(),
-  })
-  .strict();
+export const WitanScoredVerdictSchema = z.enum([
+  'verified',
+  'conditional',
+  'at_risk',
+  'unverified',
+]);
+export const WitanReportVerdictSchema = z.union([
+  WitanScoredVerdictSchema,
+  z.literal('insufficient_source'),
+]);
+
+export function witanVerdictForScore(score: number): z.infer<typeof WitanScoredVerdictSchema> {
+  if (score >= 3.5) return 'verified';
+  if (score >= 2.5) return 'conditional';
+  if (score >= 1.5) return 'at_risk';
+  return 'unverified';
+}
+
+const WitanReportCommonSchema = z.object({
+  productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),
+  productDisplayName: z.string().min(1).max(120),
+  repo: WitanRepoRefSchema,
+  generatedAt: z.string().datetime({ offset: true }),
+  rubricVersion: z.string().min(1).max(120),
+  // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
+  criteria: z.array(WitanCriterionScoreSchema).min(1),
+  consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
+  archetype: WitanRepoArchetypeSchema.optional(),
+});
+
+const WitanScoredReportSchema = WitanReportCommonSchema.extend({
+  verdict: WitanScoredVerdictSchema,
+  codeTrustScore: z.number().min(0).max(4),
+  processTrustScore: z.number().min(0).max(4),
+  overallScore: z.number().min(0).max(4),
+  // Present only when the rubric has more than two criterion categories — the legacy
+  // codeTrustScore/processTrustScore pair can't losslessly represent 3+ category buckets.
+  categoryScores: z.record(z.string(), z.number().min(0).max(4)).optional(),
+  insufficientSourceReason: z.never().optional(),
+}).strict();
+
+const WitanAbstainedReportSchema = WitanReportCommonSchema.extend({
+  verdict: z.literal('insufficient_source'),
+  // Null is deliberate and explicit: omission is ambiguous, while zero is a real score.
+  codeTrustScore: z.null(),
+  processTrustScore: z.null(),
+  overallScore: z.null(),
+  categoryScores: z.never().optional(),
+  insufficientSourceReason: z.string().min(1).max(2000),
+}).strict();
+
+const StrictWitanReportSchema = z
+  .union([WitanScoredReportSchema, WitanAbstainedReportSchema])
+  .superRefine((report, context) => {
+    if (
+      report.verdict !== 'insufficient_source' &&
+      report.verdict !== witanVerdictForScore(report.overallScore)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['verdict'],
+        message: `verdict does not match overallScore ${report.overallScore}`,
+      });
+    }
+  });
+
+// Historical scored reports predate the machine-readable verdict. Accept them on read and
+// derive the field from their numeric score, but never upgrade a legacy insufficient-source
+// report: its numeric zero remains invalid until the artifact is regenerated with null scores.
+export const WitanReportSchema = z.preprocess((value) => {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !('verdict' in value) &&
+    !('insufficientSourceReason' in value) &&
+    typeof (value as { overallScore?: unknown }).overallScore === 'number'
+  ) {
+    return {
+      ...value,
+      verdict: witanVerdictForScore((value as { overallScore: number }).overallScore),
+    };
+  }
+  return value;
+}, StrictWitanReportSchema);
 
 export const WITAN_ATTESTATION_STATEMENT_TYPE = 'https://in-toto.io/Statement/v1' as const;
 export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/scan/v1' as const;
@@ -368,10 +427,14 @@ export type WitanCriterionMetric = z.infer<typeof WitanCriterionMetricSchema>;
 export type WitanCriterionSignal = z.infer<typeof WitanCriterionSignalSchema>;
 export type WitanCriterionSignalPayload = z.input<typeof WitanCriterionSignalSchema>;
 export type WitanRepoRef = z.infer<typeof WitanRepoRefSchema>;
+export type WitanScoredVerdict = z.infer<typeof WitanScoredVerdictSchema>;
+export type WitanReportVerdict = z.infer<typeof WitanReportVerdictSchema>;
 export type WitanReportInput = z.infer<typeof WitanReportInputSchema>;
 export type WitanReportInputPayload = z.input<typeof WitanReportInputSchema>;
 export type WitanCriterionScore = z.infer<typeof WitanCriterionScoreSchema>;
 export type WitanReport = z.infer<typeof WitanReportSchema>;
+export type WitanScoredReport = Extract<WitanReport, { verdict: WitanScoredVerdict }>;
+export type WitanAbstainedReport = Extract<WitanReport, { verdict: 'insufficient_source' }>;
 export type WitanInputSignalFinding = z.infer<typeof WitanInputSignalFindingSchema>;
 export type WitanInputSignal = z.infer<typeof WitanInputSignalSchema>;
 export type WitanConsumedSignalSummary = z.infer<typeof WitanConsumedSignalSummarySchema>;

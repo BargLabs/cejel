@@ -7,13 +7,20 @@ import {
   verifyWitanAttestationBinding,
 } from '../attestation.js';
 
-function fixtureReport(): WitanReport {
+type ScoredWitanReport = Exclude<WitanReport, { verdict: 'insufficient_source' }>;
+
+function fixtureReport(): ScoredWitanReport {
   return {
     productSlug: 'sample-repo',
     productDisplayName: 'Sample Repo',
-    repo: { path: '/private/local/path', headSha: 'abcdef1234567890' },
+    repo: {
+      path: '/private/local/path',
+      url: 'https://github.com/example/sample-repo',
+      headSha: 'abcdef1234567890',
+    },
     generatedAt: '2026-07-16T12:00:00.000Z',
     rubricVersion: 'witan-rubric-v3-2026-07-13',
+    verdict: 'conditional',
     codeTrustScore: 3.1,
     processTrustScore: 2.9,
     overallScore: 3,
@@ -48,16 +55,42 @@ describe('Cejel scan attestation', () => {
   it('fails binding verification when report contents change', () => {
     const report = fixtureReport();
     const statement = createWitanAttestation(report, { toolVersion: '0.1.4' });
-    const changed = { ...report, overallScore: 1.2 };
+    const changed: WitanReport = { ...report, overallScore: 1.2, verdict: 'unverified' };
 
     const result = verifyWitanAttestationBinding(statement, changed);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('subject digest does not match report.json');
   });
 
+  it('fails binding verification when attested repository identity changes', () => {
+    const report = fixtureReport();
+    const statement = createWitanAttestation(report, { toolVersion: '0.1.4' });
+    const changed = structuredClone(statement);
+    const subject = changed.subject[0];
+    if (!subject) throw new Error('Expected an attestation subject.');
+    subject.name = 'different-repo/report.json';
+    changed.predicate.repository.productSlug = 'different-repo';
+    changed.predicate.repository.url = 'https://github.com/example/different-repo';
+
+    const result = verifyWitanAttestationBinding(changed, report);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        'subject name does not match report repository identity',
+        'repository product slug does not match report.json',
+        'repository URL does not match report.json',
+      ]),
+    );
+  });
+
   it('preserves abstention and emits no numeric score for insufficient source', () => {
     const report: WitanReport = {
       ...fixtureReport(),
+      verdict: 'insufficient_source',
+      codeTrustScore: null,
+      processTrustScore: null,
+      overallScore: null,
+      categoryScores: undefined,
       archetype: 'unrecognised_ecosystem',
       insufficientSourceReason: 'Recognised source is below the calibrated dominance floor.',
     };

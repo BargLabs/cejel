@@ -45,6 +45,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "build:sea-js": "tsup --config tsup.public-sea.config.ts",
     "prepublishOnly": "pnpm run build",
     "prepack": "pnpm run build",
     "dev": "tsx src/index.ts",
@@ -54,6 +55,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@types/node": "^25.9.1",
+    "postject": "^1.0.0-alpha.6",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0",
