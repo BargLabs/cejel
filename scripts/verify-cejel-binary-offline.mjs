@@ -90,6 +90,11 @@ function runOffline(binaryPath, repoPath) {
         '--rm',
         '--network',
         'none',
+        // Keep files written into the host-mounted fixture owned by the runner. Running the
+        // verifier as Docker's default root user leaves .cejel/attestation.json root-owned,
+        // so the host-side cleanup below fails with EACCES on GitHub-hosted Linux runners.
+        '--user',
+        `${process.getuid() ?? 1001}:${process.getgid() ?? 1001}`,
         '-v',
         `${repoPath}:/work`,
         '-w',
