@@ -31,7 +31,15 @@ No account, no key, no signup.
 **Single-file binary.** One file. No Node, no npm, no `node_modules`, nothing installed.
 
 ```bash
-curl -fsSL https://github.com/BargLabs/cejel/releases/latest/download/cejel-$(uname -s)-$(uname -m) -o cejel
+asset="cejel-$(uname -s)-$(uname -m)"
+curl -fsSL "https://github.com/BargLabs/cejel/releases/latest/download/$asset" -o "$asset"
+curl -fsSL https://github.com/BargLabs/cejel/releases/latest/download/SHA256SUMS -o SHA256SUMS
+if command -v sha256sum >/dev/null; then
+  grep "  $asset$" SHA256SUMS | sha256sum -c -
+else
+  grep "  $asset$" SHA256SUMS | shasum -a 256 -c -
+fi
+mv "$asset" cejel
 chmod +x cejel
 ./cejel .
 ```
@@ -48,10 +56,10 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 **npm.**
 
 ```bash
-npx cejel .
+npx @cejel/cejel .
 ```
 
-The npm package and executable intentionally share the same unscoped name: `cejel`.
+The npm package is scoped as `@cejel/cejel`; its executable remains the short command `cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
 
@@ -69,9 +77,9 @@ pnpm install && pnpm build
 node dist/index.js .
 ```
 
-Released binaries: `cejel-Darwin-arm64`, `cejel-Linux-x86_64`. A Homebrew tap and the
-remaining architectures are in progress; they are not listed here because they do not exist
-yet.
+Released binaries: `cejel-Darwin-arm64`, `cejel-Darwin-x86_64`, `cejel-Linux-aarch64`, and
+`cejel-Linux-x86_64`. The release also carries `SHA256SUMS`; each binary is executed against
+the source build and with networking denied before attachment.
 
 ## Leaderboard
 
@@ -80,7 +88,7 @@ corpus scored and published in the open — elite OSS projects, Cejel itself, an
 studio monorepo Cejel was built inside — with a per-repository evidence report for every
 row under [`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
 [cejel.dev](https://cejel.dev). Every score on this board is produced by the same sealed
-public scorer used by `npx cejel .` — check out the source commit printed in the
+public scorer used by `npx @cejel/cejel .` — check out the source commit printed in the
 report, run the tool, and you will get this number. A required guard does exactly that for
 every corpus row and compares score, verdict, measured coverage, and evidence. No private
 domain collector contributes to any published score, ours included; nobody is exempt.
@@ -283,7 +291,7 @@ Add it to an MCP client config:
   "mcpServers": {
     "cejel": {
       "command": "npx",
-      "args": ["-y", "--package=cejel", "cejel-mcp"]
+      "args": ["-y", "--package=@cejel/cejel", "cejel-mcp"]
     }
   }
 }
@@ -304,7 +312,7 @@ and the server writes no files.
 ## What "offline" means here
 
 Scoring a repo — `cejel .` itself, and the Action's scoring step — makes zero network
-calls: no telemetry, no signup, no model call. Fetching the `cejel` package the
+calls: no telemetry, no signup, no model call. Fetching the `@cejel/cejel` package the
 first time (like any npm-distributed CLI, including this Action's own dependency install)
 does need network; that's a one-time install cost, not part of the scoring guarantee.
 
