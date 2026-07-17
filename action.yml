@@ -1,8 +1,7 @@
 name: 'Cejel'
 description: >-
-  Score this repository's engineering-trust signals with Cejel (tests, secrets, isolation,
-  claim-vs-reality, CI discipline; free, offline, no signup) and post the result to the job
-  summary. Intended for push/pull_request workflows only.
+  Score this repository's engineering-trust signals with Cejel offline and post the result to
+  the job summary.
 author: 'Barg Labs Studios'
 branding:
   icon: 'shield'
