@@ -142,7 +142,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: test "$(gh release view "${{ inputs.release_tag }}" --json isDraft --jq .isDraft)" = true
 
-      - name: Attach verified binaries
+      - name: Generate SHA-256 checksums
+        working-directory: release-assets
+        run: >-
+          sha256sum
+          cejel-Darwin-arm64
+          cejel-Darwin-x86_64
+          cejel-Linux-aarch64
+          cejel-Linux-x86_64
+          > SHA256SUMS
+
+      - name: Attach verified binaries and checksums
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -151,4 +161,5 @@ jobs:
             release-assets/cejel-Darwin-x86_64 \
             release-assets/cejel-Linux-aarch64 \
             release-assets/cejel-Linux-x86_64 \
+            release-assets/SHA256SUMS \
             --clobber

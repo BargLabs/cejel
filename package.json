@@ -1,6 +1,6 @@
 {
-  "name": "cejel",
-  "version": "0.1.4",
+  "name": "@cejel/cejel",
+  "version": "0.1.5",
   "private": false,
   "publishConfig": {
     "access": "public"
@@ -22,7 +22,7 @@
   ],
   "license": "AGPL-3.0-only",
   "author": "Barg Labs",
-  "homepage": "https://github.com/BargLabs/cejel",
+  "homepage": "https://cejel.dev",
   "bugs": {
     "url": "https://github.com/BargLabs/cejel/issues"
   },
