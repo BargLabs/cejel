@@ -1,4 +1,4 @@
-import type { WitanReport } from '../schemas.js';
+import { type WitanReport, witanVerdictForScore } from '../schemas.js';
 import { describe, expect, it } from 'vitest';
 
 import { renderWitanBadgeEndpoint, renderWitanBadgeSvg } from '../badge.js';
@@ -10,6 +10,7 @@ function fixtureReport(overallScore: number): WitanReport {
     repo: { path: '/tmp/example-repo' },
     generatedAt: '2026-07-05T00:00:00.000Z',
     rubricVersion: 'witan-rubric-v1-2026-06-24',
+    verdict: witanVerdictForScore(overallScore),
     codeTrustScore: overallScore,
     processTrustScore: overallScore,
     overallScore,

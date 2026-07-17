@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 import { buildWitanCliSummary } from '../summary.js';
 
+type ScoredWitanReport = Exclude<WitanReport, { verdict: 'insufficient_source' }>;
+
 function findingCriterion(
   id: string,
   findings: Array<{ severity: 'critical' | 'warning' | 'info'; summary: string }>,
@@ -23,13 +25,14 @@ function findingCriterion(
   };
 }
 
-function fixtureReport(criteria: WitanReport['criteria']): WitanReport {
+function fixtureReport(criteria: WitanReport['criteria']): ScoredWitanReport {
   return {
     productSlug: 'witan',
     productDisplayName: 'Witan',
     repo: { path: '/tmp/example' },
     generatedAt: '2026-07-05T00:00:00.000Z',
     rubricVersion: 'witan-rubric-v1-2026-06-24',
+    verdict: 'conditional',
     codeTrustScore: 2.5,
     processTrustScore: 3.0,
     overallScore: 2.7,
@@ -66,7 +69,11 @@ describe('buildWitanCliSummary', () => {
 
   it('derives the verdict from overallScore consistently with the HTML certificate', () => {
     const report = fixtureReport([findingCriterion('A1', [])]);
-    const summary = buildWitanCliSummary({ ...report, overallScore: 3.8 });
+    const summary = buildWitanCliSummary({
+      ...report,
+      overallScore: 3.8,
+      verdict: 'verified',
+    });
     expect(summary.verdict).toBe('Verified');
   });
 

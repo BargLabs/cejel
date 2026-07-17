@@ -46,7 +46,7 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
 
   server.tool(
     'scan',
-    `Score a repository's engineering-trust signals (tests, secrets, isolation, claim-vs-reality, CI discipline) with the ${identity.packageName} trust-certificate scan — the exact same offline, deterministic scoring as running the ${identity.packageName} CLI on the path. Returns the trust cert as JSON: overall + code/process sub-scores (0-4), verdict band, and top findings. No network, no telemetry, no signup. After a scan, the full HTML certificate and SVG badge are readable as the resources ${certificateUri} and ${badgeUri}.`,
+    `Score a repository's engineering-trust signals (tests, secrets, isolation, claim-vs-reality, CI discipline) with the ${identity.packageName} trust-certificate scan — the exact same offline, deterministic scoring as running the ${identity.packageName} CLI on the path. Returns the trust cert as JSON: overall + code/process sub-scores (0-4) for a scored repository, or null scores with an insufficient-source verdict when Cejel cannot read it; plus the verdict and top findings. No network, no telemetry, no signup. After a scan, the full HTML certificate and SVG badge are readable as the resources ${certificateUri} and ${badgeUri}.`,
     {
       path: z
         .string()

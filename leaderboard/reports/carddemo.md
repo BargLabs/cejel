@@ -24,15 +24,13 @@
 
 ## Summary Scores
 
-- Code trust: 0.0/4.0
-- Process trust: 0.0/4.0
-- Overall: 0.0/4.0
+- Headline scores: not issued (insufficient source).
 - Measured coverage: code trust 0/5, process trust 0/6, overall 0/11 dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.
 - Low confidence: fewer than half of the dimensions behind at least one score above were measured. Low coverage — scored on few signals, less certain than the same score measured across more dimensions.
 - Not applicable: A2, A3, B1, B4, B5, B6 — substrate-specific criteria excluded from composite (N/A for external code).
 - Insufficient data: A1, A4, A5, B2, B3 — no measurable signal for the scorer to read; excluded from composite. Unmeasured, not inapplicable, and not a measured zero.
 
-_This repo has insufficient source to certify — the scores above are not a confident judgment of the product, only of the criteria that had any surface to measure. See the Verdict line above for why._
+_This repo has insufficient source to certify. Per-criterion measurements below describe only the surface Cejel could read; they are not a headline score or verdict on the product._
 
 ## Evidence
 

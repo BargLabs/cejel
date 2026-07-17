@@ -6,7 +6,9 @@ import type {
   WitanEvidencePointer,
   WitanFinding,
   WitanReport,
+  WitanReportVerdict,
 } from './schemas.js';
+import { witanVerdictForScore } from './schemas.js';
 
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
@@ -64,7 +66,7 @@ export function renderWitanHtmlReport(report: WitanReport): string {
         <aside class="score-panel" aria-label="Summary trust score">
           <div class="score-badge">Summary</div>
           ${
-            report.insufficientSourceReason
+            report.verdict === 'insufficient_source'
               ? `<div class="verdict">Insufficient source</div>
           <p class="insufficient-note">${escapeHtml(report.insufficientSourceReason)}</p>`
               : `<div class="score">${formatScore(report.overallScore)}</div>
@@ -274,10 +276,7 @@ function renderRepo(report: WitanReport): string {
 }
 
 export function renderVerdict(score: number): string {
-  if (score >= 3.5) return 'Verified';
-  if (score >= 2.5) return 'Conditional';
-  if (score >= 1.5) return 'At risk';
-  return 'Unverified';
+  return renderMachineVerdict(witanVerdictForScore(score));
 }
 
 // Headline verdict for a full report — distinct from renderVerdict(score) because a repo with
@@ -287,8 +286,22 @@ export function renderVerdict(score: number): string {
 // Every presentation surface (badge, terminal certificate, HTML certificate) should call this
 // instead of renderVerdict(report.overallScore) directly.
 export function renderReportVerdict(report: WitanReport): string {
-  if (report.insufficientSourceReason) return 'Insufficient source';
-  return renderVerdict(report.overallScore);
+  return renderMachineVerdict(report.verdict);
+}
+
+function renderMachineVerdict(verdict: WitanReportVerdict): string {
+  switch (verdict) {
+    case 'verified':
+      return 'Verified';
+    case 'conditional':
+      return 'Conditional';
+    case 'at_risk':
+      return 'At risk';
+    case 'unverified':
+      return 'Unverified';
+    case 'insufficient_source':
+      return 'Insufficient source';
+  }
 }
 
 function formatScore(score: number): string {

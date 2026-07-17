@@ -21,10 +21,10 @@ export interface WitanCliSummary {
   productSlug: string;
   productDisplayName: string;
   generatedAt: string;
-  overallScore: number;
-  codeTrustScore: number;
-  processTrustScore: number;
-  verdict: string;
+  overallScore: number | null;
+  codeTrustScore: number | null;
+  processTrustScore: number | null;
+  verdict: 'Verified' | 'Conditional' | 'At risk' | 'Unverified' | 'Insufficient source';
   findingCount: number;
   topFindings: WitanCliFinding[];
   /** Distinct external-tool sources folded into the score, e.g. ["sarif:codex-security",
@@ -42,9 +42,8 @@ export interface WitanCliSummary {
    * attributed to their source tool and the cejel criterion they were folded into — kept
    * separate from topFindings, which are cejel's own repo-scan findings. */
   topExternalFindings: WitanExternalFinding[];
-  /** Present only when the repo archetype has no ratable source (docs/binary-only/empty —
-   * see classifyRepoArchetype). When set, the terminal certificate shows this explanation
-   * instead of a confident numeric verdict. */
+  /** Present when the repo archetype has no ratable source (docs/binary-only/empty — see
+   * classifyRepoArchetype), so the terminal shows this instead of a numeric verdict. */
   insufficientSourceReason?: string;
 }
 
@@ -75,22 +74,34 @@ export function buildWitanCliSummary(report: WitanReport): WitanCliSummary {
   const externalSources = summarizeExternalSources(report.consumedSignals ?? []);
   const allExternalFindings = collectExternalFindings(report.consumedSignals ?? []);
 
-  return {
+  const common = {
     productSlug: report.productSlug,
     productDisplayName: report.productDisplayName,
     generatedAt: report.generatedAt,
-    overallScore: report.overallScore,
-    codeTrustScore: report.codeTrustScore,
-    processTrustScore: report.processTrustScore,
-    verdict: renderReportVerdict(report),
     findingCount: allFindings.length,
     topFindings: sorted.slice(0, TOP_FINDINGS_LIMIT),
     contributingSources,
     externalSources,
     externalFindingCount: allExternalFindings.length,
     topExternalFindings: allExternalFindings.slice(0, EXTERNAL_FINDINGS_DISPLAY_LIMIT),
-    ...(report.insufficientSourceReason
-      ? { insufficientSourceReason: report.insufficientSourceReason }
-      : {}),
+  };
+
+  if (report.verdict === 'insufficient_source') {
+    return {
+      ...common,
+      overallScore: null,
+      codeTrustScore: null,
+      processTrustScore: null,
+      verdict: 'Insufficient source',
+      insufficientSourceReason: report.insufficientSourceReason,
+    };
+  }
+
+  return {
+    ...common,
+    overallScore: report.overallScore,
+    codeTrustScore: report.codeTrustScore,
+    processTrustScore: report.processTrustScore,
+    verdict: renderReportVerdict(report) as WitanCliSummary['verdict'],
   };
 }

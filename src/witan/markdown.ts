@@ -49,6 +49,22 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   const contributingSources = renderContributingSources(report.consumedSignals ?? []);
   const externalSourceSummaries = summarizeExternalSources(report.consumedSignals ?? []);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
+  const summaryScoreLines =
+    report.verdict === 'insufficient_source'
+      ? [
+          '- Headline scores: not issued (insufficient source).',
+          ...coverageLines,
+          ...naSummaryLines,
+          ...insufficientDataSummaryLines,
+        ]
+      : [
+          `- Code trust: ${formatScore(report.codeTrustScore)}/4.0`,
+          `- Process trust: ${formatScore(report.processTrustScore)}/4.0`,
+          `- Overall: ${formatScore(report.overallScore)}/4.0`,
+          ...coverageLines,
+          ...naSummaryLines,
+          ...insufficientDataSummaryLines,
+        ];
 
   const lines = [
     `# Cejel Trust Report - ${report.productDisplayName}`,
@@ -63,7 +79,7 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
           ...externalSourceSummaries.map((s) => `  - ${formatExternalSourceLine(s)}`),
         ]
       : []),
-    ...(report.insufficientSourceReason
+    ...(report.verdict === 'insufficient_source'
       ? [`- Verdict: Insufficient source to certify — ${report.insufficientSourceReason}`]
       : []),
     '',
@@ -83,18 +99,13 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
     '',
     '## Summary Scores',
     '',
-    `- Code trust: ${formatScore(report.codeTrustScore)}/4.0`,
-    `- Process trust: ${formatScore(report.processTrustScore)}/4.0`,
-    `- Overall: ${formatScore(report.overallScore)}/4.0`,
-    ...coverageLines,
-    ...naSummaryLines,
-    ...insufficientDataSummaryLines,
-    ...(report.insufficientSourceReason
+    ...summaryScoreLines,
+    ...(report.verdict === 'insufficient_source'
       ? [
           '',
-          '_This repo has insufficient source to certify — the scores above are not a confident' +
-            ' judgment of the product, only of the criteria that had any surface to measure. See' +
-            ' the Verdict line above for why._',
+          '_This repo has insufficient source to certify. Per-criterion measurements below' +
+            ' describe only the surface Cejel could read; they are not a headline score or' +
+            ' verdict on the product._',
         ]
       : []),
     '',

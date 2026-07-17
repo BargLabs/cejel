@@ -20,6 +20,10 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 > monorepo — the ten-product studio it was built inside — which it currently scores
 > 3.1/4.0 ("Conditional"). We score ourselves before asking you to score yourself.
 
+The reusable Barg Labs listing mark is kept at [`brand/barg-icon.png`](./brand/barg-icon.png)
+for directories and registries that accept a custom image. GitHub Actions Marketplace uses
+GitHub's predefined `action.yml` branding icons instead.
+
 ## Install
 
 No account, no key, no signup.
@@ -44,16 +48,15 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 **npm.**
 
 ```bash
-npx --yes --package @cejel/cejel cejel .
+npx cejel .
 ```
 
-The npm package is scoped for registry compatibility; the installed executable is still
-`cejel`.
+The npm package and executable intentionally share the same unscoped name: `cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
-- uses: BargLabs/cejel@v1
+- uses: BargLabs/cejel/action@v1
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
@@ -122,7 +125,8 @@ better-evidenced rows.
 Scores the current directory with sensible defaults: no flags, no signup, fully offline.
 Prints a concise terminal certificate and writes to `.cejel/`:
 
-- `report.json` — the full structured report
+- `report.json` — the full structured report; scored runs carry numeric headline scores and a
+  score-band `verdict`, while abstained runs carry `null` scores and `verdict: "insufficient_source"`
 - `attestation.json` — an unsigned in-toto statement binding the report digest, repository
   revision, rubric, and scored-or-abstained outcome; ready for an external signer
 - `certificate.html` — a self-contained HTML certificate (no external assets)
@@ -140,8 +144,9 @@ or provenance system signs it, `assurance.status` is `unsigned` and `issuer` is
 - `<path>` — repo to score (default: current directory)
 - `--out <dir>` — where to write report/certificate/badge files (default: `.cejel`;
   `--out-dir` remains available as a compatibility alias)
-- `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4); used by the
-  GitHub Action's optional threshold gate
+- `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4), or if Cejel
+  abstains and therefore cannot evaluate the threshold; used by the GitHub Action's optional
+  threshold gate
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
@@ -167,9 +172,10 @@ honestly rather than guessing:
 - **Not yet recognised** — other ecosystems, including COBOL, Fortran, and MATLAB. Cejel does
   not score these as "source" at all: a repository with zero
   recognised-extension files gets the `unrecognised_ecosystem` archetype, an explicit
-  `insufficient_data` status, and **no verdict** — never a confident numeric score, and never
-  the word "Unverified" for the sole reason that cejel cannot read the language. The
-  certificate states plainly which of the 11 dimensions were and were not measured.
+  `insufficient_data` criterion status, `null` headline scores, and an explicit machine verdict
+  of `insufficient_source` — never a numeric score-band verdict, and never the word
+  "Unverified" for the sole reason that cejel cannot read the language. The certificate states
+  plainly which of the 11 dimensions were and were not measured.
 
 This list will grow. It will never be "any codebase" — that claim is a promise the parser
 cannot keep, and an honest support matrix is worth more than a marketing line the code
@@ -252,7 +258,7 @@ Or commit/link the static SVG directly:
 
 ## GitHub Action
 
-See [`action.yml`](./action.yml) — runs Cejel on `push`/`pull_request`,
+See [`action/action.yml`](./action/action.yml) — runs Cejel on `push`/`pull_request`,
 posts the score + top findings to the job summary, and can optionally fail the check below
 a configurable `min-score` threshold. The scoring step makes no network calls and needs no
 secrets.
@@ -268,7 +274,7 @@ secrets.
 The same package ships a second bin, `cejel-mcp` — a thin MCP (Model Context Protocol)
 server over stdio, so any MCP client (Claude Code, Cowork, Cursor, Codex) can request a
 trust certificate as a tool call. It wraps the exact same scan the CLI runs — same scores,
-same verdict — and is listed on Smithery as Cejel via the repo's `smithery.yaml`.
+same verdict — and is listed on Smithery via the repo's `smithery.yaml`.
 
 Add it to an MCP client config:
 
@@ -294,14 +300,6 @@ The server exposes one tool and two resources:
 
 Like the CLI, scoring over MCP is fully offline: no network calls, no telemetry, no signup,
 and the server writes no files.
-
-### Hosted MCP endpoint (Smithery Toolbox)
-
-For remote MCP clients, Smithery publishes a hosted HTTP adapter at
-[`https://cejel.run.tools`](https://cejel.run.tools). Its `scan` tool accepts an inline
-repository snapshot as `{ files: [{ path, content }], format? }` rather than reading a local
-path. The adapter runs the same deterministic scan, makes no outbound network calls, and
-deletes the temporary snapshot after the request; it does not retain uploaded source.
 
 ## What "offline" means here
 

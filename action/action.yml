@@ -1,4 +1,4 @@
-name: 'Cejel'
+name: 'Cejel Trust Check'
 description: >-
   Score this repository's engineering-trust signals with Cejel (tests, secrets, isolation,
   claim-vs-reality, CI discipline; free, offline, no signup) and post the result to the job

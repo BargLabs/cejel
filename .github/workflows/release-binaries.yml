@@ -1,0 +1,154 @@
+name: cejel-release-binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing draft release tag; must equal v<package version>
+        required: true
+        type: string
+      attach_to_release:
+        description: Attach the verified assets to the existing draft release
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: cejel-release-binaries-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            asset: cejel-Darwin-arm64
+          - runner: macos-15-intel
+            asset: cejel-Darwin-x86_64
+          - runner: ubuntu-24.04-arm
+            asset: cejel-Linux-aarch64
+          - runner: ubuntu-24.04
+            asset: cejel-Linux-x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Select extracted public source tree
+        id: package
+        shell: bash
+        run: |
+          if [ -d packages/witan-cli ]; then
+            node scripts/build-public-cejel.mjs "$RUNNER_TEMP/public-cejel"
+            echo "root=$RUNNER_TEMP/public-cejel" >> "$GITHUB_OUTPUT"
+          else
+            echo "root=$GITHUB_WORKSPACE" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install public dependencies
+        working-directory: ${{ steps.package.outputs.root }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Build source and SEA bundle
+        working-directory: ${{ steps.package.outputs.root }}
+        run: |
+          pnpm run build
+          pnpm run build:sea-js
+
+      - name: Build host-native executable
+        working-directory: ${{ steps.package.outputs.root }}
+        run: node scripts/sea-build-cejel.mjs --require-public-tree
+
+      - name: Assert contracted asset name
+        working-directory: ${{ steps.package.outputs.root }}
+        run: test -f ".build/cejel-sea/${{ matrix.asset }}"
+
+      - name: Execute and compare binary
+        working-directory: ${{ steps.package.outputs.root }}
+        run: node scripts/verify-cejel-binary.mjs ".build/cejel-sea/${{ matrix.asset }}"
+
+      - name: Build Linux offline verifier image
+        if: runner.os == 'Linux'
+        working-directory: ${{ steps.package.outputs.root }}
+        run: >-
+          docker build
+          --file scripts/cejel-sea-offline.Dockerfile
+          --tag cejel-sea-offline-verifier:ci
+          scripts
+
+      - name: Execute with networking denied
+        working-directory: ${{ steps.package.outputs.root }}
+        run: node scripts/verify-cejel-binary-offline.mjs ".build/cejel-sea/${{ matrix.asset }}"
+
+      - name: Upload verified binary and receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}
+            ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}.verified.json
+          if-no-files-found: error
+          retention-days: 14
+
+  attach:
+    name: Guard 6 and attach to draft release
+    needs: build-and-verify
+    if: ${{ inputs.attach_to_release && github.repository == 'BargLabs/cejel' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Download all verified assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Require complete own-platform verification set
+        run: >-
+          node scripts/verify-cejel-release-set.mjs release-assets
+          --release-tag "${{ inputs.release_tag }}"
+          --package-json package.json
+
+      - name: Require an existing human-created draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: test "$(gh release view "${{ inputs.release_tag }}" --json isDraft --jq .isDraft)" = true
+
+      - name: Attach verified binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.release_tag }}" \
+            release-assets/cejel-Darwin-arm64 \
+            release-assets/cejel-Darwin-x86_64 \
+            release-assets/cejel-Linux-aarch64 \
+            release-assets/cejel-Linux-x86_64 \
+            --clobber

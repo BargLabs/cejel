@@ -35,17 +35,18 @@ export function createWitanAttestation(
   options: CreateWitanAttestationOptions,
 ): WitanAttestationStatement {
   const reportSha256 = hashWitanReport(report);
-  const outcome = report.insufficientSourceReason
-    ? {
-        status: 'abstained' as const,
-        reason: report.insufficientSourceReason,
-      }
-    : {
-        status: 'scored' as const,
-        overallScore: report.overallScore,
-        codeTrustScore: report.codeTrustScore,
-        processTrustScore: report.processTrustScore,
-      };
+  const outcome =
+    report.verdict === 'insufficient_source'
+      ? {
+          status: 'abstained' as const,
+          reason: report.insufficientSourceReason,
+        }
+      : {
+          status: 'scored' as const,
+          overallScore: report.overallScore,
+          codeTrustScore: report.codeTrustScore,
+          processTrustScore: report.processTrustScore,
+        };
 
   return WitanAttestationStatementSchema.parse({
     _type: WITAN_ATTESTATION_STATEMENT_TYPE,
@@ -99,8 +100,12 @@ export function verifyWitanAttestationBinding(
 
   const errors: string[] = [];
   const expectedReportHash = hashWitanReport(report);
-  const subjectHash = parsed.data.subject[0]?.digest.sha256;
+  const subject = parsed.data.subject[0];
+  const subjectHash = subject?.digest.sha256;
   if (subjectHash !== expectedReportHash) errors.push('subject digest does not match report.json');
+  if (subject?.name !== `${report.productSlug}/report.json`) {
+    errors.push('subject name does not match report repository identity');
+  }
   if (parsed.data.predicate.report.sha256 !== expectedReportHash) {
     errors.push('predicate report digest does not match report.json');
   }
@@ -113,9 +118,15 @@ export function verifyWitanAttestationBinding(
   if (parsed.data.predicate.repository.headSha !== report.repo.headSha) {
     errors.push('repository revision does not match report.json');
   }
+  if (parsed.data.predicate.repository.productSlug !== report.productSlug) {
+    errors.push('repository product slug does not match report.json');
+  }
+  if (parsed.data.predicate.repository.url !== report.repo.url) {
+    errors.push('repository URL does not match report.json');
+  }
 
   const outcome = parsed.data.predicate.outcome;
-  if (report.insufficientSourceReason) {
+  if (report.verdict === 'insufficient_source') {
     if (outcome.status !== 'abstained' || outcome.reason !== report.insufficientSourceReason) {
       errors.push('attestation does not preserve the report abstention');
     }
