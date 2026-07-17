@@ -295,6 +295,14 @@ The server exposes one tool and two resources:
 Like the CLI, scoring over MCP is fully offline: no network calls, no telemetry, no signup,
 and the server writes no files.
 
+### Hosted MCP endpoint (Smithery Toolbox)
+
+For remote MCP clients, Smithery publishes a hosted HTTP adapter at
+[`https://cejel.run.tools`](https://cejel.run.tools). Its `scan` tool accepts an inline
+repository snapshot as `{ files: [{ path, content }], format? }` rather than reading a local
+path. The adapter runs the same deterministic scan, makes no outbound network calls, and
+deletes the temporary snapshot after the request; it does not retain uploaded source.
+
 ## What "offline" means here
 
 Scoring a repo — `cejel .` itself, and the Action's scoring step — makes zero network
