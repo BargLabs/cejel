@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "functions": {
+    "api/mcp.ts": {
+      "maxDuration": 60
+    }
+  },
+  "outputDirectory": "."
+}
