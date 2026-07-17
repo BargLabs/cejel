@@ -118,10 +118,10 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Checkout the release tag
+      - name: Checkout validated registry metadata
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ github.sha }}
 
       - name: Install the Official MCP Registry publisher
         run: |
@@ -129,6 +129,9 @@ jobs:
 
       - name: Authenticate with GitHub OIDC
         run: ./mcp-publisher login github-oidc
+
+      - name: Validate registry metadata
+        run: node scripts/validate-distribution-metadata.mjs
 
       - name: Publish server metadata
         run: ./mcp-publisher publish

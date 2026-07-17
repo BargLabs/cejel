@@ -21,7 +21,6 @@
     {
       "registryType": "oci",
       "identifier": "ghcr.io/barglabs/cejel:0.1.6",
-      "version": "0.1.6",
       "transport": {
         "type": "stdio"
       }

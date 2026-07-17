@@ -35,7 +35,9 @@ requireEqual(serverManifest.icons?.[0]?.src, 'https://cejel.dev/brand-icon.png',
 
 const ociPackage = serverManifest.packages?.find((entry) => entry.registryType === 'oci');
 if (!ociPackage) throw new Error('server.json must declare an OCI package.');
-requireEqual(ociPackage.version, packageManifest.version, 'OCI/package version');
+if ('version' in ociPackage) {
+  throw new Error('OCI package must encode its version in identifier, not a separate version field.');
+}
 requireEqual(
   ociPackage.identifier,
   `ghcr.io/barglabs/cejel:${packageManifest.version}`,
