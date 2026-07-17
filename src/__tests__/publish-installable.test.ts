@@ -111,10 +111,18 @@ describe('cejel install-from-tarball (published artifact)', () => {
     expect(output).toContain('Cejel Trust Certificate');
     const certificateHtml = readFileSync(join(targetRepo, '.cejel', 'certificate.html'), 'utf8');
     const reportJson = readFileSync(join(targetRepo, '.cejel', 'report.json'), 'utf8');
+    const attestationJson = readFileSync(join(targetRepo, '.cejel', 'attestation.json'), 'utf8');
     const badgeSvg = readFileSync(join(targetRepo, '.cejel', 'badge.svg'), 'utf8');
-    for (const artifact of [output, certificateHtml, reportJson, badgeSvg]) {
+    for (const artifact of [output, certificateHtml, reportJson, attestationJson, badgeSvg]) {
       expect(artifact).not.toContain('Witan');
     }
+    expect(JSON.parse(attestationJson)).toMatchObject({
+      _type: 'https://in-toto.io/Statement/v1',
+      predicate: {
+        assurance: { status: 'unsigned', issuer: 'self-generated' },
+        outcome: { status: 'abstained' },
+      },
+    });
   });
 
   it('executes every documented flag through the installed artifact', () => {
@@ -137,7 +145,7 @@ describe('cejel install-from-tarball (published artifact)', () => {
       encoding: 'utf8',
     });
 
-    expect(help).toContain('Usage:  npx @cejel/cejel [path] [options]');
+    expect(help).toContain('Usage:  npx cejel [path] [options]');
     expect(shortHelp).toBe(help);
     expect(version).toBe(`${PACKAGE_MANIFEST.version}\n`);
     expect(shortVersion).toBe(version);

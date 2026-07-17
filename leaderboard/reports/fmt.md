@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 1.6 | warning | Declared version range ratio: 1/4 ratio; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 3.2 | info | PR trace primitive coverage: 11 signals (cap 2); Recent PR merge ratio: 0/1 ratio |
 | B3 | CI and QA discipline | Process trust | 3.1 | info | CI verification depth: 2 signals (cap 4); PR-gate CI workflow count: 8 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 2.5 | info | Audit artifact depth: 2 files (cap 3); Audit freshness depth: 1/2 ratio |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
@@ -55,7 +55,7 @@
 - A5: Repository claim source (README.md:1, sha256:26b23c0cda15)
 - A5: Code presence for claim reconciliation (include/fmt/args.h:1, sha256:ce9705a22f68)
 - A5: Repository claim source (README.md:1, sha256:26b23c0cda15) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/codeql.yml:1, sha256:252ba92b5c3e)
 - B2: Pull-request CI workflow (.github/workflows/doc.yml:1, sha256:1ec8a39044dc)
 - B2: Pull-request CI workflow (.github/workflows/fuzz.yml:1, sha256:1962b83eb499)
@@ -64,7 +64,7 @@
 - B3: CI workflow (.github/workflows/codeql.yml:1, sha256:252ba92b5c3e)
 - B4: Audit or changelog artifact (.github/SECURITY.md:1, sha256:d0a63d810fe7)
 - B4: Audit or changelog artifact (ChangeLog.md:1, sha256:01791cf67050)
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:524103c7d5ec)
 
 ## Findings

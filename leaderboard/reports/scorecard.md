@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | 1.8 | warning | Production-readiness primitive coverage: 2/6 primitives; Production workflow depth: 15 signals (cap 6); Observability depth: 3 signals (cap 4); Rollback and migration-safety depth: 0 signals (cap 4) |
 | A4 | Dependency hygiene | Code trust | 2.3 | warning | Pinned dependency ratio: 0/822 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.6 | info | Claim match rate: 12/20 ratio; Claim source depth: 8 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 16 signals (cap 2); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 2.7 | info | CI verification depth: 1 signals (cap 4); PR-gate CI workflow count: 10 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
@@ -55,7 +55,7 @@
 - A5: Code presence for claim reconciliation (cmd/internal/nuget/client.go:1, sha256:04a66196afee)
 - A5: Documented limitations / threat model / "not covered" section (docs/osps-baseline-coverage.md:1, sha256:4a6356f1184a)
 - A5: Repository claim source (README.md:1, sha256:8fed8241afd3) (info)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e)
 - B2: Pull-request CI workflow (.github/workflows/depsreview.yml:1, sha256:b5f2fd32e61b)
 - B2: Pull-request CI workflow (.github/workflows/docker.yml:1, sha256:83df290e4d6e)
@@ -63,7 +63,7 @@
 - B2: Review gate configuration (.github/CODEOWNERS:1, sha256:32bebdd16341)
 - B3: CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e)
 - B4: N/A — Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:32bebdd16341)
 
 ## Findings

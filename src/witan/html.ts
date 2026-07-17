@@ -42,7 +42,7 @@ export function renderWitanHtmlReport(report: WitanReport): string {
     <header class="hero">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">C</span>
-        <span class="brand-name">Cejel / Alfred</span>
+        <span class="brand-name">Cejel</span>
       </div>
       <div class="hero-grid">
         <section>

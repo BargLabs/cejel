@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | 2.3 | warning | Production-readiness primitive coverage: 3/6 primitives; Production workflow depth: 10 signals (cap 6); Observability depth: 4 signals (cap 4); Rollback and migration-safety depth: 0 signals (cap 4) |
 | A4 | Dependency hygiene | Code trust | 2.7 | info | Pinned dependency ratio: 38/123 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 3.2 | info | PR trace primitive coverage: 9 signals (cap 2); Recent PR merge ratio: 0/1 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 5 signals (cap 4); PR-gate CI workflow count: 5 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 2.9 | info | Audit artifact depth: 2 files (cap 3); Audit freshness depth: 2/2 ratio |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
 ## Summary Scores
@@ -53,7 +53,7 @@
 - A5: Repository claim source (README.md:1, sha256:1d5ea6d8b418)
 - A5: Code presence for claim reconciliation (packages-private/dts-built-test/src/index.ts:1, sha256:5d44f16d7982)
 - A5: Repository claim source (README.md:1, sha256:1d5ea6d8b418) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343)
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:ede571131c6d)
 - B2: Pull-request CI workflow (.github/workflows/close-cant-reproduce-issues.yml:1, sha256:8f37190a64d8)
@@ -62,7 +62,7 @@
 - B3: CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343)
 - B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:4f9499f794a5)
 - B4: Audit or changelog artifact (SECURITY.md:1, sha256:f744b4da60a2)
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
 ## Findings

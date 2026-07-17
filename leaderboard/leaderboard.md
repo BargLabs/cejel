@@ -1,13 +1,13 @@
 # Cejel OSS trust leaderboard
 
 - Run date: 2026-07-16T03:31:36.221Z
-- Cejel version: @cejel/cejel@0.1.3 (75fa69511494)
+- Cejel version: cejel@0.1.4 (75fa69511494)
 - Rubric version: witan-rubric-v3-2026-07-13
 
 ## How to read this board
 
 - Scores run 0.0-4.0 and come from a deterministic rubric over observable repository signals: tests and CI discipline, secret handling, dependency hygiene, audit trail, and governance.
-- Every score on this board is produced by the sealed public scorer used by `npx @cejel/cejel .`. Check out the source commit printed in the report, run the tool, and you will get this number. A required guard does that for every corpus row and compares score, verdict, measured coverage, and evidence. No private domain collector may contribute to any published score, ours included (goal_cejel_board_must_be_reproducible_2026-07-12).
+- Every score on this board is produced by the sealed public scorer used by `npx cejel .`. Check out the source commit printed in the report, run the tool, and you will get this number. A required guard does that for every corpus row and compares score, verdict, measured coverage, and evidence. No private domain collector may contribute to any published score, ours included (goal_cejel_board_must_be_reproducible_2026-07-12).
 - Verdict bands: Verified (3.5 and above), Conditional (2.5-3.4), At risk (1.5-2.4), Unverified (below 1.5). Conditional is not bad — many healthy, actively developed repositories land there.
 - A score reflects observable engineering signals only. It is not a security guarantee, not an audit, and not a judgment of a project's value or its maintainers.
 - A score reflects only its MEASURED dimensions. The Coverage column shows how many dimensions were actually measured per category (e.g. "code 4/5 · process 1/6"): a dimension that is not applicable to the repository, or that had insufficient data to measure, produced no score and is excluded from the composite rather than counted against the repository. Unmeasured is not good — it is unknown. Coverage counts every rubric dimension, including the two dimensions the repository scanner marks not applicable for every repository.

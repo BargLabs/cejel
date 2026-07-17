@@ -3,9 +3,11 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  createWitanAttestation,
   renderWitanBadgeEndpoint,
   renderWitanBadgeSvg,
   renderWitanHtmlReport,
+  serializeWitanReport,
 } from './witan/index.js';
 
 import { runCejelScan } from './scan.js';
@@ -100,7 +102,7 @@ const usageOptions = CLI_FLAG_SPECS.map(
 
 export const USAGE = `cejel — a trust certificate for your codebase
 
-Usage:  npx @cejel/cejel [path] [options]
+Usage:  npx cejel [path] [options]
 
 Options:
 ${usageOptions}
@@ -115,7 +117,7 @@ async function main(): Promise<void> {
 }
 
 /**
- * Zero-config public entry: `npx @cejel/cejel .` (or `npx @cejel/cejel`, defaulting to the
+ * Zero-config public entry: `npx cejel .` (or `npx cejel`, defaulting to the
  * current directory). Fully offline — reuses this package's deterministic, no-LLM scoring core
  * and repo-signal collector; this module only adds ergonomic defaults + presentation.
  */
@@ -135,9 +137,15 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
   });
+  const attestation = createWitanAttestation(report, { toolVersion: cliVersion() });
 
   mkdirSync(options.outDir, { recursive: true });
-  writeFileSync(join(options.outDir, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
+  writeFileSync(join(options.outDir, 'report.json'), serializeWitanReport(report), 'utf8');
+  writeFileSync(
+    join(options.outDir, 'attestation.json'),
+    JSON.stringify(attestation, null, 2),
+    'utf8',
+  );
   writeFileSync(join(options.outDir, 'certificate.html'), renderWitanHtmlReport(report), 'utf8');
   writeFileSync(
     join(options.outDir, 'badge.json'),
@@ -150,7 +158,7 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   if (!options.quiet) {
     process.stdout.write(renderTerminalCertificate(summary));
     process.stdout.write(
-      `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg\n`,
+      `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/attestation.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg\n`,
     );
   }
 
@@ -239,7 +247,7 @@ function isEntryPoint(): boolean {
   if (!invokedPath) return false;
   // npm's installed node_modules/.bin/cejel is a symlink to dist/index.js: argv[1] is the
   // symlink path while import.meta.url resolves to the real file, so the comparison must
-  // go through the same realpath or `npx @cejel/cejel`/`.bin/cejel` silently exits 0 doing nothing.
+  // go through the same realpath or `npx cejel`/`.bin/cejel` silently exits 0 doing nothing.
   let resolvedPath: string;
   try {
     resolvedPath = realpathSync(invokedPath);

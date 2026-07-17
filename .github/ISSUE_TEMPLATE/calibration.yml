@@ -1,0 +1,67 @@
+name: Calibration result
+description: Report a mis-score, incorrect refusal, or evidence mismatch so the public error ledger can improve.
+title: "calibration: "
+labels:
+  - calibration
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for checking the checker. Submit only public repository links and redacted output. Do not include secrets, credentials, proprietary code, personal data, or protected health information.
+  - type: input
+    id: repository
+    attributes:
+      label: Public repository URL
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Cejel version
+      description: Run npx cejel --version.
+    validations:
+      required: true
+  - type: dropdown
+    id: result_type
+    attributes:
+      label: What should be reviewed?
+      options:
+        - Incorrect score or finding
+        - Incorrect refusal or abstention
+        - Missing evidence
+        - Unsupported ecosystem
+        - Other calibration issue
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result
+      description: Paste the smallest redacted excerpt needed to reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result and rationale
+      description: Explain what a correct result would be and point to checkable evidence.
+    validations:
+      required: true
+  - type: dropdown
+    id: ledger_permission
+    attributes:
+      label: Public error-ledger permission
+      description: May we cite this public repository and correction in Cejel's public error ledger?
+      options:
+        - Yes
+        - No, keep the report in this issue only
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data-safety confirmation
+      options:
+        - label: I confirm this issue contains no secrets, credentials, proprietary code, personal data, or protected health information.
+          required: true

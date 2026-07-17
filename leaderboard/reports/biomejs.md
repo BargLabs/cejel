@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 3.2 | info | Declared version range ratio: 145/173 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 0.78/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.0 | warning | Claim match rate: 12/12 ratio; Claim source depth: 0 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 27 signals (cap 2); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 3.1 | info | CI verification depth: 2 signals (cap 4); PR-gate CI workflow count: 13 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.3 | info | Audit artifact depth: 15 files (cap 3); Audit freshness depth: 1/15 ratio |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | 1.7 | warning | Human gate documented: 0/1 present; Fail-closed privilege check present: 0/1 present; Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
@@ -56,7 +56,7 @@
 - A5: Repository claim source (.claude/skills/README.md:1, sha256:925ba2986d47)
 - A5: Code presence for claim reconciliation (crates/biome_analyze/src/analyzer_plugin.rs:1, sha256:5592b04fc66d)
 - A5: Repository claim source (.claude/skills/README.md:1, sha256:925ba2986d47) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/actions_linter.yml:1, sha256:517c943a21f6)
 - B2: Pull-request CI workflow (.github/workflows/agent_scan.yml:1, sha256:a56db26d82be)
 - B2: Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:60a60574b234)
@@ -68,7 +68,7 @@
 - B4: Audit or changelog artifact (packages/@biomejs/backend-jsonrpc/CHANGELOG.md:1, sha256:9f04dd92dcb3)
 - B4: Audit or changelog artifact (packages/@biomejs/cli-darwin-arm64/CHANGELOG.md:1, sha256:86d0667e6a39)
 - B4: Audit or changelog artifact (packages/@biomejs/cli-darwin-x64/CHANGELOG.md:1, sha256:551e91efcac5)
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:a56979cfb10c)
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:a56979cfb10c) (warning)
 

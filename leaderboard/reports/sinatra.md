@@ -14,11 +14,11 @@
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | no data | insufficient_data | Insufficient data — no measurable signal for this criterion |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
-| B1 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 3 signals (cap 2); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 0.6 | critical | CI verification depth: 0 signals (cap 4); PR-gate CI workflow count: 1 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 2.5 | info | Audit artifact depth: 2 files (cap 3); Audit freshness depth: 1/2 ratio |
-| B5 | Alfred-internal process dimension | Process trust | N/A | not_applicable | N/A |
+| B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
@@ -48,7 +48,7 @@
 - A5: Repository claim source (README.md:1, sha256:7c8cdf9819db)
 - A5: Code presence for claim reconciliation (lib/sinatra.rb:1, sha256:7c3157fd3ea7)
 - A5: Repository claim source (README.md:1, sha256:7c8cdf9819db) (warning)
-- B1: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2)
 - B2: Pull-request CI workflow (.github/workflows/test.yml:1, sha256:99756d90f358)
 - B2: Review gate configuration (.github/workflows/CODEOWNERS:1, sha256:682a996b6856)
@@ -56,7 +56,7 @@
 - B3: CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2) (critical)
 - B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:21e2a2928d51)
 - B4: Audit or changelog artifact (SECURITY.md:1, sha256:0a317e90d1c1)
-- B5: N/A — Substrate-specific: an Alfred-internal process dimension is not applicable to external code.
+- B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/workflows/CODEOWNERS:1, sha256:682a996b6856)
 
 ## Findings

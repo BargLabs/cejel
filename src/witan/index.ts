@@ -2,6 +2,16 @@ export * from './schemas.js';
 export { renderWitanBadgeEndpoint, renderWitanBadgeSvg } from './badge.js';
 export type { WitanBadgeEndpoint } from './badge.js';
 export {
+  createWitanAttestation,
+  hashWitanReport,
+  serializeWitanReport,
+  verifyWitanAttestationBinding,
+} from './attestation.js';
+export type {
+  CreateWitanAttestationOptions,
+  WitanAttestationBindingVerification,
+} from './attestation.js';
+export {
   LOW_CONFIDENCE_COVERAGE_THRESHOLD,
   computeMeasuredCoverage,
   formatCoverageCellMarkdown,

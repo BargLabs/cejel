@@ -44,11 +44,10 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 **npm.**
 
 ```bash
-npx @cejel/cejel .
+npx cejel .
 ```
 
-> **On the name.** npm rejects the unscoped `cejel` package name as too similar to an
-> existing package (`level`). The published package is the scoped `@cejel/cejel`.
+The npm package and executable intentionally share the same unscoped name: `cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
 
@@ -77,7 +76,7 @@ corpus scored and published in the open — elite OSS projects, Cejel itself, an
 studio monorepo Cejel was built inside — with a per-repository evidence report for every
 row under [`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
 [cejel.dev](https://cejel.dev). Every score on this board is produced by the same sealed
-public scorer used by `npx @cejel/cejel .` — check out the source commit printed in the
+public scorer used by `npx cejel .` — check out the source commit printed in the
 report, run the tool, and you will get this number. A required guard does exactly that for
 every corpus row and compares score, verdict, measured coverage, and evidence. No private
 domain collector contributes to any published score, ours included; nobody is exempt.
@@ -123,10 +122,17 @@ Scores the current directory with sensible defaults: no flags, no signup, fully 
 Prints a concise terminal certificate and writes to `.cejel/`:
 
 - `report.json` — the full structured report
+- `attestation.json` — an unsigned in-toto statement binding the report digest, repository
+  revision, rubric, and scored-or-abstained outcome; ready for an external signer
 - `certificate.html` — a self-contained HTML certificate (no external assets)
 - `badge.json` — a [shields.io endpoint](https://shields.io/badges/endpoint-badge) payload
 - `badge.svg` — a static, self-contained trust-score badge
 - `summary.json` — a compact digest (score, verdict, top findings)
+
+The attestation is deliberately explicit about its assurance level: Cejel creates the
+statement, but it does not pretend to be an independent signer. Until a customer, reviewer,
+or provenance system signs it, `assurance.status` is `unsigned` and `issuer` is
+`self-generated`. An abstained scan carries only the refusal reason, never a numeric score.
 
 ### Flags
 
@@ -270,7 +276,7 @@ Add it to an MCP client config:
   "mcpServers": {
     "cejel": {
       "command": "npx",
-      "args": ["-y", "--package=@cejel/cejel", "cejel-mcp"]
+      "args": ["-y", "--package=cejel", "cejel-mcp"]
     }
   }
 }
@@ -281,9 +287,9 @@ The server exposes one tool and two resources:
 - `scan` — input `{ path, format? }`; scores the repository at `path` and returns the trust
   cert as JSON (`format: "summary"`, the default, is the compact digest; `format: "json"` is
   the full report, identical to the CLI's `report.json`).
-- `cejel-cejel://last-scan/certificate.html` and `cejel-cejel://last-scan/badge.svg` — the
+- `cejel://last-scan/certificate.html` and `cejel://last-scan/badge.svg` — the
   HTML certificate and SVG badge for the most recent scan (the URI scheme derives from the
-  npm package name, `@cejel/cejel` → `cejel-cejel`).
+  npm package name).
 
 Like the CLI, scoring over MCP is fully offline: no network calls, no telemetry, no signup,
 and the server writes no files.
@@ -291,9 +297,23 @@ and the server writes no files.
 ## What "offline" means here
 
 Scoring a repo — `cejel .` itself, and the Action's scoring step — makes zero network
-calls: no telemetry, no signup, no model call. Fetching the `@cejel/cejel` package the
+calls: no telemetry, no signup, no model call. Fetching the `cejel` package the
 first time (like any npm-distributed CLI, including this Action's own dependency install)
 does need network; that's a one-time install cost, not part of the scoring guarantee.
+
+## Help validate Cejel
+
+Cejel does not collect telemetry. External validation is therefore opt-in and inspectable:
+
+- [Report a calibration result](https://github.com/BargLabs/cejel/issues/new?template=calibration.yml)
+  when a score, finding, evidence pointer, or refusal is wrong. The form asks permission before
+  a correction is added to the public error ledger.
+- [Join a pack design-partner pilot](https://github.com/BargLabs/cejel/issues/new?template=pack-interest.yml)
+  for the Quant or Healthcare Pack. Both remain pilot surfaces until their domain-specific
+  calibration gates pass.
+
+Submit only public or redacted evidence. Never put credentials, proprietary strategy code,
+patient data, or protected health information in a GitHub issue.
 
 ## The public leaderboard: what we redact, what we exclude, and where we were wrong
 

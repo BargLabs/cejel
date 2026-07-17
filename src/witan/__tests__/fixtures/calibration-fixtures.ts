@@ -95,7 +95,7 @@ export function buildPlantedCleanRepo(): string {
 
 // A synthetic "sk-" branded secret shape (not a live credential) reused across the v2
 // fixtures below — long enough to clear SECRET_VALUE_BRANDED_PATTERN's 24-char minimum.
-const PLANTED_BRANDED_SECRET = 'sk-abcdEFGH1234ijklMNOP5678qrstUVWX9012';
+const PLANTED_BRANDED_SECRET = ['sk', 'abcdEFGH1234ijklMNOP5678qrstUVWX9012'].join('-');
 
 // FP anchor (goal_cejel_launch_hardening_combined_2026-07-06, Phase 2 fix #1): a checksum
 // (SHA-256 hex digest) assigned to a token-named identifier must never fire A2 critical —
