@@ -1,6 +1,7 @@
 {
   "name": "@cejel/cejel",
-  "version": "0.1.5",
+  "version": "0.1.6",
+  "mcpName": "io.github.BargLabs/cejel",
   "private": false,
   "publishConfig": {
     "access": "public"
@@ -46,6 +47,7 @@
   "scripts": {
     "build": "tsup",
     "build:sea-js": "tsup --config tsup.public-sea.config.ts",
+    "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
     "prepublishOnly": "pnpm run build",
     "prepack": "pnpm run build",
     "dev": "tsx src/index.ts",

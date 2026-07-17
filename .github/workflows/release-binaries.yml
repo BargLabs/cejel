@@ -118,6 +118,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -152,6 +154,17 @@ jobs:
           cejel-Linux-x86_64
           > SHA256SUMS
 
+      - name: Create signed provenance for all release binaries
+        id: attest
+        uses: actions/attest@v4
+        with:
+          subject-checksums: release-assets/SHA256SUMS
+
+      - name: Stage portable Sigstore provenance bundle
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE_PATH" "release-assets/cejel-${{ inputs.release_tag }}-provenance.sigstore.json"
+
       - name: Attach verified binaries and checksums
         env:
           GH_TOKEN: ${{ github.token }}
@@ -162,4 +175,5 @@ jobs:
             release-assets/cejel-Linux-aarch64 \
             release-assets/cejel-Linux-x86_64 \
             release-assets/SHA256SUMS \
+            "release-assets/cejel-${{ inputs.release_tag }}-provenance.sigstore.json" \
             --clobber

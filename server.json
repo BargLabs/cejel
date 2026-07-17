@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.BargLabs/cejel",
+  "title": "Cejel",
+  "description": "Offline deterministic engineering-trust certificates for repositories, with no telemetry.",
+  "version": "0.1.6",
+  "websiteUrl": "https://cejel.dev",
+  "repository": {
+    "url": "https://github.com/BargLabs/cejel",
+    "source": "github",
+    "id": "1291714236"
+  },
+  "icons": [
+    {
+      "src": "https://cejel.dev/brand-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["1024x1024"]
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/barglabs/cejel:0.1.6",
+      "version": "0.1.6",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
