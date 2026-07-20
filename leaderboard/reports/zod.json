@@ -5,11 +5,8 @@
     "url": "https://github.com/colinhacks/zod",
     "headSha": "912f0f51b0ced654d0069741e7160834dca742ee"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.8,
-  "processTrustScore": 3.2,
-  "overallScore": 3,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -304,15 +301,15 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 2.2,
+      "score": 2,
       "status": "warning",
       "evidence": [
         {
           "kind": "claim_reconciliation",
           "label": "Repository claim source",
-          "path": "README.md",
+          "path": "packages/docs/README.md",
           "line": 1,
-          "contentHash": "0ae96d90800b51cee45fe028e14474db1e58ea6479e4d9ed02de28b53c27500e"
+          "contentHash": "7f0502b803e70774369c8c996480f3a8d101556abcc11395564b7091d0595561"
         },
         {
           "kind": "artifact",
@@ -329,9 +326,9 @@
           "evidence": {
             "kind": "claim_reconciliation",
             "label": "Repository claim source",
-            "path": "README.md",
+            "path": "packages/docs/README.md",
             "line": 1,
-            "contentHash": "0ae96d90800b51cee45fe028e14474db1e58ea6479e4d9ed02de28b53c27500e"
+            "contentHash": "7f0502b803e70774369c8c996480f3a8d101556abcc11395564b7091d0595561"
           }
         }
       ],
@@ -340,7 +337,7 @@
           "name": "claim_match_rate",
           "label": "Claim match rate",
           "value": 12,
-          "max": 13,
+          "max": 12,
           "weight": 0.5,
           "unit": "ratio",
           "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
@@ -348,7 +345,7 @@
         {
           "name": "claim_source_depth",
           "label": "Claim source depth",
-          "value": 1,
+          "value": 0,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.35,
@@ -550,5 +547,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "monorepo"
+  "archetype": "monorepo",
+  "verdict": "conditional",
+  "codeTrustScore": 2.8,
+  "processTrustScore": 3.2,
+  "overallScore": 3
 }

@@ -1,8 +1,8 @@
 # Cejel OSS trust leaderboard
 
-- Run date: 2026-07-16T03:31:36.221Z
-- Cejel version: cejel@0.1.4 (75fa69511494)
-- Rubric version: witan-rubric-v3-2026-07-13
+- Run date: 2026-07-20T04:39:49.061Z
+- Cejel version: cejel@0.1.6 (4af6f2e66916)
+- Rubric version: witan-rubric-v5-2026-07-18
 
 ## How to read this board
 
@@ -58,7 +58,7 @@ _Below the coverage floor: scored on fewer than half of the applicable dimension
 
 | Repository | Category | License | Overall | Ranked score (common dimensions) | Code trust | Process trust | Coverage | Findings | Verdict | Badge | Evidence | Reason |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| [cejel](reports/cejel.md) | internal-tool | AGPL-3.0-only | 3.4 | 3.4 | 2.7 | 4.0 | code 4/5 · process 1/6 · **low confidence** | 2 | Conditional | ![cejel badge](reports/cejel-badge.svg) | [certificate](reports/cejel.html) · [report](reports/cejel.md) · [json (machine-readable)](reports/cejel.json) | scored on 5 of 11 dimensions — too few to rank |
+| [cejel](reports/cejel.md) | internal-tool | AGPL-3.0-only | 3.3 | 3.3 | 2.5 | 4.0 | code 3/5 · process 1/6 · **low confidence** | 2 | Conditional | ![cejel badge](reports/cejel-badge.svg) | [certificate](reports/cejel.html) · [report](reports/cejel.md) · [json (machine-readable)](reports/cejel.json) | scored on 4 of 11 dimensions — too few to rank |
 | [django](https://github.com/django/django) | framework-python | BSD-3-Clause | 3.2 | 3.2 | 2.6 | 3.8 | code 3/5 · process 2/6 · **low confidence** | 1 | Conditional | ![cejel badge](reports/django-badge.svg) | [certificate](reports/django.html) · [report](reports/django.md) · [json (machine-readable)](reports/django.json) | scored on 5 of 11 dimensions — too few to rank |
 | [cobra](https://github.com/spf13/cobra) | library-go | Apache-2.0 | 2.6 | 2.5 | 2.8 | 2.3 | code 2/5 · process 2/6 · **low confidence** | 2 | Conditional | ![cejel badge](reports/cobra-badge.svg) | [certificate](reports/cobra.html) · [report](reports/cobra.md) · [json (machine-readable)](reports/cobra.json) | scored on 4 of 11 dimensions — too few to rank |
 | [sinatra](https://github.com/sinatra/sinatra) | framework-ruby | MIT | 2.4 | 2.4 | 2.0 | 2.8 | code 2/5 · process 4/6 · **low confidence** | 3 | At risk | ![cejel badge](reports/sinatra-badge.svg) | [certificate](reports/sinatra.html) · [report](reports/sinatra.md) · [json (machine-readable)](reports/sinatra.json) | scored on 6 of 11 dimensions — too few to rank |
@@ -93,7 +93,7 @@ _Below the coverage floor: scored on fewer than half of the applicable dimension
 
 ### internal-tool
 
-- cejel — 3.4 (Conditional) — low confidence
+- cejel — 3.3 (Conditional) — low confidence
 
 ### library-cpp
 
@@ -127,7 +127,7 @@ _Below the coverage floor: scored on fewer than half of the applicable dimension
 
 ### mainframe-cobol
 
-- carddemo — unrated (Insufficient source) — low confidence
+- carddemo — — (Insufficient source) — low confidence
 
 ### supply-chain-governance
 

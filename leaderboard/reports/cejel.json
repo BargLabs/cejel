@@ -3,13 +3,10 @@
   "productDisplayName": "cejel",
   "repo": {
     "path": "packages/witan-cli",
-    "headSha": "75fa69511494da0c327562323ae4a53b2aba792e"
+    "headSha": "4af6f2e66916045f6dfe32c86b3e8619cbb1ebd1"
   },
-  "generatedAt": "2026-07-16T03:31:36.221Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.7,
-  "processTrustScore": 4,
-  "overallScore": 3.4,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -21,13 +18,13 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "9b6ccdbfc56193336a6ab173e62d57a322fbd818464afd6221a3146dddfc5253",
+          "contentHash": "29d08bc31eac88507c02561bd831f6ac8e8cd921995f86e5510586af71fa8825",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "d8f3c88af71d75e1afab900856dcb3200d364a73d983fdb578a4d193009751b0",
+          "contentHash": "bb6e3dd9fbf6c45feec2df56a8d76baa7d910902131415f8c132193ea587c36b",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -51,7 +48,7 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "5b78f837ff73c394a40fc1f3232b421a829cfd328bd471bfdba0d8e928a8072d",
+          "contentHash": "769522dc7110b582a0d469983e42b7c53efc9aaad391b2a74b7d175fdae97b77",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -63,13 +60,13 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "075d469c7f4118263b242f3e060fb58f198fb331b993f778e458e25c6e3a8e84",
+          "contentHash": "028dedfad85c0edb828beffbc560b48683069468dfd786754427184097fec297",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "contentHash": "5fe3a7689f903b254d4f719b0d2ee2ea6e4adaa3091660cc4c1213cd006bc93a",
+          "contentHash": "cf3ff5f0bf135668b148b0c17e0a911fcfe2b0870b3651510f3fb53f835177b1",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -80,7 +77,7 @@
           "evidence": {
             "kind": "test_run",
             "label": "Detected test file",
-            "contentHash": "9b6ccdbfc56193336a6ab173e62d57a322fbd818464afd6221a3146dddfc5253",
+            "contentHash": "29d08bc31eac88507c02561bd831f6ac8e8cd921995f86e5510586af71fa8825",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -90,7 +87,7 @@
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
           "value": 11,
-          "max": 7,
+          "max": 8,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -131,38 +128,12 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 3.2,
-      "status": "info",
-      "evidence": [
-        {
-          "kind": "secret_scan",
-          "label": ".env path detected in git history",
-          "contentHash": "75fa69511494da0c327562323ae4a53b2aba792e",
-          "locationWithheld": "path withheld — private repository"
-        }
-      ],
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
       "findings": [],
-      "metrics": [
-        {
-          "name": "secret_cleanliness",
-          "label": "Secret cleanliness",
-          "value": 1,
-          "max": 1,
-          "weight": 0.7,
-          "unit": "clean",
-          "description": "Credits absence of committed or recent-history secret findings in the static scan."
-        },
-        {
-          "name": "env_handling_depth",
-          "label": "Environment handling depth",
-          "value": 1,
-          "max": 3,
-          "weight": 0.3,
-          "unit": "practices",
-          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
-        }
-      ],
-      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+      "metrics": [],
+      "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify."
     },
     {
       "id": "A3",
@@ -185,13 +156,13 @@
         {
           "kind": "dependency_report",
           "label": "Dependency manifest",
-          "contentHash": "5fe3a7689f903b254d4f719b0d2ee2ea6e4adaa3091660cc4c1213cd006bc93a",
+          "contentHash": "cf3ff5f0bf135668b148b0c17e0a911fcfe2b0870b3651510f3fb53f835177b1",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "dependency_report",
           "label": "Dependency lockfile (monorepo root)",
-          "contentHash": "6324f0e9d81a228ae97b8482f5366b9a7d7371ad7b0f0e2345e7958fa384b98a",
+          "contentHash": "94fe1c37ae24dfdba250b11f115f2bae72e8e640a8ea3c1c6c72714a9f5b27ed",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -200,8 +171,8 @@
         {
           "name": "declared_version_range_ratio",
           "label": "Declared version range ratio",
-          "value": 9,
-          "max": 9,
+          "value": 10,
+          "max": 10,
           "weight": 0.5,
           "unit": "ratio",
           "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
@@ -246,13 +217,13 @@
         {
           "kind": "claim_reconciliation",
           "label": "Repository claim source",
-          "contentHash": "4a2b7d85dfcf51e2b2bad450d3c7b37cb58af75858424d9f601ebc4f8af63381",
+          "contentHash": "7306a81ddc1a8ef69c669df11aa982c42cc264ed1f4f088f28e8f62f51d40664",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "artifact",
           "label": "Code presence for claim reconciliation",
-          "contentHash": "9b6ccdbfc56193336a6ab173e62d57a322fbd818464afd6221a3146dddfc5253",
+          "contentHash": "29d08bc31eac88507c02561bd831f6ac8e8cd921995f86e5510586af71fa8825",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -263,7 +234,7 @@
           "evidence": {
             "kind": "claim_reconciliation",
             "label": "Repository claim source",
-            "contentHash": "4a2b7d85dfcf51e2b2bad450d3c7b37cb58af75858424d9f601ebc4f8af63381",
+            "contentHash": "7306a81ddc1a8ef69c669df11aa982c42cc264ed1f4f088f28e8f62f51d40664",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -330,7 +301,7 @@
         {
           "kind": "test_run",
           "label": "Test script",
-          "contentHash": "5fe3a7689f903b254d4f719b0d2ee2ea6e4adaa3091660cc4c1213cd006bc93a",
+          "contentHash": "cf3ff5f0bf135668b148b0c17e0a911fcfe2b0870b3651510f3fb53f835177b1",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -399,5 +370,9 @@
     }
   ],
   "archetype": "source",
+  "verdict": "conditional",
+  "codeTrustScore": 2.5,
+  "processTrustScore": 4,
+  "overallScore": 3.3,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

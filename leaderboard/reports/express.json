@@ -5,11 +5,8 @@
     "url": "https://github.com/expressjs/express",
     "headSha": "ba006766fb964571723138708eacaba0f55759cd"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.6,
-  "processTrustScore": 3,
-  "overallScore": 2.8,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -468,5 +465,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "source"
+  "archetype": "source",
+  "verdict": "conditional",
+  "codeTrustScore": 2.6,
+  "processTrustScore": 3,
+  "overallScore": 2.8
 }

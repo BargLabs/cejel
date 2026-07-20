@@ -5,11 +5,8 @@
     "url": "https://github.com/vuejs/core",
     "headSha": "c0606e91798c8dca4f33d101e1dd836d672592c1"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.4,
-  "processTrustScore": 3.4,
-  "overallScore": 2.9,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -545,5 +542,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "monorepo"
+  "archetype": "monorepo",
+  "verdict": "conditional",
+  "codeTrustScore": 2.4,
+  "processTrustScore": 3.4,
+  "overallScore": 2.9
 }

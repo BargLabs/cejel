@@ -1,8 +1,8 @@
 # Cejel Trust Report - guava
 
 - Product: guava
-- Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-16T03:09:48.024Z
+- Rubric: witan-rubric-v5-2026-07-18
+- Generated: 2026-07-20T04:39:49.061Z
 - Repository: https://github.com/google/guava @ 486837d756e6d48864620e91b0761467e2abe744
 
 ## Criterion Profile

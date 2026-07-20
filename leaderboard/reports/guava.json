@@ -5,11 +5,8 @@
     "url": "https://github.com/google/guava",
     "headSha": "486837d756e6d48864620e91b0761467e2abe744"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 1.5,
-  "processTrustScore": 2.2,
-  "overallScore": 1.9,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -432,5 +429,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "source"
+  "archetype": "source",
+  "verdict": "at_risk",
+  "codeTrustScore": 1.5,
+  "processTrustScore": 2.2,
+  "overallScore": 1.9
 }

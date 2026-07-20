@@ -3,13 +3,10 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "75fa69511494da0c327562323ae4a53b2aba792e"
+    "headSha": "4af6f2e66916045f6dfe32c86b3e8619cbb1ebd1"
   },
-  "generatedAt": "2026-07-16T03:31:36.221Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.4,
-  "processTrustScore": 3.8,
-  "overallScore": 3.1,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -101,8 +98,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 340,
-          "max": 607,
+          "value": 353,
+          "max": 624,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -130,8 +127,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 337,
-          "max": 340,
+          "value": 350,
+          "max": 353,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -147,15 +144,15 @@
       "status": "warning",
       "evidence": [
         {
-          "kind": "secret_scan",
-          "label": ".env path detected in git history",
-          "contentHash": "75fa69511494da0c327562323ae4a53b2aba792e",
+          "kind": "artifact",
+          "label": "Data layer migration",
+          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "secret_scan",
           "label": ".env files are gitignored",
-          "contentHash": "172e11a7d91fe402adc1a9c8cad81d8eb77bd6d4ec43b2626683eaaa9d16a008",
+          "contentHash": "d4879d8a5ea4e846c746b40ac398eedd411bd7a61a8388a6c6f2cc9e1a6d6c94",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -190,7 +187,7 @@
           "evidence": {
             "kind": "secret_scan",
             "label": "Committed secret-shaped value",
-            "contentHash": "d1c23e6f5de52b88be1177a373f4c3c91605aedfa4eb255d53e544a50c019be7",
+            "contentHash": "213989426f8b192b207bf4178276fee4fa623d9f3020163312ce5662e383334f",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -246,7 +243,7 @@
         {
           "kind": "prod_check",
           "label": "Build or typecheck script",
-          "contentHash": "a2b5e4604eba68c39678cb11dae2bbc997b7c200976b366c7e93eea57b8ae2cc",
+          "contentHash": "dbffd60fc9467c9c7f8556be6db7c6fac52a845c5c67666969f64ea9517c0cb7",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -276,7 +273,7 @@
         {
           "name": "prod_workflow_depth",
           "label": "Production workflow depth",
-          "value": 25,
+          "value": 26,
           "max": 6,
           "kind": "saturating_count",
           "weight": 0.2,
@@ -286,7 +283,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 85,
+          "value": 94,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -296,7 +293,7 @@
         {
           "name": "rollback_safety_depth",
           "label": "Rollback and migration-safety depth",
-          "value": 77,
+          "value": 116,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.15,
@@ -321,7 +318,7 @@
         {
           "kind": "dependency_report",
           "label": "Dependency lockfile",
-          "contentHash": "6324f0e9d81a228ae97b8482f5366b9a7d7371ad7b0f0e2345e7958fa384b98a",
+          "contentHash": "94fe1c37ae24dfdba250b11f115f2bae72e8e640a8ea3c1c6c72714a9f5b27ed",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -342,7 +339,7 @@
           "name": "pinned_dependency_ratio",
           "label": "Pinned dependency ratio",
           "value": 61,
-          "max": 208,
+          "max": 209,
           "weight": 0.3,
           "unit": "ratio",
           "description": "Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee."
@@ -479,7 +476,7 @@
         {
           "name": "pr_trace_primitives",
           "label": "PR trace primitive coverage",
-          "value": 26,
+          "value": 27,
           "max": 2,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -489,7 +486,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 10,
+          "value": 11,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -507,13 +504,13 @@
         {
           "kind": "test_run",
           "label": "Test script",
-          "contentHash": "a2b5e4604eba68c39678cb11dae2bbc997b7c200976b366c7e93eea57b8ae2cc",
+          "contentHash": "dbffd60fc9467c9c7f8556be6db7c6fac52a845c5c67666969f64ea9517c0cb7",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "ci_run",
           "label": "Lint script",
-          "contentHash": "a2b5e4604eba68c39678cb11dae2bbc997b7c200976b366c7e93eea57b8ae2cc",
+          "contentHash": "dbffd60fc9467c9c7f8556be6db7c6fac52a845c5c67666969f64ea9517c0cb7",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -563,7 +560,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "3461cbc7a91785e7e22462fd31e0cfdd558d4541a9b43f76d97791c4a443114b",
+          "contentHash": "15f07ce24aa0bf5c8f9f10f3937bd5a37fa37cc4872b553ec03812ba58d02d10",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -590,7 +587,7 @@
         {
           "name": "audit_artifact_depth",
           "label": "Audit artifact depth",
-          "value": 66,
+          "value": 68,
           "max": 3,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -600,8 +597,8 @@
         {
           "name": "audit_freshness_depth",
           "label": "Audit freshness depth",
-          "value": 58,
-          "max": 66,
+          "value": 60,
+          "max": 68,
           "weight": 0.2,
           "unit": "ratio",
           "description": "Credits audit artifacts that carry freshness/current-state markers."
@@ -647,7 +644,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "3461cbc7a91785e7e22462fd31e0cfdd558d4541a9b43f76d97791c4a443114b",
+          "contentHash": "15f07ce24aa0bf5c8f9f10f3937bd5a37fa37cc4872b553ec03812ba58d02d10",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -714,5 +711,9 @@
     }
   ],
   "archetype": "monorepo",
+  "verdict": "conditional",
+  "codeTrustScore": 2.4,
+  "processTrustScore": 3.8,
+  "overallScore": 3.1,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

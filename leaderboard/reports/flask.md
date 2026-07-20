@@ -1,8 +1,8 @@
 # Cejel Trust Report - flask
 
 - Product: flask
-- Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-16T03:09:48.024Z
+- Rubric: witan-rubric-v5-2026-07-18
+- Generated: 2026-07-20T04:39:49.061Z
 - Repository: https://github.com/pallets/flask @ 36e4a824f340fdee7ed50937ba8e7f6bc7d17f81
 
 ## Criterion Profile

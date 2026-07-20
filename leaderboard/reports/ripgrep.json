@@ -5,11 +5,8 @@
     "url": "https://github.com/BurntSushi/ripgrep",
     "headSha": "d5b85d44057ff729a89be9c6549958c45d95aa99"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.4,
-  "processTrustScore": 2,
-  "overallScore": 2.2,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -503,5 +500,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "source"
+  "archetype": "source",
+  "verdict": "at_risk",
+  "codeTrustScore": 2.4,
+  "processTrustScore": 2,
+  "overallScore": 2.2
 }

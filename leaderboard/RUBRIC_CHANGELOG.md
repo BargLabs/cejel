@@ -12,6 +12,110 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## witan-rubric-v5-2026-07-18
+
+**What changed.** Git-history evidence is now read only from commits reachable from the
+checked-out `HEAD`. Previous versions used `--all`, so unrelated local branches and
+remote-tracking refs could alter A2 evidence, measured coverage, and the score of the same
+pinned source commit. V5 binds the history scan to the immutable revision being certified.
+
+**Why.** The required public-path reproduction job caught the same pinned Alfred/Cejel
+snapshots producing different evidence in a developer worktree and a clean CI clone. The
+clone's extra refs exposed a historical `.env` path that the generation environment did not
+see. That was ambient clone state, not evidence for a different source snapshot. A regression
+test now adds credential history on a non-HEAD branch and proves it cannot affect A2.
+
+All 21 externally pinned rows are unchanged. Alfred's score is also unchanged, although its
+complete evidence set is now reproducible. The Cejel self row gains the HEAD-ancestor history
+signal that clean-clone reproduction had already exposed: A2 moves **0.0 to 3.2**, Code trust
+**2.5 to 2.7**, and Overall **3.3 to 3.4**. It remains low-coverage and unranked; no ranked
+position, verdict, or external score moves. The self snapshot moves from `d6248edd47f6` to
+`25627e00c6eb`, the clean v5 implementation commit; external source pins do not move.
+
+**Full v4 to v5 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | A2 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| react | 3.2 to 3.2 | 2.5 to 2.5 | 3.9 to 3.9 | 2.4 to 2.4 | Conditional to Conditional | 4 to 4 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | 0.0 to 0.0 | Conditional to Conditional | 11 to 11 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | 3.6 to 3.6 | Conditional to Conditional | 5 to 5 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | 2.8 to 2.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.8 to 2.8 | 2.5 to 2.5 | 3.0 to 3.0 | 2.4 to 2.4 | Conditional to Conditional | 14 to 14 |
+| fastapi | 2.9 to 2.9 | 2.5 to 2.5 | 3.2 to 3.2 | 0.0 to 0.0 | Conditional to Conditional | 13 to 13 |
+| express | 2.8 to 2.8 | 2.6 to 2.6 | 3.0 to 3.0 | 0.0 to 0.0 | Conditional to Conditional | 12 to 12 |
+| vite | 3.3 to 3.3 | 2.6 to 2.6 | 4.0 to 4.0 | 2.4 to 2.4 | Conditional to Conditional | 2 to 2 |
+| esbuild | 2.6 to 2.6 | 2.7 to 2.7 | 2.4 to 2.4 | 0.0 to 0.0 | Conditional to Conditional | 16 to 16 |
+| biomejs | 2.9 to 2.9 | 2.8 to 2.8 | 3.0 to 3.0 | 3.2 to 3.2 | Conditional to Conditional | 8 to 8 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | 0.0 to 0.0 | Conditional to Conditional | 9 to 9 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | 0.0 to 0.0 | Conditional to Conditional | 3 to 3 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | 3.6 to 3.6 | Conditional to Conditional | 1 to 1 |
+| zod | 3.0 to 3.0 | 2.8 to 2.8 | 3.2 to 3.2 | 3.6 to 3.6 | Conditional to Conditional | 7 to 7 |
+| scorecard | 3.0 to 3.0 | 2.3 to 2.3 | 3.6 to 3.6 | 0.0 to 0.0 | Conditional to Conditional | 10 to 10 |
+| ripgrep | 2.2 to 2.2 | 2.4 to 2.4 | 2.0 to 2.0 | 0.0 to 0.0 | At risk to At risk | 17 to 17 |
+| guava | 1.9 to 1.9 | 1.5 to 1.5 | 2.2 to 2.2 | 0.0 to 0.0 | At risk to At risk | unranked to unranked |
+| cobra | 2.6 to 2.6 | 2.8 to 2.8 | 2.3 to 2.3 | 0.0 to 0.0 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | 0.0 to 0.0 | At risk to At risk | unranked to unranked |
+| automapper | 1.9 to 1.9 | 1.5 to 1.5 | 2.3 to 2.3 | 0.0 to 0.0 | At risk to At risk | unranked to unranked |
+| fmt | 2.7 to 2.7 | 2.2 to 2.2 | 3.2 to 3.2 | 0.0 to 0.0 | Conditional to Conditional | 15 to 15 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | 0.0 to 0.0 | Insufficient source to Insufficient source | insufficient to insufficient |
+| alfred | 3.0 to 3.0 | 2.4 to 2.4 | 3.6 to 3.6 | 2.4 to 2.4 | Conditional to Conditional | 6 to 6 |
+| cejel | **3.3 to 3.4** | **2.5 to 2.7** | 4.0 to 4.0 | **0.0 to 3.2** | Conditional to Conditional | unranked to unranked |
+
+No external score, verdict, evidence-derived rank, or source pin moved. No ranked row moved.
+
+## witan-rubric-v4-2026-07-18
+
+**What changed.** Repository evidence discovery now accepts only tracked regular files. It
+does not follow tracked symlinks, because a symlink target can escape the immutable checkout
+and make both evidence and scores depend on ambient host files. The scorer still records the
+symlink in Git history, but never reads its target as repository evidence.
+
+**Why.** The pinned Zod snapshot has a root `README.md` symlink. V3 followed that link while
+also discovering the target `packages/docs/README.md`, which counted one claim source twice
+and credited depth that did not exist. V4 reads only the regular target file. Zod A5 falls
+from **2.2 to 2.0**; its rounded Code trust, Overall, verdict, and rank do not move. No other
+externally pinned repository changes score, verdict, or rank.
+
+The same regeneration moved the two self rows from source snapshot `75fa69511494` to the
+clean v4 prerequisite commit recorded in their reports. Those are disclosed as a separate
+corpus-pin act, not attributed to the symlink rubric change: Alfred falls **3.1 to 3.0** and
+rank 5 to 6; Cejel falls **3.4 to 3.3** and remains unranked for low coverage. Svelte moves
+rank 6 to 5 only because Alfred moves below it. CardDemo remains scoreless with
+`insufficient_source`.
+
+**Full v3→v4 delta (all 24 rows; external source pins unchanged):**
+
+| Repository | Overall | Code trust | Process trust | A5 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| react | 3.2 → 3.2 | 2.5 → 2.5 | 3.9 → 3.9 | 2.2 → 2.2 | Conditional → Conditional | 4 → 4 |
+| vue | 2.9 → 2.9 | 2.4 → 2.4 | 3.4 → 3.4 | 2.2 → 2.2 | Conditional → Conditional | 11 → 11 |
+| svelte | 3.1 → 3.1 | 2.9 → 2.9 | 3.3 → 3.3 | 2.2 → 2.2 | Conditional → Conditional | 6 → 5 |
+| django | 3.2 → 3.2 | 2.6 → 2.6 | 3.8 → 3.8 | 0.0 → 0.0 | Conditional → Conditional | unranked → unranked |
+| flask | 2.8 → 2.8 | 2.5 → 2.5 | 3.0 → 3.0 | 2.2 → 2.2 | Conditional → Conditional | 14 → 14 |
+| fastapi | 2.9 → 2.9 | 2.5 → 2.5 | 3.2 → 3.2 | 2.0 → 2.0 | Conditional → Conditional | 13 → 13 |
+| express | 2.8 → 2.8 | 2.6 → 2.6 | 3.0 → 3.0 | 2.0 → 2.0 | Conditional → Conditional | 12 → 12 |
+| vite | 3.3 → 3.3 | 2.6 → 2.6 | 4.0 → 4.0 | 2.7 → 2.7 | Conditional → Conditional | 2 → 2 |
+| esbuild | 2.6 → 2.6 | 2.7 → 2.7 | 2.4 → 2.4 | 2.4 → 2.4 | Conditional → Conditional | 16 → 16 |
+| biomejs | 2.9 → 2.9 | 2.8 → 2.8 | 3.0 → 3.0 | 2.0 → 2.0 | Conditional → Conditional | 8 → 8 |
+| requests | 2.9 → 2.9 | 2.4 → 2.4 | 3.4 → 3.4 | 2.2 → 2.2 | Conditional → Conditional | 9 → 9 |
+| pydantic | 3.2 → 3.2 | 2.9 → 2.9 | 3.5 → 3.5 | 2.4 → 2.4 | Conditional → Conditional | 3 → 3 |
+| axios | 3.3 → 3.3 | 2.6 → 2.6 | 3.9 → 3.9 | 2.4 → 2.4 | Conditional → Conditional | 1 → 1 |
+| zod | 3.0 → 3.0 | 2.8 → 2.8 | 3.2 → 3.2 | **2.2 → 2.0** | Conditional → Conditional | 7 → 7 |
+| scorecard | 3.0 → 3.0 | 2.3 → 2.3 | 3.6 → 3.6 | 2.6 → 2.6 | Conditional → Conditional | 10 → 10 |
+| ripgrep | 2.2 → 2.2 | 2.4 → 2.4 | 2.0 → 2.0 | 2.2 → 2.2 | At risk → At risk | 17 → 17 |
+| guava | 1.9 → 1.9 | 1.5 → 1.5 | 2.2 → 2.2 | 2.2 → 2.2 | At risk → At risk | unranked → unranked |
+| cobra | 2.6 → 2.6 | 2.8 → 2.8 | 2.3 → 2.3 | 0.0 → 0.0 | Conditional → Conditional | unranked → unranked |
+| sinatra | 2.4 → 2.4 | 2.0 → 2.0 | 2.8 → 2.8 | 2.2 → 2.2 | At risk → At risk | unranked → unranked |
+| automapper | 1.9 → 1.9 | 1.5 → 1.5 | 2.3 → 2.3 | 1.4 → 1.4 | At risk → At risk | unranked → unranked |
+| fmt | 2.7 → 2.7 | 2.2 → 2.2 | 3.2 → 3.2 | 2.2 → 2.2 | Conditional → Conditional | 15 → 15 |
+| carddemo | scoreless → scoreless | scoreless → scoreless | scoreless → scoreless | 0.0 → 0.0 | Insufficient source → Insufficient source | insufficient → insufficient |
+| alfred | **3.1 → 3.0** | 2.4 → 2.4 | **3.8 → 3.6** | 2.4 → 2.4 | Conditional → Conditional | **5 → 6** |
+| cejel | **3.4 → 3.3** | **2.7 → 2.5** | 4.0 → 4.0 | 2.2 → 2.2 | Conditional → Conditional | unranked → unranked |
+
+No external source pin moved. Apart from Zod's A5 correction, no externally pinned score,
+verdict, or rank moved. The self-source movement and its induced Svelte rank change are
+identified separately above.
+
 ## witan-rubric-v3-2026-07-13
 
 **What changed.** The leaderboard no longer has a privileged scoring route for internal

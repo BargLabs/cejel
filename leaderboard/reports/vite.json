@@ -5,11 +5,8 @@
     "url": "https://github.com/vitejs/vite",
     "headSha": "5d95f1631bfde08ee2613a53517dd5ea5d388cda"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.6,
-  "processTrustScore": 4,
-  "overallScore": 3.3,
+  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -109,7 +106,7 @@
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
           "value": 367,
-          "max": 318,
+          "max": 317,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -620,5 +617,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "monorepo"
+  "archetype": "monorepo",
+  "verdict": "conditional",
+  "codeTrustScore": 2.6,
+  "processTrustScore": 4,
+  "overallScore": 3.3
 }

@@ -1,15 +1,15 @@
 # Cejel Trust Report - vite
 
 - Product: vite
-- Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-16T03:09:48.024Z
+- Rubric: witan-rubric-v5-2026-07-18
+- Generated: 2026-07-20T04:39:49.061Z
 - Repository: https://github.com/vitejs/vite @ 5d95f1631bfde08ee2613a53517dd5ea5d388cda
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 2.5 | info | Test-to-source file ratio: 367 ratio (cap 318); Static coverage percentage: 0/100 percent; Verification script ratio: 4 ratio (cap 4); Non-hollow test share: 168/366 ratio |
+| A1 | Test integrity and regression signal | Code trust | 2.5 | info | Test-to-source file ratio: 367 ratio (cap 317); Static coverage percentage: 0/100 percent; Verification script ratio: 4 ratio (cap 4); Non-hollow test share: 168/366 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | 2.4 | warning | Secret cleanliness: 1/1 clean; Environment handling depth: 1/3 practices |
 | A3 | Production readiness | Code trust | 2.8 | info | Production-readiness primitive coverage: 4/6 primitives; Production workflow depth: 14 signals (cap 6); Observability depth: 72 signals (cap 4); Rollback and migration-safety depth: 1 signals (cap 4) |
 | A4 | Dependency hygiene | Code trust | 2.8 | info | Pinned dependency ratio: 177/470 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |

@@ -1,8 +1,8 @@
 # Cejel Trust Report - automapper
 
 - Product: automapper
-- Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-16T03:09:48.024Z
+- Rubric: witan-rubric-v5-2026-07-18
+- Generated: 2026-07-20T04:39:49.061Z
 - Repository: https://github.com/AutoMapper/AutoMapper @ dfa6dd587c5854b4beee5934beb39ba6e9569b84
 
 ## Criterion Profile
