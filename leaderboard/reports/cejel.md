@@ -2,8 +2,8 @@
 
 - Product: cejel
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:45:38.019Z
-- Repository: packages/witan-cli @ 1bb9128519ac21d54ce9350102b7b0a5e24f0429
+- Generated: 2026-07-20T13:12:56.894Z
+- Repository: packages/witan-cli @ 7722553e114699fc62f26d51cd0ec952df0af0c0
 
 ## Criterion Profile
 
@@ -33,26 +33,26 @@
 
 ## Evidence
 
-- A1: Detected test file (path withheld — private repository, sha256:29d08bc31eac)
-- A1: Detected test file (path withheld — private repository, sha256:bb6e3dd9fbf6)
+- A1: Detected test file (path withheld — private repository, sha256:6147bcbf4ae6)
+- A1: Detected test file (path withheld — private repository, sha256:49de8c3b484d)
 - A1: Detected test file (path withheld — private repository, sha256:34b3efdfe7b2)
 - A1: Detected test file (path withheld — private repository, sha256:803f3b84f346)
 - A1: Detected test file (path withheld — private repository, sha256:8a8ce5c1aada)
-- A1: Detected test file (path withheld — private repository, sha256:769522dc7110)
+- A1: Detected test file (path withheld — private repository, sha256:2886fddef119)
 - A1: Detected test file (path withheld — private repository, sha256:e7d44e9bde65)
-- A1: Detected test file (path withheld — private repository, sha256:028dedfad85c)
-- A1: Configured test runner (path withheld — private repository, sha256:cf3ff5f0bf13)
-- A1: Detected test file (path withheld — private repository, sha256:29d08bc31eac) (info)
-- A2: .env path detected in git history (path withheld — private repository, sha256:1bb9128519ac)
+- A1: Detected test file (path withheld — private repository, sha256:1fabc793bb1c)
+- A1: Configured test runner (path withheld — private repository, sha256:7428d1a6763d)
+- A1: Detected test file (path withheld — private repository, sha256:6147bcbf4ae6) (info)
+- A2: .env path detected in git history (path withheld — private repository, sha256:7722553e1146)
 - A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.
-- A4: Dependency manifest (path withheld — private repository, sha256:cf3ff5f0bf13)
+- A4: Dependency manifest (path withheld — private repository, sha256:7428d1a6763d)
 - A4: Dependency lockfile (monorepo root) (path withheld — private repository, sha256:94fe1c37ae24)
-- A5: Repository claim source (path withheld — private repository, sha256:7306a81ddc1a)
-- A5: Code presence for claim reconciliation (path withheld — private repository, sha256:29d08bc31eac)
-- A5: Repository claim source (path withheld — private repository, sha256:7306a81ddc1a) (warning)
+- A5: Repository claim source (path withheld — private repository, sha256:aef65593ddf6)
+- A5: Code presence for claim reconciliation (path withheld — private repository, sha256:6147bcbf4ae6)
+- A5: Repository claim source (path withheld — private repository, sha256:aef65593ddf6) (warning)
 - B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Insufficient data — no measurable signal supplied or collected; excluded from composite (unmeasured, not inapplicable).
-- B3: Test script (path withheld — private repository, sha256:cf3ff5f0bf13)
+- B3: Test script (path withheld — private repository, sha256:7428d1a6763d)
 - B3: CI workflow (monorepo root) (path withheld — private repository, sha256:d90a520a3cf7)
 - B4: N/A — No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
@@ -60,5 +60,5 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (path withheld — private repository, sha256:29d08bc31eac))
-- A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (path withheld — private repository, sha256:7306a81ddc1a))
+- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (path withheld — private repository, sha256:6147bcbf4ae6))
+- A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (path withheld — private repository, sha256:aef65593ddf6))

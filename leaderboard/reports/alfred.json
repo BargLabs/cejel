@@ -3,9 +3,9 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "1bb9128519ac21d54ce9350102b7b0a5e24f0429"
+    "headSha": "7722553e114699fc62f26d51cd0ec952df0af0c0"
   },
-  "generatedAt": "2026-07-20T04:45:38.019Z",
+  "generatedAt": "2026-07-20T13:12:56.894Z",
   "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
@@ -98,7 +98,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 353,
+          "value": 355,
           "max": 624,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -127,8 +127,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 350,
-          "max": 353,
+          "value": 351,
+          "max": 355,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -146,7 +146,7 @@
         {
           "kind": "secret_scan",
           "label": ".env path detected in git history",
-          "contentHash": "1bb9128519ac21d54ce9350102b7b0a5e24f0429",
+          "contentHash": "7722553e114699fc62f26d51cd0ec952df0af0c0",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -283,7 +283,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 94,
+          "value": 95,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -443,7 +443,7 @@
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 3.9,
+      "score": 4,
       "status": "verified",
       "evidence": [
         {
@@ -486,7 +486,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 10,
+          "value": 12,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -560,7 +560,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "15f07ce24aa0bf5c8f9f10f3937bd5a37fa37cc4872b553ec03812ba58d02d10",
+          "contentHash": "bbee41a3646e1a861dbacf93892950158079d5ae537dc3e132aa76fe260f83ab",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -644,7 +644,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "15f07ce24aa0bf5c8f9f10f3937bd5a37fa37cc4872b553ec03812ba58d02d10",
+          "contentHash": "bbee41a3646e1a861dbacf93892950158079d5ae537dc3e132aa76fe260f83ab",
           "locationWithheld": "path withheld — private repository"
         }
       ],

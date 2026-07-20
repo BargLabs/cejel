@@ -3,7 +3,7 @@
   "name": "io.github.BargLabs/cejel",
   "title": "Cejel",
   "description": "Offline deterministic engineering-trust certificates for repositories, with no telemetry.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "websiteUrl": "https://cejel.dev",
   "repository": {
     "url": "https://github.com/BargLabs/cejel",
@@ -20,7 +20,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/barglabs/cejel:0.1.6",
+      "identifier": "ghcr.io/barglabs/cejel:0.1.7",
       "transport": {
         "type": "stdio"
       }

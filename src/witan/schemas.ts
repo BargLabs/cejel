@@ -20,7 +20,16 @@ export const WITAN_RUBRIC_VERSION_V2 = 'witan-rubric-v2-2026-07-12';
 // full corpus-wide before/after delta. Scoring algorithm is unchanged from v2 (metric-based);
 // only these four collectors' reachability changed, from "always active" to "never present".
 export const WITAN_RUBRIC_VERSION_V3 = 'witan-rubric-v3-2026-07-13';
-export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V3;
+// v4: repository evidence discovery no longer follows tracked symlinks. A symlink can point
+// outside the checked-out source snapshot, so treating its target as repository evidence made
+// both the score and the scanner's filesystem trust boundary depend on ambient host files.
+// See docs/leaderboard/RUBRIC_CHANGELOG.md for the complete pinned-corpus delta.
+export const WITAN_RUBRIC_VERSION_V4 = 'witan-rubric-v4-2026-07-18';
+// v5: bounded Git-history evidence is now taken only from ancestors of the checked-out
+// revision. Unrelated local/remote refs are ambient clone state and made a pinned commit's
+// score depend on which branches happened to be present.
+export const WITAN_RUBRIC_VERSION_V5 = 'witan-rubric-v5-2026-07-18';
+export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V5;
 export const WITAN_TRADING_RUBRIC_VERSION_V0 = 'witan-trading-rubric-v0-2026-07-01';
 
 export const WITAN_CRITERION_IDS = [
