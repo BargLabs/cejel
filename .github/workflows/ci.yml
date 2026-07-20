@@ -45,5 +45,8 @@ jobs:
 
       - name: Smoke-test Docker CLI and MCP ownership label
         run: |
+          test "$(docker run --rm cejel:ci --version)" = "$(node -p "require('./package.json').version")"
+          docker run --rm cejel:ci --help | grep -q '^cejel'
           test "$(docker run --rm --entrypoint cejel cejel:ci --version)" = "$(node -p "require('./package.json').version")"
+          docker run --rm cejel:ci
           test "$(docker inspect cejel:ci --format '{{ index .Config.Labels "io.modelcontextprotocol.server.name" }}')" = "io.github.BargLabs/cejel"
