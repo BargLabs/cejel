@@ -108,6 +108,14 @@ The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.6 .
 ```
 
+Beginning with v0.1.7, the standard CLI identity flags are also available directly, while an
+invocation without arguments continues to start the MCP server:
+
+```bash
+docker run --rm ghcr.io/barglabs/cejel:0.1.7 --version
+docker run --rm ghcr.io/barglabs/cejel:0.1.7 --help
+```
+
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
 attestation. It is also the package referenced by [`server.json`](./server.json) for the
 Official MCP Registry.

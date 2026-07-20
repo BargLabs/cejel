@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const PACKAGE_PATH = new URL('../package.json', import.meta.url);
 const SERVER_PATH = new URL('../server.json', import.meta.url);
 const DOCKERFILE_PATH = new URL('../Dockerfile', import.meta.url);
+const DOCKER_ENTRYPOINT_PATH = new URL('./docker-entrypoint.sh', import.meta.url);
 const DISTRIBUTION_WORKFLOW_PATH = new URL(
   '../.github/workflows/publish-distribution.yml',
   import.meta.url,
@@ -13,6 +14,7 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
 const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf8');
+const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
 const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
 
 function requireEqual(actual, expected, field) {
@@ -55,7 +57,9 @@ requireIncludes(
   `io.modelcontextprotocol.server.name="${packageManifest.mcpName}"`,
   'Dockerfile MCP ownership label',
 );
-requireIncludes(dockerfile, 'ENTRYPOINT ["cejel-mcp"]', 'Dockerfile MCP entrypoint');
+requireIncludes(dockerfile, 'ENTRYPOINT ["cejel-entrypoint"]', 'Dockerfile dispatcher entrypoint');
+requireIncludes(dockerEntrypoint, 'exec cejel "$@"', 'Docker entrypoint CLI dispatch');
+requireIncludes(dockerEntrypoint, 'exec cejel-mcp "$@"', 'Docker entrypoint MCP default');
 requireIncludes(dockerfile, 'node:22-alpine@sha256:', 'Dockerfile pinned base image');
 requireIncludes(
   distributionWorkflow,

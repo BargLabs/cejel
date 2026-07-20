@@ -24,6 +24,7 @@ LABEL org.opencontainers.image.title="Cejel" \
 WORKDIR /opt/cejel
 COPY --from=build --chown=node:node /src/dist ./dist
 COPY --chown=node:node package.json LICENSE ./
+COPY --chown=root:root --chmod=0755 scripts/docker-entrypoint.sh /usr/local/bin/cejel-entrypoint
 
 RUN chmod +x /opt/cejel/dist/index.js /opt/cejel/dist/mcp/index.js \
   && ln -s /opt/cejel/dist/index.js /usr/local/bin/cejel \
@@ -34,4 +35,4 @@ RUN chmod +x /opt/cejel/dist/index.js /opt/cejel/dist/mcp/index.js \
 USER node
 WORKDIR /workspace
 
-ENTRYPOINT ["cejel-mcp"]
+ENTRYPOINT ["cejel-entrypoint"]
