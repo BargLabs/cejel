@@ -30,7 +30,7 @@ jobs:
         run: node dist/index.js .
 
       - name: Smoke-test the advertised released Action
-        uses: BargLabs/cejel/action@v0.1.6
+        uses: BargLabs/cejel/action@v0.1.7
         with:
           out-dir: .cejel-action
 
