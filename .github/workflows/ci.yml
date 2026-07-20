@@ -29,6 +29,11 @@ jobs:
       - name: Self-certify (dogfood)
         run: node dist/index.js .
 
+      - name: Smoke-test the advertised released Action
+        uses: BargLabs/cejel/action@v0.1.6
+        with:
+          out-dir: .cejel-action
+
       - name: Upload trust certificate
         uses: actions/upload-artifact@v4
         with:

@@ -1,8 +1,8 @@
 # Cejel Trust Report - cobra
 
 - Product: cobra
-- Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-16T03:09:48.024Z
+- Rubric: witan-rubric-v5-2026-07-18
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/spf13/cobra @ adbc8813901bba65827259daa8e22ff94ec1f30e
 
 ## Criterion Profile

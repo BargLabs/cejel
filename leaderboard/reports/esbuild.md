@@ -1,8 +1,8 @@
 # Cejel Trust Report - esbuild
 
 - Product: esbuild
-- Rubric: witan-rubric-v3-2026-07-13
-- Generated: 2026-07-16T03:09:48.024Z
+- Rubric: witan-rubric-v5-2026-07-18
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/evanw/esbuild @ 6ff1d8b0d8c134e867a397eef39702a223ebef9e
 
 ## Criterion Profile

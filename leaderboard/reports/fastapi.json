@@ -5,11 +5,8 @@
     "url": "https://github.com/fastapi/fastapi",
     "headSha": "7cb06f360dd44efac059848df1a9beee7643b018"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.5,
-  "processTrustScore": 3.2,
-  "overallScore": 2.9,
+  "generatedAt": "2026-07-20T04:45:38.019Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -491,5 +488,9 @@
       "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
     }
   ],
-  "archetype": "source"
+  "archetype": "source",
+  "verdict": "conditional",
+  "codeTrustScore": 2.5,
+  "processTrustScore": 3.2,
+  "overallScore": 2.9
 }

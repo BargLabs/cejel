@@ -1,8 +1,8 @@
 # Cejel OSS trust leaderboard
 
-- Run date: 2026-07-16T03:31:36.221Z
-- Cejel version: cejel@0.1.4 (75fa69511494)
-- Rubric version: witan-rubric-v3-2026-07-13
+- Run date: 2026-07-20T04:45:38.019Z
+- Cejel version: cejel@0.1.6 (1bb9128519ac)
+- Rubric version: witan-rubric-v5-2026-07-18
 
 ## How to read this board
 
@@ -127,7 +127,7 @@ _Below the coverage floor: scored on fewer than half of the applicable dimension
 
 ### mainframe-cobol
 
-- carddemo — unrated (Insufficient source) — low confidence
+- carddemo — — (Insufficient source) — low confidence
 
 ### supply-chain-governance
 

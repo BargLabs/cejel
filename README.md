@@ -64,7 +64,7 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
-- uses: BargLabs/cejel/action@v1
+- uses: BargLabs/cejel/action@v0.1.6
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
@@ -297,7 +297,7 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
-- uses: BargLabs/cejel/action@v1
+- uses: BargLabs/cejel/action@v0.1.6
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```

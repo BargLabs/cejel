@@ -5,11 +5,8 @@
     "url": "https://github.com/ossf/scorecard",
     "headSha": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50"
   },
-  "generatedAt": "2026-07-16T03:09:48.024Z",
-  "rubricVersion": "witan-rubric-v3-2026-07-13",
-  "codeTrustScore": 2.3,
-  "processTrustScore": 3.6,
-  "overallScore": 3,
+  "generatedAt": "2026-07-20T04:45:38.019Z",
+  "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
       "id": "A1",
@@ -562,5 +559,9 @@
       "notes": "B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths."
     }
   ],
-  "archetype": "source"
+  "archetype": "source",
+  "verdict": "conditional",
+  "codeTrustScore": 2.3,
+  "processTrustScore": 3.6,
+  "overallScore": 3
 }
