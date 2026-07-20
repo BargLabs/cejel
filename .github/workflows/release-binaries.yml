@@ -83,7 +83,7 @@ jobs:
         working-directory: ${{ steps.package.outputs.root }}
         run: test -f ".build/cejel-sea/${{ matrix.asset }}"
 
-      - name: Execute and compare binary
+      - name: Execute CLI contract and compare binary
         working-directory: ${{ steps.package.outputs.root }}
         run: node scripts/verify-cejel-binary.mjs ".build/cejel-sea/${{ matrix.asset }}"
 

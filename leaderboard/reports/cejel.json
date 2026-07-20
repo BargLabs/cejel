@@ -400,5 +400,5 @@
   "codeTrustScore": 2.7,
   "processTrustScore": 4,
   "overallScore": 3.4,
-  "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
+  "publicSanitization": "Private transparency snapshot of Cejel's source sub-package inside the studio monorepo, not a score of the public BargLabs/cejel repository. Its source commit is not publicly available, so this report is not independently reproducible. Every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

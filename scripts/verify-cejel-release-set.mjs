@@ -72,7 +72,7 @@ function main() {
     if (receipt.binarySha256 !== sha256(binaryPath)) {
       throw new Error(`Guard 6: ${asset} changed after verification.`);
     }
-    for (const guard of [1, 2, 3, 4, 5]) {
+    for (const guard of [1, 2, 3, 4, 5, 7]) {
       if (!receipt.guardsPassed?.includes(guard)) {
         throw new Error(`Guard 6: ${asset} is missing Guard ${guard}.`);
       }
@@ -80,7 +80,7 @@ function main() {
   }
 
   process.stdout.write(
-    `Guard 6 passed: ${Object.keys(EXPECTED_ASSETS).length} assets match v${manifest.version} and carry own-platform receipts for Guards 1-5.\n`,
+    `Guard 6 passed: ${Object.keys(EXPECTED_ASSETS).length} assets match v${manifest.version} and carry own-platform receipts for Guards 1-5 and 7.\n`,
   );
 }
 

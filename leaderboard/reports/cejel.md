@@ -5,6 +5,8 @@
 - Generated: 2026-07-20T13:12:56.894Z
 - Repository: packages/witan-cli @ 7722553e114699fc62f26d51cd0ec952df0af0c0
 
+> Private transparency snapshot of Cejel's source sub-package inside the studio monorepo. This is not a score of the public `BargLabs/cejel` repository. Its source commit and evidence locations are not publicly available, so this report is not independently reproducible.
+
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |

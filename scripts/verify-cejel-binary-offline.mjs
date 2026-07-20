@@ -148,13 +148,13 @@ function main() {
   const receiptPath = resolve(options.receipt ?? `${binaryPath}.verified.json`);
   if (!existsSync(binaryPath)) throw new Error(`${binaryPath} does not exist.`);
   if (!existsSync(receiptPath)) {
-    throw new Error(`Guard 2 requires the Guards 1/3/4/5 receipt ${receiptPath}.`);
+    throw new Error(`Guard 2 requires the Guards 1/3/4/5/7 receipt ${receiptPath}.`);
   }
   const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
   if (receipt.asset !== basename(binaryPath) || receipt.binarySha256 !== sha256(binaryPath)) {
     throw new Error('Guard 2 receipt does not bind to this binary.');
   }
-  for (const guard of [1, 3, 4, 5]) {
+  for (const guard of [1, 3, 4, 5, 7]) {
     if (!receipt.guardsPassed?.includes(guard)) {
       throw new Error(`Guard 2 receipt is missing prerequisite Guard ${guard}.`);
     }

@@ -46,7 +46,7 @@ a { color: var(--accent); }
 <h2>How to read this board</h2>
 <ul>
 <li>Scores run 0.0-4.0 and come from a deterministic rubric over observable repository signals: tests and CI discipline, secret handling, dependency hygiene, audit trail, and governance.</li>
-<li>Every score on this board is produced by the sealed public scorer used by `npx @cejel/cejel .`. Check out the source commit printed in the report, run the tool, and you will get this number. A required guard does that for every corpus row and compares score, verdict, measured coverage, and evidence. No private domain collector may contribute to any published score, ours included (goal_cejel_board_must_be_reproducible_2026-07-12).</li>
+<li>Every score on this board is produced by the sealed public scorer used by <code>npx @cejel/cejel .</code>; no private domain collector contributes. Public-repository rows pin an immutable public commit and are independently reproducible from it. The two explicitly labeled private transparency snapshots are not independently reproducible because their source commits and evidence locations are not public; they are not public-repository self-scores.</li>
 <li>Verdict bands: Verified (3.5 and above), Conditional (2.5-3.4), At risk (1.5-2.4), Unverified (below 1.5). Conditional is not bad — many healthy, actively developed repositories land there.</li>
 <li>A score reflects observable engineering signals only. It is not a security guarantee, not an audit, and not a judgment of a project's value or its maintainers.</li>
 <li>A score reflects only its MEASURED dimensions. The Coverage column shows how many dimensions were actually measured per category (e.g. &quot;code 4/5 · process 1/6&quot;): a dimension that is not applicable to the repository, or that had insufficient data to measure, produced no score and is excluded from the composite rather than counted against the repository. Unmeasured is not good — it is unknown. Coverage counts every rubric dimension, including the two dimensions the repository scanner marks not applicable for every repository.</li>
@@ -55,7 +55,7 @@ a { color: var(--accent); }
 <li>A repository that scores low on a dimension shows its specific findings in the linked evidence report — the findings are the substance, not the verdict.</li>
 <li>Overall, Code trust, and Process trust are each repository's own figures — the exact numbers on its linked certificate, .md report, badge, and JSON. They never change to make ranking fair; nothing here is ever recomputed on a second basis and shown under the same name.</li>
 <li>Ranked score (common dimensions) is a SEPARATE figure used only to order this table. It excludes two repository-inapplicable process dimensions for every report. Under rubric v3 the repository scanner marks both dimensions not applicable for every repository, including ours; the explicit exclusion remains as a fail-closed safeguard for legacy or structured-input reports. This table is sorted by Ranked score, not Overall.</li>
-<li>The whole corpus is published, sorted by score, including this repository itself. A repository that fails to clone or score appears as a loud ERROR row with the reason — it is never silently dropped, and it is retried on the next run.</li>
+<li>The whole corpus membership is published and sorted by score. It includes two labeled private transparency snapshots, not a score of this public repository. A repository that fails to clone or score appears as a loud ERROR row with the reason — it is never silently dropped, and it is retried on the next run.</li>
 <li>The generator is incremental: a repository with an up-to-date committed evidence report is not re-cloned, so the corpus can grow while every run stays synchronous. Re-scoring everything is a --force flag away.</li>
 <li>External repositories are fetched read-only at the immutable commits pinned in corpus.json; none of their code is executed. Re-scoring the same pins is a rubric change. Moving a pin is a separate corpus change.</li>
 </ul>
@@ -438,7 +438,7 @@ a { color: var(--accent); }
 <table>
 <thead><tr><th>Repository</th><th>Category</th><th>License</th><th>Overall</th><th>Ranked score (common dimensions)</th><th>Code trust</th><th>Process trust</th><th>Coverage</th><th>Findings</th><th>Verdict</th><th>Badge</th><th>Evidence</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td>cejel</td><td>internal-tool</td><td>AGPL-3.0-only</td><td class="score">3.4</td><td class="ranked-score">3.4</td><td>2.7</td><td>4.0</td><td class="coverage-cell">code 4/5 · process 1/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.4/4.0 conditional">
+<tr><td>cejel source sub-package (private snapshot)</td><td>internal-tool</td><td>AGPL-3.0-only</td><td class="score">3.4</td><td class="ranked-score">3.4</td><td>2.7</td><td>4.0</td><td class="coverage-cell">code 4/5 · process 1/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.4/4.0 conditional">
   <title>cejel trust: 3.4/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -457,7 +457,7 @@ a { color: var(--accent); }
     <text x="149" y="14">3.4/4.0 conditional</text>
   </g>
 </svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/cejel.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/cejel.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/cejel.json" title="Machine-readable JSON">json</a></span></td><td>scored on 5 of 11 dimensions — too few to rank</td></tr>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/cejel.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/cejel.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/cejel.json" title="Machine-readable JSON">json</a></span></td><td>private source commit unavailable publicly; scored on 5 of 11 dimensions — too few to rank</td></tr>
 <tr><td><a href="https://github.com/django/django">django</a></td><td>framework-python</td><td>BSD-3-Clause</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.6</td><td>3.8</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>1</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
   <title>cejel trust: 3.2/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
