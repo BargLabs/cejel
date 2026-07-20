@@ -4,7 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'tsup';
 
 const packageJsonPath = fileURLToPath(new URL('./package.json', import.meta.url));
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { version?: unknown };
+const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+  name?: unknown;
+  version?: unknown;
+};
+if (typeof packageJson.name !== 'string' || packageJson.name.length === 0) {
+  throw new Error(`[build:sea-js] ${packageJsonPath} has no name.`);
+}
 if (typeof packageJson.version !== 'string' || packageJson.version.length === 0) {
   throw new Error(`[build:sea-js] ${packageJsonPath} has no version.`);
 }
@@ -23,6 +29,7 @@ export default defineConfig({
   minify: true,
   banner: { js: '#!/usr/bin/env node' },
   define: {
+    __CEJEL_SEA_PACKAGE_NAME__: JSON.stringify(packageJson.name),
     __CEJEL_SEA_VERSION__: JSON.stringify(packageJson.version),
   },
 });

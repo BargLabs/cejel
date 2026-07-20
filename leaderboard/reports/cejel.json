@@ -3,9 +3,9 @@
   "productDisplayName": "cejel",
   "repo": {
     "path": "packages/witan-cli",
-    "headSha": "1bb9128519ac21d54ce9350102b7b0a5e24f0429"
+    "headSha": "7722553e114699fc62f26d51cd0ec952df0af0c0"
   },
-  "generatedAt": "2026-07-20T04:45:38.019Z",
+  "generatedAt": "2026-07-20T13:12:56.894Z",
   "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
@@ -18,13 +18,13 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "29d08bc31eac88507c02561bd831f6ac8e8cd921995f86e5510586af71fa8825",
+          "contentHash": "6147bcbf4ae60c145c4373e08cd4d46c5bf4dc7364a7c2adf1ef367db51128a8",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "bb6e3dd9fbf6c45feec2df56a8d76baa7d910902131415f8c132193ea587c36b",
+          "contentHash": "49de8c3b484d36f3954f4a0351ab532b21c556b84d0f2e500e0e71a767e2a631",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -48,7 +48,7 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "769522dc7110b582a0d469983e42b7c53efc9aaad391b2a74b7d175fdae97b77",
+          "contentHash": "2886fddef119c829ac5f955fab3fa3ed571a7569a0ff24f15043a730841d6d00",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -60,13 +60,13 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
-          "contentHash": "028dedfad85c0edb828beffbc560b48683069468dfd786754427184097fec297",
+          "contentHash": "1fabc793bb1c434b3b30fde8a15259dffa848307366c05486fa28a966f30936e",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "contentHash": "cf3ff5f0bf135668b148b0c17e0a911fcfe2b0870b3651510f3fb53f835177b1",
+          "contentHash": "7428d1a6763d6bc1418d1cf1b2e05d3749c3cad084a27a9fa72df1032e29d50e",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -77,7 +77,7 @@
           "evidence": {
             "kind": "test_run",
             "label": "Detected test file",
-            "contentHash": "29d08bc31eac88507c02561bd831f6ac8e8cd921995f86e5510586af71fa8825",
+            "contentHash": "6147bcbf4ae60c145c4373e08cd4d46c5bf4dc7364a7c2adf1ef367db51128a8",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -134,7 +134,7 @@
         {
           "kind": "secret_scan",
           "label": ".env path detected in git history",
-          "contentHash": "1bb9128519ac21d54ce9350102b7b0a5e24f0429",
+          "contentHash": "7722553e114699fc62f26d51cd0ec952df0af0c0",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -182,7 +182,7 @@
         {
           "kind": "dependency_report",
           "label": "Dependency manifest",
-          "contentHash": "cf3ff5f0bf135668b148b0c17e0a911fcfe2b0870b3651510f3fb53f835177b1",
+          "contentHash": "7428d1a6763d6bc1418d1cf1b2e05d3749c3cad084a27a9fa72df1032e29d50e",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -243,13 +243,13 @@
         {
           "kind": "claim_reconciliation",
           "label": "Repository claim source",
-          "contentHash": "7306a81ddc1a8ef69c669df11aa982c42cc264ed1f4f088f28e8f62f51d40664",
+          "contentHash": "aef65593ddf681b358cd00fe396fbbf08d9de74548af21fb0f18a4accac0a98c",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "artifact",
           "label": "Code presence for claim reconciliation",
-          "contentHash": "29d08bc31eac88507c02561bd831f6ac8e8cd921995f86e5510586af71fa8825",
+          "contentHash": "6147bcbf4ae60c145c4373e08cd4d46c5bf4dc7364a7c2adf1ef367db51128a8",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -260,7 +260,7 @@
           "evidence": {
             "kind": "claim_reconciliation",
             "label": "Repository claim source",
-            "contentHash": "7306a81ddc1a8ef69c669df11aa982c42cc264ed1f4f088f28e8f62f51d40664",
+            "contentHash": "aef65593ddf681b358cd00fe396fbbf08d9de74548af21fb0f18a4accac0a98c",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -327,7 +327,7 @@
         {
           "kind": "test_run",
           "label": "Test script",
-          "contentHash": "cf3ff5f0bf135668b148b0c17e0a911fcfe2b0870b3651510f3fb53f835177b1",
+          "contentHash": "7428d1a6763d6bc1418d1cf1b2e05d3749c3cad084a27a9fa72df1032e29d50e",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -400,5 +400,5 @@
   "codeTrustScore": 2.7,
   "processTrustScore": 4,
   "overallScore": 3.4,
-  "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
+  "publicSanitization": "Private transparency snapshot of Cejel's source sub-package inside the studio monorepo, not a score of the public BargLabs/cejel repository. Its source commit is not publicly available, so this report is not independently reproducible. Every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

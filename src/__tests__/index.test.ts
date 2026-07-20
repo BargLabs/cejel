@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
-import { parseArgs, runWitanFreeCli } from '../index.js';
+import { parseArgs, parseCliInvocation, runWitanFreeCli } from '../index.js';
 
 // Committed fixture (not a machine-specific temp file) — lives in the vendored witan-core test
 // fixtures since the SARIF adapter tests there also read it. See
@@ -44,6 +44,28 @@ describe('witan CLI arg parsing', () => {
 
   it('rejects unknown flags', () => {
     expect(() => parseArgs(['--nonsense'])).toThrow(/Unknown Cejel CLI flag/);
+  });
+
+  it('rejects every extra positional argument and prints the member', () => {
+    expect(() => parseArgs(['/repo', 'ignored-path'])).toThrow(
+      /Unexpected positional argument: ignored-path/,
+    );
+  });
+
+  it('accepts an explicit scan command without changing the scan options', () => {
+    expect(parseCliInvocation(['scan', '/repo', '--quiet'])).toEqual({
+      command: 'scan',
+      options: parseArgs(['/repo', '--quiet']),
+    });
+  });
+
+  it('requires exactly a report and attestation for verify', () => {
+    expect(() => parseCliInvocation(['verify'])).toThrow(
+      /verify <report\.json> <attestation\.json>/,
+    );
+    expect(() =>
+      parseCliInvocation(['verify', 'report.json', 'attestation.json', 'extra']),
+    ).toThrow(/verify <report\.json> <attestation\.json>/);
   });
 
   it('--help and -h set showHelp', () => {
@@ -93,9 +115,10 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     try {
       expect(await runWitanFreeCli(['--help'])).toBe(0);
-      expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
-        'Usage:  npx cejel [path] [options]',
-      );
+      const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join('');
+      expect(output).toContain('npx @cejel/cejel [path] [options]');
+      expect(output).toContain('npx @cejel/cejel scan [path] [options]');
+      expect(output).toContain('npx @cejel/cejel verify <report.json> <attestation.json>');
     } finally {
       stdoutSpy.mockRestore();
     }
@@ -146,6 +169,87 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(badgeSvg).toContain('<svg');
     const summary = JSON.parse(readFileSync(join(outDir, 'summary.json'), 'utf8'));
     expect(summary.verdict).toBeDefined();
+  });
+
+  it('scores through the explicit scan command', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-explicit-scan-'));
+    const outDir = join(repoPath, '.witan');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet'])).toBe(0);
+    expect(readFileSync(join(outDir, 'report.json'), 'utf8')).toContain('"productSlug"');
+  });
+
+  it('verifies an emitted report/attestation binding and states the assurance boundary', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-verify-'));
+    const outDir = join(repoPath, '.witan');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet']);
+
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      expect(
+        await runWitanFreeCli([
+          'verify',
+          join(outDir, 'report.json'),
+          join(outDir, 'attestation.json'),
+        ]),
+      ).toBe(0);
+      const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join('');
+      expect(output).toContain('report/attestation binding verified');
+      expect(output).toContain('signature and signer identity were not verified');
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+  });
+
+  it('fails verification with every reported binding error after report tampering', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-verify-tampered-'));
+    const outDir = join(repoPath, '.witan');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet']);
+
+    const reportPath = join(outDir, 'report.json');
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as Record<string, unknown>;
+    report.generatedAt = '2026-01-01T00:00:00.000Z';
+    writeFileSync(reportPath, JSON.stringify(report, null, 2));
+
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      expect(await runWitanFreeCli(['verify', reportPath, join(outDir, 'attestation.json')])).toBe(
+        1,
+      );
+      const output = stderrSpy.mock.calls.map((call) => String(call[0])).join('');
+      expect(output).toContain('report/attestation binding verification failed');
+      expect(output).toContain('subject digest does not match report.json');
+      expect(output).toContain('predicate report digest does not match report.json');
+      expect(output).toContain('generated timestamp does not match report.json');
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+
+  it('fails verification when report JSON is reformatted without changing its values', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-verify-reformatted-'));
+    const outDir = join(repoPath, '.witan');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet']);
+
+    const reportPath = join(outDir, 'report.json');
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as unknown;
+    writeFileSync(reportPath, JSON.stringify(report));
+
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      expect(await runWitanFreeCli(['verify', reportPath, join(outDir, 'attestation.json')])).toBe(
+        1,
+      );
+      const output = stderrSpy.mock.calls.map((call) => String(call[0])).join('');
+      expect(output).toContain('subject digest does not match report.json');
+      expect(output).toContain('predicate report digest does not match report.json');
+    } finally {
+      stderrSpy.mockRestore();
+    }
   });
 
   it('exits 1 when overallScore is below --min-score', async () => {

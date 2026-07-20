@@ -12,6 +12,7 @@ const MONOREPO_PACKAGE_ROOT = join(REPO_ROOT, 'packages/witan-cli');
 const PACKAGE_ROOT = existsSync(join(MONOREPO_PACKAGE_ROOT, 'package.json'))
   ? MONOREPO_PACKAGE_ROOT
   : REPO_ROOT;
+const PACKAGE_MANIFEST = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'));
 const BANNED_STRINGS = [
   'WITAN_CUSTOMER_ID',
   'WITAN_LICENSE_PUBLIC_KEY',
@@ -129,12 +130,69 @@ function verifyBinary(binaryPath, sourceDistPath) {
     throw new Error(`Guard 3: public binary contains commercial identifiers: ${banned.join(', ')}`);
   }
 
+  const version = execFileSync(binaryPath, ['--version'], { encoding: 'utf8' }).trim();
+  if (version !== PACKAGE_MANIFEST.version) {
+    throw new Error(
+      `Guard 7: binary version ${JSON.stringify(version)} does not equal package version ${JSON.stringify(PACKAGE_MANIFEST.version)}.`,
+    );
+  }
+  const help = execFileSync(binaryPath, ['--help'], { encoding: 'utf8' });
+  for (const requiredMember of [
+    `npx ${PACKAGE_MANIFEST.name} scan`,
+    `npx ${PACKAGE_MANIFEST.name} verify`,
+    'verify  verify report/attestation binding only',
+  ]) {
+    if (!help.includes(requiredMember)) {
+      throw new Error(`Guard 7: binary help is missing ${JSON.stringify(requiredMember)}.`);
+    }
+  }
+
   const executeRepo = makeFixtureRepo('execute');
   try {
     const outDir = join(executeRepo, '.cejel');
-    execFileSync(binaryPath, [executeRepo, '--out', outDir, '--quiet'], { stdio: 'inherit' });
+    execFileSync(binaryPath, ['scan', executeRepo, '--out', outDir, '--quiet'], {
+      stdio: 'inherit',
+    });
     const { report } = readArtifacts(outDir);
     log(`Guard 1 passed: binary wrote ${report.criteria.length} measured criteria.`);
+
+    const reportPath = join(outDir, 'report.json');
+    const attestationPath = join(outDir, 'attestation.json');
+    const verification = execFileSync(binaryPath, ['verify', reportPath, attestationPath], {
+      encoding: 'utf8',
+    });
+    for (const requiredMember of [
+      'report/attestation binding verified',
+      'signature and signer identity were not verified',
+    ]) {
+      if (!verification.includes(requiredMember)) {
+        throw new Error(
+          `Guard 7: successful verification output is missing ${JSON.stringify(requiredMember)}.`,
+        );
+      }
+    }
+
+    const reportContents = readFileSync(reportPath, 'utf8');
+    writeFileSync(reportPath, `${reportContents}\n`, 'utf8');
+    try {
+      execFileSync(binaryPath, ['verify', reportPath, attestationPath], {
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+      throw new Error('Guard 7: byte-modified report unexpectedly passed verification.');
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Guard 7:')) throw error;
+      const stderr =
+        typeof error === 'object' && error !== null && 'stderr' in error
+          ? String(error.stderr)
+          : '';
+      if (!stderr.includes('digest does not match report.json')) {
+        throw new Error(
+          `Guard 7: byte-modified report failed without a digest-mismatch diagnostic: ${stderr.trim()}`,
+        );
+      }
+    }
+    log(`Guard 7 passed: v${version}; help, scan, verify, and tamper rejection work.`);
   } finally {
     rmSync(executeRepo, { recursive: true, force: true });
   }
@@ -146,8 +204,11 @@ function verifyBinary(binaryPath, sourceDistPath) {
   try {
     const binaryOut = join(parityRepo, '.cejel-binary');
     const sourceOut = join(parityRepo, '.cejel-source');
-    execFileSync(binaryPath, [parityRepo, '--out', binaryOut, '--quiet']);
-    execFileSync(process.execPath, [sourceDistPath, parityRepo, '--out', sourceOut, '--quiet']);
+    execFileSync(binaryPath, ['scan', parityRepo, '--out', binaryOut, '--quiet']);
+    execFileSync(
+      process.execPath,
+      [sourceDistPath, 'scan', parityRepo, '--out', sourceOut, '--quiet'],
+    );
     const binary = readArtifacts(binaryOut);
     const source = readArtifacts(sourceOut);
     const mismatches = [];
@@ -193,14 +254,14 @@ function main() {
         platform: process.platform,
         architecture: process.arch,
         binarySha256: sha256(binaryPath),
-        guardsPassed: [1, 3, 4, 5],
+        guardsPassed: [1, 3, 4, 5, 7],
         executedAt: new Date().toISOString(),
       },
       null,
       2,
     )}\n`,
   );
-  log(`Guards 1, 3, 4, and 5 passed; wrote ${receiptPath}.`);
+  log(`Guards 1, 3, 4, 5, and 7 passed; wrote ${receiptPath}.`);
 }
 
 main();

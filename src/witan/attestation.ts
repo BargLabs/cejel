@@ -17,6 +17,11 @@ export interface WitanAttestationBindingVerification {
   errors: string[];
 }
 
+export interface VerifyWitanAttestationBindingOptions {
+  /** SHA-256 of the exact report artifact bytes when verifying a file supplied by a user. */
+  reportSha256?: string;
+}
+
 const ATTESTATION_LIMITATIONS = [
   'Cejel measures observable repository signals; it is not a security or compliance guarantee.',
   'This statement is self-generated and unsigned until an external signer binds their identity to it.',
@@ -89,6 +94,7 @@ export function createWitanAttestation(
 export function verifyWitanAttestationBinding(
   statement: unknown,
   report: WitanReport,
+  options: VerifyWitanAttestationBindingOptions = {},
 ): WitanAttestationBindingVerification {
   const parsed = WitanAttestationStatementSchema.safeParse(statement);
   if (!parsed.success) {
@@ -99,7 +105,7 @@ export function verifyWitanAttestationBinding(
   }
 
   const errors: string[] = [];
-  const expectedReportHash = hashWitanReport(report);
+  const expectedReportHash = options.reportSha256 ?? hashWitanReport(report);
   const subject = parsed.data.subject[0];
   const subjectHash = subject?.digest.sha256;
   if (subjectHash !== expectedReportHash) errors.push('subject digest does not match report.json');

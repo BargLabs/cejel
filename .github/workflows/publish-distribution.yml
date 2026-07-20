@@ -122,7 +122,7 @@ jobs:
       - name: Checkout validated registry metadata
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.release_tag }}
 
       - name: Install the Official MCP Registry publisher
         run: |

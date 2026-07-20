@@ -145,7 +145,9 @@ describe('cejel install-from-tarball (published artifact)', () => {
       encoding: 'utf8',
     });
 
-    expect(help).toContain('Usage:  npx cejel [path] [options]');
+    expect(help).toContain(`npx ${PACKAGE_MANIFEST.name} [path] [options]`);
+    expect(help).toContain(`npx ${PACKAGE_MANIFEST.name} scan [path] [options]`);
+    expect(help).toContain(`npx ${PACKAGE_MANIFEST.name} verify <report.json> <attestation.json>`);
     expect(shortHelp).toBe(help);
     expect(version).toBe(`${PACKAGE_MANIFEST.version}\n`);
     expect(shortVersion).toBe(version);
@@ -190,6 +192,45 @@ describe('cejel install-from-tarball (published artifact)', () => {
         ).toBe(true);
       }
     }
+  });
+
+  it('runs explicit scan and verifies the emitted report/attestation binding', () => {
+    const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-command-surface-'));
+    writeFileSync(join(targetRepo, 'index.js'), 'export const answer = 42;\n');
+
+    execFileSync(binPath, ['scan', '.', '--quiet'], { cwd: targetRepo, stdio: 'pipe' });
+    const output = execFileSync(
+      binPath,
+      ['verify', '.cejel/report.json', '.cejel/attestation.json'],
+      { cwd: targetRepo, encoding: 'utf8' },
+    );
+
+    expect(output).toContain('report/attestation binding verified');
+    expect(output).toContain('signature and signer identity were not verified');
+  });
+
+  it('rejects a reformatted report whose file digest no longer matches its attestation', () => {
+    const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-command-surface-reformatted-'));
+    writeFileSync(join(targetRepo, 'index.js'), 'export const answer = 42;\n');
+
+    execFileSync(binPath, ['scan', '.', '--quiet'], { cwd: targetRepo, stdio: 'pipe' });
+    const reportPath = join(targetRepo, '.cejel/report.json');
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as unknown;
+    writeFileSync(reportPath, JSON.stringify(report));
+
+    expect(() =>
+      execFileSync(binPath, ['verify', '.cejel/report.json', '.cejel/attestation.json'], {
+        cwd: targetRepo,
+        stdio: 'pipe',
+      }),
+    ).toThrow(/Command failed/);
+  });
+
+  it('rejects extra positional arguments instead of silently ignoring a mistyped command', () => {
+    const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-extra-positional-'));
+    expect(() =>
+      execFileSync(binPath, ['.', 'ignored-path'], { cwd: targetRepo, stdio: 'pipe' }),
+    ).toThrow(/Command failed/);
   });
 
   it('ships LICENSE in the installed package (AGPL-3.0-only)', () => {

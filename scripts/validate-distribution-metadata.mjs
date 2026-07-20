@@ -78,6 +78,20 @@ requireIncludes(
   'distribution workflow artifact metadata permission',
 );
 
+const mcpPublishJobStart = distributionWorkflow.indexOf('  publish-mcp-registry:');
+if (mcpPublishJobStart < 0) {
+  throw new Error('distribution workflow must define the MCP registry publish job.');
+}
+const mcpPublishJob = distributionWorkflow.slice(mcpPublishJobStart);
+requireIncludes(
+  mcpPublishJob,
+  'ref: ${{ inputs.release_tag }}',
+  'MCP registry publish checkout',
+);
+if (mcpPublishJob.includes('ref: ${{ github.sha }}')) {
+  throw new Error('MCP registry publish checkout must not use the dispatch commit.');
+}
+
 process.stdout.write(
   `Distribution metadata agrees on ${packageManifest.mcpName} v${packageManifest.version}.\n`,
 );

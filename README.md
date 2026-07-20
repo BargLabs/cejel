@@ -31,9 +31,15 @@ No account, no key, no signup.
 **Single-file binary.** One file. No Node, no npm, no `node_modules`, nothing installed.
 
 ```bash
+set -eu
 asset="cejel-$(uname -s)-$(uname -m)"
 curl -fsSL "https://github.com/BargLabs/cejel/releases/latest/download/$asset" -o "$asset"
 curl -fsSL https://github.com/BargLabs/cejel/releases/latest/download/SHA256SUMS -o SHA256SUMS
+checksum_entry_count="$(awk -v asset="$asset" '$2 == asset { count++ } END { print count + 0 }' SHA256SUMS)"
+if [ "$checksum_entry_count" -ne 1 ]; then
+  echo "Expected exactly one SHA256SUMS entry for $asset; found $checksum_entry_count" >&2
+  exit 1
+fi
 if command -v sha256sum >/dev/null; then
   grep "  $asset$" SHA256SUMS | sha256sum -c -
 else
@@ -108,22 +114,24 @@ Official MCP Registry.
 
 ## Leaderboard
 
-This repo ships the [Cejel OSS trust leaderboard](./leaderboard/leaderboard.md): the whole
-corpus scored and published in the open — elite OSS projects, Cejel itself, and the private
-studio monorepo Cejel was built inside — with a per-repository evidence report for every
-row under [`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
-[cejel.dev](https://cejel.dev). Every score on this board is produced by the same sealed
-public scorer used by `npx @cejel/cejel .` — check out the source commit printed in the
-report, run the tool, and you will get this number. A required guard does exactly that for
-every corpus row and compares score, verdict, measured coverage, and evidence. No private
-domain collector contributes to any published score, ours included; nobody is exempt.
+This repo ships the [Cejel OSS trust leaderboard](./leaderboard/leaderboard.md): elite OSS
+projects plus two explicitly labeled transparency snapshots from the private studio monorepo
+where Cejel was built, with a per-repository evidence report for every row under
+[`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
+[cejel.dev](https://cejel.dev). Every score is produced by the same sealed public scorer used
+by `npx @cejel/cejel .`; no private domain collector contributes to any published score.
+For each public-repository row, check out the immutable source commit printed in its report
+and run the public scorer to reproduce the score, verdict, measured coverage, and evidence.
+The two private snapshots disclose their limitation instead: their source commits and
+withheld locations are not publicly available, so those rows are not independently
+reproducible and are not presented as public-repository self-scores.
 
 ### Redaction policy
 
 A path is published exactly when the reader can check it. Every public repository on the
 board cites full evidence paths and line numbers, everywhere, in every artifact — a
 certificate whose evidence you cannot open is not evidence. The two private-repository
-entries (this monorepo's own transparency entry, and Cejel's own source sub-package inside
+entries (this monorepo's own transparency entry, and the Cejel source sub-package inside
 it) never cite a source path, anywhere, in any field or format — but the finding itself, its
 dimension, status, score, and content hash always survive; only the location is withheld,
 marked uniformly as "path withheld — private repository". Redaction removes a location, never
@@ -152,10 +160,11 @@ better-evidenced rows.
 ## Usage
 
 ```bash
-./cejel .
+./cejel scan .
 ```
 
-Scores the current directory with sensible defaults: no flags, no signup, fully offline.
+`scan` scores the current directory with sensible defaults: no signup, fully offline. The
+original `./cejel .` form remains supported as a compatibility shorthand.
 Prints a concise terminal certificate and writes to `.cejel/`:
 
 - `report.json` — the full structured report; scored runs carry numeric headline scores and a
@@ -171,6 +180,16 @@ The attestation is deliberately explicit about its assurance level: Cejel create
 statement, but it does not pretend to be an independent signer. Until a customer, reviewer,
 or provenance system signs it, `assurance.status` is `unsigned` and `issuer` is
 `self-generated`. An abstained scan carries only the refusal reason, never a numeric score.
+
+Verify that an emitted report still matches its attestation:
+
+```bash
+./cejel verify .cejel/report.json .cejel/attestation.json
+```
+
+This verifies the report schema and the report-to-attestation digest, repository, rubric,
+timestamp, and outcome binding. It does not verify a signature or signer identity; the command
+prints that boundary on every successful verification.
 
 ### Flags
 
@@ -340,7 +359,7 @@ and the server writes no files.
 
 ## What "offline" means here
 
-Scoring a repo — `cejel .` itself, and the Action's scoring step — makes zero network
+Scoring a repo — `cejel scan .` itself, and the Action's scoring step — makes zero network
 calls: no telemetry, no signup, no model call. Fetching the `@cejel/cejel` package the
 first time (like any npm-distributed CLI, including this Action's own dependency install)
 does need network; that's a one-time install cost, not part of the scoring guarantee.
@@ -376,7 +395,7 @@ enforced structurally — the public artifacts are built from filtered data rath
 rendered and then scrubbed — and a build that would emit a private path fails rather than
 publishes.
 
-**What we exclude from ranking.** The v3 repository scanner does not evaluate B1 (dispatch
+**What we exclude from ranking.** The v5 repository scanner does not evaluate B1 (dispatch
 trace completeness) or B5 (verified learning trace) for repository inputs, including ours:
 both are always *not applicable* in a repository certificate. They remain defined in the
 rubric for structured substrate evidence, but that evidence is not accepted by this scanner.
@@ -421,6 +440,18 @@ scoring tool that has not been checked:
   and a required guard re-scores every row and compares score, verdict, coverage, and
   evidence. The honest correction moved Alfred's Code score from 2.5 to 2.4 and A5 from 2.9
   to 2.4. It is less flattering and more trustworthy.
+- **A tracked symlink could make evidence depend on files outside the checkout.** Repository
+  discovery used a regular-file check that followed symlinks, so a tracked link could escape
+  the immutable source snapshot. Rubric v4 accepts only tracked regular files. On the pinned
+  corpus this removes a duplicate claim source from Zod: A5 moves from 2.2 to 2.0 while its
+  rounded Code score, Overall, verdict, and rank stay unchanged. The full 24-row delta is in
+  the rubric changelog.
+- **A pinned commit could score differently depending on unrelated Git refs in the clone.**
+  History evidence traversed every local and remote-tracking ref, including branches that were
+  not ancestors of the revision being certified. The required clean-clone reproduction job
+  caught the mismatch. Rubric v5 scans only `HEAD` ancestry, so ambient branch state can no
+  longer add evidence or change coverage. The complete v4-to-v5 delta is published in the
+  rubric changelog.
 - **Version 0.1.1 rejected `--help` and `--version` as unknown flags, and read `-h` as a
   directory path.** Version 0.1.2 handles both aliases before positional-path parsing and
   derives its printed version from the package manifest.

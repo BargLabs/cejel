@@ -1,13 +1,16 @@
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { WitanReportSchema } from './witan/index.js';
 import {
   createWitanAttestation,
   renderWitanBadgeEndpoint,
   renderWitanBadgeSvg,
   renderWitanHtmlReport,
   serializeWitanReport,
+  verifyWitanAttestationBinding,
 } from './witan/index.js';
 
 import { runCejelScan } from './scan.js';
@@ -23,6 +26,10 @@ export interface WitanCliOptions {
   /** Raw --ingest values (file paths or single-level globs), in the order given. */
   ingestPatterns: string[];
 }
+
+export type CejelCliInvocation =
+  | { command: 'scan'; options: WitanCliOptions }
+  | { command: 'verify'; reportPath: string; attestationPath: string };
 
 const DEFAULT_OUT_DIR = '.cejel';
 
@@ -85,18 +92,39 @@ const CLI_FLAG_KIND_BY_TOKEN = new Map<string, CliFlagKind>(
 // the same manifest used by every other build; `typeof` keeps normal ESM/dev execution safe when
 // the identifier is intentionally absent.
 declare const __CEJEL_SEA_VERSION__: string | undefined;
+declare const __CEJEL_SEA_PACKAGE_NAME__: string | undefined;
+
+interface CejelPackageManifest {
+  name?: unknown;
+  version?: unknown;
+}
+
+function readCliManifest(): CejelPackageManifest {
+  return JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  ) as CejelPackageManifest;
+}
 
 function cliVersion(): string {
   if (typeof __CEJEL_SEA_VERSION__ === 'string' && __CEJEL_SEA_VERSION__.length > 0) {
     return __CEJEL_SEA_VERSION__;
   }
-  const manifest = JSON.parse(
-    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-  ) as { version?: unknown };
+  const manifest = readCliManifest();
   if (typeof manifest.version !== 'string' || manifest.version.length === 0) {
     throw new Error('Cejel package manifest has no version.');
   }
   return manifest.version;
+}
+
+function cliPackageName(): string {
+  if (typeof __CEJEL_SEA_PACKAGE_NAME__ === 'string' && __CEJEL_SEA_PACKAGE_NAME__.length > 0) {
+    return __CEJEL_SEA_PACKAGE_NAME__;
+  }
+  const manifest = readCliManifest();
+  if (typeof manifest.name !== 'string' || manifest.name.length === 0) {
+    throw new Error('Cejel package manifest has no name.');
+  }
+  return manifest.name;
 }
 
 const usageOptionLabels = CLI_FLAG_SPECS.map(
@@ -108,11 +136,20 @@ const usageOptions = CLI_FLAG_SPECS.map(
     `  ${usageOptionLabels[index]?.padEnd(usageOptionLabelWidth)}  ${spec.description}`,
 ).join('\n');
 
+const NPX_PACKAGE_NAME = cliPackageName();
+
 export const USAGE = `cejel — a trust certificate for your codebase
 
-Usage:  npx cejel [path] [options]
+Usage:
+  npx ${NPX_PACKAGE_NAME} [path] [options]
+  npx ${NPX_PACKAGE_NAME} scan [path] [options]
+  npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json>
 
-Options:
+Commands:
+  scan    score a repository (default when the command is omitted)
+  verify  verify report/attestation binding only; no signature or signer identity check
+
+Scan options:
 ${usageOptions}
 
 Runs entirely offline. No code leaves your machine.
@@ -125,12 +162,17 @@ async function main(): Promise<void> {
 }
 
 /**
- * Zero-config public entry: `npx cejel .` (or `npx cejel`, defaulting to the
+ * Zero-config public entry: `npx @cejel/cejel .` (or `npx @cejel/cejel`, defaulting to the
  * current directory). Fully offline — reuses this package's deterministic, no-LLM scoring core
  * and repo-signal collector; this module only adds ergonomic defaults + presentation.
  */
 export async function runWitanFreeCli(args: readonly string[]): Promise<number> {
-  const options = parseArgs(args);
+  const invocation = parseCliInvocation(args);
+  if (invocation.command === 'verify') {
+    return runVerifyBinding(invocation.reportPath, invocation.attestationPath);
+  }
+
+  const options = invocation.options;
   if (options.showVersion) {
     process.stdout.write(`${cliVersion()}\n`);
     return 0;
@@ -188,6 +230,88 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   return 0;
 }
 
+export function parseCliInvocation(args: readonly string[]): CejelCliInvocation {
+  const command = args[0];
+  if (command === 'scan') {
+    return { command: 'scan', options: parseArgs(args.slice(1)) };
+  }
+  if (command === 'verify') {
+    const verifyArgs = args.slice(1);
+    if (verifyArgs.some((arg) => arg === '-h' || arg === '--help')) {
+      return { command: 'scan', options: parseArgs(['--help']) };
+    }
+    if (verifyArgs.some((arg) => arg === '-v' || arg === '--version')) {
+      return { command: 'scan', options: parseArgs(['--version']) };
+    }
+    if (verifyArgs.length !== 2) {
+      throw new Error(`Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json>`);
+    }
+    const [reportPath, attestationPath] = verifyArgs;
+    if (!reportPath || !attestationPath) {
+      throw new Error(`Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json>`);
+    }
+    return {
+      command: 'verify',
+      reportPath: resolve(reportPath),
+      attestationPath: resolve(attestationPath),
+    };
+  }
+  return { command: 'scan', options: parseArgs(args) };
+}
+
+function runVerifyBinding(reportPath: string, attestationPath: string): number {
+  const reportArtifact = readJsonArtifact(reportPath, 'report');
+  const reportResult = WitanReportSchema.safeParse(reportArtifact.value);
+  if (!reportResult.success) {
+    const members = reportResult.error.issues.map(
+      (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
+    );
+    process.stderr.write(
+      `Cejel: report validation failed:\n${members.map((member) => `  - ${member}`).join('\n')}\n`,
+    );
+    return 1;
+  }
+
+  const statement = readJsonArtifact(attestationPath, 'attestation');
+  const reportSha256 = createHash('sha256').update(reportArtifact.contents).digest('hex');
+  const result = verifyWitanAttestationBinding(statement.value, reportResult.data, {
+    reportSha256,
+  });
+  if (!result.valid) {
+    process.stderr.write(
+      `Cejel: report/attestation binding verification failed:\n${result.errors
+        .map((error) => `  - ${error}`)
+        .join('\n')}\n`,
+    );
+    return 1;
+  }
+
+  process.stdout.write('Cejel: report/attestation binding verified.\n');
+  process.stdout.write('Cejel: signature and signer identity were not verified.\n');
+  return 0;
+}
+
+interface JsonArtifact {
+  contents: Buffer;
+  value: unknown;
+}
+
+function readJsonArtifact(path: string, label: 'report' | 'attestation'): JsonArtifact {
+  let contents: Buffer;
+  try {
+    contents = readFileSync(path);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cejel: could not read ${label} file ${path}: ${message}`);
+  }
+  try {
+    return { contents, value: JSON.parse(contents.toString('utf8')) as unknown };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cejel: invalid JSON in ${label} file ${path}: ${message}`);
+  }
+}
+
 export function parseArgs(args: readonly string[]): WitanCliOptions {
   let repoPath: string | undefined;
   let outDir = DEFAULT_OUT_DIR;
@@ -243,8 +367,13 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
       }
       continue;
     }
-    // First bare positional argument is the repo path.
-    if (repoPath === undefined) repoPath = arg;
+    // First bare positional argument is the repo path. Anything after it is an error: silently
+    // accepting a mistyped command or extra path makes the certificate target ambiguous.
+    if (repoPath === undefined) {
+      repoPath = arg;
+    } else {
+      throw new Error(`Unexpected positional argument: ${arg}`);
+    }
   }
 
   return {
@@ -263,7 +392,8 @@ function isEntryPoint(): boolean {
   if (!invokedPath) return false;
   // npm's installed node_modules/.bin/cejel is a symlink to dist/index.js: argv[1] is the
   // symlink path while import.meta.url resolves to the real file, so the comparison must
-  // go through the same realpath or `npx cejel`/`.bin/cejel` silently exits 0 doing nothing.
+  // go through the same realpath or `npx @cejel/cejel`/`.bin/cejel` silently exits 0 doing
+  // nothing.
   let resolvedPath: string;
   try {
     resolvedPath = realpathSync(invokedPath);

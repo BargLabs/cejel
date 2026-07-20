@@ -2,6 +2,8 @@ import {
   WITAN_RUBRIC_VERSION_V1,
   WITAN_RUBRIC_VERSION_V2,
   WITAN_RUBRIC_VERSION_V3,
+  WITAN_RUBRIC_VERSION_V4,
+  WITAN_RUBRIC_VERSION_V5,
   WITAN_TRADING_RUBRIC_VERSION_V0,
   type WitanConsumedSignalSummary,
   type WitanCriterionId,
@@ -263,12 +265,16 @@ function mergeSignalsByCriterion(
 // scheduled-workflow sub-signal detection, not the scoring algorithm, so it stays on the
 // same metric-based path as v1. v3 (goal_cejel_board_must_be_reproducible_2026-07-12) removed
 // four home-field evidence collectors' reachability, again not the scoring algorithm, so it
-// stays on the same metric-based path too.
+// stays on the same metric-based path too. v4 changes only repository evidence discovery's
+// symlink boundary, not the scoring algorithm, and therefore uses the same metric path. v5
+// bounds history evidence to HEAD ancestry and likewise does not change the metric formula.
 function usesMetricScoring(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V1 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V2 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V3 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V4 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V5 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }

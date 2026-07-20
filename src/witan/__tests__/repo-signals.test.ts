@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1085,6 +1085,53 @@ describe('robustness — BOM-prefixed package.json does not crash the scan', () 
       value: 1,
       max: 1,
     });
+  });
+});
+
+describe('filesystem boundary — tracked symlinks are not repository evidence', () => {
+  it('does not read or cite a tracked README symlink whose target escapes the checkout', () => {
+    const dir = makeTmpRepo();
+    const outside = mkdtempSync(join(tmpdir(), 'witan-signals-outside-'));
+    writeFileSync(join(outside, 'README.md'), '# Ambient host claim\n', 'utf8');
+    symlinkSync(join(outside, 'README.md'), join(dir, 'README.md'));
+    execFileSync('git', ['add', 'README.md'], { cwd: dir });
+    writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
+
+    const input = buildWitanInputFromRepo({
+      productSlug: 'symlink-boundary',
+      productDisplayName: 'Symlink Boundary',
+      repoPath: dir,
+      generatedAt: '2026-07-18T00:00:00.000Z',
+    });
+    const evidencePaths = (input.signals ?? []).flatMap((signal) => [
+      ...(signal.positiveEvidence ?? []).map((evidence) => evidence.path),
+      ...(signal.findings ?? []).map((finding) => finding.evidence.path),
+    ]);
+
+    expect(evidencePaths).not.toContain('README.md');
+  });
+
+  it('does not treat credential history on an unrelated ref as evidence for HEAD', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
+    execFileSync('git', ['commit', '--quiet', '-m', 'clean head'], { cwd: dir });
+    const cleanHead = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf8',
+    }).trim();
+
+    execFileSync('git', ['switch', '--quiet', '-c', 'ambient-history'], { cwd: dir });
+    writeFile(dir, '.env.production', 'API_TOKEN=not-a-real-secret-value\n');
+    execFileSync('git', ['commit', '--quiet', '-m', 'unrelated credential path'], { cwd: dir });
+    execFileSync('git', ['checkout', '--quiet', '--detach', cleanHead], { cwd: dir });
+
+    const a2 = signalFor(dir, 'A2');
+    expect(a2?.notApplicable).toBe(true);
+    expect(a2?.positiveEvidence ?? []).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: '.env path detected in git history' }),
+      ]),
+    );
   });
 });
 

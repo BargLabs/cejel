@@ -2,7 +2,7 @@ import { formatExternalSourceLine } from './witan/index.js';
 
 import type { WitanCliSummary } from './summary.js';
 
-/** Concise, human-readable terminal certificate for `npx cejel .` — the full report lives
+/** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
 export function renderTerminalCertificate(summary: WitanCliSummary): string {
   const abstained = summary.verdict === 'Insufficient source';

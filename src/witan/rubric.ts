@@ -123,6 +123,5 @@ export const WITAN_TRADING_RUBRIC_V0: readonly WitanRubricCriterion[] = [
   },
 ];
 
-// Domain-profile rubric slices live with their rule packs in their own extraction-excluded
-// modules, not here: this file ships in the public cejel tree and must carry only the
-// general rubrics above.
+// Domain-profile rubric slices live with their rule packs, not here. Keeping them out of the
+// default rubric prevents an opt-in profile from changing general Cejel scores.

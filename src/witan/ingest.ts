@@ -6,7 +6,7 @@ import type { WitanInputSignal } from './schemas.js';
 import { clampFinding } from './finding-limits.js';
 import { isGenericSignalDocument, parseGenericJson } from './generic-adapter.js';
 import { stripBom } from './json-safe.js';
-import { parseSarifJson } from './sarif-adapter.js';
+import { type SarifDimensionRule, parseSarifJson } from './sarif-adapter.js';
 import { parseScorecardJson } from './scorecard-adapter.js';
 
 function looksLikeSarif(raw: unknown): boolean {
@@ -53,7 +53,14 @@ function rawToolName(raw: unknown): string {
 
 // Parse a single external-scanner JSON file, auto-detecting SARIF / OpenSSF Scorecard / the
 // generic Cejel external-signal shape by structure. Offline — reads a local file only.
-export function parseIngestFile(filePath: string): WitanInputSignal[] {
+export interface ParseIngestFileOptions {
+  extraSarifDimensionRules?: readonly SarifDimensionRule[];
+}
+
+export function parseIngestFile(
+  filePath: string,
+  options: ParseIngestFileOptions = {},
+): WitanInputSignal[] {
   let raw: unknown;
   try {
     raw = JSON.parse(stripBom(readFileSync(filePath, 'utf8')));
@@ -63,7 +70,7 @@ export function parseIngestFile(filePath: string): WitanInputSignal[] {
   }
 
   let signals: WitanInputSignal[] | undefined;
-  if (looksLikeSarif(raw)) signals = parseSarifJson(raw);
+  if (looksLikeSarif(raw)) signals = parseSarifJson(raw, options.extraSarifDimensionRules);
   else if (looksLikeScorecard(raw)) signals = parseScorecardJson(raw);
   else if (isGenericSignalDocument(raw)) signals = parseGenericJson(raw);
 

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { type Dirent, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { type Dirent, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve, sep } from 'node:path';
 
 import type {
@@ -2418,7 +2418,10 @@ function listGitTrackedFiles(repoPath: string): string[] | null {
     if (!output) return [];
     return output
       .split('\n')
-      .filter((file) => file.length > 0 && !isHardExcludedPath(file))
+      .filter(
+        (file) =>
+          file.length > 0 && !isHardExcludedPath(file) && isRegularFile(join(repoPath, file)),
+      )
       .sort();
   } catch {
     return null;
@@ -3181,7 +3184,7 @@ function findRootPackageJson(repoFiles: readonly string[]): string | null {
 // This prevents EISDIR crashes when git ls-files returns submodule directory entries.
 export function isRegularFile(path: string): boolean {
   try {
-    return statSync(path).isFile();
+    return lstatSync(path).isFile();
   } catch {
     return false;
   }
@@ -3274,7 +3277,9 @@ function readCredentialHistoryEntries(repoPath: string): GitHistoryEntry[] {
   };
 
   try {
-    const commits = execFileSync('git', ['rev-list', '--all'], {
+    // A report is bound to the checked-out revision. Unrelated local branches and
+    // remote-tracking refs are ambient clone state, not evidence for that revision.
+    const commits = execFileSync('git', ['rev-list', 'HEAD'], {
       cwd: repoPath,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -3339,7 +3344,7 @@ function readDeletedCredentialHistoryPaths(repoPath: string): string[] {
   try {
     const output = execFileSync(
       'git',
-      ['log', '--all', '--diff-filter=D', '--name-status', '--format=commit:%H'],
+      ['log', 'HEAD', '--diff-filter=D', '--name-status', '--format=commit:%H'],
       {
         cwd: repoPath,
         encoding: 'utf8',
@@ -3366,7 +3371,7 @@ function readHistoryCommitsForPath(repoPath: string, path: string): string[] {
   try {
     const output = execFileSync(
       'git',
-      ['log', '--all', '--diff-filter=AM', '--format=%H', '--', path],
+      ['log', 'HEAD', '--diff-filter=AM', '--format=%H', '--', path],
       {
         cwd: repoPath,
         encoding: 'utf8',
@@ -3629,7 +3634,7 @@ function hasEnvPathInGitHistory(repoPath: string): boolean {
   try {
     const output = execFileSync(
       'git',
-      ['log', '--all', '--diff-filter=AM', '--name-only', '--format='],
+      ['log', 'HEAD', '--diff-filter=AM', '--name-only', '--format='],
       {
         cwd: repoPath,
         encoding: 'utf8',
