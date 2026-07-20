@@ -67,12 +67,12 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <h1>cejel</h1>
       <dl class="meta">
         <div><dt>Date</dt><dd>2026-07-20</dd></div>
-        <div><dt>Run</dt><dd>packages/witan-cli @ 4af6f2e66916045f6dfe32c86b3e8619cbb1ebd1</dd></div>
+        <div><dt>Run</dt><dd>packages/witan-cli @ 1bb9128519ac21d54ce9350102b7b0a5e24f0429</dd></div>
         <div><dt>Rubric</dt><dd>witan-rubric-v5-2026-07-18</dd></div>
       </dl>
-      <div class="score">3.3<span>/4.0 overall</span></div>
+      <div class="score">3.4<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
-      <p class="subscores">Code 2.5 · Process 4.0</p>
+      <p class="subscores">Code 2.7 · Process 4.0</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -85,6 +85,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
           <div class="criterion-score">2.3</div>
           <ul><li><strong>Test-to-source file ratio</strong><span>11/8 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>11/11 ratio</span></li></ul>
           <ul><li>Detected test file <code>path withheld — private repository · sha256:29d08bc31eac</code></li><li>Detected test file <code>path withheld — private repository · sha256:bb6e3dd9fbf6</code></li><li>Detected test file <code>path withheld — private repository · sha256:34b3efdfe7b2</code></li><li>Detected test file <code>path withheld — private repository · sha256:803f3b84f346</code></li><li>Detected test file <code>path withheld — private repository · sha256:8a8ce5c1aada</code></li><li>Detected test file <code>path withheld — private repository · sha256:769522dc7110</code></li><li>Detected test file <code>path withheld — private repository · sha256:e7d44e9bde65</code></li><li>Detected test file <code>path withheld — private repository · sha256:028dedfad85c</code></li><li>Configured test runner <code>path withheld — private repository · sha256:cf3ff5f0bf13</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>path withheld — private repository · sha256:29d08bc31eac</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A2</div><h3>Data-layer isolation and secrets posture</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">3.2</div>
+          <ul><li><strong>Secret cleanliness</strong><span>1/1 clean</span></li><li><strong>Environment handling depth</strong><span>1/3 practices</span></li></ul>
+          <ul><li>.env path detected in git history <code>path withheld — private repository · sha256:1bb9128519ac</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
@@ -104,7 +112,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>

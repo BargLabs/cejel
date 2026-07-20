@@ -2,7 +2,7 @@
 
 - Product: svelte
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:39:49.061Z
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/sveltejs/svelte @ b4d1583ae20f3869a88a731d9a265c546c099f66
 
 ## Criterion Profile

@@ -2,7 +2,7 @@
 
 - Product: fmt
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:39:49.061Z
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/fmtlib/fmt @ a79df4504cd4e42ed004b1113fb82171e62ed822
 
 ## Criterion Profile

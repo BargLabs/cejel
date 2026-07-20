@@ -3,9 +3,9 @@
   "productDisplayName": "cejel",
   "repo": {
     "path": "packages/witan-cli",
-    "headSha": "4af6f2e66916045f6dfe32c86b3e8619cbb1ebd1"
+    "headSha": "1bb9128519ac21d54ce9350102b7b0a5e24f0429"
   },
-  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "generatedAt": "2026-07-20T04:45:38.019Z",
   "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
@@ -128,12 +128,38 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 0,
-      "status": "not_applicable",
-      "evidence": [],
+      "score": 3.2,
+      "status": "info",
+      "evidence": [
+        {
+          "kind": "secret_scan",
+          "label": ".env path detected in git history",
+          "contentHash": "1bb9128519ac21d54ce9350102b7b0a5e24f0429",
+          "locationWithheld": "path withheld — private repository"
+        }
+      ],
       "findings": [],
-      "metrics": [],
-      "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify."
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.7,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 1,
+          "max": 3,
+          "weight": 0.3,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
     },
     {
       "id": "A3",
@@ -371,8 +397,8 @@
   ],
   "archetype": "source",
   "verdict": "conditional",
-  "codeTrustScore": 2.5,
+  "codeTrustScore": 2.7,
   "processTrustScore": 4,
-  "overallScore": 3.3,
+  "overallScore": 3.4,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

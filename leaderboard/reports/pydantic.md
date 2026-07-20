@@ -2,7 +2,7 @@
 
 - Product: pydantic
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:39:49.061Z
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/pydantic/pydantic @ f59e929c999e8b2efc7b12fd0bc1685c1a186be3
 
 ## Criterion Profile

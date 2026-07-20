@@ -3,9 +3,9 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "4af6f2e66916045f6dfe32c86b3e8619cbb1ebd1"
+    "headSha": "1bb9128519ac21d54ce9350102b7b0a5e24f0429"
   },
-  "generatedAt": "2026-07-20T04:39:49.061Z",
+  "generatedAt": "2026-07-20T04:45:38.019Z",
   "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
@@ -144,9 +144,9 @@
       "status": "warning",
       "evidence": [
         {
-          "kind": "artifact",
-          "label": "Data layer migration",
-          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
+          "kind": "secret_scan",
+          "label": ".env path detected in git history",
+          "contentHash": "1bb9128519ac21d54ce9350102b7b0a5e24f0429",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -486,7 +486,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 11,
+          "value": 10,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",

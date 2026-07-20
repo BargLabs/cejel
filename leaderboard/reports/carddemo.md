@@ -2,7 +2,7 @@
 
 - Product: carddemo
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:39:49.061Z
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/aws-samples/aws-mainframe-modernization-carddemo @ 59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e
 - Verdict: Insufficient source to certify — Cejel does not yet read this repository's dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 20% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.
 

@@ -2,7 +2,7 @@
 
 - Product: cobra
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:39:49.061Z
+- Generated: 2026-07-20T04:45:38.019Z
 - Repository: https://github.com/spf13/cobra @ adbc8813901bba65827259daa8e22ff94ec1f30e
 
 ## Criterion Profile
