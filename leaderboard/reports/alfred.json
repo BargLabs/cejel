@@ -3,9 +3,9 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "7722553e114699fc62f26d51cd0ec952df0af0c0"
+    "headSha": "fe0eef6bcd95f196707f0315b4aa8b1ae4b63338"
   },
-  "generatedAt": "2026-07-20T13:12:56.894Z",
+  "generatedAt": "2026-07-20T14:16:00.138Z",
   "rubricVersion": "witan-rubric-v5-2026-07-18",
   "criteria": [
     {
@@ -146,7 +146,7 @@
         {
           "kind": "secret_scan",
           "label": ".env path detected in git history",
-          "contentHash": "7722553e114699fc62f26d51cd0ec952df0af0c0",
+          "contentHash": "fe0eef6bcd95f196707f0315b4aa8b1ae4b63338",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -443,7 +443,7 @@
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 4,
+      "score": 3.9,
       "status": "verified",
       "evidence": [
         {
@@ -486,7 +486,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 12,
+          "value": 10,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -560,7 +560,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "bbee41a3646e1a861dbacf93892950158079d5ae537dc3e132aa76fe260f83ab",
+          "contentHash": "f3d074538be28506030a8643c10686cbf803251d0eb807f42f1ecf172670d967",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -644,7 +644,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "bbee41a3646e1a861dbacf93892950158079d5ae537dc3e132aa76fe260f83ab",
+          "contentHash": "f3d074538be28506030a8643c10686cbf803251d0eb807f42f1ecf172670d967",
           "locationWithheld": "path withheld — private repository"
         }
       ],

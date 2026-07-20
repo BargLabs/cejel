@@ -115,24 +115,24 @@ Official MCP Registry.
 ## Leaderboard
 
 This repo ships the [Cejel OSS trust leaderboard](./leaderboard/leaderboard.md): elite OSS
-projects plus two explicitly labeled transparency snapshots from the private studio monorepo
-where Cejel was built, with a per-repository evidence report for every row under
-[`leaderboard/reports/`](./leaderboard/reports/). The board is also hosted at
-[cejel.dev](https://cejel.dev). Every score is produced by the same sealed public scorer used
-by `npx @cejel/cejel .`; no private domain collector contributes to any published score.
+projects, the public Cejel repository itself, and one explicitly labeled transparency
+snapshot from the private studio monorepo where Cejel was built, with a per-repository
+evidence report for every row under [`leaderboard/reports/`](./leaderboard/reports/). The
+board is also hosted at [cejel.dev](https://cejel.dev). Every score is produced by the same
+sealed public scorer used by `npx @cejel/cejel .`; no private domain collector contributes.
 For each public-repository row, check out the immutable source commit printed in its report
 and run the public scorer to reproduce the score, verdict, measured coverage, and evidence.
-The two private snapshots disclose their limitation instead: their source commits and
-withheld locations are not publicly available, so those rows are not independently
-reproducible and are not presented as public-repository self-scores.
+The private Alfred snapshot discloses its limitation instead: its source commit and withheld
+locations are not publicly available, so that row is not independently reproducible and is
+not presented as a public-repository self-score.
 
 ### Redaction policy
 
 A path is published exactly when the reader can check it. Every public repository on the
 board cites full evidence paths and line numbers, everywhere, in every artifact — a
-certificate whose evidence you cannot open is not evidence. The two private-repository
-entries (this monorepo's own transparency entry, and the Cejel source sub-package inside
-it) never cite a source path, anywhere, in any field or format — but the finding itself, its
+certificate whose evidence you cannot open is not evidence. The private-repository entry
+(the studio monorepo's transparency snapshot) never cites a source path, anywhere, in any
+field or format — but the finding itself, its
 dimension, status, score, and content hash always survive; only the location is withheld,
 marked uniformly as "path withheld — private repository". Redaction removes a location, never
 a fact: a private repository failing its own check still shows up on its certificate, by

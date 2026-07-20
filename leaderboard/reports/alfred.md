@@ -2,8 +2,8 @@
 
 - Product: alfred
 - Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T13:12:56.894Z
-- Repository: . @ 7722553e114699fc62f26d51cd0ec952df0af0c0
+- Generated: 2026-07-20T14:16:00.138Z
+- Repository: . @ fe0eef6bcd95f196707f0315b4aa8b1ae4b63338
 
 ## Criterion Profile
 
@@ -15,7 +15,7 @@
 | A4 | Dependency hygiene | Code trust | 2.2 | warning | Pinned dependency ratio: 61/209 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.4 | warning | Claim match rate: 12/20 ratio; Claim source depth: 14 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 27 signals (cap 2); Recent PR merge ratio: 12/12 ratio |
+| B2 | PR outcome traceability | Process trust | 3.9 | verified | PR trace primitive coverage: 27 signals (cap 2); Recent PR merge ratio: 10/12 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 5 signals (cap 4); PR-gate CI workflow count: 13 workflows (cap 4) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.9 | verified | Audit artifact depth: 68 files (cap 3); Audit freshness depth: 60/68 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -43,7 +43,7 @@
 - A1: Coverage configuration (path withheld — private repository, sha256:bb3758e12fb9)
 - A1: CI workflow runs the test suite (path withheld — private repository, sha256:d94131fc2de3)
 - A1: Scheduled product-health workflow (path withheld — private repository, sha256:d94131fc2de3) (warning)
-- A2: .env path detected in git history (path withheld — private repository, sha256:7722553e1146)
+- A2: .env path detected in git history (path withheld — private repository, sha256:fe0eef6bcd95)
 - A2: .env files are gitignored (path withheld — private repository, sha256:d4879d8a5ea4)
 - A2: Environment template (path withheld — private repository, sha256:17b9221cd6f9)
 - A2: Environment template (path withheld — private repository, sha256:60cae38769ab)
@@ -68,7 +68,7 @@
 - B3: Lint script (path withheld — private repository, sha256:dbffd60fc946)
 - B3: CI workflow (path withheld — private repository, sha256:d90a520a3cf7)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:b71d90871d8b)
-- B4: Audit or changelog artifact (path withheld — private repository, sha256:bbee41a3646e)
+- B4: Audit or changelog artifact (path withheld — private repository, sha256:f3d074538be2)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:d14484199d1a)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:ef234e3bb333)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:160074df8986)
@@ -76,7 +76,7 @@
 - B6: Documents privileged operations as human-executed/gated (path withheld — private repository, sha256:430ee9c26d48)
 - B6: Fail-closed privilege-membership check before role elevation (path withheld — private repository, sha256:cd87a11058cc)
 - B6: Un-overridable kill-switch / fail-safe governance toggle (path withheld — private repository, sha256:95ea60e45d8d)
-- B6: CODEOWNERS/required-review gate on protected paths (path withheld — private repository, sha256:bbee41a3646e)
+- B6: CODEOWNERS/required-review gate on protected paths (path withheld — private repository, sha256:f3d074538be2)
 - B6: Ungated privilege-escalation statement (path withheld — private repository, sha256:cd87a11058cc) (info)
 
 ## Findings
