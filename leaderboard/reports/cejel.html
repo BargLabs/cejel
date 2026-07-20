@@ -67,13 +67,12 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <h1>cejel</h1>
       <dl class="meta">
         <div><dt>Date</dt><dd>2026-07-20</dd></div>
-        <div><dt>Run</dt><dd>packages/witan-cli @ 7722553e114699fc62f26d51cd0ec952df0af0c0</dd></div>
+        <div><dt>Run</dt><dd>https://github.com/BargLabs/cejel @ 0be03171c810023c65806d87f25ee4873a377cea</dd></div>
         <div><dt>Rubric</dt><dd>witan-rubric-v5-2026-07-18</dd></div>
       </dl>
-      <div class="score">3.4<span>/4.0 overall</span></div>
+      <div class="score">2.8<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
-      <p class="subscores">Code 2.7 · Process 4.0</p>
-      <p class="subscores"><strong>Private transparency snapshot:</strong> this scores Cejel's source sub-package inside the studio monorepo, not the public BargLabs/cejel repository. Its source commit and evidence locations are not publicly available, so this certificate is not independently reproducible.</p>
+      <p class="subscores">Code 2.3 · Process 3.2</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -83,25 +82,33 @@ code { color: var(--warn); overflow-wrap: anywhere; }
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
             <span class="status" data-status="warning">warning</span>
           </div>
-          <div class="criterion-score">2.3</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>11/8 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>11/11 ratio</span></li></ul>
-          <ul><li>Detected test file <code>path withheld — private repository · sha256:6147bcbf4ae6</code></li><li>Detected test file <code>path withheld — private repository · sha256:49de8c3b484d</code></li><li>Detected test file <code>path withheld — private repository · sha256:34b3efdfe7b2</code></li><li>Detected test file <code>path withheld — private repository · sha256:803f3b84f346</code></li><li>Detected test file <code>path withheld — private repository · sha256:8a8ce5c1aada</code></li><li>Detected test file <code>path withheld — private repository · sha256:2886fddef119</code></li><li>Detected test file <code>path withheld — private repository · sha256:e7d44e9bde65</code></li><li>Detected test file <code>path withheld — private repository · sha256:1fabc793bb1c</code></li><li>Configured test runner <code>path withheld — private repository · sha256:7428d1a6763d</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>path withheld — private repository · sha256:6147bcbf4ae6</code>)</li></ul>
+          <div class="criterion-score">2.0</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>20/27 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>20/20 ratio</span></li></ul>
+          <ul><li>Detected test file <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code></li><li>Detected test file <code>src/__tests__/mcp-scan-parity.test.ts:1 · sha256:34b3efdfe7b2</code></li><li>Detected test file <code>src/__tests__/offline-guarantee.test.ts:1 · sha256:803f3b84f346</code></li><li>Detected test file <code>src/__tests__/product-identity.test.ts:1 · sha256:8a8ce5c1aada</code></li><li>Detected test file <code>src/__tests__/publish-installable.test.ts:1 · sha256:8379557a0d39</code></li><li>Detected test file <code>src/__tests__/summary.test.ts:1 · sha256:de47e2cae9da</code></li><li>Detected test file <code>src/__tests__/terminal.test.ts:1 · sha256:d16d09ff7e09</code></li><li>Detected test file <code>src/witan/__tests__/attestation.test.ts:1 · sha256:4e18dabfae27</code></li><li>Configured test runner <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow runs the test suite <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A2</div><h3>Data-layer isolation and secrets posture</h3></div>
             <span class="status" data-status="info">info</span>
           </div>
-          <div class="criterion-score">3.2</div>
-          <ul><li><strong>Secret cleanliness</strong><span>1/1 clean</span></li><li><strong>Environment handling depth</strong><span>1/3 practices</span></li></ul>
-          <ul><li>.env path detected in git history <code>path withheld — private repository · sha256:7722553e1146</code></li></ul>
+          <div class="criterion-score">3.3</div>
+          <ul><li><strong>Secret cleanliness</strong><span>1/1 clean</span></li><li><strong>Environment handling depth</strong><span>1/3 practices</span></li><li><strong>Crypto comparison hygiene</strong><span>1/1 clean</span></li></ul>
+          <ul><li>DB client import <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code></li><li>Constant-time secret/HMAC comparison <code>src/witan/repo-signals.ts:1 · sha256:383f202763dd</code></li><li>info: Secret-shaped value in a test/fixture file (src/witan/__tests__/repo-signals.test.ts) — likely fixture data, not a production leak; verify. (Committed secret-shaped value <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code>)</li><li>info: A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify. (Non-constant-time secret comparison <code>src/witan/__tests__/lua-rubric-refinements.test.ts:272 · sha256:c5ab7388c834</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">A3</div><h3>Production readiness</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.3</div>
+          <ul><li><strong>Production-readiness primitive coverage</strong><span>3/6 primitives</span></li><li><strong>Production workflow depth</strong><span>6/6 signals</span></li><li><strong>Observability depth</strong><span>13/4 signals</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
+          <ul><li>Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>Deploy configuration <code>Dockerfile:1 · sha256:219ff891874d</code></li><li>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
-          <div class="criterion-score">3.1</div>
-          <ul><li><strong>Declared version range ratio</strong><span>10/10 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>0/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
-          <ul><li>Dependency manifest <code>path withheld — private repository · sha256:7428d1a6763d</code></li><li>Dependency lockfile (monorepo root) <code>path withheld — private repository · sha256:94fe1c37ae24</code></li></ul>
+          <div class="criterion-score">1.8</div>
+          <ul><li><strong>Pinned dependency ratio</strong><span>0/8 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>0/2 ratio</span></li></ul>
+          <ul><li>Dependency manifest <code>package.json:1 · sha256:c1c359ec5669</code></li><li>Dependency lockfile <code>pnpm-lock.yaml:1 · sha256:d0ca1e84d71e</code></li><li>warning: A4 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>package.json:1 · sha256:c1c359ec5669</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
@@ -109,46 +116,50 @@ code { color: var(--warn); overflow-wrap: anywhere; }
           </div>
           <div class="criterion-score">2.2</div>
           <ul><li><strong>Claim match rate</strong><span>12/13 ratio</span></li><li><strong>Claim source depth</strong><span>1/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
-          <ul><li>Repository claim source <code>path withheld — private repository · sha256:aef65593ddf6</code></li><li>Code presence for claim reconciliation <code>path withheld — private repository · sha256:6147bcbf4ae6</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>path withheld — private repository · sha256:aef65593ddf6</code>)</li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:56ddeb464198</code></li><li>Code presence for claim reconciliation <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:56ddeb464198</code>)</li></ul>
         </article></div>
-        <div class="na-group">
-          <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
-        </div>
       </section>
       <section>
         <h2>Process trust</h2>
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="insufficient_data">insufficient_data</span>
-          </div>
-          <div class="criterion-score">No data</div>
-          <ul><li>No measured depth metrics supplied.</li></ul>
-          <ul><li>No concrete evidence supplied.</li></ul>
-        </article><article class="criterion">
-          <div class="criterion-top">
-            <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
             <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">4.0</div>
-          <ul><li><strong>CI verification depth</strong><span>4/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>13/4 workflows</span></li></ul>
-          <ul><li>Test script <code>path withheld — private repository · sha256:7428d1a6763d</code></li><li>CI workflow (monorepo root) <code>path withheld — private repository · sha256:d90a520a3cf7</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>4/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>Pull-request CI workflow <code>.github/workflows/cla.yml:1 · sha256:3501cf464dbc</code></li><li>Pull-request CI workflow <code>.github/workflows/publish-distribution.yml:1 · sha256:b16f13592b84</code></li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
+            <span class="status" data-status="warning">warning</span>
+          </div>
+          <div class="criterion-score">2.4</div>
+          <ul><li><strong>CI verification depth</strong><span>4/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
+          <ul><li>Test script <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>warning: B3 metric-derived score is 2.4/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Test script <code>package.json:1 · sha256:c1c359ec5669</code>)</li></ul>
+        </article><article class="criterion">
+          <div class="criterion-top">
+            <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
+            <span class="status" data-status="info">info</span>
+          </div>
+          <div class="criterion-score">3.3</div>
+          <ul><li><strong>Human gate documented</strong><span>1/1 present</span></li><li><strong>Fail-closed privilege check present</strong><span>1/1 present</span></li><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>0/1 present</span></li></ul>
+          <ul><li>Documents privileged operations as human-executed/gated <code>leaderboard/reports/alfred.md:1 · sha256:4f6e2d964969</code></li><li>Fail-closed privilege-membership check before role elevation <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code></li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">B1</span> Internal process dimension — <span class="na-reason">Substrate-specific: an internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B4</span> Audit trail and report-up completeness — <span class="na-reason">No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.</span></li><li><span class="na-id">B5</span> Internal process dimension — <span class="na-reason">Substrate-specific: an internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B6</span> Privileged-operation human gating — <span class="na-reason">No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">B1</span> Internal process dimension — <span class="na-reason">Substrate-specific: an internal process dimension is not applicable to external code.</span></li><li><span class="na-id">B4</span> Audit trail and report-up completeness — <span class="na-reason">No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.</span></li><li><span class="na-id">B5</span> Internal process dimension — <span class="na-reason">Substrate-specific: an internal process dimension is not applicable to external code.</span></li></ul>
         </div>
       </section>
     </section>
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B3 - CI and QA discipline</strong><span>Test script <code>path withheld — private repository · sha256:7428d1a6763d</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow (monorepo root) <code>path withheld — private repository · sha256:d90a520a3cf7</code></span></li></ul>
+        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/cla.yml:1 · sha256:3501cf464dbc</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/publish-distribution.yml:1 · sha256:b16f13592b84</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>path withheld — private repository · sha256:6147bcbf4ae6</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>path withheld — private repository · sha256:aef65593ddf6</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code>)</span></li><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>info: Secret-shaped value in a test/fixture file (src/witan/__tests__/repo-signals.test.ts) — likely fixture data, not a production leak; verify. (Committed secret-shaped value <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code>)</span></li><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>info: A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify. (Non-constant-time secret comparison <code>src/witan/__tests__/lua-rubric-refinements.test.ts:272 · sha256:c5ab7388c834</code>)</span></li><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:56ddeb464198</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 2.4/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Test script <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li></ul>
       </article>
     </section>
   </main>

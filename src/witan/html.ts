@@ -151,12 +151,13 @@ function criteriaByCategory(
 function renderCriterionColumn(title: string, criteria: readonly WitanCriterionScore[]): string {
   const applicable = criteria.filter((criterion) => criterion.status !== 'not_applicable');
   const notApplicable = criteria.filter((criterion) => criterion.status === 'not_applicable');
+  const notApplicableGroup =
+    notApplicable.length > 0 ? `\n        ${renderNotApplicableGroup(notApplicable)}` : '';
   return `<section class="criteria-column">
         <h2>${escapeHtml(title)}</h2>
         <div class="criteria-list">
           ${applicable.map(renderCriterionCard).join('')}
-        </div>
-        ${notApplicable.length > 0 ? renderNotApplicableGroup(notApplicable) : ''}
+        </div>${notApplicableGroup}
       </section>`;
 }
 
