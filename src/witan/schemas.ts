@@ -29,7 +29,8 @@ export const WITAN_RUBRIC_VERSION_V4 = 'witan-rubric-v4-2026-07-18';
 // revision. Unrelated local/remote refs are ambient clone state and made a pinned commit's
 // score depend on which branches happened to be present.
 export const WITAN_RUBRIC_VERSION_V5 = 'witan-rubric-v5-2026-07-18';
-export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V5;
+export const WITAN_RUBRIC_VERSION_V6 = 'witan-rubric-v6-2026-07-21';
+export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V6;
 export const WITAN_TRADING_RUBRIC_VERSION_V0 = 'witan-trading-rubric-v0-2026-07-01';
 
 export const WITAN_CRITERION_IDS = [

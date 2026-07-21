@@ -1,8 +1,8 @@
 # Cejel Trust Report - biomejs
 
 - Product: biomejs
-- Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:45:38.019Z
+- Rubric: witan-rubric-v6-2026-07-21
+- Generated: 2026-07-21T15:56:38.161Z
 - Repository: https://github.com/biomejs/biome @ 01bba129afefced1c04aa69592b1b7f337a7b609
 
 ## Criterion Profile

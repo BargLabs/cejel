@@ -12,7 +12,7 @@ RUN pnpm run build
 
 FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runtime
 
-ARG VERSION=0.1.7
+ARG VERSION=0.1.8
 LABEL org.opencontainers.image.title="Cejel" \
       org.opencontainers.image.description="Offline deterministic engineering-trust certificates for repositories" \
       org.opencontainers.image.url="https://cejel.dev" \

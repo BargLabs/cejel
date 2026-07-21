@@ -70,7 +70,7 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
-- uses: BargLabs/cejel/action@v0.1.7
+- uses: BargLabs/cejel/action@v0.1.8
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
@@ -99,21 +99,21 @@ Microsoft Authenticode code-signing.
 **Docker / OCI.** The same MCP server is published as a non-root, multi-platform image:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.7
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.8
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.7 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.8 .
 ```
 
 Beginning with v0.1.7, the standard CLI identity flags are also available directly, while an
 invocation without arguments continues to start the MCP server:
 
 ```bash
-docker run --rm ghcr.io/barglabs/cejel:0.1.7 --version
-docker run --rm ghcr.io/barglabs/cejel:0.1.7 --help
+docker run --rm ghcr.io/barglabs/cejel:0.1.8 --version
+docker run --rm ghcr.io/barglabs/cejel:0.1.8 --help
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
@@ -324,7 +324,7 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
-- uses: BargLabs/cejel/action@v0.1.7
+- uses: BargLabs/cejel/action@v0.1.8
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```
@@ -403,7 +403,7 @@ enforced structurally — the public artifacts are built from filtered data rath
 rendered and then scrubbed — and a build that would emit a private path fails rather than
 publishes.
 
-**What we exclude from ranking.** The v5 repository scanner does not evaluate B1 (dispatch
+**What we exclude from ranking.** The v6 repository scanner does not evaluate B1 (dispatch
 trace completeness) or B5 (verified learning trace) for repository inputs, including ours:
 both are always *not applicable* in a repository certificate. They remain defined in the
 rubric for structured substrate evidence, but that evidence is not accepted by this scanner.
@@ -480,6 +480,11 @@ scoring tool that has not been checked:
   "Unverified". Every real legacy repository has a deploy script, so the fix that passed every
   test was unreachable for essentially all of them. Recognised source must now be *dominant*,
   not merely present. **A fixture cleaner than reality proves nothing.**
+- **Version 0.1.7 missed AVA's root-level `test.js` convention.** A smoke test against
+  `sindresorhus/slugify` reported that a runner was configured but no concrete test files were
+  detected even though `test.js` was present at the repository root. That was a detection gap
+  in Cejel, not evidence about the repository. Rubric v6 recognizes AVA's `test.js` and
+  `test-*.js` conventions; a regression fixture preserves the correction.
 
 Every one was a trust failure produced by *us* — false alarms about other people's code,
 silent omissions, inconsistent presentation, or a home-only scoring path — and we would

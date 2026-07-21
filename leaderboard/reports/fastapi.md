@@ -1,8 +1,8 @@
 # Cejel Trust Report - fastapi
 
 - Product: fastapi
-- Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:45:38.019Z
+- Rubric: witan-rubric-v6-2026-07-21
+- Generated: 2026-07-21T15:56:38.161Z
 - Repository: https://github.com/fastapi/fastapi @ 7cb06f360dd44efac059848df1a9beee7643b018
 
 ## Criterion Profile

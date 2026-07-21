@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cejel OSS trust leaderboard</title>
-<meta property="og:image" content="https://cejel.dev/brand-icon.png">
-<link rel="icon" type="image/png" href="/brand-icon.png">
-<link rel="apple-touch-icon" href="/brand-icon.png">
 <style>
 :root { --ink: #23252b; --muted: #6b6f7a; --line: #e3e5ea; --accent: #5b6abf; --error: #b23a3a; --bg: #fbfbfc; }
 * { box-sizing: border-box; }
@@ -39,14 +36,14 @@ a { color: var(--accent); }
 </head>
 <body>
 <h1>Cejel OSS trust leaderboard</h1>
-<p class="meta">Run date: 2026-07-20T14:16:00.138Z</p>
-<p class="meta">Cejel version: @cejel/cejel@0.1.7 (fe0eef6bcd95) · Rubric version: witan-rubric-v5-2026-07-18</p>
-
+<p class="meta">Run date: 2026-07-21T15:56:38.161Z</p>
+<p class="meta">Cejel version: @cejel/cejel@0.1.8 (707b7b5f3224) · Rubric version: witan-rubric-v6-2026-07-21</p>
+<p class="env-note">Run environment: Rubric v6 AVA root test-file correction; pinned corpus rescore from 707b7b5.</p>
 
 <h2>How to read this board</h2>
 <ul>
 <li>Scores run 0.0-4.0 and come from a deterministic rubric over observable repository signals: tests and CI discipline, secret handling, dependency hygiene, audit trail, and governance.</li>
-<li>Every score on this board is produced by the sealed public scorer used by <code>npx @cejel/cejel .</code>; no private domain collector contributes. Public-repository rows pin an immutable public commit and are independently reproducible from it. The explicitly labeled private Alfred transparency snapshot is not independently reproducible because its source commit and evidence locations are not public; it is not presented as a public-repository self-score.</li>
+<li>Every score on this board is produced by the sealed public scorer used by `npx @cejel/cejel .`; no private domain collector contributes. Public-repository rows pin an immutable public commit and are independently reproducible from it. The explicitly labeled private Alfred transparency snapshot is not independently reproducible because its source commit and evidence locations are not public; it is not presented as a public-repository self-score.</li>
 <li>Verdict bands: Verified (3.5 and above), Conditional (2.5-3.4), At risk (1.5-2.4), Unverified (below 1.5). Conditional is not bad — many healthy, actively developed repositories land there.</li>
 <li>A score reflects observable engineering signals only. It is not a security guarantee, not an audit, and not a judgment of a project's value or its maintainers.</li>
 <li>A score reflects only its MEASURED dimensions. The Coverage column shows how many dimensions were actually measured per category (e.g. &quot;code 4/5 · process 1/6&quot;): a dimension that is not applicable to the repository, or that had insufficient data to measure, produced no score and is excluded from the composite rather than counted against the repository. Unmeasured is not good — it is unknown. Coverage counts every rubric dimension, including the two dimensions the repository scanner marks not applicable for every repository.</li>
@@ -144,27 +141,7 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/react.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/react.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/react.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>5</td><td>alfred</td><td>internal-substrate</td><td>AGPL-3.0-only</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>2.4</td><td>3.8</td><td class="coverage-cell">code 5/5 · process 4/6</td><td>5</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
-  <title>cejel trust: 3.1/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">3.1/4.0 conditional</text>
-  </g>
-</svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/alfred.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/alfred.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/alfred.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>6</td><td><a href="https://github.com/sveltejs/svelte">svelte</a></td><td>framework-web</td><td>MIT</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>2.9</td><td>3.3</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
+<tr><td>5</td><td><a href="https://github.com/sveltejs/svelte">svelte</a></td><td>framework-web</td><td>MIT</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>2.9</td><td>3.3</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
   <title>cejel trust: 3.1/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -184,6 +161,26 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/svelte.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/svelte.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/svelte.json" title="Machine-readable JSON">json</a></span></td></tr>
+<tr><td>6</td><td>alfred</td><td>internal-substrate</td><td>AGPL-3.0-only</td><td class="score">3.0</td><td class="ranked-score">3.0</td><td>2.2</td><td>3.8</td><td class="coverage-cell">code 5/5 · process 4/6</td><td>5</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.0/4.0 conditional">
+  <title>cejel trust: 3.0/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">3.0/4.0 conditional</text>
+  </g>
+</svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/alfred.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/alfred.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/alfred.json" title="Machine-readable JSON">json</a></span></td></tr>
 <tr><td>7</td><td><a href="https://github.com/colinhacks/zod">zod</a></td><td>library-js</td><td>MIT</td><td class="score">3.0</td><td class="ranked-score">3.0</td><td>2.8</td><td>3.2</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>1</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.0/4.0 conditional">
   <title>cejel trust: 3.0/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
@@ -578,7 +575,7 @@ a { color: var(--accent); }
 <li>vue — 2.9 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>internal-substrate</h3><ul>
-<li>alfred — 3.1 (Conditional)</li>
+<li>alfred — 3.0 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>internal-tool</h3><ul>
 <li>cejel — 2.8 (Conditional)</li>

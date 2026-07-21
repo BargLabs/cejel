@@ -2077,6 +2077,9 @@ function isTestFile(file: string): boolean {
     /(^|\/)(__tests__|test|tests|spec)\/.*\.(?:[cm]?[jt]sx?|py|go|rs|java|rb|cpp|cc|cxx)$/.test(
       file,
     ) ||
+    // AVA's default discovery includes test.js and test-*.js at the scanned package root.
+    // Keep this root-anchored: nested files need an existing test-directory/suffix convention.
+    /^test(?:-[^/]+)?\.[cm]?[jt]sx?$/.test(file) ||
     /\.(test|spec)\.[cm]?[jt]sx?$/.test(file) ||
     /(^|\/)test_.*\.py$/.test(file) ||
     /_test\.go$/.test(file) ||
@@ -2094,7 +2097,7 @@ function isTestFile(file: string): boolean {
 // same way the missing-assertion-idiom bug did (Django: ~1100 of 2036 detected "test files"
 // are scaffolding with no test in them).
 const NAME_SHAPED_TEST_FILE_PATTERN =
-  /\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
+  /^test(?:-[^/]+)?\.[cm]?[jt]sx?$|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
 // ---- END canonical production-source classifier -------------------------------------------
 
 const TEST_RUNNER_PATTERN =

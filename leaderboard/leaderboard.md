@@ -1,8 +1,9 @@
 # Cejel OSS trust leaderboard
 
-- Run date: 2026-07-20T14:16:00.138Z
-- Cejel version: @cejel/cejel@0.1.7 (fe0eef6bcd95)
-- Rubric version: witan-rubric-v5-2026-07-18
+- Run date: 2026-07-21T15:56:38.161Z
+- Cejel version: @cejel/cejel@0.1.8 (707b7b5f3224)
+- Rubric version: witan-rubric-v6-2026-07-21
+- Run environment: Rubric v6 AVA root test-file correction; pinned corpus rescore from 707b7b5.
 
 ## How to read this board
 
@@ -30,8 +31,8 @@ _Overall is each repository's own canonical figure — identical to its linked c
 | 2 | [vite](https://github.com/vitejs/vite) | tooling-build | MIT | 3.3 | 3.3 | 2.6 | 4.0 | code 5/5 · process 3/6 | 2 | Conditional | ![cejel badge](reports/vite-badge.svg) | [certificate](reports/vite.html) · [report](reports/vite.md) · [json (machine-readable)](reports/vite.json) |
 | 3 | [pydantic](https://github.com/pydantic/pydantic) | library-python | MIT | 3.2 | 3.2 | 2.9 | 3.5 | code 3/5 · process 3/6 | 1 | Conditional | ![cejel badge](reports/pydantic-badge.svg) | [certificate](reports/pydantic.html) · [report](reports/pydantic.md) · [json (machine-readable)](reports/pydantic.json) |
 | 4 | [react](https://github.com/facebook/react) | framework-web | MIT | 3.2 | 3.2 | 2.5 | 3.9 | code 4/5 · process 3/6 | 3 | Conditional | ![cejel badge](reports/react-badge.svg) | [certificate](reports/react.html) · [report](reports/react.md) · [json (machine-readable)](reports/react.json) |
-| 5 | [alfred](reports/alfred.md) | internal-substrate | AGPL-3.0-only | 3.1 | 3.1 | 2.4 | 3.8 | code 5/5 · process 4/6 | 5 | Conditional | ![cejel badge](reports/alfred-badge.svg) | [certificate](reports/alfred.html) · [report](reports/alfred.md) · [json (machine-readable)](reports/alfred.json) |
-| 6 | [svelte](https://github.com/sveltejs/svelte) | framework-web | MIT | 3.1 | 3.1 | 2.9 | 3.3 | code 4/5 · process 3/6 | 3 | Conditional | ![cejel badge](reports/svelte-badge.svg) | [certificate](reports/svelte.html) · [report](reports/svelte.md) · [json (machine-readable)](reports/svelte.json) |
+| 5 | [svelte](https://github.com/sveltejs/svelte) | framework-web | MIT | 3.1 | 3.1 | 2.9 | 3.3 | code 4/5 · process 3/6 | 3 | Conditional | ![cejel badge](reports/svelte-badge.svg) | [certificate](reports/svelte.html) · [report](reports/svelte.md) · [json (machine-readable)](reports/svelte.json) |
+| 6 | [alfred](reports/alfred.md) | internal-substrate | AGPL-3.0-only | 3.0 | 3.0 | 2.2 | 3.8 | code 5/5 · process 4/6 | 5 | Conditional | ![cejel badge](reports/alfred-badge.svg) | [certificate](reports/alfred.html) · [report](reports/alfred.md) · [json (machine-readable)](reports/alfred.json) |
 | 7 | [zod](https://github.com/colinhacks/zod) | library-js | MIT | 3.0 | 3.0 | 2.8 | 3.2 | code 4/5 · process 3/6 | 1 | Conditional | ![cejel badge](reports/zod-badge.svg) | [certificate](reports/zod.html) · [report](reports/zod.md) · [json (machine-readable)](reports/zod.json) |
 | 8 | [biomejs](https://github.com/biomejs/biome) | tooling-build | MIT OR Apache-2.0 | 2.9 | 2.9 | 2.8 | 3.0 | code 4/5 · process 4/6 | 3 | Conditional | ![cejel badge](reports/biomejs-badge.svg) | [certificate](reports/biomejs.html) · [report](reports/biomejs.md) · [json (machine-readable)](reports/biomejs.json) |
 | 9 | [requests](https://github.com/psf/requests) | library-python | Apache-2.0 | 2.9 | 2.9 | 2.4 | 3.4 | code 3/5 · process 4/6 | 1 | Conditional | ![cejel badge](reports/requests-badge.svg) | [certificate](reports/requests.html) · [report](reports/requests.md) · [json (machine-readable)](reports/requests.json) |
@@ -89,7 +90,7 @@ _Below the coverage floor: scored on fewer than half of the applicable dimension
 
 ### internal-substrate
 
-- alfred — 3.1 (Conditional)
+- alfred — 3.0 (Conditional)
 
 ### internal-tool
 
