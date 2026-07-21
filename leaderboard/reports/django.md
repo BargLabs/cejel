@@ -1,8 +1,8 @@
 # Cejel Trust Report - django
 
 - Product: django
-- Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:45:38.019Z
+- Rubric: witan-rubric-v6-2026-07-21
+- Generated: 2026-07-21T15:56:38.161Z
 - Repository: https://github.com/django/django @ 65a9f14196c338d70889bd54753370606b3fb4eb
 
 ## Criterion Profile

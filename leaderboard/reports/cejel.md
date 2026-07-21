@@ -1,8 +1,8 @@
 # Cejel Trust Report - cejel
 
 - Product: cejel
-- Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T14:14:06.505Z
+- Rubric: witan-rubric-v6-2026-07-21
+- Generated: 2026-07-21T15:56:38.161Z
 - Repository: https://github.com/BargLabs/cejel @ 0be03171c810023c65806d87f25ee4873a377cea
 
 ## Criterion Profile

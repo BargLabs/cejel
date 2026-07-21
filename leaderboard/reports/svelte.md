@@ -1,8 +1,8 @@
 # Cejel Trust Report - svelte
 
 - Product: svelte
-- Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:45:38.019Z
+- Rubric: witan-rubric-v6-2026-07-21
+- Generated: 2026-07-21T15:56:38.161Z
 - Repository: https://github.com/sveltejs/svelte @ b4d1583ae20f3869a88a731d9a265c546c099f66
 
 ## Criterion Profile

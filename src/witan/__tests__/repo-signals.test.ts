@@ -310,6 +310,38 @@ describe('Monorepo — sub-package credits root lockfile + CI, no false critical
 
 // ─── A1: C++ test files in spec/ directory ─────────────────────────────────
 
+describe('A1 — AVA root-level test files are detected', () => {
+  it('recognizes the test.js convention instead of reporting a configured runner with no tests', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'ava-root-test',
+        scripts: { test: 'ava' },
+        devDependencies: { ava: '^6.0.0' },
+      }),
+    );
+    writeFile(dir, 'index.js', 'export const slugify = (value) => value.toLowerCase();\n');
+    writeFile(
+      dir,
+      'test.js',
+      "import test from 'ava';\nimport {slugify} from './index.js';\ntest('slugifies', t => { t.is(slugify('HELLO'), 'hello'); });\n",
+    );
+
+    const a1 = signalFor(dir, 'A1');
+    expect(a1).not.toBeNull();
+    expect((a1?.positiveEvidence ?? []).some((item) => item.path === 'test.js')).toBe(true);
+    expect(
+      (a1?.findings ?? []).some(
+        (finding) =>
+          finding.summary ===
+          'A test runner is configured, but no concrete test files were detected.',
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('A1 — C++ test files under spec/ directory are detected', () => {
   it('counts .cpp files under spec/ as test files', () => {
     const dir = makeTmpRepo();

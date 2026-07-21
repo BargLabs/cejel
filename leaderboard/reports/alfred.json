@@ -3,10 +3,10 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "fe0eef6bcd95f196707f0315b4aa8b1ae4b63338"
+    "headSha": "707b7b5f322464081836f7aff7aa8da069913281"
   },
-  "generatedAt": "2026-07-20T14:16:00.138Z",
-  "rubricVersion": "witan-rubric-v5-2026-07-18",
+  "generatedAt": "2026-07-21T15:56:38.161Z",
+  "rubricVersion": "witan-rubric-v6-2026-07-21",
   "criteria": [
     {
       "id": "A1",
@@ -98,8 +98,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 355,
-          "max": 624,
+          "value": 363,
+          "max": 628,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -127,8 +127,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 351,
-          "max": 355,
+          "value": 360,
+          "max": 363,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -140,13 +140,13 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 2.4,
-      "status": "warning",
+      "score": 1.4,
+      "status": "critical",
       "evidence": [
         {
           "kind": "secret_scan",
           "label": ".env path detected in git history",
-          "contentHash": "fe0eef6bcd95f196707f0315b4aa8b1ae4b63338",
+          "contentHash": "707b7b5f322464081836f7aff7aa8da069913281",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -182,12 +182,12 @@
       ],
       "findings": [
         {
-          "severity": "info",
-          "summary": "Secret-shaped value in a test/fixture file (path withheld — private repository) — likely fixture data, not a production leak; verify.",
+          "severity": "critical",
+          "summary": "Secret-shaped value appears committed in the scanned repository.",
           "evidence": {
             "kind": "secret_scan",
             "label": "Committed secret-shaped value",
-            "contentHash": "213989426f8b192b207bf4178276fee4fa623d9f3020163312ce5662e383334f",
+            "contentHash": "d226179486334579c3f8183ebf9b8e37fc005345eb38cb4cf3d8191661bc9990",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -196,7 +196,7 @@
         {
           "name": "secret_cleanliness",
           "label": "Secret cleanliness",
-          "value": 1,
+          "value": 0,
           "max": 1,
           "weight": 0.25,
           "unit": "clean",
@@ -225,7 +225,7 @@
           "name": "tenant_scope_ratio",
           "label": "Tenant-scoped schema ratio",
           "value": 37,
-          "max": 46,
+          "max": 48,
           "weight": 0.25,
           "unit": "ratio",
           "description": "Measures tenant/studio/workspace scoping evidence across data-layer files."
@@ -283,7 +283,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 95,
+          "value": 97,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -293,7 +293,7 @@
         {
           "name": "rollback_safety_depth",
           "label": "Rollback and migration-safety depth",
-          "value": 116,
+          "value": 143,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.15,
@@ -486,7 +486,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 10,
+          "value": 11,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -560,7 +560,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "f3d074538be28506030a8643c10686cbf803251d0eb807f42f1ecf172670d967",
+          "contentHash": "404aff8bc4755d16a98d8eb9973f27c4ed041f29cdb860da691ee786533c9968",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -587,7 +587,7 @@
         {
           "name": "audit_artifact_depth",
           "label": "Audit artifact depth",
-          "value": 68,
+          "value": 71,
           "max": 3,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -597,8 +597,8 @@
         {
           "name": "audit_freshness_depth",
           "label": "Audit freshness depth",
-          "value": 60,
-          "max": 68,
+          "value": 63,
+          "max": 71,
           "weight": 0.2,
           "unit": "ratio",
           "description": "Credits audit artifacts that carry freshness/current-state markers."
@@ -644,7 +644,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "f3d074538be28506030a8643c10686cbf803251d0eb807f42f1ecf172670d967",
+          "contentHash": "404aff8bc4755d16a98d8eb9973f27c4ed041f29cdb860da691ee786533c9968",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -712,8 +712,8 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.4,
+  "codeTrustScore": 2.2,
   "processTrustScore": 3.8,
-  "overallScore": 3.1,
+  "overallScore": 3,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

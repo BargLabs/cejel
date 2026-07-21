@@ -1,8 +1,8 @@
 # Cejel Trust Report - ripgrep
 
 - Product: ripgrep
-- Rubric: witan-rubric-v5-2026-07-18
-- Generated: 2026-07-20T04:45:38.019Z
+- Rubric: witan-rubric-v6-2026-07-21
+- Generated: 2026-07-21T15:56:38.161Z
 - Repository: https://github.com/BurntSushi/ripgrep @ d5b85d44057ff729a89be9c6549958c45d95aa99
 
 ## Criterion Profile

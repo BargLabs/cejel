@@ -1,6 +1,6 @@
 {
   "name": "@cejel/cejel",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "mcpName": "io.github.BargLabs/cejel",
   "private": false,
   "publishConfig": {

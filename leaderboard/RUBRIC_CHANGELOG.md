@@ -12,6 +12,55 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## witan-rubric-v6-2026-07-21
+
+**What changed.** Cejel now recognizes AVA's root-level `test.js` and `test-*.js`
+conventions as concrete JavaScript test files. Version 0.1.7 recognized AVA as a configured
+runner but missed those filenames, producing a false missing-tests finding on
+`sindresorhus/slugify` even though its root `test.js` was present.
+
+**Why.** This was a detection gap in Cejel, not evidence about the repository. The correction
+adds the convention to both A1 test-file discovery and the non-hollow-test classifier, with a
+regression fixture that reproduces the real repository shape. The fix does not execute tests
+or broaden the scanner beyond tracked source evidence.
+
+No externally pinned corpus score, verdict, or rank moved. None of the 22 external pinned
+entries uses the newly recognized filename shape as previously missing evidence, and the two
+rubric-protocol golden fixtures are unchanged. The Alfred transparency row advanced from the
+previous self snapshot to implementation commit `707b7b5`: unrelated intervening source changes
+move its Overall **3.1 to 3.0**, Code trust **2.4 to 2.2**, and rank **5 to 6**. Svelte moves rank
+**6 to 5** only because Alfred moves below it; Svelte's score and evidence are unchanged. The
+public Cejel row remains pinned to the same public commit and is unchanged.
+
+**Full v5 to v6 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | A1 | Verdict | Rank |
+|---|---:|---:|---:|---:|---|---:|
+| react | 3.2 to 3.2 | 2.5 to 2.5 | 3.9 to 3.9 | 2.3 to 2.3 | Conditional to Conditional | 4 to 4 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | 2.5 to 2.5 | Conditional to Conditional | 11 to 11 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | 2.6 to 2.6 | Conditional to Conditional | 6 to 5 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | 2.8 to 2.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.8 to 2.8 | 2.5 to 2.5 | 3.0 to 3.0 | 2.3 to 2.3 | Conditional to Conditional | 15 to 15 |
+| fastapi | 2.9 to 2.9 | 2.5 to 2.5 | 3.2 to 3.2 | 2.0 to 2.0 | Conditional to Conditional | 14 to 14 |
+| express | 2.8 to 2.8 | 2.6 to 2.6 | 3.0 to 3.0 | 2.3 to 2.3 | Conditional to Conditional | 13 to 13 |
+| vite | 3.3 to 3.3 | 2.6 to 2.6 | 4.0 to 4.0 | 2.5 to 2.5 | Conditional to Conditional | 2 to 2 |
+| esbuild | 2.6 to 2.6 | 2.7 to 2.7 | 2.4 to 2.4 | 2.5 to 2.5 | Conditional to Conditional | 17 to 17 |
+| biomejs | 2.9 to 2.9 | 2.8 to 2.8 | 3.0 to 3.0 | 2.7 to 2.7 | Conditional to Conditional | 8 to 8 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | 2.5 to 2.5 | Conditional to Conditional | 9 to 9 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | 2.8 to 2.8 | Conditional to Conditional | 3 to 3 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | 2.8 to 2.8 | Conditional to Conditional | 1 to 1 |
+| zod | 3.0 to 3.0 | 2.8 to 2.8 | 3.2 to 3.2 | 2.5 to 2.5 | Conditional to Conditional | 7 to 7 |
+| scorecard | 3.0 to 3.0 | 2.3 to 2.3 | 3.6 to 3.6 | 2.4 to 2.4 | Conditional to Conditional | 10 to 10 |
+| ripgrep | 2.2 to 2.2 | 2.4 to 2.4 | 2.0 to 2.0 | 1.9 to 1.9 | At risk to At risk | 18 to 18 |
+| guava | 1.9 to 1.9 | 1.5 to 1.5 | 2.2 to 2.2 | 1.3 to 1.3 | At risk to At risk | unranked to unranked |
+| cobra | 2.6 to 2.6 | 2.8 to 2.8 | 2.3 to 2.3 | 2.3 to 2.3 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | 1.8 to 1.8 | At risk to At risk | unranked to unranked |
+| automapper | 1.9 to 1.9 | 1.5 to 1.5 | 2.3 to 2.3 | 0.3 to 0.3 | At risk to At risk | unranked to unranked |
+| fmt | 2.7 to 2.7 | 2.2 to 2.2 | 3.2 to 3.2 | 2.8 to 2.8 | Conditional to Conditional | 16 to 16 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | 0.0 to 0.0 | Insufficient source to Insufficient source | insufficient to insufficient |
+| alfred | **3.1 to 3.0** | **2.4 to 2.2** | 3.8 to 3.8 | 2.3 to 2.3 | Conditional to Conditional | **5 to 6** |
+| cejel | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | 2.0 to 2.0 | Conditional to Conditional | 12 to 12 |
+
 ## witan-rubric-v5-2026-07-18
 
 **What changed.** Git-history evidence is now read only from commits reachable from the
