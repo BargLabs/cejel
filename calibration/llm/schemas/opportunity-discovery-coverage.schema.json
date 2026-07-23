@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/opportunity-discovery-coverage-v1.json",
+  "title": "Cejel Free LLM independently reviewed opportunity-discovery coverage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol_id", "status", "frozen_at", "detector_results_seen_before_freeze", "review_method", "blind_reviewers", "bindings", "coverage", "record_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "status": {"const": "frozen_before_detector_results"},
+    "frozen_at": {"type": "string", "format": "date-time"},
+    "detector_results_seen_before_freeze": {"const": false},
+    "review_method": {"enum": ["two_human", "two_independent_ai"]},
+    "blind_reviewers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 3}
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["golden_manifest_sha256", "untouched_manifest_sha256", "source_evidence_index_sha256", "opportunity_manifest_sha256"],
+      "properties": {
+        "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "untouched_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "source_evidence_index_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "opportunity_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "minItems": 384,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["cohort", "repository_id", "commit_sha", "rule_id", "declared_opportunity_ids"],
+        "properties": {
+          "cohort": {"enum": ["golden", "untouched"]},
+          "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+          "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+          "rule_id": {"enum": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"]},
+          "declared_opportunity_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"}
+          }
+        }
+      }
+    },
+    "record_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

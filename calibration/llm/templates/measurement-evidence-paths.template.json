@@ -1,0 +1,23 @@
+{
+  "golden_manifest": "../cohorts/golden-manifest-v1.2.json",
+  "untouched_manifest": "../cohorts/untouched-manifest-v1.2.json",
+  "source_evidence_index": "../source-evidence-index.json",
+  "opportunity_manifest": "../opportunity-manifest.json",
+  "opportunity_discovery_coverage": "../opportunity-discovery-coverage.json",
+  "release_thresholds": "../release-thresholds.json",
+  "pre_result_commitment": "../pre-result-commitment.json",
+  "trusted_execution_proof": "../trusted-execution-proof.json",
+  "detector_freeze": "../detector-freeze.json",
+  "execution_receipts": ["/replace/with/every/calibration-execution.json"],
+  "llm_reports": [
+    {"cohort": "golden", "repository_id": "owner/repository", "path": "/replace/with/llm-report.json"}
+  ],
+  "label_records": ["/replace/with/every/label-record.json"],
+  "automatic_no_go_evidence": {
+    "free_core_unchanged_without_pack": "/replace/with/free-core-test-record.json",
+    "offline_scan_path_verified": "/replace/with/network-isolation-audit.json",
+    "all_findings_have_resolvable_evidence": "/replace/with/finding-path-audit.json",
+    "prohibited_public_claims_absent": "/replace/with/claim-audit.json",
+    "untouched_blinding_preserved": "/replace/with/chronology-audit.json"
+  }
+}

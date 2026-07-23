@@ -1,0 +1,7 @@
+import OpenAI from 'openai';
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+await client.responses.create({
+  model: 'example',
+  input: `Diagnose this account: ${process.env.DATABASE_PASSWORD}`,
+});

@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.2",
+  "recorded_at": "2026-07-23T15:08:31Z",
+  "decision": "NO-GO",
+  "release_class": "not_releasable_evidence_incomplete",
+  "decision_scope": "calibration evidence integrity, not detector performance",
+  "detector": {
+    "git_commit": "8ac82f273f11113d96e8d9bdff2cabd4ddd3c480",
+    "build_sha256": "2e6b4c173f8f4ef84e90927885689bb820ada61913b06dae93c2b1ed89a0cce3",
+    "freeze_record_sha256": "dd7acf57d0f07ae324778ea571bc089b397335ef1834fa802617ff40bdb2def9"
+  },
+  "runs": {
+    "golden": {
+      "run_id": 29992864057,
+      "head_sha": "8ac82f273f11113d96e8d9bdff2cabd4ddd3c480",
+      "evidence_archive_sha256": "551cceebcc2947b5df833604900f40967acc12019f131b9d7056530459416d25",
+      "raw_archive_sha256": "b949a1d0f4fb3ad9efb677029a4104c6c55f0efd444fad5c228d643180b1cd55"
+    },
+    "untouched": {
+      "run_id": 30017300688,
+      "head_sha": "f8509f23364664e3c5d797169ad858b05b84d803",
+      "evidence_archive_sha256": "d0cf4efd107a283480cfaf48b0874605bfff030f0b0646e9b2ffd5bc89dae3e0",
+      "raw_archive_sha256": "7466a4366a9c4510e01963be1205def111d3b69b64aaa614d1831b624e58f9d4"
+    }
+  },
+  "cohort_sizes": {
+    "golden_repositories": 24,
+    "untouched_repositories": 24
+  },
+  "untouched_observation": {
+    "emitted_findings": 0,
+    "finding_reviews": 0,
+    "review_completeness": "complete_empty_set"
+  },
+  "performance_measurement": {
+    "status": "not_estimable",
+    "true_positives": null,
+    "false_positives": null,
+    "false_negatives": null,
+    "true_negatives": null,
+    "precision_denominator": null,
+    "recall_denominator": null,
+    "false_positive_rate_denominator": null,
+    "reason": "compute-metrics was not executed because required actual-run evidence was absent"
+  },
+  "automatic_gates": {
+    "free_core_unchanged_without_pack": false,
+    "offline_scan_path_verified": true,
+    "all_findings_have_resolvable_evidence": true,
+    "prohibited_public_claims_absent": false,
+    "untouched_blinding_preserved": true,
+    "all_pass": false
+  },
+  "integrity_failure": {
+    "required_record": "golden free-core compatibility evidence",
+    "bound_sha256": "1a18ceeed75fb97a54205dba6ca09485a4a32da131a1872600746caf323ea5fd",
+    "failure": "The golden evidence bundle bound the record hash, but neither retained artifact contained the exact record bytes.",
+    "response": "No rerun, reconstruction, substitution, evidence repair, or manually entered metric count was accepted."
+  },
+  "trusted_execution": {
+    "status": "verified_after_provider_path_correction",
+    "proof_byte_sha256": "ba1a873a9ef35d37e179cee419516f0166af89c09e400f021090b46cc97074e5",
+    "proof_canonical_sha256": "66fc9a47d81bdb30bba4f793190e5a9e0e38d668da2d906b2076b44fe6364364",
+    "workflow_sha256": "bfd6b8890cc016453913dbb26e8a6d6c59414814ccf9eb26d19f1d8b6c83f02b",
+    "impact_on_decision": "none; the independent evidence-retention NO-GO remains"
+  },
+  "corrections": [
+    {
+      "scope": "future calibration workflow",
+      "change": "Retain the exact golden free-core compatibility record in the raw run artifact."
+    },
+    {
+      "scope": "trusted GitHub execution verifier",
+      "change": "Require the workflow run API path exactly as returned by GitHub, without an invented @ref suffix.",
+      "impact_on_decision": "none; the independent evidence-retention NO-GO remains"
+    }
+  ],
+  "review": {
+    "passes": 2,
+    "mode": "same_task_ai_sequential",
+    "independent": false,
+    "human": false
+  },
+  "private_sanitized_report_sha256": "c2ba4fc9bb6366851902b5e5439b49e9183f95d6ee80817fc11860d526740676"
+}

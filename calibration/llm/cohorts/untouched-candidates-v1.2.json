@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.2",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "Helicone/helicone",
+      "url": "https://github.com/Helicone/helicone",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "gateway",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical gateway or unified-provider surface with routing, policy, monitoring, or provider-abstraction behavior."
+    },
+    {
+      "repository_id": "ThinkInAIXYZ/deepchat",
+      "url": "https://github.com/ThinkInAIXYZ/deepchat",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical end-user LLM chat application with model-response, conversation, and provider-integration surfaces."
+    },
+    {
+      "repository_id": "CherryHQ/cherry-studio",
+      "url": "https://github.com/CherryHQ/cherry-studio",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical end-user LLM chat application with model-response, conversation, and provider-integration surfaces."
+    },
+    {
+      "repository_id": "enricoros/big-AGI",
+      "url": "https://github.com/enricoros/big-AGI",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical end-user LLM chat application with model-response, conversation, and provider-integration surfaces."
+    },
+    {
+      "repository_id": "oobabooga/textgen",
+      "url": "https://github.com/oobabooga/textgen",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Active canonical local or self-hosted model inference and serving surface."
+    },
+    {
+      "repository_id": "lm-sys/FastChat",
+      "url": "https://github.com/lm-sys/FastChat",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Active framework for serving and evaluating open language models through chat interfaces."
+    },
+    {
+      "repository_id": "ParisNeo/lollms-webui",
+      "url": "https://github.com/ParisNeo/lollms-webui",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Active canonical local or self-hosted model inference and serving surface."
+    },
+    {
+      "repository_id": "SciPhi-AI/R2R",
+      "url": "https://github.com/SciPhi-AI/R2R",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical retrieval-augmented generation, document-chat, indexing, or semantic-cache surface."
+    },
+    {
+      "repository_id": "Cinnamon/kotaemon",
+      "url": "https://github.com/Cinnamon/kotaemon",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical retrieval-augmented generation, document-chat, indexing, or semantic-cache surface."
+    },
+    {
+      "repository_id": "llmware-ai/llmware",
+      "url": "https://github.com/llmware-ai/llmware",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Active enterprise RAG pipeline framework emphasizing small and specialized models."
+    },
+    {
+      "repository_id": "OpenBMB/UltraRAG",
+      "url": "https://github.com/OpenBMB/UltraRAG",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Active low-code framework for composing advanced RAG and MCP pipelines."
+    },
+    {
+      "repository_id": "anthropics/claude-code",
+      "url": "https://github.com/anthropics/claude-code",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Active canonical agent, tool-execution, browser-control, or MCP surface."
+    },
+    {
+      "repository_id": "pydantic/pydantic-ai",
+      "url": "https://github.com/pydantic/pydantic-ai",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical agent, tool-execution, browser-control, or MCP surface."
+    },
+    {
+      "repository_id": "google/adk-python",
+      "url": "https://github.com/google/adk-python",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical agent, tool-execution, browser-control, or MCP surface."
+    },
+    {
+      "repository_id": "camel-ai/camel",
+      "url": "https://github.com/camel-ai/camel",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical agent, tool-execution, browser-control, or MCP surface."
+    },
+    {
+      "repository_id": "OpenBMB/ChatDev",
+      "url": "https://github.com/OpenBMB/ChatDev",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical agent, tool-execution, browser-control, or MCP surface."
+    },
+    {
+      "repository_id": "anthropics/claude-code-action",
+      "url": "https://github.com/anthropics/claude-code-action",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Active canonical agent, tool-execution, browser-control, or MCP surface."
+    },
+    {
+      "repository_id": "comet-ml/opik",
+      "url": "https://github.com/comet-ml/opik",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    },
+    {
+      "repository_id": "langwatch/langwatch",
+      "url": "https://github.com/langwatch/langwatch",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    },
+    {
+      "repository_id": "Giskard-AI/giskard-oss",
+      "url": "https://github.com/Giskard-AI/giskard-oss",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    },
+    {
+      "repository_id": "langfuse/langfuse",
+      "url": "https://github.com/langfuse/langfuse",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    },
+    {
+      "repository_id": "guardrails-ai/guardrails",
+      "url": "https://github.com/guardrails-ai/guardrails",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    },
+    {
+      "repository_id": "openai/evals",
+      "url": "https://github.com/openai/evals",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "openai",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    },
+    {
+      "repository_id": "567-labs/instructor",
+      "url": "https://github.com/567-labs/instructor",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Active canonical LLM evaluation, observability, structured-output, guardrail, or application-framework surface."
+    }
+  ]
+}

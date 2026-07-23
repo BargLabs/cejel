@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/label-v1.json",
+  "title": "Cejel Free LLM independent label record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol_id", "label_id", "cohort", "repository", "rule", "opportunity_id", "detector_finding_id", "label", "evidence", "review", "created_at"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "label_id": {"type": "string", "pattern": "^llm-label-[a-z0-9-]{8,80}$"},
+    "cohort": {"enum": ["golden", "untouched"]},
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "commit_sha"],
+      "properties": {
+        "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"}
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogue_id", "rule_id", "rule_version"],
+      "properties": {
+        "catalogue_id": {"type": "string", "minLength": 3},
+        "rule_id": {"type": "string", "pattern": "^LLM-[A-Z0-9-]{3,40}$"},
+        "rule_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "opportunity_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"},
+    "detector_finding_id": {"type": ["string", "null"], "minLength": 3},
+    "label": {"enum": ["present", "absent", "ambiguous", "not_applicable", "insufficient_source"]},
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path_or_reference", "sha256", "rationale"],
+        "properties": {
+          "kind": {"enum": ["source_span", "manifest_key", "configuration", "external_result"]},
+          "path_or_reference": {"type": "string", "minLength": 1},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "rationale": {"type": "string", "minLength": 20}
+        },
+        "allOf": [
+          {"if": {"properties": {"kind": {"const": "source_span"}}}, "then": {"required": ["start_line", "end_line"]}}
+        ]
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["labeler_id", "role", "independent_of_rule_author", "detector_output_visible", "adjudication_status"],
+      "properties": {
+        "labeler_id": {"type": "string", "minLength": 3},
+        "role": {"enum": ["primary_labeler", "independent_reviewer", "adjudicator", "finding_reviewer"]},
+        "independent_of_rule_author": {"const": true},
+        "detector_output_visible": {"type": "boolean"},
+        "adjudication_status": {"enum": ["not_required", "pending", "adjudicated"]},
+        "supersedes_label_ids": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^llm-label-[a-z0-9-]{8,80}$"}},
+        "rationale": {"type": "string", "minLength": 20}
+      },
+      "allOf": [
+        {"if": {"properties": {"role": {"enum": ["primary_labeler", "independent_reviewer"]}}}, "then": {"properties": {"detector_output_visible": {"const": false}}}},
+        {"if": {"properties": {"role": {"const": "adjudicator"}}}, "then": {"required": ["supersedes_label_ids", "rationale"], "properties": {"detector_output_visible": {"const": false}, "adjudication_status": {"const": "adjudicated"}}}},
+        {"if": {"properties": {"role": {"const": "finding_reviewer"}}}, "then": {"properties": {"detector_output_visible": {"const": true}, "adjudication_status": {"const": "not_required"}}}}
+      ]
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {"if": {"properties": {"review": {"properties": {"role": {"const": "finding_reviewer"}}}}}, "then": {"properties": {"detector_finding_id": {"type": "string", "pattern": "^llm-finding-[a-f0-9]{64}$"}}}, "else": {"properties": {"detector_finding_id": {"const": null}}}}
+  ]
+}

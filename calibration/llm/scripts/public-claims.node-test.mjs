@@ -1,0 +1,68 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { findProhibitedPublicClaims } from './public-claims.mjs';
+
+test('detects each prohibited public claim class', () => {
+  const examples = [
+    ['Cejel measures a general hallucination rate.', 'general_hallucination_rate'],
+    ['Cejel prevents hallucinations in production.', 'hallucination_prevention_or_detection'],
+    ['Cejel provides hallucination detection.', 'hallucination_prevention_or_detection'],
+    ['Cejel makes every LLM application safe.', 'universal_safety_or_trust'],
+    ['Cejel provides complete coverage for all agent frameworks.', 'complete_framework_coverage'],
+    ['Cejel covers all model SDKs.', 'complete_framework_coverage'],
+  ];
+  for (const [content, expected] of examples) {
+    assert.deepEqual(findProhibitedPublicClaims(content).map((item) => item.claim_class), [expected]);
+  }
+});
+
+test('permits explicit boundary denials and unrelated guarantees', () => {
+  for (const content of [
+    'Cejel does not measure a model hallucination rate.',
+    'Cejel cannot prevent hallucinations.',
+    'Cejel does not guarantee that every LLM application is safe.',
+    'Cejel does not provide complete coverage for all agent frameworks.',
+    'The installer guarantees atomic replacement of the local output file.',
+  ]) assert.deepEqual(findProhibitedPublicClaims(content), []);
+});
+
+test('permits explicit Markdown disclaimer lists and prohibited-phrase examples', () => {
+  const content = `
+The pack does **not**:
+
+- measure a model's general hallucination rate;
+- prevent hallucinations;
+- provide complete coverage for all agent frameworks.
+
+The phrases "hallucination detector" and "hallucination rate" are prohibited in product claims.
+`;
+  assert.deepEqual(findProhibitedPublicClaims(content), []);
+});
+
+test('a denial cannot hide a prohibited claim in a later contrastive clause', () => {
+  const claims = findProhibitedPublicClaims(
+    'Cejel does not measure a hallucination rate, but detects hallucinations. ' +
+    'It is marketed as hallucination-free.',
+  );
+  assert.deepEqual(
+    claims.map((claim) => claim.claim_class),
+    ['hallucination_prevention_or_detection', 'hallucination_prevention_or_detection'],
+  );
+  assert.equal(
+    findProhibitedPublicClaims(
+      'Cejel does not measure a hallucination rate; however, it detects hallucinations.',
+    ).some((claim) => claim.claim_class === 'hallucination_prevention_or_detection'),
+    true,
+  );
+});
+
+test('mentioning prohibited does not suppress a positive capability claim', () => {
+  const claims = findProhibitedPublicClaims(
+    'Unlike prohibited alternatives, Cejel detects every hallucination.',
+  );
+  assert.deepEqual(
+    claims.map((claim) => claim.claim_class),
+    ['hallucination_prevention_or_detection'],
+  );
+});

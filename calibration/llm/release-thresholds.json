@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "locked_before_detector_results",
+  "locked_at": "2026-07-22T17:20:00-07:00",
+  "decision_authority": "ADR-0011 master-orchestrator delegation approved by product owner",
+  "detector_results_seen": false,
+  "public_v1_go": {
+    "minimum_finding_recall": 0.8,
+    "minimum_precision": 0.9,
+    "maximum_incorrect_finding_rate": 0.1,
+    "maximum_unresolved_critical_false_positives": 0,
+    "minimum_positive_defects_per_rule_for_strong_claim": 5,
+    "minimum_double_labeled_fraction": 0.2,
+    "minimum_double_labeled_items_per_enabled_rule": 2
+  },
+  "limited_experimental_go": {
+    "minimum_finding_recall": 0.65,
+    "minimum_precision": 0.8,
+    "maximum_incorrect_finding_rate": 0.2,
+    "maximum_unresolved_critical_false_positives": 0,
+    "required_label": "experimental",
+    "required_publication": "publish all denominators, per-rule support, abstentions, limitations, and correction ledger"
+  },
+  "automatic_no_go": [
+    "any default free-core report changes when --pack is not selected",
+    "any network or model call in the pack scan path",
+    "any finding without a resolvable repository-relative evidence pointer",
+    "any general hallucination-rate, universal safety, or complete-framework claim",
+    "any untouched-cohort result inspected before detector and artifact freeze",
+    "any unresolved critical false positive",
+    "precision below 0.80 or finding recall below 0.65 on eligible adjudicated untouched items"
+  ],
+  "non_gating_but_mandatory_to_publish": [
+    "abstention rate",
+    "not-applicable rate",
+    "unsupported language and SDK coverage",
+    "per-rule denominators",
+    "reviewer agreement and adjudication method",
+    "zero-denominator metrics as not_estimable"
+  ],
+  "decision_order": [
+    "automatic_no_go",
+    "public_v1_go",
+    "limited_experimental_go",
+    "no_go"
+  ]
+}

@@ -1,0 +1,8 @@
+import OpenAI from 'openai';
+
+const client = new OpenAI();
+const response = await client.responses.create({ model: 'gpt-5', input: 'Choose a target' });
+const output = response.output_text;
+const action = ActionSchema.strict().parse(JSON.parse(output));
+
+await deploy(action.target);

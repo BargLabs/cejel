@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/measurement-input-v1.json",
+  "title": "Cejel Free LLM evidence-bound adjudicated measurement input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_id", "automatic_no_go_evidence", "evidence"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "automatic_no_go_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["free_core_unchanged_without_pack", "offline_scan_path_verified", "all_findings_have_resolvable_evidence", "prohibited_public_claims_absent", "untouched_blinding_preserved"],
+      "properties": {
+        "free_core_unchanged_without_pack": {"$ref": "#/$defs/bound_document"},
+        "offline_scan_path_verified": {"$ref": "#/$defs/bound_document"},
+        "all_findings_have_resolvable_evidence": {"$ref": "#/$defs/bound_document"},
+        "prohibited_public_claims_absent": {"$ref": "#/$defs/bound_document"},
+        "untouched_blinding_preserved": {"$ref": "#/$defs/bound_document"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["golden_manifest", "untouched_manifest", "source_evidence_index", "opportunity_manifest", "opportunity_discovery_coverage", "release_thresholds", "pre_result_commitment", "trusted_execution_proof", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
+      "properties": {
+        "golden_manifest": {"$ref": "#/$defs/bound_document"},
+        "untouched_manifest": {"$ref": "#/$defs/bound_document"},
+        "source_evidence_index": {"$ref": "#/$defs/bound_document"},
+        "opportunity_manifest": {"$ref": "#/$defs/bound_document"},
+        "opportunity_discovery_coverage": {"$ref": "#/$defs/bound_document"},
+        "release_thresholds": {
+          "allOf": [
+            {"$ref": "#/$defs/bound_document"},
+            {
+              "type": "object",
+              "required": ["byte_sha256"],
+              "properties": {"byte_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+            }
+          ]
+        },
+        "pre_result_commitment": {"$ref": "#/$defs/bound_document"},
+        "trusted_execution_proof": {"$ref": "#/$defs/bound_document"},
+        "detector_freeze": {"$ref": "#/$defs/bound_document"},
+        "execution_receipts": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/bound_document"}},
+        "llm_reports": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "allOf": [
+              {"$ref": "#/$defs/bound_document"},
+              {"type": "object", "required": ["cohort", "repository_id"], "properties": {"cohort": {"enum": ["golden", "untouched"]}, "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}}}
+            ]
+          }
+        },
+        "label_records": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/bound_document"}}
+      }
+    }
+  },
+  "$defs": {
+    "bound_document": {
+      "type": "object",
+      "required": ["document_sha256", "document"],
+      "properties": {
+        "document_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "document": {"type": "object"}
+      }
+    }
+  }
+}

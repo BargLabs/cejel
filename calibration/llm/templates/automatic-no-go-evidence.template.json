@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "check_id": "free_core_unchanged_without_pack",
+  "observed_at": "2026-07-23T00:00:00Z",
+  "detector_binding": {
+    "build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "source_commit": "0000000000000000000000000000000000000000"
+  },
+  "artifacts": [
+    {
+      "kind": "test_run",
+      "name": "free-core-parity.json",
+      "media_type": "application/json",
+      "encoding": "utf8",
+      "content": "{\"schema_version\":\"1.0.0\",\"protocol_id\":\"cejel-llm-calibration-v1\",\"check_id\":\"free_core_unchanged_without_pack\",\"detector_build_sha256\":\"replace\",\"detector_source_commit\":\"replace\",\"generated_at\":\"2026-07-23T00:00:00Z\",\"passed\":false,\"assertions\":[{\"name\":\"default_without_pack_byte_identical\",\"passed\":false,\"evidence_content\":\"{\\\"fixture\\\":{\\\"path\\\":\\\"calibration/llm/fixtures/free-core-parity\\\",\\\"tree_sha256\\\":\\\"replace\\\"},\\\"clock\\\":{\\\"fixed_iso\\\":\\\"2026-07-23T00:00:00.000Z\\\",\\\"hook_path\\\":\\\"calibration/llm/scripts/fixed-clock-hook.cjs\\\",\\\"hook_sha256\\\":\\\"replace\\\",\\\"hook_content_base64\\\":\\\"replace\\\"},\\\"baseline\\\":{\\\"git_commit\\\":\\\"replace\\\",\\\"executable_sha256\\\":\\\"replace\\\",\\\"argv\\\":[],\\\"stdout_base64\\\":\\\"\\\",\\\"stderr_base64\\\":\\\"\\\",\\\"exit_code\\\":0,\\\"output_tree_sha256\\\":\\\"replace\\\"},\\\"candidate\\\":{\\\"git_commit\\\":\\\"replace\\\",\\\"executable_sha256\\\":\\\"replace\\\",\\\"argv\\\":[],\\\"stdout_base64\\\":\\\"\\\",\\\"stderr_base64\\\":\\\"\\\",\\\"exit_code\\\":0,\\\"output_tree_sha256\\\":\\\"replace\\\"}}\",\"evidence_sha256\":\"replace with SHA-256 of exact evidence_content UTF-8 bytes\"}]}",
+      "sha256": "replace-with-sha256-of-exact-utf8-content-bytes"
+    }
+  ]
+}

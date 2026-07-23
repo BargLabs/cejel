@@ -1,0 +1,18 @@
+from typing import Literal
+
+from pydantic import BaseModel
+from synthetic_agent import ToolBase
+
+
+class ExecuteInput(BaseModel):
+    operation: Literal["status"]
+
+
+class ExecuteTool(ToolBase):
+    args_schema = ExecuteInput
+
+    def _run(self, operation: Literal["status"]) -> str:
+        return self.runtime.invoke(
+            method="executeCode",
+            params={"operation": operation},
+        )

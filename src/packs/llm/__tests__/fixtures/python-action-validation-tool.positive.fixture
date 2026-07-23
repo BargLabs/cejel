@@ -1,0 +1,16 @@
+from pydantic import BaseModel
+from synthetic_agent import ToolBase
+
+
+class ExecuteInput(BaseModel):
+    code: str
+
+
+class ExecuteTool(ToolBase):
+    args_schema = ExecuteInput
+
+    def _run(self, code: str) -> str:
+        return self.runtime.invoke(
+            method="executeCode",
+            params={"code": code},
+        )

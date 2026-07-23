@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "detector_frozen_before_untouched",
+  "frozen_at": "2026-07-22T00:00:00Z",
+  "detector": {
+    "git_commit": "0000000000000000000000000000000000000000",
+    "source_tree_sha": "0000000000000000000000000000000000000000",
+    "build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "artifact_name": "cejel",
+    "build": {
+      "command": ["npm", "run", "build"],
+      "output_relative_path": "dist/index.js",
+      "first_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "second_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "first_output_tree_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "second_output_tree_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "deterministic_rebuild_verified": true
+    },
+    "runtime": {
+      "name": "node",
+      "version": "v00.00.0",
+      "platform": "darwin",
+      "architecture": "arm64"
+    }
+  },
+  "execution": {
+    "workflow": {
+      "path": ".github/workflows/llm-calibration.yml",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "command_template": ["{network_isolation_argv_prefix...}", "{cejel_binary}", "scan", "{source}", "--out", "{output}", "--pack", "llm", "--quiet"],
+    "network_isolation": {
+      "mode": "node-runtime-deny-hook-v1",
+      "argv_prefix": ["calibration/llm/scripts/no-egress-wrapper.sh"],
+      "evidence_reference": "internal-witness:replace-with-isolation-proof",
+      "wrapper_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hook_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_path": "calibration/llm/scripts/no-egress-probe.mjs",
+      "probe_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_denied": 5,
+      "probe_attempted": 5,
+      "explicitly_confirmed": true
+    }
+  },
+  "rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"],
+  "support_matrix": {
+    "javascript_typescript": {
+      "status": "fixture_backed_alpha",
+      "extensions": [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"],
+      "integration_indicators": ["OpenAI SDK", "Anthropic SDK", "Vercel AI SDK", "LangChain imports", "recognized model-call shapes", "Model-facing tool registration", "Declared LLM evaluation surface"],
+      "enabled_rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"]
+    },
+    "python": {
+      "status": "narrow_fixture_backed_alpha",
+      "extensions": [".py"],
+      "integration_indicators": ["OpenAI official SDK", "Anthropic official SDK", "Model-facing tool registration (args_schema-bound local _run shape)", "Declared LLM evaluation surface (configured producer/judge instance)"],
+      "enabled_rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-EVL-002"]
+    },
+    "limitations": [
+      "Static local source-pattern analysis only; no target application or model execution.",
+      "No whole-program data-flow, model-quality, factuality, or hallucination-rate claim.",
+      "Python action validation and self-judge coverage is limited to the explicitly fixture-backed complete local class shapes."
+    ]
+  },
+  "release_thresholds": {
+    "byte_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "canonical_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "golden_correction_ledger": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "golden_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "golden_opportunity_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "golden_label_evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "missed_defects": 0,
+    "status": "frozen",
+    "entries": 0,
+    "open_corrections": 0,
+    "frozen_at": "2026-07-22T00:00:00Z"
+  },
+  "golden_execution_evidence": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "executions": 24,
+    "findings": 0,
+    "golden_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "detector_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "untouched_results_seen_before_freeze": false,
+  "record_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

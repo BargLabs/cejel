@@ -1,0 +1,261 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.2",
+  "incident_id": "untouched-blinding-incident-2026-07-22",
+  "selected_at": "2026-07-23T04:39:43Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "provider-seed-then-surface-quota; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "d4712babd2a50b2f8fee44b18e13e0aec4704e9713d0eff2ee224e782a14a171",
+  "incident_record_sha256": "9447c2dcb1eeab948ac35af43eb90110bc302e219ef537f88dea47b7b75c1cdb",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "proposal_bindings": [
+    {
+      "reviewer_id": "codex-blind-labeler-b",
+      "document_sha256": "c0232743619ddc7ded9c7252acb098fcb4abc0988ff869ff138e6d4e6f92b137"
+    },
+    {
+      "reviewer_id": "codex-golden-labeler-a-2026-07-22",
+      "document_sha256": "1968ca8ad6ef58f42f74ff64dcb690a12b88a110869a6df2987b69203203283e"
+    }
+  ],
+  "excluded_repository_count": 53,
+  "excluded_repository_ids_sha256": "ea23c76cad5c13752031eedae6ecbd756386ded42a64044ba6bdd6fa6d658263",
+  "classification_conflicts_excluded": [
+    "anthropics/claude-code-security-review",
+    "bentoml/openllm",
+    "huggingface/smolagents",
+    "neuml/txtai",
+    "openai/openai-agents-python",
+    "vllm-project/vllm",
+    "xorbitsai/inference"
+  ],
+  "selected": [
+    {
+      "repository_id": "Helicone/helicone",
+      "tier": 0,
+      "selection_hash": "30c389b1b62c25ba1ac70611f2047b6922165db40fc8e42b0bdcd1dca0dba885",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "ThinkInAIXYZ/deepchat",
+      "tier": 0,
+      "selection_hash": "97ee4572c5af77bf9ce480f72d862865714f7548f73f03fb6bad47f7959a4cda",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "CherryHQ/cherry-studio",
+      "tier": 0,
+      "selection_hash": "e1365a55d83ee9cbdd9909f55b1e3a36777c19b93913e4179f1f325c4b88efbb",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "enricoros/big-AGI",
+      "tier": 1,
+      "selection_hash": "0ba433ffe443166243c3db0134ea07b1583e9193d0aaf29a4b2d28275777d89e",
+      "proposed_by": [
+        "codex-blind-labeler-b"
+      ]
+    },
+    {
+      "repository_id": "oobabooga/textgen",
+      "tier": 0,
+      "selection_hash": "b1838250c877484c5054ff7ada32723469f15c4ea0a03a3e3b20e0ed75085731",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "lm-sys/FastChat",
+      "tier": 1,
+      "selection_hash": "51ef1da1dc912ed0be1adc51447366164522d6407fdcaa683dd0c804d3586a97",
+      "proposed_by": [
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "ParisNeo/lollms-webui",
+      "tier": 1,
+      "selection_hash": "528e3ec6e1c990b15f57c22c939a6e39ba4d2f259f8236ed1ab8e779978374b7",
+      "proposed_by": [
+        "codex-blind-labeler-b"
+      ]
+    },
+    {
+      "repository_id": "SciPhi-AI/R2R",
+      "tier": 0,
+      "selection_hash": "87f027239c8956bd983fe922509df3d0622be82f0d3cca027cb6ed2a127e8a62",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "Cinnamon/kotaemon",
+      "tier": 0,
+      "selection_hash": "94b68882a388199be3bb2b65adfa40a4529201d402013b80e65698e50b4c89b1",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "llmware-ai/llmware",
+      "tier": 1,
+      "selection_hash": "3d49cd3f84cfbeb40d32f67804fc0fdcd8ad729b6ef349cb20eb67c542531cc2",
+      "proposed_by": [
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "OpenBMB/UltraRAG",
+      "tier": 1,
+      "selection_hash": "60f4581d8799c7c8c7506f087a0a009d394ba5076286a41582dd3647602f2c51",
+      "proposed_by": [
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "anthropics/claude-code",
+      "tier": 0,
+      "selection_hash": "269eabc89fd52fe8e08793e3fe383715ed80cecc8ff3003a062d2684036af731",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "pydantic/pydantic-ai",
+      "tier": 0,
+      "selection_hash": "ace80310c69bf05cec290ee76bed8650957200ef7c5d64e1d5aecedbc75f96a5",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "google/adk-python",
+      "tier": 0,
+      "selection_hash": "b251f7ae4f58d643cd9359d316b622f9575662b94de5d8e98ec4d2e759b244fe",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "camel-ai/camel",
+      "tier": 0,
+      "selection_hash": "b47629e9c0681c03fd7bd06810b42bed7ec77a39444c804c3500deaed73f3926",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "OpenBMB/ChatDev",
+      "tier": 0,
+      "selection_hash": "db03fb9330fc00d258a0bf3fc1f5ed77137d53e7242431475c00ac1cbffc1424",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "anthropics/claude-code-action",
+      "tier": 0,
+      "selection_hash": "e0a39cc1ae0bc6f6ed87e65b941672c75109ded80546997412856342f08238e0",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "comet-ml/opik",
+      "tier": 0,
+      "selection_hash": "00090769a7343e09da5155c9769ecd196c093254a2525e1520cf6cfd9448387c",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "langwatch/langwatch",
+      "tier": 0,
+      "selection_hash": "0a969285f481bbd6c2278aba63bdd3208dec65c80737be06e59ea42bbae29a8d",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "Giskard-AI/giskard-oss",
+      "tier": 0,
+      "selection_hash": "36a4760beb8092953f471756aa79d64286e7f3ac09d3cee4e0907dfbed9c774e",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "langfuse/langfuse",
+      "tier": 0,
+      "selection_hash": "3ee6725dfbafa9ccc72dc003f9214c2abc513b025523faa9606b30e029755ea8",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "guardrails-ai/guardrails",
+      "tier": 0,
+      "selection_hash": "42b41344ac6581b05731c44b4ac86b934fb1c900a77acef3e5103e3d90f37f55",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "openai/evals",
+      "tier": 0,
+      "selection_hash": "873f6a6eada6447409bdc4f4e6b5642e68b2d3bcf7074d2a5a148210a390bce2",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    },
+    {
+      "repository_id": "567-labs/instructor",
+      "tier": 0,
+      "selection_hash": "8b9c44d9847ec99b51e50ab0e5dabfb66d4c5992da57901cc70f43e963a13b3b",
+      "proposed_by": [
+        "codex-blind-labeler-b",
+        "codex-golden-labeler-a-2026-07-22"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "adfcc86302fcd2abe4e933feb31f79ab325120d5bcf5f890f40debdf6aa41eeb",
+  "record_sha256": "d81190691bff5001399dce5bcae3bf08f2a4e3926e12731b90b5d0b72cb55aa0"
+}
