@@ -50,7 +50,7 @@ node calibration/llm/scripts/assemble-blind-evidence.mjs \
   --primary-untouched /absolute/path/to/untouched-primary.json \
   --independent-golden /absolute/path/to/golden-independent.json \
   --independent-untouched /absolute/path/to/untouched-independent.json \
-  --frozen-at 2026-07-23T04:08:14Z \
+  --frozen-at <actual-pre-result-evidence-freeze-UTC> \
   --attestation-reference internal-witness:<record-id> \
   --private-output-root /absolute/private/path/llm-pre-result
 # Assemble content-addressed evidence from the actual artifact paths, then evaluate it:

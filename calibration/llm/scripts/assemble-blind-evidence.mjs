@@ -69,6 +69,17 @@ function sourceEvidence(cohort, repository, path, checkout) {
   const blobSha1 = execFileSync(
     'git', ['-C', checkout, 'rev-parse', `${repository.commit_sha}:${path}`], { encoding: 'utf8' },
   ).trim();
+  const treeEntry = gitBytes(checkout, ['ls-tree', '-z', repository.commit_sha, '--', path]);
+  const nulIndex = treeEntry.indexOf(0);
+  const tabIndex = treeEntry.indexOf(9);
+  const metadata = tabIndex > 0 ? treeEntry.subarray(0, tabIndex).toString('utf8').split(' ') : [];
+  const returnedPath = tabIndex > 0 && nulIndex === treeEntry.length - 1
+    ? treeEntry.subarray(tabIndex + 1, nulIndex).toString('utf8')
+    : null;
+  if (
+    treeEntry.indexOf(0, nulIndex + 1) !== -1 || returnedPath !== path ||
+    !['100644', '100755'].includes(metadata[0]) || metadata[1] !== 'blob' || metadata[2] !== blobSha1
+  ) throw new Error(`${repository.repository_id}:${path}: opportunity source is not one regular Git blob`);
   const segments = path.split('/');
   let treeSha1 = repository.git_tree_sha;
   const treeProof = [];
@@ -264,6 +275,16 @@ export function assembleBlindEvidence(input) {
     input.untouchedManifest,
     input.expectedCohortSize ?? 24,
   );
+  const frozenAtMs = Date.parse(input.frozenAt);
+  const latestManifestFreeze = Math.max(
+    Date.parse(input.goldenManifest.frozen_at),
+    Date.parse(input.untouchedManifest.frozen_at),
+  );
+  if (
+    Number.isNaN(frozenAtMs) || Number.isNaN(latestManifestFreeze) ||
+    frozenAtMs < latestManifestFreeze || frozenAtMs > Date.now() + 60_000 ||
+    typeof input.attestationReference !== 'string' || input.attestationReference.length < 8
+  ) throw new Error('blind evidence freeze time or attestation reference is invalid');
   const manifests = new Map([
     ['golden', input.goldenManifest],
     ['untouched', input.untouchedManifest],
@@ -322,8 +343,9 @@ export function assembleBlindEvidence(input) {
       }
       const lineCount = sourceText.length === 0 ? 0 : sourceText.split('\n').length;
       if (item.end_line > lineCount) throw new Error(`${sourceKey}: label span exceeds whole-file bytes`);
-      const opportunityId = `${cohort}.${item.repository_id}.${item.rule_id}.${String(index + 1).padStart(4, '0')}`
-        .toLowerCase().replaceAll('/', '.');
+      const opportunityId = `llm-opportunity-${cohort}-${sha256(
+        Buffer.from(`${cohort}:${opportunityIdentity(item)}`, 'utf8'),
+      ).slice(0, 32)}`;
       const opportunity = {
         opportunity_id: opportunityId,
         cohort,
@@ -443,7 +465,9 @@ export function assembleBlindEvidence(input) {
     ...sourceIndexWithoutHash,
     index_sha256: hashSourceEvidenceIndex(sourceIndexWithoutHash),
   };
-  const labelWrappers = labels.map((document) => ({ document_sha256: sha256Canonical(document), document }));
+  const labelWrappers = labels
+    .map((document) => ({ document_sha256: sha256Canonical(document), document }))
+    .sort((left, right) => left.document.label_id.localeCompare(right.document.label_id));
   const opportunityWithoutHash = {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen',
     frozen_at: input.frozenAt, frozen_before_detector_results: true,
@@ -533,6 +557,9 @@ export function main(argv) {
     attestationReference: options.attestation_reference,
   });
   const outputRoot = resolve(options.private_output_root);
+  if (existsSync(outputRoot)) {
+    throw new Error('private evidence output root must not already exist');
+  }
   mkdirSync(join(outputRoot, 'labels'), { recursive: true, mode: 0o700 });
   const realOutputRoot = realpathSync(outputRoot);
   try {

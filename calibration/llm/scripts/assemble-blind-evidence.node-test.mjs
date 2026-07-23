@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -10,21 +10,26 @@ import { assembleBlindEvidence } from './assemble-blind-evidence.mjs';
 import { ENABLED_RULE_IDS } from './compute-metrics.mjs';
 import { hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 
-function makeCheckout(root, repositoryId, body) {
+function makeCheckout(root, repositoryId, body, kind = 'regular') {
   const directory = join(root, ...repositoryId.split('/'));
   mkdirSync(directory, { recursive: true });
   execFileSync('git', ['init', '-q'], { cwd: directory });
   execFileSync('git', ['config', 'user.name', 'Calibration Fixture'], { cwd: directory });
   execFileSync('git', ['config', 'user.email', 'fixture@example.invalid'], { cwd: directory });
-  writeFileSync(join(directory, 'app.js'), body);
-  execFileSync('git', ['add', 'app.js'], { cwd: directory });
+  if (kind === 'symlink') {
+    writeFileSync(join(directory, 'target.js'), body);
+    symlinkSync('target.js', join(directory, 'app.js'));
+  } else {
+    writeFileSync(join(directory, 'app.js'), body);
+  }
+  execFileSync('git', ['add', '.'], { cwd: directory });
   execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: directory });
   execFileSync('git', ['remote', 'add', 'origin', `https://github.com/${repositoryId}.git`], { cwd: directory });
   return {
     directory,
     commit_sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8' }).trim(),
     git_tree_sha: execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: directory, encoding: 'utf8' }).trim(),
-    content_sha256: createHash('sha256').update(body).digest('hex'),
+    content_sha256: createHash('sha256').update(kind === 'symlink' ? 'target.js' : body).digest('hex'),
   };
 }
 
@@ -40,6 +45,7 @@ function manifest(cohort, repositoryId, checkout, marker) {
     protocol_id: 'cejel-llm-calibration-v1',
     cohort,
     status: 'frozen',
+    frozen_at: '2026-07-23T04:00:00.000Z',
     detector_results_seen_before_freeze: false,
     fixture_marker: marker,
     repositories: [repository],
@@ -79,13 +85,18 @@ function fragment(cohort, reviewerId, repositoryId, checkout, label = 'present')
   };
 }
 
-function fixture() {
+function fixture(options = {}) {
   const root = mkdtempSync(join(tmpdir(), 'cejel-assemble-blind-'));
   const goldenRoot = join(root, 'golden');
   const untouchedRoot = join(root, 'untouched');
   mkdirSync(goldenRoot);
   mkdirSync(untouchedRoot);
-  const goldenCheckout = makeCheckout(goldenRoot, 'owner/golden', 'const prompt = userInput;\n');
+  const goldenCheckout = makeCheckout(
+    goldenRoot,
+    'owner/golden',
+    'const prompt = userInput;\n',
+    options.goldenKind,
+  );
   const untouchedCheckout = makeCheckout(untouchedRoot, 'owner/untouched', 'const prompt = userInput;\n');
   const goldenManifest = manifest('golden', 'owner/golden', goldenCheckout, 'a');
   const untouchedManifest = manifest('untouched', 'owner/untouched', untouchedCheckout, 'b');
@@ -125,6 +136,10 @@ test('assembles exact cross-reviewed blind evidence with verified Git bytes', ()
       result.opportunityDiscoveryCoverage.blind_reviewers,
       ['codex-ai-labeler-a', 'codex-ai-labeler-b'],
     );
+    assert.match(
+      result.opportunityManifest.opportunities[0].opportunity_id,
+      /^llm-opportunity-(golden|untouched)-[a-f0-9]{32}$/,
+    );
     assert.ok(result.labelWrappers.every(({ document }) =>
       document.review.independent_of_rule_author === true &&
       document.review.detector_output_visible === false));
@@ -132,6 +147,15 @@ test('assembles exact cross-reviewed blind evidence with verified Git bytes', ()
       Object.keys(result.opportunityManifest.opportunities[0]).sort(),
       ['cohort', 'commit_sha', 'evidence_scope', 'opportunity_id', 'repository_id', 'rule_id'],
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('rejects a symlink as opportunity source before freezing evidence', () => {
+  const { root, input } = fixture({ goldenKind: 'symlink' });
+  try {
+    assert.throws(() => assembleBlindEvidence(input), /not one regular Git blob/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
