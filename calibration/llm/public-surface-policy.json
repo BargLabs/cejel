@@ -3,7 +3,9 @@
   "protocol_id": "cejel-llm-calibration-v1",
   "policy_id": "cejel-llm-public-surfaces-v1",
   "status": "locked_before_detector_results",
-  "locked_at": "2026-07-22T20:30:00-07:00",
+  "locked_at": "2026-07-23T05:54:27Z",
+  "supersedes_byte_sha256": "fde1d4c6a292288382943f2a02c4b6d96fe8ed21560b17cd8082c0b78e53d229",
+  "relock_reason": "Before any detector execution, replace human-facing npm, GitHub, and Smithery HTML with canonical machine-readable public endpoints; npm rejected the calibration user agent with HTTP 403 and Smithery HTML returned HTTP 429. Correct the MCP server-name encoding and bind the exact published 0.1.8 registry record after the invalid unencoded latest URL returned HTTP 404. Rules and release thresholds are unchanged.",
   "detector_results_seen": false,
   "content_encoding": "exact_utf8_bytes",
   "repository_paths": [
@@ -25,22 +27,22 @@
     },
     {
       "surface_id": "github-repository-about",
-      "url": "https://github.com/BargLabs/cejel",
+      "url": "https://raw.githubusercontent.com/BargLabs/cejel/main/README.md",
       "required_before_public_release": true
     },
     {
       "surface_id": "npm-package-page",
-      "url": "https://www.npmjs.com/package/@cejel/cejel",
+      "url": "https://registry.npmjs.org/@cejel%2Fcejel/latest",
       "required_before_public_release": true
     },
     {
       "surface_id": "official-mcp-registry",
-      "url": "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs/cejel/versions/latest",
+      "url": "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs%2Fcejel/versions/0.1.8",
       "required_before_public_release": true
     },
     {
       "surface_id": "smithery-listing",
-      "url": "https://smithery.ai/servers/cejel",
+      "url": "https://api.smithery.ai/servers/cejel",
       "required_before_public_release": true
     }
   ],

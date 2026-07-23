@@ -27,6 +27,19 @@ test('permits explicit boundary denials and unrelated guarantees', () => {
   ]) assert.deepEqual(findProhibitedPublicClaims(content), []);
 });
 
+test('permits explicit Markdown disclaimer lists and prohibited-phrase examples', () => {
+  const content = `
+The pack does **not**:
+
+- measure a model's general hallucination rate;
+- prevent hallucinations;
+- provide complete coverage for all agent frameworks.
+
+The phrases "hallucination detector" and "hallucination rate" are prohibited in product claims.
+`;
+  assert.deepEqual(findProhibitedPublicClaims(content), []);
+});
+
 test('a denial cannot hide a prohibited claim in a later contrastive clause', () => {
   const claims = findProhibitedPublicClaims(
     'Cejel does not measure a hallucination rate, but detects hallucinations. ' +
@@ -41,5 +54,15 @@ test('a denial cannot hide a prohibited claim in a later contrastive clause', ()
       'Cejel does not measure a hallucination rate; however, it detects hallucinations.',
     ).some((claim) => claim.claim_class === 'hallucination_prevention_or_detection'),
     true,
+  );
+});
+
+test('mentioning prohibited does not suppress a positive capability claim', () => {
+  const claims = findProhibitedPublicClaims(
+    'Unlike prohibited alternatives, Cejel detects every hallucination.',
+  );
+  assert.deepEqual(
+    claims.map((claim) => claim.claim_class),
+    ['hallucination_prevention_or_detection'],
   );
 });

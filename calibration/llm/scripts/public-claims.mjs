@@ -1,5 +1,6 @@
 const NEGATION_PATTERN =
   /\b(?:does?\s+not|is\s+not|are\s+not|cannot|can't|won't|never|no\s+claim\s+(?:of|to)|not\s+designed\s+to|doesn't)\b/i;
+const normalizeMarkdown = (value) => value.replace(/[*_`~]/g, '').replace(/\s+/g, ' ');
 
 const CLAIM_PATTERNS = [
   {
@@ -33,7 +34,49 @@ function isNegated(text, start) {
   const clause = lastBoundary
     ? prefix.slice((lastBoundary.index ?? 0) + lastBoundary[0].length)
     : prefix;
-  return NEGATION_PATTERN.test(clause);
+  if (NEGATION_PATTERN.test(normalizeMarkdown(clause))) return true;
+
+  const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+  const line = text.slice(lineStart, text.indexOf('\n', lineStart) === -1
+    ? text.length
+    : text.indexOf('\n', lineStart));
+  if (/^\s*[-+*]\s+/.test(line)) {
+    const precedingLines = text.slice(0, lineStart).split('\n');
+    let lineIndex = precedingLines.length - 1;
+    while (
+      lineIndex >= 0 &&
+      (precedingLines[lineIndex].trim() === '' || /^\s*[-+*]\s+/.test(precedingLines[lineIndex]))
+    ) lineIndex -= 1;
+    const leadLines = [];
+    while (
+      lineIndex >= 0 &&
+      precedingLines[lineIndex].trim() !== '' &&
+      !/^\s*#{1,6}\s+/.test(precedingLines[lineIndex])
+    ) {
+      leadLines.unshift(precedingLines[lineIndex]);
+      lineIndex -= 1;
+    }
+    const leadIn = normalizeMarkdown(leadLines.join(' '));
+    if (
+      NEGATION_PATTERN.test(leadIn) ||
+      /\bno\b[^.!?]{0,240}\b(?:claim|imply)\b/i.test(leadIn)
+    ) return true;
+  }
+
+  const proseStart = Math.max(
+    text.lastIndexOf('.', start - 1),
+    text.lastIndexOf('!', start - 1),
+    text.lastIndexOf('?', start - 1),
+  );
+  const nextStops = [
+    text.indexOf('.', start),
+    text.indexOf('!', start),
+    text.indexOf('?', start),
+  ].filter((index) => index >= 0);
+  const proseEnd = nextStops.length > 0 ? Math.min(...nextStops) + 1 : text.length;
+  const sentence = normalizeMarkdown(text.slice(proseStart + 1, proseEnd));
+  return /\b(?:phrase|phrases|term|terms|claim|claims)\b[^.!?]{0,240}\b(?:is|are)\s+(?:prohibited|forbidden|not permitted)\b/i
+    .test(sentence);
 }
 
 export function findProhibitedPublicClaims(text) {
