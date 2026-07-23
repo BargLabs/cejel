@@ -113,6 +113,23 @@ describe('bounded golden corrections', () => {
     expect(detectBoundedEvaluationResultProvenance([reproducible])).toEqual([]);
   });
 
+  it('does not resolve a discrete result through a later same-named lexical binding', () => {
+    const file = source([
+      'function collectCase() {',
+      '  const evaluationRecord = {',
+      '    scenario: scenarioId, model: selectedModel, run: runNumber, score, ok',
+      '  };',
+      '  consumeLater(evaluationRecord);',
+      '}',
+      'function describeConfiguration() {',
+      '  const evaluationRecord = { model: selectedModel, promptDigest };',
+      '  return evaluationRecord;',
+      '}',
+    ]);
+
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
+  });
+
   it('detects incrementally built per-case results with resolved return evidence', () => {
     const file = source([
       'async function executeEvaluation(dataset: Dataset) {',

@@ -254,13 +254,19 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       } finally {
         stdoutSpy.mockRestore();
       }
+      const optInArtifacts = new Map(
+        [
+          'llm-report.json',
+          'llm-attestation.json',
+          'llm-certificate.html',
+        ].map((artifact) => [
+          artifact,
+          readFileSync(join(packOut, artifact), 'utf8'),
+        ]),
+      );
       expect(await runWitanFreeCli([repoPath, '--out', packOut, '--quiet'])).toBe(0);
-      for (const staleArtifact of [
-        'llm-report.json',
-        'llm-attestation.json',
-        'llm-certificate.html',
-      ]) {
-        expect(() => readFileSync(join(packOut, staleArtifact), 'utf8')).toThrow();
+      for (const [artifact, bytes] of optInArtifacts) {
+        expect(readFileSync(join(packOut, artifact), 'utf8')).toBe(bytes);
       }
     } finally {
       vi.useRealTimers();

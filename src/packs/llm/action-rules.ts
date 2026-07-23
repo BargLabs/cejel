@@ -298,9 +298,10 @@ export function detectUnvalidatedConsequentialAction(
 }
 
 interface PythonToolMethod {
-  readonly classBody: string;
-  readonly classBodyMasked: string;
-  readonly classOffset: number;
+  readonly constraintScope: string;
+  readonly body: string;
+  readonly bodyMasked: string;
+  readonly bodyOffset: number;
   readonly parameters: ReadonlySet<string>;
 }
 
@@ -340,12 +341,37 @@ function pythonModelFacingToolMethods(file: LlmSourceFile): readonly PythonToolM
     for (const method of classBodyMasked.matchAll(
       /\bdef\s+_run\s*\(([\s\S]{0,1200}?)\)\s*(?:->[^:\n]+)?\s*:/g,
     )) {
+      const methodIndex = method.index ?? 0;
+      const methodLineWithinClass = classBodyMasked
+        .slice(0, methodIndex)
+        .split('\n').length - 1;
+      const methodLine = classLine + methodLineWithinClass;
+      const methodDeclarationLine = maskedLines[methodLine] ?? '';
+      const methodIndent = methodDeclarationLine.match(/^\s*/)?.[0].length ?? 0;
+      let methodEndLine = classEndLine;
+      for (let later = methodLine + 1; later < classEndLine; later += 1) {
+        const candidate = maskedLines[later] ?? '';
+        if (candidate.trim().length === 0) continue;
+        const indentation = candidate.match(/^\s*/)?.[0].length ?? 0;
+        if (indentation <= methodIndent) {
+          methodEndLine = later;
+          break;
+        }
+      }
+      const bodyOffset = offsets[methodLine] ?? classOffset + methodIndex;
+      const bodyEndOffset = offsets[methodEndLine] ?? classEndOffset;
       const parameters = new Set<string>();
       for (const parameter of (method[1] ?? '').split(',')) {
         const identifier = parameter.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)/)?.[1];
         if (identifier && identifier !== 'self') parameters.add(identifier);
       }
-      methods.push({ classBody, classBodyMasked, classOffset, parameters });
+      methods.push({
+        constraintScope: classBody,
+        body: file.contents.slice(bodyOffset, bodyEndOffset),
+        bodyMasked: masked.slice(bodyOffset, bodyEndOffset),
+        bodyOffset,
+        parameters,
+      });
     }
   }
   return methods;
@@ -354,13 +380,13 @@ function pythonModelFacingToolMethods(file: LlmSourceFile): readonly PythonToolM
 function pythonToolExecution(
   method: PythonToolMethod,
 ): { readonly index: number; readonly parameter: string } | null {
-  for (const invocation of method.classBodyMasked.matchAll(
+  for (const invocation of method.bodyMasked.matchAll(
     /\b[A-Za-z_][A-Za-z0-9_.]*\.invoke\s*\(/g,
   )) {
     const openParen = (invocation.index ?? 0) + invocation[0].lastIndexOf('(');
-    const end = matchingCallEnd(method.classBody, openParen);
+    const end = matchingCallEnd(method.body, openParen);
     if (end === null) continue;
-    const call = method.classBody.slice(invocation.index, end);
+    const call = method.body.slice(invocation.index, end);
     if (
       !/\bmethod\s*=\s*['"][^'"]*(?:execute|command|code|run)[^'"]*['"]/i.test(call)
     ) {
@@ -378,13 +404,13 @@ function pythonToolExecution(
         `\\bfield_validator\\s*\\(\\s*['"]${escaped}['"]`,
       );
       if (
-        constrainedAnnotation.test(method.classBody) ||
-        localValidator.test(method.classBody)
+        constrainedAnnotation.test(method.body) ||
+        localValidator.test(method.constraintScope)
       ) {
         continue;
       }
       return {
-        index: method.classOffset + (invocation.index ?? 0),
+        index: method.bodyOffset + (invocation.index ?? 0),
         parameter,
       };
     }
@@ -627,7 +653,7 @@ function localSideEffectHelpers(
   maskedContents: string,
   bindings: ObservableSideEffectBindings,
 ): ReadonlySet<string> {
-  const helpers = new Set<string>();
+  const helpers = new Map<string, { declarations: number; sideEffecting: boolean }>();
   for (const declaration of maskedContents.matchAll(
     /\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{\n]+)?\s*\{/g,
   )) {
@@ -637,15 +663,30 @@ function localSideEffectHelpers(
     const end = matchingBraceEnd(maskedContents, openBrace);
     if (end === null) continue;
     const body = maskedContents.slice(openBrace + 1, end - 1);
-    if (observableSideEffectIndex(body, bindings) !== null) helpers.add(name);
+    const previous = helpers.get(name) ?? { declarations: 0, sideEffecting: false };
+    helpers.set(name, {
+      declarations: previous.declarations + 1,
+      sideEffecting:
+        previous.sideEffecting || observableSideEffectIndex(body, bindings) !== null,
+    });
   }
-  return helpers;
+  return new Set(
+    [...helpers]
+      .filter(([, value]) => value.declarations === 1 && value.sideEffecting)
+      .map(([name]) => name),
+  );
 }
 
-function importedApiParameterNames(
+interface ImportedApiParameterScope {
+  readonly receiver: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+function importedApiParameterScopes(
   contents: string,
   maskedContents: string,
-): ReadonlySet<string> {
+): readonly ImportedApiParameterScope[] {
   const importedTypes = new Set<string>();
   for (const declaration of contents.matchAll(
     /\bimport\s+(?:type\s+)?\{([^}]+)\}\s+from\s+['"]([^.'"][^'"]*)['"]/g,
@@ -659,16 +700,25 @@ function importedApiParameterNames(
       if (local) importedTypes.add(local);
     }
   }
-  const parameters = new Set<string>();
-  for (const typeName of importedTypes) {
-    const escaped = escapeRegExp(typeName);
-    for (const match of maskedContents.matchAll(
-      new RegExp(`(?:\\(|,)\\s*([A-Za-z_$][\\w$]*)\\s*:\\s*${escaped}\\b`, 'g'),
-    )) {
-      if (match[1]) parameters.add(match[1]);
+  const scopes: ImportedApiParameterScope[] = [];
+  for (const declaration of maskedContents.matchAll(
+    /\bfunction(?:\s+[A-Za-z_$][\w$]*)?\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/g,
+  )) {
+    const openBrace = (declaration.index ?? 0) + declaration[0].lastIndexOf('{');
+    const end = matchingBraceEnd(maskedContents, openBrace);
+    if (end === null) continue;
+    for (const parameter of (declaration[1] ?? '').split(',')) {
+      const binding = parameter.trim().match(
+        /^([A-Za-z_$][\w$]*)\s*:\s*([A-Za-z_$][\w$]*)\b/,
+      );
+      const receiver = binding?.[1];
+      const typeName = binding?.[2];
+      if (receiver && typeName && importedTypes.has(typeName)) {
+        scopes.push({ receiver, start: openBrace + 1, end: end - 1 });
+      }
     }
   }
-  return parameters;
+  return scopes;
 }
 
 interface MemberToolRegistration {
@@ -682,17 +732,28 @@ function memberToolRegistrations(
   contents: string,
   maskedContents: string,
 ): readonly MemberToolRegistration[] {
-  const apiParameters = importedApiParameterNames(contents, maskedContents);
+  const apiParameterScopes = importedApiParameterScopes(contents, maskedContents);
   const registrations: MemberToolRegistration[] = [];
   for (const registration of maskedContents.matchAll(MEMBER_TOOL_REGISTRATION_PATTERN)) {
     const receiver = registration[1];
-    if (!receiver || !apiParameters.has(receiver)) continue;
+    const registrationIndex = registration.index ?? 0;
+    if (
+      !receiver ||
+      !apiParameterScopes.some(
+        (scope) =>
+          scope.receiver === receiver &&
+          registrationIndex >= scope.start &&
+          registrationIndex < scope.end,
+      )
+    ) {
+      continue;
+    }
     const openParen = (registration.index ?? 0) + registration[0].lastIndexOf('(');
     const end = matchingCallEnd(maskedContents, openParen);
     if (end === null) continue;
     registrations.push({
       receiver,
-      index: registration.index ?? 0,
+      index: registrationIndex,
       end,
       declaration: maskedContents.slice(registration.index, end),
     });

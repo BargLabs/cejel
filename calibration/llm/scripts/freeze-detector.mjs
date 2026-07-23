@@ -47,19 +47,32 @@ export const FROZEN_SUPPORT_MATRIX = {
       'Vercel AI SDK',
       'LangChain imports',
       'recognized model-call shapes',
+      'Model-facing tool registration',
+      'Declared LLM evaluation surface',
     ],
     enabled_rule_ids: [...FROZEN_LLM_RULE_IDS],
   },
   python: {
     status: 'narrow_fixture_backed_alpha',
     extensions: ['.py'],
-    integration_indicators: ['OpenAI official SDK', 'Anthropic official SDK'],
-    enabled_rule_ids: ['LLM-IOH-001', 'LLM-AGY-002', 'LLM-DAT-001'],
+    integration_indicators: [
+      'OpenAI official SDK',
+      'Anthropic official SDK',
+      'Model-facing tool registration (args_schema-bound local _run shape)',
+      'Declared LLM evaluation surface (configured producer/judge instance)',
+    ],
+    enabled_rule_ids: [
+      'LLM-IOH-001',
+      'LLM-VAL-001',
+      'LLM-AGY-002',
+      'LLM-DAT-001',
+      'LLM-EVL-002',
+    ],
   },
   limitations: [
     'Static local source-pattern analysis only; no target application or model execution.',
     'No whole-program data-flow, model-quality, factuality, or hallucination-rate claim.',
-    'Action-governance and evaluation-hygiene checks require complete local JavaScript or TypeScript paths.',
+    'Python action validation and self-judge coverage is limited to the explicitly fixture-backed complete local class shapes.',
   ],
 };
 

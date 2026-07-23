@@ -3,7 +3,8 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  closeSync, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync,
+  closeSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
@@ -32,6 +33,14 @@ function hashTree(root) {
 
 function run(executable, argv, gitCommit, output, clock) {
   rmSync(output, { recursive: true, force: true });
+  mkdirSync(output, { recursive: true });
+  for (const artifact of [
+    'llm-report.json',
+    'llm-attestation.json',
+    'llm-certificate.html',
+  ]) {
+    writeFileSync(resolve(output, artifact), 'pre-existing opt-in artifact sentinel\n', 'utf8');
+  }
   const result = spawnSync(executable, argv, {
     encoding: null,
     env: {

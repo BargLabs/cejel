@@ -8,10 +8,11 @@ import test from 'node:test';
 
 import { main } from './verify-free-core-parity.mjs';
 
-const executable = (marker, value) => `#!/usr/bin/env node
-const { mkdirSync, writeFileSync } = require('node:fs');
+const executable = (marker, value, removeOptInArtifact = false) => `#!/usr/bin/env node
+const { mkdirSync, rmSync, writeFileSync } = require('node:fs');
 const output = process.argv[process.argv.indexOf('--out') + 1];
 mkdirSync(output, { recursive: true });
+${removeOptInArtifact ? "rmSync(output + '/llm-report.json', { force: true });" : ''}
 writeFileSync(
   output + '/report.json',
   JSON.stringify({ marker: ${JSON.stringify(value)}, generatedAt: new Date().toISOString() }) + '\\n',
@@ -52,6 +53,19 @@ test('free-core parity compares valid fixed-clock output artifacts', () => {
         'b'.repeat(40),
         resolve('calibration/llm/fixtures/free-core-parity'),
         join(root, 'changed.json'),
+      ]),
+      /default free-core output differs/,
+    );
+
+    writeFileSync(candidate, executable('candidate-deletes-opt-in', 'same', true));
+    assert.throws(
+      () => main([
+        baseline,
+        'a'.repeat(40),
+        candidate,
+        'b'.repeat(40),
+        resolve('calibration/llm/fixtures/free-core-parity'),
+        join(root, 'deleted-opt-in.json'),
       ]),
       /default free-core output differs/,
     );

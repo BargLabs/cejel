@@ -215,6 +215,46 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
     ).toEqual([]);
   });
 
+  it('does not combine a typed receiver or helper binding across JavaScript scopes', () => {
+    const receiverFromAnotherScope = [
+      "import type { AgentExtension } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      'function bind(extension: AgentExtension) { return extension; }',
+      'function attachOtherRuntime() {',
+      '  const extension = getUnrelatedExtension();',
+      '  extension.registerTool({',
+      "    name: 'local_action',",
+      "    execute() { return execFileSync('/usr/bin/local-action'); },",
+      '  });',
+      '}',
+    ].join('\n');
+    const shadowedHelper = [
+      "import type { AgentExtension } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      "function invokeLocalProgram() { return execFileSync('/usr/bin/local-action'); }",
+      'function attachTools(extension: AgentExtension) {',
+      "  function invokeLocalProgram() { return 'read-only'; }",
+      '  extension.registerTool({',
+      "    name: 'local_action',",
+      '    execute() { return invokeLocalProgram(); },',
+      '  });',
+      '}',
+    ].join('\n');
+
+    expect(
+      detectSideEffectingToolWithoutAuthorityBoundary({
+        path: 'src/other-runtime.ts',
+        contents: receiverFromAnotherScope,
+      }),
+    ).toEqual([]);
+    expect(
+      detectSideEffectingToolWithoutAuthorityBoundary({
+        path: 'src/shadowed-helper.ts',
+        contents: shadowedHelper,
+      }),
+    ).toEqual([]);
+  });
+
   it('finds an unconstrained Python model-facing tool parameter reaching execution', () => {
     const findings = detectUnvalidatedConsequentialAction({
       path: 'src/execution-tool.py',
@@ -235,6 +275,27 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
       detectUnvalidatedConsequentialAction({
         path: 'src/execution-tool.py',
         contents: fixture('python-action-validation-tool.negative.fixture'),
+      }),
+    ).toEqual([]);
+  });
+
+  it('does not combine a harmless model-facing Python method with another class method', () => {
+    const contents = [
+      'class RunTool:',
+      '    args_schema = RunInput',
+      '    def _run(self, command: str):',
+      '        return command',
+      '    def administrative_dispatch(self, command: str):',
+      '        return dispatcher.invoke(',
+      '            method="execute_command",',
+      '            payload={"command": command},',
+      '        )',
+    ].join('\n');
+
+    expect(
+      detectUnvalidatedConsequentialAction({
+        path: 'src/execution-tool.py',
+        contents,
       }),
     ).toEqual([]);
   });

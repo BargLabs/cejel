@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -272,14 +272,6 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
       'utf8',
     );
     llmTerminal = renderCejelLlmPackTerminal(llmArtifact);
-  } else {
-    for (const staleArtifact of [
-      'llm-report.json',
-      'llm-attestation.json',
-      'llm-certificate.html',
-    ]) {
-      rmSync(join(options.outDir, staleArtifact), { force: true });
-    }
   }
 
   if (!options.quiet) {

@@ -222,17 +222,31 @@ function hasResolvedIdentifierEmissionOrReturn(
 ): boolean {
   const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const tail = maskJavaScriptNonCode(contents.slice(afterIndex));
+  const redeclaration = new RegExp(
+    `\\b(?:const|let|var)\\s+${escaped}\\b`,
+  ).exec(tail);
+  const observableTail = redeclaration ? tail.slice(0, redeclaration.index) : tail;
   const serializedEmission = new RegExp(
     `\\b(?:writeFileSync|appendFileSync|Bun\\.write|console\\.(?:log|info))\\s*\\([\\s\\S]{0,500}?JSON\\.stringify\\s*\\(\\s*${escaped}\\b`,
   );
-  const returned = new RegExp(`\\breturn\\s+${escaped}\\s*;`).test(tail);
-  return serializedEmission.test(tail) || returned;
+  const returned = new RegExp(`\\breturn\\s+${escaped}\\s*;`).test(observableTail);
+  return serializedEmission.test(observableTail) || returned;
 }
 
-function assignedProperties(contents: string, identifier: string): ReadonlySet<string> {
+function assignedProperties(
+  contents: string,
+  identifier: string,
+  afterIndex: number,
+): ReadonlySet<string> {
   const properties = new Set<string>();
   const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const masked = maskJavaScriptNonCode(contents);
+  const maskedTail = maskJavaScriptNonCode(contents.slice(afterIndex));
+  const redeclaration = new RegExp(
+    `\\b(?:const|let|var)\\s+${escaped}\\b`,
+  ).exec(maskedTail);
+  const masked = redeclaration
+    ? maskedTail.slice(0, redeclaration.index)
+    : maskedTail;
   const pattern = new RegExp(`\\b${escaped}\\.([A-Za-z_$][\\w$]*)\\s*=`, 'g');
   for (const match of masked.matchAll(pattern)) {
     if (match[1]) properties.add(match[1]);
@@ -282,7 +296,7 @@ export function detectBoundedEvaluationResultProvenance(
     if (found) continue;
 
     for (const root of objects) {
-      const rootProperties = assignedProperties(file.contents, root.name);
+      const rootProperties = assignedProperties(file.contents, root.name, root.end);
       const hasEvaluationIdentity = [...rootProperties].some((property) =>
         /^(?:evaluationId|evaluationRunId|runId|datasetId)$/i.test(property),
       );
@@ -300,7 +314,7 @@ export function detectBoundedEvaluationResultProvenance(
 
       const perCase = objects.find((candidate) => {
         if (candidate.index <= root.index) return false;
-        const properties = assignedProperties(file.contents, candidate.name);
+        const properties = assignedProperties(file.contents, candidate.name, candidate.end);
         const resultPropertyCount = [...properties].filter((property) =>
           CASE_RESULT_KEY_PATTERN.test(property),
         ).length;
@@ -313,7 +327,7 @@ export function detectBoundedEvaluationResultProvenance(
       if (!perCase) continue;
       const allProperties = new Set([
         ...rootProperties,
-        ...assignedProperties(file.contents, perCase.name),
+        ...assignedProperties(file.contents, perCase.name, perCase.end),
       ]);
       if (hasAny(allProperties, LINEAGE_CONFIG_KEYS)) continue;
       findings.push(
