@@ -18,7 +18,21 @@
       "repository_id": "owner/repository",
       "commit_sha": "0000000000000000000000000000000000000000",
       "rule_id": "LLM-IOH-001",
-      "declared_opportunity_ids": []
+      "declared_opportunity_ids": [],
+      "blind_review_evidence": [
+        {
+          "reviewer_id": "reviewer-one-stable-id",
+          "role": "primary_labeler",
+          "methodology_id": "llm-opportunity-discovery-v1.4",
+          "coverage_row_sha256": "replace-with-canonical-private-coverage-row-sha256"
+        },
+        {
+          "reviewer_id": "reviewer-two-stable-id",
+          "role": "independent_reviewer",
+          "methodology_id": "llm-opportunity-discovery-v1.4",
+          "coverage_row_sha256": "replace-with-canonical-private-coverage-row-sha256"
+        }
+      ]
     }
   ],
   "record_sha256": "replace-with-rfc8785-sha256-excluding-only-record-sha256"

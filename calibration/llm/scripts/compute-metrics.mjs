@@ -908,17 +908,49 @@ function validateOpportunityDiscoveryCoverage(
     const scope = `opportunity-discovery coverage row ${index}`;
     rejectUnknownKeys(
       row,
-      ['cohort', 'repository_id', 'commit_sha', 'rule_id', 'declared_opportunity_ids'],
+      ['cohort', 'repository_id', 'commit_sha', 'rule_id', 'declared_opportunity_ids',
+        'blind_review_evidence'],
       scope,
     );
     const repository = repositories.get(`${row?.cohort}:${row?.repository_id}`);
+    const reviewRoles = new Set(
+      Array.isArray(row?.blind_review_evidence)
+        ? row.blind_review_evidence.map((review) => review?.role)
+        : [],
+    );
+    const reviewIds = new Set(
+      Array.isArray(row?.blind_review_evidence)
+        ? row.blind_review_evidence.map((review) => review?.reviewer_id)
+        : [],
+    );
     if (
       !repository ||
       row.commit_sha !== repository.repository.commit_sha ||
       !ENABLED_RULE_IDS.includes(row.rule_id) ||
       !Array.isArray(row.declared_opportunity_ids) ||
       new Set(row.declared_opportunity_ids).size !== row.declared_opportunity_ids.length ||
-      row.declared_opportunity_ids.some((id) => typeof id !== 'string' || !opportunities.has(id))
+      row.declared_opportunity_ids.some((id) => typeof id !== 'string' || !opportunities.has(id)) ||
+      !Array.isArray(row.blind_review_evidence) ||
+      row.blind_review_evidence.length !== 2 ||
+      reviewRoles.size !== 2 ||
+      !reviewRoles.has('primary_labeler') ||
+      !reviewRoles.has('independent_reviewer') ||
+      reviewIds.size !== 2 ||
+      canonicalize([...reviewIds].sort()) !== canonicalize([...record.blind_reviewers].sort()) ||
+      row.blind_review_evidence.some((review) => {
+        if (!review || typeof review !== 'object' || Array.isArray(review)) return true;
+        rejectUnknownKeys(
+          review,
+          ['reviewer_id', 'role', 'methodology_id', 'coverage_row_sha256'],
+          `${scope} blind review evidence`,
+        );
+        return (
+          typeof review.reviewer_id !== 'string' ||
+          review.reviewer_id.trim().length < 3 ||
+          review.methodology_id !== 'llm-opportunity-discovery-v1.4' ||
+          !/^[a-f0-9]{64}$/.test(review.coverage_row_sha256 || '')
+        );
+      })
     ) throw new Error(`${scope} is invalid or not bound to a frozen repository/rule`);
     const key = `${row.cohort}:${row.repository_id}:${row.rule_id}`;
     if (rows.has(key)) throw new Error(`duplicate opportunity-discovery coverage row: ${key}`);

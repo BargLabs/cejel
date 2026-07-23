@@ -83,7 +83,12 @@ Before any detector run:
    `schemas/opportunity-manifest.schema.json` and retain the attestation reference.
 10. Independently freeze opportunity-discovery coverage with one row for every repository ×
     enabled rule, two distinct blind reviewers, and the exact declared opportunity IDs, including
-    explicit empty lists. Bind it to both manifests, the source index, and opportunity manifest.
+    explicit empty lists. Each row binds both reviewers' complete private discovery rows and the
+    locked `llm-opportunity-discovery-v1.4` search methodology by canonical SHA-256. The methodology
+    covers dependencies/imports, direct calls/configuration, aliases/wrappers/helpers,
+    registrations/decorators/schemas, dataflow sinks/persistence/logs, and negative
+    boundaries/abstention. Bind the aggregate record to both manifests, the source index, and
+    opportunity manifest.
 11. Run `validate-calibration.mjs` and preserve its output with the release evidence.
 
 No repository source is copied into public calibration artifacts. The self-contained source index

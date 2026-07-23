@@ -428,6 +428,20 @@ function fixture() {
           .filter((opportunity) =>
             opportunity.cohort === cohort && opportunity.rule_id === ruleId)
           .map((opportunity) => opportunity.opportunity_id),
+        blind_review_evidence: [
+          {
+            reviewer_id: 'reviewer-a',
+            role: 'primary_labeler',
+            methodology_id: 'llm-opportunity-discovery-v1.4',
+            coverage_row_sha256: rawSha(`${cohort}:${ruleId}:reviewer-a`),
+          },
+          {
+            reviewer_id: 'reviewer-b',
+            role: 'independent_reviewer',
+            methodology_id: 'llm-opportunity-discovery-v1.4',
+            coverage_row_sha256: rawSha(`${cohort}:${ruleId}:reviewer-b`),
+          },
+        ],
       }))),
   };
   const opportunityDiscoveryCoverage = {
@@ -787,6 +801,16 @@ test('opportunity discovery coverage must be complete and independently reviewed
   assert.throws(
     () => computeMetrics(duplicateReviewer, thresholds),
     /not a valid independent frozen record/,
+  );
+
+  const unboundPrivateReview = fixture();
+  const unboundCoverage = unboundPrivateReview.evidence.opportunity_discovery_coverage.document;
+  unboundCoverage.coverage[0].blind_review_evidence[0].methodology_id = 'informal-search';
+  unboundCoverage.record_sha256 = hashOpportunityDiscoveryCoverage(unboundCoverage);
+  unboundPrivateReview.evidence.opportunity_discovery_coverage = bound(unboundCoverage);
+  assert.throws(
+    () => computeMetrics(unboundPrivateReview, thresholds),
+    /invalid or not bound to a frozen repository\/rule/,
   );
 });
 
