@@ -11,8 +11,9 @@ const read = (relative) => JSON.parse(readFileSync(resolve(root, relative), 'utf
 const policy = read('selection-policy.json');
 const thresholds = read('release-thresholds.json');
 const golden = read('cohorts/golden-candidates.json');
-const untouched = read('cohorts/untouched-candidates.json');
+const untouched = read('cohorts/untouched-candidates-v1.2.json');
 const amendments = read('cohorts/selection-amendments.json');
+const replacementSelection = read('cohorts/replacement-selection-v1.2.json');
 const errors = [];
 
 const canonicalize = (value) => {
@@ -45,6 +46,18 @@ if (
 if (!amendments.amendments.some((entry) =>
   entry.kind === 'policy_relock_before_results' && entry.to === policy.policy_id
 )) errors.push('selection amendment log does not record the pre-result policy re-lock');
+const { record_sha256: replacementRecordHash, ...replacementWithoutHash } = replacementSelection;
+if (
+  replacementSelection.protocol_id !== 'cejel-llm-calibration-v1' ||
+  replacementSelection.policy_id !== policy.policy_id ||
+  replacementSelection.detector_results_seen !== false ||
+  replacementSelection.source_or_labels_used_for_selection !== false ||
+  replacementSelection.candidate_document_sha256 !== sha256Canonical(untouched) ||
+  replacementRecordHash !== sha256Canonical(replacementWithoutHash) ||
+  replacementSelection.selected?.length !== policy.target_size_per_cohort ||
+  canonicalize(replacementSelection.selected.map((entry) => entry.repository_id)) !==
+    canonicalize(untouched.repositories.map((entry) => entry.repository_id))
+) errors.push('replacement selection record is absent, malformed, or does not bind the current untouched cohort');
 if (
   thresholds.protocol_id !== 'cejel-llm-calibration-v1' ||
   thresholds.status !== 'locked_before_detector_results' ||
@@ -95,7 +108,7 @@ for (const repo of untouched.repositories) {
 
 const frozen = new Map();
 for (const cohort of ['golden', 'untouched']) {
-  const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest.json`);
+  const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest-v1.2.json`);
   if (!existsSync(manifestPath)) continue;
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   frozen.set(cohort, manifest);
@@ -103,7 +116,9 @@ for (const cohort of ['golden', 'untouched']) {
     (manifest.review_method === 'two_human' &&
       manifest.attestation?.method === 'internal_witness') ||
     (manifest.review_method === 'two_independent_ai' &&
-      manifest.attestation?.method === 'internal_dual_ai_review');
+      manifest.attestation?.method === 'internal_dual_ai_review') ||
+    (manifest.review_method === 'two_sequential_ai_passes' &&
+      manifest.attestation?.method === 'internal_ai_two_pass_review');
   if (
     manifest.cohort !== cohort ||
     manifest.status !== 'frozen' ||
@@ -119,7 +134,7 @@ for (const cohort of ['golden', 'untouched']) {
   if (
     !reviewBindings ||
     ['selection_policy_sha256', 'golden_candidates_sha256', 'untouched_candidates_sha256',
-      'reserve_candidates_sha256', 'selection_amendments_sha256']
+      'reserve_candidates_sha256', 'selection_amendments_sha256', 'replacement_selection_sha256']
       .some((key) => !/^[a-f0-9]{64}$/.test(reviewBindings[key] || '')) ||
     !Array.isArray(reviewBindings.review_record_sha256s) ||
     reviewBindings.review_record_sha256s.length !== 2 ||

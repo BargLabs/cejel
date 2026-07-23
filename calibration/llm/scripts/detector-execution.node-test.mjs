@@ -35,6 +35,7 @@ const REVIEW_BINDINGS = {
   untouched_candidates_sha256: '3'.repeat(64),
   reserve_candidates_sha256: '4'.repeat(64),
   selection_amendments_sha256: '5'.repeat(64),
+  replacement_selection_sha256: '9'.repeat(64),
   review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
 };
 
@@ -220,7 +221,7 @@ function immutableManifest(cohort = 'untouched') {
   const withoutManifestHash = {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
-    policy_id: 'llm-selection-v1.1',
+    policy_id: 'llm-selection-v1.2',
     cohort,
     status: 'frozen',
     frozen_at: '2026-07-22T19:00:00Z',

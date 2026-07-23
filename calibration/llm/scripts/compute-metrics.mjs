@@ -24,9 +24,10 @@ const sha256Bytes = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const LOCKED_ARTIFACT_PATHS = {
   selection_policy_sha256: 'selection-policy.json',
   golden_candidates_sha256: 'cohorts/golden-candidates.json',
-  untouched_candidates_sha256: 'cohorts/untouched-candidates.json',
+  untouched_candidates_sha256: 'cohorts/untouched-candidates-v1.2.json',
   reserve_candidates_sha256: 'cohorts/reserve-candidates.json',
   selection_amendments_sha256: 'cohorts/selection-amendments.json',
+  replacement_selection_sha256: 'cohorts/replacement-selection-v1.2.json',
 };
 const COUNT_KEYS = [
   'true_positives',
@@ -571,7 +572,7 @@ function validateManifestBinding(wrapper, expectedCohort) {
   if (
     manifest.schema_version !== '1.0.0' ||
     manifest.protocol_id !== 'cejel-llm-calibration-v1' ||
-    manifest.policy_id !== 'llm-selection-v1.1' ||
+    manifest.policy_id !== 'llm-selection-v1.2' ||
     manifest.cohort !== expectedCohort || manifest.status !== 'frozen' ||
     hashManifest(manifest) !== manifest.manifest_sha256 ||
     !validateReviewBindings(manifest.review_bindings)
@@ -592,15 +593,35 @@ function validateCohortAnchors(golden, untouched, contract) {
   const untouchedCandidates = contract.artifacts.untouched_candidates_sha256?.document;
   const reserve = contract.artifacts.reserve_candidates_sha256?.document;
   const amendments = contract.artifacts.selection_amendments_sha256?.document;
+  const replacementSelection = contract.artifacts.replacement_selection_sha256?.document;
+  const replacementHashable = replacementSelection ? structuredClone(replacementSelection) : null;
+  if (replacementHashable) delete replacementHashable.record_sha256;
   if (
-    policy?.schema_version !== '1.0.0' || policy.policy_id !== 'llm-selection-v1.1' ||
+    policy?.schema_version !== '1.0.0' || policy.policy_id !== 'llm-selection-v1.2' ||
     policy.status !== 'relocked_before_detector_results' || policy.detector_results_seen !== false ||
     policy.target_size_per_cohort !== contract.expected_cohort_size ||
     reserve?.schema_version !== '1.0.0' || reserve.protocol_id !== 'cejel-llm-calibration-v1' ||
     reserve.policy_id !== policy.policy_id || !Array.isArray(reserve.repositories) ||
     amendments?.schema_version !== '1.0.0' || amendments.protocol_id !== 'cejel-llm-calibration-v1' ||
     amendments.policy_id !== policy.policy_id || amendments.detector_results_seen !== false ||
-    !Array.isArray(amendments.amendments) || amendments.amendments.length < 1
+    !Array.isArray(amendments.amendments) || amendments.amendments.length < 1 ||
+    replacementSelection?.schema_version !== '1.0.0' ||
+    replacementSelection.protocol_id !== 'cejel-llm-calibration-v1' ||
+    replacementSelection.policy_id !== policy.policy_id ||
+    replacementSelection.incident_id !== 'untouched-blinding-incident-2026-07-22' ||
+    replacementSelection.detector_results_seen !== false ||
+    replacementSelection.source_or_labels_used_for_selection !== false ||
+    !Array.isArray(replacementSelection.proposal_bindings) ||
+    replacementSelection.proposal_bindings.length !== 2 ||
+    new Set(replacementSelection.proposal_bindings.map((item) => item.reviewer_id.toLowerCase())).size !== 2 ||
+    replacementSelection.proposal_bindings.some((item) =>
+      !/^[a-f0-9]{64}$/.test(item.document_sha256 || '')) ||
+    replacementSelection.candidate_document_sha256 !== sha256Canonical(untouchedCandidates) ||
+    replacementSelection.record_sha256 !== sha256Canonical(replacementHashable) ||
+    !Array.isArray(replacementSelection.selected) ||
+    replacementSelection.selected.length !== contract.expected_cohort_size ||
+    canonicalize(replacementSelection.selected.map((item) => item.repository_id)) !==
+      canonicalize(untouchedCandidates.repositories.map((item) => item.repository_id))
   ) throw new Error('locked selection policy, reserve, or amendment contract is invalid');
 
   const expectedReviewBindings = Object.fromEntries(

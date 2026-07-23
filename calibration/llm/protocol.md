@@ -59,9 +59,10 @@ primary stratum. Do not replace a repository because a detector performs poorly 
 
 Before any detector run:
 
-1. Two isolated review passes examine cohort disjointness and eligibility without running Cejel.
-   The manifest discloses whether these were `two_human` or `two_independent_ai`; AI review is not
-   represented as human review.
+1. Two review passes examine cohort disjointness and eligibility without running Cejel. The
+   manifest discloses whether these were `two_human`, `two_independent_ai`, or
+   `two_sequential_ai_passes`. Sequential passes by the same AI task are not represented as
+   independent reviewers, and AI review is never represented as human review.
 2. Resolve each URL to a 40-character commit SHA. Branches and tags are insufficient.
 3. Record the default branch only as metadata; the SHA is normative.
 4. Record the repository tree hash obtained from the pinned commit. Compute `entry_sha256` over

@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "policy_id": "llm-selection-v1.1",
+  "policy_id": "llm-selection-v1.2",
   "cohort": "golden",
   "status": "frozen",
   "frozen_at": "2026-07-22T00:00:00Z",
   "frozen_by": ["reviewer-one", "reviewer-two"],
-  "review_method": "two_independent_ai",
+  "review_method": "two_sequential_ai_passes",
   "detector_results_seen_before_freeze": false,
   "hash_contract": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256",
   "review_bindings": {
@@ -15,6 +15,7 @@
     "untouched_candidates_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "reserve_candidates_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "selection_amendments_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replacement_selection_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "review_record_sha256s": [
       "0000000000000000000000000000000000000000000000000000000000000000",
       "1111111111111111111111111111111111111111111111111111111111111111"
@@ -38,7 +39,7 @@
   ],
   "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "attestation": {
-    "method": "internal_dual_ai_review",
+    "method": "internal_ai_two_pass_review",
     "reference": "replace-with-attestation-reference"
   }
 }

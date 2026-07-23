@@ -35,6 +35,7 @@ test('manifest hash excludes only its hash and binds attestation plus review art
       untouched_candidates_sha256: '3'.repeat(64),
       reserve_candidates_sha256: '4'.repeat(64),
       selection_amendments_sha256: '5'.repeat(64),
+      replacement_selection_sha256: '8'.repeat(64),
       review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
     },
     attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
@@ -82,6 +83,18 @@ test('freeze supports explicit human or independent AI dual review without confl
       { confirmedIndependent: true },
     ),
     ['codex-review-a:test', 'codex-review-b:test'],
+  );
+  assert.throws(
+    () => validateReviewers(['codex-owner-pass-1', 'codex-owner-pass-2'], 'ai-two-pass', {}),
+    /confirm-ai-two-pass/,
+  );
+  assert.deepEqual(
+    validateReviewers(
+      ['codex-owner-pass-1', 'codex-owner-pass-2'],
+      'ai-two-pass',
+      { confirmedAiTwoPass: true },
+    ),
+    ['codex-owner-pass-1', 'codex-owner-pass-2'],
   );
 });
 

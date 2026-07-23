@@ -53,7 +53,7 @@ isolation. The detector-freeze record binds the exact wrapper, hook, probe, and 
 
 ```bash
 node calibration/llm/scripts/run-frozen-cohort.mjs \
-  --manifest calibration/llm/cohorts/golden-manifest.json \
+  --manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
   --cejel /absolute/path/to/local/built/cejel \
   --work-root /absolute/path/to/golden-checkouts \
   --output-root /absolute/path/to/golden-results \
@@ -129,7 +129,7 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --build-arg build \
   --build-output dist/index.js \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
-  --golden-manifest calibration/llm/cohorts/golden-manifest.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
   --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --golden-label-record /absolute/path/to/golden-primary-label.json \
@@ -152,10 +152,10 @@ matrix, scan command, or correction ledger invalidates the binding.
 
 ```bash
 node calibration/llm/scripts/run-frozen-cohort.mjs \
-  --manifest calibration/llm/cohorts/untouched-manifest.json \
+  --manifest calibration/llm/cohorts/untouched-manifest-v1.2.json \
   --detector-freeze /absolute/path/to/detector-freeze.json \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
-  --golden-manifest calibration/llm/cohorts/golden-manifest.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --cejel /absolute/path/to/the-same-built-cejel \
   --work-root /absolute/path/to/untouched-checkouts \

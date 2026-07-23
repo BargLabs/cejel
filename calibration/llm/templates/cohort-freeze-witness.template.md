@@ -2,23 +2,23 @@
 
 - Witness record ID: `replace-with-internal-record-id`
 - Protocol: `cejel-llm-calibration-v1`
-- Selection policy: `llm-selection-v1.1` (re-locked before detector results)
-- Superseded policy: `llm-selection-v1`
-- Selection policy byte SHA-256: `706c0c47786b4e36da455c80e72e7d4d61212a64972d87e79488d9a7ac5277fc`
-- Golden candidate byte SHA-256: `4612d3f2330ae0ba8a4416adf5723fdb69c00e4fefca703ef6b93afbec7c5014`
-- Untouched candidate byte SHA-256: `1d27ab86c85980e8ee516c672dc37934ee1df9b13842200ad20f2f28d826eeb3`
-- Reserve candidate byte SHA-256: `b8c84b333b8c5239782e0282a887961be53113094937db47a5829ceaa00425ae`
-- Selection amendments byte SHA-256: `d72b42743f10eeb193c1d74a277aec1b58f01bdbd62b9bcbed123cf2a0254146`
+- Selection policy: `llm-selection-v1.2` (re-locked before detector results)
+- Superseded policy: `llm-selection-v1.1`
+- Selection policy byte SHA-256: `ea366427612ed0fe867c83eae341e1edd30a21f64faa47c7307d4189ae9d1354`
+- Golden candidate byte SHA-256: `065f7394f3d9281c8034853ea501f5ff69519fb3b5c815393b25f864d660bed5`
+- Untouched candidate byte SHA-256: `483e634d8f7536605bd8508e02857819fd8660702ac8b61bf1c6684323852085`
+- Reserve candidate byte SHA-256: `116e9ca1b4dbfdd28cfd8ec92c7e2ecc88f00f8839df4647baee6c0c512dfc6a`
+- Selection amendments byte SHA-256: `541990b6592191c3928b7483ad5e27ddb79995f85a2a9e33cbe687baa4afbde1`
 - Detector results seen before review: `no`
 
 ## Independent review records
 
-Each reviewer confirms that it reviewed `llm-selection-v1.1`, both 24-repository candidate lists,
+Each reviewer confirms that it reviewed `llm-selection-v1.2`, both 24-repository candidate lists,
 the complete ordered reserve list, and all selection amendments in an isolated pass; found no
 cohort overlap or detector-result-driven selection; and approved the metadata-only re-lock and
 freeze before either cohort is scanned. Record reviewer kind honestly.
 
-- Review method: `two_human | two_independent_ai`
+- Review method: `two_human | two_independent_ai | two_sequential_ai_passes`
 - Reviewer 1 stable identity: `replace`
 - Reviewer 1 kind: `human | ai`
 - Reviewer 1 confirmation/date: `replace`
@@ -41,6 +41,13 @@ freeze before either cohort is scanned. Record reviewer kind honestly.
   extension rule, and re-locked before results. `browser-use/browser-use` was appended at reserve
   order 9 under that re-locked policy before any detector execution; thresholds and rules did not
   change.
+- A later cross-review status message disclosed original untouched first-pass labels to the
+  rule-authoring orchestrator before formal detector freeze. The original cohort is retired; no
+  detector had run and no detector rule changed in response.
+- Policy `llm-selection-v1.2` binds a completely disjoint replacement selected by the deterministic
+  metadata-only record at byte SHA-256
+  `b758cbfd75f7cd9aad839d5f75882c3f86ee34c59c49ee55df25193e8b5cf848`.
+  Two independent AI reviews approved its exact bytes and are not represented as human review.
 
 Store the completed witness records in the approved internal governance system. Pass both files to
 the freezer so their exact byte hashes are bound in `review_bindings`; the manifest also binds its

@@ -5,16 +5,21 @@ used to tune rules. It contains no copied repository source and no private data.
 
 ## State
 
-- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.1` before
-  detector results. It truthfully records the metadata-only browser-use reserve extension.
+- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.2` before
+  detector results. It truthfully records both the earlier reserve extension and the disclosed
+  untouched-cohort blinding incident and recovery.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
 - Candidate cohorts: `cohorts/golden-candidates.json` and
-  `cohorts/untouched-candidates.json` are disjoint, pre-result candidate lists.
+  `cohorts/untouched-candidates-v1.2.json` are the current disjoint, pre-result candidate lists.
+  The unversioned untouched candidate and manifest files are retained v1.1 audit evidence and are
+  never accepted as fallback measurement inputs.
 - Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
   pre-result policy re-lock are recorded in `cohorts/selection-amendments.json`.
-- Immutable manifests: frozen at `2026-07-23T04:08:14Z` after two recorded independent AI review
-  passes. `cohorts/golden-manifest.json` and `cohorts/untouched-manifest.json` each bind 24 exact
-  commits and root trees. Neither cohort had been passed to the detector at freeze time.
+- Immutable manifests: the original v1.1 manifests were frozen at `2026-07-23T04:08:14Z`, but the
+  untouched manifest was retired after a cross-review status message exposed first-pass labels to
+  the rule-authoring orchestrator. Neither cohort had been passed to the detector. Current
+  `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` must be independently re-frozen
+  before execution; no v1.1 manifest can satisfy the v1.2 gate.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
   create the internal source-evidence index from the exact blobs used by every `source_span` using
   `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw
@@ -42,8 +47,8 @@ node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-onl
 # After two blind labelers have independently reviewed every repository/rule cell and reconciled
 # the opportunity union, assemble private pre-result evidence outside every Git working tree:
 node calibration/llm/scripts/assemble-blind-evidence.mjs \
-  --golden-manifest calibration/llm/cohorts/golden-manifest.json \
-  --untouched-manifest calibration/llm/cohorts/untouched-manifest.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
+  --untouched-manifest calibration/llm/cohorts/untouched-manifest-v1.2.json \
   --golden-root /absolute/path/to/golden-checkouts \
   --untouched-root /absolute/path/to/untouched-checkouts \
   --primary-golden /absolute/path/to/golden-primary.json \
@@ -124,29 +129,34 @@ observed default branch, full commit, Git tree, and SPDX licence identifier. It 
 metadata without creating a frozen manifest and does not require reviewers. This is the safe way
 to identify unavailable or renamed candidates before applying the preregistered reserve rule.
 Canonical renames preserve repository identity. Metadata resolution found four archived selected
-repositories. After existing `agent_tools` reserves were exhausted, the policy was versioned to
-`llm-selection-v1.1`, given an explicit exhausted-reserve extension rule, and re-locked before any
-detector execution. The complete truth-preserving history is in `cohorts/selection-amendments.json`.
+repositories. After existing `agent_tools` reserves were exhausted, the policy was first versioned
+to `llm-selection-v1.1`. A later label-disclosure incident retired the original untouched cohort
+before detector execution. Version `llm-selection-v1.2` uses a completely disjoint replacement
+selected from two metadata-only searches by the content-bound selector in
+`scripts/select-replacement-cohort.mjs`; two disclosed AI reviews replayed and approved its exact
+bytes. The complete truth-preserving history is in `cohorts/selection-amendments.json`.
 
 A real freeze requires exactly two distinct review passes and a reference to the internal review
 record. Human review remains supported. When two people are unavailable, the owner may authorize
-two isolated AI passes, which must be identified as AI and must not be presented as human review:
+two sequential passes by the same AI task. That is disclosed separately from independent AI review
+and must not be presented as human review:
 
 ```bash
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden \
-  --review-mode independent-ai \
-  --reviewer "codex-review-a:record-id" \
-  --reviewer "codex-review-b:record-id" \
+  --review-mode ai-two-pass \
+  --reviewer "codex-owner-review-pass-1:record-id" \
+  --reviewer "codex-owner-review-pass-2:record-id" \
   --review-record /absolute/path/to/review-a.md \
   --review-record /absolute/path/to/review-b.md \
-  --confirm-independent-reviews \
+  --confirm-ai-two-pass \
   --attestation-reference "internal-witness:review-record-id"
 ```
 
 The script never invents or infers reviewer identities. Human and AI identities are validated under
-different modes, and the manifest records `two_human` or `two_independent_ai`. A dry run with the
-freeze arguments previews the complete manifest without writing it. The final write uses exclusive
-creation and refuses to overwrite an existing manifest.
+different modes, and the manifest records `two_human`, `two_independent_ai`, or
+`two_sequential_ai_passes`. A dry run with the freeze arguments previews the complete manifest
+without writing it. The final write uses exclusive creation and refuses to overwrite an existing
+manifest.
 
 Use `templates/cohort-freeze-witness.template.md` to collect both review records. The completed
 records stay internal; immutable manifests contain their byte-level SHA-256 values plus an opaque

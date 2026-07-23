@@ -24,6 +24,7 @@ const REVIEW_BINDINGS = {
   untouched_candidates_sha256: '3'.repeat(64),
   reserve_candidates_sha256: '4'.repeat(64),
   selection_amendments_sha256: '5'.repeat(64),
+  replacement_selection_sha256: '9'.repeat(64),
   review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
 };
 const candidateRepository = (repository_id) => ({
@@ -40,7 +41,7 @@ const TEST_CALIBRATION_CONTRACT = {
     selection_policy_sha256: {
       byte_sha256: REVIEW_BINDINGS.selection_policy_sha256,
       document: {
-        schema_version: '1.0.0', policy_id: 'llm-selection-v1.1',
+        schema_version: '1.0.0', policy_id: 'llm-selection-v1.2',
         status: 'relocked_before_detector_results', detector_results_seen: false,
         target_size_per_cohort: 1,
       },
@@ -49,7 +50,7 @@ const TEST_CALIBRATION_CONTRACT = {
       byte_sha256: REVIEW_BINDINGS.golden_candidates_sha256,
       document: {
         schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
-        policy_id: 'llm-selection-v1.1', cohort: 'golden',
+        policy_id: 'llm-selection-v1.2', cohort: 'golden',
         status: 'candidate_commit_freeze_pending', selected_before_detector_results: true,
         repositories: [candidateRepository('owner/golden')],
       },
@@ -58,7 +59,7 @@ const TEST_CALIBRATION_CONTRACT = {
       byte_sha256: REVIEW_BINDINGS.untouched_candidates_sha256,
       document: {
         schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
-        policy_id: 'llm-selection-v1.1', cohort: 'untouched',
+        policy_id: 'llm-selection-v1.2', cohort: 'untouched',
         status: 'candidate_commit_freeze_pending', selected_before_detector_results: true,
         repositories: [candidateRepository('owner/untouched')],
       },
@@ -67,14 +68,14 @@ const TEST_CALIBRATION_CONTRACT = {
       byte_sha256: REVIEW_BINDINGS.reserve_candidates_sha256,
       document: {
         schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
-        policy_id: 'llm-selection-v1.1', repositories: [],
+        policy_id: 'llm-selection-v1.2', repositories: [],
       },
     },
     selection_amendments_sha256: {
       byte_sha256: REVIEW_BINDINGS.selection_amendments_sha256,
       document: {
         schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
-        policy_id: 'llm-selection-v1.1', detector_results_seen: false,
+        policy_id: 'llm-selection-v1.2', detector_results_seen: false,
         amendments: [{ kind: 'policy_relock_before_results' }],
       },
     },
@@ -95,6 +96,29 @@ const TEST_CALIBRATION_CONTRACT = {
       policy_id: 'cejel-llm-public-surfaces-v1', status: 'locked_before_detector_results',
       detector_results_seen: false, repository_paths: ['README.md'], external_surfaces: [],
     },
+  },
+};
+const TEST_REPLACEMENT_SELECTION_WITHOUT_HASH = {
+  schema_version: '1.0.0',
+  protocol_id: 'cejel-llm-calibration-v1',
+  policy_id: 'llm-selection-v1.2',
+  incident_id: 'untouched-blinding-incident-2026-07-22',
+  detector_results_seen: false,
+  source_or_labels_used_for_selection: false,
+  proposal_bindings: [
+    { reviewer_id: 'codex-review-a', document_sha256: 'a'.repeat(64) },
+    { reviewer_id: 'codex-review-b', document_sha256: 'b'.repeat(64) },
+  ],
+  candidate_document_sha256: sha(
+    TEST_CALIBRATION_CONTRACT.artifacts.untouched_candidates_sha256.document,
+  ),
+  selected: [{ repository_id: 'owner/untouched' }],
+};
+TEST_CALIBRATION_CONTRACT.artifacts.replacement_selection_sha256 = {
+  byte_sha256: REVIEW_BINDINGS.replacement_selection_sha256,
+  document: {
+    ...TEST_REPLACEMENT_SELECTION_WITHOUT_HASH,
+    record_sha256: sha(TEST_REPLACEMENT_SELECTION_WITHOUT_HASH),
   },
 };
 const testTrustedExecutionVerification = (input) => {
@@ -183,7 +207,7 @@ function manifest(cohort, repositoryId, commit) {
     source_available_at_freeze: true,
   };
   const withoutHash = {
-    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', policy_id: 'llm-selection-v1.1',
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', policy_id: 'llm-selection-v1.2',
     cohort, status: 'frozen', frozen_at: '2026-07-22T00:00:00Z',
     frozen_by: ['reviewer-a', 'reviewer-b'], review_method: 'two_independent_ai',
     detector_results_seen_before_freeze: false,

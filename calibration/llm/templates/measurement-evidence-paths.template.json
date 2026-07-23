@@ -1,6 +1,6 @@
 {
-  "golden_manifest": "../cohorts/golden-manifest.json",
-  "untouched_manifest": "../cohorts/untouched-manifest.json",
+  "golden_manifest": "../cohorts/golden-manifest-v1.2.json",
+  "untouched_manifest": "../cohorts/untouched-manifest-v1.2.json",
   "source_evidence_index": "../source-evidence-index.json",
   "opportunity_manifest": "../opportunity-manifest.json",
   "opportunity_discovery_coverage": "../opportunity-discovery-coverage.json",

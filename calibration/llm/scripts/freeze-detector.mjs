@@ -786,7 +786,7 @@ function usage() {
     --build-command npm --build-arg run --build-arg build \\
     --build-output dist/index.js \\
     --golden-correction-ledger ./golden-corrections.json \\
-    --golden-manifest calibration/llm/cohorts/golden-manifest.json \\
+    --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \\
     --opportunity-manifest ./opportunity-manifest.json \\
     --golden-execution-evidence ./golden-execution-evidence.json \\
     --golden-label-record ./labels/golden-primary.json \\

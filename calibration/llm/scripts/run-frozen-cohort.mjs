@@ -61,7 +61,9 @@ export function validateImmutableManifest(manifest) {
     (manifest.review_method === 'two_human' &&
       manifest.attestation?.method === 'internal_witness') ||
     (manifest.review_method === 'two_independent_ai' &&
-      manifest.attestation?.method === 'internal_dual_ai_review');
+      manifest.attestation?.method === 'internal_dual_ai_review') ||
+    (manifest.review_method === 'two_sequential_ai_passes' &&
+      manifest.attestation?.method === 'internal_ai_two_pass_review');
   if (
     manifest.detector_results_seen_before_freeze !== false ||
     !Array.isArray(manifest.frozen_by) ||
