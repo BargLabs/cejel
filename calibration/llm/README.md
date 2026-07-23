@@ -7,14 +7,14 @@ remain outside Git.
 
 ## State
 
-- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.2` before
-  detector results. It truthfully records both the earlier reserve extension and the disclosed
-  untouched-cohort blinding incident and recovery.
+- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.3` before
+  detector results. The v1.2 policy remains at `selection-policy-v1.2.json`. The current policy
+  truthfully records the spent v1.2 evidence cycle and the fresh, disjoint v1.3 untouched selection.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
-- Candidate cohorts: `cohorts/golden-candidates.json` and
-  `cohorts/untouched-candidates-v1.2.json` are the current disjoint, pre-result candidate lists.
-  The unversioned untouched candidate and manifest files are retained v1.1 audit evidence and are
-  never accepted as fallback measurement inputs.
+- Candidate cohorts: `cohorts/golden-candidates-v1.3.json` and
+  `cohorts/untouched-candidates-v1.3.json` are the current disjoint, pre-result candidate lists.
+  Earlier candidate and manifest files remain audit evidence and are never accepted as fallback
+  measurement inputs.
 - Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
   pre-result policy re-lock are recorded in `cohorts/selection-amendments.json`.
 - Immutable manifests: the original v1.1 manifests were frozen at `2026-07-23T04:08:14Z`, but the
@@ -22,7 +22,9 @@ remain outside Git.
   the rule-authoring orchestrator. Neither cohort had been passed to the detector. Current
   `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` were frozen before execution and
   reviewed in two sequential passes by the same AI task under the solo-owner exception. Those
-  passes are not independent or human. No v1.1 manifest can satisfy the v1.2 gate.
+  passes are not independent or human. The v1.3 manifests use the same disclosed sequential-review
+  mode. Golden retains the exact v1.2 pins used for development; untouched is a fresh disjoint
+  metadata-selected cohort. No earlier manifest can satisfy the v1.3 gate.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
   create the internal source-evidence index from the exact blobs used by every `source_span` using
   `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw

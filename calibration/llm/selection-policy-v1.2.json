@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
-  "policy_id": "llm-selection-v1.3",
+  "policy_id": "llm-selection-v1.2",
   "status": "relocked_before_detector_results",
-  "locked_at": "2026-07-23T19:10:00Z",
-  "supersedes_policy_id": "llm-selection-v1.2",
-  "relock_reason": "The v1.2 evidence cycle ended in an integrity NO-GO and its untouched cohort is spent. A fresh v1.3 untouched cohort was selected before candidate execution from two isolated metadata-only searches by a deterministic, content-bound process that excluded all prior golden, untouched, reserve, conflict-exclusion, and development identities.",
+  "locked_at": "2026-07-23T05:03:51Z",
+  "supersedes_policy_id": "llm-selection-v1.1",
+  "relock_reason": "An isolated AI cross-review status message disclosed first-pass labels from the original untouched cohort to the rule-authoring orchestrator before formal detector freeze. No detector had run and no detector rule was changed in response. The original untouched cohort is retired from release measurement, and a fresh cohort was selected from two independent metadata-only searches by a deterministic, content-bound process that excluded every prior golden, untouched, and reserve identity.",
   "target_size_per_cohort": 24,
   "allowed_hosts": ["github.com"],
   "eligibility": [
@@ -32,6 +32,6 @@
   "replacement_rule": "Use the first eligible reserve candidate with the same primary surface stratum; record the failed eligibility clause and never consult detector output.",
   "reserve_extension_rule": "If every preregistered reserve for a required surface is consumed or ineligible, append and record the first metadata-eligible same-surface reserve, then re-lock and independently review the complete policy and cohorts before any detector execution.",
   "blinding_incident_rule": "If untouched source opportunities or labels reach a rule author before the detector artifact is formally frozen, retire the entire affected cohort from release measurement. Preserve its immutable artifacts, disclose the incident, select a completely disjoint replacement from two independent metadata-only searches, bind the exact exclusion set and deterministic selector, and independently review and re-freeze both current manifests before any detector execution.",
-  "replacement_selection_rule": "For llm-selection-v1.3, seed Anthropic, OpenAI, and local/open-model provider coverage, then fill exact surface quotas gateway=1, chat_app=3, local_model=3, rag=4, agent_tools=6, evaluation_or_framework=7. Rank exact dual-proposal agreement before single-proposal candidates, then by SHA-256 of policy_id|surface|lowercase_repository. Exclude classification conflicts rather than resolving them after selection.",
+  "replacement_selection_rule": "For llm-selection-v1.2, seed Anthropic, OpenAI, and local/open-model provider coverage, then fill exact surface quotas gateway=1, chat_app=3, local_model=3, rag=4, agent_tools=6, evaluation_or_framework=7. Rank exact dual-proposal agreement before single-proposal candidates, then by SHA-256 of policy_id|surface|lowercase_repository. Exclude classification conflicts rather than resolving them after selection.",
   "detector_results_seen": false
 }

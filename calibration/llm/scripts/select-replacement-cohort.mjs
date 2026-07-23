@@ -76,8 +76,8 @@ function classification(candidate) {
   });
 }
 
-function selectionHash(surface, repositoryId) {
-  return sha256(Buffer.from(`${POLICY_ID}|${surface}|${repositoryId.toLowerCase()}`, 'utf8'));
+function selectionHash(policyId, surface, repositoryId) {
+  return sha256(Buffer.from(`${policyId}|${surface}|${repositoryId.toLowerCase()}`, 'utf8'));
 }
 
 export function selectReplacementCohort({
@@ -87,6 +87,8 @@ export function selectReplacementCohort({
   selectedAt,
   selectorSourceSha256,
   incidentRecordSha256,
+  policyId = POLICY_ID,
+  selectionEventId = 'untouched-blinding-incident-2026-07-22',
 }) {
   const left = validateProposal(proposalA, 'proposal A');
   const right = validateProposal(proposalB, 'proposal B');
@@ -122,7 +124,7 @@ export function selectReplacementCohort({
     pool.push({
       candidate,
       tier: records.length === 2 ? 0 : 1,
-      selection_hash: selectionHash(candidate.primary_surface, candidate.repository_id),
+      selection_hash: selectionHash(policyId, candidate.primary_surface, candidate.repository_id),
       proposed_by: records.length === 2
         ? [left.reviewerId, right.reviewerId].sort()
         : [a ? left.reviewerId : right.reviewerId],
@@ -168,7 +170,7 @@ export function selectReplacementCohort({
   const candidateDocument = {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
-    policy_id: POLICY_ID,
+    policy_id: policyId,
     cohort: 'untouched',
     status: 'candidate_commit_freeze_pending',
     selected_before_detector_results: true,
@@ -177,14 +179,18 @@ export function selectReplacementCohort({
   const recordWithoutHash = {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
-    policy_id: POLICY_ID,
-    incident_id: 'untouched-blinding-incident-2026-07-22',
+    policy_id: policyId,
+    ...(policyId === POLICY_ID
+      ? { incident_id: selectionEventId }
+      : { selection_event_id: selectionEventId }),
     selected_at: selectedAt,
     detector_results_seen: false,
     source_or_labels_used_for_selection: false,
     algorithm: 'provider-seed-then-surface-quota; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)',
     selector_source_sha256: selectorSourceSha256,
-    incident_record_sha256: incidentRecordSha256,
+    ...(policyId === POLICY_ID
+      ? { incident_record_sha256: incidentRecordSha256 }
+      : { selection_evidence_record_sha256: incidentRecordSha256 }),
     surface_targets: SURFACE_TARGETS,
     required_provider_surfaces: REQUIRED_PROVIDERS,
     proposal_bindings: [
@@ -250,6 +256,8 @@ export function main(argv) {
     selectedAt: options.selected_at,
     selectorSourceSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
     incidentRecordSha256: sha256(readFileSync(resolve(options.incident_record))),
+    policyId: options.policy_id || POLICY_ID,
+    selectionEventId: options.selection_event_id || 'untouched-blinding-incident-2026-07-22',
   });
   writeNew(resolve(options.candidate_output), result.candidateDocument);
   writeNew(resolve(options.record_output), result.selectionRecord);

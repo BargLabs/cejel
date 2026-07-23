@@ -1,0 +1,242 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.3",
+  "selection_event_id": "v1.3-fresh-untouched-cohort",
+  "selected_at": "2026-07-23T19:10:00Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "provider-seed-then-surface-quota; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "bfdee731e0834025402772ef85db9b8db5fe66a5c534317477d9dad343cff12d",
+  "selection_evidence_record_sha256": "4b1911fcb262f8d7b60a8dec9da70270eb8a1f319edfef466daf9c5c5f56876c",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "proposal_bindings": [
+    {
+      "reviewer_id": "codex-v1.3-metadata-search-a",
+      "document_sha256": "506c13a265abe8bf0ffbc7cf3d0b975ca16989430d245a31c951254befb923bb"
+    },
+    {
+      "reviewer_id": "codex-v13-metadata-search-b",
+      "document_sha256": "d53d9f48f0eb21782b05a4ff68469b3d5a5220e12ec8a425b8096b22c0aee876"
+    }
+  ],
+  "excluded_repository_count": 89,
+  "excluded_repository_ids_sha256": "00f6f25cbec82a3a68d2c9c0cc120984e7a6ed9c980e3bef4b3a1827be7b8662",
+  "classification_conflicts_excluded": [
+    "hkuds/lightrag"
+  ],
+  "selected": [
+    {
+      "repository_id": "jwadow/kiro-gateway",
+      "tier": 0,
+      "selection_hash": "a3584ed00816bc2263019d6377e1331c0296507ad5ca7525628424040f77ade9",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a",
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "slack-samples/bolt-python-ai-chatbot",
+      "tier": 1,
+      "selection_hash": "0192a21fed3636b619e774ac43821e23a275a84978ef56e6f3f4541d3f860385",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "cogentapps/chat-with-gpt",
+      "tier": 1,
+      "selection_hash": "0cbf066a5539acd61d9f48aa23e0a8b28e7af0a88f01c58f1b4eae16c3f1b5d5",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "HiveNexus/HiveChat",
+      "tier": 1,
+      "selection_hash": "0e696775e2a7a718b970b1d36af9c0703e5831b0c60bacac50f36035fa0525a9",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "jofizcd/Soul-of-Waifu",
+      "tier": 0,
+      "selection_hash": "226cf3540d9b5eb19e5436b3008d7df1eadca0ba8305ce8ca0091425de30e113",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a",
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "mlx-chat/mlx-chat-app",
+      "tier": 1,
+      "selection_hash": "169e79bffc43b872866483c84e80cad0795479755ef7c2e20ef025d1b2694c13",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "fmaclen/hollama",
+      "tier": 1,
+      "selection_hash": "241f704c58b611ad4f95dcaa8b2ad9a7d530b48320fc149756d27051033241c6",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "microsoft/graphrag",
+      "tier": 0,
+      "selection_hash": "f82f6bee1774350f4a0d4efa6cd544aeb31d633d42ac13dcb61260c09a555b97",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a",
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "StarTrail-org/LEANN",
+      "tier": 1,
+      "selection_hash": "15d9ef688d91d791e80b766e2941db67b5dd004802333a9c91c5c5b0aa7ac307",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "zylon-ai/private-gpt",
+      "tier": 1,
+      "selection_hash": "2c225be179aa216dae38e8faf1b672400f4ff7e65ab4052f8eee3d458f846ec4",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "RafalWilinski/cloudflare-rag",
+      "tier": 1,
+      "selection_hash": "3ed3f2558768ccd9c18cf4132059d0520b3306d22367dadc146ddb4621b2eed2",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "open-multi-agent/open-multi-agent",
+      "tier": 0,
+      "selection_hash": "b21777e151c8ed8ea5018516b7ddb8c6f3bcb4f680f97bc99a2eb613c459361d",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a",
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "HKUDS/nanobot",
+      "tier": 1,
+      "selection_hash": "19fe4bde0a548fb10e03d480169ad365de51cdbb9c07c510dca317240878c261",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "QwenLM/Qwen-Agent",
+      "tier": 1,
+      "selection_hash": "1c52eca8a355d0c03c2fcd02cdf7a3ff6b7e68dc035118f001975ce28a7d6ad0",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "VoltAgent/voltagent",
+      "tier": 1,
+      "selection_hash": "21fbc2fe4584725f5d97ac5caa1cf423183baec9d9a547866c71a651d3a81a75",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "coze-dev/coze-studio",
+      "tier": 1,
+      "selection_hash": "27436a21205afca4d1a57f4496a84f4d35b7b928ed8c457880e18f698fccaeee",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "musistudio/claude-code-router",
+      "tier": 1,
+      "selection_hash": "361a89b49924f94b00da349162ee4dd1dcaf6dddc28ac1cbd80abb9217b73ef2",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "allenai/olmes",
+      "tier": 0,
+      "selection_hash": "230fe3ba1c5f02929a6d849e4aaab47de502dfe50422ecb5eb0f4961a62f3bb7",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a",
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "evalkit/evalkit",
+      "tier": 0,
+      "selection_hash": "4e3ca14c253ee6524bdd8c684fe190e38ef0da56853727810b08e56936b10877",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a",
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "The-Pocket/PocketFlow",
+      "tier": 1,
+      "selection_hash": "013fca0563058fa4149de5e000e57b01f0c6ff7f8e919bde0b3b90489bb48f5a",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "babelcloud/LLM-RGB",
+      "tier": 1,
+      "selection_hash": "240475546c010f4b81e0217d9c4e65ed4ea48489eddf0be1c1fff73a21feab8b",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "OpenBMB/UltraEval-Audio",
+      "tier": 1,
+      "selection_hash": "2479422377a0e6dc40a6ccbcc19bc4e3c26c16a44665a13a4fc9791945348d22",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "raga-ai-hub/RagaAI-Catalyst",
+      "tier": 1,
+      "selection_hash": "2731f531be4bf017cd51cdba070403db4fcbc764d75ce6631acd4095fd1f1701",
+      "proposed_by": [
+        "codex-v13-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "modelscope/evalscope",
+      "tier": 1,
+      "selection_hash": "39979d6b91557ddfe7fd95cb922ba5c98cac3a2107482b1ed9e43fdf83e1b05b",
+      "proposed_by": [
+        "codex-v1.3-metadata-search-a"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "fe6dc60b00e7db3490fee6e13725c971d777bbf94532e63d91ce533092f36fb6",
+  "record_sha256": "ce636115daca5bfeb46d5e3b0a60d599635efc29e4d83e04b2dff66b4fb82b88"
+}

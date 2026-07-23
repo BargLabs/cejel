@@ -123,3 +123,24 @@ test('rejects non-metadata review, duplicate identity, and insufficient provider
     incidentRecordSha256: 'b'.repeat(64),
   }), /required anthropic/);
 });
+
+test('supports a fresh policy cycle without rewriting the v1.2 audit record shape', () => {
+  const proposalA = proposal('codex-metadata-review-a', 'a');
+  const proposalB = proposal('codex-metadata-review-b', 'b');
+  const result = selectReplacementCohort({
+    proposalA,
+    proposalB,
+    excludedIds: new Set(),
+    selectedAt: '2026-07-23T04:30:00.000Z',
+    selectorSourceSha256: 'a'.repeat(64),
+    incidentRecordSha256: 'b'.repeat(64),
+    policyId: 'llm-selection-v1.3',
+    selectionEventId: 'v1.3-fresh-untouched-cohort',
+  });
+  assert.equal(result.candidateDocument.policy_id, 'llm-selection-v1.3');
+  assert.equal(result.selectionRecord.policy_id, 'llm-selection-v1.3');
+  assert.equal(result.selectionRecord.selection_event_id, 'v1.3-fresh-untouched-cohort');
+  assert.equal(result.selectionRecord.selection_evidence_record_sha256, 'b'.repeat(64));
+  assert.equal('incident_id' in result.selectionRecord, false);
+  assert.equal('incident_record_sha256' in result.selectionRecord, false);
+});

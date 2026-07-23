@@ -10,10 +10,13 @@ const root = resolve(here, '..');
 const read = (relative) => JSON.parse(readFileSync(resolve(root, relative), 'utf8'));
 const policy = read('selection-policy.json');
 const thresholds = read('release-thresholds.json');
-const golden = read('cohorts/golden-candidates.json');
-const untouched = read('cohorts/untouched-candidates-v1.2.json');
+const golden = read('cohorts/golden-candidates-v1.3.json');
+const untouched = read('cohorts/untouched-candidates-v1.3.json');
 const amendments = read('cohorts/selection-amendments.json');
-const replacementSelection = read('cohorts/replacement-selection-v1.2.json');
+const replacementSelection = read('cohorts/selection-v1.3.json');
+const priorReplacementSelection = read('cohorts/replacement-selection-v1.2.json');
+const priorGolden = read('cohorts/golden-candidates.json');
+const priorUntouchedV12 = read('cohorts/untouched-candidates-v1.2.json');
 const development = read('development-corpus-v1.3.json');
 const retiredUntouched = read('cohorts/untouched-candidates.json');
 const reserve = read('cohorts/reserve-candidates.json');
@@ -113,9 +116,14 @@ const releaseIneligibleIds = new Set(
   [
     ...golden.repositories,
     ...untouched.repositories,
+    ...priorGolden.repositories,
+    ...priorUntouchedV12.repositories,
     ...retiredUntouched.repositories,
     ...reserve.repositories,
     ...(replacementSelection.classification_conflicts_excluded ?? []).map(
+      (repository_id) => ({ repository_id }),
+    ),
+    ...(priorReplacementSelection.classification_conflicts_excluded ?? []).map(
       (repository_id) => ({ repository_id }),
     ),
   ].map((repo) => repo.repository_id.toLowerCase()),
@@ -154,7 +162,7 @@ if (
 
 const frozen = new Map();
 for (const cohort of ['golden', 'untouched']) {
-  const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest-v1.2.json`);
+  const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest-v1.3.json`);
   if (!existsSync(manifestPath)) continue;
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   frozen.set(cohort, manifest);
