@@ -8,7 +8,7 @@ const CLAIM_PATTERNS = [
   },
   {
     claimClass: 'hallucination_prevention_or_detection',
-    pattern: /\b(?:detect(?:s|ed|ing|ion)?|prevent(?:s|ed|ing|ion)?|eliminat(?:e|es|ed|ing|ion)|stop(?:s|ped|ping)?)\b[^.!?\n]{0,80}\bhallucinations?\b|\bhallucinations?\b[^.!?\n]{0,80}\b(?:detect(?:s|ed|ing|ion)?|prevent(?:s|ed|ing|ion)?|eliminat(?:e|es|ed|ing|ion)|stop(?:s|ped|ping)?)\b/gi,
+    pattern: /\b(?:detect(?:s|ed|ing|ion)?|prevent(?:s|ed|ing|ion)?|eliminat(?:e|es|ed|ing|ion)|stop(?:s|ped|ping)?)\b[^.!?\n]{0,80}\bhallucinations?\b|\bhallucinations?\b[^.!?\n]{0,80}\b(?:detect(?:s|ed|ing|ion)?|prevent(?:s|ed|ing|ion)?|eliminat(?:e|es|ed|ing|ion)|stop(?:s|ped|ping)?)\b|\bhallucination[- ]free\b/gi,
   },
   {
     claimClass: 'universal_safety_or_trust',
@@ -27,7 +27,13 @@ function isNegated(text, start) {
     text.lastIndexOf('?', start - 1),
     text.lastIndexOf('\n', start - 1),
   );
-  return NEGATION_PATTERN.test(text.slice(sentenceStart + 1, start));
+  const prefix = text.slice(sentenceStart + 1, start);
+  const boundaries = [...prefix.matchAll(/;|\b(?:but|however|yet)\b/gi)];
+  const lastBoundary = boundaries.at(-1);
+  const clause = lastBoundary
+    ? prefix.slice((lastBoundary.index ?? 0) + lastBoundary[0].length)
+    : prefix;
+  return NEGATION_PATTERN.test(clause);
 }
 
 export function findProhibitedPublicClaims(text) {
@@ -36,11 +42,18 @@ export function findProhibitedPublicClaims(text) {
   for (const { claimClass, pattern } of CLAIM_PATTERNS) {
     pattern.lastIndex = 0;
     for (const match of text.matchAll(pattern)) {
-      if (isNegated(text, match.index ?? 0)) continue;
+      const originalIndex = match.index ?? 0;
+      const internalBoundaries = [...match[0].matchAll(/;|\b(?:but|however|yet)\b/gi)];
+      const lastInternalBoundary = internalBoundaries.at(-1);
+      const boundaryEnd = lastInternalBoundary
+        ? (lastInternalBoundary.index ?? 0) + lastInternalBoundary[0].length
+        : 0;
+      const claimIndex = originalIndex + boundaryEnd;
+      if (isNegated(text, claimIndex)) continue;
       matches.push({
         claim_class: claimClass,
-        index: match.index ?? 0,
-        excerpt: match[0],
+        index: claimIndex,
+        excerpt: match[0].slice(boundaryEnd).trim(),
       });
     }
   }

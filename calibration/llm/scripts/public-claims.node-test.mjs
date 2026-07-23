@@ -26,3 +26,20 @@ test('permits explicit boundary denials and unrelated guarantees', () => {
     'The installer guarantees atomic replacement of the local output file.',
   ]) assert.deepEqual(findProhibitedPublicClaims(content), []);
 });
+
+test('a denial cannot hide a prohibited claim in a later contrastive clause', () => {
+  const claims = findProhibitedPublicClaims(
+    'Cejel does not measure a hallucination rate, but detects hallucinations. ' +
+    'It is marketed as hallucination-free.',
+  );
+  assert.deepEqual(
+    claims.map((claim) => claim.claim_class),
+    ['hallucination_prevention_or_detection', 'hallucination_prevention_or_detection'],
+  );
+  assert.equal(
+    findProhibitedPublicClaims(
+      'Cejel does not measure a hallucination rate; however, it detects hallucinations.',
+    ).some((claim) => claim.claim_class === 'hallucination_prevention_or_detection'),
+    true,
+  );
+});
