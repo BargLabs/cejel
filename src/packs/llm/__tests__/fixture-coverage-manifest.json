@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "catalogue_id": "cejel-free-llm-v0-alpha-1",
+  "catalogue_id": "cejel-free-llm-v0-alpha-2",
   "claim_boundary": "Structural syntax signatures only; no package or SDK version is claimed by synthetic fixtures.",
   "enabled_rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"],
   "rules": [

@@ -14,6 +14,9 @@ const golden = read('cohorts/golden-candidates.json');
 const untouched = read('cohorts/untouched-candidates-v1.2.json');
 const amendments = read('cohorts/selection-amendments.json');
 const replacementSelection = read('cohorts/replacement-selection-v1.2.json');
+const development = read('development-corpus-v1.3.json');
+const retiredUntouched = read('cohorts/untouched-candidates.json');
+const reserve = read('cohorts/reserve-candidates.json');
 const errors = [];
 
 const canonicalize = (value) => {
@@ -106,6 +109,49 @@ for (const repo of untouched.repositories) {
   if (goldenIds.has(repo.repository_id.toLowerCase())) errors.push(`cohort overlap: ${repo.repository_id}`);
 }
 
+const releaseIneligibleIds = new Set(
+  [
+    ...golden.repositories,
+    ...untouched.repositories,
+    ...retiredUntouched.repositories,
+    ...reserve.repositories,
+    ...(replacementSelection.classification_conflicts_excluded ?? []).map(
+      (repository_id) => ({ repository_id }),
+    ),
+  ].map((repo) => repo.repository_id.toLowerCase()),
+);
+if (
+  development.protocol_id !== 'cejel-llm-calibration-v1' ||
+  development.status !== 'frozen_before_first_scan' ||
+  development.selected_from_metadata_only !== true ||
+  development.detector_results_seen_before_freeze !== false ||
+  development.excluded_from_all_release_cohorts !== true ||
+  development.repositories?.length !== 12
+) {
+  errors.push('v1.3 development corpus is not frozen as development-only before scanning');
+} else {
+  const developmentIds = new Set();
+  for (const repo of development.repositories) {
+    const id = repo.repository_id?.toLowerCase();
+    if (!id || !repoPattern.test(repo.repository_id)) {
+      errors.push(`development: invalid repository_id ${repo.repository_id ?? '<unknown>'}`);
+      continue;
+    }
+    if (developmentIds.has(id)) errors.push(`development: duplicate ${repo.repository_id}`);
+    developmentIds.add(id);
+    if (releaseIneligibleIds.has(id)) {
+      errors.push(`development: repository was already used or reserved ${repo.repository_id}`);
+    }
+    if (
+      repo.url !== `https://github.com/${repo.repository_id}` ||
+      !/^[a-f0-9]{40}$/.test(repo.commit_sha ?? '') ||
+      !/^[a-f0-9]{40}$/.test(repo.git_tree_sha ?? '')
+    ) {
+      errors.push(`development: unpinned identity ${repo.repository_id}`);
+    }
+  }
+}
+
 const frozen = new Map();
 for (const cohort of ['golden', 'untouched']) {
   const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest-v1.2.json`);
@@ -175,6 +221,7 @@ console.log(JSON.stringify({
   policy_id: policy.policy_id,
   golden_candidates: golden.repositories.length,
   untouched_candidates: untouched.repositories.length,
+  development_only_repositories: development.repositories.length,
   overlap: 0,
   immutable_freeze: frozen.size === 2 ? 'valid' : 'pending',
   release_thresholds: 'locked',

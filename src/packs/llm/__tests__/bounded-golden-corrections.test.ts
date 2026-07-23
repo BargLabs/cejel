@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { collectCejelLlmPack } from '../detector.js';
 import { detectBoundedEvaluationResultProvenance } from '../evaluation-rules.js';
+import { hasSupportedJavaScriptModelCall } from '../javascript-integrations.js';
 import { detectPythonConfiguredSelfJudge } from '../python-evaluation-rules.js';
 import { detectSideEffectingToolWithoutAuthorityBoundary } from '../action-rules.js';
 import {
@@ -19,6 +20,87 @@ function source(contents: readonly string[], path = 'src/evaluation.ts'): LlmSou
 }
 
 describe('bounded golden corrections', () => {
+  it('recognizes an authenticated OpenAI-compatible REST model call', () => {
+    const file = source([
+      'async function complete(',
+      '  base: string,',
+      '  key: string,',
+      '  model: string,',
+      '  messages: Array<{ role: string; content: string }>',
+      '): Promise<string> {',
+      '  const response = await fetch(`${base}/chat/completions`, {',
+      "    method: 'POST',",
+      '    headers: { Authorization: `Bearer ${key}` },',
+      '    body: JSON.stringify({ model, messages, max_tokens: 1000 }),',
+      '  });',
+      '  return response.json();',
+      '}',
+    ]);
+    expect(hasSupportedJavaScriptModelCall(file.contents)).toBe(true);
+  });
+
+  it('detects a discrete evaluation emitted after a local REST model helper call', () => {
+    const file = source([
+      "import { writeFileSync } from 'node:fs';",
+      'async function complete(',
+      '  base: string,',
+      '  key: string,',
+      '  model: string,',
+      '  messages: Array<{ role: string; content: string }>',
+      '): Promise<string> {',
+      '  const response = await fetch(`${base}/chat/completions`, {',
+      "    method: 'POST',",
+      '    headers: { Authorization: `Bearer ${key}` },',
+      '    body: JSON.stringify({ model, messages, max_tokens: 1000 }),',
+      '  });',
+      '  return response.json();',
+      '}',
+      'async function main() {',
+      '  const output = await complete(base, key, model, messages);',
+      '  const result = { scenario, model, run, output, score, ok };',
+      "  writeFileSync('evaluation.json', JSON.stringify(result));",
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toHaveLength(1);
+  });
+
+  it('does not borrow a REST helper that the result scope never calls', () => {
+    const file = source([
+      "import { writeFileSync } from 'node:fs';",
+      'async function complete(base: string, key: string, model: string, messages: unknown[]) {',
+      '  return fetch(`${base}/chat/completions`, {',
+      "    method: 'POST',",
+      '    headers: { Authorization: `Bearer ${key}` },',
+      '    body: JSON.stringify({ model, messages }),',
+      '  });',
+      '}',
+      'async function main() {',
+      '  const result = { scenario, model, run, output, score, ok };',
+      "  writeFileSync('evaluation.json', JSON.stringify(result));",
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
+  });
+
+  it('detects Flowise evaluation result storage without configuration lineage', () => {
+    const file = source([
+      'async function evaluateChatflow(chatflowId: string, data: any, returnData: any) {',
+      "  const headers = { 'X-Flowise-Evaluation': 'true' };",
+      '  const postData = { question: data.input, evaluation: true };',
+      '  const runData: any = {};',
+      '  const response = await axios.post(`${this.baseURL}/api/v1/prediction/${chatflowId}`, postData, { headers });',
+      "  runData.status = 'complete';",
+      '  runData.actualOutput = response.data.text;',
+      '  runData.metrics = response.data.metrics;',
+      '  runData.latency = elapsed();',
+      '  runData.runId = requestId;',
+      '  returnData.rows[0].evaluations.push(runData);',
+      '  return returnData;',
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toHaveLength(1);
+  });
+
   it('links same-file model output to an executable-template helper parameter', () => {
     const file = source([
       "import OpenAI from 'openai';",

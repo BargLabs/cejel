@@ -67,8 +67,9 @@ Current native source coverage is:
 
 - **JavaScript/TypeScript:** `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`.
   Integration metadata can record OpenAI, Anthropic, Vercel AI SDK, and LangChain imports.
-  Applicability requires a recognized OpenAI/Anthropic or `generateText`/`streamText` call shape;
-  LangChain metadata alone does not establish v1 applicability or framework-specific coverage.
+  Applicability requires a recognized OpenAI/Anthropic or `generateText`/`streamText` call shape,
+  or the complete authenticated OpenAI-compatible REST request shape documented in the support
+  matrix; LangChain metadata alone does not establish v1 applicability or framework-specific coverage.
   The eight rules below use deliberately bounded, local patterns; an import alone never creates
   a finding.
 - **Python:** `.py` files using observable official OpenAI or Anthropic SDK imports and call/response
@@ -92,7 +93,7 @@ finding is never proof that a control exists.
 | `LLM-AGY-001` | A locally exposed JavaScript/TypeScript tool calls a recognized import-resolved Node filesystem or child-process mutation API without an observable fail-closed allowlist or human-approval gate. |
 | `LLM-AGY-002` | A literal unconditional loop has a complete local body containing a recognized model call. |
 | `LLM-DAT-001` | A narrowly named secret-like environment value appears directly inside recognized model-call arguments. |
-| `LLM-PRV-001` | A local evaluation path with a recognized model invocation emits an aggregate without model lineage or prompt, policy, or evaluation-configuration lineage. |
+| `LLM-PRV-001` | A local evaluation path with a recognized direct or called-helper model invocation emits an aggregate or bounded case result without model lineage or prompt, policy, or evaluation-configuration lineage. |
 | `LLM-EVL-001` | A local evaluation path with a recognized model invocation emits an aggregate without an eligible-case denominator (including a directly traced local alias) or raw case results. |
 | `LLM-EVL-002` | The sole local model-assisted judge resolves to the same model as the producer, with no recognized independent adjudicator. |
 

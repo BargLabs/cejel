@@ -53,7 +53,7 @@ interface DenominatorAliasAssignment {
 
 const RESULT_EMITTER_PATTERN = /\b(?:writeFileSync|appendFileSync|Bun\.write)\s*\(/g;
 const MODEL_CALL_PATTERN =
-  /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b(?:generateText|streamText))\s*\(/g;
+  /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b(?:generateText|streamText|fetch))\s*\(/g;
 const ASSIGNMENT_PATTERN =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g;
 const DENOMINATOR_ALIAS_PATTERN =
@@ -141,10 +141,27 @@ function completeLocalSource(file: LlmSourceFile): boolean {
 }
 
 function hasSupportedEvaluationImport(file: LlmSourceFile): boolean {
-  return hasUnmaskedJavaScriptMatch(
+  return supportedJavaScriptModelCallIndices(file.contents).size > 0 ||
+    supportedEvaluationHttpInvocationIndices(file.contents).size > 0 ||
+    hasUnmaskedJavaScriptMatch(
     file.contents,
     /(?:from\s+['"](?:openai|@anthropic-ai\/sdk|ai)['"]|require\(\s*['"](?:openai|@anthropic-ai\/sdk|ai)['"]\s*\))/,
   );
+}
+
+function supportedEvaluationHttpInvocationIndices(contents: string): ReadonlySet<number> {
+  const indices = new Set<number>();
+  const masked = maskJavaScriptNonCode(contents);
+  const declaresEvaluationRequest =
+    /['"]X-Flowise-Evaluation['"]\s*:\s*['"]true['"]/.test(contents) &&
+    /\bevaluation\s*:\s*true\b/.test(masked);
+  if (!declaresEvaluationRequest) return indices;
+  for (const match of contents.matchAll(
+    /\baxios\.post\s*\(\s*`[^`]*\/api\/v1\/prediction\/\$\{[^}]+\}[^`]*`/g,
+  )) {
+    if ((masked[match.index] ?? ' ') !== ' ') indices.add(match.index);
+  }
+  return indices;
 }
 
 function lineNumberAt(contents: string, index: number): number {
@@ -283,6 +300,7 @@ function configurationInputLocus(
 }
 
 interface JavaScriptFunctionScope {
+  readonly name: string;
   readonly start: number;
   readonly end: number;
 }
@@ -302,9 +320,9 @@ function javaScriptFunctionScopes(masked: string): readonly JavaScriptFunctionSc
       ) {
         continue;
       }
-      const start = masked.indexOf('{', declaration.index);
+      const start = declaration.index + declaration[0].lastIndexOf('{');
       const end = matchingDelimiter(masked, start, '{', '}');
-      if (start >= 0 && end >= 0) scopes.push({ start, end });
+      if (start >= 0 && end >= 0) scopes.push({ name: functionName, start, end });
     }
   }
   return scopes;
@@ -344,6 +362,41 @@ function hasScopedInvocationBefore(
   );
 }
 
+function hasLocalOrResolvedHelperInvocationBefore(
+  contents: string,
+  invocations: readonly ModelInvocation[],
+  resultIndex: number,
+): boolean {
+  if (hasScopedInvocationBefore(contents, invocations, resultIndex)) return true;
+  const masked = maskJavaScriptNonCode(contents);
+  const scopes = javaScriptFunctionScopes(masked);
+  const resultScope = scopes
+    .filter((scope) => resultIndex > scope.start && resultIndex < scope.end)
+    .sort((left, right) => right.start - left.start)[0];
+  if (!resultScope) return false;
+  const callerPrefix = masked.slice(resultScope.start + 1, resultIndex);
+  return scopes.some((callee) => {
+    if (callee.start === resultScope.start) return false;
+    const ownsModelInvocation = invocations.some(
+      (invocation) =>
+        invocation.index > callee.start &&
+        invocation.index < callee.end &&
+        !scopes.some(
+          (nested) =>
+            nested.start > callee.start &&
+            nested.end < callee.end &&
+            invocation.index > nested.start &&
+            invocation.index < nested.end,
+        ),
+    );
+    if (!ownsModelInvocation) return false;
+    const escapedName = callee.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(
+      `(?:\\bawait\\s+|=\\s*|\\breturn\\s+)${escapedName}\\s*\\(`,
+    ).test(callerPrefix);
+  });
+}
+
 function parameterBackedPerCaseProvenanceFinding(
   file: LlmSourceFile,
   objects: readonly BoundObject[],
@@ -360,7 +413,7 @@ function parameterBackedPerCaseProvenanceFinding(
     ) {
       continue;
     }
-    const openBrace = masked.indexOf('{', declaration.index);
+    const openBrace = declaration.index + declaration[0].lastIndexOf('{');
     const end = matchingDelimiter(masked, openBrace, '{', '}');
     if (end < 0) continue;
     const body = masked.slice(openBrace + 1, end);
@@ -443,7 +496,7 @@ export function detectBoundedEvaluationResultProvenance(
       );
       if (
         emissionIndex === null ||
-        !hasScopedInvocationBefore(file.contents, invocations, emissionIndex)
+        !hasLocalOrResolvedHelperInvocationBefore(file.contents, invocations, emissionIndex)
       ) {
         continue;
       }
@@ -493,7 +546,7 @@ export function detectBoundedEvaluationResultProvenance(
       );
       if (
         emissionIndex === null ||
-        !hasScopedInvocationBefore(file.contents, invocations, emissionIndex)
+        !hasLocalOrResolvedHelperInvocationBefore(file.contents, invocations, emissionIndex)
       ) {
         continue;
       }
@@ -772,6 +825,12 @@ function modelInvocations(contents: string): readonly ModelInvocation[] {
     );
     invocations.push({ index: match.index, identity: modelIdentity(call, bindings), judge });
   }
+  for (const index of supportedEvaluationHttpInvocationIndices(contents)) {
+    if (!invocations.some((invocation) => invocation.index === index)) {
+      invocations.push({ index, identity: null, judge: false });
+    }
+  }
+  invocations.sort((left, right) => left.index - right.index);
   return invocations;
 }
 
@@ -854,11 +913,12 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
     title: 'Declared evaluation lacks reproducible system provenance',
     detectorConfidence: 'high',
     evidenceContract:
-      'A recognized local model invocation precedes a complete local evaluation result that is emitted or returned while lacking model or prompt/policy evaluation-configuration lineage. Supported forms are aggregate-to-emitter paths, identifier-bound discrete results with model/case/outcome fields, and incrementally built per-case collections with an evaluation identity and resolved return.',
+      'A recognized direct or locally called-helper model invocation precedes a complete local evaluation result that is emitted or returned while lacking model or prompt/policy evaluation-configuration lineage. Recognized invocations include import-resolved SDK calls, a complete authenticated OpenAI-compatible REST request, and a complete local Flowise evaluation request. Supported results are aggregate-to-emitter paths, identifier-bound discrete results with model/case/outcome fields, and incrementally built per-case collections with an evaluation identity and resolved return.',
     exclusions: [
       'External or dynamically assembled result reporters',
       'Exploratory code without a locally emitted or returned evaluation result',
       'Generic returned objects and model metadata without declared case/outcome semantics',
+      'Generic HTTP requests and model helpers not observably called by the result-producing scope',
       'Tests, examples, fixtures, documentation, generated code, and unresolved paths',
     ],
     applies: hasProvenanceEvaluationSurface,

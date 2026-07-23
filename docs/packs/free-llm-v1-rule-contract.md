@@ -1,7 +1,7 @@
 # Free LLM Pack v1 rule contract
 
-- Status: frozen for fixture construction
-- Contract version: `cejel-free-llm-rules-v1-2026-07-22`
+- Status: v1.1 candidate; requires fresh calibration before a release claim
+- Contract version: `cejel-free-llm-rules-v1.1-2026-07-23`
 - Product boundary: static, deterministic, local/offline application-integrity checks
 - Governing decision: ADR-0011
 
@@ -229,18 +229,24 @@ configuration used for that run.
 
 **Required evidence.** An identifiable evaluation runner with a recognized local model invocation
 before the result emission; evidence that it records a metric/result; and absence of both required
-lineage elements in the result artifact or an adjacent versioned manifest referenced by it. A model
-call elsewhere in the repository does not establish that an unrelated metrics writer is an LLM
-evaluation. Evidence points to the evaluation entry point or result schema.
+lineage elements in the result artifact or an adjacent versioned manifest referenced by it.
+Recognized invocations include import-resolved supported SDK calls, an authenticated JSON `POST` to
+an OpenAI-compatible model endpoint, and a narrowly identified local Flowise evaluation request.
+A local helper may carry the invocation only when the result-producing scope observably calls that
+helper before emitting the result. A model call elsewhere in the repository does not establish that
+an unrelated metrics writer is an LLM evaluation. Evidence points to the evaluation entry point or
+result schema.
 
 **Minimum recognized lineage.** A non-floating model/provider identifier when observable, plus a
 content digest, immutable repository reference, or versioned artifact reference for the applicable
 system prompt/policy and evaluation configuration. A repository commit alone is positive evidence
 only when the result binds that commit and the referenced files to the run.
 
-**Exclusions.** Applications with no declared evaluation result; exploratory notebooks that make no
-published comparison or quality claim; provider versions that are not observable, which must be
-reported as a limitation rather than fabricated; test fixtures and documentation examples.
+**Exclusions.** Applications with no declared evaluation result; generic HTTP requests that lack
+the complete recognized endpoint, authentication, request-body, and evaluation markers; uncalled
+model helpers; exploratory notebooks that make no published comparison or quality claim; provider
+versions that are not observable, which must be reported as a limitation rather than fabricated;
+test fixtures and documentation examples.
 
 **Applicability.** `not_applicable` without an evaluation/result surface. Dynamic or external result
 lineage that cannot be inspected locally yields `insufficient_data`.
