@@ -1,0 +1,159 @@
+name: LLM calibration execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      cohort:
+        description: Frozen cohort to execute
+        required: true
+        type: choice
+        options: [golden, untouched]
+      manifest:
+        description: Repository-relative frozen cohort manifest
+        required: true
+        type: string
+      pre_result_commitment:
+        description: Repository-relative pre-result commitment
+        required: true
+        type: string
+      pre_result_canonical_sha256:
+        description: Canonical SHA-256 of the pre-result commitment
+        required: true
+        type: string
+      commitment_git_commit:
+        description: Full commit containing the exact pre-result commitment bytes
+        required: true
+        type: string
+      free_core_baseline_commit:
+        description: Pre-result-committed approved free-core baseline commit
+        required: true
+        type: string
+      detector_freeze:
+        description: Repository-relative detector freeze (required for untouched)
+        required: false
+        type: string
+      detector_freeze_canonical_sha256:
+        description: Canonical detector-freeze SHA-256, or none for golden
+        required: true
+        type: string
+      golden_correction_ledger:
+        description: Repository-relative closed golden correction ledger
+        required: false
+        type: string
+      golden_manifest:
+        description: Repository-relative frozen golden manifest
+        required: false
+        type: string
+      golden_execution_evidence:
+        description: Repository-relative frozen golden execution evidence
+        required: false
+        type: string
+      opportunity_manifest:
+        description: Repository-relative frozen opportunity manifest
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    # This bootstrap registers the manual workflow. Feature branches carry the executable version.
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Generate free-core compatibility proof
+        if: inputs.cohort == 'golden'
+        env:
+          BASELINE_COMMIT: ${{ inputs.free_core_baseline_commit }}
+          COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
+        run: |
+          git merge-base --is-ancestor "$BASELINE_COMMIT" "$COMMITMENT_COMMIT"
+          git worktree add --detach "$RUNNER_TEMP/free-core-baseline" "$BASELINE_COMMIT"
+          cd "$RUNNER_TEMP/free-core-baseline"
+          pnpm install --frozen-lockfile
+          pnpm build
+          cd "$GITHUB_WORKSPACE"
+          node calibration/llm/scripts/verify-free-core-parity.mjs \
+            "$RUNNER_TEMP/free-core-baseline/dist/index.js" "$BASELINE_COMMIT" \
+            "$GITHUB_WORKSPACE/dist/index.js" "$GITHUB_SHA" \
+            "$GITHUB_WORKSPACE/calibration/llm/fixtures/free-core-parity" \
+            "$RUNNER_TEMP/free-core-parity.json"
+      - name: Execute frozen cohort under the hash-bound no-egress wrapper
+        env:
+          COHORT: ${{ inputs.cohort }}
+          MANIFEST: ${{ inputs.manifest }}
+          PRE_RESULT: ${{ inputs.pre_result_commitment }}
+          COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
+          DETECTOR_FREEZE: ${{ inputs.detector_freeze }}
+          GOLDEN_LEDGER: ${{ inputs.golden_correction_ledger }}
+          GOLDEN_MANIFEST: ${{ inputs.golden_manifest }}
+          GOLDEN_EXECUTION: ${{ inputs.golden_execution_evidence }}
+          OPPORTUNITY_MANIFEST: ${{ inputs.opportunity_manifest }}
+        run: |
+          chmod +x dist/index.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
+          common=(
+            --manifest "$MANIFEST"
+            --cejel "$GITHUB_WORKSPACE/dist/index.js"
+            --work-root "$RUNNER_TEMP/llm-work"
+            --output-root "$RUNNER_TEMP/llm-output"
+            --pre-result-commitment "$PRE_RESULT"
+            --commitment-git-repo "$GITHUB_WORKSPACE"
+            --commitment-git-commit "$COMMITMENT_COMMIT"
+            --commitment-git-path "$PRE_RESULT"
+          )
+          if [ "$COHORT" = golden ]; then
+            node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \
+              --network-isolation-mode node-runtime-deny-hook-v1 \
+              --network-isolation-command "$GITHUB_WORKSPACE/calibration/llm/scripts/no-egress-wrapper.sh" \
+              --confirm-network-isolation
+          else
+            node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \
+              --detector-freeze "$DETECTOR_FREEZE" \
+              --golden-correction-ledger "$GOLDEN_LEDGER" \
+              --golden-manifest "$GOLDEN_MANIFEST" \
+              --golden-execution-evidence "$GOLDEN_EXECUTION" \
+              --opportunity-manifest "$OPPORTUNITY_MANIFEST" \
+              --confirm-untouched-after-freeze
+          fi
+      - name: Assemble deterministic evidence binding
+        env:
+          COHORT: ${{ inputs.cohort }}
+          PRE_RESULT_SHA: ${{ inputs.pre_result_canonical_sha256 }}
+          DETECTOR_FREEZE_SHA: ${{ inputs.detector_freeze_canonical_sha256 }}
+        run: |
+          mkdir "$RUNNER_TEMP/llm-attestation"
+          parity_args=()
+          if [ "$COHORT" = golden ]; then
+            parity_args=("$RUNNER_TEMP/free-core-parity.json")
+          fi
+          node calibration/llm/scripts/assemble-execution-bundle.mjs \
+            "$COHORT" "$RUNNER_TEMP/llm-output" "$PRE_RESULT_SHA" "$DETECTOR_FREEZE_SHA" \
+            "$RUNNER_TEMP/llm-attestation/evidence-bundle.json" "${parity_args[@]}"
+      - name: Upload hash-bound evidence bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: llm-calibration-${{ inputs.cohort }}-evidence
+          path: ${{ runner.temp }}/llm-attestation/evidence-bundle.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload raw calibration outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: llm-calibration-${{ inputs.cohort }}-raw
+          path: ${{ runner.temp }}/llm-output
+          if-no-files-found: error
+          retention-days: 90
