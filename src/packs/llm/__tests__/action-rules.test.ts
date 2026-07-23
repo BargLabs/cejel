@@ -202,7 +202,7 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
       ruleId: 'LLM-AGY-001',
       severity: 'critical',
       confidence: 'high',
-      evidence: { path: 'src/desktop-extension.ts', line: 13 },
+      evidence: { path: 'src/desktop-extension.ts', line: 9 },
     });
   });
 
@@ -266,7 +266,7 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
       ruleId: 'LLM-VAL-001',
       severity: 'critical',
       confidence: 'high',
-      evidence: { path: 'src/execution-tool.py', line: 13 },
+      evidence: { path: 'src/execution-tool.py', line: 12 },
     });
   });
 

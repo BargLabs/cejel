@@ -346,10 +346,15 @@ function pythonModelFacingToolMethods(file: LlmSourceFile): readonly PythonToolM
         .slice(0, methodIndex)
         .split('\n').length - 1;
       const methodLine = classLine + methodLineWithinClass;
+      const methodDeclarationLines = method[0].split('\n').length;
       const methodDeclarationLine = maskedLines[methodLine] ?? '';
       const methodIndent = methodDeclarationLine.match(/^\s*/)?.[0].length ?? 0;
       let methodEndLine = classEndLine;
-      for (let later = methodLine + 1; later < classEndLine; later += 1) {
+      for (
+        let later = methodLine + methodDeclarationLines;
+        later < classEndLine;
+        later += 1
+      ) {
         const candidate = maskedLines[later] ?? '';
         if (candidate.trim().length === 0) continue;
         const indentation = candidate.match(/^\s*/)?.[0].length ?? 0;
@@ -388,11 +393,12 @@ function pythonToolExecution(
     if (end === null) continue;
     const call = method.body.slice(invocation.index, end);
     if (
-      !/\bmethod\s*=\s*['"][^'"]*(?:execute|command|code|run)[^'"]*['"]/i.test(call)
+      !/\bmethod\s*=\s*['"][^'"]*execute[_-]?code[^'"]*['"]/i.test(call)
     ) {
       continue;
     }
     for (const parameter of method.parameters) {
+      if (!/^code$/i.test(parameter)) continue;
       const escaped = escapeRegExp(parameter);
       if (!new RegExp(`['"][A-Za-z_][A-Za-z0-9_]*['"]\\s*:\\s*${escaped}\\b`).test(call)) {
         continue;
@@ -410,7 +416,10 @@ function pythonToolExecution(
         continue;
       }
       return {
-        index: method.bodyOffset + (invocation.index ?? 0),
+        // The defect is introduced at the model-facing input declaration; the downstream
+        // dispatcher merely demonstrates consequence. Anchoring the finding here also avoids
+        // implying that every later invocation in the same toolkit is a separate defect.
+        index: method.bodyOffset,
         parameter,
       };
     }
@@ -636,6 +645,19 @@ function observableSideEffectIndex(
   return earliest;
 }
 
+function dynamicOperationSelector(
+  declaration: string,
+): { readonly name: string; readonly index: number } | null {
+  const field = /\b(action|operation)\s*:\s*Type\.(?:String|Union|Literal)\s*\(/i.exec(
+    declaration,
+  );
+  const name = field?.[1];
+  if (!name) return null;
+  const use = new RegExp(`\\bparams\\.${escapeRegExp(name)}\\b`, 'i').exec(declaration);
+  if (!use) return null;
+  return { name, index: field.index };
+}
+
 function matchingBraceEnd(contents: string, openBrace: number): number | null {
   let depth = 0;
   for (let index = openBrace; index < contents.length; index += 1) {
@@ -766,11 +788,16 @@ function registeredToolSideEffectSurface(file: LlmSourceFile): boolean {
   const maskedContents = maskNonCode(file.contents);
   const bindings = observableSideEffectBindings(file.contents, maskedContents);
   const helpers = localSideEffectHelpers(maskedContents, bindings);
-  return memberToolRegistrations(file.contents, maskedContents).some(
-    (registration) =>
-      /\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration) &&
-      observableSideEffectIndex(registration.declaration, bindings, helpers) !== null,
-  );
+  return memberToolRegistrations(file.contents, maskedContents).some((registration) => {
+    if (!/\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration)) return false;
+    if (dynamicOperationSelector(registration.declaration) === null) return false;
+    const direct = observableSideEffectIndex(registration.declaration, bindings);
+    if (direct !== null) return true;
+    return (
+      observableSideEffectIndex(registration.declaration, bindings, helpers) !== null &&
+      dynamicOperationSelector(registration.declaration) !== null
+    );
+  });
 }
 
 function hasSideEffectingToolSurface(file: LlmSourceFile): boolean {
@@ -841,12 +868,24 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
   }
   for (const registration of memberToolRegistrations(file.contents, maskedContents)) {
     if (!/\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration)) continue;
-    const sideEffectIndex = observableSideEffectIndex(
+    const directSideEffectIndex = observableSideEffectIndex(
       registration.declaration,
       sideEffectBindings,
-      sideEffectHelpers,
     );
+    const helperSideEffectIndex = directSideEffectIndex === null
+      ? observableSideEffectIndex(
+          registration.declaration,
+          sideEffectBindings,
+          sideEffectHelpers,
+        )
+      : null;
+    const selector = dynamicOperationSelector(registration.declaration);
+    const sideEffectIndex = directSideEffectIndex ?? helperSideEffectIndex;
     if (sideEffectIndex === null) continue;
+    // A one-hop helper hides the concrete mutation from this declaration. Fail closed unless
+    // the model-facing schema also exposes a dynamic operation selector that reaches the helper;
+    // a fixed helper invocation alone is insufficient authority-boundary evidence.
+    if (selector === null) continue;
     const beforeSideEffect = registration.declaration.slice(0, sideEffectIndex);
     if (
       APPROVAL_FAIL_CLOSED_PATTERN.test(beforeSideEffect) ||
@@ -858,7 +897,7 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
       finding(
         'LLM-AGY-001',
         file,
-        registration.index + sideEffectIndex,
+        registration.index,
         'critical',
         `A locally registered model-facing tool performs a recognized side effect without an observable fail-closed allowlist or human approval gate.`,
         'Registered tool reaches an import-resolved side-effecting operation',

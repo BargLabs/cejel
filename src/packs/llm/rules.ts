@@ -127,7 +127,7 @@ export function javaScriptExecutableHelperParameterSinks(
   const sinks: JavaScriptExecutableHelperParameterSink[] = [];
   const masked = maskJavaScriptNonCode(file.contents);
   const declaration =
-    /(?:\bexport\s+)?\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g;
+    /(?:\bexport\s+)?\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/g;
 
   for (const match of file.contents.matchAll(declaration)) {
     if ((masked[match.index] ?? ' ') === ' ') continue;
@@ -184,6 +184,22 @@ export function javaScriptExecutableHelperParameterSinks(
     }
   }
   return sinks;
+}
+
+export function hasExportedExecutablePreviewSurface(file: LlmSourceFile): boolean {
+  if (isExcludedSourcePath(file.path)) return false;
+  const masked = maskJavaScriptNonCode(file.contents);
+  return javaScriptExecutableHelperParameterSinks(file).some((helper) => {
+    if (
+      !/(?:preview|srcdoc|artifact)/i.test(helper.functionName) ||
+      !/(?:code|source|component)/i.test(helper.parameterName)
+    ) {
+      return false;
+    }
+    return new RegExp(
+      `\\bexport\\s+function\\s+${escapeRegExp(helper.functionName)}\\s*\\(`,
+    ).test(masked);
+  });
 }
 
 const SENSITIVE_ENV_PATTERN =
@@ -255,11 +271,12 @@ function expressionContainsBoundModelOutput(
 function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
   if (isExcludedSourcePath(file.path)) return [];
   const maskedContents = maskJavaScriptNonCode(file.contents);
+  const executableHelpers = javaScriptExecutableHelperParameterSinks(file);
   const scopes: Map<string, boolean>[] = [new Map()];
   const dangerousSinks = [
     ...BASE_DANGEROUS_SINKS,
     ...importedProcessSinks(file.contents, maskedContents),
-    ...javaScriptExecutableHelperParameterSinks(file).map(
+    ...executableHelpers.map(
       (helper): DangerousSink => ({
         name: `local executable helper ${helper.functionName}`,
         pattern: new RegExp(`\\b${escapeRegExp(helper.functionName)}\\s*\\(`),
@@ -268,6 +285,42 @@ function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
     ),
   ];
   const findings: CejelLlmFinding[] = [];
+
+  // A public preview/srcdoc builder whose code-like parameter is compiled and dynamically
+  // evaluated is itself a complete active-content boundary. Point at the dynamic-evaluation
+  // locus rather than requiring a same-file SDK call: callers commonly live in a separate
+  // server module, while the exported builder is the locally observable execution surface.
+  for (const helper of executableHelpers) {
+    if (
+      !hasExportedExecutablePreviewSurface(file) ||
+      !/(?:preview|srcdoc|artifact)/i.test(helper.functionName) ||
+      !/(?:code|source|component)/i.test(helper.parameterName)
+    ) {
+      continue;
+    }
+    const declaration = new RegExp(
+      `\\bexport\\s+function\\s+${escapeRegExp(helper.functionName)}\\s*\\(`,
+    ).exec(maskedContents);
+    if (!declaration) continue;
+    const openBrace = maskedContents.indexOf('{', declaration.index);
+    const end = matchingDelimiterEnd(file.contents, openBrace, '{', '}');
+    if (end === null) continue;
+    const body = file.contents.slice(openBrace + 1, end - 1);
+    const evaluation = /(?:\(\s*0\s*,\s*eval\s*\)|(?<![.\w$])eval)\s*\(/.exec(body);
+    if (!evaluation) continue;
+    findings.push(
+      finding(
+        'LLM-IOH-001',
+        file,
+        openBrace + 1 + evaluation.index,
+        'critical',
+        'An exported active-preview builder compiles and dynamically evaluates its code-like input without an observable sandbox boundary.',
+        'Active preview source reaches dynamic evaluation',
+        'high',
+      ),
+    );
+  }
+
   const supportedCallIndices = supportedJavaScriptModelCallIndices(file.contents);
   let offset = 0;
 

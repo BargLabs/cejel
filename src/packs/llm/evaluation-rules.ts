@@ -97,7 +97,7 @@ const OUTCOME_COUNT_PATTERN =
 const DISCRETE_CASE_KEY_PATTERN =
   /^(?:case|caseId|scenario|sample|sampleId|run|runId|input|expected|expectedOutput)$/i;
 const DISCRETE_OUTCOME_KEY_PATTERN =
-  /^(?:ok|passed|success|successful|correct|score|verdict|result|actualOutput|output|latency|duration|error|failedPairs)$/i;
+  /^(?:ok|passed|success|successful|correct|score|verdict|result|actualOutput|output|latency|duration|error|failedPairs|contentChanged|editReflected)$/i;
 const CASE_COLLECTION_KEY_PATTERN = /^(?:cases|rows|samples|caseResults|results)$/i;
 const CASE_RESULT_KEY_PATTERN =
   /^(?:status|actualOutput|output|score|verdict|correct|success|error|latency|metrics)$/i;
@@ -197,7 +197,7 @@ function boundObjectLiterals(contents: string): readonly BoundObject[] {
   const objects: BoundObject[] = [];
   const masked = maskJavaScriptNonCode(contents);
   for (const match of contents.matchAll(
-    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g,
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)(?:\s*:[^=\n]+)?\s*=\s*\{/g,
   )) {
     if ((masked[match.index] ?? ' ') === ' ') continue;
     const name = match[1];
@@ -209,7 +209,7 @@ function boundObjectLiterals(contents: string): readonly BoundObject[] {
       name,
       index: match.index,
       end,
-      properties: objectProperties(contents.slice(start + 1, end)),
+      properties: objectProperties(masked.slice(start + 1, end)),
     });
   }
   return objects;
@@ -229,7 +229,7 @@ function hasResolvedIdentifierEmissionOrReturn(
   const serializedEmission = new RegExp(
     `\\b(?:writeFileSync|appendFileSync|Bun\\.write|console\\.(?:log|info))\\s*\\([\\s\\S]{0,500}?JSON\\.stringify\\s*\\(\\s*${escaped}\\b`,
   );
-  const returned = new RegExp(`\\breturn\\s+${escaped}\\s*;`).test(observableTail);
+  const returned = new RegExp(`\\breturn\\s+${escaped}\\s*;?`).test(observableTail);
   return serializedEmission.test(observableTail) || returned;
 }
 
@@ -237,10 +237,11 @@ function assignedProperties(
   contents: string,
   identifier: string,
   afterIndex: number,
+  beforeIndex = contents.length,
 ): ReadonlySet<string> {
   const properties = new Set<string>();
   const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const maskedTail = maskJavaScriptNonCode(contents.slice(afterIndex));
+  const maskedTail = maskJavaScriptNonCode(contents.slice(afterIndex, beforeIndex));
   const redeclaration = new RegExp(
     `\\b(?:const|let|var)\\s+${escaped}\\b`,
   ).exec(maskedTail);
@@ -252,6 +253,85 @@ function assignedProperties(
     if (match[1]) properties.add(match[1]);
   }
   return properties;
+}
+
+function configurationInputLocus(
+  contents: string,
+  beforeIndex: number,
+): number | null {
+  const masked = maskJavaScriptNonCode(contents);
+  let earliest: number | null = null;
+  for (const declaration of contents.matchAll(
+    /\bimport\s*\{([^}]+)\}\s*from\s*['"][^'"]+['"]/g,
+  )) {
+    if (declaration.index >= beforeIndex || (masked[declaration.index] ?? ' ') === ' ') continue;
+    for (const member of (declaration[1] ?? '').split(',')) {
+      const binding = member.trim().match(
+        /^(?:type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/,
+      );
+      const local = binding?.[2] ?? binding?.[1];
+      if (!local || !/(?:prompt|policy|config|system)/i.test(local)) continue;
+      const tail = masked.slice(declaration.index + declaration[0].length, beforeIndex);
+      if (!new RegExp(`\\b${local.replaceAll('$', '\\$')}\\b`).test(tail)) continue;
+      earliest = earliest === null ? declaration.index : Math.min(earliest, declaration.index);
+    }
+  }
+  return earliest;
+}
+
+function parameterBackedPerCaseProvenanceFinding(
+  file: LlmSourceFile,
+  objects: readonly BoundObject[],
+): CejelLlmEvaluationFinding | null {
+  const masked = maskJavaScriptNonCode(file.contents);
+  for (const declaration of masked.matchAll(
+    /^\s*(?:async\s+)?(?:function\s+[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/gm,
+  )) {
+    const openBrace = masked.indexOf('{', declaration.index);
+    const end = matchingDelimiter(masked, openBrace, '{', '}');
+    if (end < 0) continue;
+    const body = masked.slice(openBrace + 1, end);
+    const parameters = (declaration[1] ?? '')
+      .split(',')
+      .map((parameter) => parameter.trim().match(/^([A-Za-z_$][\w$]*)/)?.[1])
+      .filter((parameter): parameter is string => Boolean(parameter));
+    for (const root of parameters) {
+      const escapedRoot = root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (!new RegExp(`\\breturn\\s+${escapedRoot}\\s*;?`).test(body)) continue;
+      for (const candidate of objects) {
+        if (candidate.index <= openBrace || candidate.index >= end) continue;
+        const properties = assignedProperties(
+          file.contents,
+          candidate.name,
+          candidate.end,
+          end,
+        );
+        const hasEvaluationIdentity = [...properties].some((property) =>
+          /^(?:uuid|evaluationId|evaluationRunId|runId|caseId)$/i.test(property),
+        );
+        const resultPropertyCount = [...properties].filter((property) =>
+          CASE_RESULT_KEY_PATTERN.test(property),
+        ).length;
+        if (!hasEvaluationIdentity || resultPropertyCount < 3) continue;
+        const allProperties = new Set([...candidate.properties, ...properties]);
+        if (hasAny(allProperties, LINEAGE_CONFIG_KEYS)) continue;
+        const escapedCase = candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pushed = new RegExp(
+          `\\b${escapedRoot}(?:\\.[A-Za-z_$][\\w$]*|\\[[^\\]]+\\]){1,5}\\.push\\s*\\(\\s*${escapedCase}\\s*\\)`,
+        ).test(body);
+        if (!pushed) continue;
+        return finding(
+          'LLM-PRV-001',
+          file,
+          candidate.index,
+          'info',
+          'A parameter-backed evaluation collection retains per-case results without prompt/policy evaluation-configuration lineage.',
+          'Per-case evaluation record stored without reproducible configuration provenance',
+        );
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -266,6 +346,7 @@ export function detectBoundedEvaluationResultProvenance(
   const findings: CejelLlmEvaluationFinding[] = [];
   for (const file of files) {
     if (!completeLocalSource(file)) continue;
+    const findingsBeforeFile = findings.length;
     const objects = boundObjectLiterals(file.contents);
     let found = false;
 
@@ -284,7 +365,7 @@ export function detectBoundedEvaluationResultProvenance(
         finding(
           'LLM-PRV-001',
           file,
-          object.index,
+          configurationInputLocus(file.contents, object.index) ?? object.index,
           'info',
           'A locally emitted discrete LLM evaluation result does not retain prompt/policy evaluation-configuration lineage.',
           'Discrete evaluation result emitted without reproducible configuration provenance',
@@ -334,7 +415,7 @@ export function detectBoundedEvaluationResultProvenance(
         finding(
           'LLM-PRV-001',
           file,
-          root.index,
+          perCase.index,
           'info',
           'A locally returned per-case LLM evaluation result does not retain prompt/policy evaluation-configuration lineage.',
           'Per-case evaluation results returned without reproducible configuration provenance',
@@ -342,6 +423,10 @@ export function detectBoundedEvaluationResultProvenance(
       );
       break;
     }
+    if (findings.length > findingsBeforeFile) continue;
+
+    const parameterBacked = parameterBackedPerCaseProvenanceFinding(file, objects);
+    if (parameterBacked) findings.push(parameterBacked);
   }
   return findings;
 }

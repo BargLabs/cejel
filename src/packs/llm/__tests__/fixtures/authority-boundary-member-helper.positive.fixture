@@ -8,9 +8,9 @@ function invokeLocalProgram(program: string, args: string[]): string {
 export default function attachTools(extension: AgentExtension) {
   extension.registerTool({
     name: 'local_action',
-    parameters: { target: 'string' },
+    parameters: Type.Object({ action: Type.String(), target: Type.String() }),
     async execute(_callId, params) {
-      return invokeLocalProgram('/usr/bin/local-action', [params.target]);
+      return invokeLocalProgram('/usr/bin/local-action', [params.target, params.action]);
     },
   });
 }

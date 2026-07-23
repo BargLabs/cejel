@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { collectCejelLlmPack } from '../detector.js';
 import { detectBoundedEvaluationResultProvenance } from '../evaluation-rules.js';
 import { detectPythonConfiguredSelfJudge } from '../python-evaluation-rules.js';
+import { detectSideEffectingToolWithoutAuthorityBoundary } from '../action-rules.js';
 import {
   CEJEL_LLM_V1_RULES,
   javaScriptExecutableHelperParameterSinks,
@@ -80,6 +81,25 @@ describe('bounded golden corrections', () => {
     expect(rule?.detect(file)).toEqual([]);
   });
 
+  it('anchors an exported executable preview at its dynamic-evaluation locus', () => {
+    const file = source([
+      'export function renderActivePreview(componentCode: string) {',
+      '  return `<script>',
+      '    const source = ${JSON.stringify(componentCode)};',
+      '    const compiled = transform(source);',
+      '    (0, eval)(compiled);',
+      '  </script>`;',
+      '}',
+    ], 'src/active-preview.ts');
+    const rule = CEJEL_LLM_V1_RULES.find((candidate) => candidate.id === 'LLM-IOH-001');
+
+    expect(rule?.detect(file)).toEqual([
+      expect.objectContaining({
+        evidence: expect.objectContaining({ line: 5 }),
+      }),
+    ]);
+  });
+
   it('detects an emitted identifier-bound discrete evaluation without config lineage', () => {
     const file = source([
       "import { writeFileSync } from 'node:fs';",
@@ -149,6 +169,44 @@ describe('bounded golden corrections', () => {
       '}',
     ]);
     expect(detectBoundedEvaluationResultProvenance([file])).toHaveLength(1);
+  });
+
+  it('detects parameter-backed per-case evaluation storage at the record declaration', () => {
+    const file = source([
+      'async evaluateSuite(suiteId: string, report: any) {',
+      '  for (const sample of report.samples) {',
+      '    const record: any = {};',
+      "    record.status = 'complete';",
+      '    record.output = await runSample(sample);',
+      '    record.metrics = collectMetrics();',
+      '    record.latency = elapsed();',
+      '    record.runId = suiteId;',
+      '    report.samples[0].results.push(record);',
+      '  }',
+      '  return report;',
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([
+      expect.objectContaining({
+        evidence: expect.objectContaining({ line: 3 }),
+      }),
+    ]);
+  });
+
+  it('anchors missing configuration lineage at a referenced configuration input', () => {
+    const file = source([
+      "import { EVALUATION_SYSTEM_PROMPT } from './policy';",
+      'const systemMessage = EVALUATION_SYSTEM_PROMPT;',
+      'const record = {',
+      '  scenario: scenarioId, model: selectedModel, run: runNumber, score, ok',
+      '};',
+      'console.log(JSON.stringify(record));',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([
+      expect.objectContaining({
+        evidence: expect.objectContaining({ line: 1 }),
+      }),
+    ]);
   });
 
   it('does not infer provenance from an arbitrary returned object or a reproduced case report', () => {
@@ -254,6 +312,94 @@ describe('bounded golden corrections', () => {
       '            await self.judge_and_retain(messages)',
     ], 'src/evaluation_agent.py');
     expect(detectPythonConfiguredSelfJudge(file)).toEqual([]);
+  });
+
+  it('selects invoked Python model attributes and anchors at completion', () => {
+    const file = source([
+      'class EvaluationAgent:',
+      '    def __init__(self, task_llm, judge_llm=None):',
+      '        if judge_llm is None:',
+      '            judge_llm = task_llm',
+      '        self.task_timeout = task_llm',
+      '        self.task_llm = task_llm',
+      '        self.judge_llm = judge_llm',
+      '    async def produce(self, messages):',
+      '        return await self.task_llm.ainvoke(messages)',
+      '    async def judge_trace(self, messages):',
+      '        return await self.judge_llm.ainvoke(messages)',
+      '    async def judge_and_retain(self, messages):',
+      '        judgement = await self.judge_trace(messages)',
+      '        self.history.last_result.judgement = judgement',
+      '    async def finish(self, messages):',
+      '        if self.settings.use_judge:',
+      '            await self.judge_and_retain(messages)',
+    ], 'src/evaluation_agent.py');
+
+    expect(detectPythonConfiguredSelfJudge(file)).toEqual([
+      expect.objectContaining({
+        evidence: expect.objectContaining({ line: 16 }),
+      }),
+    ]);
+  });
+
+  it('fails closed for helper-backed tools unless a dynamic operation selector reaches the helper', () => {
+    const file = source([
+      "import type { ToolAPI } from 'agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      'function invokeBridge(args: string[]) {',
+      "  return execFileSync('bridge', args);",
+      '}',
+      'export function register(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'fixed_read',",
+      '    parameters: Type.Object({ target: Type.String() }),',
+      "    execute(_id, params) { return invokeBridge(['read', params.target]); },",
+      '  });',
+      '  api.registerTool({',
+      "    name: 'dynamic_action',",
+      '    parameters: Type.Object({ action: Type.String(), target: Type.String() }),',
+      "    execute(_id, params) { return invokeBridge(['act', params.target, params.action]); },",
+      '  });',
+      '}',
+    ], 'src/tools.ts');
+
+    expect(detectSideEffectingToolWithoutAuthorityBoundary(file)).toEqual([
+      expect.objectContaining({
+        evidence: expect.objectContaining({ line: 12 }),
+      }),
+    ]);
+  });
+
+  it('anchors Python code execution at the model-facing method and ignores command siblings', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'cejel-python-code-tool-'));
+    writeFileSync(
+      join(repo, 'tools.py'),
+      [
+        'class CodeInput(BaseModel):',
+        '    code: str',
+        'class CodeTool(BaseTool):',
+        '    args_schema = CodeInput',
+        '    def _run(self, code: str):',
+        '        return self.runtime.invoke(method="executeCode", params={"code": code})',
+        'class CommandInput(BaseModel):',
+        '    command: str',
+        'class CommandTool(BaseTool):',
+        '    args_schema = CommandInput',
+        '    def _run(self, command: str):',
+        '        return self.runtime.invoke(method="executeCommand", params={"command": command})',
+      ].join('\n'),
+      'utf8',
+    );
+
+    expect(
+      collectCejelLlmPack(repo, ['tools.py']).findings.filter(
+        (finding) => finding.ruleId === 'LLM-VAL-001',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        evidence: expect.objectContaining({ line: 5 }),
+      }),
+    ]);
   });
 
   it('emits the bounded provenance finding through the integrated pack collector', () => {

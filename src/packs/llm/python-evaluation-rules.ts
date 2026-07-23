@@ -54,19 +54,22 @@ export function detectPythonConfiguredSelfJudge(
       if (!/judge/i.test(judgeParameter) || !/(?:llm|model)/i.test(producerParameter)) {
         continue;
       }
-      const judgeAssignment = classContents.match(
-        new RegExp(
-          `\\bself\\.([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*${escaped(judgeParameter)}\\b`,
-          'i',
-        ),
-      );
-      const producerAssignment = classContents.match(
-        new RegExp(
-          `\\bself\\.([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*${escaped(producerParameter)}\\b`,
-        ),
-      );
-      const judgeAttribute = judgeAssignment?.[1];
-      const producerAttribute = producerAssignment?.[1];
+      const invokedAssignment = (parameter: string): string | undefined =>
+        [...classContents.matchAll(
+          new RegExp(
+            `\\bself\\.([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*${escaped(parameter)}\\b`,
+            'gi',
+          ),
+        )]
+          .map((candidate) => candidate[1])
+          .find((attribute) =>
+            Boolean(attribute) &&
+            new RegExp(
+              `\\bself\\.${escaped(attribute ?? '')}\\.(?:ainvoke|invoke|acomplete|complete)\\s*\\(`,
+            ).test(classContents),
+          );
+      const judgeAttribute = invokedAssignment(judgeParameter);
+      const producerAttribute = invokedAssignment(producerParameter);
       if (!judgeAttribute || !producerAttribute || judgeAttribute === producerAttribute) continue;
       if (!/judge/i.test(judgeAttribute)) continue;
 
@@ -86,19 +89,31 @@ export function detectPythonConfiguredSelfJudge(
       const verdictTail = classContents.slice(
         verdictAssignment.index + verdictAssignment[0].length,
       );
-      const retainedVerdict = new RegExp(
+      const directlyRetainedVerdict = new RegExp(
         `\\bself\\.[A-Za-z_][A-Za-z0-9_.\\[\\]-]*\\.(?:judgement|judgment|verdict|judge_result)\\s*=\\s*${escaped(verdictIdentifier)}\\b`,
         'i',
       ).test(verdictTail.slice(0, 1_200));
+      const retainedThroughLocalResult = [...verdictTail.slice(0, 1_200).matchAll(
+        /\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*self\.[A-Za-z_][A-Za-z0-9_.\[\]-]*/g,
+      )].some((resultAlias) =>
+        Boolean(resultAlias[1]) &&
+        new RegExp(
+          `\\b${escaped(resultAlias[1] ?? '')}\\.(?:judgement|judgment|verdict|judge_result)\\s*=\\s*${escaped(verdictIdentifier)}\\b`,
+          'i',
+        ).test(verdictTail.slice(0, 1_200)),
+      );
+      const retainedVerdict = directlyRetainedVerdict || retainedThroughLocalResult;
       if (!retainedVerdict) continue;
 
-      const completionMatch = classContents.match(
-        /\bif\s+self\.[A-Za-z_][A-Za-z0-9_.]*use_judge[A-Za-z0-9_]*\s*:\s*\n[ \t]+await\s+self\.([A-Za-z_][A-Za-z0-9_]*)\s*\(/i,
-      );
+      const completionMatch = [...classContents.matchAll(
+        /\bif\s+self\.[A-Za-z_][A-Za-z0-9_.]*use_judge[A-Za-z0-9_]*\s*:\s*\n[ \t]+await\s+self\.([A-Za-z_][A-Za-z0-9_]*)\s*\(/gi,
+      )].at(-1);
       const completionJudge = Boolean(
         completionMatch?.[1] && /judge/i.test(completionMatch[1]),
       );
       if (!completionJudge) continue;
+      const completionIndex = completionMatch?.index;
+      if (completionIndex === undefined) continue;
 
       return [{
         ruleId: 'LLM-EVL-002',
@@ -108,7 +123,10 @@ export function detectPythonConfiguredSelfJudge(
           'A Python evaluation instance defaults its judge to the producer model and retains that judge verdict as the completed result without an independently configured judge.',
         evidence: {
           path: file.path,
-          line: lineNumberAt(file.contents, classBlock.index + alias.index),
+          line: lineNumberAt(
+            file.contents,
+            classBlock.index + completionIndex,
+          ),
           label: 'Configured judge aliases the producer model through completion',
         },
       }];
