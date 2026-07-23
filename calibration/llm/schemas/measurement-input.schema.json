@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/measurement-input-v1.json",
+  "title": "Cejel Free LLM adjudicated measurement input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_id", "detector_version", "automatic_no_go_checks", "counts", "per_rule"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "detector_version": {"type": "string", "minLength": 1},
+    "automatic_no_go_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["free_core_unchanged_without_pack", "offline_scan_path_verified", "all_findings_have_resolvable_evidence", "prohibited_public_claims_absent", "untouched_blinding_preserved"],
+      "properties": {
+        "free_core_unchanged_without_pack": {"type": "boolean"},
+        "offline_scan_path_verified": {"type": "boolean"},
+        "all_findings_have_resolvable_evidence": {"type": "boolean"},
+        "prohibited_public_claims_absent": {"type": "boolean"},
+        "untouched_blinding_preserved": {"type": "boolean"}
+      }
+    },
+    "counts": {"$ref": "#/$defs/counts"},
+    "per_rule": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_id", "counts"],
+        "properties": {
+          "rule_id": {"enum": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"]},
+          "counts": {"$ref": "#/$defs/counts"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["true_positives", "false_negatives", "false_positives", "true_negatives", "abstentions", "eligible_scans", "not_applicable", "all_scans", "reviewer_agreements", "double_labeled_items", "unresolved_critical_false_positives"],
+      "properties": {
+        "true_positives": {"type": "integer", "minimum": 0},
+        "false_negatives": {"type": "integer", "minimum": 0},
+        "false_positives": {"type": "integer", "minimum": 0},
+        "true_negatives": {"type": "integer", "minimum": 0},
+        "abstentions": {"type": "integer", "minimum": 0},
+        "eligible_scans": {"type": "integer", "minimum": 0},
+        "not_applicable": {"type": "integer", "minimum": 0},
+        "all_scans": {"type": "integer", "minimum": 0},
+        "reviewer_agreements": {"type": "integer", "minimum": 0},
+        "double_labeled_items": {"type": "integer", "minimum": 0},
+        "unresolved_critical_false_positives": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

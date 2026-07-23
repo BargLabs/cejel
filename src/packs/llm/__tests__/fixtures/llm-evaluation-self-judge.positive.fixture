@@ -1,0 +1,13 @@
+import { writeFileSync } from 'node:fs';
+import OpenAI from 'openai';
+const openai = new OpenAI();
+
+const MODEL = 'gpt-4.1-2025-04-14';
+const response = await openai.responses.create({ model: MODEL, input: candidate });
+const judge = await openai.responses.create({
+  model: MODEL,
+  instructions: 'You are the evaluation judge. Score the candidate response.',
+  input: response.output_text,
+});
+
+writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text }));

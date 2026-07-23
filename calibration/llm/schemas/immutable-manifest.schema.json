@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/immutable-manifest-v1.json",
+  "title": "Cejel Free LLM immutable cohort manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol_id", "policy_id", "cohort", "status", "frozen_at", "frozen_by", "detector_results_seen_before_freeze", "hash_contract", "repositories", "manifest_sha256", "attestation"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "policy_id": {"const": "llm-selection-v1"},
+    "cohort": {"enum": ["golden", "untouched"]},
+    "status": {"const": "frozen"},
+    "frozen_at": {"type": "string", "format": "date-time"},
+    "frozen_by": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 3}},
+    "detector_results_seen_before_freeze": {"const": false},
+    "hash_contract": {"const": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation"},
+    "repositories": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 30,
+      "items": {"$ref": "#/$defs/repository"}
+    },
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "reference"],
+      "properties": {
+        "method": {"enum": ["sigstore", "gpg", "signed_release", "internal_witness"]},
+        "reference": {"type": "string", "minLength": 8}
+      }
+    }
+  },
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_id", "url", "default_branch_observed", "commit_sha", "git_tree_sha", "entry_sha256", "license_spdx", "primary_language", "primary_surface", "provider_surface", "inclusion_reason", "source_available_at_freeze"],
+      "properties": {
+        "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "url": {"type": "string", "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "default_branch_observed": {"type": "string", "minLength": 1},
+        "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "git_tree_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "entry_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "license_spdx": {"type": "string", "minLength": 2},
+        "primary_language": {"enum": ["typescript_javascript", "python", "mixed"]},
+        "primary_surface": {"enum": ["chat_app", "rag", "agent_tools", "local_model", "gateway", "evaluation_or_framework"]},
+        "provider_surface": {"enum": ["openai", "anthropic", "multi_provider", "local_or_open_model"]},
+        "inclusion_reason": {"type": "string", "minLength": 20},
+        "source_available_at_freeze": {"const": true}
+      }
+    }
+  }
+}

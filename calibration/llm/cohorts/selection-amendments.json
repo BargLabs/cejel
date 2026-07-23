@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "recorded_at": "2026-07-22T00:00:00Z",
+  "detector_results_seen": false,
+  "amendments": [
+    {"cohort":"golden","kind":"canonical_rename","from":"vercel/ai-chatbot","to":"vercel/chatbot","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
+    {"cohort":"golden","kind":"canonical_rename","from":"lobehub/lobe-chat","to":"lobehub/lobehub","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
+    {"cohort":"golden","kind":"canonical_rename","from":"OpenInterpreter/open-interpreter","to":"openinterpreter/openinterpreter","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
+    {"cohort":"untouched","kind":"canonical_rename","from":"All-Hands-AI/OpenHands","to":"OpenHands/OpenHands","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
+    {"cohort":"untouched","kind":"reserve_replacement","from":"gpt-engineer-org/gpt-engineer","to":"OpenBMB/XAgent","reason":"The canonical repository AntonOsika/gpt-engineer is archived. Under the locked replacement rule, OpenBMB/XAgent is the first eligible reserve with the same agent_tools surface."},
+    {"cohort":"untouched","kind":"canonical_rename","from":"explodinggradients/ragas","to":"vibrantlabsai/ragas","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
+    {"cohort":"untouched","kind":"canonical_rename","from":"aws-samples/bedrock-claude-chat","to":"aws-samples/bedrock-chat","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."}
+  ]
+}

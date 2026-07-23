@@ -199,6 +199,32 @@ This verifies the report schema and the report-to-attestation digest, repository
 timestamp, and outcome binding. It does not verify a signature or signer identity; the command
 prints that boundary on every successful verification.
 
+### Experimental Free LLM Pack
+
+The Free LLM Pack is an opt-in, pre-release static check for observable application-integrity
+and evaluation-hygiene weaknesses in supported LLM application code. It is still being calibrated;
+its results are experimental until the frozen untouched-cohort release gate reaches GO.
+
+```bash
+./cejel scan . --pack llm
+```
+
+The command writes the ordinary Cejel artifacts unchanged and adds `llm-report.json`,
+`llm-attestation.json`, and `llm-certificate.html`. The pack runs locally and offline: it does
+not call a model, execute the target application, or send source, prompts, or findings over the
+network. Its findings and status never alter the base Cejel score or verdict.
+
+The alpha recognizes fixture-backed JavaScript/TypeScript patterns around OpenAI, Anthropic,
+Vercel AI SDK, LangChain imports, and named model-call shapes. Python coverage is narrower: it
+recognizes official OpenAI and Anthropic SDK call/response shapes for direct unsafe sinks,
+unbounded loops, and secret-like environment values in model requests. See
+[Free LLM Pack usage and limitations](./docs/packs/free-llm-usage.md) for the eight rule IDs,
+artifact verification, exact boundaries, and current limitations.
+
+The pack does **not** measure a model's hallucination rate, prove that an application is safe, or
+provide runtime enforcement. Its attestation is self-generated and unsigned unless an external
+signer binds an identity to it.
+
 ### Flags
 
 - `<path>` — repo to score (default: current directory)
@@ -210,6 +236,9 @@ prints that boundary on every successful verification.
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
+- `--pack llm` — run the opt-in experimental Free LLM Pack and write its separate evidence,
+  attestation, and HTML certificate artifacts. Repeatable pack syntax is supported; selecting the
+  same pack more than once still runs it once.
 - `--quiet` — suppress the terminal certificate (files are still written)
 - `-h`, `--help` — print usage and exit successfully
 - `-v`, `--version` — print the version derived from the package manifest and exit successfully

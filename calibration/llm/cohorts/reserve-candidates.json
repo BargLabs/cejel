@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1",
+  "status": "ordered_reserve_before_detector_results",
+  "repositories": [
+    {"order":1,"repository_id":"NVIDIA/ChatRTX","primary_surface":"rag","replacement_for":"rag"},
+    {"order":2,"repository_id":"getumbrel/llama-gpt","primary_surface":"local_model","replacement_for":"local_model"},
+    {"order":3,"repository_id":"OpenBMB/XAgent","primary_surface":"agent_tools","replacement_for":"agent_tools"},
+    {"order":4,"repository_id":"embedchain/embedchain","primary_surface":"rag","replacement_for":"rag"},
+    {"order":5,"repository_id":"e2b-dev/ai-artifacts","primary_surface":"agent_tools","replacement_for":"agent_tools"},
+    {"order":6,"repository_id":"traceloop/openllmetry","primary_surface":"evaluation_or_framework","replacement_for":"evaluation_or_framework"},
+    {"order":7,"repository_id":"Arize-ai/phoenix","primary_surface":"evaluation_or_framework","replacement_for":"evaluation_or_framework"},
+    {"order":8,"repository_id":"openlit/openlit","primary_surface":"evaluation_or_framework","replacement_for":"evaluation_or_framework"}
+  ]
+}

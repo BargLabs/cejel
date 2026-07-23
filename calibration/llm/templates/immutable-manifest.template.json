@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1",
+  "cohort": "golden",
+  "status": "frozen",
+  "frozen_at": "2026-07-22T00:00:00Z",
+  "frozen_by": ["reviewer-one", "reviewer-two"],
+  "detector_results_seen_before_freeze": false,
+  "hash_contract": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation",
+  "repositories": [
+    {
+      "repository_id": "owner/repository",
+      "url": "https://github.com/owner/repository",
+      "default_branch_observed": "main",
+      "commit_sha": "0000000000000000000000000000000000000000",
+      "git_tree_sha": "0000000000000000000000000000000000000000",
+      "entry_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "license_spdx": "NOASSERTION",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Replace with the preregistered inclusion reason.",
+      "source_available_at_freeze": true
+    }
+  ],
+  "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "attestation": {
+    "method": "internal_witness",
+    "reference": "replace-with-attestation-reference"
+  }
+}

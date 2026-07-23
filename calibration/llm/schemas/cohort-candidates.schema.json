@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/cohort-candidates-v1.json",
+  "title": "Cejel Free LLM candidate cohort",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol_id", "policy_id", "cohort", "status", "selected_before_detector_results", "repositories"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "policy_id": {"const": "llm-selection-v1"},
+    "cohort": {"enum": ["golden", "untouched"]},
+    "status": {"const": "candidate_commit_freeze_pending"},
+    "selected_before_detector_results": {"const": true},
+    "repositories": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 30,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository_id", "url", "primary_language", "primary_surface", "provider_surface", "inclusion_reason"],
+        "properties": {
+          "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+          "url": {"type": "string", "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+          "primary_language": {"enum": ["typescript_javascript", "python", "mixed"]},
+          "primary_surface": {"enum": ["chat_app", "rag", "agent_tools", "local_model", "gateway", "evaluation_or_framework"]},
+          "provider_surface": {"enum": ["openai", "anthropic", "multi_provider", "local_or_open_model"]},
+          "inclusion_reason": {"type": "string", "minLength": 20}
+        }
+      }
+    }
+  }
+}

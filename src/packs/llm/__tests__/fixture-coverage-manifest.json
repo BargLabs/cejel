@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0.0",
+  "catalogue_id": "cejel-free-llm-v0-alpha-1",
+  "claim_boundary": "Structural syntax signatures only; no package or SDK version is claimed by synthetic fixtures.",
+  "enabled_rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"],
+  "rules": [
+    {
+      "rule_id": "LLM-IOH-001",
+      "patterns": [
+        {
+          "pattern_id": "javascript-openai-responses-output-to-eval",
+          "detector": "javascript",
+          "structural_signature": "client.responses.create(...) result.output_text alias reaches eval(alias) in one source file",
+          "positive_fixture": "unsafe-sink.positive.fixture",
+          "negative_fixture": "unsafe-sink.negative.fixture"
+        },
+        {
+          "pattern_id": "python-openai-responses-output-to-exec",
+          "detector": "python",
+          "structural_signature": "official openai import plus client.responses.create(...) result.output_text alias reaches exec(alias)",
+          "positive_fixture": "python-unsafe-sink.positive.fixture",
+          "negative_fixture": "python-unsafe-sink.negative.fixture"
+        },
+        {
+          "pattern_id": "python-anthropic-messages-output-to-eval",
+          "detector": "python",
+          "structural_signature": "official anthropic import plus client.messages.create(...) result.content[0].text alias reaches eval(alias)",
+          "positive_fixture": "python-anthropic-unsafe-sink.positive.fixture",
+          "negative_fixture": "python-anthropic-unsafe-sink.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-VAL-001",
+      "patterns": [
+        {
+          "pattern_id": "javascript-openai-json-parse-to-dispatch",
+          "detector": "action",
+          "structural_signature": "response.output_text alias enters JSON.parse and an object field reaches deploy(...) without an intervening strict schema parse",
+          "positive_fixture": "action-validation-direct.positive.fixture",
+          "negative_fixture": "action-validation-schema.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-AGY-001",
+      "patterns": [
+        {
+          "pattern_id": "javascript-vercel-tool-generate-text",
+          "detector": "action",
+          "structural_signature": "tool(...) declaration calls import-resolved node:fs writeFile(...) and is exposed in generateText({ tools }) without a preceding fail-closed approval gate",
+          "positive_fixture": "authority-boundary-direct.positive.fixture",
+          "negative_fixture": "authority-boundary-approval.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-AGY-002",
+      "patterns": [
+        {
+          "pattern_id": "javascript-anthropic-messages-unconditional-loop",
+          "detector": "javascript",
+          "structural_signature": "client.messages.create(...) occurs in a brace-delimited while(true) body rather than a statically bounded for loop",
+          "positive_fixture": "unbounded-loop.positive.fixture",
+          "negative_fixture": "unbounded-loop.negative.fixture"
+        },
+        {
+          "pattern_id": "python-anthropic-messages-unconditional-loop",
+          "detector": "python",
+          "structural_signature": "official anthropic import plus client.messages.create(...) occurs in an indented while True body rather than range-bounded iteration",
+          "positive_fixture": "python-unbounded-loop.positive.fixture",
+          "negative_fixture": "python-unbounded-loop.negative.fixture"
+        },
+        {
+          "pattern_id": "python-openai-responses-unconditional-loop",
+          "detector": "python",
+          "structural_signature": "official openai import plus client.responses.create(...) occurs in an indented while True body rather than range-bounded iteration",
+          "positive_fixture": "python-openai-unbounded-loop.positive.fixture",
+          "negative_fixture": "python-openai-unbounded-loop.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-DAT-001",
+      "patterns": [
+        {
+          "pattern_id": "javascript-openai-responses-secret-env-argument",
+          "detector": "javascript",
+          "structural_signature": "process.env.DATABASE_PASSWORD interpolation occurs inside responses.create(...) arguments; client-constructor API key use alone is negative",
+          "positive_fixture": "sensitive-prompt.positive.fixture",
+          "negative_fixture": "sensitive-prompt.negative.fixture"
+        },
+        {
+          "pattern_id": "python-openai-chat-secret-env-argument",
+          "detector": "python",
+          "structural_signature": "official openai import plus os.environ DATABASE_PASSWORD occurs inside chat.completions.create(...) arguments; constructor API key use alone is negative",
+          "positive_fixture": "python-sensitive-prompt.positive.fixture",
+          "negative_fixture": "python-sensitive-prompt.negative.fixture"
+        },
+        {
+          "pattern_id": "python-anthropic-messages-secret-env-argument",
+          "detector": "python",
+          "structural_signature": "official anthropic import plus os.getenv CUSTOMER_AUTH_TOKEN occurs inside messages.create(...) arguments; constructor API key use alone is negative",
+          "positive_fixture": "python-anthropic-sensitive-prompt.positive.fixture",
+          "negative_fixture": "python-anthropic-sensitive-prompt.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-PRV-001",
+      "patterns": [
+        {
+          "pattern_id": "javascript-openai-local-evaluation-provenance",
+          "detector": "evaluation",
+          "structural_signature": "responses.create(...) precedes a locally computed accuracy emitted by writeFileSync(JSON.stringify(...)); model and configuration lineage keys distinguish the negative",
+          "positive_fixture": "llm-evaluation-provenance.positive.fixture",
+          "negative_fixture": "llm-evaluation-provenance.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-EVL-001",
+      "patterns": [
+        {
+          "pattern_id": "javascript-openai-local-evaluation-denominator",
+          "detector": "evaluation",
+          "structural_signature": "responses.create(...) precedes case iteration and a locally emitted accuracy; local alias n traces to eligible.length in the negative",
+          "positive_fixture": "llm-evaluation-denominator.positive.fixture",
+          "negative_fixture": "llm-evaluation-denominator.negative.fixture"
+        }
+      ]
+    },
+    {
+      "rule_id": "LLM-EVL-002",
+      "patterns": [
+        {
+          "pattern_id": "javascript-openai-sole-literal-self-judge",
+          "detector": "evaluation",
+          "structural_signature": "one responses.create producer and one explicit judge resolve to the same literal model before local result emission; a distinct Anthropic judge model is negative",
+          "positive_fixture": "llm-evaluation-self-judge.positive.fixture",
+          "negative_fixture": "llm-evaluation-self-judge.negative.fixture"
+        }
+      ]
+    }
+  ]
+}

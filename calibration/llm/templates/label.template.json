@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "label_id": "llm-label-example-0001",
+  "cohort": "golden",
+  "repository": {
+    "repository_id": "owner/repository",
+    "commit_sha": "0000000000000000000000000000000000000000"
+  },
+  "rule": {
+    "catalogue_id": "llm-rules-v1",
+    "rule_id": "LLM-OUTPUT-SINK",
+    "rule_version": "1.0.0"
+  },
+  "opportunity_id": "owner.repository:llm-output-sink:001",
+  "detector_finding_id": null,
+  "label": "present",
+  "evidence": [
+    {
+      "kind": "source_span",
+      "path_or_reference": "src/example.ts",
+      "start_line": 10,
+      "end_line": 14,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "rationale": "Replace with an operational explanation tied to the rule contract."
+    }
+  ],
+  "review": {
+    "labeler_id": "reviewer-one",
+    "role": "primary_labeler",
+    "independent_of_rule_author": true,
+    "detector_output_visible": false,
+    "adjudication_status": "not_required"
+  },
+  "created_at": "2026-07-22T00:00:00Z"
+}

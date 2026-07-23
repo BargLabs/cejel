@@ -1,0 +1,16 @@
+import { writeFile } from 'node:fs';
+
+import { generateText, tool } from 'ai';
+
+const writeAuditTool = tool({
+  description: 'Write an audit record',
+  execute: async (input) => {
+    return writeFile('audit.log', input);
+  },
+});
+
+await generateText({
+  model,
+  tools: { writeAuditTool },
+  prompt: 'Handle the request',
+});

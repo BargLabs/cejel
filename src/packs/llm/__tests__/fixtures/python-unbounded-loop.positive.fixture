@@ -1,0 +1,5 @@
+from anthropic import Anthropic
+
+client = Anthropic()
+while True:
+    client.messages.create(model="example", max_tokens=100, messages=[])

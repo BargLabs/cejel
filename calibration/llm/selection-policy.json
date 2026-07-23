@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "llm-selection-v1",
+  "status": "locked_before_detector_results",
+  "locked_at": "2026-07-22T00:00:00Z",
+  "target_size_per_cohort": 24,
+  "allowed_hosts": ["github.com"],
+  "eligibility": [
+    "publicly_cloneable repository at freeze time",
+    "full immutable Git commit can be resolved",
+    "contains an observable LLM application, agent, RAG, evaluation, gateway, or orchestration surface",
+    "primary implementation is TypeScript/JavaScript or Python, or exposes those integrations",
+    "not a fork or near-duplicate of another selected repository",
+    "inspection is permitted by published repository terms",
+    "can be scanned within 4 GiB checkout size and 30 minute wall-clock ceiling"
+  ],
+  "exclusion": [
+    "documentation-only repository with no runnable integration surface",
+    "model weights or dataset repository without application code",
+    "archived repository with no uniquely needed coverage stratum",
+    "repository selected for another cohort",
+    "repository chosen or replaced because of observed detector performance"
+  ],
+  "strata": {
+    "language": ["typescript_javascript", "python", "mixed"],
+    "surface": ["chat_app", "rag", "agent_tools", "local_model", "gateway", "evaluation_or_framework"],
+    "provider": ["openai", "anthropic", "multi_provider", "local_or_open_model"]
+  },
+  "assignment": "Repositories were assigned before detector execution to produce two disjoint, heterogeneous cohorts. Assignment is not random and results must not be generalized to all LLM applications.",
+  "replacement_rule": "Use the first eligible reserve candidate with the same primary surface stratum; record the failed eligibility clause and never consult detector output.",
+  "detector_results_seen": false
+}

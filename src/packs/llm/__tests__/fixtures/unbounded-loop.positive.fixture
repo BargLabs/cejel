@@ -1,0 +1,6 @@
+import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic();
+while (true) {
+  await client.messages.create({ model: 'example', messages: [] });
+}

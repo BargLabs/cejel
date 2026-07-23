@@ -29,7 +29,7 @@ function writeFixtureFile(repoPath: string, relativePath: string, contents: stri
 describe('witan CLI arg parsing', () => {
   it('defaults to the current directory, .cejel out-dir, no threshold', () => {
     const options = parseArgs([]);
-    expect(options).toMatchObject({ outDir: '.cejel', quiet: false });
+    expect(options).toMatchObject({ outDir: '.cejel', quiet: false, packs: [] });
     expect(options.minScore).toBeUndefined();
   });
 
@@ -91,6 +91,17 @@ describe('witan CLI arg parsing', () => {
 
   it('defaults ingestPatterns to an empty array', () => {
     expect(parseArgs([]).ingestPatterns).toEqual([]);
+  });
+
+  it('accepts and deduplicates the explicit llm pack', () => {
+    expect(parseArgs(['--pack', 'llm', '--pack', 'llm']).packs).toEqual(['llm']);
+  });
+
+  it('rejects missing and unknown pack values', () => {
+    expect(() => parseArgs(['--pack'])).toThrow(/Missing value for --pack/);
+    expect(() => parseArgs(['--pack', 'quantum'])).toThrow(
+      /Unknown Cejel pack: quantum\. Supported packs: llm/,
+    );
   });
 
   it('rejects --min-score values outside the 0-4 range', () => {
@@ -178,6 +189,82 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
 
     expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet'])).toBe(0);
     expect(readFileSync(join(outDir, 'report.json'), 'utf8')).toContain('"productSlug"');
+  });
+
+  it('emits a separate bound LLM artifact without changing the base certificate bytes', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-22T17:45:00-07:00'));
+    try {
+      const repoPath = mkdtempSync(join(tmpdir(), 'cejel-llm-cli-'));
+      const baselineOut = join(repoPath, '.baseline');
+      const packOut = join(repoPath, '.pack');
+      writeFixtureFile(
+        repoPath,
+        'src/agent.ts',
+        [
+          "import OpenAI from 'openai';",
+          'const client = new OpenAI();',
+          "const response = await client.responses.create({ model: 'gpt-5', input: 'x' });",
+          'const output = response.output_text;',
+          'eval(output);',
+        ].join('\n'),
+      );
+
+      expect(await runWitanFreeCli([repoPath, '--out', baselineOut, '--quiet'])).toBe(0);
+      expect(
+        await runWitanFreeCli([repoPath, '--out', packOut, '--pack', 'llm', '--quiet']),
+      ).toBe(0);
+
+      const baselineReport = readFileSync(join(baselineOut, 'report.json'), 'utf8');
+      const packBaseReport = readFileSync(join(packOut, 'report.json'), 'utf8');
+      expect(packBaseReport).toBe(baselineReport);
+      expect(() => readFileSync(join(baselineOut, 'llm-report.json'), 'utf8')).toThrow();
+
+      const llmReportText = readFileSync(join(packOut, 'llm-report.json'), 'utf8');
+      const llmReport = JSON.parse(llmReportText);
+      expect(llmReport.baseReportSha256).toBe(
+        createHash('sha256').update(packBaseReport).digest('hex'),
+      );
+      expect(llmReport.inputSourceSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(llmReport.lineage.detectorSourceRevision).toContain('local-or-unverified-build');
+      expect(llmReport.result.findings).toEqual(
+        expect.arrayContaining([expect.objectContaining({ ruleId: 'LLM-IOH-001' })]),
+      );
+      const llmAttestation = JSON.parse(
+        readFileSync(join(packOut, 'llm-attestation.json'), 'utf8'),
+      );
+      expect(llmAttestation.subject[0].digest.sha256).toBe(
+        createHash('sha256').update(llmReportText).digest('hex'),
+      );
+      expect(readFileSync(join(packOut, 'llm-certificate.html'), 'utf8')).toContain(
+        'not a model hallucination rate',
+      );
+      const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      try {
+        expect(
+          await runWitanFreeCli([
+            'verify',
+            join(packOut, 'llm-report.json'),
+            join(packOut, 'llm-attestation.json'),
+          ]),
+        ).toBe(0);
+        expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
+          'Free LLM Pack artifact/attestation binding verified',
+        );
+      } finally {
+        stdoutSpy.mockRestore();
+      }
+      expect(await runWitanFreeCli([repoPath, '--out', packOut, '--quiet'])).toBe(0);
+      for (const staleArtifact of [
+        'llm-report.json',
+        'llm-attestation.json',
+        'llm-certificate.html',
+      ]) {
+        expect(() => readFileSync(join(packOut, staleArtifact), 'utf8')).toThrow();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('verifies an emitted report/attestation binding and states the assurance boundary', async () => {

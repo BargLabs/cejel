@@ -1,0 +1,6 @@
+from anthropic import Anthropic
+
+client = Anthropic()
+message = client.messages.create(model="example", max_tokens=100, messages=[])
+generated_code = message.content[0].text
+eval(generated_code)

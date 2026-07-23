@@ -1,0 +1,6 @@
+import OpenAI from 'openai';
+
+const client = new OpenAI();
+const response = await client.responses.create({ model: 'example', input: 'write code' });
+const generatedCode = response.output_text;
+eval(generatedCode);

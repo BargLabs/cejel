@@ -1,0 +1,5 @@
+from openai import OpenAI
+
+client = OpenAI()
+for step in range(8):
+    client.responses.create(model="example", input="continue")

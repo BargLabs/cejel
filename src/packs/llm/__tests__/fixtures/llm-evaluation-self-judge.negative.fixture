@@ -1,0 +1,16 @@
+import { writeFileSync } from 'node:fs';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+const openai = new OpenAI();
+const anthropic = new Anthropic();
+
+const PRODUCER_MODEL = 'gpt-4.1-2025-04-14';
+const JUDGE_MODEL = 'claude-sonnet-4-20250514';
+const response = await openai.responses.create({ model: PRODUCER_MODEL, input: candidate });
+const judge = await anthropic.messages.create({
+  model: JUDGE_MODEL,
+  system: 'You are the evaluation judge. Score the candidate response.',
+  messages: [{ role: 'user', content: response.output_text }],
+});
+
+writeFileSync('evaluation.json', JSON.stringify({ score: judge.content }));

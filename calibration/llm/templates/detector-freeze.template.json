@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "detector_frozen_before_untouched",
+  "frozen_at": "2026-07-22T00:00:00Z",
+  "detector": {
+    "git_commit": "0000000000000000000000000000000000000000",
+    "build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "artifact_name": "cejel",
+    "runtime": {
+      "name": "node",
+      "version": "v00.00.0",
+      "platform": "darwin",
+      "architecture": "arm64"
+    }
+  },
+  "execution": {
+    "command_template": ["{network_isolation_argv_prefix...}", "{cejel_binary}", "scan", "{source}", "--out", "{output}", "--pack", "llm", "--quiet"],
+    "network_isolation": {
+      "mode": "replace-with-enforced-no-egress-mode",
+      "argv_prefix": ["replace-with-isolation-executable"],
+      "evidence_reference": "internal-witness:replace-with-isolation-proof",
+      "explicitly_confirmed": true
+    }
+  },
+  "rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"],
+  "support_matrix": {
+    "javascript_typescript": {
+      "status": "fixture_backed_alpha",
+      "extensions": [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"],
+      "integration_indicators": ["OpenAI SDK", "Anthropic SDK", "Vercel AI SDK", "LangChain imports", "recognized model-call shapes"],
+      "enabled_rule_ids": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"]
+    },
+    "python": {
+      "status": "narrow_fixture_backed_alpha",
+      "extensions": [".py"],
+      "integration_indicators": ["OpenAI official SDK", "Anthropic official SDK"],
+      "enabled_rule_ids": ["LLM-IOH-001", "LLM-AGY-002", "LLM-DAT-001"]
+    },
+    "limitations": [
+      "Static local source-pattern analysis only; no target application or model execution.",
+      "No whole-program data-flow, model-quality, factuality, or hallucination-rate claim.",
+      "Action-governance and evaluation-hygiene checks require complete local JavaScript or TypeScript paths."
+    ]
+  },
+  "golden_correction_ledger": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "status": "frozen",
+    "entries": 0,
+    "open_corrections": 0,
+    "frozen_at": "2026-07-22T00:00:00Z"
+  },
+  "untouched_results_seen_before_freeze": false,
+  "record_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

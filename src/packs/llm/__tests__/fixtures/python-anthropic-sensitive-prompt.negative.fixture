@@ -1,0 +1,9 @@
+import os
+from anthropic import Anthropic
+
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client.messages.create(
+    model="example",
+    max_tokens=100,
+    messages=[{"role": "user", "content": "Explain the public documentation."}],
+)
