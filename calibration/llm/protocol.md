@@ -139,6 +139,18 @@ Before untouched evaluation, record:
 - the exact GitHub calibration workflow path and byte hash; and
 - the golden-set correction ledger.
 
+The trusted untouched GitHub workflow transports its private detector-freeze, closed golden
+correction ledger, frozen golden manifest, golden execution evidence, and complete opportunity
+manifest in one authenticated encrypted bundle. The bundle format is
+`cejel-llm-private-evidence-bundle-v1`: a fixed-name, fixed-order JSON document with per-file
+SHA-256 digests, sealed by AES-256-GCM with a fresh 96-bit nonce and format/cipher associated data.
+The 32-byte key is supplied only through the GitHub Actions secret
+`CEJEL_LLM_CALIBRATION_BUNDLE_KEY`. The workflow rejects plaintext per-file untouched inputs and a
+missing key before checkout, then decrypts the bundle only under `runner.temp` and passes only those
+temporary paths to the frozen cohort runner. The golden workflow path does not consume this
+transport. Encryption changes transport confidentiality only; it does not change any evidence
+bytes, frozen digest, detector semantics, threshold, or pre-result binding.
+
 Any code, rule, threshold, exclusion, parser, or configuration change after untouched results are
 seen creates a new detector version. The original result remains in the correction ledger. The
 untouched cohort cannot be reused as untouched evidence for that new version.

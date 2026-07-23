@@ -42,6 +42,7 @@ node calibration/llm/scripts/validate-calibration.mjs
 node --test calibration/llm/scripts/freeze-cohorts.node-test.mjs
 node --test calibration/llm/scripts/compute-metrics.node-test.mjs
 node --test calibration/llm/scripts/detector-execution.node-test.mjs
+node --test calibration/llm/scripts/private-evidence-bundle.node-test.mjs
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden --resolve-only
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-only
 # After two blind labelers have independently reviewed every repository/rule cell and reconciled
@@ -65,6 +66,38 @@ node calibration/llm/scripts/compute-metrics.mjs /absolute/path/to/measurement-i
   --artifact <golden-run-id>=/absolute/path/to/golden-evidence.zip \
   --artifact <untouched-run-id>=/absolute/path/to/untouched-evidence.zip
 ```
+
+## Private untouched-workflow transport
+
+The untouched workflow accepts no plaintext detector-freeze, golden-ledger, golden-manifest,
+golden-execution, or opportunity-manifest inputs. The owner encrypts those five JSON objects into
+one repository-relative `.enc` bundle and stores the same 32-byte key, encoded as canonical base64,
+in the Actions secret `CEJEL_LLM_CALIBRATION_BUNDLE_KEY`. The key is read only from that environment
+variable and must never be committed or passed on the command line.
+
+```bash
+export CEJEL_LLM_CALIBRATION_BUNDLE_KEY='<base64-encoded 32-byte owner secret>'
+node calibration/llm/scripts/private-evidence-bundle.mjs encrypt \
+  --detector-freeze /absolute/private/path/detector-freeze.json \
+  --golden-correction-ledger /absolute/private/path/golden-correction-ledger.json \
+  --golden-manifest /absolute/private/path/golden-manifest.json \
+  --golden-execution-evidence /absolute/private/path/golden-execution-evidence.json \
+  --opportunity-manifest /absolute/private/path/opportunity-manifest.json \
+  --output /absolute/repository/path/calibration/llm/private/untouched-evidence.enc
+```
+
+Encryption preserves the exact input bytes in a fixed name/order document, binds every file by
+SHA-256, and seals the document with AES-256-GCM using a fresh 96-bit nonce. Re-encrypting the same
+inputs intentionally produces different ciphertext; decryption deterministically restores the
+same five byte sequences. The envelope and plaintext schemas reject extra fields, missing,
+duplicate, reordered, unknown, or traversal names, non-object JSON, symlinks, oversized inputs, and
+authentication failures. Bundle outputs are created exclusively with mode `0600`. Actions decrypts
+only into a new mode-`0700` directory under `runner.temp`, with files at mode `0600`.
+
+For `workflow_dispatch` with `cohort: untouched`, set `private_evidence_bundle` to the safe
+repository-relative `.enc` path. The workflow rejects a missing bundle, missing secret, absolute or
+traversal path, or plaintext-style path before checkout. Golden execution does not accept or
+decrypt this bundle and otherwise follows its existing path.
 
 The measurement input contains content-addressed evidence, not manually entered counts: both frozen
 cohort manifests, the internal frozen source-evidence index, the frozen opportunity inventory, the detector-freeze record, every execution

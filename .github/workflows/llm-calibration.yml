@@ -28,29 +28,13 @@ on:
         description: Pre-result-committed approved free-core baseline commit
         required: true
         type: string
-      detector_freeze:
-        description: Repository-relative detector freeze (required for untouched)
+      private_evidence_bundle:
+        description: Repository-relative encrypted private-evidence bundle (required for untouched)
         required: false
         type: string
       detector_freeze_canonical_sha256:
         description: Canonical detector-freeze SHA-256, or none for golden
         required: true
-        type: string
-      golden_correction_ledger:
-        description: Repository-relative closed golden correction ledger
-        required: false
-        type: string
-      golden_manifest:
-        description: Repository-relative frozen golden manifest
-        required: false
-        type: string
-      golden_execution_evidence:
-        description: Repository-relative frozen golden execution evidence
-        required: false
-        type: string
-      opportunity_manifest:
-        description: Repository-relative frozen opportunity manifest
-        required: false
         type: string
 
 permissions:
@@ -61,6 +45,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
+      - name: Validate private transport selection before checkout
+        env:
+          COHORT: ${{ inputs.cohort }}
+          PRIVATE_EVIDENCE_BUNDLE: ${{ inputs.private_evidence_bundle }}
+          CEJEL_LLM_CALIBRATION_BUNDLE_KEY: ${{ secrets.CEJEL_LLM_CALIBRATION_BUNDLE_KEY }}
+        run: |
+          if [ "$COHORT" = untouched ]; then
+            if [ -z "$PRIVATE_EVIDENCE_BUNDLE" ]; then
+              echo "Untouched execution requires one encrypted private-evidence bundle." >&2
+              exit 1
+            fi
+            if [ -z "$CEJEL_LLM_CALIBRATION_BUNDLE_KEY" ]; then
+              echo "Untouched execution requires the configured bundle key." >&2
+              exit 1
+            fi
+            if [[ ! "$PRIVATE_EVIDENCE_BUNDLE" =~ ^[A-Za-z0-9._/-]+\.enc$ ]] ||
+              [[ "$PRIVATE_EVIDENCE_BUNDLE" = /* ]] ||
+              [[ "/$PRIVATE_EVIDENCE_BUNDLE/" = *"/../"* ]] ||
+              [[ "/$PRIVATE_EVIDENCE_BUNDLE/" = *"/./"* ]] ||
+              [[ "$PRIVATE_EVIDENCE_BUNDLE" = *"//"* ]]; then
+              echo "The private-evidence bundle must be a safe repository-relative .enc path." >&2
+              exit 1
+            fi
+          elif [ -n "$PRIVATE_EVIDENCE_BUNDLE" ]; then
+            echo "Golden execution does not accept a private-evidence bundle." >&2
+            exit 1
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
@@ -73,6 +84,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Decrypt untouched private evidence bundle
+        if: inputs.cohort == 'untouched'
+        env:
+          PRIVATE_EVIDENCE_BUNDLE: ${{ inputs.private_evidence_bundle }}
+          CEJEL_LLM_CALIBRATION_BUNDLE_KEY: ${{ secrets.CEJEL_LLM_CALIBRATION_BUNDLE_KEY }}
+        run: |
+          node calibration/llm/scripts/private-evidence-bundle.mjs decrypt \
+            --input "$GITHUB_WORKSPACE/$PRIVATE_EVIDENCE_BUNDLE" \
+            --output-dir "$RUNNER_TEMP/llm-private-evidence"
       - name: Generate free-core compatibility proof
         if: inputs.cohort == 'golden'
         env:
@@ -96,11 +116,6 @@ jobs:
           MANIFEST: ${{ inputs.manifest }}
           PRE_RESULT: ${{ inputs.pre_result_commitment }}
           COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
-          DETECTOR_FREEZE: ${{ inputs.detector_freeze }}
-          GOLDEN_LEDGER: ${{ inputs.golden_correction_ledger }}
-          GOLDEN_MANIFEST: ${{ inputs.golden_manifest }}
-          GOLDEN_EXECUTION: ${{ inputs.golden_execution_evidence }}
-          OPPORTUNITY_MANIFEST: ${{ inputs.opportunity_manifest }}
         run: |
           chmod +x dist/index.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
           common=(
@@ -120,11 +135,11 @@ jobs:
               --confirm-network-isolation
           else
             node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \
-              --detector-freeze "$DETECTOR_FREEZE" \
-              --golden-correction-ledger "$GOLDEN_LEDGER" \
-              --golden-manifest "$GOLDEN_MANIFEST" \
-              --golden-execution-evidence "$GOLDEN_EXECUTION" \
-              --opportunity-manifest "$OPPORTUNITY_MANIFEST" \
+              --detector-freeze "$RUNNER_TEMP/llm-private-evidence/detector-freeze.json" \
+              --golden-correction-ledger "$RUNNER_TEMP/llm-private-evidence/golden-correction-ledger.json" \
+              --golden-manifest "$RUNNER_TEMP/llm-private-evidence/golden-manifest.json" \
+              --golden-execution-evidence "$RUNNER_TEMP/llm-private-evidence/golden-execution-evidence.json" \
+              --opportunity-manifest "$RUNNER_TEMP/llm-private-evidence/opportunity-manifest.json" \
               --confirm-untouched-after-freeze
           fi
       - name: Assemble deterministic evidence binding
