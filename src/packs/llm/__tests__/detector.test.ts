@@ -82,6 +82,38 @@ describe('Free LLM Pack alpha', () => {
     expect(result.coverage.sourceFilesWithLlmIndicators).toBe(0);
   });
 
+  it('lets an import-bound model-facing tool registration activate AGY-001', () => {
+    const result = scan(fixture('authority-boundary-member-helper.positive.fixture'));
+
+    expect(result.status).toBe('assessed_with_limitations');
+    expect(result.coverage.sourceFilesWithLlmIndicators).toBe(1);
+    expect(result.coverage.detectedIntegrations).toContain('Model-facing tool registration');
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-AGY-001')).toBe(true);
+  });
+
+  it('reports a controlled model-facing tool surface as insufficient rather than absent', () => {
+    const result = scan(fixture('authority-boundary-member-helper.negative.fixture'));
+
+    expect(result.status).toBe('assessed_with_limitations');
+    expect(result.findings).toEqual([]);
+    expect(
+      result.ruleResults.find((rule) => rule.ruleId === 'LLM-AGY-001')?.state,
+    ).toBe('insufficient_data');
+  });
+
+  it('lets a Python model-facing consequential tool activate VAL-001', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'cejel-llm-python-action-'));
+    writeFileSync(
+      join(repo, 'tool.py'),
+      fixture('python-action-validation-tool.positive.fixture'),
+      'utf8',
+    );
+    const result = collectCejelLlmPack(repo, ['tool.py']);
+
+    expect(result.status).toBe('assessed_with_limitations');
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-VAL-001')).toBe(true);
+  });
+
   it('does not establish applicability from comments, tests, or generic mailbox calls', () => {
     const repo = mkdtempSync(join(tmpdir(), 'cejel-llm-applicability-'));
     writeFileSync(join(repo, 'app.ts'), [

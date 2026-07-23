@@ -190,4 +190,52 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
       detectSideEffectingToolWithoutAuthorityBoundary({ path: 'src/publish.ts', contents }),
     ).toEqual([]);
   });
+
+  it('finds an import-bound member tool registration with a one-hop side-effect helper', () => {
+    const findings = detectSideEffectingToolWithoutAuthorityBoundary({
+      path: 'src/desktop-extension.ts',
+      contents: fixture('authority-boundary-member-helper.positive.fixture'),
+    });
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      ruleId: 'LLM-AGY-001',
+      severity: 'critical',
+      confidence: 'high',
+      evidence: { path: 'src/desktop-extension.ts', line: 13 },
+    });
+  });
+
+  it('requires a fail-closed gate before a member-registered helper side effect', () => {
+    expect(
+      detectSideEffectingToolWithoutAuthorityBoundary({
+        path: 'src/desktop-extension.ts',
+        contents: fixture('authority-boundary-member-helper.negative.fixture'),
+      }),
+    ).toEqual([]);
+  });
+
+  it('finds an unconstrained Python model-facing tool parameter reaching execution', () => {
+    const findings = detectUnvalidatedConsequentialAction({
+      path: 'src/execution-tool.py',
+      contents: fixture('python-action-validation-tool.positive.fixture'),
+    });
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      ruleId: 'LLM-VAL-001',
+      severity: 'critical',
+      confidence: 'high',
+      evidence: { path: 'src/execution-tool.py', line: 13 },
+    });
+  });
+
+  it('accepts a closed Python literal constraint before execution dispatch', () => {
+    expect(
+      detectUnvalidatedConsequentialAction({
+        path: 'src/execution-tool.py',
+        contents: fixture('python-action-validation-tool.negative.fixture'),
+      }),
+    ).toEqual([]);
+  });
 });

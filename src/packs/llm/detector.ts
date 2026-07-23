@@ -153,13 +153,23 @@ export function collectCejelLlmPack(
   const pythonLlmFiles = sourceFiles.filter(
     (file) => isPythonSource(file) && hasSupportedPythonLlmIntegration(file),
   );
-  const applicable = javascriptLlmFiles.length > 0 || pythonLlmFiles.length > 0;
+  const actionSurfaceFiles = sourceFiles.filter((file) =>
+    CEJEL_LLM_ACTION_RULES.some((rule) => rule.applies(file)),
+  );
+  const applicable =
+    javascriptLlmFiles.length > 0 ||
+    pythonLlmFiles.length > 0 ||
+    actionSurfaceFiles.length > 0;
   const findings = applicable
     ? [
         ...javascriptLlmFiles.flatMap((file) =>
-          [...CEJEL_LLM_V1_RULES, ...CEJEL_LLM_ACTION_RULES].flatMap((rule) =>
-            rule.detect(file),
-          ),
+          CEJEL_LLM_V1_RULES.flatMap((rule) => rule.detect(file)),
+        ),
+        // A model-facing tool registration is itself a frozen-contract activator. Action rules
+        // therefore inspect every supported source file rather than depending on an unrelated
+        // direct official-SDK call in the same file.
+        ...sourceFiles.flatMap((file) =>
+          CEJEL_LLM_ACTION_RULES.flatMap((rule) => rule.detect(file)),
         ),
         ...pythonLlmFiles.flatMap((file) =>
           CEJEL_LLM_PYTHON_RULES.flatMap((rule) => rule.detect(file)),
@@ -199,7 +209,7 @@ export function collectCejelLlmPack(
         pythonLlmFiles.some((file) => rule.applies(file)),
       ) ||
       CEJEL_LLM_ACTION_RULES.filter((rule) => rule.id === ruleId).some((rule) =>
-        javascriptLlmFiles.some((file) => rule.applies(file)),
+        sourceFiles.some((file) => rule.applies(file)),
       ) ||
       CEJEL_LLM_EVALUATION_RULES.filter((rule) => rule.id === ruleId).some((rule) =>
         rule.applies(javascriptSourceFiles),
@@ -222,6 +232,13 @@ export function collectCejelLlmPack(
     };
   });
   const status = applicable ? 'assessed_with_limitations' : 'not_applicable';
+  const indicatorPaths = new Set([
+    ...javascriptLlmFiles.map((file) => file.path),
+    ...pythonLlmFiles.map((file) => file.path),
+    ...actionSurfaceFiles.map((file) => file.path),
+  ]);
+  const integrationSet = new Set(integrations);
+  if (actionSurfaceFiles.length > 0) integrationSet.add('Model-facing tool registration');
 
   return CejelLlmPackResultSchema.parse({
     packId: CEJEL_LLM_PACK_ID,
@@ -232,8 +249,8 @@ export function collectCejelLlmPack(
     coverage: {
       supportedLanguages: ['JavaScript/TypeScript', 'Python'],
       sourceFilesConsidered: sourceFiles.length,
-      sourceFilesWithLlmIndicators: javascriptLlmFiles.length + pythonLlmFiles.length,
-      detectedIntegrations: integrations,
+      sourceFilesWithLlmIndicators: indicatorPaths.size,
+      detectedIntegrations: [...integrationSet].sort(),
       enabledRuleIds: [...CEJEL_LLM_ENABLED_RULE_IDS],
       deferredRuleIds: CEJEL_LLM_RULE_IDS.filter(
         (ruleId) => !ENABLED_RULE_ID_SET.has(ruleId),

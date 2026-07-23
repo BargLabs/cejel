@@ -10,7 +10,7 @@ import { CEJEL_LLM_PYTHON_RULES } from '../python-rules.js';
 import { CEJEL_LLM_V1_RULES, type LlmSourceFile } from '../rules.js';
 import { CEJEL_LLM_ENABLED_RULE_IDS, type CejelLlmEnabledRuleId } from '../types.js';
 
-type Detector = 'javascript' | 'python' | 'action' | 'evaluation';
+type Detector = 'javascript' | 'python' | 'action' | 'python-action' | 'evaluation';
 interface CoveragePattern {
   readonly pattern_id: string;
   readonly detector: Detector;
@@ -37,7 +37,7 @@ const manifest = JSON.parse(
 ) as FixtureCoverageManifest;
 
 function source(name: string, detector: Detector): LlmSourceFile {
-  const extension = detector === 'python' ? 'py' : 'ts';
+  const extension = detector === 'python' || detector === 'python-action' ? 'py' : 'ts';
   return {
     path: `src/fixture-coverage.${extension}`,
     contents: readFileSync(join(fixtureDir, name), 'utf8'),
@@ -54,7 +54,7 @@ function findings(
   }
   const catalogue = detector === 'python'
     ? CEJEL_LLM_PYTHON_RULES
-    : detector === 'action'
+    : detector === 'action' || detector === 'python-action'
       ? CEJEL_LLM_ACTION_RULES
       : CEJEL_LLM_V1_RULES;
   const rule = catalogue.find((candidate) => candidate.id === ruleId);

@@ -39,6 +39,13 @@
           "structural_signature": "response.output_text alias enters JSON.parse and an object field reaches deploy(...) without an intervening strict schema parse",
           "positive_fixture": "action-validation-direct.positive.fixture",
           "negative_fixture": "action-validation-schema.negative.fixture"
+        },
+        {
+          "pattern_id": "python-model-tool-parameter-to-execution",
+          "detector": "python-action",
+          "structural_signature": "an args-schema-bound model-facing tool parameter reaches a literal execution dispatcher without a closed literal constraint",
+          "positive_fixture": "python-action-validation-tool.positive.fixture",
+          "negative_fixture": "python-action-validation-tool.negative.fixture"
         }
       ]
     },
@@ -51,6 +58,13 @@
           "structural_signature": "tool(...) declaration calls import-resolved node:fs writeFile(...) and is exposed in generateText({ tools }) without a preceding fail-closed approval gate",
           "positive_fixture": "authority-boundary-direct.positive.fixture",
           "negative_fixture": "authority-boundary-approval.negative.fixture"
+        },
+        {
+          "pattern_id": "javascript-import-bound-member-tool-helper-side-effect",
+          "detector": "action",
+          "structural_signature": "an imported API-typed parameter registers an inline tool whose callback reaches an import-resolved child-process operation through one local helper",
+          "positive_fixture": "authority-boundary-member-helper.positive.fixture",
+          "negative_fixture": "authority-boundary-member-helper.negative.fixture"
         }
       ]
     },

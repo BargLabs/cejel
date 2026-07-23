@@ -1,0 +1,16 @@
+import type { AgentExtension } from '@synthetic/agent-runtime';
+import { execFileSync } from 'node:child_process';
+
+function invokeLocalProgram(program: string, args: string[]): string {
+  return execFileSync(program, args, { encoding: 'utf8' });
+}
+
+export default function attachTools(extension: AgentExtension) {
+  extension.registerTool({
+    name: 'local_action',
+    parameters: { target: 'string' },
+    async execute(_callId, params) {
+      return invokeLocalProgram('/usr/bin/local-action', [params.target]);
+    },
+  });
+}

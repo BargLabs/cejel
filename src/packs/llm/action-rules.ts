@@ -1,6 +1,7 @@
 import type { LlmSourceFile } from './rules.js';
 import type { CejelLlmConfidence, CejelLlmFinding } from './types.js';
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
+import { maskPythonNonCode } from './lexical.js';
 
 export type LlmActionRuleId = 'LLM-VAL-001' | 'LLM-AGY-001';
 
@@ -26,6 +27,8 @@ const CONSEQUENTIAL_DISPATCH_PATTERN =
 
 const TOOL_ASSIGNMENT_PATTERN =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:tool|defineTool|createTool)\s*\(/g;
+const MEMBER_TOOL_REGISTRATION_PATTERN =
+  /\b([A-Za-z_$][\w$]*)\.registerTool\s*\(/g;
 const APPROVAL_FAIL_CLOSED_PATTERN =
   /if\s*\(\s*!\s*\(?\s*(?:await\s+)?(?:requestApproval|requireApproval|humanApproval|approvalGate|waitForApproval)\s*\([^)]*\)\s*\)?\s*\)\s*(?:\{\s*)?(?:throw\b|return\b)/s;
 const ALLOWLIST_FAIL_CLOSED_PATTERN =
@@ -33,7 +36,8 @@ const ALLOWLIST_FAIL_CLOSED_PATTERN =
 
 function isExcludedSourcePath(path: string): boolean {
   return /(?:^|\/)(?:__tests__|test|tests|fixtures?|examples?|vendor|generated)(?:\/|$)/i.test(path) ||
-    /\.(?:test|spec|fixture)\.[cm]?[jt]sx?$/i.test(path);
+    /\.(?:test|spec|fixture)\.[cm]?[jt]sx?$/i.test(path) ||
+    /(?:^|\/)(?:test_[^/]+|[^/]+_test)\.py$/i.test(path);
 }
 
 /** Masks comments and string literals while preserving offsets and newlines. */
@@ -201,6 +205,9 @@ function hasFailClosedValidation(segment: string, identifier: string): boolean {
 export function detectUnvalidatedConsequentialAction(
   file: LlmSourceFile,
 ): readonly CejelLlmFinding[] {
+  if (file.path.toLowerCase().endsWith('.py')) {
+    return detectPythonUnvalidatedConsequentialAction(file);
+  }
   if (isExcludedSourcePath(file.path)) return [];
 
   const findings: CejelLlmFinding[] = [];
@@ -290,7 +297,129 @@ export function detectUnvalidatedConsequentialAction(
   return findings;
 }
 
+interface PythonToolMethod {
+  readonly classBody: string;
+  readonly classBodyMasked: string;
+  readonly classOffset: number;
+  readonly parameters: ReadonlySet<string>;
+}
+
+function pythonModelFacingToolMethods(file: LlmSourceFile): readonly PythonToolMethod[] {
+  if (isExcludedSourcePath(file.path)) return [];
+  const masked = maskPythonNonCode(file.contents);
+  const originalLines = file.contents.split('\n');
+  const maskedLines = masked.split('\n');
+  const offsets: number[] = [];
+  let offset = 0;
+  for (const line of originalLines) {
+    offsets.push(offset);
+    offset += line.length + 1;
+  }
+  const methods: PythonToolMethod[] = [];
+  for (let classLine = 0; classLine < maskedLines.length; classLine += 1) {
+    const declaration = (maskedLines[classLine] ?? '').match(
+      /^(\s*)class\s+[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?\s*:/,
+    );
+    if (!declaration) continue;
+    const classIndent = declaration[1]?.length ?? 0;
+    let classEndLine = maskedLines.length;
+    for (let later = classLine + 1; later < maskedLines.length; later += 1) {
+      const candidate = maskedLines[later] ?? '';
+      if (candidate.trim().length === 0) continue;
+      const indentation = candidate.match(/^\s*/)?.[0].length ?? 0;
+      if (indentation <= classIndent) {
+        classEndLine = later;
+        break;
+      }
+    }
+    const classOffset = offsets[classLine] ?? 0;
+    const classEndOffset = offsets[classEndLine] ?? file.contents.length;
+    const classBody = file.contents.slice(classOffset, classEndOffset);
+    const classBodyMasked = masked.slice(classOffset, classEndOffset);
+    if (!/\bargs_schema\s*(?::[^=\n]+)?=/.test(classBodyMasked)) continue;
+    for (const method of classBodyMasked.matchAll(
+      /\bdef\s+_run\s*\(([\s\S]{0,1200}?)\)\s*(?:->[^:\n]+)?\s*:/g,
+    )) {
+      const parameters = new Set<string>();
+      for (const parameter of (method[1] ?? '').split(',')) {
+        const identifier = parameter.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)/)?.[1];
+        if (identifier && identifier !== 'self') parameters.add(identifier);
+      }
+      methods.push({ classBody, classBodyMasked, classOffset, parameters });
+    }
+  }
+  return methods;
+}
+
+function pythonToolExecution(
+  method: PythonToolMethod,
+): { readonly index: number; readonly parameter: string } | null {
+  for (const invocation of method.classBodyMasked.matchAll(
+    /\b[A-Za-z_][A-Za-z0-9_.]*\.invoke\s*\(/g,
+  )) {
+    const openParen = (invocation.index ?? 0) + invocation[0].lastIndexOf('(');
+    const end = matchingCallEnd(method.classBody, openParen);
+    if (end === null) continue;
+    const call = method.classBody.slice(invocation.index, end);
+    if (
+      !/\bmethod\s*=\s*['"][^'"]*(?:execute|command|code|run)[^'"]*['"]/i.test(call)
+    ) {
+      continue;
+    }
+    for (const parameter of method.parameters) {
+      const escaped = escapeRegExp(parameter);
+      if (!new RegExp(`['"][A-Za-z_][A-Za-z0-9_]*['"]\\s*:\\s*${escaped}\\b`).test(call)) {
+        continue;
+      }
+      const constrainedAnnotation = new RegExp(
+        `\\b${escaped}\\s*:\\s*(?:Literal|Enum|Annotated)\\s*\\[`,
+      );
+      const localValidator = new RegExp(
+        `\\bfield_validator\\s*\\(\\s*['"]${escaped}['"]`,
+      );
+      if (
+        constrainedAnnotation.test(method.classBody) ||
+        localValidator.test(method.classBody)
+      ) {
+        continue;
+      }
+      return {
+        index: method.classOffset + (invocation.index ?? 0),
+        parameter,
+      };
+    }
+  }
+  return null;
+}
+
+function detectPythonUnvalidatedConsequentialAction(
+  file: LlmSourceFile,
+): readonly CejelLlmFinding[] {
+  const findings: CejelLlmFinding[] = [];
+  for (const method of pythonModelFacingToolMethods(file)) {
+    const execution = pythonToolExecution(method);
+    if (!execution) continue;
+    findings.push(
+      finding(
+        'LLM-VAL-001',
+        file,
+        execution.index,
+        'critical',
+        `A model-facing structured tool parameter reaches a supported execution dispatcher without an observable closed constraint.`,
+        `Unconstrained structured field ${execution.parameter} reaches execution dispatch`,
+        'high',
+      ),
+    );
+  }
+  return findings;
+}
+
 function hasConsequentialStructuredActionSurface(file: LlmSourceFile): boolean {
+  if (file.path.toLowerCase().endsWith('.py')) {
+    return pythonModelFacingToolMethods(file).some(
+      (method) => pythonToolExecution(method) !== null,
+    );
+  }
   if (isExcludedSourcePath(file.path)) return false;
   const maskedLines = maskNonCode(file.contents).split('\n');
   const depths = lineStartDepths(file.contents);
@@ -428,7 +557,7 @@ function observableSideEffectBindings(
   const direct = new Set<string>();
   const namespaces = new Map<string, ReadonlySet<string>>();
   const namedImport =
-    /\bimport\s*\{([\s\S]*?)\}\s*from\s*(['"])(?:node:)?(fs|child_process)\2/g;
+    /\bimport\s*\{([^}]*)\}\s*from\s*(['"])(?:node:)?(fs|child_process)\2/g;
   for (const match of contents.matchAll(namedImport)) {
     if ((maskedContents[match.index] ?? ' ') === ' ') continue;
     const exports = match[3] ? OBSERVABLE_SIDE_EFFECT_EXPORTS[match[3]] : undefined;
@@ -457,6 +586,7 @@ function observableSideEffectBindings(
 function observableSideEffectIndex(
   declaration: string,
   bindings: ObservableSideEffectBindings,
+  helperNames: ReadonlySet<string> = new Set(),
 ): number | null {
   let earliest: number | null = null;
   const consider = (index: number): void => {
@@ -473,7 +603,113 @@ function observableSideEffectIndex(
     ).exec(declaration);
     if (match) consider(match.index);
   }
+  for (const helperName of helperNames) {
+    const match = new RegExp(`\\b${escapeRegExp(helperName)}\\s*\\(`).exec(declaration);
+    if (match) consider(match.index);
+  }
   return earliest;
+}
+
+function matchingBraceEnd(contents: string, openBrace: number): number | null {
+  let depth = 0;
+  for (let index = openBrace; index < contents.length; index += 1) {
+    const character = contents[index];
+    if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return index + 1;
+    }
+  }
+  return null;
+}
+
+function localSideEffectHelpers(
+  maskedContents: string,
+  bindings: ObservableSideEffectBindings,
+): ReadonlySet<string> {
+  const helpers = new Set<string>();
+  for (const declaration of maskedContents.matchAll(
+    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{\n]+)?\s*\{/g,
+  )) {
+    const name = declaration[1];
+    if (!name) continue;
+    const openBrace = (declaration.index ?? 0) + declaration[0].lastIndexOf('{');
+    const end = matchingBraceEnd(maskedContents, openBrace);
+    if (end === null) continue;
+    const body = maskedContents.slice(openBrace + 1, end - 1);
+    if (observableSideEffectIndex(body, bindings) !== null) helpers.add(name);
+  }
+  return helpers;
+}
+
+function importedApiParameterNames(
+  contents: string,
+  maskedContents: string,
+): ReadonlySet<string> {
+  const importedTypes = new Set<string>();
+  for (const declaration of contents.matchAll(
+    /\bimport\s+(?:type\s+)?\{([^}]+)\}\s+from\s+['"]([^.'"][^'"]*)['"]/g,
+  )) {
+    if ((maskedContents[declaration.index] ?? ' ') === ' ') continue;
+    for (const member of (declaration[1] ?? '').split(',')) {
+      const binding = member.trim().match(
+        /^(?:type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/,
+      );
+      const local = binding?.[2] ?? binding?.[1];
+      if (local) importedTypes.add(local);
+    }
+  }
+  const parameters = new Set<string>();
+  for (const typeName of importedTypes) {
+    const escaped = escapeRegExp(typeName);
+    for (const match of maskedContents.matchAll(
+      new RegExp(`(?:\\(|,)\\s*([A-Za-z_$][\\w$]*)\\s*:\\s*${escaped}\\b`, 'g'),
+    )) {
+      if (match[1]) parameters.add(match[1]);
+    }
+  }
+  return parameters;
+}
+
+interface MemberToolRegistration {
+  readonly receiver: string;
+  readonly index: number;
+  readonly end: number;
+  readonly declaration: string;
+}
+
+function memberToolRegistrations(
+  contents: string,
+  maskedContents: string,
+): readonly MemberToolRegistration[] {
+  const apiParameters = importedApiParameterNames(contents, maskedContents);
+  const registrations: MemberToolRegistration[] = [];
+  for (const registration of maskedContents.matchAll(MEMBER_TOOL_REGISTRATION_PATTERN)) {
+    const receiver = registration[1];
+    if (!receiver || !apiParameters.has(receiver)) continue;
+    const openParen = (registration.index ?? 0) + registration[0].lastIndexOf('(');
+    const end = matchingCallEnd(maskedContents, openParen);
+    if (end === null) continue;
+    registrations.push({
+      receiver,
+      index: registration.index ?? 0,
+      end,
+      declaration: maskedContents.slice(registration.index, end),
+    });
+  }
+  return registrations;
+}
+
+function registeredToolSideEffectSurface(file: LlmSourceFile): boolean {
+  if (isExcludedSourcePath(file.path)) return false;
+  const maskedContents = maskNonCode(file.contents);
+  const bindings = observableSideEffectBindings(file.contents, maskedContents);
+  const helpers = localSideEffectHelpers(maskedContents, bindings);
+  return memberToolRegistrations(file.contents, maskedContents).some(
+    (registration) =>
+      /\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration) &&
+      observableSideEffectIndex(registration.declaration, bindings, helpers) !== null,
+  );
 }
 
 function hasSideEffectingToolSurface(file: LlmSourceFile): boolean {
@@ -493,7 +729,7 @@ function hasSideEffectingToolSurface(file: LlmSourceFile): boolean {
       return true;
     }
   }
-  return false;
+  return registeredToolSideEffectSurface(file);
 }
 
 /**
@@ -508,6 +744,7 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
   const findings: CejelLlmFinding[] = [];
   const maskedContents = maskNonCode(file.contents);
   const sideEffectBindings = observableSideEffectBindings(file.contents, maskedContents);
+  const sideEffectHelpers = localSideEffectHelpers(maskedContents, sideEffectBindings);
   for (const registration of maskedContents.matchAll(TOOL_ASSIGNMENT_PATTERN)) {
     const toolName = registration[1];
     if (!toolName) continue;
@@ -537,6 +774,33 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
         'critical',
         `Exposed tool ${toolName} performs a recognized side effect without an observable fail-closed allowlist or human approval gate.`,
         `Exposed ${toolName} tool reaches side-effecting operation`,
+        'high',
+      ),
+    );
+  }
+  for (const registration of memberToolRegistrations(file.contents, maskedContents)) {
+    if (!/\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration)) continue;
+    const sideEffectIndex = observableSideEffectIndex(
+      registration.declaration,
+      sideEffectBindings,
+      sideEffectHelpers,
+    );
+    if (sideEffectIndex === null) continue;
+    const beforeSideEffect = registration.declaration.slice(0, sideEffectIndex);
+    if (
+      APPROVAL_FAIL_CLOSED_PATTERN.test(beforeSideEffect) ||
+      ALLOWLIST_FAIL_CLOSED_PATTERN.test(beforeSideEffect)
+    ) {
+      continue;
+    }
+    findings.push(
+      finding(
+        'LLM-AGY-001',
+        file,
+        registration.index + sideEffectIndex,
+        'critical',
+        `A locally registered model-facing tool performs a recognized side effect without an observable fail-closed allowlist or human approval gate.`,
+        'Registered tool reaches an import-resolved side-effecting operation',
         'high',
       ),
     );
