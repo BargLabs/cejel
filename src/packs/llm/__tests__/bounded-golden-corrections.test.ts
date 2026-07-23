@@ -577,7 +577,7 @@ describe('bounded golden corrections', () => {
     ]);
   });
 
-  it('fails closed for helper-backed tools unless a dynamic operation selector reaches the helper', () => {
+  it('tracks dynamic registered-tool parameters and abstains for a fixed read helper', () => {
     const file = source([
       "import type { ToolAPI } from 'agent-runtime';",
       "import { execFileSync } from 'node:child_process';",

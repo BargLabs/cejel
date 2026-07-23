@@ -356,13 +356,306 @@ export function detectPythonUnsafeModelOutputSink(
   return findings;
 }
 
+interface PythonLoopScopePrefix {
+  readonly lines: readonly string[];
+  readonly functionHeader?: string;
+}
+
+function pythonLoopScopePrefix(
+  lines: readonly string[],
+  lineIndex: number,
+  loopIndent: number,
+): PythonLoopScopePrefix {
+  let scopeStart = 0;
+  let functionHeader: string | undefined;
+  for (let index = lineIndex - 1; index >= 0; index -= 1) {
+    const line = lines[index] ?? '';
+    const indentation = line.match(/^\s*/)?.[0].length ?? 0;
+    if (
+      indentation < loopIndent &&
+      /^\s*(?:(?:async\s+)?def|class)\s+[A-Za-z_][A-Za-z0-9_]*\b/.test(line)
+    ) {
+      scopeStart = index;
+      if (/^\s*(?:async\s+)?def\b/.test(line)) functionHeader = line;
+      break;
+    }
+  }
+  return {
+    lines: lines.slice(scopeStart, lineIndex),
+    ...(functionHeader ? { functionHeader } : {}),
+  };
+}
+
+function isPythonFiniteIntegerLiteral(value: string): boolean {
+  return /^(?:0|[1-9][0-9_]*)$/.test(value.trim());
+}
+
+function hasPythonFiniteNumericValue(
+  identifier: string,
+  scopePrefix: PythonLoopScopePrefix,
+): boolean {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const assignmentPattern = new RegExp(
+    `^\\s*${escaped}(?:\\s*:\\s*([^=]+))?\\s*=\\s*(.+?)\\s*$`,
+  );
+  for (let index = scopePrefix.lines.length - 1; index >= 0; index -= 1) {
+    const line = scopePrefix.lines[index] ?? '';
+    const assignment = line.match(assignmentPattern);
+    if (assignment) {
+      const annotation = assignment[1] ?? '';
+      return (
+        !/\b(?:None|Optional)\b/.test(annotation) &&
+        isPythonFiniteIntegerLiteral(assignment[2] ?? '')
+      );
+    }
+  }
+
+  const parameters = scopePrefix.functionHeader?.match(
+    /^\s*(?:async\s+)?def\s+[A-Za-z_][A-Za-z0-9_]*\s*\((.*)\)/,
+  )?.[1];
+  if (parameters === undefined) return false;
+  for (const parameter of splitPythonTopLevel(parameters, ',')) {
+    const defaultValue = parameter.trim().match(
+      new RegExp(`^\\*{0,2}${escaped}\\s*(?::\\s*([^=]+?))?\\s*=\\s*(.+)$`),
+    );
+    if (!defaultValue) continue;
+    const annotation = defaultValue[1] ?? '';
+    return (
+      !/\b(?:None|Optional)\b/.test(annotation) &&
+      isPythonFiniteIntegerLiteral(defaultValue[2] ?? '')
+    );
+  }
+  return false;
+}
+
+function hasPythonCounterProgress(
+  identifier: string,
+  direction: 'increment' | 'decrement',
+  bodyLines: readonly string[],
+): boolean {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const operator = direction === 'increment' ? '\\+' : '-';
+  const augmented = new RegExp(`^${escaped}\\s*${operator}=\\s*[1-9][0-9_]*\\s*$`);
+  const assigned = new RegExp(
+    `^${escaped}\\s*=\\s*${escaped}\\s*${operator}\\s*[1-9][0-9_]*\\s*$`,
+  );
+  const significant = bodyLines.filter((line) => line.trim().length > 0);
+  const topIndent = Math.min(...significant.map(
+    (line) => line.match(/^\s*/)?.[0].length ?? Number.POSITIVE_INFINITY,
+  ));
+  return bodyLines.some((line) => {
+    const indentation = line.match(/^\s*/)?.[0].length ?? 0;
+    if (indentation !== topIndent) return false;
+    const statement = line.trim();
+    return augmented.test(statement) || assigned.test(statement);
+  });
+}
+
+function isPythonMandatoryCounterGuard(
+  condition: string,
+  scopePrefix: PythonLoopScopePrefix,
+  bodyLines: readonly string[],
+): boolean {
+  const normalized = condition.trim().replace(/^\((.*)\)$/, '$1').trim();
+  if (/\b(?:None|and|or)\b/.test(normalized)) return false;
+
+  const increasing = normalized.match(
+    /^([A-Za-z_][A-Za-z0-9_]*)\s*(?:>=|>)\s*([A-Za-z_][A-Za-z0-9_]*|[0-9][0-9_]*)$/,
+  );
+  if (increasing) {
+    const counter = increasing[1] ?? '';
+    const bound = increasing[2] ?? '';
+    return (
+      hasPythonCounterProgress(counter, 'increment', bodyLines) &&
+      (isPythonFiniteIntegerLiteral(bound) ||
+        hasPythonFiniteNumericValue(bound, scopePrefix))
+    );
+  }
+
+  const decreasing = normalized.match(
+    /^([A-Za-z_][A-Za-z0-9_]*)\s*(?:<=|<)\s*([A-Za-z_][A-Za-z0-9_]*|[0-9][0-9_]*)$/,
+  );
+  if (decreasing) {
+    const counter = decreasing[1] ?? '';
+    const bound = decreasing[2] ?? '';
+    return (
+      hasPythonCounterProgress(counter, 'decrement', bodyLines) &&
+      (isPythonFiniteIntegerLiteral(bound) ||
+        hasPythonFiniteNumericValue(bound, scopePrefix))
+    );
+  }
+
+  return false;
+}
+
+function isPythonDeadlineGuard(condition: string): boolean {
+  const normalized = condition.trim().replace(/^\((.*)\)$/, '$1').trim();
+  if (/\b(?:None|and|or)\b/.test(normalized)) return false;
+  const clock =
+    String.raw`(?:time\.(?:monotonic|perf_counter|time)\(\)|datetime(?:\.datetime)?\.now\(\)|[A-Za-z_][A-Za-z0-9_]*\.time\(\))`;
+  const deadline = String.raw`[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*`;
+  return (
+    new RegExp(`^${clock}\\s*(?:>=|>)\\s*${deadline}$`).test(normalized) ||
+    new RegExp(`^${deadline}\\s*(?:<=|<)\\s*${clock}$`).test(normalized)
+  );
+}
+
+function isPythonCancellationGuard(condition: string): boolean {
+  const normalized = condition.trim().replace(/^\((.*)\)$/, '$1').trim();
+  if (/\b(?:None|and|or)\b/.test(normalized)) return false;
+  return (
+    /^(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:is_set|is_cancelled|is_canceled|cancelled|canceled)\(\)$/.test(
+      normalized,
+    ) ||
+    /^(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:cancelled|canceled|cancel_requested|cancellation_requested)$/.test(
+      normalized,
+    )
+  );
+}
+
+function isPythonMandatoryLoopExitGuard(
+  condition: string,
+  scopePrefix: PythonLoopScopePrefix,
+  bodyLines: readonly string[],
+): boolean {
+  return (
+    isPythonMandatoryCounterGuard(condition, scopePrefix, bodyLines) ||
+    isPythonDeadlineGuard(condition) ||
+    isPythonCancellationGuard(condition)
+  );
+}
+
+function pythonAbstractModelLoopCallIndices(contents: string): ReadonlySet<number> {
+  const masked = maskPythonNonCode(contents);
+  const lines = masked.split('\n');
+  const offsets: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    offsets.push(offset);
+    offset += line.length + 1;
+  }
+  const indices = new Set<number>();
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex] ?? '';
+    const classHeader = line.match(
+      /^(\s*)class\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\b(?:ABC|Protocol)\b[^)]*\)\s*:/,
+    );
+    if (!classHeader) continue;
+    const classIndent = classHeader[1]?.length ?? 0;
+    let bodyEnd = lineIndex + 1;
+    for (; bodyEnd < lines.length; bodyEnd += 1) {
+      const candidate = lines[bodyEnd] ?? '';
+      if (candidate.trim().length === 0) continue;
+      const indentation = candidate.match(/^\s*/)?.[0].length ?? 0;
+      if (indentation <= classIndent) break;
+    }
+    const bodyStartOffset = offsets[lineIndex + 1] ?? masked.length;
+    const body = lines.slice(lineIndex + 1, bodyEnd).join('\n');
+    if (
+      !/@abstractmethod\s*\n\s*(?:async\s+)?def\s+a?invoke(?:_stream)?\s*\(/.test(
+        body,
+      )
+    ) {
+      continue;
+    }
+    for (const match of body.matchAll(
+      /\b(?:self|cls)\.(?:_?a?process_model_response|a?process_response_stream)\s*\(/g,
+    )) {
+      if (match.index !== undefined) indices.add(bodyStartOffset + match.index);
+    }
+  }
+  return indices;
+}
+
+function pythonAgentLoopCallIndices(contents: string): ReadonlySet<number> {
+  return new Set([
+    ...supportedPythonModelCallIndices(contents),
+    ...pythonAbstractModelLoopCallIndices(contents),
+  ]);
+}
+
+function detectPythonUnsetModelToolLimit(
+  file: LlmSourceFile,
+): readonly CejelLlmFinding[] {
+  const masked = maskPythonNonCode(file.contents);
+  if (
+    !/(?:^|\n)\s*from\s+[A-Za-z0-9_.]*models[A-Za-z0-9_.]*\s+import\s+[^\n]*\bModel\b/.test(
+      masked,
+    )
+  ) {
+    return [];
+  }
+
+  const findings: CejelLlmFinding[] = [];
+  const lines = masked.split('\n');
+  const offsets: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    offsets.push(offset);
+    offset += line.length + 1;
+  }
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex] ?? '';
+    const classHeader = line.match(/^(\s*)class\s+[A-Za-z_][A-Za-z0-9_]*\b[^:]*:\s*$/);
+    if (!classHeader) continue;
+    const classIndent = classHeader[1]?.length ?? 0;
+    const body: { readonly line: string; readonly index: number }[] = [];
+    for (let bodyIndex = lineIndex + 1; bodyIndex < lines.length; bodyIndex += 1) {
+      const candidate = lines[bodyIndex] ?? '';
+      if (candidate.trim().length === 0) {
+        body.push({ line: candidate, index: bodyIndex });
+        continue;
+      }
+      const indentation = candidate.match(/^\s*/)?.[0].length ?? 0;
+      if (indentation <= classIndent) break;
+      body.push({ line: candidate, index: bodyIndex });
+    }
+
+    const hasModel = body.some(({ line: candidate }) =>
+      /^\s*model\s*:\s*[^=]*\bModel\b/.test(candidate),
+    );
+    const hasTools = body.some(({ line: candidate }) =>
+      /^\s*tools\s*:\s*/.test(candidate),
+    );
+    const unsetLimit = body.find(({ line: candidate }) => {
+      const declaration = candidate.match(
+        /^\s*(?:tool_call_limit|max_tool_calls)\s*:\s*(.+?)\s*=\s*None\s*$/,
+      );
+      const annotation = declaration?.[1] ?? '';
+      return (
+        /\bOptional\s*\[\s*int\s*\]/.test(annotation) ||
+        /\bint\s*\|\s*None\b/.test(annotation) ||
+        /\bNone\s*\|\s*int\b/.test(annotation)
+      );
+    });
+    if (!hasModel || !hasTools || !unsetLimit) continue;
+
+    const limitOffset = offsets[unsetLimit.index] ?? 0;
+    const declarationOffset = unsetLimit.line.search(/\b(?:tool_call_limit|max_tool_calls)\b/);
+    findings.push(
+      pythonFinding(
+        'LLM-AGY-002',
+        file,
+        limitOffset + Math.max(0, declarationOffset),
+        'warning',
+        'medium',
+        'A model-facing agent/tool class leaves its per-run tool-call limit unset by default.',
+        'Unset tool-call limit on model-facing Python agent',
+      ),
+    );
+  }
+  return findings;
+}
+
 export function detectPythonUnboundedAgentLoop(
   file: LlmSourceFile,
 ): readonly CejelLlmFinding[] {
-  if (!hasSupportedPythonLlmIntegration(file)) return [];
-  const findings: CejelLlmFinding[] = [];
+  if (isExcludedSourcePath(file.path)) return [];
+  const findings: CejelLlmFinding[] = [...detectPythonUnsetModelToolLimit(file)];
   const lines = maskPythonNonCode(file.contents).split('\n');
-  const supportedCalls = supportedPythonModelCallIndices(file.contents);
+  const supportedCalls = pythonAgentLoopCallIndices(file.contents);
+  if (supportedCalls.size === 0) return findings;
   let offset = 0;
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -396,10 +689,14 @@ export function detectPythonUnboundedAgentLoop(
     const topIndent = Math.min(...significant.map(
       (candidate) => candidate.match(/^\s*/)?.[0].length ?? Number.POSITIVE_INFINITY,
     ));
+    const scopePrefix = pythonLoopScopePrefix(lines, lineIndex, loopIndent);
     const hasObservableExit = bodyLines.some((candidate, candidateIndex) => {
       const indent = candidate.match(/^\s*/)?.[0].length ?? 0;
       const guard = candidate.trim().match(/^if\b(.+):\s*(.*)$/);
       if (indent !== topIndent || !guard) return false;
+      if (!isPythonMandatoryLoopExitGuard(guard[1] ?? '', scopePrefix, bodyLines)) {
+        return false;
+      }
       if (/^(?:break|return|raise)\b/.test(guard[2] ?? '')) return true;
       const next = bodyLines.slice(candidateIndex + 1).find((item) => item.trim().length > 0);
       if (!next) return false;
@@ -535,7 +832,7 @@ export const CEJEL_LLM_PYTHON_RULES: readonly LlmRuleDefinition[] = [
     title: 'Unbounded Python agent loop',
     detectorConfidence: 'medium',
     evidenceContract:
-      'A literal while True loop has a complete local indentation-delimited body containing an official OpenAI or Anthropic Python SDK model call and no observable conditional counter, deadline, cancellation, budget, return, raise, or break guard.',
+      'A literal while True loop has a complete local indentation-delimited body containing an official SDK call or an abstract model-base response call and no observable mandatory finite counter, deadline, cancellation, or budget exit guard; alternatively, one model-facing agent class declares both tools and an explicitly unset per-run tool-call limit.',
     exclusions: [
       'Runtime bounds or cancellation enforced outside the source file',
       'Framework-specific iteration controls not visible in loop syntax',

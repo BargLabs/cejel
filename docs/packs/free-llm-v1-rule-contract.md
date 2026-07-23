@@ -179,6 +179,11 @@ deadline/timeout, cancellation condition, or budget enforced outside the model.
 explicit loop containing an LLM/tool call; and no application-enforced terminating bound on all
 paths. Evidence points to the loop or agent invocation.
 
+The bounded Python implementation may establish the model-call surface from an official SDK call,
+from a same-class abstract model response helper, or from an explicitly unset tool-call limit on a
+class that declares both a model and tools. It does not borrow an abstract model surface across
+classes or infer a provider-neutral framework solely from names.
+
 **Recognized controls.** A finite numeric step/iteration limit; an enforced deadline or abort
 signal; or an application-side budget whose exhaustion exits before another model/tool call. A
 prompt asking the model to stop and a break dependent only on model output do not qualify.

@@ -5,6 +5,7 @@ import type {
 } from './types.js';
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
 import { maskJavaScriptNonCode } from './lexical.js';
+import { registeredToolParameterSideEffects } from './action-rules.js';
 
 export interface LlmSourceFile {
   readonly path: string;
@@ -314,6 +315,20 @@ function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
     }
     offset += line.length + 1;
   }
+  for (const sideEffect of registeredToolParameterSideEffects(file)) {
+    if (!sideEffect.executesModelInput) continue;
+    findings.push(
+      finding(
+        'LLM-IOH-001',
+        file,
+        sideEffect.sideEffectIndex,
+        'critical',
+        'A locally registered model-facing tool passes handler input to an import-resolved execution sink without an observable fail-closed authority guard.',
+        'Registered tool input reaches an import-resolved execution sink',
+        'high',
+      ),
+    );
+  }
   return findings;
 }
 
@@ -496,13 +511,15 @@ export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [
     title: 'Model output passed to a consequential sink',
     detectorConfidence: 'high',
     evidenceContract:
-      'A supported model-output expression, or an identifier whose latest assignment in the visible lexical scope is directly from one, appears on the same line as a supported sink; process sinks additionally require a recognized local import or require binding. A local helper is also supported when one of its parameters is observably interpolated into an executable template or passed to dynamic evaluation.',
+      'A supported model-output expression, or an identifier whose latest assignment in the visible lexical scope is directly from one, appears on the same line as a supported sink; process sinks additionally require a recognized local import or require binding. A local helper is also supported when one of its parameters is observably interpolated into an executable template or passed to dynamic evaluation. Imported model-facing member-tool handlers are supported when their input parameter or bounded alias reaches an import-resolved execution sink directly, through one unique helper, or by writing an executed local artifact.',
     exclusions: [
       'Inter-procedural data flow',
       'Identifiers transformed, reassigned, or referenced outside their observable lexical scope',
       'Method calls named exec without recognized child_process or execa import evidence, including RegExp.prototype.exec',
       'Sinks other than the enumerated dynamic-evaluation, shell, and raw-HTML forms',
       'Executable helpers whose model-output argument is not observable in the same source file',
+      'Registered handlers whose model-facing input does not reach an execution sink',
+      'Registered-tool helpers deeper than one locally resolved call',
     ],
     applies: hasUnsafeSinkSurface,
     detect: detectUnsafeSink,
