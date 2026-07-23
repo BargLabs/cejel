@@ -39,6 +39,49 @@ describe('bounded golden corrections', () => {
     expect(hasSupportedJavaScriptModelCall(file.contents)).toBe(true);
   });
 
+  it.each([
+    [
+      'missing authentication',
+      [
+        "fetch('https://provider.example/v1/chat/completions', {",
+        "  method: 'POST',",
+        '  body: JSON.stringify({ model, messages }),',
+        '});',
+      ],
+    ],
+    [
+      'unrelated endpoint',
+      [
+        "fetch('https://provider.example/v1/files', {",
+        "  method: 'POST',",
+        '  headers: { Authorization: `Bearer ${key}` },',
+        '  body: JSON.stringify({ model, messages }),',
+        '});',
+      ],
+    ],
+    [
+      'missing model input shape',
+      [
+        "fetch('https://provider.example/v1/chat/completions', {",
+        "  method: 'POST',",
+        '  headers: { Authorization: `Bearer ${key}` },',
+        '  body: JSON.stringify({ payload }),',
+        '});',
+      ],
+    ],
+    [
+      'non-POST request',
+      [
+        "fetch('https://provider.example/v1/chat/completions', {",
+        '  headers: { Authorization: `Bearer ${key}` },',
+        '  body: JSON.stringify({ model, messages }),',
+        '});',
+      ],
+    ],
+  ] as const)('abstains from a REST lookalike with %s', (_reason, lines) => {
+    expect(hasSupportedJavaScriptModelCall(lines.join('\n'))).toBe(false);
+  });
+
   it('detects a discrete evaluation emitted after a local REST model helper call', () => {
     const file = source([
       "import { writeFileSync } from 'node:fs';",
