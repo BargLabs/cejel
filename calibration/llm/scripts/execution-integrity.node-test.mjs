@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -22,6 +22,21 @@ test('committed runtime no-egress probe denies network and process escape paths'
   assert.deepEqual(JSON.parse(result.stdout), {
     policy: 'node-runtime-deny-hook-v1', denied: 5, attempted: 5,
   });
+});
+
+test('trusted workflow generates parity from the dedicated pack-free fixture', () => {
+  const workflow = readFileSync(
+    new URL('../../../.github/workflows/llm-calibration.yml', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    workflow,
+    /\$GITHUB_WORKSPACE\/calibration\/llm\/fixtures\/free-core-parity/,
+  );
+  assert.doesNotMatch(
+    workflow,
+    /\$GITHUB_WORKSPACE\/src\/packs\/llm\/__tests__\/fixtures/,
+  );
 });
 
 test('execution bundle derives canonical receipt and report bindings from raw output', () => {

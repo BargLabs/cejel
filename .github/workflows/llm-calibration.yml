@@ -88,7 +88,7 @@ jobs:
           node calibration/llm/scripts/verify-free-core-parity.mjs \
             "$RUNNER_TEMP/free-core-baseline/dist/index.js" "$BASELINE_COMMIT" \
             "$GITHUB_WORKSPACE/dist/index.js" "$GITHUB_SHA" \
-            "$GITHUB_WORKSPACE/src/packs/llm/__tests__/fixtures" \
+            "$GITHUB_WORKSPACE/calibration/llm/fixtures/free-core-parity" \
             "$RUNNER_TEMP/free-core-parity.json"
       - name: Execute frozen cohort under the hash-bound no-egress wrapper
         env:
