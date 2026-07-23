@@ -21,7 +21,13 @@ export type {
 } from './artifact.js';
 export { renderCejelLlmPackHtml, renderCejelLlmPackTerminal } from './render.js';
 export { listCejelLlmPackFiles } from './files.js';
-export { CEJEL_LLM_V1_RULES } from './rules.js';
+export {
+  CEJEL_LLM_V1_RULES,
+  javaScriptExecutableHelperParameterSinks,
+  type JavaScriptExecutableHelperParameterSink,
+} from './rules.js';
+export { detectBoundedEvaluationResultProvenance } from './evaluation-rules.js';
+export { detectPythonConfiguredSelfJudge } from './python-evaluation-rules.js';
 export {
   CEJEL_LLM_PACK_ID,
   CEJEL_LLM_PACK_VERSION,

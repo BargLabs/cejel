@@ -156,10 +156,17 @@ export function collectCejelLlmPack(
   const actionSurfaceFiles = sourceFiles.filter((file) =>
     CEJEL_LLM_ACTION_RULES.some((rule) => rule.applies(file)),
   );
+  const evaluationSurfaceFiles = sourceFiles.filter((file) =>
+    CEJEL_LLM_EVALUATION_RULES.some((rule) => rule.applies([file])),
+  );
+  const hasEvaluationSurface = CEJEL_LLM_EVALUATION_RULES.some((rule) =>
+    rule.applies(sourceFiles),
+  );
   const applicable =
     javascriptLlmFiles.length > 0 ||
     pythonLlmFiles.length > 0 ||
-    actionSurfaceFiles.length > 0;
+    actionSurfaceFiles.length > 0 ||
+    hasEvaluationSurface;
   const findings = applicable
     ? [
         ...javascriptLlmFiles.flatMap((file) =>
@@ -174,10 +181,10 @@ export function collectCejelLlmPack(
         ...pythonLlmFiles.flatMap((file) =>
           CEJEL_LLM_PYTHON_RULES.flatMap((rule) => rule.detect(file)),
         ),
-        // Inspect every supported JS/TS file, but evaluation rules require their own recognized
-        // model invocation before a local result emission. Repository-level applicability alone is
-        // never evidence that an unrelated metrics writer is an LLM evaluation.
-        ...detectCejelLlmEvaluationRules(javascriptSourceFiles),
+        // Evaluation rules inspect all supported sources and enforce their own bounded,
+        // language-specific evidence contracts. Repository-level applicability alone is never
+        // evidence that an unrelated metrics writer is an LLM evaluation.
+        ...detectCejelLlmEvaluationRules(sourceFiles),
       ]
     : [];
   const ruleResults: CejelLlmRuleResult[] = CEJEL_LLM_ENABLED_RULE_IDS.map((ruleId) => {
@@ -212,7 +219,7 @@ export function collectCejelLlmPack(
         sourceFiles.some((file) => rule.applies(file)),
       ) ||
       CEJEL_LLM_EVALUATION_RULES.filter((rule) => rule.id === ruleId).some((rule) =>
-        rule.applies(javascriptSourceFiles),
+        rule.applies(sourceFiles),
       );
     if (!ruleApplicable) {
       return {
@@ -236,9 +243,11 @@ export function collectCejelLlmPack(
     ...javascriptLlmFiles.map((file) => file.path),
     ...pythonLlmFiles.map((file) => file.path),
     ...actionSurfaceFiles.map((file) => file.path),
+    ...evaluationSurfaceFiles.map((file) => file.path),
   ]);
   const integrationSet = new Set(integrations);
   if (actionSurfaceFiles.length > 0) integrationSet.add('Model-facing tool registration');
+  if (hasEvaluationSurface) integrationSet.add('Declared LLM evaluation surface');
 
   return CejelLlmPackResultSchema.parse({
     packId: CEJEL_LLM_PACK_ID,
@@ -258,14 +267,14 @@ export function collectCejelLlmPack(
       limitations: [
         'Alpha coverage is limited to fixture-backed JavaScript, TypeScript, and Python source patterns in files up to 1 MB.',
         'Rules use bounded, observable source patterns and do not claim whole-program data-flow analysis.',
-        'Action-governance and evaluation-hygiene rules currently require complete local JavaScript or TypeScript paths.',
+        'Action-governance and evaluation-hygiene rules require one of the explicitly supported complete local JavaScript, TypeScript, or Python evidence paths.',
         'No model-quality, factuality, prompt-injection-resistance, or general hallucination rate is measured.',
       ],
     },
     notes:
       applicable
         ? 'Static LLM application-integrity alpha; findings require calibration before public release.'
-        : 'No supported LLM call path was detected; LLM controls were not scored.',
+        : 'No supported LLM application surface was detected; LLM controls were not scored.',
   });
 }
 

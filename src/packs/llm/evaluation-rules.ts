@@ -2,6 +2,7 @@ import { isAbsolute } from 'node:path';
 
 import { hasUnmaskedJavaScriptMatch, maskJavaScriptNonCode } from './lexical.js';
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
+import { detectPythonConfiguredSelfJudge } from './python-evaluation-rules.js';
 import type { LlmSourceFile } from './rules.js';
 import type {
   CejelLlmConfidence,
@@ -93,6 +94,13 @@ const DENOMINATOR_KEYS = new Set([
 ]);
 const OUTCOME_COUNT_PATTERN =
   /^(?:error|errors|refusal|refusals|abstention|abstentions|excluded|exclusions|excludedCount)$/i;
+const DISCRETE_CASE_KEY_PATTERN =
+  /^(?:case|caseId|scenario|sample|sampleId|run|runId|input|expected|expectedOutput)$/i;
+const DISCRETE_OUTCOME_KEY_PATTERN =
+  /^(?:ok|passed|success|successful|correct|score|verdict|result|actualOutput|output|latency|duration|error|failedPairs)$/i;
+const CASE_COLLECTION_KEY_PATTERN = /^(?:cases|rows|samples|caseResults|results)$/i;
+const CASE_RESULT_KEY_PATTERN =
+  /^(?:status|actualOutput|output|score|verdict|correct|success|error|latency|metrics)$/i;
 function hasIndependentAcceptanceSignal(file: LlmSourceFile): boolean {
   const masked = maskJavaScriptNonCode(file.contents);
   const emissions = localEmissions(file);
@@ -176,6 +184,152 @@ function objectProperties(objectBody: string): ReadonlySet<string> {
     if (property) properties.add(property);
   }
   return properties;
+}
+
+interface BoundObject {
+  readonly name: string;
+  readonly index: number;
+  readonly end: number;
+  readonly properties: ReadonlySet<string>;
+}
+
+function boundObjectLiterals(contents: string): readonly BoundObject[] {
+  const objects: BoundObject[] = [];
+  const masked = maskJavaScriptNonCode(contents);
+  for (const match of contents.matchAll(
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g,
+  )) {
+    if ((masked[match.index] ?? ' ') === ' ') continue;
+    const name = match[1];
+    if (!name) continue;
+    const start = contents.indexOf('{', match.index);
+    const end = matchingDelimiter(contents, start, '{', '}');
+    if (end < 0) continue;
+    objects.push({
+      name,
+      index: match.index,
+      end,
+      properties: objectProperties(contents.slice(start + 1, end)),
+    });
+  }
+  return objects;
+}
+
+function hasResolvedIdentifierEmissionOrReturn(
+  contents: string,
+  identifier: string,
+  afterIndex: number,
+): boolean {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const tail = maskJavaScriptNonCode(contents.slice(afterIndex));
+  const serializedEmission = new RegExp(
+    `\\b(?:writeFileSync|appendFileSync|Bun\\.write|console\\.(?:log|info))\\s*\\([\\s\\S]{0,500}?JSON\\.stringify\\s*\\(\\s*${escaped}\\b`,
+  );
+  const returned = new RegExp(`\\breturn\\s+${escaped}\\s*;`).test(tail);
+  return serializedEmission.test(tail) || returned;
+}
+
+function assignedProperties(contents: string, identifier: string): ReadonlySet<string> {
+  const properties = new Set<string>();
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const masked = maskJavaScriptNonCode(contents);
+  const pattern = new RegExp(`\\b${escaped}\\.([A-Za-z_$][\\w$]*)\\s*=`, 'g');
+  for (const match of masked.matchAll(pattern)) {
+    if (match[1]) properties.add(match[1]);
+  }
+  return properties;
+}
+
+/**
+ * Covers two complete, local evaluation-result forms that do not compute an aggregate:
+ * an identifier-bound discrete result that is emitted or returned, and an incrementally built
+ * per-case result collection that is returned. It intentionally requires model/case/outcome
+ * structure or explicit per-case lineage and never infers provenance from an arbitrary object.
+ */
+export function detectBoundedEvaluationResultProvenance(
+  files: readonly LlmSourceFile[],
+): readonly CejelLlmEvaluationFinding[] {
+  const findings: CejelLlmEvaluationFinding[] = [];
+  for (const file of files) {
+    if (!completeLocalSource(file)) continue;
+    const objects = boundObjectLiterals(file.contents);
+    let found = false;
+
+    for (const object of objects) {
+      if (!hasResolvedIdentifierEmissionOrReturn(file.contents, object.name, object.end)) continue;
+      const hasModel = hasAny(object.properties, LINEAGE_MODEL_KEYS);
+      const hasCase = [...object.properties].some((property) =>
+        DISCRETE_CASE_KEY_PATTERN.test(property),
+      );
+      const outcomeCount = [...object.properties].filter((property) =>
+        DISCRETE_OUTCOME_KEY_PATTERN.test(property),
+      ).length;
+      const hasConfiguration = hasAny(object.properties, LINEAGE_CONFIG_KEYS);
+      if (!hasModel || !hasCase || outcomeCount < 2 || hasConfiguration) continue;
+      findings.push(
+        finding(
+          'LLM-PRV-001',
+          file,
+          object.index,
+          'info',
+          'A locally emitted discrete LLM evaluation result does not retain prompt/policy evaluation-configuration lineage.',
+          'Discrete evaluation result emitted without reproducible configuration provenance',
+        ),
+      );
+      found = true;
+      break;
+    }
+    if (found) continue;
+
+    for (const root of objects) {
+      const rootProperties = assignedProperties(file.contents, root.name);
+      const hasEvaluationIdentity = [...rootProperties].some((property) =>
+        /^(?:evaluationId|evaluationRunId|runId|datasetId)$/i.test(property),
+      );
+      if (!hasEvaluationIdentity) continue;
+      const collection = [...rootProperties].find((property) =>
+        CASE_COLLECTION_KEY_PATTERN.test(property),
+      );
+      if (!collection) continue;
+      const escapedRoot = root.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedCollection = collection.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (!new RegExp(`\\b${escapedRoot}\\.${escapedCollection}\\s*=\\s*\\[\\s*\\]`).test(
+        maskJavaScriptNonCode(file.contents),
+      )) continue;
+      if (!hasResolvedIdentifierEmissionOrReturn(file.contents, root.name, root.end)) continue;
+
+      const perCase = objects.find((candidate) => {
+        if (candidate.index <= root.index) return false;
+        const properties = assignedProperties(file.contents, candidate.name);
+        const resultPropertyCount = [...properties].filter((property) =>
+          CASE_RESULT_KEY_PATTERN.test(property),
+        ).length;
+        if (resultPropertyCount < 3) return false;
+        const escapedCase = candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(
+          `\\b${escapedRoot}\\.${escapedCollection}(?:\\[[^\\]]+\\])?(?:\\.[A-Za-z_$][\\w$]*)?\\.push\\s*\\(\\s*${escapedCase}\\s*\\)`,
+        ).test(maskJavaScriptNonCode(file.contents));
+      });
+      if (!perCase) continue;
+      const allProperties = new Set([
+        ...rootProperties,
+        ...assignedProperties(file.contents, perCase.name),
+      ]);
+      if (hasAny(allProperties, LINEAGE_CONFIG_KEYS)) continue;
+      findings.push(
+        finding(
+          'LLM-PRV-001',
+          file,
+          root.index,
+          'info',
+          'A locally returned per-case LLM evaluation result does not retain prompt/policy evaluation-configuration lineage.',
+          'Per-case evaluation results returned without reproducible configuration provenance',
+        ),
+      );
+      break;
+    }
+  }
+  return findings;
 }
 
 function directObjectEmission(contents: string, emitterIndex: number): LocalEmission | null {
@@ -266,6 +420,19 @@ function detectMissingProvenance(
     }
   }
   return findings;
+}
+
+function detectMissingProvenanceIncludingBoundedResults(
+  files: readonly LlmSourceFile[],
+): readonly CejelLlmEvaluationFinding[] {
+  const aggregateFindings = detectMissingProvenance(files);
+  const aggregatePaths = new Set(aggregateFindings.map((item) => item.evidence.path));
+  return [
+    ...aggregateFindings,
+    ...detectBoundedEvaluationResultProvenance(files).filter(
+      (item) => !aggregatePaths.has(item.evidence.path),
+    ),
+  ];
 }
 
 function aggregateAssignmentsIn(contents: string): ReadonlyMap<string, AggregateAssignment> {
@@ -431,6 +598,15 @@ function detectSoleSelfJudge(
   return findings;
 }
 
+function detectSoleSelfJudgeAcrossLanguages(
+  files: readonly LlmSourceFile[],
+): readonly CejelLlmEvaluationFinding[] {
+  return [
+    ...detectSoleSelfJudge(files),
+    ...files.flatMap((file) => detectPythonConfiguredSelfJudge(file)),
+  ];
+}
+
 function hasAggregateEvaluationSurface(files: readonly LlmSourceFile[]): boolean {
   return files.some((file) => {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) return false;
@@ -445,6 +621,13 @@ function hasAggregateEvaluationSurface(files: readonly LlmSourceFile[]): boolean
   });
 }
 
+function hasProvenanceEvaluationSurface(files: readonly LlmSourceFile[]): boolean {
+  return (
+    hasAggregateEvaluationSurface(files) ||
+    detectBoundedEvaluationResultProvenance(files).length > 0
+  );
+}
+
 function hasModelJudgeSurface(files: readonly LlmSourceFile[]): boolean {
   return files.some((file) => {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) return false;
@@ -454,7 +637,7 @@ function hasModelJudgeSurface(files: readonly LlmSourceFile[]): boolean {
       invocations.some((invocation) => !invocation.judge) &&
       localEmissions(file).length > 0
     );
-  });
+  }) || files.some((file) => detectPythonConfiguredSelfJudge(file).length > 0);
 }
 
 export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] = [
@@ -463,14 +646,15 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
     title: 'Declared evaluation lacks reproducible system provenance',
     detectorConfidence: 'high',
     evidenceContract:
-      'A complete local aggregate-to-result-emitter path is visible, while the emitted object lacks model or prompt/policy evaluation-configuration lineage.',
+      'A complete local evaluation result is emitted or returned while lacking model or prompt/policy evaluation-configuration lineage. Supported forms are aggregate-to-emitter paths, identifier-bound discrete results with model/case/outcome fields, and incrementally built per-case collections with an evaluation identity and resolved return.',
     exclusions: [
       'External or dynamically assembled result reporters',
-      'Exploratory code without a locally emitted aggregate',
+      'Exploratory code without a locally emitted or returned evaluation result',
+      'Generic returned objects and model metadata without declared case/outcome semantics',
       'Tests, examples, fixtures, documentation, generated code, and unresolved paths',
     ],
-    applies: hasAggregateEvaluationSurface,
-    detect: detectMissingProvenance,
+    applies: hasProvenanceEvaluationSurface,
+    detect: detectMissingProvenanceIncludingBoundedResults,
   },
   {
     id: 'LLM-EVL-001',
@@ -498,7 +682,7 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
       'Tests, examples, fixtures, documentation, generated code, and unresolved paths',
     ],
     applies: hasModelJudgeSurface,
-    detect: detectSoleSelfJudge,
+    detect: detectSoleSelfJudgeAcrossLanguages,
   },
 ];
 

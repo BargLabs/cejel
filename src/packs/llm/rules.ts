@@ -32,6 +32,12 @@ interface DangerousSink {
   readonly severity: CejelLlmFinding['severity'];
 }
 
+export interface JavaScriptExecutableHelperParameterSink {
+  readonly functionName: string;
+  readonly parameterName: string;
+  readonly index: number;
+}
+
 const BASE_DANGEROUS_SINKS: readonly DangerousSink[] = [
   {
     name: 'dynamic evaluation',
@@ -109,6 +115,77 @@ function importedProcessSinks(contents: string, maskedContents: string): readonl
       }];
 }
 
+/**
+ * Finds local helpers whose parameter is interpolated into an executable template or is passed
+ * directly to dynamic evaluation. The result is structural evidence only: callers must still
+ * establish that observable model output reaches the named helper.
+ */
+export function javaScriptExecutableHelperParameterSinks(
+  file: LlmSourceFile,
+): readonly JavaScriptExecutableHelperParameterSink[] {
+  if (isExcludedSourcePath(file.path)) return [];
+  const sinks: JavaScriptExecutableHelperParameterSink[] = [];
+  const masked = maskJavaScriptNonCode(file.contents);
+  const declaration =
+    /(?:\bexport\s+)?\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g;
+
+  for (const match of file.contents.matchAll(declaration)) {
+    if ((masked[match.index] ?? ' ') === ' ') continue;
+    const functionName = match[1];
+    if (!functionName) continue;
+    const openBrace = file.contents.indexOf('{', match.index);
+    const end = matchingDelimiterEnd(file.contents, openBrace, '{', '}');
+    if (end === null) continue;
+    const body = file.contents.slice(openBrace + 1, end - 1);
+    const parameters = (match[2] ?? '')
+      .split(',')
+      .map((parameter) => parameter.trim().match(/^([A-Za-z_$][\w$]*)/)?.[1])
+      .filter((parameter): parameter is string => Boolean(parameter));
+
+    for (const parameterName of parameters) {
+      const escaped = escapeRegExp(parameterName);
+      const directDynamicEvaluation = new RegExp(
+        `(?:eval|Function)\\s*\\([^)]*\\b${escaped}\\b|\\(\\s*0\\s*,\\s*eval\\s*\\)\\s*\\([^)]*\\b${escaped}\\b`,
+      ).test(body);
+      const executableTemplate = [...body.matchAll(/`(?:\\[\s\S]|\$\{[\s\S]*?\}|[^`])*`/g)]
+        .some((template) => {
+          const text = template[0];
+          const tainted = new Set<string>();
+          const assignments = [...text.matchAll(
+            /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([\s\S]*?);/g,
+          )];
+          for (const assignment of assignments) {
+            const name = assignment[1];
+            const expression = assignment[2];
+            if (
+              name &&
+              expression &&
+              new RegExp(`\\$\\{[^}]{0,160}\\b${escaped}\\b[^}]*\\}`).test(expression)
+            ) {
+              tainted.add(name);
+            }
+          }
+          for (let pass = 0; pass < assignments.length; pass += 1) {
+            for (const assignment of assignments) {
+              const name = assignment[1];
+              const expression = assignment[2];
+              if (name && expression && containsIdentifier(expression, tainted)) {
+                tainted.add(name);
+              }
+            }
+          }
+          if (tainted.size === 0) return false;
+          return [...text.matchAll(
+            /(?:(?:eval|Function)\s*|\(\s*0\s*,\s*eval\s*\)\s*)\(([\s\S]{0,500}?);/g,
+          )].some((evaluation) => containsIdentifier(evaluation[1] ?? '', tainted));
+        });
+      if (!directDynamicEvaluation && !executableTemplate) continue;
+      sinks.push({ functionName, parameterName, index: match.index });
+    }
+  }
+  return sinks;
+}
+
 const SENSITIVE_ENV_PATTERN =
   /process\.env\.(?:[A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|PRIVATE_KEY|DATABASE_URL|ACCESS_TOKEN|REFRESH_TOKEN|AUTH_TOKEN|SESSION_TOKEN)[A-Z0-9_]*)\b/;
 const UNBOUNDED_LOOP_PATTERN = /\bwhile\s*\(\s*true\s*\)|\bfor\s*\(\s*;\s*;\s*\)/g;
@@ -182,6 +259,13 @@ function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
   const dangerousSinks = [
     ...BASE_DANGEROUS_SINKS,
     ...importedProcessSinks(file.contents, maskedContents),
+    ...javaScriptExecutableHelperParameterSinks(file).map(
+      (helper): DangerousSink => ({
+        name: `local executable helper ${helper.functionName}`,
+        pattern: new RegExp(`\\b${escapeRegExp(helper.functionName)}\\s*\\(`),
+        severity: 'critical',
+      }),
+    ),
   ];
   const findings: CejelLlmFinding[] = [];
   const supportedCallIndices = supportedJavaScriptModelCallIndices(file.contents);
@@ -411,12 +495,13 @@ export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [
     title: 'Model output passed to a consequential sink',
     detectorConfidence: 'high',
     evidenceContract:
-      'A supported model-output expression, or an identifier whose latest assignment in the visible lexical scope is directly from one, appears on the same line as a supported sink; process sinks additionally require a recognized local import or require binding.',
+      'A supported model-output expression, or an identifier whose latest assignment in the visible lexical scope is directly from one, appears on the same line as a supported sink; process sinks additionally require a recognized local import or require binding. A local helper is also supported when one of its parameters is observably interpolated into an executable template or passed to dynamic evaluation.',
     exclusions: [
       'Inter-procedural data flow',
       'Identifiers transformed, reassigned, or referenced outside their observable lexical scope',
       'Method calls named exec without recognized child_process or execa import evidence, including RegExp.prototype.exec',
       'Sinks other than the enumerated dynamic-evaluation, shell, and raw-HTML forms',
+      'Executable helpers whose model-output argument is not observable in the same source file',
     ],
     applies: hasUnsafeSinkSurface,
     detect: detectUnsafeSink,
