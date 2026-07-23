@@ -4,7 +4,7 @@
   "title": "Cejel Free LLM independent label record",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "label_id", "cohort", "repository", "rule", "opportunity_id", "label", "evidence", "review", "created_at"],
+  "required": ["schema_version", "protocol_id", "label_id", "cohort", "repository", "rule", "opportunity_id", "detector_finding_id", "label", "evidence", "review", "created_at"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
@@ -58,17 +58,22 @@
       "required": ["labeler_id", "role", "independent_of_rule_author", "detector_output_visible", "adjudication_status"],
       "properties": {
         "labeler_id": {"type": "string", "minLength": 3},
-        "role": {"enum": ["primary_labeler", "independent_reviewer", "adjudicator"]},
-        "independent_of_rule_author": {"type": "boolean"},
+        "role": {"enum": ["primary_labeler", "independent_reviewer", "adjudicator", "finding_reviewer"]},
+        "independent_of_rule_author": {"const": true},
         "detector_output_visible": {"type": "boolean"},
         "adjudication_status": {"enum": ["not_required", "pending", "adjudicated"]},
         "supersedes_label_ids": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^llm-label-[a-z0-9-]{8,80}$"}},
         "rationale": {"type": "string", "minLength": 20}
       },
       "allOf": [
-        {"if": {"properties": {"role": {"const": "adjudicator"}}}, "then": {"required": ["supersedes_label_ids", "rationale"]}}
+        {"if": {"properties": {"role": {"enum": ["primary_labeler", "independent_reviewer"]}}}, "then": {"properties": {"detector_output_visible": {"const": false}}}},
+        {"if": {"properties": {"role": {"const": "adjudicator"}}}, "then": {"required": ["supersedes_label_ids", "rationale"], "properties": {"detector_output_visible": {"const": false}, "adjudication_status": {"const": "adjudicated"}}}},
+        {"if": {"properties": {"role": {"const": "finding_reviewer"}}}, "then": {"properties": {"detector_output_visible": {"const": true}, "adjudication_status": {"const": "not_required"}}}}
       ]
     },
     "created_at": {"type": "string", "format": "date-time"}
-  }
+  },
+  "allOf": [
+    {"if": {"properties": {"review": {"properties": {"role": {"const": "finding_reviewer"}}}}}, "then": {"properties": {"detector_finding_id": {"type": "string", "pattern": "^llm-finding-[a-f0-9]{64}$"}}}, "else": {"properties": {"detector_finding_id": {"const": null}}}}
+  ]
 }

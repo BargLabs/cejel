@@ -148,6 +148,60 @@ describe('Free LLM Pack alpha', () => {
     expect(result.status).toBe('not_applicable');
   });
 
+  it.each([
+    [
+      'OpenAI client reassignment',
+      [
+        "import OpenAI from 'openai';",
+        'let client = new OpenAI();',
+        'client = mailbox;',
+        'await client.responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
+    [
+      'Anthropic client reassignment',
+      [
+        "import Anthropic from '@anthropic-ai/sdk';",
+        'let client = new Anthropic(); client = mailbox;',
+        'await client.messages.create({ messages: process.env.DATABASE_URL });',
+      ],
+    ],
+    [
+      'OpenAI constructor reassignment',
+      [
+        "import OpenAI from 'openai';",
+        'OpenAI = FakeClient;',
+        'await new OpenAI().responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
+    [
+      'OpenAI client reassignment inside a control-flow block',
+      [
+        "import OpenAI from 'openai';",
+        'let client = new OpenAI();',
+        'if (useMailbox) { client = mailbox; }',
+        'await client.responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
+  ])('does not retain JavaScript SDK provenance after %s', (_name, lines) => {
+    const result = scan(lines.join('\n'));
+
+    expect(result.findings).toEqual([]);
+    expect(result.status).toBe('not_applicable');
+  });
+
+  it('allows an ordinary assignment to establish genuine JavaScript SDK provenance', () => {
+    const result = scan([
+      "import OpenAI from 'openai';",
+      'let client = mailbox;',
+      'client = new OpenAI();',
+      'await client.responses.create({ input: process.env.DATABASE_URL });',
+    ].join('\n'));
+
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-DAT-001')).toBe(true);
+    expect(result.status).toBe('assessed_with_limitations');
+  });
+
   it('does not link a shadowing parameter to an imported Vercel AI function', () => {
     const result = scan([
       "import { generateText } from 'ai';",
@@ -161,6 +215,22 @@ describe('Free LLM Pack alpha', () => {
 
     expect(result.findings).toEqual([]);
     expect(result.status).toBe('not_applicable');
+  });
+
+  it('terminates and preserves imported Vercel AI function provenance on reassignment', () => {
+    const reassigned = scan([
+      "import { generateText } from 'ai';",
+      'generateText = mailbox;',
+      "await generateText({ prompt: 'mail' });",
+    ].join('\n'));
+    const genuine = scan([
+      "import { generateText } from 'ai';",
+      "await generateText({ prompt: 'mail' });",
+    ].join('\n'));
+
+    expect(reassigned.status).toBe('not_applicable');
+    expect(reassigned.findings).toEqual([]);
+    expect(genuine.status).toBe('assessed_with_limitations');
   });
 
   it('does not link concise-arrow or class-method parameters to an outer SDK client', () => {

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { computeMetrics, ENABLED_RULE_IDS } from './compute-metrics.mjs';
+import { computeMetrics, ENABLED_RULE_IDS, hashOpportunityManifest } from './compute-metrics.mjs';
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import { createDetectorFreezeRecord } from './freeze-detector.mjs';
 
@@ -27,7 +27,7 @@ function manifest(cohort, repositoryId, commit) {
     source_available_at_freeze: true,
   };
   const withoutHash = {
-    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', policy_id: 'llm-selection-v1',
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', policy_id: 'llm-selection-v1.1',
     cohort, status: 'frozen', frozen_at: '2026-07-22T00:00:00Z',
     frozen_by: ['reviewer-a', 'reviewer-b'], review_method: 'two_independent_ai',
     detector_results_seen_before_freeze: false,
@@ -52,20 +52,27 @@ function fixture() {
     runtime: { name: 'node', version: 'v24', platform: 'linux', architecture: 'x64' },
     networkIsolation: { mode: 'no-egress', argvPrefix: ['/no-egress'], evidenceReference: 'internal-witness:no-egress', confirmed: true },
     ledger, ledgerSha256: sha(ledger),
+    goldenExecutionEvidenceSha256: '1'.repeat(64),
+    goldenExecutionEvidence: { document: { executions: [{}] }, findings: new Map() },
   });
   const execution_receipts = [];
   const llm_reports = [];
   const label_records = [];
+  const opportunities = [];
   for (const [cohort, current] of [['golden', golden], ['untouched', untouched]]) {
     const repository = current.repositories[0];
-    const findings = ENABLED_RULE_IDS.map((ruleId) => ({
-      ruleId, severity: 'warning', confidence: 'high', summary: `${ruleId} synthetic finding`,
-      evidence: { path: 'src/app.ts', line: 1, label: 'synthetic evidence' },
-    }));
+    const findings = ENABLED_RULE_IDS.flatMap((ruleId) => [0, 1].map((slot) => ({
+      ruleId, severity: 'warning', confidence: 'high', summary: `${ruleId} synthetic finding ${slot}`,
+      evidence: { path: 'src/app.ts', line: slot + 1, label: 'synthetic evidence' },
+    })));
     const report = {
       result: {
         status: 'assessed_with_limitations', findings,
-        ruleResults: ENABLED_RULE_IDS.map((ruleId, index) => ({ ruleId, state: 'finding', findings: [findings[index]] })),
+        ruleResults: ENABLED_RULE_IDS.map((ruleId, index) => ({
+          ruleId,
+          state: 'finding',
+          findings: findings.slice(index * 2, (index * 2) + 2),
+        })),
       },
     };
     const findingIds = findings.map((finding, index) => `llm-finding-${sha({ repository_id: repository.repository_id, index, finding })}`);
@@ -83,42 +90,119 @@ function fixture() {
     execution_receipts.push(bound(receipt));
     llm_reports.push(bound(report, { cohort, repository_id: repository.repository_id }));
     ENABLED_RULE_IDS.forEach((ruleId, ruleIndex) => {
-      for (const reviewer of ['reviewer-a', 'reviewer-b']) {
-        const label = {
+      for (const slot of [0, 1]) {
+        const opportunityId = `${cohort}.opportunity:${ruleIndex}:${slot}`;
+        opportunities.push({
+          opportunity_id: opportunityId,
+          cohort,
+          repository_id: repository.repository_id,
+          commit_sha: repository.commit_sha,
+          rule_id: ruleId,
+          evidence_scope: {
+            kind: 'source_span',
+            path_or_reference: 'src/app.ts',
+            start_line: slot + 1,
+            end_line: slot + 1,
+            sha256: '9'.repeat(64),
+            rationale: 'Synthetic predefined evidence scope for measurement testing.',
+          },
+        });
+        for (const reviewer of ['reviewer-a', 'reviewer-b']) {
+          const label = {
+            schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+            label_id: `llm-label-${cohort}-${ruleIndex}-${slot}-${reviewer}`,
+            cohort, repository: { repository_id: repository.repository_id, commit_sha: repository.commit_sha },
+            rule: { catalogue_id: 'llm-rules-v1', rule_id: ruleId, rule_version: '1.0.0' },
+            opportunity_id: opportunityId, detector_finding_id: null,
+            label: 'present', evidence: [{ kind: 'source_span', path_or_reference: 'src/app.ts', start_line: slot + 1, end_line: slot + 1, sha256: '9'.repeat(64), rationale: 'Synthetic evidence rationale for measurement testing.' }],
+            review: { labeler_id: reviewer, role: reviewer === 'reviewer-a' ? 'primary_labeler' : 'independent_reviewer', independent_of_rule_author: true, detector_output_visible: false, adjudication_status: 'not_required' },
+            created_at: '2026-07-22T00:20:00Z',
+          };
+          label_records.push(bound(label));
+        }
+        const findingReview = {
           schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
-          label_id: `llm-label-${cohort}-${ruleIndex}-${reviewer}`,
+          label_id: `llm-label-${cohort}-${ruleIndex}-${slot}-finding-review`,
           cohort, repository: { repository_id: repository.repository_id, commit_sha: repository.commit_sha },
           rule: { catalogue_id: 'llm-rules-v1', rule_id: ruleId, rule_version: '1.0.0' },
-          opportunity_id: `${cohort}.opportunity:${ruleIndex}`, detector_finding_id: findingIds[ruleIndex],
-          label: 'present', evidence: [{ kind: 'source_span', path_or_reference: 'src/app.ts', start_line: 1, end_line: 1, sha256: '9'.repeat(64), rationale: 'Synthetic evidence rationale for measurement testing.' }],
-          review: { labeler_id: reviewer, role: reviewer === 'reviewer-a' ? 'primary_labeler' : 'independent_reviewer', independent_of_rule_author: true, detector_output_visible: true, adjudication_status: 'not_required' },
-          created_at: '2026-07-22T04:00:00Z',
+          opportunity_id: opportunityId, detector_finding_id: findingIds[(ruleIndex * 2) + slot],
+          label: 'present', evidence: [{ kind: 'source_span', path_or_reference: 'src/app.ts', start_line: slot + 1, end_line: slot + 1, sha256: '9'.repeat(64), rationale: 'Post-run finding match to the frozen opportunity evidence scope.' }],
+          review: { labeler_id: 'reviewer-c', role: 'finding_reviewer', independent_of_rule_author: true, detector_output_visible: true, adjudication_status: 'not_required' },
+          created_at: '2026-07-22T04:30:00Z',
         };
-        label_records.push(bound(label));
+        label_records.push(bound(findingReview));
       }
     });
   }
+  const opportunityWithoutHash = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen',
+    frozen_at: '2026-07-22T00:30:00Z', frozen_before_detector_results: true,
+    detector_results_seen_before_freeze: false,
+    hash_contract: 'rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation',
+    cohort_bindings: {
+      golden_manifest_sha256: golden.manifest_sha256,
+      untouched_manifest_sha256: untouched.manifest_sha256,
+    },
+    opportunities,
+    blind_label_bindings: label_records
+      .filter((record) => record.document.review.role !== 'finding_reviewer')
+      .map((record) => ({
+        label_id: record.document.label_id,
+        document_sha256: record.document_sha256,
+        role: record.document.review.role,
+      })),
+  };
+  const opportunityManifest = {
+    ...opportunityWithoutHash,
+    manifest_sha256: hashOpportunityManifest(opportunityWithoutHash),
+    attestation: { method: 'internal_witness', reference: 'internal-witness:test-opportunities' },
+  };
+  const checkKinds = {
+    free_core_unchanged_without_pack: 'test_run',
+    offline_scan_path_verified: 'network_isolation_audit',
+    all_findings_have_resolvable_evidence: 'derived_finding_path_audit',
+    prohibited_public_claims_absent: 'claim_audit',
+    untouched_blinding_preserved: 'chronology_audit',
+  };
+  const automatic_no_go_evidence = Object.fromEntries(Object.entries(checkKinds).map(([check_id, kind]) => {
+    const document = {
+      schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', check_id,
+      status: 'passed', observed_at: '2026-07-22T05:00:00Z',
+      evidence: [{ kind, reference: `internal-witness:${check_id}`, sha256: '8'.repeat(64) }],
+    };
+    return [check_id, bound(document)];
+  }));
   return {
     protocol_id: 'cejel-llm-calibration-v1',
-    automatic_no_go_checks: {
-      free_core_unchanged_without_pack: true, offline_scan_path_verified: true,
-      all_findings_have_resolvable_evidence: true, prohibited_public_claims_absent: true,
-      untouched_blinding_preserved: true,
-    },
+    automatic_no_go_evidence,
     evidence: {
-      golden_manifest: bound(golden), untouched_manifest: bound(untouched), detector_freeze: bound(freeze),
+      golden_manifest: bound(golden), untouched_manifest: bound(untouched),
+      opportunity_manifest: bound(opportunityManifest), detector_freeze: bound(freeze),
       execution_receipts, llm_reports, label_records,
     },
   };
 }
 
+function refreshBlindLabelBindings(candidate) {
+  const manifest = candidate.evidence.opportunity_manifest.document;
+  manifest.blind_label_bindings = candidate.evidence.label_records
+    .filter((record) => record.document.review.role !== 'finding_reviewer')
+    .map((record) => ({
+      label_id: record.document.label_id,
+      document_sha256: record.document_sha256,
+      role: record.document.review.role,
+    }));
+  manifest.manifest_sha256 = hashOpportunityManifest(manifest);
+  candidate.evidence.opportunity_manifest = bound(manifest);
+}
+
 test('derives denominated counts from cryptographically bound receipts, reports, and labels', () => {
   const output = computeMetrics(fixture(), thresholds);
-  assert.equal(output.counts.true_positives, 8);
-  assert.equal(output.counts.adjudicated_items, 8);
-  assert.equal(output.metrics.double_label_coverage.denominator, 8);
+  assert.equal(output.counts.true_positives, 16);
+  assert.equal(output.counts.adjudicated_items, 16);
+  assert.equal(output.metrics.double_label_coverage.denominator, 16);
   assert.equal(output.metrics.double_label_coverage.value, 1);
-  assert.equal(output.quality_controls.cohen_kappa.denominator, 8);
+  assert.equal(output.quality_controls.cohen_kappa.denominator, 16);
   assert.equal(output.quality_controls.cohen_kappa.status, 'not_estimable');
   assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 1);
   assert.equal(output.evidence_bindings.execution_receipts, 2);
@@ -134,7 +218,7 @@ test('rejects arbitrary evidence changes and incomplete finding adjudication', (
   incomplete.evidence.label_records = incomplete.evidence.label_records.filter(
     (record) => record.document.detector_finding_id !== incomplete.evidence.execution_receipts[0].document.finding_ids[0],
   );
-  assert.throws(() => computeMetrics(incomplete, thresholds), /lacks final adjudication/);
+  assert.throws(() => computeMetrics(incomplete, thresholds), /detector finding lacks final adjudication/);
 });
 
 test('requires untouched receipts to bind the frozen detector', () => {
@@ -145,10 +229,119 @@ test('requires untouched receipts to bind the frozen detector', () => {
   assert.throws(() => computeMetrics(candidate, thresholds), /not bound to detector freeze/);
 });
 
+test('automatic no-go checks require hashed evidence and agree with derived chronology', () => {
+  const tampered = fixture();
+  tampered.automatic_no_go_evidence.free_core_unchanged_without_pack.document.status = 'failed';
+  assert.throws(() => computeMetrics(tampered, thresholds), /SHA-256 mismatch/);
+
+  const contradiction = fixture();
+  const record = contradiction.automatic_no_go_evidence.untouched_blinding_preserved.document;
+  record.status = 'failed';
+  contradiction.automatic_no_go_evidence.untouched_blinding_preserved = bound(record);
+  assert.throws(() => computeMetrics(contradiction, thresholds), /contradicts derived evidence/);
+
+  const wrongKind = fixture();
+  const claim = wrongKind.automatic_no_go_evidence.prohibited_public_claims_absent.document;
+  claim.evidence[0].kind = 'test_run';
+  wrongKind.automatic_no_go_evidence.prohibited_public_claims_absent = bound(claim);
+  assert.throws(() => computeMetrics(wrongKind, thresholds), /requires claim_audit evidence/);
+});
+
+test('requires a frozen opportunity inventory and exact primary-label coverage', () => {
+  const missingPrimary = fixture();
+  missingPrimary.evidence.label_records = missingPrimary.evidence.label_records.filter((record) =>
+    record.document.opportunity_id !== 'untouched.opportunity:0:0'
+  );
+  refreshBlindLabelBindings(missingPrimary);
+  assert.throws(() => computeMetrics(missingPrimary, thresholds), /requires exactly one primary label/);
+
+  const unboundOpportunity = fixture();
+  const primary = unboundOpportunity.evidence.label_records.find((record) =>
+    record.document.cohort === 'untouched' && record.document.review.role === 'primary_labeler'
+  );
+  primary.document.opportunity_id = 'untouched.unfrozen:0:0';
+  primary.document_sha256 = sha(primary.document);
+  refreshBlindLabelBindings(unboundOpportunity);
+  assert.throws(() => computeMetrics(unboundOpportunity, thresholds), /absent from the frozen inventory/);
+
+  const substitutedEvidence = fixture();
+  const substitutedPrimary = substitutedEvidence.evidence.label_records.find((record) =>
+    record.document.cohort === 'untouched' && record.document.review.role === 'primary_labeler'
+  );
+  substitutedPrimary.document.evidence[0].sha256 = '7'.repeat(64);
+  substitutedPrimary.document_sha256 = sha(substitutedPrimary.document);
+  refreshBlindLabelBindings(substitutedEvidence);
+  assert.throws(() => computeMetrics(substitutedEvidence, thresholds), /does not match its frozen opportunity scope/);
+
+  const tamperedInventory = fixture();
+  tamperedInventory.evidence.opportunity_manifest.document.opportunities[0].evidence_scope.rationale =
+    'A different rationale that preserves schema validity but changes the frozen inventory.';
+  tamperedInventory.evidence.opportunity_manifest.document_sha256 = sha(
+    tamperedInventory.evidence.opportunity_manifest.document,
+  );
+  assert.throws(() => computeMetrics(tamperedInventory, thresholds), /not a valid frozen inventory/);
+
+  const lateInventory = fixture();
+  lateInventory.evidence.opportunity_manifest.document.frozen_at = '2026-07-22T03:00:00Z';
+  lateInventory.evidence.opportunity_manifest.document.manifest_sha256 = hashOpportunityManifest(
+    lateInventory.evidence.opportunity_manifest.document,
+  );
+  lateInventory.evidence.opportunity_manifest.document_sha256 = sha(
+    lateInventory.evidence.opportunity_manifest.document,
+  );
+  assert.throws(() => computeMetrics(lateInventory, thresholds), /not frozen before detector results/);
+});
+
+test('enforces blind first-pass labels and adjudication lifecycle states', () => {
+  const visible = fixture();
+  const primary = visible.evidence.label_records.find((record) =>
+    record.document.cohort === 'untouched' && record.document.review.role === 'primary_labeler'
+  );
+  primary.document.review.detector_output_visible = true;
+  primary.document_sha256 = sha(primary.document);
+  refreshBlindLabelBindings(visible);
+  assert.throws(() => computeMetrics(visible, thresholds), /first-pass label must be blind/);
+
+  const leakedFinding = fixture();
+  const leakedPrimary = leakedFinding.evidence.label_records.find((record) =>
+    record.document.cohort === 'untouched' && record.document.review.role === 'primary_labeler'
+  );
+  leakedPrimary.document.detector_finding_id =
+    leakedFinding.evidence.execution_receipts[1].document.finding_ids[0];
+  leakedPrimary.document_sha256 = sha(leakedPrimary.document);
+  refreshBlindLabelBindings(leakedFinding);
+  assert.throws(() => computeMetrics(leakedFinding, thresholds), /blind ground-truth labels cannot carry/);
+
+  const pendingAgreement = fixture();
+  const agreeingPrimary = pendingAgreement.evidence.label_records.find((record) =>
+    record.document.cohort === 'untouched' && record.document.review.role === 'primary_labeler'
+  );
+  agreeingPrimary.document.review.adjudication_status = 'pending';
+  agreeingPrimary.document_sha256 = sha(agreeingPrimary.document);
+  refreshBlindLabelBindings(pendingAgreement);
+  assert.throws(() => computeMetrics(pendingAgreement, thresholds), /must use not_required status/);
+});
+
+test('requires review coverage and per-rule double-label minimums for experimental GO', () => {
+  const candidate = fixture();
+  candidate.evidence.label_records = candidate.evidence.label_records.filter((record) => !(
+    record.document.cohort === 'untouched' &&
+    record.document.opportunity_id === 'untouched.opportunity:0:0' &&
+    record.document.review.role === 'independent_reviewer'
+  ));
+  refreshBlindLabelBindings(candidate);
+  const output = computeMetrics(candidate, thresholds);
+  assert.equal(output.release_evaluation.verdict, 'no_go');
+  assert.equal(output.release_evaluation.limited_experimental.passed, false);
+  assert.match(output.release_evaluation.limited_experimental.reasons.join('\n'), /LLM-IOH-001: double-labeled support 1 is below 2/);
+});
+
 test('derives Cohen kappa from the full paired-label contingency table', () => {
   const candidate = fixture();
   const pair = candidate.evidence.label_records.filter((record) =>
-    record.document.cohort === 'untouched' && record.document.opportunity_id === 'untouched.opportunity:0'
+    record.document.cohort === 'untouched' &&
+    record.document.opportunity_id === 'untouched.opportunity:0:0' &&
+    ['primary_labeler', 'independent_reviewer'].includes(record.document.review.role)
   );
   const independent = pair.find((record) => record.document.review.role === 'independent_reviewer');
   independent.document.label = 'absent';
@@ -158,19 +351,20 @@ test('derives Cohen kappa from the full paired-label contingency table', () => {
   primary.document.review.adjudication_status = 'pending';
   primary.document_sha256 = sha(primary.document);
   const adjudicator = structuredClone(primary.document);
-  adjudicator.label_id = 'llm-label-untouched-0-adjudicator';
+  adjudicator.label_id = 'llm-label-untouched-0-0-adjudicator';
   adjudicator.review = {
     labeler_id: 'reviewer-c', role: 'adjudicator', independent_of_rule_author: true,
-    detector_output_visible: true, adjudication_status: 'adjudicated',
+    detector_output_visible: false, adjudication_status: 'adjudicated',
     supersedes_label_ids: pair.map((record) => record.document.label_id),
     rationale: 'The source evidence supports the original present label after resolving the disagreement.',
   };
   candidate.evidence.label_records.push(bound(adjudicator));
+  refreshBlindLabelBindings(candidate);
 
   const output = computeMetrics(candidate, thresholds);
-  assert.equal(output.quality_controls.cohen_kappa.denominator, 8);
-  assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 0.875);
-  assert.equal(output.quality_controls.cohen_kappa.expected_agreement, 0.875);
+  assert.equal(output.quality_controls.cohen_kappa.denominator, 16);
+  assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 0.9375);
+  assert.equal(output.quality_controls.cohen_kappa.expected_agreement, 0.9375);
   assert.equal(output.quality_controls.cohen_kappa.value, 0);
   assert.equal(output.quality_controls.cohen_kappa.contingency.present.absent, 1);
 });

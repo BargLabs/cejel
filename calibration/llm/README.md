@@ -5,7 +5,8 @@ used to tune rules. It contains no copied repository source and no private data.
 
 ## State
 
-- Selection policy: `selection-policy.json` is locked at version `llm-selection-v1`.
+- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.1` before
+  detector results. It truthfully records the metadata-only browser-use reserve extension.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
 - Candidate cohorts: `cohorts/golden-candidates.json` and
   `cohorts/untouched-candidates.json` are disjoint, pre-result candidate lists.
@@ -14,8 +15,15 @@ used to tune rules. It contains no copied repository source and no private data.
 - Immutable manifests: not frozen yet. Resolve every candidate to a full 40-character Git commit,
   record the source-tree hash, and create manifests from `templates/immutable-manifest.template.json`
   before the first detector run.
-- Labels: use one JSON document per repository and validate it against
-  `schemas/label.schema.json`.
+- Opportunity inventory: after both cohort manifests are frozen and before any detector result,
+  enumerate every predefined golden and untouched opportunity using
+  `templates/opportunity-manifest.template.json`. Bind it to both cohort-manifest digests, compute
+  every blind ground-truth label ID, role, and document digest into the same pre-result manifest,
+  compute its canonical digest excluding only `manifest_sha256` and `attestation`, and validate it against
+  `schemas/opportunity-manifest.schema.json`.
+- Labels: use `templates/label.template.json` for blind ground truth and
+  `templates/finding-review.template.json` for post-run finding matches. Validate each record
+  against `schemas/label.schema.json`.
 
 ## Commands
 
@@ -33,19 +41,36 @@ node calibration/llm/scripts/compute-metrics.mjs /absolute/path/to/measurement-i
 ```
 
 The measurement input contains content-addressed evidence, not manually entered counts: both frozen
-manifests, the detector-freeze record, every execution receipt and LLM report, and every independent
-label/adjudication record. The metrics command validates those bindings, derives aggregate and
-per-rule release counts from the untouched cohort only, reports zero denominators as
-`not_estimable`, and evaluates the locked thresholds in order:
+cohort manifests, the frozen opportunity inventory, the detector-freeze record, every execution
+receipt and LLM report, and every independent label/adjudication record. The metrics command
+requires exactly one blind primary label for every predefined opportunity, validates blind
+independent labels and adjudication lifecycle states, rejects findings outside that inventory,
+derives aggregate and per-rule release counts from the untouched inventory only, reports zero
+denominators as `not_estimable`, and evaluates the locked thresholds in order:
 `automatic_no_go`, `public_v1`, `limited_experimental`, then `no_go`. Its output is a calculation;
 it is not a substitute for the recorded adjudication and owner release decision.
+
+Automatic NO-GO inputs are content-addressed records conforming to
+`schemas/automatic-no-go-evidence.schema.json`, not operator-entered booleans. Network isolation,
+untouched chronology, and finding-path validity are derived and checked against those records;
+free-core parity and public-claim hygiene require hashed test-run and claim-audit evidence.
+
+Both first-pass roles must set `detector_output_visible: false` and carry a null finding ID.
+Disagreements set both originals to `pending`; the distinct adjudicator also remains blind, uses
+`adjudicated`, and supersedes exactly the two originals. Agreement and single-label records use
+`not_required`. After execution, a separate `finding_reviewer` may see detector output and links
+exactly one finding to the frozen opportunity without changing its final ground-truth label.
+Double-label coverage and the minimum of two double-labeled opportunities per enabled rule are
+required for both public and limited-experimental GO.
 
 `--resolve-only` (or `--dry-run`) uses `gh api` and `git ls-remote` to resolve each candidate's
 observed default branch, full commit, Git tree, and SPDX licence identifier. It prints technical
 metadata without creating a frozen manifest and does not require reviewers. This is the safe way
 to identify unavailable or renamed candidates before applying the preregistered reserve rule.
-Canonical renames preserve the originally selected repository. The archived gpt-engineer
-candidate was replaced by the first eligible `agent_tools` reserve under the locked policy.
+Canonical renames preserve repository identity. Metadata resolution found four archived selected
+repositories. After existing `agent_tools` reserves were exhausted, the policy was versioned to
+`llm-selection-v1.1`, given an explicit exhausted-reserve extension rule, and re-locked before any
+detector execution. The complete truth-preserving history is in `cohorts/selection-amendments.json`.
 
 A real freeze requires exactly two distinct review passes and a reference to the internal review
 record. Human review remains supported. When two people are unavailable, the owner may authorize

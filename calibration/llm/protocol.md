@@ -71,25 +71,39 @@ Before any detector run:
 7. Compute `manifest_sha256` over RFC 8785-canonical JSON for the complete manifest with
    `manifest_sha256` and `attestation` omitted. Sign or otherwise witness that digest and put the
    resulting reference in `attestation`. These omissions avoid self-referential hashes.
-8. Run `validate-calibration.mjs` and preserve its output with the release evidence.
+8. Before any detector output is generated, enumerate every golden and untouched defect/negative
+   opportunity in one inventory bound to both frozen cohort manifests. Freeze its canonical digest
+   using `schemas/opportunity-manifest.schema.json` and retain the attestation reference.
+9. Run `validate-calibration.mjs` and preserve its output with the release evidence.
 
 No repository source is copied into public calibration artifacts. Evidence pointers use paths,
 line spans tied to the immutable commit, manifest keys, or stable external-result references.
 
 ## 6. Labeling
 
-Two roles are required:
+Ground-truth labeling uses these roles:
 
 - **Primary labeler:** may be a rule author for the golden set, but not for the untouched cohort.
-- **Independent reviewer:** must not have authored the reviewed detector rule and must label without
-  seeing detector output on first pass.
+- **Independent reviewer:** must not have authored the reviewed detector rule.
 
-For the untouched cohort, both reviewers independently label every detector finding and every
-predefined defect opportunity in the reviewed sample. They use `present`, `absent`, `ambiguous`,
+Both the primary labeler and independent reviewer must complete their first-pass labels without
+seeing detector output. Every frozen opportunity must receive exactly one primary label. A second
+blind label is added according to the coverage rule below. Labels may reference only opportunities
+in the frozen inventory; detector findings must be matched to one of those opportunities and cannot
+create a post-result opportunity that changes the recall denominator. The opportunity-manifest
+hash binds every blind ground-truth label's ID, role, and canonical document digest before detector
+execution; a later `detector_output_visible: false` assertion alone is not accepted as proof.
+
+For the untouched cohort, the primary labeler labels every frozen opportunity and every detector
+finding is assigned to exactly one of those opportunities. The independent reviewer labels the
+preregistered review sample required by section 9. They use `present`, `absent`, `ambiguous`,
 `not_applicable`, or `insufficient_source`. `ambiguous` and `insufficient_source` are never silently
-converted to passes or failures. Disagreements go to a named adjudicator who records a rationale and
-final label. A reviewer may be identified by a stable pseudonymous ID; the private identity mapping
-must be retained by Barg Labs.
+converted to passes or failures. Disagreements go to a named adjudicator who records a rationale
+and final label while remaining blind to detector output. After detector execution, a separate
+`finding_reviewer` may see detector output and binds each finding to exactly one frozen opportunity;
+that record must preserve the blind final ground-truth label and cannot create a new opportunity.
+A reviewer may be identified by a stable pseudonymous ID; the private identity
+mapping must be retained by Barg Labs.
 
 Each label must include the immutable repository commit, rule ID, evidence pointers, labeler role,
 timestamp, and whether detector output was visible. Labels that lack resolvable evidence are invalid.
@@ -171,9 +185,20 @@ cases, findings require evidence and no general hallucination-rate claim is allo
 
 The gate does not accept manually entered confusion-matrix counts. `compute-metrics.mjs` derives
 release metrics only from the untouched cohort while validating the complete golden and untouched
-evidence chain: content-addressed frozen manifests, the detector-freeze record, per-repository execution
-receipts and LLM reports, and independent label/adjudication records. It rejects missing receipts,
-unreviewed finding IDs, hash mismatches, labels outside the frozen cohorts, and untouched receipts
-that are not bound to the frozen detector. Raw agreement and Cohen's kappa are derived from the
-full paired-label contingency table; single-category pairs are reported as `not_estimable`, not as
-perfect kappa.
+evidence chain: content-addressed frozen cohort and opportunity manifests, the detector-freeze
+record, per-repository execution receipts and LLM reports, and independent label/adjudication
+records. It rejects missing receipts, incomplete primary-label coverage, visible first-pass
+detector output, unreviewed finding IDs, hash mismatches, labels outside the frozen opportunity
+inventory, and untouched receipts that are not bound to the frozen detector. A disagreement
+requires two `pending` originals and one distinct final adjudicator; an agreement or single label
+must remain `not_required`. Blind ground-truth records carry no detector finding ID; only the
+post-run `finding_reviewer` record may bind one. The double-label fraction and per-rule minimum apply to every GO tier,
+including limited experimental. Raw agreement and Cohen's kappa are derived from the full paired-
+label contingency table; single-category pairs are reported as `not_estimable`, not as perfect
+kappa.
+
+Automatic NO-GO checks are evidence records, never bare booleans. Each record is canonically
+content-addressed. The gate derives and cross-checks network isolation, untouched-run chronology,
+and repository-relative finding paths from frozen records. Free-core parity requires a hashed
+`test_run`; prohibited-claim absence requires a hashed `claim_audit`. A missing, tampered, wrong-
+kind, or contradictory record prevents evaluation.

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "check_id": "free_core_unchanged_without_pack",
+  "status": "failed",
+  "observed_at": "2026-07-23T00:00:00Z",
+  "evidence": [
+    {
+      "kind": "test_run",
+      "reference": "replace-with-test-or-audit-artifact-reference",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

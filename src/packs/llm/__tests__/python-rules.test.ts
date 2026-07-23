@@ -111,6 +111,53 @@ describe('Free LLM Pack Python rule foundation', () => {
     for (const rule of CEJEL_LLM_PYTHON_RULES) expect(rule.detect(file)).toEqual([]);
   });
 
+  it.each([
+    [
+      'a later line',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        'client = mailbox',
+        "client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'an earlier same-line statement',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        "client = mailbox; client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'constructor reassignment',
+      [
+        'from openai import OpenAI',
+        'OpenAI = FakeClient',
+        "OpenAI().responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+  ])('does not retain Python SDK provenance after %s', (_name, lines) => {
+    const file: LlmSourceFile = { path: 'src/reassigned.py', contents: lines.join('\n') };
+
+    expect(hasSupportedPythonLlmIntegration(file)).toBe(false);
+    for (const rule of CEJEL_LLM_PYTHON_RULES) expect(rule.detect(file)).toEqual([]);
+  });
+
+  it('allows an earlier same-line assignment to establish genuine Python SDK provenance', () => {
+    const file: LlmSourceFile = {
+      path: 'src/reassigned.py',
+      contents: [
+        'from openai import OpenAI',
+        "client = mailbox; client = OpenAI(); client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ].join('\n'),
+    };
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-DAT-001');
+
+    expect(hasSupportedPythonLlmIntegration(file)).toBe(true);
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
   it('does not carry a Python model-output alias through a reassignment', () => {
     const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-IOH-001');
     const file: LlmSourceFile = {

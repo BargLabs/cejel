@@ -38,7 +38,7 @@ function functionScopes(masked: string): readonly FunctionScope[] {
   const patterns = [
     /\b(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(([^)]*)\)\s*\{/g,
     /(?:\(([^()]*)\)|([A-Za-z_$][\w$]*))\s*=>\s*\{/g,
-    /\b(?:async\s+)?[A-Za-z_$][\w$]*\s*\(([^)]*)\)\s*\{/g,
+    /\b(?:async\s+)?(?!(?:if|for|while|switch|catch|with)\b)[A-Za-z_$][\w$]*\s*\(([^)]*)\)\s*\{/g,
   ];
   for (const pattern of patterns) {
     for (const match of masked.matchAll(pattern)) {
@@ -106,19 +106,47 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
   const indices = new Set<number>();
   const scopes = functionScopes(masked);
 
-  const importedBindingIsVisible = (identifier: string, callIndex: number): boolean => {
+  const innermostScopeAt = (index: number): FunctionScope | undefined =>
+    scopes
+      .filter((scope) => scope.bodyStart < index && index < scope.bodyEnd)
+      .sort((left, right) => right.bodyStart - left.bodyStart)[0];
+
+  const bindingEvents = (
+    identifier: string,
+    beforeIndex: number,
+  ): readonly { readonly index: number; readonly expression?: string }[] => {
     const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const containingScopes = scopes.filter(
-      (scope) => scope.bodyStart < callIndex && callIndex < scope.bodyEnd,
+    const pattern = new RegExp(
+      `\\b(?:const|let|var)\\s+${escaped}\\b(?:\\s*=\\s*(?![=>])([^;\\n]+))?` +
+        `|(?<![.$\\w])${escaped}\\s*=\\s*(?![=>])([^;\\n]+)` +
+        `|\\b(?:function|class)\\s+${escaped}\\b`,
+      'g',
     );
-    if (containingScopes.some((scope) => scope.parameters.has(identifier))) return false;
-    const innermostStart = containingScopes.reduce(
-      (latest, scope) => Math.max(latest, scope.bodyStart),
-      0,
-    );
-    return !new RegExp(
-      `\\b(?:const|let|var|function|class)\\s+${escaped}\\b`,
-    ).test(masked.slice(innermostStart, callIndex));
+    return [...masked.slice(0, beforeIndex).matchAll(pattern)].map((match) => ({
+      index: match.index,
+      expression: match[1] ?? match[2],
+    }));
+  };
+
+  const visibleScopeChain = (callIndex: number): readonly (FunctionScope | undefined)[] => [
+    ...scopes
+      .filter((scope) => scope.bodyStart < callIndex && callIndex < scope.bodyEnd)
+      .sort((left, right) => right.bodyStart - left.bodyStart),
+    undefined,
+  ];
+
+  const latestEventInScope = (
+    events: readonly { readonly index: number; readonly expression?: string }[],
+    scope: FunctionScope | undefined,
+  ) => events.filter((event) => innermostScopeAt(event.index) === scope).at(-1);
+
+  const importedBindingIsVisible = (identifier: string, callIndex: number): boolean => {
+    const events = bindingEvents(identifier, callIndex);
+    for (const scope of visibleScopeChain(callIndex)) {
+      if (scope?.parameters.has(identifier)) return false;
+      if (latestEventInScope(events, scope)) return false;
+    }
+    return true;
   };
 
   const supportedClientBinding = (
@@ -126,36 +154,18 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
     classes: ReadonlySet<string>,
     callIndex: number,
   ): boolean => {
-    const escapedReceiver = receiver.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const containingScopes = scopes
-      .filter((scope) => scope.bodyStart < callIndex && callIndex < scope.bodyEnd)
-      .sort((left, right) => right.bodyStart - left.bodyStart);
-    const innermost = containingScopes[0];
-    const scopeStart = innermost?.bodyStart ?? 0;
-    const declarations = [...masked.slice(scopeStart, callIndex).matchAll(
-      new RegExp(`\\b(?:const|let|var)\\s+${escapedReceiver}\\s*=\\s*([^;\\n]+)`, 'g'),
-    )];
-    const declaration = declarations.at(-1);
-    if (declaration?.[1]) {
+    const events = bindingEvents(receiver, callIndex);
+    for (const scope of visibleScopeChain(callIndex)) {
+      if (scope?.parameters.has(receiver)) return false;
+      const event = latestEventInScope(events, scope);
+      if (!event) continue;
+      if (!event.expression) return false;
       return [...classes].some((className) => {
         const escapedClass = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(`^\\s*new\\s+${escapedClass}\\s*\\(`).test(declaration[1] ?? '');
-      });
-    }
-    if (containingScopes.some((scope) => scope.parameters.has(receiver))) return false;
-    if (innermost) {
-      const globalDeclarations = [...masked.slice(0, innermost.bodyStart).matchAll(
-        new RegExp(`\\b(?:const|let|var)\\s+${escapedReceiver}\\s*=\\s*([^;\\n]+)`, 'g'),
-      )].filter((match) =>
-        !scopes.some(
-          (scope) => scope.bodyStart < match.index && match.index < scope.bodyEnd,
-        ),
-      );
-      const globalDeclaration = globalDeclarations.at(-1)?.[1];
-      if (!globalDeclaration) return false;
-      return [...classes].some((className) => {
-        const escapedClass = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(`^\\s*new\\s+${escapedClass}\\s*\\(`).test(globalDeclaration);
+        return (
+          new RegExp(`^\\s*new\\s+${escapedClass}\\s*\\(`).test(event.expression ?? '') &&
+          importedBindingIsVisible(className, event.index)
+        );
       });
     }
     return false;

@@ -7,19 +7,24 @@ select repositories, alter manifests, adjudicate findings, or tune rules.
 ## Required order
 
 1. Freeze and independently review both immutable cohort manifests with `freeze-cohorts.mjs`.
-2. Build Cejel from a clean, committed detector revision.
-3. Run the golden manifest with `run-frozen-cohort.mjs`, using an operating-system or container
+2. Freeze the complete golden and untouched opportunity inventory, bound to both cohort-manifest
+   digests, before producing any detector output.
+3. Build Cejel from a clean, committed detector revision.
+4. Run the golden manifest with `run-frozen-cohort.mjs`, using an operating-system or container
    wrapper that prevents egress from the detector process.
-4. Complete golden adjudication and corrections. If detector code changes, rebuild and rerun the
+5. Complete golden adjudication and corrections. If detector code changes, rebuild and rerun the
    golden cohort. Freeze a correction ledger only after it is bound to the final executable
    SHA-256 and has zero open corrections.
-5. Create `detector-freeze.json`. This binds the clean Git commit, executable SHA-256, runtime,
+6. Create `detector-freeze.json`. This binds the clean Git commit, executable SHA-256, runtime,
    exact scan command, no-egress argv prefix, eight rule IDs, support matrix, and correction-ledger
    digest before any untouched result is seen.
-6. Run the untouched manifest once, with the frozen executable and the explicit
+7. Run the untouched manifest once, with the frozen executable and the explicit
    `--confirm-untouched-after-freeze` acknowledgement.
 
-Do not open, search, or manually inspect untouched repositories before step 6.
+Detector and rule authors must not open, search, or manually inspect untouched repositories before
+step 7. Designated blind labelers may inspect the pinned source only to freeze and label the
+opportunity inventory; they must not expose that work or detector output to rule authors before the
+one-way untouched evaluation is complete.
 
 ## Golden execution
 
@@ -86,6 +91,9 @@ The detector-freeze script rejects a template, an open ledger, a ledger for anot
 a ledger without two reviewers. It requires the actual frozen golden manifest and rejects a ledger
 whose `golden_manifest_sha256` does not match it. Every correction entry binds a finding, rule,
 repository commit, final outcome, rationale, evidence digest, and resolution timestamp.
+The required golden execution index follows `schemas/golden-execution-evidence.schema.json`; it
+contains content-addressed receipts and LLM reports for every frozen golden repository. Each ledger
+entry must include `llm-report:<finding-id>` evidence whose digest is the canonical finding digest.
 
 ## Freeze the detector
 
@@ -98,6 +106,7 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --cejel /absolute/path/to/local/built/cejel \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
   --golden-manifest calibration/llm/cohorts/golden-manifest.json \
+  --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --network-isolation-mode verified-no-egress-wrapper \
   --network-isolation-command /absolute/path/to/no-egress-wrapper \
   --network-isolation-arg=-- \
@@ -117,6 +126,8 @@ node calibration/llm/scripts/run-frozen-cohort.mjs \
   --manifest calibration/llm/cohorts/untouched-manifest.json \
   --detector-freeze /absolute/path/to/detector-freeze.json \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest.json \
+  --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --cejel /absolute/path/to/the-same-built-cejel \
   --work-root /absolute/path/to/untouched-checkouts \
   --output-root /absolute/path/to/untouched-results \
@@ -130,6 +141,8 @@ prefix in the valid detector-freeze record and verifies all of these conditions 
 - its rule catalogue, support matrix, and command template are unchanged;
 - the local executable SHA-256 matches the frozen build;
 - the closed correction-ledger bytes match the digest in the freeze record;
+- the golden execution-index bytes match the digest in the freeze record and still validate every
+  ledger entry against the frozen golden reports;
 - the immutable manifest and every repository-entry hash are valid; and
 - `--confirm-untouched-after-freeze` is present.
 

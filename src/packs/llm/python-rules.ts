@@ -62,54 +62,70 @@ function pythonParameters(line: string): readonly string[] {
 export function supportedPythonModelCallIndices(contents: string): ReadonlySet<number> {
   const masked = maskPythonNonCode(contents);
   const imports = pythonSdkImports(masked);
-  const scopes: { indent: number; clients: Map<string, boolean> }[] = [
-    { indent: -1, clients: new Map([...imports.modules].map((name) => [name, true])) },
+  type PythonBinding = 'client' | 'constructor' | 'module' | 'other';
+  const scopes: { indent: number; bindings: Map<string, PythonBinding> }[] = [
+    {
+      indent: -1,
+      bindings: new Map([
+        ...[...imports.modules].map((name) => [name, 'module'] as const),
+        ...[...imports.constructors].map((name) => [name, 'constructor'] as const),
+      ]),
+    },
   ];
   const indices = new Set<number>();
   let offset = 0;
-  const visibleClient = (name: string): boolean => {
+  const visibleBinding = (name: string): PythonBinding | undefined => {
     for (let index = scopes.length - 1; index >= 0; index -= 1) {
-      const value = scopes[index]?.clients.get(name);
+      const value = scopes[index]?.bindings.get(name);
       if (value !== undefined) return value;
     }
-    return false;
+    return undefined;
   };
   for (const line of masked.split('\n')) {
     const indentation = line.match(/^\s*/)?.[0].length ?? 0;
     if (line.trim().length > 0) {
       while (scopes.length > 1 && indentation <= (scopes.at(-1)?.indent ?? -1)) scopes.pop();
     }
-    for (const match of line.matchAll(new RegExp(PYTHON_MODEL_CALL_PATTERN, 'g'))) {
-      const prefix = line.slice(0, match.index);
-      const receiver = prefix.match(/([A-Za-z_][A-Za-z0-9_]*)\s*$/)?.[1];
-      const directConstructor = prefix.match(/([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*$/)?.[1];
-      if (
-        (receiver && visibleClient(receiver)) ||
-        (directConstructor && imports.constructors.has(directConstructor))
-      ) {
-        indices.add(offset + match.index);
+    let statementOffset = 0;
+    for (const statement of line.split(';')) {
+      for (const match of statement.matchAll(new RegExp(PYTHON_MODEL_CALL_PATTERN, 'g'))) {
+        const prefix = statement.slice(0, match.index);
+        const receiver = prefix.match(/([A-Za-z_][A-Za-z0-9_]*)\s*$/)?.[1];
+        const directConstructor = prefix.match(/([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*$/)?.[1];
+        const receiverBinding = receiver ? visibleBinding(receiver) : undefined;
+        if (
+          receiverBinding === 'client' || receiverBinding === 'module' ||
+          (directConstructor && visibleBinding(directConstructor) === 'constructor')
+        ) {
+          indices.add(offset + statementOffset + match.index);
+        }
       }
-    }
-    const assignment = line.match(PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN);
-    const identifier = assignment?.[1];
-    const expression = assignment?.[2]?.trim() ?? '';
-    if (identifier) {
-      const constructor = [...imports.constructors].some((name) =>
-        new RegExp(`^${name}\\s*\\(`).test(expression),
-      );
-      const moduleConstructor = [...imports.modules].some((name) =>
-        new RegExp(`^${name}\\.(?:OpenAI|Anthropic)\\s*\\(`).test(expression),
-      );
-      scopes.at(-1)?.clients.set(identifier, constructor || moduleConstructor);
+      const assignment = statement.match(PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN);
+      const identifier = assignment?.[1];
+      const expression = assignment?.[2]?.trim() ?? '';
+      if (identifier) {
+        const constructor = [...imports.constructors].some((name) =>
+          visibleBinding(name) === 'constructor' && new RegExp(`^${name}\\s*\\(`).test(expression),
+        );
+        const moduleConstructor = [...imports.modules].some((name) =>
+          visibleBinding(name) === 'module' &&
+            new RegExp(`^${name}\\.(?:OpenAI|Anthropic)\\s*\\(`).test(expression),
+        );
+        scopes.at(-1)?.bindings.set(
+          identifier,
+          constructor || moduleConstructor ? 'client' : 'other',
+        );
+      }
+      statementOffset += statement.length + 1;
     }
     const parameters = pythonParameters(line);
     if (parameters.length > 0) {
       scopes.push({
         indent: indentation,
-        clients: new Map(parameters.map((name) => [name, false])),
+        bindings: new Map(parameters.map((name) => [name, 'other'] as const)),
       });
     } else if (/^\s*class\s+[A-Za-z_][A-Za-z0-9_]*\b/.test(line)) {
-      scopes.push({ indent: indentation, clients: new Map() });
+      scopes.push({ indent: indentation, bindings: new Map() });
     }
     offset += line.length + 1;
   }

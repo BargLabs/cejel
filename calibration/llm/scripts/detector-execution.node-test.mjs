@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
   createDetectorFreezeRecord,
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
   validateGoldenCorrectionLedger,
+  validateGoldenExecutionEvidence,
 } from './freeze-detector.mjs';
 import {
   assertCohortRunAllowed,
@@ -24,13 +26,16 @@ const BUILD_SHA = 'b'.repeat(64);
 const COMMIT_SHA = 'c'.repeat(40);
 const TREE_SHA = 'd'.repeat(40);
 
-function ledger() {
+const canonicalSha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
+const bound = (document) => ({ document_sha256: canonicalSha(document), document });
+
+function ledger(goldenManifestSha256 = immutableManifest('golden').manifest_sha256) {
   return {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
     status: 'frozen',
     detector_build_sha256: BUILD_SHA,
-    golden_manifest_sha256: 'a'.repeat(64),
+    golden_manifest_sha256: goldenManifestSha256,
     frozen_at: '2026-07-22T20:00:00Z',
     frozen_before_untouched: true,
     reviewed_by: ['Alice Example', 'Bob Example'],
@@ -39,8 +44,38 @@ function ledger() {
   };
 }
 
+function goldenExecutionEvidence() {
+  const manifest = immutableManifest('golden');
+  const repository = manifest.repositories[0];
+  const finding = {
+    ruleId: 'LLM-IOH-001', severity: 'warning', confidence: 'high',
+    summary: 'Synthetic golden correction finding.',
+    evidence: { path: 'src/app.ts', line: 1, label: 'synthetic evidence' },
+  };
+  const report = { result: { findings: [finding], ruleResults: [] } };
+  const findingId = `llm-finding-${canonicalSha({ repository_id: repository.repository_id, index: 0, finding })}`;
+  const receipt = {
+    protocol_id: 'cejel-llm-calibration-v1', cohort: 'golden', repository_id: repository.repository_id,
+    commit_sha: repository.commit_sha, git_tree_sha: repository.git_tree_sha,
+    manifest_sha256: manifest.manifest_sha256, detector_build_sha256: BUILD_SHA,
+    llm_report_canonical_sha256: canonicalSha(report), finding_ids: [findingId],
+  };
+  const document = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', cohort: 'golden',
+    golden_manifest_sha256: manifest.manifest_sha256, detector_build_sha256: BUILD_SHA,
+    executions: [{ repository_id: repository.repository_id, receipt: bound(receipt), llm_report: bound(report) }],
+  };
+  return {
+    manifest, finding, findingId, document,
+    validated: validateGoldenExecutionEvidence(document, manifest, BUILD_SHA),
+  };
+}
+
 function detectorFreeze() {
-  const goldenLedger = validateGoldenCorrectionLedger(ledger(), BUILD_SHA);
+  const execution = goldenExecutionEvidence();
+  const goldenLedger = validateGoldenCorrectionLedger(
+    ledger(execution.manifest.manifest_sha256), BUILD_SHA, execution.manifest.manifest_sha256, execution.validated,
+  );
   return createDetectorFreezeRecord({
     gitCommit: COMMIT_SHA,
     buildSha256: BUILD_SHA,
@@ -55,6 +90,8 @@ function detectorFreeze() {
     },
     ledger: goldenLedger,
     ledgerSha256: 'e'.repeat(64),
+    goldenExecutionEvidence: execution.validated,
+    goldenExecutionEvidenceSha256: canonicalSha(execution.document),
   });
 }
 
@@ -79,7 +116,7 @@ function immutableManifest(cohort = 'untouched') {
   const withoutManifestHash = {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
-    policy_id: 'llm-selection-v1',
+    policy_id: 'llm-selection-v1.1',
     cohort,
     status: 'frozen',
     frozen_at: '2026-07-22T19:00:00Z',
@@ -103,6 +140,7 @@ test('detector freeze binds build, runtime, rules, support, isolation, and close
   assert.equal(record.support_matrix.python.status, 'narrow_fixture_backed_alpha');
   assert.equal(record.golden_correction_ledger.open_corrections, 0);
   assert.equal(record.golden_correction_ledger.golden_manifest_sha256, ledger().golden_manifest_sha256);
+  assert.equal(record.golden_execution_evidence.executions, 1);
   assert.throws(
     () => validateDetectorFreezeRecord({ ...record, frozen_at: '2026-07-23T00:00:00Z' }),
     /SHA-256/,
@@ -123,16 +161,28 @@ test('golden correction ledger must match the exact detector build and have no o
     () => validateGoldenCorrectionLedger({ ...ledger(), entries: [{ correction_id: 'bad' }] }, BUILD_SHA),
     /correction_id is invalid/,
   );
+  const execution = goldenExecutionEvidence();
   const closedEntry = {
     correction_id: 'llm-correction-example-0001', status: 'resolved',
-    finding_id: `llm-finding-${'1'.repeat(64)}`, rule_id: 'LLM-IOH-001',
+    finding_id: execution.findingId, rule_id: 'LLM-IOH-001',
     repository_id: 'owner/repository', commit_sha: COMMIT_SHA,
     original_outcome: 'detector_finding', final_outcome: 'false_positive',
     rationale: 'The source evidence proves this finding was incorrect.',
-    evidence: [{ reference: 'src/app.ts:10', sha256: '2'.repeat(64) }],
+    evidence: [{ reference: `llm-report:${execution.findingId}`, sha256: canonicalSha(execution.finding) }],
     resolved_at: '2026-07-22T20:00:00Z',
   };
-  assert.doesNotThrow(() => validateGoldenCorrectionLedger({ ...ledger(), entries: [closedEntry] }, BUILD_SHA));
+  assert.doesNotThrow(() => validateGoldenCorrectionLedger(
+    { ...ledger(execution.manifest.manifest_sha256), entries: [closedEntry] },
+    BUILD_SHA,
+    execution.manifest.manifest_sha256,
+    execution.validated,
+  ));
+  assert.throws(() => validateGoldenCorrectionLedger(
+    { ...ledger(execution.manifest.manifest_sha256), entries: [{ ...closedEntry, commit_sha: 'f'.repeat(40) }] },
+    BUILD_SHA,
+    execution.manifest.manifest_sha256,
+    execution.validated,
+  ), /frozen golden repository and commit/);
 });
 
 test('detector freeze validates the actual golden manifest and every repository-entry hash', () => {

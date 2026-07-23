@@ -54,6 +54,15 @@ function sha256Bytes(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+const sha256Canonical = (value) => sha256Bytes(Buffer.from(canonicalize(value), 'utf8'));
+
+function unwrapBoundDocument(wrapper, scope) {
+  if (!wrapper?.document || sha256Canonical(wrapper.document) !== wrapper.document_sha256) {
+    throw new Error(`${scope} has an invalid canonical document binding`);
+  }
+  return wrapper.document;
+}
+
 export function hashDetectorFreezeRecord(record) {
   const { record_sha256: _excluded, ...hashable } = record;
   return createHash('sha256').update(canonicalize(hashable), 'utf8').digest('hex');
@@ -69,7 +78,12 @@ const LEDGER_KEYS = [
   'reviewed_by', 'open_corrections', 'entries',
 ];
 
-export function validateGoldenCorrectionLedger(document, expectedBuildSha256, expectedGoldenManifestSha256) {
+export function validateGoldenCorrectionLedger(
+  document,
+  expectedBuildSha256,
+  expectedGoldenManifestSha256,
+  goldenExecutionEvidence,
+) {
   if (
     document?.schema_version !== '1.0.0' ||
     document?.protocol_id !== 'cejel-llm-calibration-v1'
@@ -127,6 +141,19 @@ export function validateGoldenCorrectionLedger(document, expectedBuildSha256, ex
       !item || typeof item.reference !== 'string' || item.reference.length < 3 || !/^[a-f0-9]{64}$/.test(item.sha256 || '')
     )) throw new Error(`${scope} evidence is invalid`);
     if (!validUtc(entry.resolved_at)) throw new Error(`${scope} resolved_at is invalid`);
+    if (!goldenExecutionEvidence) throw new Error(`${scope} requires golden execution evidence`);
+    const repository = goldenExecutionEvidence.repositories.get(entry.repository_id);
+    if (!repository || repository.commit_sha !== entry.commit_sha) {
+      throw new Error(`${scope} does not match the frozen golden repository and commit`);
+    }
+    const finding = goldenExecutionEvidence.findings.get(entry.finding_id);
+    if (
+      !finding || finding.repository_id !== entry.repository_id ||
+      finding.finding.ruleId !== entry.rule_id
+    ) throw new Error(`${scope} does not match an actual golden report finding and rule`);
+    if (!entry.evidence.some((item) =>
+      item.reference === `llm-report:${entry.finding_id}` && item.sha256 === finding.finding_sha256
+    )) throw new Error(`${scope} is not bound to the actual golden report finding evidence`);
   }
   if (document.open_corrections !== 0) {
     throw new Error('golden correction ledger must have zero open corrections');
@@ -149,6 +176,53 @@ export function validateFrozenGoldenManifest(manifest) {
     ) throw new Error('--golden-manifest contains an invalid immutable repository entry');
   }
   return manifest;
+}
+
+export function validateGoldenExecutionEvidence(document, goldenManifest, expectedBuildSha256) {
+  if (
+    document?.schema_version !== '1.0.0' || document?.protocol_id !== 'cejel-llm-calibration-v1' ||
+    document?.cohort !== 'golden' || document?.golden_manifest_sha256 !== goldenManifest.manifest_sha256 ||
+    document?.detector_build_sha256 !== expectedBuildSha256 || !Array.isArray(document.executions)
+  ) throw new Error('golden execution evidence index is invalid or bound to another build/manifest');
+  const repositories = new Map(goldenManifest.repositories.map((repository) => [repository.repository_id, repository]));
+  const seen = new Set();
+  const findings = new Map();
+  for (const [index, execution] of document.executions.entries()) {
+    const receipt = unwrapBoundDocument(execution.receipt, `golden execution ${index} receipt`);
+    const report = unwrapBoundDocument(execution.llm_report, `golden execution ${index} report`);
+    const repository = repositories.get(execution.repository_id);
+    if (!repository || seen.has(execution.repository_id)) {
+      throw new Error(`golden execution ${index} repository is absent or duplicated`);
+    }
+    seen.add(execution.repository_id);
+    if (
+      receipt.cohort !== 'golden' || receipt.repository_id !== execution.repository_id ||
+      receipt.commit_sha !== repository.commit_sha || receipt.git_tree_sha !== repository.git_tree_sha ||
+      receipt.manifest_sha256 !== goldenManifest.manifest_sha256 ||
+      receipt.detector_build_sha256 !== expectedBuildSha256 ||
+      receipt.llm_report_canonical_sha256 !== sha256Canonical(report) ||
+      !Array.isArray(receipt.finding_ids) || !Array.isArray(report?.result?.findings)
+    ) throw new Error(`golden execution ${index} receipt/report does not match frozen evidence`);
+    const findingIds = report.result.findings.map((finding, findingIndex) =>
+      `llm-finding-${sha256Canonical({ repository_id: execution.repository_id, index: findingIndex, finding })}`
+    );
+    if (canonicalize(findingIds) !== canonicalize(receipt.finding_ids)) {
+      throw new Error(`golden execution ${index} finding IDs do not match the report`);
+    }
+    report.result.findings.forEach((finding, findingIndex) => {
+      const findingId = findingIds[findingIndex];
+      if (findings.has(findingId)) throw new Error(`duplicate golden finding ID: ${findingId}`);
+      findings.set(findingId, {
+        repository_id: execution.repository_id,
+        finding,
+        finding_sha256: sha256Canonical(finding),
+      });
+    });
+  }
+  if (seen.size !== repositories.size) {
+    throw new Error('golden execution evidence does not cover every frozen golden repository');
+  }
+  return { document, repositories, findings };
 }
 
 export function createDetectorFreezeRecord(input) {
@@ -206,6 +280,13 @@ export function createDetectorFreezeRecord(input) {
       open_corrections: 0,
       frozen_at: input.ledger.frozen_at,
     },
+    golden_execution_evidence: {
+      sha256: input.goldenExecutionEvidenceSha256,
+      executions: input.goldenExecutionEvidence.document.executions.length,
+      findings: input.goldenExecutionEvidence.findings.size,
+      golden_manifest_sha256: input.ledger.golden_manifest_sha256,
+      detector_build_sha256: input.buildSha256,
+    },
     untouched_results_seen_before_freeze: false,
   };
   return { ...withoutHash, record_sha256: hashDetectorFreezeRecord(withoutHash) };
@@ -219,6 +300,13 @@ export function validateDetectorFreezeRecord(record) {
   ) {
     throw new Error('invalid or non-frozen detector-freeze record');
   }
+  if (
+    !/^[a-f0-9]{64}$/.test(record.golden_execution_evidence?.sha256 || '') ||
+    record.golden_execution_evidence?.golden_manifest_sha256 !== record.golden_correction_ledger?.golden_manifest_sha256 ||
+    record.golden_execution_evidence?.detector_build_sha256 !== record.detector?.build_sha256 ||
+    !Number.isInteger(record.golden_execution_evidence?.executions) ||
+    !Number.isInteger(record.golden_execution_evidence?.findings)
+  ) throw new Error('detector freeze lacks bound golden execution evidence');
   if (!validUtc(record.frozen_at) || record.untouched_results_seen_before_freeze !== false) {
     throw new Error('detector freeze does not preserve the untouched boundary');
   }
@@ -293,6 +381,7 @@ function parseArgs(argv) {
       case '--cejel': options.cejel = take(); break;
       case '--golden-correction-ledger': options.ledger = take(); break;
       case '--golden-manifest': options.goldenManifest = take(); break;
+      case '--golden-execution-evidence': options.goldenExecutionEvidence = take(); break;
       case '--network-isolation-mode': options.isolationMode = take(); break;
       case '--network-isolation-command': options.isolationCommand = take(); break;
       case '--network-isolation-arg': options.isolationArgs.push(take()); break;
@@ -313,6 +402,7 @@ function usage() {
     --detector-repo . --cejel ./dist/index.js \\
     --golden-correction-ledger ./golden-corrections.json \\
     --golden-manifest calibration/llm/cohorts/golden-manifest.json \\
+    --golden-execution-evidence ./golden-execution-evidence.json \\
     --network-isolation-mode sandbox-no-egress \\
     --network-isolation-command /path/to/isolation-wrapper \\
     --network-isolation-evidence internal-witness:isolation-proof \\
@@ -352,6 +442,7 @@ export async function main(argv, commandRunner = run) {
     ['--cejel', options.cejel],
     ['--golden-correction-ledger', options.ledger],
     ['--golden-manifest', options.goldenManifest],
+    ['--golden-execution-evidence', options.goldenExecutionEvidence],
     ['--network-isolation-mode', options.isolationMode],
     ['--network-isolation-command', options.isolationCommand],
     ['--network-isolation-evidence', options.isolationEvidence],
@@ -370,6 +461,12 @@ export async function main(argv, commandRunner = run) {
   );
   const buildBytes = readFileSync(cejel);
   const buildSha256 = sha256Bytes(buildBytes);
+  const goldenExecutionEvidenceBytes = readFileSync(resolve(options.goldenExecutionEvidence));
+  const goldenExecutionEvidence = validateGoldenExecutionEvidence(
+    JSON.parse(goldenExecutionEvidenceBytes.toString('utf8')),
+    goldenManifest,
+    buildSha256,
+  );
   const gitCommit = await commandRunner('git', ['-C', detectorRepo, 'rev-parse', 'HEAD']);
   if (!/^[a-f0-9]{40}$/.test(gitCommit)) throw new Error('detector repository HEAD is not a full commit');
   const gitStatus = await commandRunner('git', ['-C', detectorRepo, 'status', '--porcelain']);
@@ -380,6 +477,7 @@ export async function main(argv, commandRunner = run) {
     JSON.parse(ledgerBytes.toString('utf8')),
     buildSha256,
     goldenManifest.manifest_sha256,
+    goldenExecutionEvidence,
   );
   const record = createDetectorFreezeRecord({
     gitCommit,
@@ -400,6 +498,8 @@ export async function main(argv, commandRunner = run) {
     },
     ledger,
     ledgerSha256: sha256Bytes(ledgerBytes),
+    goldenExecutionEvidence,
+    goldenExecutionEvidenceSha256: sha256Bytes(goldenExecutionEvidenceBytes),
   });
   validateDetectorFreezeRecord(record);
   const output = resolve(

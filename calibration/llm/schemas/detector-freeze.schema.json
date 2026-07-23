@@ -4,7 +4,7 @@
   "title": "Cejel Free LLM detector freeze",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "status", "frozen_at", "detector", "execution", "rule_ids", "support_matrix", "golden_correction_ledger", "untouched_results_seen_before_freeze", "record_sha256"],
+  "required": ["schema_version", "protocol_id", "status", "frozen_at", "detector", "execution", "rule_ids", "support_matrix", "golden_correction_ledger", "golden_execution_evidence", "untouched_results_seen_before_freeze", "record_sha256"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
@@ -69,6 +69,18 @@
         "entries": {"type": "integer", "minimum": 0},
         "open_corrections": {"const": 0},
         "frozen_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "golden_execution_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "executions", "findings", "golden_manifest_sha256", "detector_build_sha256"],
+      "properties": {
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "executions": {"type": "integer", "minimum": 1},
+        "findings": {"type": "integer", "minimum": 0},
+        "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "detector_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
       }
     },
     "untouched_results_seen_before_freeze": {"const": false},

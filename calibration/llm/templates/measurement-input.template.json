@@ -1,16 +1,17 @@
 {
   "$schema": "../schemas/measurement-input.schema.json",
   "protocol_id": "cejel-llm-calibration-v1",
-  "automatic_no_go_checks": {
-    "free_core_unchanged_without_pack": false,
-    "offline_scan_path_verified": false,
-    "all_findings_have_resolvable_evidence": false,
-    "prohibited_public_claims_absent": false,
-    "untouched_blinding_preserved": false
+  "automatic_no_go_evidence": {
+    "free_core_unchanged_without_pack": {"document_sha256": "replace", "document": {}},
+    "offline_scan_path_verified": {"document_sha256": "replace", "document": {}},
+    "all_findings_have_resolvable_evidence": {"document_sha256": "replace", "document": {}},
+    "prohibited_public_claims_absent": {"document_sha256": "replace", "document": {}},
+    "untouched_blinding_preserved": {"document_sha256": "replace", "document": {}}
   },
   "evidence": {
     "golden_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "untouched_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+    "opportunity_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "detector_freeze": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "execution_receipts": [],
     "llm_reports": [],

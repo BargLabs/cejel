@@ -1,8 +1,10 @@
 {
   "schema_version": "1.0.0",
-  "policy_id": "llm-selection-v1",
-  "status": "locked_before_detector_results",
-  "locked_at": "2026-07-22T00:00:00Z",
+  "policy_id": "llm-selection-v1.1",
+  "status": "relocked_before_detector_results",
+  "locked_at": "2026-07-23T01:38:07Z",
+  "supersedes_policy_id": "llm-selection-v1",
+  "relock_reason": "Three selected repositories failed the preregistered archive exclusion after metadata resolution. Existing same-stratum reserves were exhausted, so browser-use/browser-use was appended as agent_tools reserve order 9 before any detector execution or result. No numeric release threshold or detector rule changed.",
   "target_size_per_cohort": 24,
   "allowed_hosts": ["github.com"],
   "eligibility": [
@@ -28,5 +30,6 @@
   },
   "assignment": "Repositories were assigned before detector execution to produce two disjoint, heterogeneous cohorts. Assignment is not random and results must not be generalized to all LLM applications.",
   "replacement_rule": "Use the first eligible reserve candidate with the same primary surface stratum; record the failed eligibility clause and never consult detector output.",
+  "reserve_extension_rule": "If every preregistered reserve for a required surface is consumed or ineligible, append and record the first metadata-eligible same-surface reserve, then re-lock and independently review the complete policy and cohorts before any detector execution.",
   "detector_results_seen": false
 }

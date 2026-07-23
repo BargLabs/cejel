@@ -242,7 +242,7 @@ function assertCandidateDocument(document, cohort) {
   if (document.schema_version !== '1.0.0' || document.protocol_id !== 'cejel-llm-calibration-v1') {
     throw new Error('candidate file has an unsupported schema or protocol');
   }
-  if (document.policy_id !== 'llm-selection-v1' || document.cohort !== cohort) {
+  if (document.policy_id !== 'llm-selection-v1.1' || document.cohort !== cohort) {
     throw new Error('candidate file policy or cohort does not match the requested freeze');
   }
   if (document.status !== 'candidate_commit_freeze_pending' || document.selected_before_detector_results !== true) {

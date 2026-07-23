@@ -4,29 +4,30 @@
   "title": "Cejel Free LLM evidence-bound adjudicated measurement input",
   "type": "object",
   "additionalProperties": false,
-  "required": ["protocol_id", "automatic_no_go_checks", "evidence"],
+  "required": ["protocol_id", "automatic_no_go_evidence", "evidence"],
   "properties": {
     "$schema": {"type": "string"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
-    "automatic_no_go_checks": {
+    "automatic_no_go_evidence": {
       "type": "object",
       "additionalProperties": false,
       "required": ["free_core_unchanged_without_pack", "offline_scan_path_verified", "all_findings_have_resolvable_evidence", "prohibited_public_claims_absent", "untouched_blinding_preserved"],
       "properties": {
-        "free_core_unchanged_without_pack": {"type": "boolean"},
-        "offline_scan_path_verified": {"type": "boolean"},
-        "all_findings_have_resolvable_evidence": {"type": "boolean"},
-        "prohibited_public_claims_absent": {"type": "boolean"},
-        "untouched_blinding_preserved": {"type": "boolean"}
+        "free_core_unchanged_without_pack": {"$ref": "#/$defs/bound_document"},
+        "offline_scan_path_verified": {"$ref": "#/$defs/bound_document"},
+        "all_findings_have_resolvable_evidence": {"$ref": "#/$defs/bound_document"},
+        "prohibited_public_claims_absent": {"$ref": "#/$defs/bound_document"},
+        "untouched_blinding_preserved": {"$ref": "#/$defs/bound_document"}
       }
     },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["golden_manifest", "untouched_manifest", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
+      "required": ["golden_manifest", "untouched_manifest", "opportunity_manifest", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
       "properties": {
         "golden_manifest": {"$ref": "#/$defs/bound_document"},
         "untouched_manifest": {"$ref": "#/$defs/bound_document"},
+        "opportunity_manifest": {"$ref": "#/$defs/bound_document"},
         "detector_freeze": {"$ref": "#/$defs/bound_document"},
         "execution_receipts": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/bound_document"}},
         "llm_reports": {

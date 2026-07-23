@@ -1,0 +1,63 @@
+{
+  "$schema": "../schemas/opportunity-manifest.schema.json",
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "frozen",
+  "frozen_at": "2026-07-22T00:00:00Z",
+  "frozen_before_detector_results": true,
+  "detector_results_seen_before_freeze": false,
+  "hash_contract": "rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation",
+  "cohort_bindings": {
+    "golden_manifest_sha256": "replace-with-frozen-golden-manifest-sha256",
+    "untouched_manifest_sha256": "replace-with-frozen-untouched-manifest-sha256"
+  },
+  "opportunities": [
+    {
+      "opportunity_id": "owner.repository:llm-ioh-001:001",
+      "cohort": "golden",
+      "repository_id": "owner/repository",
+      "commit_sha": "0000000000000000000000000000000000000000",
+      "rule_id": "LLM-IOH-001",
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "src/example.ts",
+        "start_line": 10,
+        "end_line": 14,
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "rationale": "Predeclared source scope for one independently labeled opportunity."
+      }
+    },
+    {
+      "opportunity_id": "owner.untouched:llm-ioh-001:001",
+      "cohort": "untouched",
+      "repository_id": "owner/untouched",
+      "commit_sha": "0000000000000000000000000000000000000000",
+      "rule_id": "LLM-IOH-001",
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "src/example.ts",
+        "start_line": 10,
+        "end_line": 14,
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "rationale": "Predeclared source scope for one independently labeled opportunity."
+      }
+    }
+  ],
+  "blind_label_bindings": [
+    {
+      "label_id": "llm-label-example-0001",
+      "document_sha256": "replace-with-canonical-blind-label-sha256",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-example-0002",
+      "document_sha256": "replace-with-canonical-blind-label-sha256",
+      "role": "independent_reviewer"
+    }
+  ],
+  "manifest_sha256": "replace-with-rfc8785-sha256-excluding-manifest-sha256-and-attestation",
+  "attestation": {
+    "method": "internal_witness",
+    "reference": "internal-witness:replace-me"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "policy_id": "llm-selection-v1",
+  "policy_id": "llm-selection-v1.1",
   "cohort": "golden",
   "status": "frozen",
   "frozen_at": "2026-07-22T00:00:00Z",

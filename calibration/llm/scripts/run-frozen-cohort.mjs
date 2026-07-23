@@ -16,6 +16,8 @@ import { pathToFileURL } from 'node:url';
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
   validateDetectorFreezeRecord,
+  validateFrozenGoldenManifest,
+  validateGoldenExecutionEvidence,
   validateGoldenCorrectionLedger,
 } from './freeze-detector.mjs';
 
@@ -234,6 +236,8 @@ function parseArgs(argv) {
       case '--manifest': options.manifest = take(); break;
       case '--detector-freeze': options.detectorFreeze = take(); break;
       case '--golden-correction-ledger': options.ledger = take(); break;
+      case '--golden-manifest': options.goldenManifest = take(); break;
+      case '--golden-execution-evidence': options.goldenExecutionEvidence = take(); break;
       case '--cejel': options.cejel = take(); break;
       case '--work-root': options.workRoot = take(); break;
       case '--output-root': options.outputRoot = take(); break;
@@ -254,7 +258,8 @@ function usage() {
   node calibration/llm/scripts/run-frozen-cohort.mjs \\
     --manifest <frozen-manifest.json> --cejel <local-built-cejel> \\
     --work-root <checkout-root> --output-root <separate-output-root> \\
-    [--detector-freeze <record.json> --golden-correction-ledger <ledger.json>] \\
+    [--detector-freeze <record.json> --golden-correction-ledger <ledger.json> \\
+     --golden-manifest <golden-manifest.json> --golden-execution-evidence <evidence.json>] \\
     [--confirm-untouched-after-freeze]
 
 Golden runs may supply an explicitly confirmed isolation command directly. Untouched runs must use
@@ -299,17 +304,30 @@ export async function main(argv, commandRunner = defaultRunner) {
     if (freezeRecord.detector.build_sha256 !== detectorBuildSha256) {
       throw new Error('local Cejel build SHA-256 does not match detector-freeze record');
     }
-    if (!options.ledger) {
-      throw new Error('--golden-correction-ledger is required with --detector-freeze');
+    if (!options.ledger || !options.goldenManifest || !options.goldenExecutionEvidence) {
+      throw new Error('--golden-correction-ledger, --golden-manifest, and --golden-execution-evidence are required with --detector-freeze');
     }
     const ledgerBytes = readFileSync(resolve(options.ledger));
     if (sha256Bytes(ledgerBytes) !== freezeRecord.golden_correction_ledger.sha256) {
       throw new Error('golden correction ledger bytes do not match detector-freeze record');
     }
+    const goldenManifest = validateFrozenGoldenManifest(
+      JSON.parse(readFileSync(resolve(options.goldenManifest), 'utf8')),
+    );
+    const executionBytes = readFileSync(resolve(options.goldenExecutionEvidence));
+    if (sha256Bytes(executionBytes) !== freezeRecord.golden_execution_evidence.sha256) {
+      throw new Error('golden execution evidence bytes do not match detector-freeze record');
+    }
+    const executionEvidence = validateGoldenExecutionEvidence(
+      JSON.parse(executionBytes.toString('utf8')),
+      goldenManifest,
+      detectorBuildSha256,
+    );
     validateGoldenCorrectionLedger(
       JSON.parse(ledgerBytes.toString('utf8')),
       detectorBuildSha256,
-      freezeRecord.golden_correction_ledger.golden_manifest_sha256,
+      goldenManifest.manifest_sha256,
+      executionEvidence,
     );
     isolationPrefix = freezeRecord.execution.network_isolation.argv_prefix;
     isolationMode = freezeRecord.execution.network_isolation.mode;

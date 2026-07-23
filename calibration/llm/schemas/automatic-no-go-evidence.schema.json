@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/automatic-no-go-evidence-v1.json",
+  "title": "Cejel Free LLM automatic no-go evidence record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol_id", "check_id", "status", "observed_at", "evidence"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "check_id": {"enum": ["free_core_unchanged_without_pack", "offline_scan_path_verified", "all_findings_have_resolvable_evidence", "prohibited_public_claims_absent", "untouched_blinding_preserved"]},
+    "status": {"enum": ["passed", "failed"]},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "reference", "sha256"],
+        "properties": {
+          "kind": {"enum": ["test_run", "network_isolation_audit", "derived_finding_path_audit", "claim_audit", "chronology_audit"]},
+          "reference": {"type": "string", "minLength": 3},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    }
+  }
+}

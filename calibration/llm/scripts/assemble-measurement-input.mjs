@@ -16,7 +16,7 @@ function loadDocument(base, path) {
 }
 
 export function assembleMeasurementInput(specification, baseDirectory) {
-  const requiredPaths = ['golden_manifest', 'untouched_manifest', 'detector_freeze'];
+  const requiredPaths = ['golden_manifest', 'untouched_manifest', 'opportunity_manifest', 'detector_freeze'];
   for (const key of requiredPaths) {
     if (typeof specification[key] !== 'string') throw new Error(`${key} path is required`);
   }
@@ -25,17 +25,20 @@ export function assembleMeasurementInput(specification, baseDirectory) {
       throw new Error(`${key} paths are required`);
     }
   }
-  const checks = specification.automatic_no_go_checks;
-  if (!checks || Object.values(checks).some((value) => typeof value !== 'boolean')) {
-    throw new Error('automatic_no_go_checks must contain explicit booleans');
+  const checkPaths = specification.automatic_no_go_evidence;
+  if (!checkPaths || Object.values(checkPaths).some((value) => typeof value !== 'string')) {
+    throw new Error('automatic_no_go_evidence must contain evidence-record paths');
   }
   return {
     $schema: './schemas/measurement-input.schema.json',
     protocol_id: 'cejel-llm-calibration-v1',
-    automatic_no_go_checks: checks,
+    automatic_no_go_evidence: Object.fromEntries(
+      Object.entries(checkPaths).map(([check, path]) => [check, loadDocument(baseDirectory, path)]),
+    ),
     evidence: {
       golden_manifest: loadDocument(baseDirectory, specification.golden_manifest),
       untouched_manifest: loadDocument(baseDirectory, specification.untouched_manifest),
+      opportunity_manifest: loadDocument(baseDirectory, specification.opportunity_manifest),
       detector_freeze: loadDocument(baseDirectory, specification.detector_freeze),
       execution_receipts: specification.execution_receipts.map((path) => loadDocument(baseDirectory, path)),
       llm_reports: specification.llm_reports.map((entry) => ({

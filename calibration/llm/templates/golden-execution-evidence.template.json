@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cohort": "golden",
+  "golden_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "detector_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "executions": [
+    {
+      "repository_id": "owner/repository",
+      "receipt": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+      "llm_report": {"document_sha256": "replace-with-canonical-sha256", "document": {}}
+    }
+  ]
+}

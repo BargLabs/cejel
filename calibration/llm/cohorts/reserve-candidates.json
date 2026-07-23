@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "policy_id": "llm-selection-v1",
+  "policy_id": "llm-selection-v1.1",
   "status": "ordered_reserve_before_detector_results",
   "repositories": [
     {"order":1,"repository_id":"NVIDIA/ChatRTX","primary_surface":"rag","replacement_for":"rag"},

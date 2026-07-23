@@ -237,11 +237,28 @@ function evaluateGate(input, thresholds, aggregateMetrics, perRule) {
     }
   }
 
+  const reviewReasons = [
+    metricFailure(
+      aggregateMetrics.double_label_coverage,
+      (value, threshold) => value >= threshold,
+      publicThresholds.minimum_double_labeled_fraction,
+      'double_label_coverage',
+    ),
+  ].filter(Boolean);
+  for (const rule of perRule) {
+    if (rule.counts.double_labeled_items < publicThresholds.minimum_double_labeled_items_per_enabled_rule) {
+      reviewReasons.push(
+        `${rule.rule_id}: double-labeled support ${rule.counts.double_labeled_items} is below ${publicThresholds.minimum_double_labeled_items_per_enabled_rule}`,
+      );
+    }
+  }
+
   const limitedThresholds = thresholds.limited_experimental_go;
   const limitedReasons = [
     metricFailure(aggregateMetrics.finding_recall, (value, threshold) => value >= threshold, limitedThresholds.minimum_finding_recall, 'finding_recall'),
     metricFailure(aggregateMetrics.precision, (value, threshold) => value >= threshold, limitedThresholds.minimum_precision, 'precision'),
     metricFailure(aggregateMetrics.incorrect_finding_rate_fdr, (value, threshold) => value <= threshold, limitedThresholds.maximum_incorrect_finding_rate, 'incorrect_finding_rate_fdr'),
+    ...reviewReasons,
   ].filter(Boolean);
   if (unresolvedCritical > limitedThresholds.maximum_unresolved_critical_false_positives) {
     limitedReasons.push('unresolved critical false positives exceed the limited-experimental maximum');
@@ -290,6 +307,13 @@ function collectNotEstimable(aggregateMetrics, perRule) {
 
 const sha256Canonical = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
 
+export function hashOpportunityManifest(manifest) {
+  const hashable = structuredClone(manifest);
+  delete hashable.manifest_sha256;
+  delete hashable.attestation;
+  return sha256Canonical(hashable);
+}
+
 function unwrapBoundDocument(wrapper, scope) {
   if (!wrapper || typeof wrapper !== 'object' || !wrapper.document) {
     throw new Error(`${scope} must contain a document and document_sha256`);
@@ -298,6 +322,11 @@ function unwrapBoundDocument(wrapper, scope) {
     throw new Error(`${scope} document SHA-256 mismatch`);
   }
   return wrapper.document;
+}
+
+function isRepositoryRelativePath(path) {
+  return typeof path === 'string' && path.length > 0 && !path.startsWith('/') &&
+    !/^[A-Za-z]:[\\/]/.test(path) && !path.split(/[\\/]/).includes('..');
 }
 
 function validateManifestBinding(wrapper, expectedCohort) {
@@ -316,7 +345,135 @@ function validateManifestBinding(wrapper, expectedCohort) {
   return manifest;
 }
 
+function validateOpportunityManifestBinding(wrapper, golden, untouched, repositories) {
+  const manifest = unwrapBoundDocument(wrapper, 'opportunity manifest');
+  rejectUnknownKeys(
+    manifest,
+    ['$schema', 'schema_version', 'protocol_id', 'status', 'frozen_at', 'frozen_before_detector_results',
+      'detector_results_seen_before_freeze', 'hash_contract', 'cohort_bindings', 'opportunities',
+      'blind_label_bindings', 'manifest_sha256', 'attestation'],
+    'opportunity manifest',
+  );
+  if (
+    manifest?.schema_version !== '1.0.0' || manifest.protocol_id !== 'cejel-llm-calibration-v1' ||
+    manifest.status !== 'frozen' || manifest.frozen_before_detector_results !== true ||
+    manifest.detector_results_seen_before_freeze !== false ||
+    manifest.hash_contract !== 'rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation' ||
+    manifest.cohort_bindings?.golden_manifest_sha256 !== golden.manifest_sha256 ||
+    manifest.cohort_bindings?.untouched_manifest_sha256 !== untouched.manifest_sha256 ||
+    hashOpportunityManifest(manifest) !== manifest.manifest_sha256 ||
+    !Array.isArray(manifest.opportunities) || manifest.opportunities.length < 2 ||
+    !Array.isArray(manifest.blind_label_bindings) || manifest.blind_label_bindings.length < 2 ||
+    typeof manifest.frozen_at !== 'string' || Number.isNaN(Date.parse(manifest.frozen_at)) ||
+    typeof manifest.attestation?.method !== 'string' || manifest.attestation.method.length < 3 ||
+    typeof manifest.attestation?.reference !== 'string' || manifest.attestation.reference.length < 8
+  ) throw new Error('opportunity manifest binding is not a valid frozen inventory');
+  rejectUnknownKeys(
+    manifest.cohort_bindings,
+    ['golden_manifest_sha256', 'untouched_manifest_sha256'],
+    'opportunity manifest cohort bindings',
+  );
+  rejectUnknownKeys(manifest.attestation, ['method', 'reference'], 'opportunity manifest attestation');
+
+  const opportunities = new Map();
+  const representedCohorts = new Set();
+  for (const [index, opportunity] of manifest.opportunities.entries()) {
+    const scope = `opportunity manifest item ${index}`;
+    if (!opportunity || typeof opportunity !== 'object' || Array.isArray(opportunity)) {
+      throw new Error(`${scope} is invalid`);
+    }
+    rejectUnknownKeys(
+      opportunity,
+      ['opportunity_id', 'cohort', 'repository_id', 'commit_sha', 'rule_id', 'evidence_scope'],
+      scope,
+    );
+    if (opportunity?.evidence_scope && typeof opportunity.evidence_scope === 'object') {
+      rejectUnknownKeys(
+        opportunity.evidence_scope,
+        ['kind', 'path_or_reference', 'start_line', 'end_line', 'sha256', 'rationale'],
+        `${scope} evidence scope`,
+      );
+    }
+    if (
+      typeof opportunity?.opportunity_id !== 'string' ||
+      !/^[a-z0-9][a-z0-9._:-]{5,160}$/.test(opportunity.opportunity_id) ||
+      !['golden', 'untouched'].includes(opportunity.cohort) ||
+      !ENABLED_RULE_IDS.includes(opportunity.rule_id) ||
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(opportunity.repository_id || '') ||
+      !/^[a-f0-9]{40}$/.test(opportunity.commit_sha || '') ||
+      !['source_span', 'manifest_key', 'configuration', 'external_result'].includes(opportunity.evidence_scope?.kind) ||
+      typeof opportunity.evidence_scope?.path_or_reference !== 'string' ||
+      (opportunity.evidence_scope?.kind === 'source_span' &&
+        (!isRepositoryRelativePath(opportunity.evidence_scope.path_or_reference) ||
+          opportunity.evidence_scope?.start_line === undefined)) ||
+      ((opportunity.evidence_scope?.start_line === undefined) !==
+        (opportunity.evidence_scope?.end_line === undefined)) ||
+      (opportunity.evidence_scope?.start_line !== undefined &&
+        (!Number.isInteger(opportunity.evidence_scope.start_line) || opportunity.evidence_scope.start_line < 1 ||
+          !Number.isInteger(opportunity.evidence_scope.end_line) ||
+          opportunity.evidence_scope.end_line < opportunity.evidence_scope.start_line)) ||
+      !/^[a-f0-9]{64}$/.test(opportunity.evidence_scope?.sha256 || '') ||
+      typeof opportunity.evidence_scope?.rationale !== 'string' ||
+      opportunity.evidence_scope.rationale.length < 20
+    ) throw new Error(`${scope} is invalid`);
+    if (opportunities.has(opportunity.opportunity_id)) {
+      throw new Error(`duplicate predefined opportunity_id: ${opportunity.opportunity_id}`);
+    }
+    const expected = repositories.get(`${opportunity.cohort}:${opportunity.repository_id}`);
+    if (!expected || expected.repository.commit_sha !== opportunity.commit_sha) {
+      throw new Error(`${scope} is not bound to a frozen repository`);
+    }
+    representedCohorts.add(opportunity.cohort);
+    opportunities.set(opportunity.opportunity_id, opportunity);
+  }
+  if (!representedCohorts.has('golden') || !representedCohorts.has('untouched')) {
+    throw new Error('opportunity manifest must contain predefined opportunities for both cohorts');
+  }
+  const blindLabelBindings = new Map();
+  for (const [index, binding] of manifest.blind_label_bindings.entries()) {
+    const scope = `opportunity manifest blind-label binding ${index}`;
+    if (!binding || typeof binding !== 'object' || Array.isArray(binding)) throw new Error(`${scope} is invalid`);
+    rejectUnknownKeys(binding, ['label_id', 'document_sha256', 'role'], scope);
+    if (
+      !/^llm-label-[a-z0-9-]{8,80}$/.test(binding.label_id || '') ||
+      !/^[a-f0-9]{64}$/.test(binding.document_sha256 || '') ||
+      !['primary_labeler', 'independent_reviewer', 'adjudicator'].includes(binding.role) ||
+      blindLabelBindings.has(binding.label_id)
+    ) throw new Error(`${scope} is invalid or duplicated`);
+    blindLabelBindings.set(binding.label_id, binding);
+  }
+  return { manifest, opportunities, blindLabelBindings };
+}
+
 function validateLabelRecord(label, scope) {
+  if (!label || typeof label !== 'object' || Array.isArray(label)) throw new Error(`${scope} is not a valid label record`);
+  rejectUnknownKeys(
+    label,
+    ['schema_version', 'protocol_id', 'label_id', 'cohort', 'repository', 'rule', 'opportunity_id',
+      'detector_finding_id', 'label', 'evidence', 'review', 'created_at'],
+    scope,
+  );
+  if (label.repository && typeof label.repository === 'object') {
+    rejectUnknownKeys(label.repository, ['repository_id', 'commit_sha'], `${scope} repository`);
+  }
+  if (label.rule && typeof label.rule === 'object') {
+    rejectUnknownKeys(label.rule, ['catalogue_id', 'rule_id', 'rule_version'], `${scope} rule`);
+  }
+  if (label.review && typeof label.review === 'object') {
+    rejectUnknownKeys(
+      label.review,
+      ['labeler_id', 'role', 'independent_of_rule_author', 'detector_output_visible',
+        'adjudication_status', 'supersedes_label_ids', 'rationale'],
+      `${scope} review`,
+    );
+  }
+  for (const [index, item] of (Array.isArray(label.evidence) ? label.evidence : []).entries()) {
+    rejectUnknownKeys(
+      item,
+      ['kind', 'path_or_reference', 'start_line', 'end_line', 'sha256', 'rationale'],
+      `${scope} evidence ${index}`,
+    );
+  }
   if (
     label?.schema_version !== '1.0.0' || label?.protocol_id !== 'cejel-llm-calibration-v1' ||
     !/^llm-label-[a-z0-9-]{8,80}$/.test(label.label_id || '') ||
@@ -328,20 +485,112 @@ function validateLabelRecord(label, scope) {
     typeof label.opportunity_id !== 'string' || label.opportunity_id.length < 6 ||
     !['present', 'absent', 'ambiguous', 'not_applicable', 'insufficient_source'].includes(label.label) ||
     !Array.isArray(label.evidence) || label.evidence.length < 1 || label.evidence.some((item) =>
-      !item || !/^[a-f0-9]{64}$/.test(item.sha256 || '') || typeof item.rationale !== 'string' || item.rationale.length < 20
+      !item || !['source_span', 'manifest_key', 'configuration', 'external_result'].includes(item.kind) ||
+      typeof item.path_or_reference !== 'string' || item.path_or_reference.length < 1 ||
+      (item.kind === 'source_span' && (!isRepositoryRelativePath(item.path_or_reference) ||
+        !Number.isInteger(item.start_line) || item.start_line < 1 ||
+        !Number.isInteger(item.end_line) || item.end_line < item.start_line)) ||
+      ((item.start_line === undefined) !== (item.end_line === undefined)) ||
+      !/^[a-f0-9]{64}$/.test(item.sha256 || '') || typeof item.rationale !== 'string' || item.rationale.length < 20
     ) ||
     typeof label.review?.labeler_id !== 'string' || label.review.labeler_id.length < 3 ||
-    !['primary_labeler', 'independent_reviewer', 'adjudicator'].includes(label.review.role) ||
+    !['primary_labeler', 'independent_reviewer', 'adjudicator', 'finding_reviewer'].includes(label.review.role) ||
     label.review.independent_of_rule_author !== true ||
     !['not_required', 'pending', 'adjudicated'].includes(label.review.adjudication_status) ||
     typeof label.created_at !== 'string' || Number.isNaN(Date.parse(label.created_at))
   ) throw new Error(`${scope} is not a valid label record`);
   if (
+    ['primary_labeler', 'independent_reviewer', 'adjudicator'].includes(label.review.role) &&
+    label.review.detector_output_visible !== false
+  ) throw new Error(`${scope} first-pass label must be blind to detector output`);
+  if (
     label.review.role === 'adjudicator' &&
     (!Array.isArray(label.review.supersedes_label_ids) || label.review.supersedes_label_ids.length < 2 ||
-      typeof label.review.rationale !== 'string' || label.review.rationale.length < 20)
+      typeof label.review.rationale !== 'string' || label.review.rationale.length < 20 ||
+      label.review.detector_output_visible !== false || label.review.adjudication_status !== 'adjudicated')
   ) throw new Error(`${scope} has an invalid adjudication record`);
+  if (
+    label.review.role === 'finding_reviewer' &&
+    (label.review.detector_output_visible !== true || label.review.adjudication_status !== 'not_required' ||
+      !/^llm-finding-[a-f0-9]{64}$/.test(label.detector_finding_id || ''))
+  ) throw new Error(`${scope} has an invalid post-run finding-review record`);
+  if (label.review.role !== 'finding_reviewer' && label.detector_finding_id != null) {
+    throw new Error(`${scope} blind ground-truth labels cannot carry detector finding IDs`);
+  }
   return label;
+}
+
+function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredEvidenceKind) {
+  const document = unwrapBoundDocument(wrapper, `automatic no-go evidence ${checkId}`);
+  if (document && typeof document === 'object') {
+    rejectUnknownKeys(
+      document,
+      ['schema_version', 'protocol_id', 'check_id', 'status', 'observed_at', 'evidence'],
+      `automatic no-go evidence ${checkId}`,
+    );
+    for (const [index, item] of (Array.isArray(document.evidence) ? document.evidence : []).entries()) {
+      rejectUnknownKeys(item, ['kind', 'reference', 'sha256'], `automatic no-go evidence ${checkId} item ${index}`);
+    }
+  }
+  if (
+    document?.schema_version !== '1.0.0' || document?.protocol_id !== 'cejel-llm-calibration-v1' ||
+    document?.check_id !== checkId || !['passed', 'failed'].includes(document.status) ||
+    typeof document.observed_at !== 'string' || Number.isNaN(Date.parse(document.observed_at)) ||
+    !Array.isArray(document.evidence) || document.evidence.length < 1 ||
+    document.evidence.some((item) =>
+      !item || !['test_run', 'network_isolation_audit', 'derived_finding_path_audit',
+        'claim_audit', 'chronology_audit'].includes(item.kind) ||
+      typeof item.reference !== 'string' || item.reference.length < 3 ||
+      !/^[a-f0-9]{64}$/.test(item.sha256 || '')
+    )
+  ) throw new Error(`automatic no-go evidence ${checkId} is invalid`);
+  if (requiredEvidenceKind && !document.evidence.some((item) => item.kind === requiredEvidenceKind)) {
+    throw new Error(`automatic no-go evidence ${checkId} requires ${requiredEvidenceKind} evidence`);
+  }
+  const passed = document.status === 'passed';
+  if (typeof derivedStatus === 'boolean' && passed !== derivedStatus) {
+    throw new Error(`automatic no-go evidence ${checkId} contradicts derived evidence`);
+  }
+  return { passed, document_sha256: wrapper.document_sha256 };
+}
+
+function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings) {
+  const records = input.automatic_no_go_evidence;
+  if (!records || typeof records !== 'object' || Array.isArray(records)) {
+    throw new Error('automatic_no_go_evidence must be an object of content-addressed records');
+  }
+  rejectUnknownKeys(records, Object.keys(CHECK_TO_REASON), 'automatic_no_go_evidence');
+  const offline = freeze.execution?.network_isolation?.explicitly_confirmed === true &&
+    [...receipts.values()].every((receipt) =>
+      receipt.network_isolation_mode === freeze.execution.network_isolation.mode
+    );
+  const freezeTime = Date.parse(freeze.frozen_at);
+  const chronology = freeze.untouched_results_seen_before_freeze === false &&
+    Date.parse(untouched.frozen_at) <= freezeTime &&
+    [...receipts.values()].filter((receipt) => receipt.cohort === 'untouched').every((receipt) =>
+      typeof receipt.completed_at === 'string' && Date.parse(receipt.completed_at) > freezeTime
+    );
+  const pathsResolvable = [...findings.values()].every((finding) => {
+    const path = finding?.evidence?.path;
+    return typeof path === 'string' && path.length > 0 && !path.startsWith('/') &&
+      !/^[A-Za-z]:[\\/]/.test(path) && !path.split(/[\\/]/).includes('..') &&
+      Number.isInteger(finding?.evidence?.line) && finding.evidence.line >= 1;
+  });
+  const rules = {
+    free_core_unchanged_without_pack: { derived: undefined, kind: 'test_run' },
+    offline_scan_path_verified: { derived: offline, kind: 'network_isolation_audit' },
+    all_findings_have_resolvable_evidence: { derived: pathsResolvable, kind: 'derived_finding_path_audit' },
+    prohibited_public_claims_absent: { derived: undefined, kind: 'claim_audit' },
+    untouched_blinding_preserved: { derived: chronology, kind: 'chronology_audit' },
+  };
+  const checks = {};
+  const bindings = {};
+  for (const [checkId, rule] of Object.entries(rules)) {
+    const validated = validateAutomaticCheckRecord(records[checkId], checkId, rule.derived, rule.kind);
+    checks[checkId] = validated.passed;
+    bindings[checkId] = validated.document_sha256;
+  }
+  return { checks, bindings };
 }
 
 export function deriveCountsFromEvidence(input) {
@@ -364,6 +613,13 @@ export function deriveCountsFromEvidence(input) {
     }
   }
 
+  const { manifest: opportunityManifest, opportunities, blindLabelBindings } = validateOpportunityManifestBinding(
+    evidence.opportunity_manifest,
+    golden,
+    untouched,
+    repositories,
+  );
+
   if (!Array.isArray(evidence.execution_receipts) || !Array.isArray(evidence.llm_reports)) {
     throw new Error('execution_receipts and llm_reports evidence arrays are required');
   }
@@ -379,7 +635,8 @@ export function deriveCountsFromEvidence(input) {
       receipt.manifest_sha256 !== expected.manifest.manifest_sha256 ||
       receipt.detector_build_sha256 !== freeze.detector.build_sha256 ||
       receipt.output_outside_source !== true || !Array.isArray(receipt.finding_ids) ||
-      !Array.isArray(receipt.rule_states)
+      !Array.isArray(receipt.rule_states) || typeof receipt.completed_at !== 'string' ||
+      Number.isNaN(Date.parse(receipt.completed_at))
     ) throw new Error(`execution receipt does not match frozen evidence: ${key}`);
     if (receipt.cohort === 'untouched' && receipt.detector_freeze_sha256 !== freeze.record_sha256) {
       throw new Error(`untouched execution receipt is not bound to detector freeze: ${key}`);
@@ -387,6 +644,12 @@ export function deriveCountsFromEvidence(input) {
     receipts.set(key, receipt);
   }
   if (receipts.size !== repositories.size) throw new Error('execution receipts do not cover every frozen repository');
+  const earliestDetectorCompletion = Math.min(
+    ...[...receipts.values()].map((receipt) => Date.parse(receipt.completed_at)),
+  );
+  if (Date.parse(opportunityManifest.frozen_at) >= earliestDetectorCompletion) {
+    throw new Error('opportunity inventory was not frozen before detector results');
+  }
 
   const reports = new Map();
   const findings = new Map();
@@ -401,6 +664,24 @@ export function deriveCountsFromEvidence(input) {
     if (!Array.isArray(report?.result?.findings) || !Array.isArray(report?.result?.ruleResults)) {
       throw new Error(`LLM report is structurally incomplete: ${key}`);
     }
+    const reportRuleStates = report.result.ruleResults.map((result) => ({
+      rule_id: result?.ruleId,
+      state: result?.state,
+    }));
+    if (
+      reportRuleStates.length !== ENABLED_RULE_IDS.length ||
+      new Set(reportRuleStates.map((entry) => entry.rule_id)).size !== ENABLED_RULE_IDS.length ||
+      reportRuleStates.some((entry) => !ENABLED_RULE_IDS.includes(entry.rule_id) ||
+        !['finding', 'no_finding', 'not_applicable', 'insufficient_data'].includes(entry.state)) ||
+      canonicalize([...reportRuleStates].sort((left, right) => left.rule_id.localeCompare(right.rule_id))) !==
+        canonicalize([...receipt.rule_states].sort((left, right) => left.rule_id.localeCompare(right.rule_id)))
+    ) throw new Error(`LLM report rule states do not match the receipt and frozen catalogue: ${key}`);
+    if (report.result.findings.some((finding) =>
+      !ENABLED_RULE_IDS.includes(finding?.ruleId) || typeof finding?.severity !== 'string' ||
+      typeof finding?.confidence !== 'string' || typeof finding?.summary !== 'string' ||
+      !isRepositoryRelativePath(finding?.evidence?.path) ||
+      !Number.isInteger(finding?.evidence?.line) || finding.evidence.line < 1
+    )) throw new Error(`LLM report contains an invalid finding: ${key}`);
     const findingIds = report.result.findings.map((finding, findingIndex) =>
       `llm-finding-${sha256Canonical({ repository_id: wrapper.repository_id, index: findingIndex, finding })}`
     );
@@ -408,11 +689,13 @@ export function deriveCountsFromEvidence(input) {
       throw new Error(`LLM report finding IDs do not match receipt: ${key}`);
     }
     report.result.findings.forEach((finding, findingIndex) => {
+      if (findings.has(findingIds[findingIndex])) throw new Error(`duplicate finding ID across reports: ${findingIds[findingIndex]}`);
       findings.set(findingIds[findingIndex], { ...finding, cohort: wrapper.cohort, repository_id: wrapper.repository_id });
     });
     reports.set(key, report);
   }
   if (reports.size !== repositories.size) throw new Error('LLM reports do not cover every frozen repository');
+  const automatic = deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings);
 
   if (!Array.isArray(evidence.label_records) || evidence.label_records.length < 1) {
     throw new Error('at least one bound label record is required');
@@ -423,10 +706,41 @@ export function deriveCountsFromEvidence(input) {
     const label = validateLabelRecord(unwrapBoundDocument(wrapper, `label record ${index}`), `label record ${index}`);
     if (labelIds.has(label.label_id)) throw new Error(`duplicate label_id: ${label.label_id}`);
     labelIds.add(label.label_id);
+    if (label.review.role !== 'finding_reviewer') {
+      const binding = blindLabelBindings.get(label.label_id);
+      if (!binding || binding.document_sha256 !== wrapper.document_sha256 || binding.role !== label.review.role) {
+        throw new Error(`blind ground-truth label is not bound into the pre-result opportunity manifest: ${label.label_id}`);
+      }
+      if (Date.parse(label.created_at) > Date.parse(opportunityManifest.frozen_at)) {
+        throw new Error(`blind ground-truth label postdates the opportunity-manifest freeze: ${label.label_id}`);
+      }
+    } else if (blindLabelBindings.has(label.label_id)) {
+      throw new Error(`post-run finding review cannot be bound as a blind label: ${label.label_id}`);
+    }
     const repoKey = `${label.cohort}:${label.repository?.repository_id}`;
     const expected = repositories.get(repoKey);
     if (!expected || label.repository.commit_sha !== expected.repository.commit_sha) {
       throw new Error(`label record is not bound to a frozen repository: ${label.label_id}`);
+    }
+    const predefined = opportunities.get(label.opportunity_id);
+    if (predefined) {
+      if (
+        predefined.cohort !== label.cohort || predefined.repository_id !== label.repository.repository_id ||
+        predefined.commit_sha !== label.repository.commit_sha || predefined.rule_id !== label.rule.rule_id
+      ) throw new Error(`label does not match its predefined opportunity: ${label.label_id}`);
+      const evidenceMatchesInventory = label.evidence.some((item) =>
+        item.kind === predefined.evidence_scope.kind &&
+        item.path_or_reference === predefined.evidence_scope.path_or_reference &&
+        item.sha256 === predefined.evidence_scope.sha256 &&
+        (predefined.evidence_scope.start_line === undefined ||
+          (item.start_line === predefined.evidence_scope.start_line &&
+            item.end_line === predefined.evidence_scope.end_line))
+      );
+      if (!evidenceMatchesInventory) {
+        throw new Error(`label evidence does not match its frozen opportunity scope: ${label.label_id}`);
+      }
+    } else {
+      throw new Error(`label references an opportunity absent from the frozen inventory: ${label.label_id}`);
     }
     if (label.detector_finding_id) {
       const finding = findings.get(label.detector_finding_id);
@@ -442,11 +756,29 @@ export function deriveCountsFromEvidence(input) {
     labelsByOpportunity.set(key, group);
   }
 
+  const observedBlindLabelIds = new Set(
+    evidence.label_records
+      .map((wrapper) => wrapper.document)
+      .filter((label) => label.review.role !== 'finding_reviewer')
+      .map((label) => label.label_id),
+  );
+  for (const labelId of blindLabelBindings.keys()) {
+    if (!observedBlindLabelIds.has(labelId)) {
+      throw new Error(`pre-result blind-label binding lacks its label record: ${labelId}`);
+    }
+  }
+
   const finalItems = [];
   for (const [key, labels] of labelsByOpportunity) {
-    const originals = labels.filter((label) => label.review.role !== 'adjudicator');
+    const findingReviews = labels.filter((label) => label.review.role === 'finding_reviewer');
+    const originals = labels.filter((label) =>
+      ['primary_labeler', 'independent_reviewer'].includes(label.review.role)
+    );
     const adjudicators = labels.filter((label) => label.review.role === 'adjudicator');
     if (originals.length < 1) throw new Error(`${key}: requires at least one original label`);
+    const primaryLabels = originals.filter((label) => label.review.role === 'primary_labeler');
+    const independentLabels = originals.filter((label) => label.review.role === 'independent_reviewer');
+    if (primaryLabels.length !== 1) throw new Error(`${key}: requires exactly one primary label`);
     const independentIds = new Set(originals.map((label) => label.review.labeler_id.trim().toLowerCase()));
     if (originals.length > 2) throw new Error(`${key}: double-label protocol permits exactly two original labels`);
     if (originals.length === 2 && independentIds.size !== 2) {
@@ -454,35 +786,62 @@ export function deriveCountsFromEvidence(input) {
     }
     const doubleLabeled = independentIds.size >= 2;
     const agreement = doubleLabeled && new Set(originals.map((label) => label.label)).size === 1;
+    if (findingReviews.length > 1) throw new Error(`${key}: permits at most one matched detector finding`);
     if (doubleLabeled) {
       const roles = new Set(originals.map((label) => label.review.role));
       if (!roles.has('primary_labeler') || !roles.has('independent_reviewer')) {
         throw new Error(`${key}: double labels require primary and independent-reviewer roles`);
       }
     }
+    if (independentLabels.length > 1) throw new Error(`${key}: permits at most one independent-reviewer label`);
     let final;
     if (adjudicators.length > 0) {
       if (adjudicators.length !== 1) throw new Error(`${key}: requires exactly one final adjudicator record`);
       if (!doubleLabeled || agreement) throw new Error(`${key}: adjudication is only valid for a two-reviewer disagreement`);
       const superseded = new Set(adjudicators[0].review.supersedes_label_ids || []);
-      if (originals.some((label) => !superseded.has(label.label_id))) {
-        throw new Error(`${key}: adjudication does not supersede every original label`);
+      if (superseded.size !== originals.length || originals.some((label) => !superseded.has(label.label_id))) {
+        throw new Error(`${key}: adjudication must supersede exactly every original label`);
+      }
+      if (originals.some((label) => label.review.adjudication_status !== 'pending')) {
+        throw new Error(`${key}: disagreement originals must be pending adjudication`);
+      }
+      if (independentIds.has(adjudicators[0].review.labeler_id.trim().toLowerCase())) {
+        throw new Error(`${key}: adjudicator identity must differ from both original labelers`);
       }
       final = adjudicators[0];
     } else {
       if (originals.length !== 1 && !agreement) throw new Error(`${key}: disagreement requires adjudication`);
+      if (originals.some((label) => label.review.adjudication_status !== 'not_required')) {
+        throw new Error(`${key}: unadjudicated originals must use not_required status`);
+      }
       final = originals[0];
     }
     if (final.label === 'ambiguous') throw new Error(`${key}: final label remains ambiguous`);
+    if (findingReviews.length === 1 && findingReviews[0].label !== final.label) {
+      throw new Error(`${key}: finding review must preserve the blind final ground-truth label`);
+    }
     finalItems.push({
       final,
+      detectorFindingId: findingReviews[0]?.detector_finding_id ?? null,
       doubleLabeled,
       agreement,
-      reviewerPair: doubleLabeled ? originals.map((label) => label.label) : null,
+      reviewerPair: doubleLabeled
+        ? [primaryLabels[0].label, independentLabels[0].label]
+        : null,
     });
   }
 
-  const finalFindingIdList = finalItems.map((item) => item.final.detector_finding_id).filter(Boolean);
+
+  for (const opportunity of opportunities.values()) {
+    const key = `${opportunity.cohort}:${opportunity.repository_id}:${opportunity.rule_id}:${opportunity.opportunity_id}`;
+    const labels = labelsByOpportunity.get(key) || [];
+    const primaryCount = labels.filter((label) => label.review.role === 'primary_labeler').length;
+    if (primaryCount !== 1) {
+      throw new Error(`predefined opportunity requires exactly one primary label: ${opportunity.opportunity_id}`);
+    }
+  }
+
+  const finalFindingIdList = finalItems.map((item) => item.detectorFindingId).filter(Boolean);
   const labeledFindingIds = new Set(finalFindingIdList);
   if (labeledFindingIds.size !== finalFindingIdList.length) {
     throw new Error('a detector finding was assigned to more than one final adjudicated opportunity');
@@ -534,10 +893,10 @@ export function deriveCountsFromEvidence(input) {
       if (eligibleAdjudicated && item.doubleLabeled) target.double_labeled_items += 1;
       if (eligibleAdjudicated && item.agreement) target.reviewer_agreements += 1;
       if (item.final.label === 'present') {
-        target[item.final.detector_finding_id ? 'true_positives' : 'false_negatives'] += 1;
+        target[item.detectorFindingId ? 'true_positives' : 'false_negatives'] += 1;
       } else if (item.final.label === 'absent') {
-        target[item.final.detector_finding_id ? 'false_positives' : 'true_negatives'] += 1;
-        if (item.final.detector_finding_id && findings.get(item.final.detector_finding_id)?.severity === 'critical') {
+        target[item.detectorFindingId ? 'false_positives' : 'true_negatives'] += 1;
+        if (item.detectorFindingId && findings.get(item.detectorFindingId)?.severity === 'critical') {
           target.unresolved_critical_false_positives += 1;
         }
       }
@@ -555,14 +914,17 @@ export function deriveCountsFromEvidence(input) {
       aggregate: cohenKappa(aggregateReviewerPairs),
       perRule: Object.fromEntries(ENABLED_RULE_IDS.map((ruleId) => [ruleId, cohenKappa(reviewerPairsByRule.get(ruleId))])),
     },
+    automaticNoGoChecks: automatic.checks,
     bindings: {
       golden_manifest_sha256: golden.manifest_sha256,
       untouched_manifest_sha256: untouched.manifest_sha256,
+      opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
       detector_freeze_sha256: freeze.record_sha256,
       execution_receipts: receipts.size,
       llm_reports: reports.size,
       label_records: evidence.label_records.length,
       adjudicated_items: aggregate.adjudicated_items,
+      automatic_no_go_evidence: automatic.bindings,
     },
   };
 }
@@ -571,7 +933,7 @@ export function computeMetrics(input, thresholds) {
   const derived = deriveCountsFromEvidence(input);
   rejectUnknownKeys(
     input,
-    ['$schema', 'protocol_id', 'automatic_no_go_checks', 'evidence'],
+    ['$schema', 'protocol_id', 'automatic_no_go_evidence', 'evidence'],
     'measurement input',
   );
   if (input.protocol_id !== 'cejel-llm-calibration-v1') throw new Error('unsupported protocol_id');
@@ -585,19 +947,6 @@ export function computeMetrics(input, thresholds) {
       1 - thresholds.limited_experimental_go.maximum_incorrect_finding_rate
   ) {
     throw new Error('release precision and incorrect-finding thresholds are inconsistent');
-  }
-  if (!input.automatic_no_go_checks || typeof input.automatic_no_go_checks !== 'object') {
-    throw new Error('automatic_no_go_checks must be an object');
-  }
-  rejectUnknownKeys(
-    input.automatic_no_go_checks,
-    Object.keys(CHECK_TO_REASON),
-    'automatic_no_go_checks',
-  );
-  for (const check of Object.keys(CHECK_TO_REASON)) {
-    if (typeof input.automatic_no_go_checks[check] !== 'boolean') {
-      throw new Error(`automatic_no_go_checks.${check} must be boolean`);
-    }
   }
   const counts = derived.counts;
   const rules = derived.perRule;
@@ -642,7 +991,12 @@ export function computeMetrics(input, thresholds) {
   }
 
   const aggregateMetrics = metricsForCounts(counts);
-  const evaluation = evaluateGate({ ...input, counts }, thresholds, aggregateMetrics, perRule);
+  const evaluation = evaluateGate(
+    { ...input, automatic_no_go_checks: derived.automaticNoGoChecks, counts },
+    thresholds,
+    aggregateMetrics,
+    perRule,
+  );
   return {
     schema_version: '1.0.0',
     protocol_id: input.protocol_id,
@@ -657,7 +1011,7 @@ export function computeMetrics(input, thresholds) {
       double_label_coverage: aggregateMetrics.double_label_coverage,
       cohen_kappa: derived.reviewerAgreement.aggregate,
       cohen_kappa_per_rule: derived.reviewerAgreement.perRule,
-      automatic_no_go_checks: input.automatic_no_go_checks,
+      automatic_no_go_checks: derived.automaticNoGoChecks,
     },
     not_estimable: collectNotEstimable(aggregateMetrics, perRule),
     release_evaluation: evaluation,

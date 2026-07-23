@@ -29,17 +29,22 @@ const allowedLanguages = new Set(policy.strata.language);
 const allowedSurfaces = new Set(policy.strata.surface);
 const allowedProviders = new Set(policy.strata.provider);
 
-if (policy.status !== 'locked_before_detector_results' || policy.detector_results_seen !== false) {
+if (policy.status !== 'relocked_before_detector_results' || policy.detector_results_seen !== false) {
   errors.push('selection policy is not locked before detector results');
 }
 if (
   amendments.protocol_id !== 'cejel-llm-calibration-v1' ||
+  amendments.policy_id !== policy.policy_id ||
+  amendments.supersedes_policy_id !== policy.supersedes_policy_id ||
   amendments.detector_results_seen !== false ||
   !Array.isArray(amendments.amendments) ||
   amendments.amendments.length === 0
 ) {
   errors.push('selection amendment log is absent, malformed, or contaminated by detector results');
 }
+if (!amendments.amendments.some((entry) =>
+  entry.kind === 'policy_relock_before_results' && entry.to === policy.policy_id
+)) errors.push('selection amendment log does not record the pre-result policy re-lock');
 if (
   thresholds.protocol_id !== 'cejel-llm-calibration-v1' ||
   thresholds.status !== 'locked_before_detector_results' ||

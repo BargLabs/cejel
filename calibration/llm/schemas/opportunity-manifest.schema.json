@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/opportunity-manifest-v1.json",
+  "title": "Cejel Free LLM frozen calibration opportunity inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol_id", "status", "frozen_at", "frozen_before_detector_results", "detector_results_seen_before_freeze", "hash_contract", "cohort_bindings", "opportunities", "blind_label_bindings", "manifest_sha256", "attestation"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "status": {"const": "frozen"},
+    "frozen_at": {"type": "string", "format": "date-time"},
+    "frozen_before_detector_results": {"const": true},
+    "detector_results_seen_before_freeze": {"const": false},
+    "hash_contract": {"const": "rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation"},
+    "cohort_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["golden_manifest_sha256", "untouched_manifest_sha256"],
+      "properties": {
+        "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "untouched_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "opportunities": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["opportunity_id", "cohort", "repository_id", "commit_sha", "rule_id", "evidence_scope"],
+        "properties": {
+          "opportunity_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"},
+          "cohort": {"enum": ["golden", "untouched"]},
+          "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+          "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+          "rule_id": {"enum": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"]},
+          "evidence_scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "path_or_reference", "sha256", "rationale"],
+            "properties": {
+              "kind": {"enum": ["source_span", "manifest_key", "configuration", "external_result"]},
+              "path_or_reference": {"type": "string", "minLength": 1},
+              "start_line": {"type": "integer", "minimum": 1},
+              "end_line": {"type": "integer", "minimum": 1},
+              "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+              "rationale": {"type": "string", "minLength": 20}
+            },
+            "dependentRequired": {"start_line": ["end_line"], "end_line": ["start_line"]},
+            "allOf": [
+              {"if": {"properties": {"kind": {"const": "source_span"}}}, "then": {"required": ["start_line", "end_line"]}}
+            ]
+          }
+        }
+      }
+    },
+    "blind_label_bindings": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label_id", "document_sha256", "role"],
+        "properties": {
+          "label_id": {"type": "string", "pattern": "^llm-label-[a-z0-9-]{8,80}$"},
+          "document_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "role": {"enum": ["primary_labeler", "independent_reviewer", "adjudicator"]}
+        }
+      }
+    },
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "reference"],
+      "properties": {
+        "method": {"type": "string", "minLength": 3},
+        "reference": {"type": "string", "minLength": 8}
+      }
+    }
+  }
+}
