@@ -68,9 +68,10 @@ Before any detector run:
    RFC 8785-canonical JSON for that repository entry with `entry_sha256` omitted.
 5. Record license identifier when observable; otherwise use `NOASSERTION`.
 6. Write one immutable manifest per cohort using the template and schema.
-7. Compute `manifest_sha256` over RFC 8785-canonical JSON for the complete manifest with
-   `manifest_sha256` and `attestation` omitted. Sign or otherwise witness that digest and put the
-   resulting reference in `attestation`. These omissions avoid self-referential hashes.
+7. Compute `manifest_sha256` over RFC 8785-canonical JSON for the complete manifest with only
+   `manifest_sha256` omitted. The internal attestation reference is hash-bound. Any cryptographic
+   signature belongs in a separate external envelope that names this digest; embedding the
+   signature inside the signed document would be circular.
 8. Before any detector output is generated, enumerate every golden and untouched defect/negative
    opportunity. For every source span, first create an internal source-evidence entry containing
    the whole-file bytes, their SHA-256, Git blob ID, and the raw Git tree-object chain that proves
@@ -79,7 +80,10 @@ Before any detector run:
 9. Freeze the opportunity inventory bound to both cohort manifests. Its source-span digest must be
    the verified whole-file digest in the source-evidence index. Freeze its canonical digest using
    `schemas/opportunity-manifest.schema.json` and retain the attestation reference.
-10. Run `validate-calibration.mjs` and preserve its output with the release evidence.
+10. Independently freeze opportunity-discovery coverage with one row for every repository ×
+    enabled rule, two distinct blind reviewers, and the exact declared opportunity IDs, including
+    explicit empty lists. Bind it to both manifests, the source index, and opportunity manifest.
+11. Run `validate-calibration.mjs` and preserve its output with the release evidence.
 
 No repository source is copied into public calibration artifacts. The self-contained source index
 is retained with restricted internal measurement evidence; public evidence pointers use paths,
@@ -99,6 +103,8 @@ in the frozen inventory; detector findings must be matched to one of those oppor
 create a post-result opportunity that changes the recall denominator. The opportunity-manifest
 hash binds every blind ground-truth label's ID, role, and canonical document digest before detector
 execution; a later `detector_output_visible: false` assertion alone is not accepted as proof.
+The pre-result commitment also binds the opportunity-discovery coverage digest and the exact byte
+and canonical SHA-256 digests of `release-thresholds.json`.
 
 For the untouched cohort, the primary labeler labels every frozen opportunity and every detector
 finding is assigned to exactly one of those opportunities. The independent reviewer labels the
@@ -123,7 +129,7 @@ Before untouched evaluation, record:
 - pack configuration and supported-language/SDK matrix;
 - build artifact SHA-256;
 - runtime version and command line;
-- network-isolation result; and
+- the exact no-egress wrapper, hook, probe, and passing probe-output hashes; and
 - the golden-set correction ledger.
 
 Any code, rule, threshold, exclusion, parser, or configuration change after untouched results are
@@ -186,7 +192,9 @@ for binomial proportions unless the final report preregisters another method bef
 ## 10. Release decision
 
 ADR-0011 controls the GO/NO-GO decision. Numeric thresholds were preregistered before any cohort
-detector run in `release-thresholds.json`. Apply its automatic-NO-GO conditions first, followed by
+detector run in `release-thresholds.json`. Its exact byte SHA-256 and canonical-document SHA-256
+are bound into the pre-result commitment, detector freeze, and measurement input; either changing
+invalidates measurement. Apply its automatic-NO-GO conditions first, followed by
 the public-v1 and limited-experimental gates in the declared order. A limited experimental release
 must say `experimental` on every public surface and publish the complete denominated record. In all
 cases, findings require evidence and no general hallucination-rate claim is allowed.

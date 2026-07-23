@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  computeMetrics,
+  computeMetricsForUnitTest,
   ENABLED_RULE_IDS,
+  hashOpportunityDiscoveryCoverage,
   hashOpportunityManifest,
   hashSourceEvidenceIndex,
 } from './compute-metrics.mjs';
@@ -25,6 +26,121 @@ const REVIEW_BINDINGS = {
   selection_amendments_sha256: '5'.repeat(64),
   review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
 };
+const candidateRepository = (repository_id) => ({
+  repository_id,
+  url: `https://github.com/${repository_id}`,
+  primary_language: 'typescript_javascript',
+  primary_surface: 'chat_app',
+  provider_surface: 'openai',
+  inclusion_reason: 'Synthetic measurement evidence used by the unit test.',
+});
+const TEST_CALIBRATION_CONTRACT = {
+  expected_cohort_size: 1,
+  artifacts: {
+    selection_policy_sha256: {
+      byte_sha256: REVIEW_BINDINGS.selection_policy_sha256,
+      document: {
+        schema_version: '1.0.0', policy_id: 'llm-selection-v1.1',
+        status: 'relocked_before_detector_results', detector_results_seen: false,
+        target_size_per_cohort: 1,
+      },
+    },
+    golden_candidates_sha256: {
+      byte_sha256: REVIEW_BINDINGS.golden_candidates_sha256,
+      document: {
+        schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+        policy_id: 'llm-selection-v1.1', cohort: 'golden',
+        status: 'candidate_commit_freeze_pending', selected_before_detector_results: true,
+        repositories: [candidateRepository('owner/golden')],
+      },
+    },
+    untouched_candidates_sha256: {
+      byte_sha256: REVIEW_BINDINGS.untouched_candidates_sha256,
+      document: {
+        schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+        policy_id: 'llm-selection-v1.1', cohort: 'untouched',
+        status: 'candidate_commit_freeze_pending', selected_before_detector_results: true,
+        repositories: [candidateRepository('owner/untouched')],
+      },
+    },
+    reserve_candidates_sha256: {
+      byte_sha256: REVIEW_BINDINGS.reserve_candidates_sha256,
+      document: {
+        schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+        policy_id: 'llm-selection-v1.1', repositories: [],
+      },
+    },
+    selection_amendments_sha256: {
+      byte_sha256: REVIEW_BINDINGS.selection_amendments_sha256,
+      document: {
+        schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+        policy_id: 'llm-selection-v1.1', detector_results_seen: false,
+        amendments: [{ kind: 'policy_relock_before_results' }],
+      },
+    },
+  },
+  release_thresholds: {
+    byte_sha256: rawSha(JSON.stringify(thresholds)),
+    canonical_sha256: sha(thresholds),
+  },
+  public_surface_policy: {
+    byte_sha256: '8'.repeat(64),
+    canonical_sha256: sha({
+      schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+      policy_id: 'cejel-llm-public-surfaces-v1', status: 'locked_before_detector_results',
+      detector_results_seen: false, repository_paths: ['README.md'], external_surfaces: [],
+    }),
+    document: {
+      schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+      policy_id: 'cejel-llm-public-surfaces-v1', status: 'locked_before_detector_results',
+      detector_results_seen: false, repository_paths: ['README.md'], external_surfaces: [],
+    },
+  },
+};
+const testTrustedExecutionVerification = (input) => {
+  const proof = input.evidence.trusted_execution_proof.document;
+  proof.commitment.document_sha256 = input.evidence.pre_result_commitment.document_sha256;
+  proof.commitment.git_commit =
+    input.evidence.execution_receipts[0].document.pre_result_commitment.git_commit;
+  input.evidence.trusted_execution_proof = bound(proof);
+  return ({
+  proof_document_sha256: input.evidence.trusted_execution_proof.document_sha256,
+  commitment_git_commit: input.evidence.trusted_execution_proof.document.commitment.git_commit,
+  commitment_created_at: input.evidence.trusted_execution_proof.document.commitment.created_at,
+  runs: ['golden', 'untouched'].map((cohort, index) => ({
+    cohort,
+    run_id: index + 1,
+    run_started_at: '2026-07-22T02:00:00Z',
+    head_sha: 'e'.repeat(40),
+    artifact_archive_sha256: String(index + 1).repeat(64),
+    evidence_bundle_sha256: String(index + 3).repeat(64),
+    evidence_bundle: {
+      schema_version: '1.0.0', protocol_id: input.protocol_id, cohort,
+      pre_result_commitment_sha256: input.evidence.pre_result_commitment.document_sha256,
+      detector_freeze_sha256: cohort === 'untouched'
+        ? input.evidence.detector_freeze.document_sha256
+        : null,
+      execution_receipts: input.evidence.execution_receipts
+        .filter(({ document }) => document.cohort === cohort)
+        .map(({ document_sha256, document }) => ({
+          repository_id: document.repository_id, document_sha256,
+        }))
+        .sort((left, right) => left.repository_id.localeCompare(right.repository_id)),
+      llm_reports: input.evidence.llm_reports
+        .filter((report) => report.cohort === cohort)
+        .map(({ repository_id, document_sha256 }) => ({ repository_id, document_sha256 }))
+        .sort((left, right) => left.repository_id.localeCompare(right.repository_id)),
+    },
+  })),
+  });
+};
+const computeMetrics = (input, lockedThresholds) =>
+  computeMetricsForUnitTest(
+    input,
+    lockedThresholds,
+    TEST_CALIBRATION_CONTRACT,
+    testTrustedExecutionVerification(input),
+  );
 const SOURCE_CONTENT = Buffer.from('const first = true;\nconst second = true;', 'utf8');
 const SOURCE_SHA256 = createHash('sha256').update(SOURCE_CONTENT).digest('hex');
 const gitObjectSha1 = (type, bytes) => createHash('sha1')
@@ -75,7 +191,7 @@ function fixture() {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
     status: 'frozen_before_detector_results',
     hash_contract:
-      'rfc8785-sha256-v1; index excludes index_sha256 and attestation; file content_sha256 hashes decoded whole-file bytes',
+      'rfc8785-sha256-v1; index excludes only index_sha256; file content_sha256 hashes decoded whole-file bytes',
     cohort_bindings: {
       golden_manifest_sha256: golden.manifest_sha256,
       untouched_manifest_sha256: untouched.manifest_sha256,
@@ -95,10 +211,13 @@ function fixture() {
       ],
     })),
   };
-  const sourceEvidenceIndex = {
+  const sourceIndexHashable = {
     ...sourceIndexWithoutHash,
-    index_sha256: hashSourceEvidenceIndex(sourceIndexWithoutHash),
     attestation: { method: 'internal_witness', reference: 'internal-witness:test-source-index' },
+  };
+  const sourceEvidenceIndex = {
+    ...sourceIndexHashable,
+    index_sha256: hashSourceEvidenceIndex(sourceIndexHashable),
   };
   const ledger = {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen',
@@ -110,13 +229,37 @@ function fixture() {
     reviewed_by: ['reviewer-a', 'reviewer-b'], open_corrections: 0, entries: [],
   };
   const freeze = createDetectorFreezeRecord({
-    gitCommit: 'e'.repeat(40), buildSha256: BUILD_SHA, artifactName: 'cejel',
+    gitCommit: 'e'.repeat(40), sourceTreeSha: 'f'.repeat(40),
+    buildSha256: BUILD_SHA, artifactName: 'cejel',
+    build: {
+      command: ['npm', 'run', 'build'],
+      outputRelativePath: 'dist/index.js',
+      firstBuildSha256: BUILD_SHA,
+      secondBuildSha256: BUILD_SHA,
+      firstOutputTreeSha256: 'a'.repeat(64),
+      secondOutputTreeSha256: 'a'.repeat(64),
+    },
+    releaseThresholds: {
+      byteSha256: '8'.repeat(64),
+      canonicalSha256: '9'.repeat(64),
+    },
     frozenAt: '2026-07-22T02:00:00Z',
     runtime: { name: 'node', version: 'v24', platform: 'linux', architecture: 'x64' },
-    networkIsolation: { mode: 'no-egress', argvPrefix: ['/no-egress'], evidenceReference: 'internal-witness:no-egress', confirmed: true },
+    networkIsolation: {
+      mode: 'node-runtime-deny-hook-v1', argvPrefix: ['/no-egress'],
+      evidenceReference: 'internal-witness:no-egress',
+      wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
+      probePath: '/no-egress-probe.mjs', probeSha256: '3'.repeat(64),
+      probeOutputSha256: '4'.repeat(64), probeDenied: 3, probeAttempted: 3,
+      confirmed: true,
+    },
     ledger, ledgerSha256: sha(ledger),
     goldenExecutionEvidenceSha256: '1'.repeat(64),
     goldenExecutionEvidence: { document: { executions: [{}] }, findings: new Map() },
+    releaseThresholds: {
+      byteSha256: TEST_CALIBRATION_CONTRACT.release_thresholds.byte_sha256,
+      canonicalSha256: TEST_CALIBRATION_CONTRACT.release_thresholds.canonical_sha256,
+    },
   });
   const execution_receipts = [];
   const llm_reports = [];
@@ -145,7 +288,7 @@ function fixture() {
       git_tree_sha: repository.git_tree_sha, manifest_sha256: current.manifest_sha256,
       detector_build_sha256: BUILD_SHA,
       detector_freeze_sha256: cohort === 'untouched' ? freeze.record_sha256 : null,
-      network_isolation_mode: 'no-egress', completed_at: '2026-07-22T03:00:00Z',
+      network_isolation_mode: 'node-runtime-deny-hook-v1', completed_at: '2026-07-22T03:00:00Z',
       output_outside_source: true, llm_report_sha256: 'f'.repeat(64),
       llm_report_canonical_sha256: sha(report), finding_ids: findingIds,
       rule_states: ENABLED_RULE_IDS.map((rule_id) => ({ rule_id, state: 'finding' })),
@@ -201,7 +344,7 @@ function fixture() {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen',
     frozen_at: '2026-07-22T00:30:00Z', frozen_before_detector_results: true,
     detector_results_seen_before_freeze: false,
-    hash_contract: 'rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation',
+    hash_contract: 'rfc8785-sha256-v1; manifest excludes only manifest_sha256',
     cohort_bindings: {
       golden_manifest_sha256: golden.manifest_sha256,
       untouched_manifest_sha256: untouched.manifest_sha256,
@@ -215,10 +358,41 @@ function fixture() {
         role: record.document.review.role,
       })),
   };
-  const opportunityManifest = {
+  const opportunityHashable = {
     ...opportunityWithoutHash,
-    manifest_sha256: hashOpportunityManifest(opportunityWithoutHash),
     attestation: { method: 'internal_witness', reference: 'internal-witness:test-opportunities' },
+  };
+  const opportunityManifest = {
+    ...opportunityHashable,
+    manifest_sha256: hashOpportunityManifest(opportunityHashable),
+  };
+  const opportunityDiscoveryWithoutHash = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+    status: 'frozen_before_detector_results', frozen_at: '2026-07-22T00:35:00Z',
+    detector_results_seen_before_freeze: false,
+    review_method: 'two_independent_ai',
+    blind_reviewers: ['reviewer-a', 'reviewer-b'],
+    bindings: {
+      golden_manifest_sha256: golden.manifest_sha256,
+      untouched_manifest_sha256: untouched.manifest_sha256,
+      source_evidence_index_sha256: sourceEvidenceIndex.index_sha256,
+      opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
+    },
+    coverage: [['golden', golden], ['untouched', untouched]].flatMap(([cohort, current]) =>
+      ENABLED_RULE_IDS.map((ruleId) => ({
+        cohort,
+        repository_id: current.repositories[0].repository_id,
+        commit_sha: current.repositories[0].commit_sha,
+        rule_id: ruleId,
+        declared_opportunity_ids: opportunities
+          .filter((opportunity) =>
+            opportunity.cohort === cohort && opportunity.rule_id === ruleId)
+          .map((opportunity) => opportunity.opportunity_id),
+      }))),
+  };
+  const opportunityDiscoveryCoverage = {
+    ...opportunityDiscoveryWithoutHash,
+    record_sha256: hashOpportunityDiscoveryCoverage(opportunityDiscoveryWithoutHash),
   };
   const preResultCommitment = {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen_pre_result',
@@ -226,6 +400,15 @@ function fixture() {
     golden_manifest_sha256: golden.manifest_sha256,
     untouched_manifest_sha256: untouched.manifest_sha256,
     opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
+    opportunity_discovery_coverage_sha256: opportunityDiscoveryCoverage.record_sha256,
+    release_thresholds: {
+      byte_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.byte_sha256,
+      canonical_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.canonical_sha256,
+    },
+    public_surface_policy: {
+      byte_sha256: TEST_CALIBRATION_CONTRACT.public_surface_policy.byte_sha256,
+      canonical_sha256: TEST_CALIBRATION_CONTRACT.public_surface_policy.canonical_sha256,
+    },
     blind_label_bindings: opportunityManifest.blind_label_bindings,
     public_document_inventory: [{
       path: 'README.md', content_sha256: rawSha('Cejel reports static, evidence-backed engineering signals.'),
@@ -256,6 +439,37 @@ function fixture() {
       { oid: leafTreeOid, content_base64: leafTreeBytes.toString('base64') },
     ],
   };
+  const trustedExecutionProof = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+    provider: 'github_actions_public_v1', repository: 'BargLabs/cejel',
+    commitment: {
+      git_commit: commitmentCommitOid,
+      document_sha256: commitmentBinding.document_sha256,
+      comment_id: 42,
+      comment_api_url: 'https://api.github.com/repos/BargLabs/cejel/issues/comments/42',
+      created_at: '2026-07-22T01:00:00Z',
+    },
+    runs: [
+      {
+        cohort: 'golden', run_id: 1,
+        run_api_url: 'https://api.github.com/repos/BargLabs/cejel/actions/runs/1',
+        head_sha: 'e'.repeat(40),
+        artifact: {
+          id: 1, api_url: 'https://api.github.com/repos/BargLabs/cejel/actions/artifacts/1',
+          archive_sha256: '1'.repeat(64), evidence_bundle_sha256: '3'.repeat(64),
+        },
+      },
+      {
+        cohort: 'untouched', run_id: 2,
+        run_api_url: 'https://api.github.com/repos/BargLabs/cejel/actions/runs/2',
+        head_sha: 'e'.repeat(40),
+        artifact: {
+          id: 2, api_url: 'https://api.github.com/repos/BargLabs/cejel/actions/artifacts/2',
+          archive_sha256: '2'.repeat(64), evidence_bundle_sha256: '4'.repeat(64),
+        },
+      },
+    ],
+  };
   for (const receiptBinding of execution_receipts) {
     receiptBinding.document.pre_result_commitment = {
       document_sha256: rawSha(commitmentBytes.toString('utf8')), canonical_sha256: commitmentBinding.document_sha256,
@@ -281,9 +495,19 @@ function fixture() {
   const automatic_no_go_evidence = Object.fromEntries(Object.entries(checkKinds).map(([check_id, kind]) => {
     const payloads = {
       free_core_unchanged_without_pack: {
-        baseline_output_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
-        candidate_output_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
-        baseline_exit_code: 0, candidate_exit_code: 0,
+        fixture: { path: 'test/fixtures/free-core-parity', tree_sha256: 'a'.repeat(64) },
+        baseline: {
+          git_commit: 'd'.repeat(40), executable_sha256: 'c'.repeat(64),
+          argv: ['scan', '/fixture', '--format', 'json', '--quiet'],
+          stdout_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
+          stderr_base64: '', exit_code: 0,
+        },
+        candidate: {
+          git_commit: 'e'.repeat(40), executable_sha256: BUILD_SHA,
+          argv: ['scan', '/fixture', '--format', 'json', '--quiet'],
+          stdout_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
+          stderr_base64: '', exit_code: 0,
+        },
       },
       offline_scan_path_verified: {
         executions: execution_receipts.map(({ document: receipt }) => ({
@@ -339,8 +563,15 @@ function fixture() {
     evidence: {
       golden_manifest: bound(golden), untouched_manifest: bound(untouched),
       source_evidence_index: bound(sourceEvidenceIndex),
-      opportunity_manifest: bound(opportunityManifest), detector_freeze: bound(freeze),
+      opportunity_manifest: bound(opportunityManifest),
+      opportunity_discovery_coverage: bound(opportunityDiscoveryCoverage),
+      release_thresholds: {
+        byte_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.byte_sha256,
+        ...bound(thresholds),
+      },
+      detector_freeze: bound(freeze),
       pre_result_commitment: commitmentBinding,
+      trusted_execution_proof: bound(trustedExecutionProof),
       execution_receipts, llm_reports, label_records,
     },
   };
@@ -357,8 +588,13 @@ function refreshBlindLabelBindings(candidate) {
     }));
   manifest.manifest_sha256 = hashOpportunityManifest(manifest);
   candidate.evidence.opportunity_manifest = bound(manifest);
+  const discovery = candidate.evidence.opportunity_discovery_coverage.document;
+  discovery.bindings.opportunity_manifest_sha256 = manifest.manifest_sha256;
+  discovery.record_sha256 = hashOpportunityDiscoveryCoverage(discovery);
+  candidate.evidence.opportunity_discovery_coverage = bound(discovery);
   const commitment = candidate.evidence.pre_result_commitment.document;
   commitment.opportunity_manifest_sha256 = manifest.manifest_sha256;
+  commitment.opportunity_discovery_coverage_sha256 = discovery.record_sha256;
   commitment.blind_label_bindings = manifest.blind_label_bindings;
   candidate.evidence.pre_result_commitment = bound(commitment);
   const commitmentBytes = Buffer.from(`${JSON.stringify(commitment, null, 2)}\n`, 'utf8');
@@ -415,6 +651,11 @@ function refreshSourceEvidenceIndex(candidate) {
   const index = candidate.evidence.source_evidence_index.document;
   index.index_sha256 = hashSourceEvidenceIndex(index);
   candidate.evidence.source_evidence_index = bound(index);
+  const discovery = candidate.evidence.opportunity_discovery_coverage.document;
+  discovery.bindings.source_evidence_index_sha256 = index.index_sha256;
+  discovery.record_sha256 = hashOpportunityDiscoveryCoverage(discovery);
+  candidate.evidence.opportunity_discovery_coverage = bound(discovery);
+  refreshBlindLabelBindings(candidate);
 }
 
 function rewriteOpportunityEvidence(candidate, opportunityId, replacement) {
@@ -448,6 +689,55 @@ test('derives denominated counts from cryptographically bound receipts, reports,
   assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 1);
   assert.equal(output.evidence_bindings.execution_receipts, 2);
   assert.equal(output.release_evaluation.verdict, 'limited_experimental');
+});
+
+test('test-only contract override reaches cohort anchoring and changed thresholds are rejected', () => {
+  const wrongSizeContract = structuredClone(TEST_CALIBRATION_CONTRACT);
+  wrongSizeContract.expected_cohort_size = 2;
+  assert.throws(
+    () => computeMetricsForUnitTest(fixture(), thresholds, wrongSizeContract),
+    /locked selection policy|locked candidate contract/,
+  );
+
+  const changedThresholds = structuredClone(thresholds);
+  changedThresholds.limited_experimental_go.minimum_precision = 0.01;
+  assert.throws(
+    () => computeMetrics(fixture(), changedThresholds),
+    /release thresholds do not match the exact pre-result locked artifact/,
+  );
+});
+
+test('opportunity discovery coverage must be complete and independently reviewed', () => {
+  const omitted = fixture();
+  const coverage = omitted.evidence.opportunity_discovery_coverage.document;
+  coverage.coverage.pop();
+  coverage.record_sha256 = hashOpportunityDiscoveryCoverage(coverage);
+  omitted.evidence.opportunity_discovery_coverage = bound(coverage);
+  assert.throws(() => computeMetrics(omitted, thresholds), /opportunity-discovery coverage omits/);
+
+  const duplicateReviewer = fixture();
+  const duplicateCoverage = duplicateReviewer.evidence.opportunity_discovery_coverage.document;
+  duplicateCoverage.blind_reviewers[1] = duplicateCoverage.blind_reviewers[0];
+  duplicateCoverage.record_sha256 = hashOpportunityDiscoveryCoverage(duplicateCoverage);
+  duplicateReviewer.evidence.opportunity_discovery_coverage = bound(duplicateCoverage);
+  assert.throws(
+    () => computeMetrics(duplicateReviewer, thresholds),
+    /not a valid independent frozen record/,
+  );
+});
+
+test('source and opportunity attestations are included in their internal hashes', () => {
+  const source = fixture();
+  source.evidence.source_evidence_index.document.attestation.reference = 'internal-witness:changed-source';
+  source.evidence.source_evidence_index = bound(source.evidence.source_evidence_index.document);
+  assert.throws(() => computeMetrics(source, thresholds), /not a valid frozen index/);
+
+  const opportunity = fixture();
+  opportunity.evidence.opportunity_manifest.document.attestation.reference =
+    'internal-witness:changed-opportunity';
+  opportunity.evidence.opportunity_manifest =
+    bound(opportunity.evidence.opportunity_manifest.document);
+  assert.throws(() => computeMetrics(opportunity, thresholds), /not a valid frozen inventory/);
 });
 
 test('publishes and gate-blocks matched findings without a binary present/absent adjudication', () => {
@@ -590,7 +880,7 @@ test('automatic no-go checks require hashed evidence and agree with derived chro
   const parityArtifact = parityRecord.artifacts[0];
   const parityAudit = JSON.parse(parityArtifact.content);
   const parityPayload = JSON.parse(parityAudit.assertions[0].evidence_content);
-  parityPayload.candidate_output_base64 = Buffer.from('{"verdict":"changed"}\n').toString('base64');
+  parityPayload.candidate.stdout_base64 = Buffer.from('{"verdict":"changed"}\n').toString('base64');
   parityAudit.assertions[0].evidence_content = JSON.stringify(parityPayload);
   parityAudit.assertions[0].evidence_sha256 = rawSha(parityAudit.assertions[0].evidence_content);
   parityArtifact.content = JSON.stringify(parityAudit);
@@ -875,4 +1165,23 @@ test('derives Cohen kappa from the full paired-label contingency table', () => {
   assert.equal(output.quality_controls.cohen_kappa.expected_agreement, 0.9375);
   assert.equal(output.quality_controls.cohen_kappa.value, 0);
   assert.equal(output.quality_controls.cohen_kappa.contingency.present.absent, 1);
+});
+
+test('requires live trusted execution verification and exact downloaded evidence bindings', () => {
+  const candidate = fixture();
+  const verification = testTrustedExecutionVerification(candidate);
+  verification.runs[0].evidence_bundle.execution_receipts[0].document_sha256 = 'f'.repeat(64);
+  assert.throws(
+    () => computeMetricsForUnitTest(
+      candidate,
+      thresholds,
+      TEST_CALIBRATION_CONTRACT,
+      verification,
+    ),
+    /downloaded GitHub artifact does not bind/,
+  );
+  assert.throws(
+    () => computeMetricsForUnitTest(candidate, thresholds, TEST_CALIBRATION_CONTRACT, null),
+    /live-verified trusted execution proof/,
+  );
 });

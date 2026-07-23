@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "cejel-llm-public-surfaces-v1",
+  "status": "locked_before_detector_results",
+  "locked_at": "2026-07-22T20:30:00-07:00",
+  "detector_results_seen": false,
+  "content_encoding": "exact_utf8_bytes",
+  "repository_paths": [
+    "README.md",
+    "package.json",
+    "action.yml",
+    "action/action.yml",
+    "server.json",
+    "smithery.yaml",
+    "docs/packs/free-llm-usage.md",
+    "docs/packs/free-llm-v1-rule-contract.md",
+    "docs/packs/free-llm-v1-support-and-claims.md"
+  ],
+  "external_surfaces": [
+    {
+      "surface_id": "cejel.dev",
+      "url": "https://cejel.dev",
+      "required_before_public_release": true
+    },
+    {
+      "surface_id": "github-repository-about",
+      "url": "https://github.com/BargLabs/cejel",
+      "required_before_public_release": true
+    },
+    {
+      "surface_id": "npm-package-page",
+      "url": "https://www.npmjs.com/package/@cejel/cejel",
+      "required_before_public_release": true
+    },
+    {
+      "surface_id": "official-mcp-registry",
+      "url": "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs/cejel/versions/latest",
+      "required_before_public_release": true
+    },
+    {
+      "surface_id": "smithery-listing",
+      "url": "https://smithery.ai/servers/cejel",
+      "required_before_public_release": true
+    }
+  ],
+  "prohibited_claim_classes": [
+    "general or model-level hallucination rate",
+    "prevention or detection of hallucinations as a general capability",
+    "universal safety or trust guarantee for an LLM, agent, application, or repository",
+    "complete coverage of all LLM, agent, SDK, language, or framework surfaces"
+  ],
+  "allowed_boundary_language": [
+    "explicit denial of a prohibited capability",
+    "narrow statements about observable static source patterns",
+    "measured detector results that name the frozen cohort, denominator, detector version, and review method"
+  ]
+}

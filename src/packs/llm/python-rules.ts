@@ -375,17 +375,38 @@ export function detectPythonUnboundedAgentLoop(
     const loopIndent = loop[1]?.length ?? 0;
     const bodyStartOffset = offset + line.length + 1;
     let bodyEndOffset = bodyStartOffset;
+    const bodyLines: string[] = [];
     for (let bodyIndex = lineIndex + 1; bodyIndex < lines.length; bodyIndex += 1) {
       const candidate = lines[bodyIndex] ?? '';
       if (candidate.trim().length === 0 || candidate.trimStart().startsWith('#')) {
         bodyEndOffset += candidate.length + 1;
+        bodyLines.push(candidate);
         continue;
       }
       const indent = candidate.match(/^\s*/)?.[0].length ?? 0;
       if (indent <= loopIndent) break;
       bodyEndOffset += candidate.length + 1;
+      bodyLines.push(candidate);
     }
     if (![...supportedCalls].some((index) => bodyStartOffset <= index && index < bodyEndOffset)) {
+      offset += line.length + 1;
+      continue;
+    }
+    const significant = bodyLines.filter((candidate) => candidate.trim().length > 0);
+    const topIndent = Math.min(...significant.map(
+      (candidate) => candidate.match(/^\s*/)?.[0].length ?? Number.POSITIVE_INFINITY,
+    ));
+    const hasObservableExit = bodyLines.some((candidate, candidateIndex) => {
+      const indent = candidate.match(/^\s*/)?.[0].length ?? 0;
+      const guard = candidate.trim().match(/^if\b(.+):\s*(.*)$/);
+      if (indent !== topIndent || !guard) return false;
+      if (/^(?:break|return|raise)\b/.test(guard[2] ?? '')) return true;
+      const next = bodyLines.slice(candidateIndex + 1).find((item) => item.trim().length > 0);
+      if (!next) return false;
+      const nextIndent = next.match(/^\s*/)?.[0].length ?? 0;
+      return nextIndent > topIndent && /^(?:break|return|raise)\b/.test(next.trim());
+    });
+    if (hasObservableExit) {
       offset += line.length + 1;
       continue;
     }
@@ -514,7 +535,7 @@ export const CEJEL_LLM_PYTHON_RULES: readonly LlmRuleDefinition[] = [
     title: 'Unbounded Python agent loop',
     detectorConfidence: 'medium',
     evidenceContract:
-      'A literal while True loop has a complete local indentation-delimited body containing an official OpenAI or Anthropic Python SDK model call.',
+      'A literal while True loop has a complete local indentation-delimited body containing an official OpenAI or Anthropic Python SDK model call and no observable conditional counter, deadline, cancellation, budget, return, raise, or break guard.',
     exclusions: [
       'Runtime bounds or cancellation enforced outside the source file',
       'Framework-specific iteration controls not visible in loop syntax',

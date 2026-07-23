@@ -2,8 +2,16 @@
 
 import { execFile as execFileCallback } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import {
+  closeSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -57,6 +65,27 @@ export const FROZEN_SUPPORT_MATRIX = {
 
 function sha256Bytes(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
+}
+
+function hashBuildOutputTree(root) {
+  const files = [];
+  const visit = (directory) => {
+    for (const name of readdirSync(directory).sort()) {
+      const path = resolve(directory, name);
+      const stat = lstatSync(path);
+      if (stat.isSymbolicLink()) throw new Error('detector build output tree contains a symbolic link');
+      if (stat.isDirectory()) {
+        visit(path);
+      } else if (stat.isFile()) {
+        files.push({
+          path: relative(root, path).replaceAll('\\', '/'),
+          sha256: sha256Bytes(readFileSync(path)),
+        });
+      }
+    }
+  };
+  visit(root);
+  return sha256Canonical(files);
 }
 
 const sha256Canonical = (value) => sha256Bytes(Buffer.from(canonicalize(value), 'utf8'));
@@ -384,11 +413,12 @@ export function validateFrozenGoldenManifest(manifest) {
 }
 
 export function validateGoldenOpportunityEvidence(manifest, goldenManifest) {
-  const { manifest_sha256: _hash, attestation: _attestation, ...hashable } = manifest || {};
+  const { manifest_sha256: _hash, ...hashable } = manifest || {};
   if (
     manifest?.schema_version !== '1.0.0' || manifest?.protocol_id !== 'cejel-llm-calibration-v1' ||
     manifest?.status !== 'frozen' || manifest?.frozen_before_detector_results !== true ||
     manifest?.detector_results_seen_before_freeze !== false ||
+    manifest?.hash_contract !== 'rfc8785-sha256-v1; manifest excludes only manifest_sha256' ||
     manifest?.cohort_bindings?.golden_manifest_sha256 !== goldenManifest.manifest_sha256 ||
     sha256Canonical(hashable) !== manifest.manifest_sha256 || !Array.isArray(manifest.opportunities)
   ) throw new Error('golden opportunity manifest is invalid or not pre-result bound');
@@ -488,6 +518,9 @@ export function createDetectorFreezeRecord(input) {
   if (!/^[a-f0-9]{40}$/.test(input.gitCommit || '')) {
     throw new Error('detector Git commit must be a full 40-character SHA');
   }
+  if (!/^[a-f0-9]{40,64}$/.test(input.sourceTreeSha || '')) {
+    throw new Error('detector source-tree SHA is invalid');
+  }
   if (!/^[a-f0-9]{64}$/.test(input.buildSha256 || '')) {
     throw new Error('detector build SHA-256 is invalid');
   }
@@ -498,6 +531,20 @@ export function createDetectorFreezeRecord(input) {
   if (!input.networkIsolation.mode || !input.networkIsolation.evidenceReference) {
     throw new Error('detector freeze requires network-isolation mode and evidence reference');
   }
+  if (
+    input.networkIsolation.mode !== 'node-runtime-deny-hook-v1' ||
+    input.networkIsolation.argvPrefix.length !== 1 ||
+    !/^[a-f0-9]{64}$/.test(input.networkIsolation.wrapperSha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(input.networkIsolation.hookSha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeSha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeOutputSha256 || '') ||
+    input.networkIsolation.probeDenied !== 3 ||
+    input.networkIsolation.probeAttempted !== 3
+  ) throw new Error('detector freeze requires a hash-bound passing no-egress probe');
+  if (
+    !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.byteSha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.canonicalSha256 || '')
+  ) throw new Error('detector freeze requires exact release-threshold digests');
 
   const withoutHash = {
     schema_version: '1.0.0',
@@ -506,8 +553,18 @@ export function createDetectorFreezeRecord(input) {
     frozen_at: input.frozenAt,
     detector: {
       git_commit: input.gitCommit,
+      source_tree_sha: input.sourceTreeSha,
       build_sha256: input.buildSha256,
       artifact_name: input.artifactName,
+      build: {
+        command: input.build.command,
+        output_relative_path: input.build.outputRelativePath,
+        first_build_sha256: input.build.firstBuildSha256,
+        second_build_sha256: input.build.secondBuildSha256,
+        first_output_tree_sha256: input.build.firstOutputTreeSha256,
+        second_output_tree_sha256: input.build.secondOutputTreeSha256,
+        deterministic_rebuild_verified: true,
+      },
       runtime: input.runtime,
     },
     execution: {
@@ -526,11 +583,22 @@ export function createDetectorFreezeRecord(input) {
         mode: input.networkIsolation.mode,
         argv_prefix: input.networkIsolation.argvPrefix,
         evidence_reference: input.networkIsolation.evidenceReference,
+        wrapper_sha256: input.networkIsolation.wrapperSha256,
+        hook_sha256: input.networkIsolation.hookSha256,
+        probe_path: input.networkIsolation.probePath,
+        probe_sha256: input.networkIsolation.probeSha256,
+        probe_output_sha256: input.networkIsolation.probeOutputSha256,
+        probe_denied: input.networkIsolation.probeDenied,
+        probe_attempted: input.networkIsolation.probeAttempted,
         explicitly_confirmed: true,
       },
     },
     rule_ids: [...FROZEN_LLM_RULE_IDS],
     support_matrix: FROZEN_SUPPORT_MATRIX,
+    release_thresholds: {
+      byte_sha256: input.releaseThresholds.byteSha256,
+      canonical_sha256: input.releaseThresholds.canonicalSha256,
+    },
     golden_correction_ledger: {
       sha256: input.ledgerSha256,
       golden_manifest_sha256: input.ledger.golden_manifest_sha256,
@@ -569,15 +637,35 @@ export function validateDetectorFreezeRecord(record) {
     !Number.isInteger(record.golden_execution_evidence?.executions) ||
     !Number.isInteger(record.golden_execution_evidence?.findings)
   ) throw new Error('detector freeze lacks bound golden execution evidence');
+  if (
+    !/^[a-f0-9]{64}$/.test(record.release_thresholds?.byte_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(record.release_thresholds?.canonical_sha256 || '')
+  ) throw new Error('detector freeze lacks exact release-threshold digests');
   if (!validUtc(record.frozen_at) || record.untouched_results_seen_before_freeze !== false) {
     throw new Error('detector freeze does not preserve the untouched boundary');
   }
   if (!/^[a-f0-9]{40}$/.test(record.detector?.git_commit || '')) {
     throw new Error('detector freeze has an invalid Git commit');
   }
+  if (!/^[a-f0-9]{40,64}$/.test(record.detector?.source_tree_sha || '')) {
+    throw new Error('detector freeze has an invalid source-tree identity');
+  }
   if (!/^[a-f0-9]{64}$/.test(record.detector?.build_sha256 || '')) {
     throw new Error('detector freeze has an invalid build SHA-256');
   }
+  const build = record.detector?.build;
+  if (
+    !Array.isArray(build?.command) || build.command.length < 1 ||
+    build.command.some((part) => typeof part !== 'string' || part.length < 1) ||
+    typeof build.output_relative_path !== 'string' ||
+    isAbsolute(build.output_relative_path) ||
+    build.output_relative_path.split(/[\\/]/).includes('..') ||
+    build.deterministic_rebuild_verified !== true ||
+    build.first_build_sha256 !== record.detector.build_sha256 ||
+    build.second_build_sha256 !== record.detector.build_sha256 ||
+    !/^[a-f0-9]{64}$/.test(build.first_output_tree_sha256 || '') ||
+    build.second_output_tree_sha256 !== build.first_output_tree_sha256
+  ) throw new Error('detector freeze lacks deterministic build provenance');
   if (canonicalize(record.rule_ids) !== canonicalize(FROZEN_LLM_RULE_IDS)) {
     throw new Error('detector freeze rule IDs do not match the frozen v1 catalogue');
   }
@@ -604,7 +692,13 @@ export function validateDetectorFreezeRecord(record) {
   if (
     isolation?.explicitly_confirmed !== true ||
     !Array.isArray(isolation.argv_prefix) ||
-    isolation.argv_prefix.length < 1
+    isolation.argv_prefix.length !== 1 ||
+    isolation.mode !== 'node-runtime-deny-hook-v1' ||
+    !/^[a-f0-9]{64}$/.test(isolation.wrapper_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(isolation.hook_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(isolation.probe_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(isolation.probe_output_sha256 || '') ||
+    isolation.probe_denied !== 3 || isolation.probe_attempted !== 3
   ) {
     throw new Error('detector freeze lacks confirmed no-egress execution');
   }
@@ -628,6 +722,7 @@ export function validateDetectorFreezeRecord(record) {
 function parseArgs(argv) {
   const options = {
     isolationArgs: [],
+    buildArgs: [],
     goldenLabelRecords: [],
     confirmNetworkIsolation: false,
   };
@@ -639,6 +734,12 @@ function parseArgs(argv) {
       options.isolationArgs.push(value);
       continue;
     }
+    if (argument.startsWith('--build-arg=')) {
+      const value = argument.slice('--build-arg='.length);
+      if (!value) throw new Error('--build-arg requires a value');
+      options.buildArgs.push(value);
+      continue;
+    }
     const take = () => {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) throw new Error(`${argument} requires a value`);
@@ -647,7 +748,9 @@ function parseArgs(argv) {
     };
     switch (argument) {
       case '--detector-repo': options.detectorRepo = take(); break;
-      case '--cejel': options.cejel = take(); break;
+      case '--build-command': options.buildCommand = take(); break;
+      case '--build-arg': options.buildArgs.push(take()); break;
+      case '--build-output': options.buildOutput = take(); break;
       case '--golden-correction-ledger': options.ledger = take(); break;
       case '--golden-manifest': options.goldenManifest = take(); break;
       case '--opportunity-manifest': options.opportunityManifest = take(); break;
@@ -670,7 +773,9 @@ function parseArgs(argv) {
 function usage() {
   return `Usage:
   node calibration/llm/scripts/freeze-detector.mjs \\
-    --detector-repo . --cejel ./dist/index.js \\
+    --detector-repo . \\
+    --build-command npm --build-arg run --build-arg build \\
+    --build-output dist/index.js \\
     --golden-correction-ledger ./golden-corrections.json \\
     --golden-manifest calibration/llm/cohorts/golden-manifest.json \\
     --opportunity-manifest ./opportunity-manifest.json \\
@@ -682,7 +787,8 @@ function usage() {
     --network-isolation-evidence internal-witness:isolation-proof \\
     --confirm-network-isolation
 
-The detector repository must be clean. The output is created exclusively and is never overwritten.
+The detector repository must be clean. The build command is run twice from that exact source tree;
+both repository-contained output hashes must match. The output is created exclusively and is never overwritten.
 Repeat --golden-label-record for every committed golden blind label and finding review.
 `;
 }
@@ -695,6 +801,60 @@ async function run(command, args, options = {}) {
     ...options,
   });
   return stdout.trim();
+}
+
+export async function buildDetectorArtifact(input, commandRunner = run) {
+  if (
+    typeof input.outputRelativePath !== 'string' ||
+    input.outputRelativePath.length < 1 ||
+    isAbsolute(input.outputRelativePath) ||
+    input.outputRelativePath.split(/[\\/]/).includes('..')
+  ) throw new Error('--build-output must be a repository-relative path without traversal');
+  if (typeof input.command !== 'string' || input.command.length < 1) {
+    throw new Error('--build-command is required');
+  }
+  if (
+    !['npm', 'pnpm'].includes(input.command) ||
+    canonicalize(input.args || []) !== canonicalize(['run', 'build'])
+  ) {
+    throw new Error('detector freeze only accepts the committed npm/pnpm run build script');
+  }
+  const repositoryRoot = realpathSync(resolve(input.detectorRepo));
+  const outputPath = resolve(repositoryRoot, input.outputRelativePath);
+  const command = [input.command, ...(input.args || [])];
+  await commandRunner(input.command, input.args || [], { cwd: repositoryRoot });
+  const firstPath = realpathSync(outputPath);
+  if (relative(repositoryRoot, firstPath).startsWith('..') || isAbsolute(relative(repositoryRoot, firstPath))) {
+    throw new Error('detector build output resolves outside the exact detector repository');
+  }
+  const firstBytes = readFileSync(firstPath);
+  const firstBuildSha256 = sha256Bytes(firstBytes);
+  const firstOutputTreeSha256 = hashBuildOutputTree(dirname(firstPath));
+  await commandRunner(input.command, input.args || [], { cwd: repositoryRoot });
+  const secondPath = realpathSync(outputPath);
+  if (secondPath !== firstPath) throw new Error('detector build output path changed between builds');
+  const secondBytes = readFileSync(secondPath);
+  const secondBuildSha256 = sha256Bytes(secondBytes);
+  const secondOutputTreeSha256 = hashBuildOutputTree(dirname(secondPath));
+  if (
+    firstBuildSha256 !== secondBuildSha256 ||
+    firstOutputTreeSha256 !== secondOutputTreeSha256
+  ) {
+    throw new Error('detector build is not deterministic across two executions');
+  }
+  return {
+    artifactPath: secondPath,
+    bytes: secondBytes,
+    buildSha256: secondBuildSha256,
+    provenance: {
+      command,
+      outputRelativePath: input.outputRelativePath.replaceAll('\\', '/'),
+      firstBuildSha256,
+      secondBuildSha256,
+      firstOutputTreeSha256,
+      secondOutputTreeSha256,
+    },
+  };
 }
 
 function writeNewFile(path, document) {
@@ -714,7 +874,8 @@ export async function main(argv, commandRunner = run) {
     return;
   }
   for (const [flag, value] of [
-    ['--cejel', options.cejel],
+    ['--build-command', options.buildCommand],
+    ['--build-output', options.buildOutput],
     ['--golden-correction-ledger', options.ledger],
     ['--golden-manifest', options.goldenManifest],
     ['--opportunity-manifest', options.opportunityManifest],
@@ -728,18 +889,36 @@ export async function main(argv, commandRunner = run) {
   if (!options.confirmNetworkIsolation) {
     throw new Error('--confirm-network-isolation is required');
   }
+  if (options.isolationArgs.length > 0 || options.isolationMode !== 'node-runtime-deny-hook-v1') {
+    throw new Error('detector freeze accepts only node-runtime-deny-hook-v1 without extra argv');
+  }
   if (options.goldenLabelRecords.length < 1) {
     throw new Error('--golden-label-record is required at least once');
   }
 
   const detectorRepo = resolve(options.detectorRepo || '.');
-  const cejel = realpathSync(resolve(options.cejel));
   const ledgerPath = resolve(options.ledger);
   const goldenManifest = validateFrozenGoldenManifest(
     JSON.parse(readFileSync(resolve(options.goldenManifest), 'utf8')),
   );
-  const buildBytes = readFileSync(cejel);
-  const buildSha256 = sha256Bytes(buildBytes);
+  const gitCommit = await commandRunner('git', ['-C', detectorRepo, 'rev-parse', 'HEAD']);
+  if (!/^[a-f0-9]{40}$/.test(gitCommit)) throw new Error('detector repository HEAD is not a full commit');
+  const gitStatus = await commandRunner('git', ['-C', detectorRepo, 'status', '--porcelain']);
+  if (gitStatus.length > 0) throw new Error('detector repository must be clean before detector freeze');
+  const sourceTreeSha = await commandRunner('git', ['-C', detectorRepo, 'rev-parse', 'HEAD^{tree}']);
+  if (!/^[a-f0-9]{40,64}$/.test(sourceTreeSha)) throw new Error('detector source tree is not immutable');
+  const built = await buildDetectorArtifact({
+    detectorRepo,
+    command: options.buildCommand,
+    args: options.buildArgs,
+    outputRelativePath: options.buildOutput,
+  }, commandRunner);
+  const postBuildStatus = await commandRunner('git', ['-C', detectorRepo, 'status', '--porcelain']);
+  if (postBuildStatus.length > 0) {
+    throw new Error('detector build modified the clean committed source tree');
+  }
+  const cejel = built.artifactPath;
+  const buildSha256 = built.buildSha256;
   const goldenOpportunityEvidence = validateGoldenOpportunityEvidence(
     JSON.parse(readFileSync(resolve(options.opportunityManifest), 'utf8')),
     goldenManifest,
@@ -762,11 +941,6 @@ export async function main(argv, commandRunner = run) {
     goldenOpportunityEvidence,
     goldenExecutionEvidence,
   );
-  const gitCommit = await commandRunner('git', ['-C', detectorRepo, 'rev-parse', 'HEAD']);
-  if (!/^[a-f0-9]{40}$/.test(gitCommit)) throw new Error('detector repository HEAD is not a full commit');
-  const gitStatus = await commandRunner('git', ['-C', detectorRepo, 'status', '--porcelain']);
-  if (gitStatus.length > 0) throw new Error('detector repository must be clean before detector freeze');
-
   const ledgerBytes = readFileSync(ledgerPath);
   const ledger = validateGoldenCorrectionLedger(
     JSON.parse(ledgerBytes.toString('utf8')),
@@ -776,9 +950,22 @@ export async function main(argv, commandRunner = run) {
     goldenOpportunityEvidence,
     goldenLabelEvidence,
   );
+  const releaseThresholdBytes = readFileSync(resolve(calibrationRoot, 'release-thresholds.json'));
+  const releaseThresholdDocument = JSON.parse(releaseThresholdBytes.toString('utf8'));
+  const wrapperPath = realpathSync(resolve(options.isolationCommand));
+  const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
+  const probePath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-probe.mjs'));
+  const probeOutput = await commandRunner(wrapperPath, [probePath]);
+  const probeDocument = JSON.parse(probeOutput);
+  if (
+    probeDocument.policy !== 'node-runtime-deny-hook-v1' ||
+    probeDocument.denied !== 3 || probeDocument.attempted !== 3
+  ) throw new Error('network-isolation probe did not deny every tested egress path');
   const record = createDetectorFreezeRecord({
     gitCommit,
+    sourceTreeSha,
     buildSha256,
+    build: built.provenance,
     artifactName: basename(cejel),
     frozenAt: options.frozenAt || new Date().toISOString(),
     runtime: {
@@ -789,14 +976,25 @@ export async function main(argv, commandRunner = run) {
     },
     networkIsolation: {
       mode: options.isolationMode,
-      argvPrefix: [realpathSync(resolve(options.isolationCommand)), ...options.isolationArgs],
+      argvPrefix: [wrapperPath],
       evidenceReference: options.isolationEvidence,
+      wrapperSha256: sha256Bytes(readFileSync(wrapperPath)),
+      hookSha256: sha256Bytes(readFileSync(hookPath)),
+      probePath,
+      probeSha256: sha256Bytes(readFileSync(probePath)),
+      probeOutputSha256: sha256Bytes(Buffer.from(probeOutput, 'utf8')),
+      probeDenied: probeDocument.denied,
+      probeAttempted: probeDocument.attempted,
       confirmed: true,
     },
     ledger,
     ledgerSha256: sha256Bytes(ledgerBytes),
     goldenExecutionEvidence,
     goldenExecutionEvidenceSha256: sha256Bytes(goldenExecutionEvidenceBytes),
+    releaseThresholds: {
+      byteSha256: sha256Bytes(releaseThresholdBytes),
+      canonicalSha256: sha256Canonical(releaseThresholdDocument),
+    },
   });
   validateDetectorFreezeRecord(record);
   const output = resolve(

@@ -23,7 +23,8 @@ used to tune rules. It contains no copied repository source and no private data.
   enumerate every predefined golden and untouched opportunity using
   `templates/opportunity-manifest.template.json`. Bind it to both cohort-manifest digests, compute
   every blind ground-truth label ID, role, and document digest into the same pre-result manifest,
-  compute its canonical digest excluding only `manifest_sha256` and `attestation`, and validate it against
+  compute its canonical digest excluding only `manifest_sha256` (the internal attestation is
+  hash-bound), and validate it against
   `schemas/opportunity-manifest.schema.json`.
 - Labels: use `templates/label.template.json` for blind ground truth and
   `templates/finding-review.template.json` for post-run finding matches. Validate each record
@@ -41,12 +42,19 @@ node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-onl
 # Assemble content-addressed evidence from the actual artifact paths, then evaluate it:
 node calibration/llm/scripts/assemble-measurement-input.mjs \
   /absolute/path/to/measurement-evidence-paths.json /absolute/path/to/measurement-input.json
-node calibration/llm/scripts/compute-metrics.mjs /absolute/path/to/measurement-input.json
+node calibration/llm/scripts/compute-metrics.mjs /absolute/path/to/measurement-input.json \
+  --artifact <golden-run-id>=/absolute/path/to/golden-evidence.zip \
+  --artifact <untouched-run-id>=/absolute/path/to/untouched-evidence.zip
 ```
 
 The measurement input contains content-addressed evidence, not manually entered counts: both frozen
 cohort manifests, the internal frozen source-evidence index, the frozen opportunity inventory, the detector-freeze record, every execution
 receipt and LLM report, and every independent label/adjudication record. The metrics command
+also requires a live-verified public GitHub commitment comment, the two successful
+`workflow_dispatch` runs from `.github/workflows/llm-calibration.yml`, and their exact downloaded
+evidence archives. Each archive may contain only `evidence-bundle.json`; its server-recorded digest
+and its receipt/report bindings must match the measurement input.
+The metrics command
 requires exactly one blind primary label for every predefined opportunity, validates blind
 independent labels and adjudication lifecycle states, verifies every source-span whole-file SHA-256
 and line range through its manifest-rooted Git tree/blob proof, and rejects a finding unless its
@@ -65,6 +73,9 @@ untouched chronology, and finding-path validity are derived and checked against 
 free-core parity and public-claim hygiene require embedded test-run and claim-audit artifacts bound
 to the exact detector build and source commit. Each check-specific assertion embeds its evidence
 content and SHA-256; opaque or generic “passed” assertions are rejected.
+Free-core parity records the baseline and candidate Git commits, executable hashes, identical
+pack-free argv, fixture-tree hash, exit codes, stdout, and stderr. The candidate executable must be
+the frozen detector build and `--pack` is forbidden in both parity invocations.
 
 Both first-pass roles must set `detector_output_visible: false` and carry a null finding ID.
 Disagreements set both originals to `pending`; the distinct adjudicator also remains blind, uses
@@ -115,6 +126,9 @@ for the selection policy, golden and untouched candidate files, reserve list, am
 both review records are therefore hash-bound. Array order remains
 the preregistered candidate order. The candidate file's byte-level SHA-256 is included in
 resolve-only output so a technical resolution can be tied back to its exact input.
+
+Cryptographic signatures, when used, belong in a separate external envelope naming the
+hash-bound manifest digest; they are not embedded inside the document they sign.
 
 The validator intentionally rejects an immutable manifest containing a branch name, tag, missing
 commit, duplicate repository, or overlap between cohorts. It also verifies that the candidate

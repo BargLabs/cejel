@@ -3,7 +3,10 @@
   "untouched_manifest": "../cohorts/untouched-manifest.json",
   "source_evidence_index": "../source-evidence-index.json",
   "opportunity_manifest": "../opportunity-manifest.json",
+  "opportunity_discovery_coverage": "../opportunity-discovery-coverage.json",
+  "release_thresholds": "../release-thresholds.json",
   "pre_result_commitment": "../pre-result-commitment.json",
+  "trusted_execution_proof": "../trusted-execution-proof.json",
   "detector_freeze": "../detector-freeze.json",
   "execution_receipts": ["/replace/with/every/calibration-execution.json"],
   "llm_reports": [

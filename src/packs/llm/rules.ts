@@ -287,6 +287,43 @@ function matchingDelimiterEnd(
   return null;
 }
 
+function hasObservableJavaScriptLoopExit(body: string): boolean {
+  let braceDepth = 0;
+  for (let index = 0; index < body.length; index += 1) {
+    const character = body[index];
+    if (character === '{') {
+      braceDepth += 1;
+      continue;
+    }
+    if (character === '}') {
+      braceDepth -= 1;
+      continue;
+    }
+    if (
+      braceDepth !== 0 ||
+      body.slice(index, index + 2) !== 'if' ||
+      /[\w$]/.test(body[index - 1] ?? '') ||
+      /[\w$]/.test(body[index + 2] ?? '')
+    ) continue;
+    const conditionStart = body.indexOf('(', index + 2);
+    if (conditionStart < 0) continue;
+    const conditionEnd = matchingDelimiterEnd(body, conditionStart, '(', ')');
+    if (conditionEnd === null) continue;
+    let statementStart = conditionEnd;
+    while (/\s/.test(body[statementStart] ?? '')) statementStart += 1;
+    if (body[statementStart] === '{') {
+      const statementEnd = matchingDelimiterEnd(body, statementStart, '{', '}');
+      if (statementEnd === null) continue;
+      const statement = body.slice(statementStart + 1, statementEnd - 1);
+      const exit = statement.search(/\b(?:break|return|throw)\b/);
+      if (exit >= 0 && !/\b(?:for|while|switch)\b/.test(statement.slice(0, exit))) return true;
+      continue;
+    }
+    if (/^(?:break|return|throw)\b/.test(body.slice(statementStart))) return true;
+  }
+  return false;
+}
+
 function detectUnboundedLoop(file: LlmSourceFile): readonly CejelLlmFinding[] {
   if (isExcludedSourcePath(file.path)) return [];
 
@@ -298,6 +335,8 @@ function detectUnboundedLoop(file: LlmSourceFile): readonly CejelLlmFinding[] {
     if (maskedContents[bodyStart] !== '{') continue;
     const bodyEnd = matchingDelimiterEnd(maskedContents, bodyStart, '{', '}');
     if (bodyEnd === null) continue;
+    const body = maskedContents.slice(bodyStart + 1, bodyEnd - 1);
+    if (hasObservableJavaScriptLoopExit(body)) continue;
     const supportedCalls = supportedJavaScriptModelCallIndices(file.contents);
     if (![...supportedCalls].some((index) => bodyStart < index && index < bodyEnd)) continue;
     findings.push(
@@ -387,10 +426,11 @@ export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [
     title: 'Unbounded agent loop',
     detectorConfidence: 'medium',
     evidenceContract:
-      'A literal while(true) or for(;;) loop has a complete local brace-delimited body containing a recognized model call.',
+      'A literal while(true) or for(;;) loop has a complete local brace-delimited body containing a recognized model call and no observable conditional counter, deadline, cancellation, budget, return, throw, or break guard.',
     exclusions: [
       'Loops bounded by runtime controls outside the source file',
       'Framework-specific iteration limits not visible in the loop syntax',
+      'Local unconditional-loop bodies with an observable conditional finite counter, deadline, cancellation, budget, return, throw, or break guard',
     ],
     applies: (file) => detectUnboundedLoop(file).length > 0,
     detect: detectUnboundedLoop,

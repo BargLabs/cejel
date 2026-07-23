@@ -17,7 +17,8 @@ select repositories, alter manifests, adjudicate findings, or tune rules.
    immutable commit and repository-relative path. The runner embeds and verifies the commit object,
    every raw tree object from the root to the path, and the committed blob bytes, and
    refuses either cohort without this commitment.
-3. Build Cejel from a clean, committed detector revision.
+3. Keep the detector revision clean. The freeze tool builds it twice from the exact committed
+   source tree and accepts only byte-identical repository-contained outputs.
 4. Run the golden manifest with `run-frozen-cohort.mjs`, using an operating-system or container
    wrapper that prevents egress from the detector process.
 5. Complete golden blind labels and finding reviews, then derive the exact missed-defect set.
@@ -37,21 +38,18 @@ one-way untouched evaluation is complete.
 
 ## Golden execution
 
-The isolation command must be an executable wrapper that launches the remaining argv with network
-egress denied. Arguments beginning with `-` or `--` can be passed with the equals form shown below.
-Use environment-specific, independently verified isolation; naming a wrapper does not prove that it
-works.
-
-On macOS, this repository includes `scripts/macos-no-egress.sh`, which invokes the target through
-`/usr/bin/sandbox-exec` with `deny network*`. Verify it in the execution environment before use:
+Calibration uses the committed `no-egress-wrapper.sh` and `no-egress-hook.cjs`. The wrapper injects
+a Node runtime policy that denies `net`, HTTP/HTTPS/HTTP2, DNS, `fetch`, and child-process escape
+paths. The runner executes the committed probe before any clone or scan and requires all three
+independent probe paths to be denied:
 
 ```bash
-calibration/llm/scripts/macos-no-egress.sh node -e "process.stdout.write('offline-ok')"
-calibration/llm/scripts/macos-no-egress.sh /usr/bin/curl -I --max-time 3 https://example.com
+calibration/llm/scripts/no-egress-wrapper.sh \
+  calibration/llm/scripts/no-egress-probe.mjs
 ```
 
-The first command must succeed and the second must fail. Preserve the command output as the
-internal isolation evidence referenced by the detector freeze.
+This is application-runtime isolation for the Node detector, not a claim of host or kernel
+isolation. The detector-freeze record binds the exact wrapper, hook, probe, and probe-output hashes.
 
 ```bash
 node calibration/llm/scripts/run-frozen-cohort.mjs \
@@ -59,9 +57,8 @@ node calibration/llm/scripts/run-frozen-cohort.mjs \
   --cejel /absolute/path/to/local/built/cejel \
   --work-root /absolute/path/to/golden-checkouts \
   --output-root /absolute/path/to/golden-results \
-  --network-isolation-mode verified-no-egress-wrapper \
-  --network-isolation-command /absolute/path/to/no-egress-wrapper \
-  --network-isolation-arg=-- \
+  --network-isolation-mode node-runtime-deny-hook-v1 \
+  --network-isolation-command /absolute/path/to/calibration/llm/scripts/no-egress-wrapper.sh \
   --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
   --commitment-git-repo /absolute/path/to/cejel \
   --commitment-git-commit <full-40-character-commit> \
@@ -127,24 +124,29 @@ exclusively and cannot overwrite an existing freeze.
 ```bash
 node calibration/llm/scripts/freeze-detector.mjs \
   --detector-repo /absolute/path/to/cejel \
-  --cejel /absolute/path/to/local/built/cejel \
+  --build-command npm \
+  --build-arg run \
+  --build-arg build \
+  --build-output dist/index.js \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
   --golden-manifest calibration/llm/cohorts/golden-manifest.json \
   --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --golden-label-record /absolute/path/to/golden-primary-label.json \
   --golden-label-record /absolute/path/to/golden-finding-review.json \
-  --network-isolation-mode verified-no-egress-wrapper \
-  --network-isolation-command /absolute/path/to/no-egress-wrapper \
-  --network-isolation-arg=-- \
+  --network-isolation-mode node-runtime-deny-hook-v1 \
+  --network-isolation-command /absolute/path/to/calibration/llm/scripts/no-egress-wrapper.sh \
   --network-isolation-evidence internal-witness:isolation-proof-id \
   --confirm-network-isolation \
   --output /absolute/path/to/detector-freeze.json
 ```
 
-The record uses canonical sorted-key JSON hashing for `record_sha256`. The executable itself is
-hashed byte-for-byte. Rebuilding, editing the record, changing the support matrix, changing the
-command, or changing the correction ledger invalidates the binding.
+The record uses canonical sorted-key JSON hashing for `record_sha256`. Before reading golden
+evidence, the tool verifies a clean `HEAD`, records `HEAD^{tree}`, runs the declared build argv
+twice in that repository, and requires both the declared repository-relative entry point and its
+complete output-directory tree to have the same byte hashes both times. That output becomes the detector executable; an unrelated `--cejel` path is
+not accepted. Rebuilding, editing the record, changing the source tree, build argv/output, support
+matrix, scan command, or correction ledger invalidates the binding.
 
 ## Untouched execution
 

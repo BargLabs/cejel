@@ -15,13 +15,26 @@ function loadDocument(base, path) {
   return { document_sha256: sha256Canonical(document), document };
 }
 
+function loadByteBoundDocument(base, path) {
+  const bytes = readFileSync(resolve(base, path));
+  const document = JSON.parse(bytes.toString('utf8'));
+  return {
+    byte_sha256: createHash('sha256').update(bytes).digest('hex'),
+    document_sha256: sha256Canonical(document),
+    document,
+  };
+}
+
 export function assembleMeasurementInput(specification, baseDirectory) {
   const requiredPaths = [
     'golden_manifest',
     'untouched_manifest',
     'source_evidence_index',
     'opportunity_manifest',
+    'opportunity_discovery_coverage',
+    'release_thresholds',
     'pre_result_commitment',
+    'trusted_execution_proof',
     'detector_freeze',
   ];
   for (const key of requiredPaths) {
@@ -47,7 +60,13 @@ export function assembleMeasurementInput(specification, baseDirectory) {
       untouched_manifest: loadDocument(baseDirectory, specification.untouched_manifest),
       source_evidence_index: loadDocument(baseDirectory, specification.source_evidence_index),
       opportunity_manifest: loadDocument(baseDirectory, specification.opportunity_manifest),
+      opportunity_discovery_coverage: loadDocument(
+        baseDirectory,
+        specification.opportunity_discovery_coverage,
+      ),
+      release_thresholds: loadByteBoundDocument(baseDirectory, specification.release_thresholds),
       pre_result_commitment: loadDocument(baseDirectory, specification.pre_result_commitment),
+      trusted_execution_proof: loadDocument(baseDirectory, specification.trusted_execution_proof),
       detector_freeze: loadDocument(baseDirectory, specification.detector_freeze),
       execution_receipts: specification.execution_receipts.map((path) => loadDocument(baseDirectory, path)),
       llm_reports: specification.llm_reports.map((entry) => ({

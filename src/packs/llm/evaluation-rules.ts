@@ -93,8 +93,33 @@ const DENOMINATOR_KEYS = new Set([
 ]);
 const OUTCOME_COUNT_PATTERN =
   /^(?:error|errors|refusal|refusals|abstention|abstentions|excluded|exclusions|excludedCount)$/i;
-const INDEPENDENT_ADJUDICATOR_PATTERN =
-  /\b(?:humanReview|humanAdjudication|manualReview|evidenceVerification|exactMatch|schemaCheck|propertyCheck|deterministicGrade|independentDecision)\b/;
+function hasIndependentAcceptanceSignal(file: LlmSourceFile): boolean {
+  const masked = maskJavaScriptNonCode(file.contents);
+  const emissions = localEmissions(file);
+  for (const match of masked.matchAll(
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?(?:humanReview|humanAdjudication|manualReview|evidenceVerification|exactMatch|schemaCheck|propertyCheck|deterministicGrade|independentDecision)\s*\(/g,
+  )) {
+    const identifier = match[1];
+    if (!identifier) continue;
+    if (emissions.some((emission) => {
+      if (emission.index <= match.index) return false;
+      const callStart = masked.indexOf('(', emission.index);
+      const callEnd = callStart < 0 ? -1 : matchingDelimiter(masked, callStart, '(', ')');
+      if (callEnd < 0) return false;
+      const escaped = identifier.replaceAll('$', '\\$');
+      return new RegExp(`\\b${escaped}\\b`).test(masked.slice(callStart, callEnd + 1));
+    })) return true;
+    const tail = masked.slice(match.index + match[0].length);
+    const escaped = identifier.replaceAll('$', '\\$');
+    const gate = new RegExp(
+      `\\bif\\s*\\([^)]*\\b${escaped}\\b[^)]*\\)\\s*(?:\\{[\\s\\S]{0,300}?\\b(?:throw|return|writeFileSync|appendFileSync|Bun\\.write)\\b|(?:throw|return)\\b)`,
+    );
+    if (gate.test(tail)) return true;
+  }
+  return /\bif\s*\([^)]*(?:humanReview|humanAdjudication|manualReview|evidenceVerification|exactMatch|schemaCheck|propertyCheck|deterministicGrade|independentDecision)\s*\([^)]*\)[^)]*\)\s*(?:\{[\s\S]{0,300}?\b(?:throw|return|writeFileSync|appendFileSync|Bun\.write)\b|(?:throw|return)\b)/.test(
+    masked,
+  );
+}
 
 function completeLocalSource(file: LlmSourceFile): boolean {
   if (!file.path || isAbsolute(file.path)) return false;
@@ -381,7 +406,7 @@ function detectSoleSelfJudge(
   const findings: CejelLlmEvaluationFinding[] = [];
   for (const file of files) {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) continue;
-    if (INDEPENDENT_ADJUDICATOR_PATTERN.test(file.contents)) continue;
+    if (hasIndependentAcceptanceSignal(file)) continue;
     const invocations = modelInvocations(file.contents);
     const judges = invocations.filter((invocation) => invocation.judge);
     const producers = invocations.filter((invocation) => !invocation.judge);
@@ -466,7 +491,7 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
     title: 'Evaluated system is its own sole judge',
     detectorConfidence: 'high',
     evidenceContract:
-      'Exactly one local producer and one explicit model-assisted judge resolve to the same literal model identity, a result is locally emitted, and no recognized independent adjudicator is present.',
+      'Exactly one local producer and one explicit model-assisted judge resolve to the same literal model identity, a result is locally emitted, and no observable independent review signal participates in evaluation acceptance or gating.',
     exclusions: [
       'Unresolved or provider-managed model identities',
       'Distinct judge models and locally declared independent adjudication',

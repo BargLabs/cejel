@@ -6,7 +6,7 @@
   "frozen_at": "2026-07-22T00:00:00Z",
   "frozen_before_detector_results": true,
   "detector_results_seen_before_freeze": false,
-  "hash_contract": "rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation",
+  "hash_contract": "rfc8785-sha256-v1; manifest excludes only manifest_sha256",
   "cohort_bindings": {
     "golden_manifest_sha256": "replace-with-frozen-golden-manifest-sha256",
     "untouched_manifest_sha256": "replace-with-frozen-untouched-manifest-sha256"
@@ -55,7 +55,7 @@
       "role": "independent_reviewer"
     }
   ],
-  "manifest_sha256": "replace-with-rfc8785-sha256-excluding-manifest-sha256-and-attestation",
+  "manifest_sha256": "replace-with-rfc8785-sha256-excluding-only-manifest-sha256",
   "attestation": {
     "method": "internal_witness",
     "reference": "internal-witness:replace-me"

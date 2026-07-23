@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
+  buildDetectorArtifact,
   createDetectorFreezeRecord,
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
@@ -108,6 +109,7 @@ function goldenOpportunityAndLabels(includeFinding = true) {
     status: 'frozen',
     frozen_before_detector_results: true,
     detector_results_seen_before_freeze: false,
+    hash_contract: 'rfc8785-sha256-v1; manifest excludes only manifest_sha256',
     cohort_bindings: { golden_manifest_sha256: execution.manifest.manifest_sha256 },
     blind_label_bindings: [{
       label_id: primary.label_id,
@@ -117,8 +119,7 @@ function goldenOpportunityAndLabels(includeFinding = true) {
     opportunities: [opportunity],
     attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
   };
-  const { attestation: _attestation, ...hashable } = withoutHash;
-  const manifest = { ...withoutHash, manifest_sha256: canonicalSha(hashable) };
+  const manifest = { ...withoutHash, manifest_sha256: canonicalSha(withoutHash) };
   return {
     execution,
     opportunity,
@@ -163,14 +164,31 @@ function detectorFreeze() {
   );
   return createDetectorFreezeRecord({
     gitCommit: COMMIT_SHA,
+    sourceTreeSha: TREE_SHA,
     buildSha256: BUILD_SHA,
+    build: {
+      command: ['npm', 'run', 'build'],
+      outputRelativePath: 'dist/index.js',
+      firstBuildSha256: BUILD_SHA,
+      secondBuildSha256: BUILD_SHA,
+      firstOutputTreeSha256: 'a'.repeat(64),
+      secondOutputTreeSha256: 'a'.repeat(64),
+    },
+    releaseThresholds: {
+      byteSha256: '8'.repeat(64),
+      canonicalSha256: '9'.repeat(64),
+    },
     artifactName: 'cejel',
     frozenAt: '2026-07-22T21:00:00Z',
     runtime: { name: 'node', version: 'v24.0.0', platform: 'linux', architecture: 'x64' },
     networkIsolation: {
-      mode: 'test-no-egress',
+      mode: 'node-runtime-deny-hook-v1',
       argvPrefix: ['/usr/local/bin/no-egress'],
       evidenceReference: 'internal-witness:test-isolation',
+      wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
+      probePath: '/usr/local/bin/no-egress-probe.mjs',
+      probeSha256: '3'.repeat(64), probeOutputSha256: '4'.repeat(64),
+      probeDenied: 3, probeAttempted: 3,
       confirmed: true,
     },
     ledger: goldenLedger,
@@ -227,10 +245,72 @@ test('detector freeze binds build, runtime, rules, support, isolation, and close
   assert.equal(record.golden_correction_ledger.open_corrections, 0);
   assert.equal(record.golden_correction_ledger.golden_manifest_sha256, ledger().golden_manifest_sha256);
   assert.equal(record.golden_execution_evidence.executions, 1);
+  assert.equal(record.detector.source_tree_sha, TREE_SHA);
+  assert.equal(record.detector.build.deterministic_rebuild_verified, true);
   assert.throws(
     () => validateDetectorFreezeRecord({ ...record, frozen_at: '2026-07-23T00:00:00Z' }),
     /SHA-256/,
   );
+});
+
+test('detector build provenance executes twice and rejects unrelated or nondeterministic output', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-build-proof-'));
+  mkdirSync(join(root, 'dist'));
+  let executions = 0;
+  const deterministic = await buildDetectorArtifact({
+    detectorRepo: root,
+    command: 'npm',
+    args: ['run', 'build'],
+    outputRelativePath: 'dist/index.js',
+  }, async (_command, _args, options) => {
+    assert.equal(options.cwd, realpathSync(root));
+    executions += 1;
+    writeFileSync(join(root, 'dist/index.js'), 'stable build\n');
+    return '';
+  });
+  assert.equal(executions, 2);
+  assert.equal(deterministic.provenance.firstBuildSha256, deterministic.buildSha256);
+  assert.equal(
+    deterministic.provenance.firstOutputTreeSha256,
+    deterministic.provenance.secondOutputTreeSha256,
+  );
+  assert.deepEqual(deterministic.provenance.command, ['npm', 'run', 'build']);
+
+  let version = 0;
+  await assert.rejects(() => buildDetectorArtifact({
+    detectorRepo: root,
+    command: 'npm',
+    args: ['run', 'build'],
+    outputRelativePath: 'dist/index.js',
+  }, async () => {
+    version += 1;
+    writeFileSync(join(root, 'dist/index.js'), `build ${version}\n`);
+    return '';
+  }), /not deterministic/);
+  version = 0;
+  await assert.rejects(() => buildDetectorArtifact({
+    detectorRepo: root,
+    command: 'npm',
+    args: ['run', 'build'],
+    outputRelativePath: 'dist/index.js',
+  }, async () => {
+    version += 1;
+    writeFileSync(join(root, 'dist/index.js'), 'stable entry\n');
+    writeFileSync(join(root, 'dist/chunk.js'), `chunk ${version}\n`);
+    return '';
+  }), /not deterministic/);
+  await assert.rejects(() => buildDetectorArtifact({
+    detectorRepo: root,
+    command: 'npm',
+    args: ['run', 'build'],
+    outputRelativePath: '../unrelated-cejel',
+  }), /repository-relative/);
+  await assert.rejects(() => buildDetectorArtifact({
+    detectorRepo: root,
+    command: '/bin/cp',
+    args: ['/tmp/unrelated-cejel', 'dist/index.js'],
+    outputRelativePath: 'dist/index.js',
+  }), /committed npm\/pnpm run build script/);
 });
 
 test('golden correction ledger must match the exact detector build and have no open corrections', () => {
@@ -293,8 +373,7 @@ test('golden labels derive the exact missed-defect ledger set with no omissions 
     ...structuredClone(evidence.opportunity),
     opportunity_id: 'llm-opportunity-overlap-0002',
   });
-  const { manifest_sha256: _oldHash, attestation: _attestation, ...overlappingHashable } =
-    overlappingManifest;
+  const { manifest_sha256: _oldHash, ...overlappingHashable } = overlappingManifest;
   overlappingManifest.manifest_sha256 = canonicalSha(overlappingHashable);
   assert.throws(
     () => validateGoldenOpportunityEvidence(overlappingManifest, evidence.execution.manifest),
@@ -378,6 +457,15 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
     golden_manifest_sha256: immutableManifest('golden').manifest_sha256,
     untouched_manifest_sha256: immutableManifest('untouched').manifest_sha256,
     opportunity_manifest_sha256: '6'.repeat(64),
+    opportunity_discovery_coverage_sha256: '9'.repeat(64),
+    release_thresholds: {
+      byte_sha256: 'b'.repeat(64),
+      canonical_sha256: 'c'.repeat(64),
+    },
+    public_surface_policy: {
+      byte_sha256: 'd'.repeat(64),
+      canonical_sha256: 'e'.repeat(64),
+    },
     blind_label_bindings: [
       { label_id: 'llm-label-example-0001', document_sha256: '7'.repeat(64), role: 'primary_labeler' },
       { label_id: 'llm-label-example-0002', document_sha256: '8'.repeat(64), role: 'independent_reviewer' },

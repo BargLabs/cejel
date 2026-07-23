@@ -361,6 +361,20 @@ export async function main(argv, commandRunner = defaultRunner) {
       executionEvidence,
       opportunityEvidence,
     );
+    const isolation = freezeRecord.execution.network_isolation;
+    const wrapperPath = realpathSync(isolation.argv_prefix[0]);
+    const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
+    const probePath = realpathSync(isolation.probe_path);
+    if (
+      wrapperPath !== isolation.argv_prefix[0] ||
+      sha256Bytes(readFileSync(wrapperPath)) !== isolation.wrapper_sha256 ||
+      sha256Bytes(readFileSync(hookPath)) !== isolation.hook_sha256 ||
+      sha256Bytes(readFileSync(probePath)) !== isolation.probe_sha256
+    ) throw new Error('network-isolation files do not match detector-freeze record');
+    const probeOutput = await commandRunner(wrapperPath, [probePath]);
+    if (sha256Bytes(Buffer.from(probeOutput, 'utf8')) !== isolation.probe_output_sha256) {
+      throw new Error('network-isolation probe no longer matches detector-freeze record');
+    }
     isolationPrefix = freezeRecord.execution.network_isolation.argv_prefix;
     isolationMode = freezeRecord.execution.network_isolation.mode;
   } else {
@@ -371,6 +385,18 @@ export async function main(argv, commandRunner = defaultRunner) {
     } else {
       isolationPrefix = [realpathSync(resolve(options.isolationCommand)), ...options.isolationArgs];
       isolationMode = options.isolationMode;
+      if (isolationMode !== 'node-runtime-deny-hook-v1' || isolationPrefix.length !== 1) {
+        throw new Error('golden execution requires the repository no-egress wrapper without extra argv');
+      }
+      const hookPath = realpathSync(resolve(dirname(isolationPrefix[0]), 'no-egress-hook.cjs'));
+      const probePath = realpathSync(resolve(dirname(isolationPrefix[0]), 'no-egress-probe.mjs'));
+      if (!readFileSync(hookPath).includes(Buffer.from('Cejel calibration no-egress policy denied'))) {
+        throw new Error('golden network-isolation hook is not the Cejel deny hook');
+      }
+      const probe = JSON.parse(await commandRunner(isolationPrefix[0], [probePath]));
+      if (probe.policy !== isolationMode || probe.denied !== 3 || probe.attempted !== 3) {
+        throw new Error('golden network-isolation probe did not deny every tested egress path');
+      }
     }
   }
 

@@ -23,13 +23,25 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["golden_manifest", "untouched_manifest", "source_evidence_index", "opportunity_manifest", "pre_result_commitment", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
+      "required": ["golden_manifest", "untouched_manifest", "source_evidence_index", "opportunity_manifest", "opportunity_discovery_coverage", "release_thresholds", "pre_result_commitment", "trusted_execution_proof", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
       "properties": {
         "golden_manifest": {"$ref": "#/$defs/bound_document"},
         "untouched_manifest": {"$ref": "#/$defs/bound_document"},
         "source_evidence_index": {"$ref": "#/$defs/bound_document"},
         "opportunity_manifest": {"$ref": "#/$defs/bound_document"},
+        "opportunity_discovery_coverage": {"$ref": "#/$defs/bound_document"},
+        "release_thresholds": {
+          "allOf": [
+            {"$ref": "#/$defs/bound_document"},
+            {
+              "type": "object",
+              "required": ["byte_sha256"],
+              "properties": {"byte_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+            }
+          ]
+        },
         "pre_result_commitment": {"$ref": "#/$defs/bound_document"},
+        "trusted_execution_proof": {"$ref": "#/$defs/bound_document"},
         "detector_freeze": {"$ref": "#/$defs/bound_document"},
         "execution_receipts": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/bound_document"}},
         "llm_reports": {

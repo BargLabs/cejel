@@ -66,7 +66,8 @@ export function validatePreResultCommitment(document) {
   const allowed = [
     'schema_version', 'protocol_id', 'status', 'created_at', 'detector_results_seen_before_commitment',
     'golden_manifest_sha256', 'untouched_manifest_sha256', 'opportunity_manifest_sha256',
-    'blind_label_bindings', 'public_document_inventory',
+    'opportunity_discovery_coverage_sha256', 'release_thresholds',
+    'public_surface_policy', 'blind_label_bindings', 'public_document_inventory',
   ];
   const unknown = Object.keys(document || {}).filter((key) => !allowed.includes(key));
   if (
@@ -77,9 +78,25 @@ export function validatePreResultCommitment(document) {
     !/^[a-f0-9]{64}$/.test(document.golden_manifest_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.untouched_manifest_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.opportunity_manifest_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(document.opportunity_discovery_coverage_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(document.release_thresholds?.byte_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(document.release_thresholds?.canonical_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(document.public_surface_policy?.byte_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(document.public_surface_policy?.canonical_sha256 || '') ||
     !Array.isArray(document.blind_label_bindings) || document.blind_label_bindings.length < 2 ||
     !Array.isArray(document.public_document_inventory) || document.public_document_inventory.length < 1
   ) throw new Error('pre-result commitment is invalid');
+  if (
+    !document.release_thresholds || typeof document.release_thresholds !== 'object' ||
+    Object.keys(document.release_thresholds).some((key) =>
+      !['byte_sha256', 'canonical_sha256'].includes(key))
+  ) throw new Error('pre-result commitment has an invalid release-threshold binding');
+  if (
+    !document.public_surface_policy || typeof document.public_surface_policy !== 'object' ||
+    Object.keys(document.public_surface_policy).some((key) =>
+      !['byte_sha256', 'canonical_sha256'].includes(key)
+    )
+  ) throw new Error('pre-result commitment has an invalid public-surface policy binding');
   const ids = new Set();
   for (const binding of document.blind_label_bindings) {
     const bindingUnknown = Object.keys(binding || {}).filter((key) => !['label_id', 'document_sha256', 'role'].includes(key));
@@ -94,7 +111,8 @@ export function validatePreResultCommitment(document) {
   const paths = new Set();
   for (const item of document.public_document_inventory) {
     const itemUnknown = Object.keys(item || {}).filter((key) => !['path', 'content_sha256'].includes(key));
-    if (itemUnknown.length > 0 || !repositoryRelativePath(item?.path) ||
+    if (itemUnknown.length > 0 ||
+        !(repositoryRelativePath(item?.path) || /^https:\/\/[^\s]+$/.test(item?.path || '')) ||
         !/^[a-f0-9]{64}$/.test(item.content_sha256 || '') ||
         paths.has(item.path)) throw new Error('pre-result commitment has an invalid public-document inventory');
     paths.add(item.path);

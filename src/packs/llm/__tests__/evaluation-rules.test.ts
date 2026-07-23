@@ -79,6 +79,53 @@ describe('Free LLM evaluation and provenance rules', () => {
     ).toBe(false);
   });
 
+  it.each([
+    '// humanReview must approve this score',
+    "const documentation = 'independentDecision(judge)';",
+    'const independentDecision = true;',
+    'const review = await humanReview(judge);',
+  ])('does not let a non-participating independent-review token suppress EVL-002', (line) => {
+    const source = fixture('llm-evaluation-self-judge.positive.fixture');
+    const contents = source.contents.replace(
+      "writeFileSync('evaluation.json'",
+      `${line}\nwriteFileSync('evaluation.json'`,
+    );
+    expect(
+      detectCejelLlmEvaluationRules([{ ...source, contents }]).some(
+        (finding) => finding.ruleId === 'LLM-EVL-002',
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'emitted acceptance',
+      [
+        'const independentDecision = await humanReview(judge);',
+        "writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text, independentDecision }));",
+      ],
+    ],
+    [
+      'acceptance gate',
+      [
+        'const review = await evidenceVerification(judge);',
+        "if (!review.approved) throw new Error('independent review rejected result');",
+        "writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text }));",
+      ],
+    ],
+  ] as const)('suppresses EVL-002 only for an observable independent %s', (_name, replacement) => {
+    const source = fixture('llm-evaluation-self-judge.positive.fixture');
+    const contents = source.contents.replace(
+      "writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text }));",
+      replacement.join('\n'),
+    );
+    expect(
+      detectCejelLlmEvaluationRules([{ ...source, contents }]).some(
+        (finding) => finding.ruleId === 'LLM-EVL-002',
+      ),
+    ).toBe(false);
+  });
+
   it('abstains from absence findings for incomplete or excluded local paths', () => {
     const source = fixture('llm-evaluation-denominator.positive.fixture');
     for (const path of [

@@ -338,6 +338,56 @@ describe('Free LLM Pack Python rule foundation', () => {
     expect(rule?.detect(file)).toEqual([]);
   });
 
+  it.each([
+    ['counter', ['attempts += 1', 'if attempts >= 3:', '    break']],
+    ['deadline', ['if time.monotonic() >= deadline:', '    raise TimeoutError()']],
+    ['cancellation', ['if cancellation.is_set():', '    return']],
+    ['budget', ['remaining -= 1', 'if remaining <= 0:', '    break']],
+  ] as const)('does not flag a while True loop with an observable %s guard', (_name, guard) => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [
+        'from openai import OpenAI',
+        'while True:',
+        '    OpenAI().responses.create(model="example", input="x")',
+        ...guard.map((line) => `    ${line}`),
+      ].join('\n'),
+    };
+    expect(rule?.detect(file)).toEqual([]);
+  });
+
+  it('retains Python AGY-002 when a bound-looking value never gates loop exit', () => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [
+        'from openai import OpenAI',
+        'max_iterations = 3',
+        'while True:',
+        '    OpenAI().responses.create(model="example", input="x")',
+        '    observe(max_iterations)',
+      ].join('\n'),
+    };
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
+  it('retains Python AGY-002 when a break only exits a nested loop', () => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [
+        'from openai import OpenAI',
+        'while True:',
+        '    OpenAI().responses.create(model="example", input="x")',
+        '    for attempt in attempts:',
+        '        if attempt >= 3:',
+        '            break',
+      ].join('\n'),
+    };
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
   it.each(['tests/test_agent.py', 'examples/unsafe.py'])(
     'does not emit Python findings from excluded path %s',
     (path) => {

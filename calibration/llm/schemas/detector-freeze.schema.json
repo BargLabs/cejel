@@ -4,7 +4,7 @@
   "title": "Cejel Free LLM detector freeze",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "status", "frozen_at", "detector", "execution", "rule_ids", "support_matrix", "golden_correction_ledger", "golden_execution_evidence", "untouched_results_seen_before_freeze", "record_sha256"],
+  "required": ["schema_version", "protocol_id", "status", "frozen_at", "detector", "execution", "rule_ids", "support_matrix", "release_thresholds", "golden_correction_ledger", "golden_execution_evidence", "untouched_results_seen_before_freeze", "record_sha256"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
@@ -13,11 +13,26 @@
     "detector": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["git_commit", "build_sha256", "artifact_name", "runtime"],
+      "required": ["git_commit", "source_tree_sha", "build_sha256", "artifact_name", "build", "runtime"],
       "properties": {
         "git_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "source_tree_sha": {"type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"},
         "build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "artifact_name": {"type": "string", "minLength": 1},
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "output_relative_path", "first_build_sha256", "second_build_sha256", "first_output_tree_sha256", "second_output_tree_sha256", "deterministic_rebuild_verified"],
+          "properties": {
+            "command": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "output_relative_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+            "first_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "second_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "first_output_tree_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "second_output_tree_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "deterministic_rebuild_verified": {"const": true}
+          }
+        },
         "runtime": {
           "type": "object",
           "additionalProperties": false,
@@ -40,11 +55,18 @@
         "network_isolation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["mode", "argv_prefix", "evidence_reference", "explicitly_confirmed"],
+          "required": ["mode", "argv_prefix", "evidence_reference", "wrapper_sha256", "hook_sha256", "probe_path", "probe_sha256", "probe_output_sha256", "probe_denied", "probe_attempted", "explicitly_confirmed"],
           "properties": {
             "mode": {"type": "string", "minLength": 3},
             "argv_prefix": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
             "evidence_reference": {"type": "string", "minLength": 8},
+            "wrapper_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "hook_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "probe_path": {"type": "string", "minLength": 1},
+            "probe_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "probe_output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "probe_denied": {"const": 3},
+            "probe_attempted": {"const": 3},
             "explicitly_confirmed": {"const": true}
           }
         }
@@ -58,6 +80,15 @@
       "items": {"pattern": "^LLM-[A-Z]{3}-[0-9]{3}$"}
     },
     "support_matrix": {"type": "object"},
+    "release_thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["byte_sha256", "canonical_sha256"],
+      "properties": {
+        "byte_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
     "golden_correction_ledger": {
       "type": "object",
       "additionalProperties": false,

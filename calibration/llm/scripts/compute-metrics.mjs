@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
@@ -13,10 +14,19 @@ import {
 } from './freeze-cohorts.mjs';
 import { validateDetectorFreezeRecord } from './freeze-detector.mjs';
 import { validateGitCommitmentProof, validatePreResultCommitment } from './pre-result-commitment.mjs';
+import { findProhibitedPublicClaims } from './public-claims.mjs';
+import { verifyGitHubExecutionProof } from './github-execution-proof.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
 const sha256Bytes = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const LOCKED_ARTIFACT_PATHS = {
+  selection_policy_sha256: 'selection-policy.json',
+  golden_candidates_sha256: 'cohorts/golden-candidates.json',
+  untouched_candidates_sha256: 'cohorts/untouched-candidates.json',
+  reserve_candidates_sha256: 'cohorts/reserve-candidates.json',
+  selection_amendments_sha256: 'cohorts/selection-amendments.json',
+};
 const COUNT_KEYS = [
   'true_positives',
   'false_negatives',
@@ -324,17 +334,45 @@ function collectNotEstimable(aggregateMetrics, perRule) {
 
 const sha256Canonical = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
 
+function productionCalibrationContract() {
+  const artifacts = Object.fromEntries(Object.entries(LOCKED_ARTIFACT_PATHS).map(([key, path]) => {
+    const bytes = readFileSync(resolve(calibrationRoot, path));
+    return [key, { byte_sha256: sha256Bytes(bytes), document: JSON.parse(bytes.toString('utf8')) }];
+  }));
+  const thresholdBytes = readFileSync(resolve(calibrationRoot, 'release-thresholds.json'));
+  const thresholdDocument = JSON.parse(thresholdBytes.toString('utf8'));
+  const publicSurfacePolicyBytes = readFileSync(resolve(calibrationRoot, 'public-surface-policy.json'));
+  const publicSurfacePolicyDocument = JSON.parse(publicSurfacePolicyBytes.toString('utf8'));
+  return {
+    expected_cohort_size: 24,
+    artifacts,
+    release_thresholds: {
+      byte_sha256: sha256Bytes(thresholdBytes),
+      canonical_sha256: sha256Canonical(thresholdDocument),
+    },
+    public_surface_policy: {
+      byte_sha256: sha256Bytes(publicSurfacePolicyBytes),
+      canonical_sha256: sha256Canonical(publicSurfacePolicyDocument),
+      document: publicSurfacePolicyDocument,
+    },
+  };
+}
+
 export function hashOpportunityManifest(manifest) {
   const hashable = structuredClone(manifest);
   delete hashable.manifest_sha256;
-  delete hashable.attestation;
   return sha256Canonical(hashable);
 }
 
 export function hashSourceEvidenceIndex(index) {
   const hashable = structuredClone(index);
   delete hashable.index_sha256;
-  delete hashable.attestation;
+  return sha256Canonical(hashable);
+}
+
+export function hashOpportunityDiscoveryCoverage(record) {
+  const hashable = structuredClone(record);
+  delete hashable.record_sha256;
   return sha256Canonical(hashable);
 }
 
@@ -441,7 +479,7 @@ function validateSourceEvidenceIndexBinding(wrapper, golden, untouched, reposito
     index?.schema_version !== '1.0.0' || index.protocol_id !== 'cejel-llm-calibration-v1' ||
     index.status !== 'frozen_before_detector_results' ||
     index.hash_contract !==
-      'rfc8785-sha256-v1; index excludes index_sha256 and attestation; file content_sha256 hashes decoded whole-file bytes' ||
+      'rfc8785-sha256-v1; index excludes only index_sha256; file content_sha256 hashes decoded whole-file bytes' ||
     index.cohort_bindings?.golden_manifest_sha256 !== golden.manifest_sha256 ||
     index.cohort_bindings?.untouched_manifest_sha256 !== untouched.manifest_sha256 ||
     hashSourceEvidenceIndex(index) !== index.index_sha256 ||
@@ -503,6 +541,25 @@ function unwrapBoundDocument(wrapper, scope) {
   return wrapper.document;
 }
 
+function validateReleaseThresholdBinding(wrapper, thresholds, contract, preResultCommitment, freeze) {
+  const document = unwrapBoundDocument(wrapper, 'release thresholds');
+  const canonicalSha256 = sha256Canonical(document);
+  if (
+    wrapper.byte_sha256 !== contract.release_thresholds.byte_sha256 ||
+    wrapper.document_sha256 !== contract.release_thresholds.canonical_sha256 ||
+    canonicalSha256 !== contract.release_thresholds.canonical_sha256 ||
+    canonicalize(document) !== canonicalize(thresholds) ||
+    preResultCommitment.release_thresholds?.byte_sha256 !== contract.release_thresholds.byte_sha256 ||
+    preResultCommitment.release_thresholds?.canonical_sha256 !== contract.release_thresholds.canonical_sha256 ||
+    freeze.release_thresholds?.byte_sha256 !== contract.release_thresholds.byte_sha256 ||
+    freeze.release_thresholds?.canonical_sha256 !== contract.release_thresholds.canonical_sha256
+  ) throw new Error('release thresholds do not match the exact pre-result locked artifact');
+  return {
+    byte_sha256: wrapper.byte_sha256,
+    canonical_sha256: wrapper.document_sha256,
+  };
+}
+
 function isRepositoryRelativePath(path) {
   return typeof path === 'string' && path.length > 0 && !path.startsWith('/') &&
     !/^[A-Za-z]:[\\/]/.test(path) && !path.split(/[\\/]/).includes('..');
@@ -511,6 +568,9 @@ function isRepositoryRelativePath(path) {
 function validateManifestBinding(wrapper, expectedCohort) {
   const manifest = unwrapBoundDocument(wrapper, `${expectedCohort} manifest`);
   if (
+    manifest.schema_version !== '1.0.0' ||
+    manifest.protocol_id !== 'cejel-llm-calibration-v1' ||
+    manifest.policy_id !== 'llm-selection-v1.1' ||
     manifest.cohort !== expectedCohort || manifest.status !== 'frozen' ||
     hashManifest(manifest) !== manifest.manifest_sha256 ||
     !validateReviewBindings(manifest.review_bindings)
@@ -523,6 +583,97 @@ function validateManifestBinding(wrapper, expectedCohort) {
     }
   }
   return manifest;
+}
+
+function validateCohortAnchors(golden, untouched, contract) {
+  const policy = contract.artifacts.selection_policy_sha256?.document;
+  const goldenCandidates = contract.artifacts.golden_candidates_sha256?.document;
+  const untouchedCandidates = contract.artifacts.untouched_candidates_sha256?.document;
+  const reserve = contract.artifacts.reserve_candidates_sha256?.document;
+  const amendments = contract.artifacts.selection_amendments_sha256?.document;
+  if (
+    policy?.schema_version !== '1.0.0' || policy.policy_id !== 'llm-selection-v1.1' ||
+    policy.status !== 'relocked_before_detector_results' || policy.detector_results_seen !== false ||
+    policy.target_size_per_cohort !== contract.expected_cohort_size ||
+    reserve?.schema_version !== '1.0.0' || reserve.protocol_id !== 'cejel-llm-calibration-v1' ||
+    reserve.policy_id !== policy.policy_id || !Array.isArray(reserve.repositories) ||
+    amendments?.schema_version !== '1.0.0' || amendments.protocol_id !== 'cejel-llm-calibration-v1' ||
+    amendments.policy_id !== policy.policy_id || amendments.detector_results_seen !== false ||
+    !Array.isArray(amendments.amendments) || amendments.amendments.length < 1
+  ) throw new Error('locked selection policy, reserve, or amendment contract is invalid');
+
+  const expectedReviewBindings = Object.fromEntries(
+    Object.entries(contract.artifacts).map(([key, artifact]) => [key, artifact.byte_sha256]),
+  );
+  for (const [cohort, manifest, candidates] of [
+    ['golden', golden, goldenCandidates],
+    ['untouched', untouched, untouchedCandidates],
+  ]) {
+    if (
+      candidates?.schema_version !== '1.0.0' ||
+      candidates.protocol_id !== 'cejel-llm-calibration-v1' ||
+      candidates.policy_id !== policy.policy_id ||
+      candidates.cohort !== cohort ||
+      candidates.status !== 'candidate_commit_freeze_pending' ||
+      candidates.selected_before_detector_results !== true ||
+      !Array.isArray(candidates.repositories) ||
+      candidates.repositories.length !== contract.expected_cohort_size ||
+      manifest.repositories.length !== contract.expected_cohort_size
+    ) throw new Error(`${cohort} cohort does not match the exact locked candidate contract`);
+    for (const [key, expectedHash] of Object.entries(expectedReviewBindings)) {
+      if (manifest.review_bindings[key] !== expectedHash) {
+        throw new Error(`${cohort} cohort review binding does not match locked ${key}`);
+      }
+    }
+    for (let index = 0; index < candidates.repositories.length; index += 1) {
+      const candidate = candidates.repositories[index];
+      const repository = manifest.repositories[index];
+      for (const key of [
+        'repository_id',
+        'url',
+        'primary_language',
+        'primary_surface',
+        'provider_surface',
+        'inclusion_reason',
+      ]) {
+        if (repository?.[key] !== candidate?.[key]) {
+          throw new Error(`${cohort} cohort repository order or candidate membership changed at index ${index}`);
+        }
+      }
+    }
+  }
+  const goldenIds = new Set(golden.repositories.map((repository) => repository.repository_id.toLowerCase()));
+  for (const repository of untouched.repositories) {
+    if (goldenIds.has(repository.repository_id.toLowerCase())) {
+      throw new Error(`frozen cohorts overlap at ${repository.repository_id}`);
+    }
+  }
+}
+
+function validatePublicSurfaceBinding(preResultCommitment, contract) {
+  const policy = contract.public_surface_policy;
+  if (
+    policy?.document?.schema_version !== '1.0.0' ||
+    policy.document.protocol_id !== 'cejel-llm-calibration-v1' ||
+    policy.document.policy_id !== 'cejel-llm-public-surfaces-v1' ||
+    policy.document.status !== 'locked_before_detector_results' ||
+    policy.document.detector_results_seen !== false ||
+    !Array.isArray(policy.document.repository_paths) ||
+    !Array.isArray(policy.document.external_surfaces) ||
+    preResultCommitment.public_surface_policy?.byte_sha256 !== policy.byte_sha256 ||
+    preResultCommitment.public_surface_policy?.canonical_sha256 !== policy.canonical_sha256
+  ) throw new Error('pre-result commitment does not bind the locked public-surface policy');
+  const expected = [
+    ...policy.document.repository_paths,
+    ...policy.document.external_surfaces
+      .filter((surface) => surface.required_before_public_release === true)
+      .map((surface) => surface.url),
+  ].sort();
+  const observed = preResultCommitment.public_document_inventory.map((item) => item.path).sort();
+  if (canonicalize(observed) !== canonicalize(expected)) {
+    throw new Error('public-document inventory does not exactly cover the locked public surfaces');
+  }
+  return policy.document;
 }
 
 function validateOpportunityManifestBinding(wrapper, golden, untouched, repositories, sourceFiles) {
@@ -538,7 +689,7 @@ function validateOpportunityManifestBinding(wrapper, golden, untouched, reposito
     manifest?.schema_version !== '1.0.0' || manifest.protocol_id !== 'cejel-llm-calibration-v1' ||
     manifest.status !== 'frozen' || manifest.frozen_before_detector_results !== true ||
     manifest.detector_results_seen_before_freeze !== false ||
-    manifest.hash_contract !== 'rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation' ||
+    manifest.hash_contract !== 'rfc8785-sha256-v1; manifest excludes only manifest_sha256' ||
     manifest.cohort_bindings?.golden_manifest_sha256 !== golden.manifest_sha256 ||
     manifest.cohort_bindings?.untouched_manifest_sha256 !== untouched.manifest_sha256 ||
     hashOpportunityManifest(manifest) !== manifest.manifest_sha256 ||
@@ -669,6 +820,91 @@ function validateOpportunityManifestBinding(wrapper, golden, untouched, reposito
   return { manifest, opportunities, blindLabelBindings };
 }
 
+function validateOpportunityDiscoveryCoverage(
+  wrapper,
+  golden,
+  untouched,
+  sourceEvidenceIndex,
+  opportunityManifest,
+  opportunities,
+  repositories,
+) {
+  const record = unwrapBoundDocument(wrapper, 'opportunity-discovery coverage');
+  rejectUnknownKeys(
+    record,
+    ['schema_version', 'protocol_id', 'status', 'frozen_at', 'detector_results_seen_before_freeze',
+      'review_method', 'blind_reviewers', 'bindings', 'coverage', 'record_sha256'],
+    'opportunity-discovery coverage',
+  );
+  if (
+    record?.schema_version !== '1.0.0' ||
+    record.protocol_id !== 'cejel-llm-calibration-v1' ||
+    record.status !== 'frozen_before_detector_results' ||
+    record.detector_results_seen_before_freeze !== false ||
+    !['two_human', 'two_independent_ai'].includes(record.review_method) ||
+    !Array.isArray(record.blind_reviewers) ||
+    record.blind_reviewers.length !== 2 ||
+    new Set(record.blind_reviewers.map((reviewer) => String(reviewer).trim().toLowerCase())).size !== 2 ||
+    record.blind_reviewers.some((reviewer) => typeof reviewer !== 'string' || reviewer.trim().length < 3) ||
+    typeof record.frozen_at !== 'string' || Number.isNaN(Date.parse(record.frozen_at)) ||
+    record.bindings?.golden_manifest_sha256 !== golden.manifest_sha256 ||
+    record.bindings?.untouched_manifest_sha256 !== untouched.manifest_sha256 ||
+    record.bindings?.source_evidence_index_sha256 !== sourceEvidenceIndex.index_sha256 ||
+    record.bindings?.opportunity_manifest_sha256 !== opportunityManifest.manifest_sha256 ||
+    !Array.isArray(record.coverage) ||
+    hashOpportunityDiscoveryCoverage(record) !== record.record_sha256
+  ) throw new Error('opportunity-discovery coverage is not a valid independent frozen record');
+  rejectUnknownKeys(
+    record.bindings,
+    ['golden_manifest_sha256', 'untouched_manifest_sha256', 'source_evidence_index_sha256',
+      'opportunity_manifest_sha256'],
+    'opportunity-discovery coverage bindings',
+  );
+
+  const rows = new Map();
+  for (const [index, row] of record.coverage.entries()) {
+    const scope = `opportunity-discovery coverage row ${index}`;
+    rejectUnknownKeys(
+      row,
+      ['cohort', 'repository_id', 'commit_sha', 'rule_id', 'declared_opportunity_ids'],
+      scope,
+    );
+    const repository = repositories.get(`${row?.cohort}:${row?.repository_id}`);
+    if (
+      !repository ||
+      row.commit_sha !== repository.repository.commit_sha ||
+      !ENABLED_RULE_IDS.includes(row.rule_id) ||
+      !Array.isArray(row.declared_opportunity_ids) ||
+      new Set(row.declared_opportunity_ids).size !== row.declared_opportunity_ids.length ||
+      row.declared_opportunity_ids.some((id) => typeof id !== 'string' || !opportunities.has(id))
+    ) throw new Error(`${scope} is invalid or not bound to a frozen repository/rule`);
+    const key = `${row.cohort}:${row.repository_id}:${row.rule_id}`;
+    if (rows.has(key)) throw new Error(`duplicate opportunity-discovery coverage row: ${key}`);
+    const expectedIds = [...opportunities.values()]
+      .filter((opportunity) =>
+        opportunity.cohort === row.cohort &&
+        opportunity.repository_id === row.repository_id &&
+        opportunity.rule_id === row.rule_id)
+      .map((opportunity) => opportunity.opportunity_id)
+      .sort();
+    if (canonicalize([...row.declared_opportunity_ids].sort()) !== canonicalize(expectedIds)) {
+      throw new Error(`${scope} does not declare the exact frozen opportunities`);
+    }
+    rows.set(key, row);
+  }
+  for (const { cohort, repository } of repositories.values()) {
+    for (const ruleId of ENABLED_RULE_IDS) {
+      if (!rows.has(`${cohort}:${repository.repository_id}:${ruleId}`)) {
+        throw new Error(`opportunity-discovery coverage omits ${cohort}:${repository.repository_id}:${ruleId}`);
+      }
+    }
+  }
+  if (rows.size !== repositories.size * ENABLED_RULE_IDS.length) {
+    throw new Error('opportunity-discovery coverage contains rows outside the exact repository/rule matrix');
+  }
+  return record;
+}
+
 function validateLabelRecord(label, scope) {
   if (!label || typeof label !== 'object' || Array.isArray(label)) throw new Error(`${scope} is not a valid label record`);
   rejectUnknownKeys(
@@ -762,21 +998,46 @@ function findingEvidenceMatchesOpportunity(finding, opportunity) {
 function deriveCheckSpecificAssertion(checkId, payload, context) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
   if (checkId === 'free_core_unchanged_without_pack') {
-    rejectUnknownKeys(payload, ['baseline_output_base64', 'candidate_output_base64', 'baseline_exit_code', 'candidate_exit_code'], 'free-core parity evidence');
-    const baseline = Buffer.from(payload.baseline_output_base64 || '', 'base64');
-    const candidate = Buffer.from(payload.candidate_output_base64 || '', 'base64');
-    return Number.isInteger(payload.baseline_exit_code) && payload.baseline_exit_code === 0 &&
-      payload.candidate_exit_code === 0 && baseline.length > 0 && baseline.equals(candidate);
+    rejectUnknownKeys(payload, ['fixture', 'baseline', 'candidate'], 'free-core parity evidence');
+    const validateRun = (run, scope) => {
+      rejectUnknownKeys(
+        run,
+        ['git_commit', 'executable_sha256', 'argv', 'stdout_base64', 'stderr_base64', 'exit_code'],
+        `free-core parity ${scope}`,
+      );
+      return /^[a-f0-9]{40}$/.test(run.git_commit || '') &&
+        /^[a-f0-9]{64}$/.test(run.executable_sha256 || '') &&
+        Array.isArray(run.argv) && run.argv.length >= 2 && run.argv[0] === 'scan' &&
+        !run.argv.includes('--pack') && run.argv.every((part) => typeof part === 'string') &&
+        run.exit_code === 0;
+    };
+    if (!payload.fixture || typeof payload.fixture !== 'object') return false;
+    rejectUnknownKeys(payload.fixture, ['path', 'tree_sha256'], 'free-core parity fixture');
+    if (!isRepositoryRelativePath(payload.fixture.path) ||
+      !/^[a-f0-9]{64}$/.test(payload.fixture.tree_sha256 || '')) return false;
+    if (!validateRun(payload.baseline, 'baseline') || !validateRun(payload.candidate, 'candidate')) {
+      return false;
+    }
+    const baselineStdout = Buffer.from(payload.baseline.stdout_base64 || '', 'base64');
+    const candidateStdout = Buffer.from(payload.candidate.stdout_base64 || '', 'base64');
+    const baselineStderr = Buffer.from(payload.baseline.stderr_base64 || '', 'base64');
+    const candidateStderr = Buffer.from(payload.candidate.stderr_base64 || '', 'base64');
+    return payload.candidate.git_commit === context.freeze.detector.git_commit &&
+      payload.candidate.executable_sha256 === context.freeze.detector.build_sha256 &&
+      payload.baseline.git_commit !== payload.candidate.git_commit &&
+      canonicalize(payload.baseline.argv) === canonicalize(payload.candidate.argv) &&
+      baselineStdout.length > 0 && baselineStdout.equals(candidateStdout) &&
+      baselineStderr.equals(candidateStderr);
   }
   if (checkId === 'prohibited_public_claims_absent') {
     rejectUnknownKeys(payload, ['documents'], 'public-claim evidence');
     if (!Array.isArray(payload.documents) || payload.documents.length < 1) return false;
-    const prohibited = [/\bdetects? hallucinations?\b/i, /\bhallucination rate\b/i, /\bguarante(?:e|es|ed)\b/i];
     const observed = payload.documents.map((document) => {
       rejectUnknownKeys(document, ['path', 'content', 'sha256'], 'public-claim document');
-      if (!(isRepositoryRelativePath(document.path) && typeof document.content === 'string' &&
+      if (!((isRepositoryRelativePath(document.path) || /^https:\/\//.test(document.path)) &&
+        typeof document.content === 'string' &&
         sha256Bytes(Buffer.from(document.content, 'utf8')) === document.sha256 &&
-        prohibited.every((pattern) => !pattern.test(document.content)))) return null;
+        findProhibitedPublicClaims(document.content).length === 0)) return null;
       return { path: document.path, content_sha256: document.sha256 };
     });
     if (observed.includes(null) || new Set(observed.map((item) => item.path)).size !== observed.length) return false;
@@ -962,11 +1223,17 @@ function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings,
   return { checks, bindings };
 }
 
-export function deriveCountsFromEvidence(input) {
+export function deriveCountsFromEvidence(
+  input,
+  thresholds,
+  calibrationContract = productionCalibrationContract(),
+  trustedExecutionVerification,
+) {
   const evidence = input.evidence;
   if (!evidence || typeof evidence !== 'object') throw new Error('measurement evidence is required');
   const golden = validateManifestBinding(evidence.golden_manifest, 'golden');
   const untouched = validateManifestBinding(evidence.untouched_manifest, 'untouched');
+  validateCohortAnchors(golden, untouched, calibrationContract);
   const freeze = validateDetectorFreezeRecord(unwrapBoundDocument(evidence.detector_freeze, 'detector freeze'));
   if (freeze.golden_correction_ledger?.golden_manifest_sha256 !== golden.manifest_sha256) {
     throw new Error('detector freeze is not bound to the golden manifest');
@@ -1006,6 +1273,45 @@ export function deriveCountsFromEvidence(input) {
     canonicalize(preResultCommitment.blind_label_bindings) !==
       canonicalize(opportunityManifest.blind_label_bindings)
   ) throw new Error('pre-result commitment does not match frozen manifests and blind labels');
+  validatePublicSurfaceBinding(preResultCommitment, calibrationContract);
+  const opportunityDiscoveryCoverage = validateOpportunityDiscoveryCoverage(
+    evidence.opportunity_discovery_coverage,
+    golden,
+    untouched,
+    sourceEvidenceIndex,
+    opportunityManifest,
+    opportunities,
+    repositories,
+  );
+  if (
+    preResultCommitment.opportunity_discovery_coverage_sha256 !==
+      opportunityDiscoveryCoverage.record_sha256
+  ) throw new Error('pre-result commitment does not bind opportunity-discovery coverage');
+  const releaseThresholdBinding = validateReleaseThresholdBinding(
+    evidence.release_thresholds,
+    thresholds,
+    calibrationContract,
+    preResultCommitment,
+    freeze,
+  );
+
+  const trustedExecutionProof = unwrapBoundDocument(
+    evidence.trusted_execution_proof,
+    'trusted execution proof',
+  );
+  if (
+    !trustedExecutionVerification ||
+    trustedExecutionVerification.proof_document_sha256 !==
+      evidence.trusted_execution_proof.document_sha256 ||
+    trustedExecutionProof.commitment?.document_sha256 !==
+      evidence.pre_result_commitment.document_sha256 ||
+    trustedExecutionProof.commitment?.git_commit !==
+      trustedExecutionVerification.commitment_git_commit ||
+    trustedExecutionVerification.commitment_created_at !==
+      trustedExecutionProof.commitment?.created_at
+  ) {
+    throw new Error('measurement lacks a live-verified trusted execution proof');
+  }
 
   if (!Array.isArray(evidence.execution_receipts) || !Array.isArray(evidence.llm_reports)) {
     throw new Error('execution_receipts and llm_reports evidence arrays are required');
@@ -1048,6 +1354,50 @@ export function deriveCountsFromEvidence(input) {
     receipts.set(key, receipt);
   }
   if (receipts.size !== repositories.size) throw new Error('execution receipts do not cover every frozen repository');
+  const verifiedRuns = new Map();
+  for (const run of trustedExecutionVerification.runs || []) {
+    if (!['golden', 'untouched'].includes(run?.cohort) || verifiedRuns.has(run.cohort)) {
+      throw new Error('trusted execution proof must contain exactly one distinct run per cohort');
+    }
+    if (!run.evidence_bundle || run.evidence_bundle.cohort !== run.cohort) {
+      throw new Error('trusted execution run lacks its downloaded evidence bundle');
+    }
+    verifiedRuns.set(run.cohort, run);
+  }
+  if (verifiedRuns.size !== 2) {
+    throw new Error('trusted execution proof does not cover both calibration cohorts');
+  }
+  for (const cohort of ['golden', 'untouched']) {
+    const run = verifiedRuns.get(cohort);
+    const expectedBundle = {
+      schema_version: '1.0.0',
+      protocol_id: input.protocol_id,
+      cohort,
+      pre_result_commitment_sha256: evidence.pre_result_commitment.document_sha256,
+      detector_freeze_sha256: cohort === 'untouched'
+        ? evidence.detector_freeze.document_sha256
+        : null,
+      execution_receipts: evidence.execution_receipts
+        .filter(({ document }) => document.cohort === cohort)
+        .map(({ document_sha256, document }) => ({
+          repository_id: document.repository_id,
+          document_sha256,
+        }))
+        .sort((left, right) => left.repository_id.localeCompare(right.repository_id)),
+      llm_reports: evidence.llm_reports
+        .filter((report) => report.cohort === cohort)
+        .map(({ repository_id, document_sha256 }) => ({ repository_id, document_sha256 }))
+        .sort((left, right) => left.repository_id.localeCompare(right.repository_id)),
+    };
+    if (canonicalize(run.evidence_bundle) !== canonicalize(expectedBundle)) {
+      throw new Error(`${cohort}: downloaded GitHub artifact does not bind the measurement evidence`);
+    }
+    for (const receipt of [...receipts.values()].filter((item) => item.cohort === cohort)) {
+      if (Date.parse(receipt.completed_at) <= Date.parse(run.run_started_at)) {
+        throw new Error(`${cohort}: receipt completion does not follow the trusted workflow start`);
+      }
+    }
+  }
   const earliestDetectorCompletion = Math.min(
     ...[...receipts.values()].map((receipt) => Date.parse(receipt.completed_at)),
   );
@@ -1343,7 +1693,10 @@ export function deriveCountsFromEvidence(input) {
       untouched_manifest_sha256: untouched.manifest_sha256,
       source_evidence_index_sha256: sourceEvidenceIndex.index_sha256,
       opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
+      opportunity_discovery_coverage_sha256: opportunityDiscoveryCoverage.record_sha256,
+      release_thresholds: releaseThresholdBinding,
       detector_freeze_sha256: freeze.record_sha256,
+      trusted_execution_proof_sha256: evidence.trusted_execution_proof.document_sha256,
       execution_receipts: receipts.size,
       llm_reports: reports.size,
       label_records: evidence.label_records.length,
@@ -1353,8 +1706,13 @@ export function deriveCountsFromEvidence(input) {
   };
 }
 
-export function computeMetrics(input, thresholds) {
-  const derived = deriveCountsFromEvidence(input);
+function computeMetricsWithContract(input, thresholds, calibrationContract, trustedExecutionVerification) {
+  const derived = deriveCountsFromEvidence(
+    input,
+    thresholds,
+    calibrationContract,
+    trustedExecutionVerification,
+  );
   rejectUnknownKeys(
     input,
     ['$schema', 'protocol_id', 'automatic_no_go_evidence', 'evidence'],
@@ -1447,17 +1805,77 @@ export function computeMetrics(input, thresholds) {
   };
 }
 
-export function main(argv) {
+export function computeMetrics(input, thresholds, trustedExecutionVerification) {
+  return computeMetricsWithContract(
+    input,
+    thresholds,
+    productionCalibrationContract(),
+    trustedExecutionVerification,
+  );
+}
+
+export function computeMetricsForUnitTest(
+  input,
+  thresholds,
+  calibrationContract,
+  trustedExecutionVerification,
+) {
+  if (!process.env.NODE_TEST_CONTEXT) {
+    throw new Error('test-only calibration contract override is unavailable outside node:test');
+  }
+  return computeMetricsWithContract(
+    input,
+    thresholds,
+    calibrationContract,
+    trustedExecutionVerification,
+  );
+}
+
+function readEvidenceBundleFromArchive(path) {
+  const listing = execFileSync('unzip', ['-Z1', path], { encoding: 'utf8' })
+    .split('\n').filter(Boolean);
+  if (canonicalize(listing) !== canonicalize(['evidence-bundle.json'])) {
+    throw new Error(`${path}: calibration artifact must contain only evidence-bundle.json`);
+  }
+  return JSON.parse(execFileSync('unzip', ['-p', path, 'evidence-bundle.json'], {
+    encoding: 'utf8', maxBuffer: 20 * 1024 * 1024,
+  }));
+}
+
+export async function main(argv) {
   const path = argv[0];
-  if (!path) throw new Error('usage: compute-metrics.mjs <measurement-input.json>');
+  if (!path) {
+    throw new Error(
+      'usage: compute-metrics.mjs <measurement-input.json> --artifact <run-id>=<downloaded.zip> [...]',
+    );
+  }
   const input = JSON.parse(readFileSync(path, 'utf8'));
   const thresholds = JSON.parse(readFileSync(resolve(calibrationRoot, 'release-thresholds.json'), 'utf8'));
-  console.log(JSON.stringify(computeMetrics(input, thresholds), null, 2));
+  const artifactBytesByRunId = new Map();
+  const evidenceBundleByRunId = new Map();
+  for (let index = 1; index < argv.length; index += 1) {
+    if (argv[index] !== '--artifact' || !argv[index + 1]) throw new Error(`unknown argument: ${argv[index]}`);
+    const separator = argv[index + 1].indexOf('=');
+    const runId = Number(argv[index + 1].slice(0, separator));
+    const artifactPath = argv[index + 1].slice(separator + 1);
+    if (separator < 1 || !Number.isSafeInteger(runId) || !artifactPath) {
+      throw new Error('--artifact requires <run-id>=<downloaded.zip>');
+    }
+    artifactBytesByRunId.set(runId, readFileSync(artifactPath));
+    evidenceBundleByRunId.set(runId, readEvidenceBundleFromArchive(artifactPath));
+    index += 1;
+  }
+  const proof = unwrapBoundDocument(input.evidence?.trusted_execution_proof, 'trusted execution proof');
+  const verification = await verifyGitHubExecutionProof(proof, {
+    artifactBytesByRunId,
+    evidenceBundleByRunId,
+  });
+  console.log(JSON.stringify(computeMetrics(input, thresholds, verification), null, 2));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    main(process.argv.slice(2));
+    await main(process.argv.slice(2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

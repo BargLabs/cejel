@@ -433,6 +433,71 @@ describe('Free LLM Pack alpha', () => {
     expect(result.findings.some((finding) => finding.ruleId === 'LLM-AGY-002')).toBe(false);
   });
 
+  it.each([
+    [
+      'finite counter',
+      [
+        'let attempts = 0;',
+        'while (true) {',
+        "  await new OpenAI().responses.create({ model: 'example', input: 'x' });",
+        '  attempts += 1;',
+        '  if (attempts >= 3) break;',
+        '}',
+      ],
+    ],
+    [
+      'deadline',
+      [
+        'const deadline = Date.now() + 1000;',
+        'for (;;) {',
+        "  await new OpenAI().responses.create({ model: 'example', input: 'x' });",
+        "  if (Date.now() >= deadline) throw new Error('timeout');",
+        '}',
+      ],
+    ],
+    [
+      'cancellation budget',
+      [
+        'while (true) {',
+        "  await new OpenAI().responses.create({ model: 'example', input: 'x' });",
+        '  if (signal.aborted || remainingBudget <= 0) return;',
+        '}',
+      ],
+    ],
+  ] as const)('does not flag an unconditional loop with an observable %s guard', (_name, body) => {
+    const result = scan(["import OpenAI from 'openai';", ...body].join('\n'));
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-AGY-002')).toBe(false);
+  });
+
+  it('retains AGY-002 when bound-looking names do not participate in an exit guard', () => {
+    const result = scan(
+      [
+        "import OpenAI from 'openai';",
+        'const maxIterations = 3;',
+        'while (true) {',
+        "  await new OpenAI().responses.create({ model: 'example', input: 'x' });",
+        '  observe(maxIterations);',
+        '}',
+      ].join('\n'),
+    );
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-AGY-002')).toBe(true);
+  });
+
+  it('retains AGY-002 when a break only exits a nested loop', () => {
+    const result = scan(
+      [
+        "import OpenAI from 'openai';",
+        'while (true) {',
+        "  await new OpenAI().responses.create({ model: 'example', input: 'x' });",
+        '  for (const attempt of attempts) {',
+        '    if (attempt >= 3) break;',
+        '  }',
+        '}',
+      ].join('\n'),
+    );
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-AGY-002')).toBe(true);
+  });
+
   it.each(['tests/agent.test.ts', 'examples/unsafe.ts'])(
     'does not emit direct-pattern findings from excluded path %s',
     (path) => {

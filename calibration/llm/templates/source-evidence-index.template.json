@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
   "status": "frozen_before_detector_results",
-  "hash_contract": "rfc8785-sha256-v1; index excludes index_sha256 and attestation; file content_sha256 hashes decoded whole-file bytes",
+  "hash_contract": "rfc8785-sha256-v1; index excludes only index_sha256; file content_sha256 hashes decoded whole-file bytes",
   "cohort_bindings": {
     "golden_manifest_sha256": "replace-with-frozen-golden-manifest-sha256",
     "untouched_manifest_sha256": "replace-with-frozen-untouched-manifest-sha256"
@@ -26,7 +26,7 @@
       ]
     }
   ],
-  "index_sha256": "replace-with-rfc8785-sha256-excluding-index-sha256-and-attestation",
+  "index_sha256": "replace-with-rfc8785-sha256-excluding-only-index-sha256",
   "attestation": {
     "method": "internal_witness",
     "reference": "internal-witness:replace-me"

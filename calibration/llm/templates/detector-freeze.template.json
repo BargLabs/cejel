@@ -5,8 +5,18 @@
   "frozen_at": "2026-07-22T00:00:00Z",
   "detector": {
     "git_commit": "0000000000000000000000000000000000000000",
+    "source_tree_sha": "0000000000000000000000000000000000000000",
     "build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "artifact_name": "cejel",
+    "build": {
+      "command": ["npm", "run", "build"],
+      "output_relative_path": "dist/index.js",
+      "first_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "second_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "first_output_tree_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "second_output_tree_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "deterministic_rebuild_verified": true
+    },
     "runtime": {
       "name": "node",
       "version": "v00.00.0",
@@ -17,9 +27,16 @@
   "execution": {
     "command_template": ["{network_isolation_argv_prefix...}", "{cejel_binary}", "scan", "{source}", "--out", "{output}", "--pack", "llm", "--quiet"],
     "network_isolation": {
-      "mode": "replace-with-enforced-no-egress-mode",
-      "argv_prefix": ["replace-with-isolation-executable"],
+      "mode": "node-runtime-deny-hook-v1",
+      "argv_prefix": ["/absolute/path/to/no-egress-wrapper.sh"],
       "evidence_reference": "internal-witness:replace-with-isolation-proof",
+      "wrapper_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hook_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_path": "/absolute/path/to/no-egress-probe.mjs",
+      "probe_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_denied": 3,
+      "probe_attempted": 3,
       "explicitly_confirmed": true
     }
   },
@@ -42,6 +59,10 @@
       "No whole-program data-flow, model-quality, factuality, or hallucination-rate claim.",
       "Action-governance and evaluation-hygiene checks require complete local JavaScript or TypeScript paths."
     ]
+  },
+  "release_thresholds": {
+    "byte_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "canonical_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
   },
   "golden_correction_ledger": {
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000",

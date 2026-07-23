@@ -13,7 +13,7 @@
     "frozen_at": {"type": "string", "format": "date-time"},
     "frozen_before_detector_results": {"const": true},
     "detector_results_seen_before_freeze": {"const": false},
-    "hash_contract": {"const": "rfc8785-sha256-v1; manifest excludes manifest_sha256 and attestation"},
+    "hash_contract": {"const": "rfc8785-sha256-v1; manifest excludes only manifest_sha256"},
     "cohort_bindings": {
       "type": "object",
       "additionalProperties": false,
