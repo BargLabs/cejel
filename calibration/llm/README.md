@@ -71,6 +71,14 @@ node calibration/llm/scripts/assemble-blind-evidence.mjs \
   --frozen-at <actual-pre-result-evidence-freeze-UTC> \
   --attestation-reference internal-witness:<record-id> \
   --private-output-root /absolute/private/path/llm-pre-result
+# Before assembly, compare the two independently produced fragment identities without exposing
+# either reviewer's labels or rationale. The output root must be outside every Git working tree.
+node calibration/llm/scripts/reconcile-blind-fragments.mjs \
+  --reviewer-a-golden /absolute/private/path/a-golden.json \
+  --reviewer-a-untouched /absolute/private/path/a-untouched.json \
+  --reviewer-b-golden /absolute/private/path/b-golden.json \
+  --reviewer-b-untouched /absolute/private/path/b-untouched.json \
+  --output-root /absolute/private/path/identity-reconciliation
 # Assemble content-addressed evidence from the actual artifact paths, then evaluate it:
 node calibration/llm/scripts/assemble-measurement-input.mjs \
   /absolute/path/to/measurement-evidence-paths.json /absolute/path/to/measurement-input.json
