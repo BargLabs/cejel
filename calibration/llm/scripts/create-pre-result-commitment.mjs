@@ -93,11 +93,17 @@ export async function createPreResultCommitment(input) {
     throw new Error('free-core baseline must precede the candidate commit');
   }
 
+  const selectionPolicy =
+    readDocument(resolve(repositoryRoot, 'calibration/llm/selection-policy.json')).document;
+  const cycle = selectionPolicy.policy_id?.replace(/^llm-selection-/, '');
+  if (!/^v1\.[0-9]+$/.test(cycle || '')) {
+    throw new Error('current selection policy has an unsupported policy_id');
+  }
   const goldenManifest = readDocument(
-    resolve(repositoryRoot, 'calibration/llm/cohorts/golden-manifest-v1.2.json'),
+    resolve(repositoryRoot, `calibration/llm/cohorts/golden-manifest-${cycle}.json`),
   ).document;
   const untouchedManifest = readDocument(
-    resolve(repositoryRoot, 'calibration/llm/cohorts/untouched-manifest-v1.2.json'),
+    resolve(repositoryRoot, `calibration/llm/cohorts/untouched-manifest-${cycle}.json`),
   ).document;
   const opportunityManifest = readDocument(resolve(privateRoot, 'opportunity-manifest.json')).document;
   const discoveryCoverage =
