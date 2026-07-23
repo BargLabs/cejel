@@ -59,7 +59,7 @@ test('manifest hash excludes only its hash and binds attestation plus review art
   );
 });
 
-test('freeze supports explicit human or independent AI dual review without conflating them', () => {
+test('freeze distinguishes human, independent AI, and sequential AI review modes', () => {
   assert.throws(() => validateReviewers(['Alice Smith', 'Bob Jones'], 'human', {}), /confirm-human-reviewers/);
   assert.throws(() => validateReviewers(['Alice Smith'], 'human', { confirmedHuman: true }), /exactly two/);
   assert.throws(() => validateReviewers(['Alice Smith', 'alice smith'], 'human', { confirmedHuman: true }), /distinct/);

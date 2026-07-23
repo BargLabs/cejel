@@ -552,6 +552,21 @@ test('runner CLI refuses untouched before any clone when detector freeze is abse
 test('immutable manifest validation rejects mutable or tampered repository identities', () => {
   const manifest = immutableManifest();
   assert.equal(validateImmutableManifest(manifest), manifest);
+  const sequentialWithoutHash = {
+    ...manifest,
+    frozen_by: ['codex-owner-pass-1', 'codex-owner-pass-2'],
+    review_method: 'two_sequential_ai_passes',
+    attestation: {
+      method: 'internal_ai_two_pass_review',
+      reference: 'internal-witness:two-pass-test',
+    },
+  };
+  delete sequentialWithoutHash.manifest_sha256;
+  const sequentialManifest = {
+    ...sequentialWithoutHash,
+    manifest_sha256: hashManifest(sequentialWithoutHash),
+  };
+  assert.equal(validateImmutableManifest(sequentialManifest), sequentialManifest);
   assert.throws(
     () => validateImmutableManifest({ ...manifest, repositories: [{ ...manifest.repositories[0], commit_sha: 'main' }] }),
     /manifest SHA-256|immutable/,
