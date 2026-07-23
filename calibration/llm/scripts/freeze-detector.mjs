@@ -26,6 +26,10 @@ const execFile = promisify(execFileCallback);
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
 
+export const CALIBRATION_WORKFLOW_PATH = '.github/workflows/llm-calibration.yml';
+export const NO_EGRESS_WRAPPER_PATH = 'calibration/llm/scripts/no-egress-wrapper.sh';
+export const NO_EGRESS_PROBE_PATH = 'calibration/llm/scripts/no-egress-probe.mjs';
+
 export const FROZEN_LLM_RULE_IDS = [
   'LLM-IOH-001',
   'LLM-VAL-001',
@@ -117,6 +121,13 @@ export function hashDetectorFreezeRecord(record) {
 
 function validUtc(value) {
   return typeof value === 'string' && value.endsWith('Z') && !Number.isNaN(Date.parse(value));
+}
+
+function validRuntime(runtime) {
+  return runtime &&
+    Object.keys(runtime).sort().join(',') === 'architecture,name,platform,version' &&
+    ['name', 'version', 'platform', 'architecture']
+      .every((key) => typeof runtime[key] === 'string' && runtime[key].length > 0);
 }
 
 const LEDGER_KEYS = [
@@ -538,6 +549,7 @@ export function createDetectorFreezeRecord(input) {
     throw new Error('detector build SHA-256 is invalid');
   }
   if (!validUtc(input.frozenAt)) throw new Error('detector frozen_at must be UTC ISO-8601');
+  if (!validRuntime(input.runtime)) throw new Error('detector runtime identity is invalid');
   if (!input.networkIsolation?.confirmed || input.networkIsolation.argvPrefix?.length < 1) {
     throw new Error('detector freeze requires an explicitly confirmed no-egress argv prefix');
   }
@@ -547,6 +559,8 @@ export function createDetectorFreezeRecord(input) {
   if (
     input.networkIsolation.mode !== 'node-runtime-deny-hook-v1' ||
     input.networkIsolation.argvPrefix.length !== 1 ||
+    input.networkIsolation.argvPrefix[0] !== NO_EGRESS_WRAPPER_PATH ||
+    input.networkIsolation.probePath !== NO_EGRESS_PROBE_PATH ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.wrapperSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.hookSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeSha256 || '') ||
@@ -559,7 +573,7 @@ export function createDetectorFreezeRecord(input) {
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.canonicalSha256 || '')
   ) throw new Error('detector freeze requires exact release-threshold digests');
   if (
-    input.workflow?.path !== '.github/workflows/llm-calibration.yml' ||
+    input.workflow?.path !== CALIBRATION_WORKFLOW_PATH ||
     !/^[a-f0-9]{64}$/.test(input.workflow?.sha256 || '')
   ) throw new Error('detector freeze requires the exact calibration workflow digest');
 
@@ -671,13 +685,16 @@ export function validateDetectorFreezeRecord(record) {
   if (!/^[a-f0-9]{64}$/.test(record.detector?.build_sha256 || '')) {
     throw new Error('detector freeze has an invalid build SHA-256');
   }
+  if (!validRuntime(record.detector?.runtime)) {
+    throw new Error('detector freeze has an invalid runtime identity');
+  }
   const build = record.detector?.build;
   if (
     !Array.isArray(build?.command) || build.command.length < 1 ||
     build.command.some((part) => typeof part !== 'string' || part.length < 1) ||
     typeof build.output_relative_path !== 'string' ||
     isAbsolute(build.output_relative_path) ||
-    build.output_relative_path.split(/[\\/]/).includes('..') ||
+    build.output_relative_path.split(/[\\/]/).some((part) => part === '.' || part === '..') ||
     build.deterministic_rebuild_verified !== true ||
     build.first_build_sha256 !== record.detector.build_sha256 ||
     build.second_build_sha256 !== record.detector.build_sha256 ||
@@ -708,13 +725,15 @@ export function validateDetectorFreezeRecord(record) {
   }
   const isolation = record.execution?.network_isolation;
   if (
-    record.execution?.workflow?.path !== '.github/workflows/llm-calibration.yml' ||
+    record.execution?.workflow?.path !== CALIBRATION_WORKFLOW_PATH ||
     !/^[a-f0-9]{64}$/.test(record.execution.workflow.sha256 || '')
   ) throw new Error('detector freeze lacks the exact calibration workflow digest');
   if (
     isolation?.explicitly_confirmed !== true ||
     !Array.isArray(isolation.argv_prefix) ||
     isolation.argv_prefix.length !== 1 ||
+    isolation.argv_prefix[0] !== NO_EGRESS_WRAPPER_PATH ||
+    isolation.probe_path !== NO_EGRESS_PROBE_PATH ||
     isolation.mode !== 'node-runtime-deny-hook-v1' ||
     !/^[a-f0-9]{64}$/.test(isolation.wrapper_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(isolation.hook_sha256 || '') ||
@@ -977,6 +996,14 @@ export async function main(argv, commandRunner = run) {
   const wrapperPath = realpathSync(resolve(options.isolationCommand));
   const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
   const probePath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-probe.mjs'));
+  const wrapperRelativePath = relative(detectorRepo, wrapperPath).replaceAll('\\', '/');
+  const probeRelativePath = relative(detectorRepo, probePath).replaceAll('\\', '/');
+  if (
+    wrapperRelativePath !== NO_EGRESS_WRAPPER_PATH ||
+    probeRelativePath !== NO_EGRESS_PROBE_PATH
+  ) {
+    throw new Error('network-isolation files must be the committed detector-repository scripts');
+  }
   const probeOutput = await commandRunner(wrapperPath, [probePath]);
   const probeDocument = JSON.parse(probeOutput);
   if (
@@ -997,16 +1024,16 @@ export async function main(argv, commandRunner = run) {
       architecture: process.arch,
     },
     workflow: {
-      path: '.github/workflows/llm-calibration.yml',
-      sha256: sha256Bytes(readFileSync(resolve(detectorRepo, '.github/workflows/llm-calibration.yml'))),
+      path: CALIBRATION_WORKFLOW_PATH,
+      sha256: sha256Bytes(readFileSync(resolve(detectorRepo, CALIBRATION_WORKFLOW_PATH))),
     },
     networkIsolation: {
       mode: options.isolationMode,
-      argvPrefix: [wrapperPath],
+      argvPrefix: [wrapperRelativePath],
       evidenceReference: options.isolationEvidence,
       wrapperSha256: sha256Bytes(readFileSync(wrapperPath)),
       hookSha256: sha256Bytes(readFileSync(hookPath)),
-      probePath,
+      probePath: probeRelativePath,
       probeSha256: sha256Bytes(readFileSync(probePath)),
       probeOutputSha256: sha256Bytes(Buffer.from(probeOutput, 'utf8')),
       probeDenied: probeDocument.denied,

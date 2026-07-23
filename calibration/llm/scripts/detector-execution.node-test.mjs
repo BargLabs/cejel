@@ -9,6 +9,7 @@ import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohort
 import {
   buildDetectorArtifact,
   createDetectorFreezeRecord,
+  hashDetectorFreezeRecord,
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
   validateGoldenCorrectionLedger,
@@ -21,6 +22,7 @@ import {
   assertSeparatedRoots,
   buildScanInvocation,
   main as runCohortMain,
+  resolveFrozenExecutionBindings,
   runFrozenRepository,
   validateImmutableManifest,
 } from './run-frozen-cohort.mjs';
@@ -40,6 +42,7 @@ const REVIEW_BINDINGS = {
 };
 
 const canonicalSha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
+const byteSha = (value) => createHash('sha256').update(value).digest('hex');
 const gitObjectSha1 = (type, bytes) => createHash('sha1')
   .update(Buffer.from(`${type} ${bytes.length}\0`, 'utf8')).update(bytes).digest('hex');
 const gitTreeEntry = (mode, name, oid) => Buffer.concat([
@@ -185,10 +188,10 @@ function detectorFreeze() {
     workflow: { path: '.github/workflows/llm-calibration.yml', sha256: '5'.repeat(64) },
     networkIsolation: {
       mode: 'node-runtime-deny-hook-v1',
-      argvPrefix: ['/usr/local/bin/no-egress'],
+      argvPrefix: ['calibration/llm/scripts/no-egress-wrapper.sh'],
       evidenceReference: 'internal-witness:test-isolation',
       wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
-      probePath: '/usr/local/bin/no-egress-probe.mjs',
+      probePath: 'calibration/llm/scripts/no-egress-probe.mjs',
       probeSha256: '3'.repeat(64), probeOutputSha256: '4'.repeat(64),
       probeDenied: 5, probeAttempted: 5,
       confirmed: true,
@@ -524,6 +527,68 @@ test('untouched execution requires both a valid detector freeze and explicit pos
   assert.throws(() => assertCohortRunAllowed('untouched', record, false), /confirm-untouched/);
   assert.doesNotThrow(() => assertCohortRunAllowed('untouched', record, true));
   assert.doesNotThrow(() => assertCohortRunAllowed('golden', null, false));
+});
+
+test('frozen execution bindings are repository-relative and verify workflow plus runtime', () => {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-portable-freeze-test-'));
+  const cejelPath = join(root, 'dist/index.js');
+  const workflowPath = join(root, '.github/workflows/llm-calibration.yml');
+  const wrapperPath = join(root, 'calibration/llm/scripts/no-egress-wrapper.sh');
+  const hookPath = join(root, 'calibration/llm/scripts/no-egress-hook.cjs');
+  const probePath = join(root, 'calibration/llm/scripts/no-egress-probe.mjs');
+  for (const path of [cejelPath, workflowPath, wrapperPath, hookPath, probePath]) {
+    mkdirSync(join(path, '..'), { recursive: true });
+  }
+  const bytes = {
+    cejel: Buffer.from('#!/usr/bin/env node\n', 'utf8'),
+    workflow: Buffer.from('name: synthetic\n', 'utf8'),
+    wrapper: Buffer.from('#!/bin/sh\n', 'utf8'),
+    hook: Buffer.from('export {};\n', 'utf8'),
+    probe: Buffer.from('console.log(\"probe\");\n', 'utf8'),
+  };
+  writeFileSync(cejelPath, bytes.cejel);
+  writeFileSync(workflowPath, bytes.workflow);
+  writeFileSync(wrapperPath, bytes.wrapper);
+  writeFileSync(hookPath, bytes.hook);
+  writeFileSync(probePath, bytes.probe);
+
+  const record = detectorFreeze();
+  const buildSha = byteSha(bytes.cejel);
+  record.detector.build_sha256 = buildSha;
+  record.detector.build.first_build_sha256 = buildSha;
+  record.detector.build.second_build_sha256 = buildSha;
+  record.detector.runtime = {
+    name: process.release.name,
+    version: process.version,
+    platform: process.platform,
+    architecture: process.arch,
+  };
+  record.golden_execution_evidence.detector_build_sha256 = buildSha;
+  record.execution.workflow.sha256 = byteSha(bytes.workflow);
+  record.execution.network_isolation.wrapper_sha256 = byteSha(bytes.wrapper);
+  record.execution.network_isolation.hook_sha256 = byteSha(bytes.hook);
+  record.execution.network_isolation.probe_sha256 = byteSha(bytes.probe);
+  record.record_sha256 = hashDetectorFreezeRecord(record);
+
+  const bindings = resolveFrozenExecutionBindings(record, cejelPath);
+  assert.equal(bindings.detectorRoot, realpathSync(root));
+  assert.equal(bindings.isolationPrefix[0], realpathSync(wrapperPath));
+  assert.equal(bindings.probePath, realpathSync(probePath));
+  assert.equal(record.execution.network_isolation.argv_prefix[0], 'calibration/llm/scripts/no-egress-wrapper.sh');
+
+  writeFileSync(workflowPath, 'name: tampered\n');
+  assert.throws(
+    () => resolveFrozenExecutionBindings(record, cejelPath),
+    /workflow bytes/,
+  );
+  writeFileSync(workflowPath, bytes.workflow);
+  const wrongRuntime = structuredClone(record);
+  wrongRuntime.detector.runtime.version = 'v0.0.0';
+  wrongRuntime.record_sha256 = hashDetectorFreezeRecord(wrongRuntime);
+  assert.throws(
+    () => resolveFrozenExecutionBindings(wrongRuntime, cejelPath),
+    /runtime/,
+  );
 });
 
 test('runner CLI refuses untouched before any clone when detector freeze is absent', async () => {

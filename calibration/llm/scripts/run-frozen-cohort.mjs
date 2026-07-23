@@ -20,6 +20,9 @@ import {
   validateReviewBindings,
 } from './freeze-cohorts.mjs';
 import {
+  CALIBRATION_WORKFLOW_PATH,
+  NO_EGRESS_PROBE_PATH,
+  NO_EGRESS_WRAPPER_PATH,
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
   validateGoldenExecutionEvidence,
@@ -37,6 +40,86 @@ function sha256Bytes(bytes) {
 function isWithin(parent, candidate) {
   const path = relative(parent, candidate);
   return path === '' || (!path.startsWith(`..${sep}`) && path !== '..' && !isAbsolute(path));
+}
+
+function detectorRootFromArtifact(cejel, outputRelativePath) {
+  const segments = outputRelativePath.split(/[\\/]/).filter(Boolean);
+  let root = cejel;
+  for (const _segment of segments) root = dirname(root);
+  root = realpathSync(root);
+  if (realpathSync(resolve(root, outputRelativePath)) !== cejel) {
+    throw new Error('local Cejel path does not match the frozen build output path');
+  }
+  return root;
+}
+
+function resolveFrozenFile(root, relativePath, expectedPath, label) {
+  if (
+    relativePath !== expectedPath ||
+    isAbsolute(relativePath) ||
+    relativePath.split(/[\\/]/).includes('..')
+  ) {
+    throw new Error(`${label} is not the frozen repository-relative path`);
+  }
+  const path = realpathSync(resolve(root, relativePath));
+  if (!isWithin(root, path)) throw new Error(`${label} escapes the detector repository`);
+  return path;
+}
+
+export function resolveFrozenExecutionBindings(freezeRecord, cejelPath) {
+  validateDetectorFreezeRecord(freezeRecord);
+  const cejel = realpathSync(resolve(cejelPath));
+  const root = detectorRootFromArtifact(
+    cejel,
+    freezeRecord.detector.build.output_relative_path,
+  );
+  const workflowPath = resolveFrozenFile(
+    root,
+    freezeRecord.execution.workflow.path,
+    CALIBRATION_WORKFLOW_PATH,
+    'calibration workflow',
+  );
+  if (sha256Bytes(readFileSync(workflowPath)) !== freezeRecord.execution.workflow.sha256) {
+    throw new Error('calibration workflow bytes do not match detector-freeze record');
+  }
+  const runtime = freezeRecord.detector.runtime;
+  if (
+    runtime?.name !== process.release.name ||
+    runtime?.version !== process.version ||
+    runtime?.platform !== process.platform ||
+    runtime?.architecture !== process.arch
+  ) {
+    throw new Error('execution runtime does not match detector-freeze record');
+  }
+  const isolation = freezeRecord.execution.network_isolation;
+  const wrapperPath = resolveFrozenFile(
+    root,
+    isolation.argv_prefix[0],
+    NO_EGRESS_WRAPPER_PATH,
+    'network-isolation wrapper',
+  );
+  const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
+  if (!isWithin(root, hookPath)) {
+    throw new Error('network-isolation hook escapes the detector repository');
+  }
+  const probePath = resolveFrozenFile(
+    root,
+    isolation.probe_path,
+    NO_EGRESS_PROBE_PATH,
+    'network-isolation probe',
+  );
+  if (
+    sha256Bytes(readFileSync(wrapperPath)) !== isolation.wrapper_sha256 ||
+    sha256Bytes(readFileSync(hookPath)) !== isolation.hook_sha256 ||
+    sha256Bytes(readFileSync(probePath)) !== isolation.probe_sha256
+  ) {
+    throw new Error('network-isolation files do not match detector-freeze record');
+  }
+  return {
+    detectorRoot: root,
+    isolationPrefix: [wrapperPath],
+    probePath,
+  };
 }
 
 export function assertSeparatedRoots(workRoot, outputRoot) {
@@ -364,20 +447,15 @@ export async function main(argv, commandRunner = defaultRunner) {
       opportunityEvidence,
     );
     const isolation = freezeRecord.execution.network_isolation;
-    const wrapperPath = realpathSync(isolation.argv_prefix[0]);
-    const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
-    const probePath = realpathSync(isolation.probe_path);
-    if (
-      wrapperPath !== isolation.argv_prefix[0] ||
-      sha256Bytes(readFileSync(wrapperPath)) !== isolation.wrapper_sha256 ||
-      sha256Bytes(readFileSync(hookPath)) !== isolation.hook_sha256 ||
-      sha256Bytes(readFileSync(probePath)) !== isolation.probe_sha256
-    ) throw new Error('network-isolation files do not match detector-freeze record');
-    const probeOutput = await commandRunner(wrapperPath, [probePath]);
+    const bindings = resolveFrozenExecutionBindings(freezeRecord, cejel);
+    const probeOutput = await commandRunner(
+      bindings.isolationPrefix[0],
+      [bindings.probePath],
+    );
     if (sha256Bytes(Buffer.from(probeOutput, 'utf8')) !== isolation.probe_output_sha256) {
       throw new Error('network-isolation probe no longer matches detector-freeze record');
     }
-    isolationPrefix = freezeRecord.execution.network_isolation.argv_prefix;
+    isolationPrefix = bindings.isolationPrefix;
     isolationMode = freezeRecord.execution.network_isolation.mode;
   } else {
     if (!options.confirmNetworkIsolation || !options.isolationCommand || !options.isolationMode) {

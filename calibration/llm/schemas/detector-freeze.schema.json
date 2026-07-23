@@ -25,7 +25,7 @@
           "required": ["command", "output_relative_path", "first_build_sha256", "second_build_sha256", "first_output_tree_sha256", "second_output_tree_sha256", "deterministic_rebuild_verified"],
           "properties": {
             "command": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-            "output_relative_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+            "output_relative_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$)).+$"},
             "first_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "second_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "first_output_tree_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
@@ -66,11 +66,11 @@
           "required": ["mode", "argv_prefix", "evidence_reference", "wrapper_sha256", "hook_sha256", "probe_path", "probe_sha256", "probe_output_sha256", "probe_denied", "probe_attempted", "explicitly_confirmed"],
           "properties": {
             "mode": {"type": "string", "minLength": 3},
-            "argv_prefix": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "argv_prefix": {"const": ["calibration/llm/scripts/no-egress-wrapper.sh"]},
             "evidence_reference": {"type": "string", "minLength": 8},
             "wrapper_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "hook_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-            "probe_path": {"type": "string", "minLength": 1},
+            "probe_path": {"const": "calibration/llm/scripts/no-egress-probe.mjs"},
             "probe_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "probe_output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "probe_denied": {"const": 5},

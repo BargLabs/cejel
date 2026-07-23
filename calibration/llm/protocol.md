@@ -151,6 +151,11 @@ temporary paths to the frozen cohort runner. The golden workflow path does not c
 transport. Encryption changes transport confidentiality only; it does not change any evidence
 bytes, frozen digest, detector semantics, threshold, or pre-result binding.
 
+The detector freeze stores the wrapper and probe as fixed repository-relative paths, not
+machine-specific absolute paths. Before an untouched clone, the runner derives the repository root
+from the frozen build-output path and verifies the exact workflow, wrapper, hook, probe, Node
+version, platform, and architecture bound by the freeze record.
+
 Any code, rule, threshold, exclusion, parser, or configuration change after untouched results are
 seen creates a new detector version. The original result remains in the correction ledger. The
 untouched cohort cannot be reused as untouched evidence for that new version.

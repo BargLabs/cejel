@@ -24,7 +24,7 @@ test('committed runtime no-egress probe denies network and process escape paths'
   });
 });
 
-test('trusted workflow generates parity from the dedicated pack-free fixture', () => {
+test('trusted workflow pins runtime and generates parity from the dedicated pack-free fixture', () => {
   const workflow = readFileSync(
     new URL('../../../.github/workflows/llm-calibration.yml', import.meta.url),
     'utf8',
@@ -37,6 +37,7 @@ test('trusted workflow generates parity from the dedicated pack-free fixture', (
     workflow,
     /\$GITHUB_WORKSPACE\/src\/packs\/llm\/__tests__\/fixtures/,
   );
+  assert.match(workflow, /node-version: 22\.23\.1/);
 });
 
 test('execution bundle derives canonical receipt and report bindings from raw output', () => {

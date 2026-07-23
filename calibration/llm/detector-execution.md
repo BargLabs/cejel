@@ -141,7 +141,12 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --output /absolute/path/to/detector-freeze.json
 ```
 
-The record uses canonical sorted-key JSON hashing for `record_sha256`. Before reading golden
+The record uses canonical sorted-key JSON hashing for `record_sha256`. It stores the no-egress
+wrapper and probe as fixed repository-relative paths so the same freeze can be verified on a
+different machine. The untouched runner derives the detector root from the frozen build-output
+path, re-hashes the workflow, wrapper, hook, and probe there, and requires the exact frozen Node
+version, platform, and architecture. The current trusted workflow pins Node `22.23.1` on Linux
+`x64`; produce its detector freeze under that same runtime identity. Before reading golden
 evidence, the tool verifies a clean `HEAD`, records `HEAD^{tree}`, runs the declared build argv
 twice in that repository, and requires both the declared repository-relative entry point and its
 complete output-directory tree to have the same byte hashes both times. That output becomes the detector executable; an unrelated `--cejel` path is
