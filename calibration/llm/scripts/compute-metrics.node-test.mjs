@@ -530,20 +530,33 @@ function fixture() {
     untouched_blinding_preserved: 'pre_result_git_commit_precedes_execution',
   };
   const automatic_no_go_evidence = Object.fromEntries(Object.entries(checkKinds).map(([check_id, kind]) => {
+    const parityClockContent = Buffer.from(
+      "'use strict';\n// deterministic fixed-clock parity hook used only by the synthetic measurement test fixture\n// exact bytes are embedded and hash-bound\n",
+      'utf8',
+    );
     const payloads = {
       free_core_unchanged_without_pack: {
-        fixture: { path: 'src/packs/llm/__tests__/fixtures', tree_sha256: 'a'.repeat(64) },
+        fixture: {
+          path: 'calibration/llm/fixtures/free-core-parity',
+          tree_sha256: 'a'.repeat(64),
+        },
+        clock: {
+          fixed_iso: '2026-07-23T00:00:00.000Z',
+          hook_path: 'calibration/llm/scripts/fixed-clock-hook.cjs',
+          hook_sha256: rawSha(parityClockContent),
+          hook_content_base64: parityClockContent.toString('base64'),
+        },
         baseline: {
           git_commit: 'd'.repeat(40), executable_sha256: 'c'.repeat(64),
-          argv: ['scan', '/fixture', '--format', 'json', '--quiet'],
-          stdout_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
-          stderr_base64: '', exit_code: 0,
+          argv: ['scan', '/fixture', '--out', '/isolated-output', '--quiet'],
+          stdout_base64: '', stderr_base64: '', exit_code: 0,
+          output_tree_sha256: '9'.repeat(64),
         },
         candidate: {
           git_commit: 'e'.repeat(40), executable_sha256: BUILD_SHA,
-          argv: ['scan', '/fixture', '--format', 'json', '--quiet'],
-          stdout_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
-          stderr_base64: '', exit_code: 0,
+          argv: ['scan', '/fixture', '--out', '/isolated-output', '--quiet'],
+          stdout_base64: '', stderr_base64: '', exit_code: 0,
+          output_tree_sha256: '9'.repeat(64),
         },
       },
       offline_scan_path_verified: {

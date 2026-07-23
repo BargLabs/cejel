@@ -2,8 +2,11 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, lstatSync, openSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
+import {
+  closeSync, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { canonicalize } from './freeze-cohorts.mjs';
@@ -27,11 +30,20 @@ function hashTree(root) {
   return sha256(Buffer.from(canonicalize(entries), 'utf8'));
 }
 
-function run(executable, argv, gitCommit) {
+function run(executable, argv, gitCommit, output, clock) {
+  rmSync(output, { recursive: true, force: true });
   const result = spawnSync(executable, argv, {
-    encoding: null, env: { ...process.env, CI: '1' }, maxBuffer: 20 * 1024 * 1024,
+    encoding: null,
+    env: {
+      ...process.env,
+      CI: '1',
+      CEJEL_PARITY_FIXED_TIME: clock.fixed_iso,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${clock.hook_path}`.trim(),
+    },
+    maxBuffer: 20 * 1024 * 1024,
   });
   if (result.error) throw result.error;
+  const outputTreeSha256 = hashTree(output);
   return {
     git_commit: gitCommit,
     executable_sha256: sha256(readFileSync(executable)),
@@ -39,6 +51,7 @@ function run(executable, argv, gitCommit) {
     stdout_base64: result.stdout.toString('base64'),
     stderr_base64: result.stderr.toString('base64'),
     exit_code: result.status,
+    output_tree_sha256: outputTreeSha256,
   };
 }
 
@@ -53,26 +66,50 @@ export function main(argv) {
     throw new Error('baseline and candidate commits must be full Git SHAs');
   }
   const fixture = resolve(fixturePath);
-  const scanArgv = ['scan', fixture, '--format', 'json', '--quiet'];
-  const document = {
-    fixture: {
-      path: 'src/packs/llm/__tests__/fixtures',
-      tree_sha256: hashTree(fixture),
-    },
-    baseline: run(resolve(baselinePath), scanArgv, baselineCommit),
-    candidate: run(resolve(candidatePath), scanArgv, candidateCommit),
-  };
+  const fixtureRelativePath = relative(process.cwd(), fixture).replaceAll('\\', '/');
   if (
-    document.baseline.exit_code !== 0 || document.candidate.exit_code !== 0 ||
-    document.baseline.stdout_base64 !== document.candidate.stdout_base64 ||
-    document.baseline.stderr_base64 !== document.candidate.stderr_base64
-  ) throw new Error('default free-core output differs between baseline and candidate');
-  let descriptor;
+    fixtureRelativePath !== 'calibration/llm/fixtures/free-core-parity' ||
+    fixtureRelativePath.startsWith('../')
+  ) throw new Error('free-core parity requires the committed calibration fixture');
+  const clockHookPath = resolve('calibration/llm/scripts/fixed-clock-hook.cjs');
+  const clockHookBytes = readFileSync(clockHookPath);
+  const clock = {
+    fixed_iso: '2026-07-23T00:00:00.000Z',
+    hook_path: 'calibration/llm/scripts/fixed-clock-hook.cjs',
+    hook_sha256: sha256(clockHookBytes),
+    hook_content_base64: clockHookBytes.toString('base64'),
+  };
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'cejel-free-core-parity-'));
+  const runtimeClock = { ...clock, hook_path: clockHookPath };
   try {
-    descriptor = openSync(resolve(outputPath), 'wx', 0o644);
-    writeFileSync(descriptor, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
+    const runtimeOutput = join(temporaryRoot, 'output');
+    const scanArgv = ['scan', fixture, '--out', runtimeOutput, '--quiet'];
+    const baseline = run(resolve(baselinePath), scanArgv, baselineCommit, runtimeOutput, runtimeClock);
+    const candidate = run(resolve(candidatePath), scanArgv, candidateCommit, runtimeOutput, runtimeClock);
+    const document = {
+      fixture: {
+        path: fixtureRelativePath,
+        tree_sha256: hashTree(fixture),
+      },
+      clock,
+      baseline,
+      candidate,
+    };
+    if (
+      baseline.exit_code !== 0 || candidate.exit_code !== 0 ||
+      baseline.stdout_base64 !== candidate.stdout_base64 ||
+      baseline.stderr_base64 !== candidate.stderr_base64 ||
+      baseline.output_tree_sha256 !== candidate.output_tree_sha256
+    ) throw new Error('default free-core output differs between baseline and candidate');
+    let descriptor;
+    try {
+      descriptor = openSync(resolve(outputPath), 'wx', 0o644);
+      writeFileSync(descriptor, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
+    } finally {
+      if (descriptor !== undefined) closeSync(descriptor);
+    }
   } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
+    rmSync(temporaryRoot, { recursive: true, force: true });
   }
 }
 

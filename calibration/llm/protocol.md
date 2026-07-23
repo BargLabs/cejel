@@ -108,7 +108,9 @@ The pre-result commitment also binds the opportunity-discovery coverage digest a
 and canonical SHA-256 digests of `release-thresholds.json`.
 It also freezes the approved free-core baseline commit. The public golden workflow proves that
 the frozen detector's pack-free output matches that ancestor build on the fixed compatibility
-fixture, and the golden evidence bundle binds the resulting parity record.
+fixture. The parity runner binds the fixture tree, embeds and hashes a fixed-clock hook, requires
+zero exits and identical argv/stdout/stderr, and compares the complete generated artifact-tree
+hash. The golden evidence bundle binds the resulting parity record.
 
 For the untouched cohort, the primary labeler labels every frozen opportunity and every detector
 finding is assigned to exactly one of those opportunities. The independent reviewer labels the

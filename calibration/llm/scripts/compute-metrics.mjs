@@ -1020,23 +1020,39 @@ function findingEvidenceMatchesOpportunity(finding, opportunity) {
 function deriveCheckSpecificAssertion(checkId, payload, context) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
   if (checkId === 'free_core_unchanged_without_pack') {
-    rejectUnknownKeys(payload, ['fixture', 'baseline', 'candidate'], 'free-core parity evidence');
+    rejectUnknownKeys(payload, ['fixture', 'clock', 'baseline', 'candidate'], 'free-core parity evidence');
     const validateRun = (run, scope) => {
       rejectUnknownKeys(
         run,
-        ['git_commit', 'executable_sha256', 'argv', 'stdout_base64', 'stderr_base64', 'exit_code'],
+        ['git_commit', 'executable_sha256', 'argv', 'stdout_base64', 'stderr_base64', 'exit_code',
+          'output_tree_sha256'],
         `free-core parity ${scope}`,
       );
       return /^[a-f0-9]{40}$/.test(run.git_commit || '') &&
         /^[a-f0-9]{64}$/.test(run.executable_sha256 || '') &&
+        /^[a-f0-9]{64}$/.test(run.output_tree_sha256 || '') &&
         Array.isArray(run.argv) && run.argv.length >= 2 && run.argv[0] === 'scan' &&
         !run.argv.includes('--pack') && run.argv.every((part) => typeof part === 'string') &&
         run.exit_code === 0;
     };
     if (!payload.fixture || typeof payload.fixture !== 'object') return false;
     rejectUnknownKeys(payload.fixture, ['path', 'tree_sha256'], 'free-core parity fixture');
-    if (payload.fixture.path !== 'src/packs/llm/__tests__/fixtures' ||
+    if (payload.fixture.path !== 'calibration/llm/fixtures/free-core-parity' ||
       !/^[a-f0-9]{64}$/.test(payload.fixture.tree_sha256 || '')) return false;
+    if (!payload.clock || typeof payload.clock !== 'object') return false;
+    rejectUnknownKeys(
+      payload.clock,
+      ['fixed_iso', 'hook_path', 'hook_sha256', 'hook_content_base64'],
+      'free-core parity fixed clock',
+    );
+    const hookBytes = Buffer.from(payload.clock.hook_content_base64 || '', 'base64');
+    if (
+      payload.clock.fixed_iso !== '2026-07-23T00:00:00.000Z' ||
+      payload.clock.hook_path !== 'calibration/llm/scripts/fixed-clock-hook.cjs' ||
+      !/^[a-f0-9]{64}$/.test(payload.clock.hook_sha256 || '') ||
+      sha256Bytes(hookBytes) !== payload.clock.hook_sha256 ||
+      hookBytes.length < 100
+    ) return false;
     if (!validateRun(payload.baseline, 'baseline') || !validateRun(payload.candidate, 'candidate')) {
       return false;
     }
@@ -1049,8 +1065,9 @@ function deriveCheckSpecificAssertion(checkId, payload, context) {
       payload.baseline.git_commit === context.preResultCommitment.free_core_baseline_commit &&
       payload.baseline.git_commit !== payload.candidate.git_commit &&
       canonicalize(payload.baseline.argv) === canonicalize(payload.candidate.argv) &&
-      baselineStdout.length > 0 && baselineStdout.equals(candidateStdout) &&
-      baselineStderr.equals(candidateStderr);
+      baselineStdout.equals(candidateStdout) &&
+      baselineStderr.equals(candidateStderr) &&
+      payload.baseline.output_tree_sha256 === payload.candidate.output_tree_sha256;
   }
   if (checkId === 'prohibited_public_claims_absent') {
     rejectUnknownKeys(payload, ['documents'], 'public-claim evidence');

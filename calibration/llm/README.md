@@ -112,8 +112,10 @@ free-core parity and public-claim hygiene require embedded test-run and claim-au
 to the exact detector build and source commit. Each check-specific assertion embeds its evidence
 content and SHA-256; opaque or generic “passed” assertions are rejected.
 Free-core parity records the baseline and candidate Git commits, executable hashes, identical
-pack-free argv, fixture-tree hash, exit codes, stdout, and stderr. The candidate executable must be
-the frozen detector build and `--pack` is forbidden in both parity invocations.
+pack-free argv, committed fixture-tree hash, exit codes, stdout, stderr, and complete output-tree
+hashes. Both runs load the same embedded, hash-verified fixed-clock hook so the otherwise expected
+`generatedAt` timestamp does not make deterministic artifacts appear different. The candidate
+executable must be the frozen detector build and `--pack` is forbidden in both parity invocations.
 
 Both first-pass roles must set `detector_output_visible: false` and carry a null finding ID.
 Disagreements set both originals to `pending`; the distinct adjudicator also remains blind, uses

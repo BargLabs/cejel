@@ -1,7 +1,9 @@
 # Dual-review policy
 
-Every Cejel pull request requires two recorded review passes before it is merged. The passes should
-be isolated from one another until both initial verdicts are recorded, then reconciled in the PR.
+Every Cejel pull request requires two recorded review passes before it is merged. Independent
+reviewers are preferred. When the owner is working alone, the same AI task may perform two
+sequential passes with distinct audit lenses; the records must disclose that these are sequential
+self-review passes, not independent reviewers.
 
 Each pass must:
 
@@ -13,8 +15,11 @@ Each pass must:
 6. be rerun after material fixes when its verdict was `REQUEST_CHANGES`.
 
 AI review is permitted when independent people are unavailable, but it is never described as human
-review. Two prompts in one context are not enough: the passes must run in isolated reviewer contexts
-without seeing each other's conclusions. Disagreements are explicitly adjudicated and recorded.
+review. Sequential passes by the same AI task must be recorded separately, must re-read the exact
+base-to-head diff, and must use materially different review lenses (for example, behavioral
+correctness first and security/reproducibility second). A material fix invalidates earlier
+approvals and requires both passes again on the corrected exact commit. Disagreements are explicitly
+adjudicated and recorded.
 
 Passing CI is supporting evidence, not either review pass. A release or calibration gate may impose
 additional evidence requirements beyond this repository-wide minimum.

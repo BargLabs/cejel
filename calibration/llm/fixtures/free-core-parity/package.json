@@ -1,0 +1,7 @@
+{
+  "name": "cejel-free-core-parity-fixture",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
