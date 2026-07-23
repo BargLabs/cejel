@@ -181,6 +181,7 @@ function detectorFreeze() {
     artifactName: 'cejel',
     frozenAt: '2026-07-22T21:00:00Z',
     runtime: { name: 'node', version: 'v24.0.0', platform: 'linux', architecture: 'x64' },
+    workflow: { path: '.github/workflows/llm-calibration.yml', sha256: '5'.repeat(64) },
     networkIsolation: {
       mode: 'node-runtime-deny-hook-v1',
       argvPrefix: ['/usr/local/bin/no-egress'],

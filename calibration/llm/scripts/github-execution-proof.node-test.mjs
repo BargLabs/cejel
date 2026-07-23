@@ -18,6 +18,7 @@ const BUNDLE = {
   execution_receipts: [], llm_reports: [],
 };
 const API = 'https://api.github.com/repos/BargLabs/cejel';
+const WORKFLOW = Buffer.from('name: calibration\n', 'utf8');
 
 function fixture() {
   const body = expectedCommitmentCommentBody(COMMIT, DOCUMENT_SHA);
@@ -30,6 +31,7 @@ function fixture() {
     },
     runs: [{
       cohort: 'golden', run_id: 99, run_api_url: `${API}/actions/runs/99`, head_sha: HEAD,
+      workflow_sha256: sha(WORKFLOW),
       artifact: {
         id: 77, api_url: `${API}/actions/artifacts/77`, archive_sha256: sha(ARTIFACT),
         evidence_bundle_sha256: sha(Buffer.from(canonicalize(BUNDLE), 'utf8')),
@@ -53,6 +55,10 @@ function fixture() {
     [proof.runs[0].artifact.api_url, {
       id: 77, expired: false, digest: `sha256:${sha(ARTIFACT)}`,
       workflow_run: { id: 99, head_sha: HEAD },
+    }],
+    [`${API}/contents/.github/workflows/llm-calibration.yml?ref=${HEAD}`, {
+      path: '.github/workflows/llm-calibration.yml', encoding: 'base64',
+      content: WORKFLOW.toString('base64'),
     }],
   ]);
   const fetchImpl = async (url) => ({
@@ -80,6 +86,10 @@ test('rejects backdating, edited comments, unrelated heads, fake isolation runs,
     ({ responses, proof }) => { responses.get(proof.runs[0].run_api_url).run_started_at = '2026-07-22T19:59:00Z'; },
     ({ responses, proof }) => { responses.get(`${API}/compare/${COMMIT}...${HEAD}`).merge_base_commit.sha = 'd'.repeat(40); },
     ({ responses, proof }) => { responses.get(proof.runs[0].run_api_url).path = '.github/workflows/other.yml@main'; },
+    ({ responses }) => {
+      responses.get(`${API}/contents/.github/workflows/llm-calibration.yml?ref=${HEAD}`).content =
+        Buffer.from('name: changed\n').toString('base64');
+    },
   ]) {
     const current = fixture();
     mutate(current);

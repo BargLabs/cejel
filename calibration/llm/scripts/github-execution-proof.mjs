@@ -74,23 +74,28 @@ export async function verifyGitHubExecutionProof(
       !['golden', 'untouched'].includes(runProof?.cohort) ||
       !Number.isSafeInteger(runProof?.run_id) || seenRuns.has(runProof.run_id) ||
       runProof.run_api_url !== `${API_ROOT}/actions/runs/${runProof.run_id}` ||
+      !/^[a-f0-9]{64}$/.test(runProof.workflow_sha256 || '') ||
       !Number.isSafeInteger(runProof.artifact?.id) ||
       runProof.artifact.api_url !== `${API_ROOT}/actions/artifacts/${runProof.artifact.id}` ||
       !/^[a-f0-9]{64}$/.test(runProof.artifact.archive_sha256 || '') ||
       !/^[a-f0-9]{64}$/.test(runProof.artifact.evidence_bundle_sha256 || '')
     ) throw new Error('GitHub workflow-run proof is malformed or duplicated');
     seenRuns.add(runProof.run_id);
-    const [runResponse, compareResponse, artifactResponse] = await Promise.all([
+    const workflowUrl = `${API_ROOT}/contents/.github/workflows/llm-calibration.yml?ref=${runProof.head_sha}`;
+    const [runResponse, compareResponse, artifactResponse, workflowResponse] = await Promise.all([
       fetchJson(runProof.run_api_url, fetchImpl),
       fetchJson(
         `${API_ROOT}/compare/${proof.commitment.git_commit}...${encodeURIComponent(runProof.head_sha)}`,
         fetchImpl,
       ),
       fetchJson(runProof.artifact.api_url, fetchImpl),
+      fetchJson(workflowUrl, fetchImpl),
     ]);
     const run = runResponse.document;
     const comparison = compareResponse.document;
     const artifact = artifactResponse.document;
+    const workflow = workflowResponse.document;
+    const workflowBytes = Buffer.from(String(workflow.content || '').replaceAll('\n', ''), 'base64');
     if (
       run.id !== runProof.run_id || run.repository?.full_name !== REPOSITORY ||
       run.head_sha !== runProof.head_sha || !/^[a-f0-9]{40}$/.test(run.head_sha || '') ||
@@ -105,6 +110,8 @@ export async function verifyGitHubExecutionProof(
       artifact.id !== runProof.artifact.id || artifact.expired !== false ||
       artifact.workflow_run?.id !== runProof.run_id || artifact.workflow_run?.head_sha !== run.head_sha ||
       artifact.digest !== `sha256:${runProof.artifact.archive_sha256}`
+      || workflow.path !== '.github/workflows/llm-calibration.yml' || workflow.encoding !== 'base64' ||
+      sha256Bytes(workflowBytes) !== runProof.workflow_sha256
     ) throw new Error('GitHub workflow run, ancestry, or artifact proof does not verify');
     const localArtifact = artifactBytesByRunId.get(runProof.run_id);
     if (requireCompleted && (!localArtifact || sha256Bytes(localArtifact) !== runProof.artifact.archive_sha256)) {
@@ -124,6 +131,7 @@ export async function verifyGitHubExecutionProof(
       run_id: runProof.run_id,
       run_started_at: run.run_started_at,
       head_sha: run.head_sha,
+      workflow_sha256: runProof.workflow_sha256,
       artifact_archive_sha256: runProof.artifact.archive_sha256,
       evidence_bundle_sha256: runProof.artifact.evidence_bundle_sha256,
       evidence_bundle: evidenceBundle || null,

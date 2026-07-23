@@ -49,8 +49,16 @@
     "execution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["command_template", "network_isolation"],
+      "required": ["workflow", "command_template", "network_isolation"],
       "properties": {
+        "workflow": {
+          "type": "object", "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": {"const": ".github/workflows/llm-calibration.yml"},
+            "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+          }
+        },
         "command_template": {"type": "array", "minItems": 8, "items": {"type": "string"}},
         "network_isolation": {
           "type": "object",

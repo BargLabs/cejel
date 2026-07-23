@@ -545,6 +545,10 @@ export function createDetectorFreezeRecord(input) {
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.byteSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.canonicalSha256 || '')
   ) throw new Error('detector freeze requires exact release-threshold digests');
+  if (
+    input.workflow?.path !== '.github/workflows/llm-calibration.yml' ||
+    !/^[a-f0-9]{64}$/.test(input.workflow?.sha256 || '')
+  ) throw new Error('detector freeze requires the exact calibration workflow digest');
 
   const withoutHash = {
     schema_version: '1.0.0',
@@ -568,6 +572,7 @@ export function createDetectorFreezeRecord(input) {
       runtime: input.runtime,
     },
     execution: {
+      workflow: input.workflow,
       command_template: [
         '{network_isolation_argv_prefix...}',
         '{cejel_binary}',
@@ -689,6 +694,10 @@ export function validateDetectorFreezeRecord(record) {
     throw new Error('detector freeze command template is not the calibration command');
   }
   const isolation = record.execution?.network_isolation;
+  if (
+    record.execution?.workflow?.path !== '.github/workflows/llm-calibration.yml' ||
+    !/^[a-f0-9]{64}$/.test(record.execution.workflow.sha256 || '')
+  ) throw new Error('detector freeze lacks the exact calibration workflow digest');
   if (
     isolation?.explicitly_confirmed !== true ||
     !Array.isArray(isolation.argv_prefix) ||
@@ -973,6 +982,10 @@ export async function main(argv, commandRunner = run) {
       version: process.version,
       platform: process.platform,
       architecture: process.arch,
+    },
+    workflow: {
+      path: '.github/workflows/llm-calibration.yml',
+      sha256: sha256Bytes(readFileSync(resolve(detectorRepo, '.github/workflows/llm-calibration.yml'))),
     },
     networkIsolation: {
       mode: options.isolationMode,

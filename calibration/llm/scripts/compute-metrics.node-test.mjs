@@ -115,6 +115,7 @@ const testTrustedExecutionVerification = (input) => {
     run_id: index + 1,
     run_started_at: '2026-07-22T02:00:00Z',
     head_sha: 'e'.repeat(40),
+    workflow_sha256: '5'.repeat(64),
     artifact_archive_sha256: String(index + 1).repeat(64),
     evidence_bundle_sha256: String(index + 3).repeat(64),
     evidence_bundle: {
@@ -255,6 +256,7 @@ function fixture() {
     },
     frozenAt: '2026-07-22T02:00:00Z',
     runtime: { name: 'node', version: 'v24', platform: 'linux', architecture: 'x64' },
+    workflow: { path: '.github/workflows/llm-calibration.yml', sha256: '5'.repeat(64) },
     networkIsolation: {
       mode: 'node-runtime-deny-hook-v1', argvPrefix: ['/no-egress'],
       evidenceReference: 'internal-witness:no-egress',
@@ -1213,7 +1215,7 @@ test('requires live trusted execution verification and exact downloaded evidence
   );
   const wrongHead = fixture();
   const wrongHeadVerification = testTrustedExecutionVerification(wrongHead);
-  wrongHeadVerification.runs[0].head_sha = 'a'.repeat(40);
+  wrongHeadVerification.runs[0].workflow_sha256 = 'a'.repeat(64);
   assert.throws(
     () => computeMetricsForUnitTest(
       wrongHead,
@@ -1222,6 +1224,6 @@ test('requires live trusted execution verification and exact downloaded evidence
       wrongHeadVerification,
       testPublicSurfaceVerification(wrongHead),
     ),
-    /exact frozen detector commit/,
+    /workflow bytes outside the detector freeze/,
   );
 });

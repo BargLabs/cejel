@@ -133,6 +133,7 @@ Before untouched evaluation, record:
 - build artifact SHA-256;
 - runtime version and command line;
 - the exact no-egress wrapper, hook, probe, and passing probe-output hashes; and
+- the exact GitHub calibration workflow path and byte hash; and
 - the golden-set correction ledger.
 
 Any code, rule, threshold, exclusion, parser, or configuration change after untouched results are

@@ -26,12 +26,13 @@
       "type": "array", "minItems": 2, "maxItems": 2,
       "items": {
         "type": "object", "additionalProperties": false,
-        "required": ["cohort", "run_id", "run_api_url", "head_sha", "artifact"],
+        "required": ["cohort", "run_id", "run_api_url", "head_sha", "workflow_sha256", "artifact"],
         "properties": {
           "cohort": {"enum": ["golden", "untouched"]},
           "run_id": {"type": "integer", "minimum": 1},
           "run_api_url": {"type": "string"},
           "head_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+          "workflow_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
           "artifact": {
             "type": "object", "additionalProperties": false,
             "required": ["id", "api_url", "archive_sha256", "evidence_bundle_sha256"],

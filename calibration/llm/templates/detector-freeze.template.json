@@ -25,6 +25,10 @@
     }
   },
   "execution": {
+    "workflow": {
+      "path": ".github/workflows/llm-calibration.yml",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
     "command_template": ["{network_isolation_argv_prefix...}", "{cejel_binary}", "scan", "{source}", "--out", "{output}", "--pack", "llm", "--quiet"],
     "network_isolation": {
       "mode": "node-runtime-deny-hook-v1",

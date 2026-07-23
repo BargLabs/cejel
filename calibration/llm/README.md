@@ -54,6 +54,10 @@ also requires a live-verified public GitHub commitment comment, the two successf
 `workflow_dispatch` runs from `.github/workflows/llm-calibration.yml`, and their exact downloaded
 evidence archives. Each archive may contain only `evidence-bundle.json`; its server-recorded digest
 and its receipt/report bindings must match the measurement input.
+The detector freeze binds the exact workflow bytes. Each run may use the later calibration-data
+commit appropriate to its chronology, but GitHub must return workflow bytes with the frozen digest;
+a descendant that changes executable workflow logic is rejected. Every receipt independently binds
+the detector binary hash.
 The golden bundle also binds the canonical free-core parity record generated in that public run.
 The parity baseline commit is frozen in the pre-result commitment and must be an ancestor of the
 commitment commit. Immediately before calculation, the release gate fetches every external URL in
