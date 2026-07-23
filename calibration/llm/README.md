@@ -54,6 +54,11 @@ also requires a live-verified public GitHub commitment comment, the two successf
 `workflow_dispatch` runs from `.github/workflows/llm-calibration.yml`, and their exact downloaded
 evidence archives. Each archive may contain only `evidence-bundle.json`; its server-recorded digest
 and its receipt/report bindings must match the measurement input.
+The golden bundle also binds the canonical free-core parity record generated in that public run.
+The parity baseline commit is frozen in the pre-result commitment and must be an ancestor of the
+commitment commit. Immediately before calculation, the release gate fetches every external URL in
+`public-surface-policy.json` and rejects a live prohibited claim; supplied URL snapshots alone are
+not accepted as evidence of current listing content.
 The metrics command
 requires exactly one blind primary label for every predefined opportunity, validates blind
 independent labels and adjudication lifecycle states, verifies every source-span whole-file SHA-256

@@ -105,6 +105,9 @@ hash binds every blind ground-truth label's ID, role, and canonical document dig
 execution; a later `detector_output_visible: false` assertion alone is not accepted as proof.
 The pre-result commitment also binds the opportunity-discovery coverage digest and the exact byte
 and canonical SHA-256 digests of `release-thresholds.json`.
+It also freezes the approved free-core baseline commit. The public golden workflow proves that
+the frozen detector's pack-free output matches that ancestor build on the fixed compatibility
+fixture, and the golden evidence bundle binds the resulting parity record.
 
 For the untouched cohort, the primary labeler labels every frozen opportunity and every detector
 finding is assigned to exactly one of those opportunities. The independent reviewer labels the

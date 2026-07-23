@@ -40,7 +40,7 @@ one-way untouched evaluation is complete.
 
 Calibration uses the committed `no-egress-wrapper.sh` and `no-egress-hook.cjs`. The wrapper injects
 a Node runtime policy that denies `net`, HTTP/HTTPS/HTTP2, DNS, `fetch`, and child-process escape
-paths. The runner executes the committed probe before any clone or scan and requires all three
+paths. The runner executes the committed probe before any clone or scan and requires all five
 independent probe paths to be denied:
 
 ```bash

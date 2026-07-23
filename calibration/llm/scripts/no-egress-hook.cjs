@@ -21,6 +21,12 @@ for (const method of ['lookup', 'resolve', 'resolve4', 'resolve6']) {
   dns[method] = () => deny(`dns.${method}`);
 }
 
+const tls = require('node:tls');
+tls.connect = () => deny('tls.connect');
+
+const dgram = require('node:dgram');
+dgram.createSocket = () => deny('dgram.createSocket');
+
 const childProcess = require('node:child_process');
 for (const method of ['exec', 'execFile', 'fork', 'spawn']) {
   childProcess[method] = () => deny(`child_process.${method}`);

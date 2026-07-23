@@ -16,6 +16,7 @@ import { validateDetectorFreezeRecord } from './freeze-detector.mjs';
 import { validateGitCommitmentProof, validatePreResultCommitment } from './pre-result-commitment.mjs';
 import { findProhibitedPublicClaims } from './public-claims.mjs';
 import { verifyGitHubExecutionProof } from './github-execution-proof.mjs';
+import { verifyPublicSurfaces } from './verify-public-surfaces.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
@@ -1013,7 +1014,7 @@ function deriveCheckSpecificAssertion(checkId, payload, context) {
     };
     if (!payload.fixture || typeof payload.fixture !== 'object') return false;
     rejectUnknownKeys(payload.fixture, ['path', 'tree_sha256'], 'free-core parity fixture');
-    if (!isRepositoryRelativePath(payload.fixture.path) ||
+    if (payload.fixture.path !== 'src/packs/llm/__tests__/fixtures' ||
       !/^[a-f0-9]{64}$/.test(payload.fixture.tree_sha256 || '')) return false;
     if (!validateRun(payload.baseline, 'baseline') || !validateRun(payload.candidate, 'candidate')) {
       return false;
@@ -1024,6 +1025,7 @@ function deriveCheckSpecificAssertion(checkId, payload, context) {
     const candidateStderr = Buffer.from(payload.candidate.stderr_base64 || '', 'base64');
     return payload.candidate.git_commit === context.freeze.detector.git_commit &&
       payload.candidate.executable_sha256 === context.freeze.detector.build_sha256 &&
+      payload.baseline.git_commit === context.preResultCommitment.free_core_baseline_commit &&
       payload.baseline.git_commit !== payload.candidate.git_commit &&
       canonicalize(payload.baseline.argv) === canonicalize(payload.candidate.argv) &&
       baselineStdout.length > 0 && baselineStdout.equals(candidateStdout) &&
@@ -1215,7 +1217,13 @@ function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings,
   for (const [checkId, rule] of Object.entries(rules)) {
     const validated = validateAutomaticCheckRecord(
       records[checkId], checkId, rule.derived, rule.kind, freeze,
-      { freeze, receipts, findings, publicDocumentInventory: preResultCommitment.public_document_inventory },
+      {
+        freeze,
+        receipts,
+        findings,
+        preResultCommitment,
+        publicDocumentInventory: preResultCommitment.public_document_inventory,
+      },
     );
     checks[checkId] = validated.passed;
     bindings[checkId] = validated.document_sha256;
@@ -1228,6 +1236,7 @@ export function deriveCountsFromEvidence(
   thresholds,
   calibrationContract = productionCalibrationContract(),
   trustedExecutionVerification,
+  publicSurfaceVerification,
 ) {
   const evidence = input.evidence;
   if (!evidence || typeof evidence !== 'object') throw new Error('measurement evidence is required');
@@ -1274,6 +1283,20 @@ export function deriveCountsFromEvidence(
       canonicalize(opportunityManifest.blind_label_bindings)
   ) throw new Error('pre-result commitment does not match frozen manifests and blind labels');
   validatePublicSurfaceBinding(preResultCommitment, calibrationContract);
+  if (
+    !publicSurfaceVerification ||
+    publicSurfaceVerification.policy_document_sha256 !==
+      calibrationContract.public_surface_policy.canonical_sha256 ||
+    canonicalize(publicSurfaceVerification.repository_paths) !== canonicalize(
+      preResultCommitment.public_document_inventory
+        .filter((item) => calibrationContract.public_surface_policy.document.repository_paths.includes(item.path)),
+    ) ||
+    canonicalize((publicSurfaceVerification.external_surfaces || []).map((item) => item.url).sort()) !==
+      canonicalize(
+        calibrationContract.public_surface_policy.document.external_surfaces
+          .map((item) => item.url).sort(),
+      )
+  ) throw new Error('measurement lacks live-authenticated public-surface verification');
   const opportunityDiscoveryCoverage = validateOpportunityDiscoveryCoverage(
     evidence.opportunity_discovery_coverage,
     golden,
@@ -1369,6 +1392,14 @@ export function deriveCountsFromEvidence(
   }
   for (const cohort of ['golden', 'untouched']) {
     const run = verifiedRuns.get(cohort);
+    let freeCoreParitySha256 = null;
+    if (cohort === 'golden') {
+      const record = input.automatic_no_go_evidence.free_core_unchanged_without_pack.document;
+      const audit = JSON.parse(record.artifacts[0].content);
+      const assertion = audit.assertions.find((item) =>
+        item.name === 'default_without_pack_byte_identical');
+      freeCoreParitySha256 = sha256Canonical(JSON.parse(assertion.evidence_content));
+    }
     const expectedBundle = {
       schema_version: '1.0.0',
       protocol_id: input.protocol_id,
@@ -1377,6 +1408,7 @@ export function deriveCountsFromEvidence(
       detector_freeze_sha256: cohort === 'untouched'
         ? evidence.detector_freeze.document_sha256
         : null,
+      free_core_parity_sha256: freeCoreParitySha256,
       execution_receipts: evidence.execution_receipts
         .filter(({ document }) => document.cohort === cohort)
         .map(({ document_sha256, document }) => ({
@@ -1706,12 +1738,19 @@ export function deriveCountsFromEvidence(
   };
 }
 
-function computeMetricsWithContract(input, thresholds, calibrationContract, trustedExecutionVerification) {
+function computeMetricsWithContract(
+  input,
+  thresholds,
+  calibrationContract,
+  trustedExecutionVerification,
+  publicSurfaceVerification,
+) {
   const derived = deriveCountsFromEvidence(
     input,
     thresholds,
     calibrationContract,
     trustedExecutionVerification,
+    publicSurfaceVerification,
   );
   rejectUnknownKeys(
     input,
@@ -1805,12 +1844,18 @@ function computeMetricsWithContract(input, thresholds, calibrationContract, trus
   };
 }
 
-export function computeMetrics(input, thresholds, trustedExecutionVerification) {
+export function computeMetrics(
+  input,
+  thresholds,
+  trustedExecutionVerification,
+  publicSurfaceVerification,
+) {
   return computeMetricsWithContract(
     input,
     thresholds,
     productionCalibrationContract(),
     trustedExecutionVerification,
+    publicSurfaceVerification,
   );
 }
 
@@ -1819,6 +1864,7 @@ export function computeMetricsForUnitTest(
   thresholds,
   calibrationContract,
   trustedExecutionVerification,
+  publicSurfaceVerification,
 ) {
   if (!process.env.NODE_TEST_CONTEXT) {
     throw new Error('test-only calibration contract override is unavailable outside node:test');
@@ -1828,6 +1874,7 @@ export function computeMetricsForUnitTest(
     thresholds,
     calibrationContract,
     trustedExecutionVerification,
+    publicSurfaceVerification,
   );
 }
 
@@ -1870,7 +1917,16 @@ export async function main(argv) {
     artifactBytesByRunId,
     evidenceBundleByRunId,
   });
-  console.log(JSON.stringify(computeMetrics(input, thresholds, verification), null, 2));
+  const publicVerification = await verifyPublicSurfaces(
+    productionCalibrationContract().public_surface_policy.document,
+    input.evidence.pre_result_commitment.document.public_document_inventory,
+    { repositoryRoot: resolve(calibrationRoot, '../..') },
+  );
+  console.log(JSON.stringify(
+    computeMetrics(input, thresholds, verification, publicVerification),
+    null,
+    2,
+  ));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

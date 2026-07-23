@@ -538,8 +538,8 @@ export function createDetectorFreezeRecord(input) {
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.hookSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeOutputSha256 || '') ||
-    input.networkIsolation.probeDenied !== 3 ||
-    input.networkIsolation.probeAttempted !== 3
+    input.networkIsolation.probeDenied !== 5 ||
+    input.networkIsolation.probeAttempted !== 5
   ) throw new Error('detector freeze requires a hash-bound passing no-egress probe');
   if (
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.byteSha256 || '') ||
@@ -698,7 +698,7 @@ export function validateDetectorFreezeRecord(record) {
     !/^[a-f0-9]{64}$/.test(isolation.hook_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(isolation.probe_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(isolation.probe_output_sha256 || '') ||
-    isolation.probe_denied !== 3 || isolation.probe_attempted !== 3
+    isolation.probe_denied !== 5 || isolation.probe_attempted !== 5
   ) {
     throw new Error('detector freeze lacks confirmed no-egress execution');
   }
@@ -959,7 +959,7 @@ export async function main(argv, commandRunner = run) {
   const probeDocument = JSON.parse(probeOutput);
   if (
     probeDocument.policy !== 'node-runtime-deny-hook-v1' ||
-    probeDocument.denied !== 3 || probeDocument.attempted !== 3
+    probeDocument.denied !== 5 || probeDocument.attempted !== 5
   ) throw new Error('network-isolation probe did not deny every tested egress path');
   const record = createDetectorFreezeRecord({
     gitCommit,

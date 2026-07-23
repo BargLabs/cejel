@@ -24,6 +24,10 @@ on:
         description: Full commit containing the exact pre-result commitment bytes
         required: true
         type: string
+      free_core_baseline_commit:
+        description: Pre-result-committed approved free-core baseline commit
+        required: true
+        type: string
       detector_freeze:
         description: Repository-relative detector freeze (required for untouched)
         required: false
@@ -69,6 +73,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Generate free-core compatibility proof
+        if: inputs.cohort == 'golden'
+        env:
+          BASELINE_COMMIT: ${{ inputs.free_core_baseline_commit }}
+          COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
+        run: |
+          git merge-base --is-ancestor "$BASELINE_COMMIT" "$COMMITMENT_COMMIT"
+          git worktree add --detach "$RUNNER_TEMP/free-core-baseline" "$BASELINE_COMMIT"
+          cd "$RUNNER_TEMP/free-core-baseline"
+          pnpm install --frozen-lockfile
+          pnpm build
+          cd "$GITHUB_WORKSPACE"
+          node calibration/llm/scripts/verify-free-core-parity.mjs \
+            "$RUNNER_TEMP/free-core-baseline/dist/index.js" "$BASELINE_COMMIT" \
+            "$GITHUB_WORKSPACE/dist/index.js" "$GITHUB_SHA" \
+            "$GITHUB_WORKSPACE/src/packs/llm/__tests__/fixtures" \
+            "$RUNNER_TEMP/free-core-parity.json"
       - name: Execute frozen cohort under the hash-bound no-egress wrapper
         env:
           COHORT: ${{ inputs.cohort }}
@@ -113,9 +134,13 @@ jobs:
           DETECTOR_FREEZE_SHA: ${{ inputs.detector_freeze_canonical_sha256 }}
         run: |
           mkdir "$RUNNER_TEMP/llm-attestation"
+          parity_args=()
+          if [ "$COHORT" = golden ]; then
+            parity_args=("$RUNNER_TEMP/free-core-parity.json")
+          fi
           node calibration/llm/scripts/assemble-execution-bundle.mjs \
             "$COHORT" "$RUNNER_TEMP/llm-output" "$PRE_RESULT_SHA" "$DETECTOR_FREEZE_SHA" \
-            "$RUNNER_TEMP/llm-attestation/evidence-bundle.json"
+            "$RUNNER_TEMP/llm-attestation/evidence-bundle.json" "${parity_args[@]}"
       - name: Upload hash-bound evidence bundle
         uses: actions/upload-artifact@v4
         with:

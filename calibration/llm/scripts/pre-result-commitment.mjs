@@ -67,7 +67,8 @@ export function validatePreResultCommitment(document) {
     'schema_version', 'protocol_id', 'status', 'created_at', 'detector_results_seen_before_commitment',
     'golden_manifest_sha256', 'untouched_manifest_sha256', 'opportunity_manifest_sha256',
     'opportunity_discovery_coverage_sha256', 'release_thresholds',
-    'public_surface_policy', 'blind_label_bindings', 'public_document_inventory',
+    'public_surface_policy', 'free_core_baseline_commit',
+    'blind_label_bindings', 'public_document_inventory',
   ];
   const unknown = Object.keys(document || {}).filter((key) => !allowed.includes(key));
   if (
@@ -83,6 +84,7 @@ export function validatePreResultCommitment(document) {
     !/^[a-f0-9]{64}$/.test(document.release_thresholds?.canonical_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.public_surface_policy?.byte_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.public_surface_policy?.canonical_sha256 || '') ||
+    !/^[a-f0-9]{40}$/.test(document.free_core_baseline_commit || '') ||
     !Array.isArray(document.blind_label_bindings) || document.blind_label_bindings.length < 2 ||
     !Array.isArray(document.public_document_inventory) || document.public_document_inventory.length < 1
   ) throw new Error('pre-result commitment is invalid');

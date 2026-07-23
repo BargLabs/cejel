@@ -2,11 +2,15 @@
 
 import { spawn } from 'node:child_process';
 import { connect } from 'node:net';
+import { connect as connectTls } from 'node:tls';
+import { createSocket } from 'node:dgram';
 
 const checks = [
   () => connect(443, 'example.com'),
   () => fetch('https://example.com'),
   () => spawn('curl', ['https://example.com']),
+  () => connectTls(443, 'example.com'),
+  () => createSocket('udp4'),
 ];
 let denied = 0;
 for (const check of checks) {

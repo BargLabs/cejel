@@ -22,6 +22,7 @@ export function assembleExecutionBundle(
   outputRoot,
   preResultCommitmentSha256,
   detectorFreezeSha256,
+  freeCoreParity = null,
 ) {
   if (!['golden', 'untouched'].includes(cohort)) throw new Error('cohort must be golden or untouched');
   const executionReceipts = [];
@@ -49,18 +50,19 @@ export function assembleExecutionBundle(
     cohort,
     pre_result_commitment_sha256: preResultCommitmentSha256,
     detector_freeze_sha256: detectorFreezeSha256,
+    free_core_parity_sha256: freeCoreParity ? sha256Canonical(freeCoreParity) : null,
     execution_receipts: sort(executionReceipts),
     llm_reports: sort(llmReports),
   };
 }
 
 export function main(argv) {
-  if (argv.length !== 5) {
+  if (![5, 6].includes(argv.length)) {
     throw new Error(
-      'usage: assemble-execution-bundle.mjs <cohort> <output-root> <pre-result-canonical-sha256> <detector-freeze-canonical-sha256> <output.json>',
+      'usage: assemble-execution-bundle.mjs <cohort> <output-root> <pre-result-canonical-sha256> <detector-freeze-canonical-sha256> <output.json> [free-core-parity.json]',
     );
   }
-  const [cohort, outputRoot, preResultSha, detectorFreezeSha, outputPath] = argv;
+  const [cohort, outputRoot, preResultSha, detectorFreezeSha, outputPath, freeCoreParityPath] = argv;
   if (!/^[a-f0-9]{64}$/.test(preResultSha) ||
     !(detectorFreezeSha === 'none' || /^[a-f0-9]{64}$/.test(detectorFreezeSha))) {
     throw new Error('pre-result and detector-freeze canonical SHA-256 values are required');
@@ -70,6 +72,7 @@ export function main(argv) {
     resolve(outputRoot),
     preResultSha,
     detectorFreezeSha === 'none' ? null : detectorFreezeSha,
+    freeCoreParityPath ? JSON.parse(readFileSync(resolve(freeCoreParityPath), 'utf8')) : null,
   );
   let descriptor;
   try {

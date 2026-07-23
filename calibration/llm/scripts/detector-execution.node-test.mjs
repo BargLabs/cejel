@@ -188,7 +188,7 @@ function detectorFreeze() {
       wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
       probePath: '/usr/local/bin/no-egress-probe.mjs',
       probeSha256: '3'.repeat(64), probeOutputSha256: '4'.repeat(64),
-      probeDenied: 3, probeAttempted: 3,
+      probeDenied: 5, probeAttempted: 5,
       confirmed: true,
     },
     ledger: goldenLedger,
@@ -466,6 +466,7 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
       byte_sha256: 'd'.repeat(64),
       canonical_sha256: 'e'.repeat(64),
     },
+    free_core_baseline_commit: 'd'.repeat(40),
     blind_label_bindings: [
       { label_id: 'llm-label-example-0001', document_sha256: '7'.repeat(64), role: 'primary_labeler' },
       { label_id: 'llm-label-example-0002', document_sha256: '8'.repeat(64), role: 'independent_reviewer' },

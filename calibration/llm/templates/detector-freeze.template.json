@@ -35,8 +35,8 @@
       "probe_path": "/absolute/path/to/no-egress-probe.mjs",
       "probe_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "probe_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "probe_denied": 3,
-      "probe_attempted": 3,
+      "probe_denied": 5,
+      "probe_attempted": 5,
       "explicitly_confirmed": true
     }
   },

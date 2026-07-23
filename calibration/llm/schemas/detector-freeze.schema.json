@@ -65,8 +65,8 @@
             "probe_path": {"type": "string", "minLength": 1},
             "probe_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "probe_output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-            "probe_denied": {"const": 3},
-            "probe_attempted": {"const": 3},
+            "probe_denied": {"const": 5},
+            "probe_attempted": {"const": 5},
             "explicitly_confirmed": {"const": true}
           }
         }

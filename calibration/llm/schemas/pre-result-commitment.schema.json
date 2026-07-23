@@ -4,7 +4,7 @@
   "title": "Cejel Free LLM externally committed pre-result bindings",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "status", "created_at", "detector_results_seen_before_commitment", "golden_manifest_sha256", "untouched_manifest_sha256", "opportunity_manifest_sha256", "opportunity_discovery_coverage_sha256", "release_thresholds", "public_surface_policy", "blind_label_bindings", "public_document_inventory"],
+  "required": ["schema_version", "protocol_id", "status", "created_at", "detector_results_seen_before_commitment", "golden_manifest_sha256", "untouched_manifest_sha256", "opportunity_manifest_sha256", "opportunity_discovery_coverage_sha256", "release_thresholds", "public_surface_policy", "free_core_baseline_commit", "blind_label_bindings", "public_document_inventory"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
@@ -32,6 +32,7 @@
         "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
       }
     },
+    "free_core_baseline_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
     "public_document_inventory": {
       "type": "array", "minItems": 1,
       "items": {

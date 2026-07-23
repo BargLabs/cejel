@@ -56,7 +56,7 @@ export function main(argv) {
   const scanArgv = ['scan', fixture, '--format', 'json', '--quiet'];
   const document = {
     fixture: {
-      path: 'test/fixtures/free-core-parity',
+      path: 'src/packs/llm/__tests__/fixtures',
       tree_sha256: hashTree(fixture),
     },
     baseline: run(resolve(baselinePath), scanArgv, baselineCommit),

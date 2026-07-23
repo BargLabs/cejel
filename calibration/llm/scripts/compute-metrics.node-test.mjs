@@ -103,6 +103,9 @@ const testTrustedExecutionVerification = (input) => {
   proof.commitment.git_commit =
     input.evidence.execution_receipts[0].document.pre_result_commitment.git_commit;
   input.evidence.trusted_execution_proof = bound(proof);
+  const freeCoreRecord = input.automatic_no_go_evidence.free_core_unchanged_without_pack.document;
+  const freeCoreAudit = JSON.parse(freeCoreRecord.artifacts[0].content);
+  const freeCoreParity = JSON.parse(freeCoreAudit.assertions[0].evidence_content);
   return ({
   proof_document_sha256: input.evidence.trusted_execution_proof.document_sha256,
   commitment_git_commit: input.evidence.trusted_execution_proof.document.commitment.git_commit,
@@ -120,6 +123,7 @@ const testTrustedExecutionVerification = (input) => {
       detector_freeze_sha256: cohort === 'untouched'
         ? input.evidence.detector_freeze.document_sha256
         : null,
+      free_core_parity_sha256: cohort === 'golden' ? sha(freeCoreParity) : null,
       execution_receipts: input.evidence.execution_receipts
         .filter(({ document }) => document.cohort === cohort)
         .map(({ document_sha256, document }) => ({
@@ -134,12 +138,18 @@ const testTrustedExecutionVerification = (input) => {
   })),
   });
 };
+const testPublicSurfaceVerification = (input) => ({
+  policy_document_sha256: TEST_CALIBRATION_CONTRACT.public_surface_policy.canonical_sha256,
+  repository_paths: input.evidence.pre_result_commitment.document.public_document_inventory,
+  external_surfaces: [],
+});
 const computeMetrics = (input, lockedThresholds) =>
   computeMetricsForUnitTest(
     input,
     lockedThresholds,
     TEST_CALIBRATION_CONTRACT,
     testTrustedExecutionVerification(input),
+    testPublicSurfaceVerification(input),
   );
 const SOURCE_CONTENT = Buffer.from('const first = true;\nconst second = true;', 'utf8');
 const SOURCE_SHA256 = createHash('sha256').update(SOURCE_CONTENT).digest('hex');
@@ -250,7 +260,7 @@ function fixture() {
       evidenceReference: 'internal-witness:no-egress',
       wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
       probePath: '/no-egress-probe.mjs', probeSha256: '3'.repeat(64),
-      probeOutputSha256: '4'.repeat(64), probeDenied: 3, probeAttempted: 3,
+      probeOutputSha256: '4'.repeat(64), probeDenied: 5, probeAttempted: 5,
       confirmed: true,
     },
     ledger, ledgerSha256: sha(ledger),
@@ -409,6 +419,7 @@ function fixture() {
       byte_sha256: TEST_CALIBRATION_CONTRACT.public_surface_policy.byte_sha256,
       canonical_sha256: TEST_CALIBRATION_CONTRACT.public_surface_policy.canonical_sha256,
     },
+    free_core_baseline_commit: 'd'.repeat(40),
     blind_label_bindings: opportunityManifest.blind_label_bindings,
     public_document_inventory: [{
       path: 'README.md', content_sha256: rawSha('Cejel reports static, evidence-backed engineering signals.'),
@@ -495,7 +506,7 @@ function fixture() {
   const automatic_no_go_evidence = Object.fromEntries(Object.entries(checkKinds).map(([check_id, kind]) => {
     const payloads = {
       free_core_unchanged_without_pack: {
-        fixture: { path: 'test/fixtures/free-core-parity', tree_sha256: 'a'.repeat(64) },
+        fixture: { path: 'src/packs/llm/__tests__/fixtures', tree_sha256: 'a'.repeat(64) },
         baseline: {
           git_commit: 'd'.repeat(40), executable_sha256: 'c'.repeat(64),
           argv: ['scan', '/fixture', '--format', 'json', '--quiet'],
@@ -695,7 +706,16 @@ test('test-only contract override reaches cohort anchoring and changed threshold
   const wrongSizeContract = structuredClone(TEST_CALIBRATION_CONTRACT);
   wrongSizeContract.expected_cohort_size = 2;
   assert.throws(
-    () => computeMetricsForUnitTest(fixture(), thresholds, wrongSizeContract),
+    () => {
+      const candidate = fixture();
+      return computeMetricsForUnitTest(
+        candidate,
+        thresholds,
+        wrongSizeContract,
+        testTrustedExecutionVerification(candidate),
+        testPublicSurfaceVerification(candidate),
+      );
+    },
     /locked selection policy|locked candidate contract/,
   );
 
@@ -1177,11 +1197,18 @@ test('requires live trusted execution verification and exact downloaded evidence
       thresholds,
       TEST_CALIBRATION_CONTRACT,
       verification,
+      testPublicSurfaceVerification(candidate),
     ),
     /downloaded GitHub artifact does not bind/,
   );
   assert.throws(
-    () => computeMetricsForUnitTest(candidate, thresholds, TEST_CALIBRATION_CONTRACT, null),
+    () => computeMetricsForUnitTest(
+      candidate,
+      thresholds,
+      TEST_CALIBRATION_CONTRACT,
+      null,
+      testPublicSurfaceVerification(candidate),
+    ),
     /live-verified trusted execution proof/,
   );
 });

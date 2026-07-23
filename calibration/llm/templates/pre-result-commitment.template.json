@@ -16,6 +16,7 @@
     "byte_sha256": "replace-with-public-surface-policy-byte-sha256",
     "canonical_sha256": "replace-with-public-surface-policy-canonical-sha256"
   },
+  "free_core_baseline_commit": "replace-with-last-approved-free-core-commit-sha",
   "public_document_inventory": [
     {"path": "README.md", "content_sha256": "replace-with-exact-byte-sha256"},
     {"path": "package.json", "content_sha256": "replace-with-exact-byte-sha256"},

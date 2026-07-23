@@ -394,7 +394,7 @@ export async function main(argv, commandRunner = defaultRunner) {
         throw new Error('golden network-isolation hook is not the Cejel deny hook');
       }
       const probe = JSON.parse(await commandRunner(isolationPrefix[0], [probePath]));
-      if (probe.policy !== isolationMode || probe.denied !== 3 || probe.attempted !== 3) {
+      if (probe.policy !== isolationMode || probe.denied !== 5 || probe.attempted !== 5) {
         throw new Error('golden network-isolation probe did not deny every tested egress path');
       }
     }

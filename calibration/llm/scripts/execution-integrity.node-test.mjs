@@ -20,7 +20,7 @@ test('committed runtime no-egress probe denies network and process escape paths'
   );
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), {
-    policy: 'node-runtime-deny-hook-v1', denied: 3, attempted: 3,
+    policy: 'node-runtime-deny-hook-v1', denied: 5, attempted: 5,
   });
 });
 
@@ -35,6 +35,7 @@ test('execution bundle derives canonical receipt and report bindings from raw ou
   assert.deepEqual(assembleExecutionBundle('golden', root, '1'.repeat(64), null), {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', cohort: 'golden',
     pre_result_commitment_sha256: '1'.repeat(64), detector_freeze_sha256: null,
+    free_core_parity_sha256: null,
     execution_receipts: [{ repository_id: 'owner/repository', document_sha256: sha(receipt) }],
     llm_reports: [{ repository_id: 'owner/repository', document_sha256: sha(report) }],
   });
