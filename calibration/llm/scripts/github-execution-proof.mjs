@@ -100,7 +100,7 @@ export async function verifyGitHubExecutionProof(
       run.id !== runProof.run_id || run.repository?.full_name !== REPOSITORY ||
       run.head_sha !== runProof.head_sha || !/^[a-f0-9]{40}$/.test(run.head_sha || '') ||
       run.event !== 'workflow_dispatch' ||
-      !String(run.path || '').startsWith('.github/workflows/llm-calibration.yml@') ||
+      run.path !== '.github/workflows/llm-calibration.yml' ||
       !validUtc(run.created_at) || !validUtc(run.run_started_at) ||
       Date.parse(comment.created_at) >= Date.parse(run.run_started_at) ||
       (requireCompleted && (run.status !== 'completed' || run.conclusion !== 'success')) ||

@@ -156,6 +156,12 @@ jobs:
           node calibration/llm/scripts/assemble-execution-bundle.mjs \
             "$COHORT" "$RUNNER_TEMP/llm-output" "$PRE_RESULT_SHA" "$DETECTOR_FREEZE_SHA" \
             "$RUNNER_TEMP/llm-attestation/evidence-bundle.json" "${parity_args[@]}"
+      - name: Retain exact golden free-core compatibility evidence
+        if: inputs.cohort == 'golden'
+        run: |
+          install -m 600 \
+            "$RUNNER_TEMP/free-core-parity.json" \
+            "$RUNNER_TEMP/llm-output/free-core-compatibility.json"
       - name: Upload hash-bound evidence bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -177,7 +177,7 @@ test('CLI errors and output never disclose the bundle key', () => {
   );
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /authentication failed/);
-  assert.doesNotMatch(`${result.stdout}${result.stderr}`, new RegExp(secret, 'u'));
+  assert.equal(`${result.stdout}${result.stderr}`.includes(secret), false);
 });
 
 test('workflow rejects missing untouched transport before checkout and decrypts only into runner.temp', () => {

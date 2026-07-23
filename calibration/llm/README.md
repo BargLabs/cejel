@@ -1,7 +1,9 @@
 # Free LLM Pack calibration assets
 
 This directory freezes the calibration design for the Free LLM Pack before any detector output is
-used to tune rules. It contains no copied repository source and no private data.
+used to tune rules. It contains no copied repository source and no plaintext private data. The
+committed untouched-workflow transport is authenticated ciphertext; its key and decrypted evidence
+remain outside Git.
 
 ## State
 
@@ -18,8 +20,9 @@ used to tune rules. It contains no copied repository source and no private data.
 - Immutable manifests: the original v1.1 manifests were frozen at `2026-07-23T04:08:14Z`, but the
   untouched manifest was retired after a cross-review status message exposed first-pass labels to
   the rule-authoring orchestrator. Neither cohort had been passed to the detector. Current
-  `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` must be independently re-frozen
-  before execution; no v1.1 manifest can satisfy the v1.2 gate.
+  `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` were frozen before execution and
+  reviewed in two sequential passes by the same AI task under the solo-owner exception. Those
+  passes are not independent or human. No v1.1 manifest can satisfy the v1.2 gate.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
   create the internal source-evidence index from the exact blobs used by every `source_span` using
   `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw
@@ -100,12 +103,15 @@ traversal path, or plaintext-style path before checkout. Golden execution does n
 decrypt this bundle and otherwise follows its existing path.
 
 The measurement input contains content-addressed evidence, not manually entered counts: both frozen
-cohort manifests, the internal frozen source-evidence index, the frozen opportunity inventory, the detector-freeze record, every execution
-receipt and LLM report, and every independent label/adjudication record. The metrics command
+cohort manifests, the internal frozen source-evidence index, the frozen opportunity inventory, the
+detector-freeze record, every execution receipt and LLM report, and every frozen
+label/adjudication record. The metrics command
 also requires a live-verified public GitHub commitment comment, the two successful
 `workflow_dispatch` runs from `.github/workflows/llm-calibration.yml`, and their exact downloaded
-evidence archives. Each archive may contain only `evidence-bundle.json`; its server-recorded digest
-and its receipt/report bindings must match the measurement input.
+evidence archives. Each evidence archive may contain only `evidence-bundle.json`; its
+server-recorded digest and its receipt/report bindings must match the measurement input. Required
+automatic-gate records bound by that bundle must also be retained byte-for-byte in a downloaded run
+artifact.
 
 The blind-evidence assembler requires all 48 frozen repositories and all 384 repository/rule
 coverage cells from each reviewer, verifies exact local commits, root trees, Git blob/tree proofs,
@@ -219,5 +225,10 @@ cohort must remain unread by rule authors until the detector version is frozen.
 After the manifests are frozen, follow [Frozen detector execution](./detector-execution.md). The
 untouched runner refuses execution without a canonical detector-freeze record, the exact closed
 golden correction ledger, the matching local executable, and the explicit
-`--confirm-untouched-after-freeze` flag. No cohort execution has been performed by adding this
-tooling.
+`--confirm-untouched-after-freeze` flag.
+
+The v1.2 golden and untouched runs completed as GitHub Actions runs `29992864057` and
+`30017300688`. The cycle is an evidence-integrity **NO-GO** because the golden run bound but did not
+retain the exact free-core compatibility record. Performance metrics are therefore not estimable,
+and no measured detector claim may be made from this cycle. See
+[`reviews/v1.2-integrity-no-go-2026-07-23.md`](./reviews/v1.2-integrity-no-go-2026-07-23.md).

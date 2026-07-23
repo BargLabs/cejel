@@ -72,9 +72,11 @@ Current native source coverage is:
   The eight rules below use deliberately bounded, local patterns; an import alone never creates
   a finding.
 - **Python:** `.py` files using observable official OpenAI or Anthropic SDK imports and call/response
-  shapes. The alpha currently applies only `LLM-IOH-001`, `LLM-AGY-002`, and `LLM-DAT-001` to
-  Python. Action-governance and evaluation-hygiene checks require complete local JavaScript or
-  TypeScript paths.
+  shapes. The alpha applies `LLM-IOH-001`, `LLM-VAL-001`, `LLM-AGY-002`, `LLM-DAT-001`, and
+  `LLM-EVL-002` to narrowly fixture-backed Python shapes. Python action validation is limited to an
+  `args_schema`-bound local `_run` path, and Python self-judge detection is limited to a complete
+  local configured producer/judge class. `LLM-AGY-001`, `LLM-PRV-001`, and `LLM-EVL-001` still
+  require the supported local JavaScript or TypeScript paths.
 
 If no supported production integration is detected, the pack is `not_applicable`. During alpha,
 an applicable repository is always `assessed_with_limitations`. Rule-level `not_applicable` versus

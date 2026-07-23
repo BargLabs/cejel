@@ -38,6 +38,14 @@ test('trusted workflow pins runtime and generates parity from the dedicated pack
     /\$GITHUB_WORKSPACE\/src\/packs\/llm\/__tests__\/fixtures/,
   );
   assert.match(workflow, /node-version: 22\.23\.1/);
+  const execute = workflow.indexOf('Execute frozen cohort under the hash-bound no-egress wrapper');
+  const retain = workflow.indexOf('Retain exact golden free-core compatibility evidence');
+  const uploadRaw = workflow.indexOf('Upload raw calibration outputs');
+  assert.ok(execute >= 0 && retain > execute && uploadRaw > retain);
+  assert.match(
+    workflow,
+    /install -m 600[\s\S]*free-core-parity\.json[\s\S]*llm-output\/free-core-compatibility\.json/,
+  );
 });
 
 test('execution bundle derives canonical receipt and report bindings from raw output', () => {

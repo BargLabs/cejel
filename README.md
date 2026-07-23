@@ -217,15 +217,21 @@ network. Its findings and status never alter the base Cejel score or verdict.
 The alpha recognizes fixture-backed JavaScript/TypeScript patterns around OpenAI, Anthropic,
 Vercel AI SDK, and named model-call shapes. It records LangChain imports as integration metadata,
 but a LangChain import alone does not establish v1 applicability or framework-specific coverage.
-Python coverage is narrower: it
-recognizes official OpenAI and Anthropic SDK call/response shapes for direct unsafe sinks,
-unbounded loops, and secret-like environment values in model requests. See
+Python coverage is narrower: it recognizes official OpenAI and Anthropic SDK call/response shapes
+for direct unsafe sinks, narrowly fixture-backed action validation and configured self-judge
+checks, unconditional model loops, and secret-like environment values in model requests. See
 [Free LLM Pack usage and limitations](./docs/packs/free-llm-usage.md) for the eight rule IDs,
 artifact verification, exact boundaries, and current limitations.
 
 The pack does **not** measure a model's hallucination rate, prove that an application is safe, or
 provide runtime enforcement. Its attestation is self-generated and unsigned unless an external
 signer binds an identity to it.
+
+The first frozen 24+24-repository calibration cycle ended in an
+[evidence-integrity NO-GO](./calibration/llm/reviews/v1.2-integrity-no-go-2026-07-23.md). The
+required actual-run compatibility record was not retained, so precision, recall, and
+false-positive rate are not estimable and Cejel makes no measured performance claim from that
+cycle.
 
 ### Flags
 

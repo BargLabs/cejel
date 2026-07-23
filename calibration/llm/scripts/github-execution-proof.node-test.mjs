@@ -45,7 +45,7 @@ function fixture() {
     }],
     [proof.runs[0].run_api_url, {
       id: 99, repository: { full_name: 'BargLabs/cejel' }, head_sha: HEAD,
-      event: 'workflow_dispatch', path: '.github/workflows/llm-calibration.yml@refs/heads/main',
+      event: 'workflow_dispatch', path: '.github/workflows/llm-calibration.yml',
       created_at: '2026-07-22T20:01:00Z', run_started_at: '2026-07-22T20:02:00Z',
       status: 'completed', conclusion: 'success',
     }],
