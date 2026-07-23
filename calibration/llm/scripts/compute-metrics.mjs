@@ -1385,6 +1385,9 @@ export function deriveCountsFromEvidence(
     if (!run.evidence_bundle || run.evidence_bundle.cohort !== run.cohort) {
       throw new Error('trusted execution run lacks its downloaded evidence bundle');
     }
+    if (run.head_sha !== freeze.detector.git_commit) {
+      throw new Error('trusted execution run did not execute the exact frozen detector commit');
+    }
     verifiedRuns.set(run.cohort, run);
   }
   if (verifiedRuns.size !== 2) {

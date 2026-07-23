@@ -1211,4 +1211,17 @@ test('requires live trusted execution verification and exact downloaded evidence
     ),
     /live-verified trusted execution proof/,
   );
+  const wrongHead = fixture();
+  const wrongHeadVerification = testTrustedExecutionVerification(wrongHead);
+  wrongHeadVerification.runs[0].head_sha = 'a'.repeat(40);
+  assert.throws(
+    () => computeMetricsForUnitTest(
+      wrongHead,
+      thresholds,
+      TEST_CALIBRATION_CONTRACT,
+      wrongHeadVerification,
+      testPublicSurfaceVerification(wrongHead),
+    ),
+    /exact frozen detector commit/,
+  );
 });
