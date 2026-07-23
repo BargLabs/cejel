@@ -323,7 +323,14 @@ function hasScopedInvocationBefore(
     return invocations.some(
       (invocation) =>
         invocation.index > resultScope.start &&
-        invocation.index < resultIndex,
+        invocation.index < resultIndex &&
+        !scopes.some(
+          (scope) =>
+            scope.start > resultScope.start &&
+            scope.end < resultScope.end &&
+            invocation.index > scope.start &&
+            invocation.index < scope.end,
+        ),
     );
   }
   return invocations.some(

@@ -161,6 +161,23 @@ describe('bounded golden corrections', () => {
     expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
   });
 
+  it('does not borrow a nested model invocation for an outer result', () => {
+    const file = source([
+      "import OpenAI from 'openai';",
+      'async function publishEvaluation() {',
+      '  async function unrelatedGeneration() {',
+      '    const client = new OpenAI();',
+      "    return client.responses.create({ model: 'example', input: 'draft' });",
+      '  }',
+      '  const evaluationRecord = {',
+      '    scenario: scenarioId, model: selectedModel, run: runNumber, score, ok',
+      '  };',
+      '  console.log(JSON.stringify(evaluationRecord));',
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
+  });
+
   it('requires resolved emission and missing configuration for a discrete result', () => {
     const unresolved = source([
       'const evaluationRecord = {',
