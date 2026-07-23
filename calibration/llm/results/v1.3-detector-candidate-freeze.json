@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.3",
+  "status": "detector_candidate_frozen_before_untouched_source_access",
+  "formal_release_freeze_complete": false,
+  "frozen_at": "2026-07-23T19:16:30Z",
+  "detector": {
+    "version": "free-llm-detector-alpha-2",
+    "git_commit": "74157d3b81793e162b1f02157064fb5d2b26cc5e",
+    "source_tree_sha": "ed7393c5373debd5a5cf1dd54fba52c6a61cc58f",
+    "build_entry": "dist/index.js",
+    "build_sha256": "cc9141e6b800f0eeb2288abd3911cedd900a43368f00850983a7e4bf91775ad6"
+  },
+  "contract": {
+    "version": "cejel-free-llm-rules-v1.1-2026-07-23",
+    "document_byte_sha256": "81528cf70bd4dbcd15654eba05da0a255ab0dfde21875150ed8c6a1b640fb5d1"
+  },
+  "execution": {
+    "workflow_byte_sha256": "b3697a2356deb1458ab5ef6b2056f2dd2d05a4bc1a38c1ee1aa0d7f76a9514be",
+    "no_egress_wrapper_byte_sha256": "4109874614ba82a97176467458050c18aa2457c4e81b649e62cf85cc9dc99094",
+    "no_egress_hook_byte_sha256": "49962e1e1459431004b6c7a8e0c74a1b9cebb2539711f316882d6b39f20a5860"
+  },
+  "cohorts": {
+    "golden_manifest_byte_sha256": "897332595d8cd371cab212dbde40f3df56b792f7182db4650568577c0c084543",
+    "golden_manifest_sha256": "e4482071e0fdfc3d334838c5f0b9730281630a6a3c8b97fedf4ee9cd98f96ffb",
+    "untouched_manifest_byte_sha256": "ca8524fb561d03a0e885548fc08f488a4fd32ef1e08d794983682622fe9f7203",
+    "untouched_manifest_sha256": "fa222b09ad1d755115cc3b00cb7980357dfb9f079a1088e412cbdca4374d55b5"
+  },
+  "release_thresholds_byte_sha256": "dffabeb3e6265d3c53fbde4ce3fb3e051d494d19ba90fcb70f9429ff1297ad5e",
+  "untouched_source_accessed_by_rule_author_before_freeze": false,
+  "untouched_detector_results_seen_before_freeze": false,
+  "limitations": [
+    "This record freezes the candidate before blind untouched labeling; it is not the formal release detector-freeze record.",
+    "Formal release freeze still requires a trusted golden run, corrected golden execution evidence, a closed correction ledger, and bound golden labels.",
+    "No experimental or public GO decision follows from this record."
+  ]
+}
