@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import { validateDetectorFreezeRecord } from './freeze-detector.mjs';
+import { validatePreResultCommitment } from './pre-result-commitment.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
@@ -314,6 +315,168 @@ export function hashOpportunityManifest(manifest) {
   return sha256Canonical(hashable);
 }
 
+export function hashSourceEvidenceIndex(index) {
+  const hashable = structuredClone(index);
+  delete hashable.index_sha256;
+  delete hashable.attestation;
+  return sha256Canonical(hashable);
+}
+
+function gitObjectSha1(type, bytes) {
+  return createHash('sha1')
+    .update(Buffer.from(`${type} ${bytes.length}\0`, 'utf8'))
+    .update(bytes)
+    .digest('hex');
+}
+
+function decodeCanonicalBase64(value, scope) {
+  if (typeof value !== 'string' || value.length < 1 || value.length % 4 !== 0) {
+    throw new Error(`${scope} is not canonical base64`);
+  }
+  const bytes = Buffer.from(value, 'base64');
+  if (bytes.toString('base64') !== value) throw new Error(`${scope} is not canonical base64`);
+  return bytes;
+}
+
+function parseGitTree(bytes, scope) {
+  const entries = [];
+  const names = new Set();
+  let offset = 0;
+  while (offset < bytes.length) {
+    const space = bytes.indexOf(0x20, offset);
+    const nul = space < 0 ? -1 : bytes.indexOf(0x00, space + 1);
+    if (space <= offset || nul <= space + 1 || nul + 21 > bytes.length) {
+      throw new Error(`${scope} is a malformed Git tree object`);
+    }
+    const mode = bytes.subarray(offset, space).toString('ascii');
+    const nameBytes = bytes.subarray(space + 1, nul);
+    const name = nameBytes.toString('utf8');
+    if (
+      !/^(40000|100644|100755|120000|160000)$/.test(mode) ||
+      name.length < 1 || name.includes('/') || name === '.' || name === '..' ||
+      !Buffer.from(name, 'utf8').equals(nameBytes) || names.has(name)
+    ) throw new Error(`${scope} contains an invalid Git tree entry`);
+    names.add(name);
+    entries.push({ mode, name, sha1: bytes.subarray(nul + 1, nul + 21).toString('hex') });
+    offset = nul + 21;
+  }
+  return entries;
+}
+
+function countSourceLines(bytes, scope) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error(`${scope} is not UTF-8 source text`);
+  }
+  return text.length === 0 ? 0 : text.split('\n').length;
+}
+
+function verifyGitTreeProof(file, scope) {
+  const segments = file.path.split('/');
+  if (
+    !isRepositoryRelativePath(file.path) || file.path.includes('\\') ||
+    segments.some((segment) => segment.length === 0 || segment === '.') ||
+    file.tree_proof.length !== segments.length
+  ) throw new Error(`${scope} has an invalid repository path or Git tree-proof depth`);
+
+  if (file.tree_proof[0].tree_sha1 !== file.git_tree_sha) {
+    throw new Error(`${scope} Git tree proof is not rooted at the frozen repository tree`);
+  }
+  for (const [index, proof] of file.tree_proof.entries()) {
+    const treeBytes = decodeCanonicalBase64(proof.tree_base64, `${scope} tree proof ${index}`);
+    if (gitObjectSha1('tree', treeBytes) !== proof.tree_sha1) {
+      throw new Error(`${scope} Git tree object SHA-1 mismatch`);
+    }
+    const entry = parseGitTree(treeBytes, `${scope} tree proof ${index}`)
+      .find((candidate) => candidate.name === segments[index]);
+    if (!entry) throw new Error(`${scope} path is absent from its Git tree proof`);
+    const final = index === segments.length - 1;
+    if (!final) {
+      if (entry.mode !== '40000' || entry.sha1 !== file.tree_proof[index + 1].tree_sha1) {
+        throw new Error(`${scope} Git tree proof has a broken directory link`);
+      }
+    } else if (!['100644', '100755'].includes(entry.mode) || entry.sha1 !== file.blob_sha1) {
+      throw new Error(`${scope} Git tree proof does not resolve to the declared source blob`);
+    }
+  }
+
+  const content = decodeCanonicalBase64(file.content_base64, `${scope} content`);
+  if (gitObjectSha1('blob', content) !== file.blob_sha1) {
+    throw new Error(`${scope} Git blob SHA-1 mismatch`);
+  }
+  const contentSha256 = createHash('sha256').update(content).digest('hex');
+  if (contentSha256 !== file.content_sha256) {
+    throw new Error(`${scope} whole-file SHA-256 mismatch`);
+  }
+  return { content, lineCount: countSourceLines(content, scope) };
+}
+
+function validateSourceEvidenceIndexBinding(wrapper, golden, untouched, repositories) {
+  const index = unwrapBoundDocument(wrapper, 'source evidence index');
+  rejectUnknownKeys(
+    index,
+    ['$schema', 'schema_version', 'protocol_id', 'status', 'hash_contract', 'cohort_bindings',
+      'files', 'index_sha256', 'attestation'],
+    'source evidence index',
+  );
+  if (
+    index?.schema_version !== '1.0.0' || index.protocol_id !== 'cejel-llm-calibration-v1' ||
+    index.status !== 'frozen_before_detector_results' ||
+    index.hash_contract !==
+      'rfc8785-sha256-v1; index excludes index_sha256 and attestation; file content_sha256 hashes decoded whole-file bytes' ||
+    index.cohort_bindings?.golden_manifest_sha256 !== golden.manifest_sha256 ||
+    index.cohort_bindings?.untouched_manifest_sha256 !== untouched.manifest_sha256 ||
+    hashSourceEvidenceIndex(index) !== index.index_sha256 ||
+    !Array.isArray(index.files) || index.files.length < 1 ||
+    typeof index.attestation?.method !== 'string' || index.attestation.method.length < 3 ||
+    typeof index.attestation?.reference !== 'string' || index.attestation.reference.length < 8
+  ) throw new Error('source evidence index binding is not a valid frozen index');
+  rejectUnknownKeys(
+    index.cohort_bindings,
+    ['golden_manifest_sha256', 'untouched_manifest_sha256'],
+    'source evidence index cohort bindings',
+  );
+  rejectUnknownKeys(index.attestation, ['method', 'reference'], 'source evidence index attestation');
+
+  const files = new Map();
+  for (const [fileIndex, file] of index.files.entries()) {
+    const scope = `source evidence file ${fileIndex}`;
+    if (!file || typeof file !== 'object' || Array.isArray(file)) throw new Error(`${scope} is invalid`);
+    rejectUnknownKeys(
+      file,
+      ['cohort', 'repository_id', 'commit_sha', 'git_tree_sha', 'path', 'blob_sha1',
+        'content_base64', 'content_sha256', 'tree_proof'],
+      scope,
+    );
+    if (!Array.isArray(file.tree_proof) || file.tree_proof.length < 1) throw new Error(`${scope} is invalid`);
+    for (const [proofIndex, proof] of file.tree_proof.entries()) {
+      if (!proof || typeof proof !== 'object' || Array.isArray(proof)) throw new Error(`${scope} proof is invalid`);
+      rejectUnknownKeys(proof, ['tree_sha1', 'tree_base64'], `${scope} tree proof ${proofIndex}`);
+    }
+    if (
+      !['golden', 'untouched'].includes(file.cohort) ||
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(file.repository_id || '') ||
+      !/^[a-f0-9]{40}$/.test(file.commit_sha || '') || !/^[a-f0-9]{40}$/.test(file.git_tree_sha || '') ||
+      !/^[a-f0-9]{40}$/.test(file.blob_sha1 || '') || !/^[a-f0-9]{64}$/.test(file.content_sha256 || '') ||
+      typeof file.path !== 'string' || typeof file.content_base64 !== 'string' ||
+      file.tree_proof.some((proof) =>
+        !/^[a-f0-9]{40}$/.test(proof.tree_sha1 || '') ||
+        typeof proof.tree_base64 !== 'string' || proof.tree_base64.length < 1)
+    ) throw new Error(`${scope} is invalid`);
+    const repository = repositories.get(`${file.cohort}:${file.repository_id}`);
+    if (
+      !repository || repository.repository.commit_sha !== file.commit_sha ||
+      repository.repository.git_tree_sha !== file.git_tree_sha
+    ) throw new Error(`${scope} is not bound to a frozen repository commit and tree`);
+    const key = `${file.cohort}:${file.repository_id}:${file.path}`;
+    if (files.has(key)) throw new Error(`duplicate source evidence path: ${key}`);
+    files.set(key, { file, ...verifyGitTreeProof(file, scope) });
+  }
+  return { index, files };
+}
+
 function unwrapBoundDocument(wrapper, scope) {
   if (!wrapper || typeof wrapper !== 'object' || !wrapper.document) {
     throw new Error(`${scope} must contain a document and document_sha256`);
@@ -345,7 +508,7 @@ function validateManifestBinding(wrapper, expectedCohort) {
   return manifest;
 }
 
-function validateOpportunityManifestBinding(wrapper, golden, untouched, repositories) {
+function validateOpportunityManifestBinding(wrapper, golden, untouched, repositories, sourceFiles) {
   const manifest = unwrapBoundDocument(wrapper, 'opportunity manifest');
   rejectUnknownKeys(
     manifest,
@@ -422,6 +585,18 @@ function validateOpportunityManifestBinding(wrapper, golden, untouched, reposito
     const expected = repositories.get(`${opportunity.cohort}:${opportunity.repository_id}`);
     if (!expected || expected.repository.commit_sha !== opportunity.commit_sha) {
       throw new Error(`${scope} is not bound to a frozen repository`);
+    }
+    if (opportunity.evidence_scope.kind === 'source_span') {
+      const source = sourceFiles.get(
+        `${opportunity.cohort}:${opportunity.repository_id}:${opportunity.evidence_scope.path_or_reference}`,
+      );
+      if (!source) throw new Error(`${scope} source path is absent from the frozen source evidence index`);
+      if (source.file.content_sha256 !== opportunity.evidence_scope.sha256) {
+        throw new Error(`${scope} source SHA-256 does not match the verified whole file`);
+      }
+      if (opportunity.evidence_scope.end_line > source.lineCount) {
+        throw new Error(`${scope} source line bounds exceed the verified whole file`);
+      }
     }
     representedCohorts.add(opportunity.cohort);
     opportunities.set(opportunity.opportunity_id, opportunity);
@@ -520,34 +695,108 @@ function validateLabelRecord(label, scope) {
   return label;
 }
 
-function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredEvidenceKind) {
+function evidenceItemExactlyMatchesScope(item, scope) {
+  return item.kind === scope.kind &&
+    item.path_or_reference === scope.path_or_reference &&
+    item.sha256 === scope.sha256 &&
+    item.start_line === scope.start_line &&
+    item.end_line === scope.end_line;
+}
+
+function findingEvidenceMatchesOpportunity(finding, opportunity) {
+  const scope = opportunity.evidence_scope;
+  if (finding.evidence.path !== scope.path_or_reference) return false;
+  if (scope.start_line === undefined) return true;
+  return finding.evidence.line >= scope.start_line && finding.evidence.line <= scope.end_line;
+}
+
+function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredEvidenceKind, freeze) {
+  const requiredAssertionNames = {
+    free_core_unchanged_without_pack: 'default_without_pack_byte_identical',
+    offline_scan_path_verified: 'network_isolation_receipts_match',
+    all_findings_have_resolvable_evidence: 'all_finding_paths_cryptographically_resolved',
+    prohibited_public_claims_absent: 'prohibited_claim_scan_zero_matches',
+    untouched_blinding_preserved: 'pre_result_git_commit_precedes_execution',
+  };
   const document = unwrapBoundDocument(wrapper, `automatic no-go evidence ${checkId}`);
   if (document && typeof document === 'object') {
     rejectUnknownKeys(
       document,
-      ['schema_version', 'protocol_id', 'check_id', 'status', 'observed_at', 'evidence'],
+      ['schema_version', 'protocol_id', 'check_id', 'observed_at', 'detector_binding', 'artifacts'],
       `automatic no-go evidence ${checkId}`,
     );
-    for (const [index, item] of (Array.isArray(document.evidence) ? document.evidence : []).entries()) {
-      rejectUnknownKeys(item, ['kind', 'reference', 'sha256'], `automatic no-go evidence ${checkId} item ${index}`);
+    if (document.detector_binding && typeof document.detector_binding === 'object') {
+      rejectUnknownKeys(
+        document.detector_binding,
+        ['build_sha256', 'source_commit'],
+        `automatic no-go evidence ${checkId} detector binding`,
+      );
+    }
+    for (const [index, item] of (Array.isArray(document.artifacts) ? document.artifacts : []).entries()) {
+      rejectUnknownKeys(
+        item,
+        ['kind', 'name', 'media_type', 'encoding', 'content', 'sha256'],
+        `automatic no-go evidence ${checkId} artifact ${index}`,
+      );
     }
   }
   if (
     document?.schema_version !== '1.0.0' || document?.protocol_id !== 'cejel-llm-calibration-v1' ||
-    document?.check_id !== checkId || !['passed', 'failed'].includes(document.status) ||
+    document?.check_id !== checkId ||
     typeof document.observed_at !== 'string' || Number.isNaN(Date.parse(document.observed_at)) ||
-    !Array.isArray(document.evidence) || document.evidence.length < 1 ||
-    document.evidence.some((item) =>
+    document.detector_binding?.build_sha256 !== freeze.detector.build_sha256 ||
+    document.detector_binding?.source_commit !== freeze.detector.git_commit ||
+    !Array.isArray(document.artifacts) || document.artifacts.length < 1 ||
+    document.artifacts.some((item) =>
       !item || !['test_run', 'network_isolation_audit', 'derived_finding_path_audit',
         'claim_audit', 'chronology_audit'].includes(item.kind) ||
-      typeof item.reference !== 'string' || item.reference.length < 3 ||
-      !/^[a-f0-9]{64}$/.test(item.sha256 || '')
+      typeof item.name !== 'string' || item.name.length < 3 || item.media_type !== 'application/json' ||
+      item.encoding !== 'utf8' || typeof item.content !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(item.sha256 || '') ||
+      createHash('sha256').update(Buffer.from(item.content, 'utf8')).digest('hex') !== item.sha256
     )
   ) throw new Error(`automatic no-go evidence ${checkId} is invalid`);
-  if (requiredEvidenceKind && !document.evidence.some((item) => item.kind === requiredEvidenceKind)) {
+  const artifact = document.artifacts.find((item) => item.kind === requiredEvidenceKind);
+  if (!artifact) {
     throw new Error(`automatic no-go evidence ${checkId} requires ${requiredEvidenceKind} evidence`);
   }
-  const passed = document.status === 'passed';
+  let audit;
+  try {
+    audit = JSON.parse(artifact.content);
+  } catch {
+    throw new Error(`automatic no-go evidence ${checkId} artifact is not valid JSON`);
+  }
+  rejectUnknownKeys(
+    audit,
+    ['schema_version', 'protocol_id', 'check_id', 'detector_build_sha256',
+      'detector_source_commit', 'generated_at', 'passed', 'assertions'],
+    `automatic no-go evidence ${checkId} audit`,
+  );
+  if (!Array.isArray(audit.assertions) || audit.assertions.length < 1) {
+    throw new Error(`automatic no-go evidence ${checkId} audit lacks assertions`);
+  }
+  for (const [index, assertion] of audit.assertions.entries()) {
+    rejectUnknownKeys(assertion, ['name', 'passed', 'evidence_content', 'evidence_sha256'], `${checkId} assertion ${index}`);
+    if (
+      typeof assertion.name !== 'string' || assertion.name.length < 3 ||
+      typeof assertion.passed !== 'boolean' || typeof assertion.evidence_content !== 'string' ||
+      assertion.evidence_content.length < 2 || !/^[a-f0-9]{64}$/.test(assertion.evidence_sha256 || '') ||
+      createHash('sha256').update(Buffer.from(assertion.evidence_content, 'utf8')).digest('hex') !==
+        assertion.evidence_sha256
+    ) throw new Error(`automatic no-go evidence ${checkId} assertion ${index} is invalid`);
+  }
+  if (
+    audit.schema_version !== '1.0.0' || audit.protocol_id !== 'cejel-llm-calibration-v1' ||
+    audit.check_id !== checkId || audit.detector_build_sha256 !== freeze.detector.build_sha256 ||
+    audit.detector_source_commit !== freeze.detector.git_commit ||
+    typeof audit.generated_at !== 'string' || Number.isNaN(Date.parse(audit.generated_at)) ||
+    typeof audit.passed !== 'boolean' ||
+    audit.passed !== audit.assertions.every((assertion) => assertion.passed)
+  ) throw new Error(`automatic no-go evidence ${checkId} audit binding or result is invalid`);
+  if (!audit.assertions.some((assertion) => assertion.name === requiredAssertionNames[checkId])) {
+    throw new Error(`automatic no-go evidence ${checkId} lacks its required check-specific assertion`);
+  }
+  const passed = audit.passed;
   if (typeof derivedStatus === 'boolean' && passed !== derivedStatus) {
     throw new Error(`automatic no-go evidence ${checkId} contradicts derived evidence`);
   }
@@ -586,7 +835,7 @@ function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings)
   const checks = {};
   const bindings = {};
   for (const [checkId, rule] of Object.entries(rules)) {
-    const validated = validateAutomaticCheckRecord(records[checkId], checkId, rule.derived, rule.kind);
+    const validated = validateAutomaticCheckRecord(records[checkId], checkId, rule.derived, rule.kind, freeze);
     checks[checkId] = validated.passed;
     bindings[checkId] = validated.document_sha256;
   }
@@ -613,12 +862,30 @@ export function deriveCountsFromEvidence(input) {
     }
   }
 
+  const { index: sourceEvidenceIndex, files: sourceFiles } = validateSourceEvidenceIndexBinding(
+    evidence.source_evidence_index,
+    golden,
+    untouched,
+    repositories,
+  );
+
   const { manifest: opportunityManifest, opportunities, blindLabelBindings } = validateOpportunityManifestBinding(
     evidence.opportunity_manifest,
     golden,
     untouched,
     repositories,
+    sourceFiles,
   );
+  const preResultCommitment = validatePreResultCommitment(
+    unwrapBoundDocument(evidence.pre_result_commitment, 'pre-result commitment'),
+  );
+  if (
+    preResultCommitment.golden_manifest_sha256 !== golden.manifest_sha256 ||
+    preResultCommitment.untouched_manifest_sha256 !== untouched.manifest_sha256 ||
+    preResultCommitment.opportunity_manifest_sha256 !== opportunityManifest.manifest_sha256 ||
+    canonicalize(preResultCommitment.blind_label_bindings) !==
+      canonicalize(opportunityManifest.blind_label_bindings)
+  ) throw new Error('pre-result commitment does not match frozen manifests and blind labels');
 
   if (!Array.isArray(evidence.execution_receipts) || !Array.isArray(evidence.llm_reports)) {
     throw new Error('execution_receipts and llm_reports evidence arrays are required');
@@ -641,6 +908,12 @@ export function deriveCountsFromEvidence(input) {
     if (receipt.cohort === 'untouched' && receipt.detector_freeze_sha256 !== freeze.record_sha256) {
       throw new Error(`untouched execution receipt is not bound to detector freeze: ${key}`);
     }
+    if (
+      receipt.pre_result_commitment?.canonical_sha256 !== evidence.pre_result_commitment.document_sha256 ||
+      !/^[a-f0-9]{40}$/.test(receipt.pre_result_commitment?.git_commit || '') ||
+      typeof receipt.pre_result_commitment?.git_path !== 'string' ||
+      Date.parse(preResultCommitment.created_at) >= Date.parse(receipt.completed_at)
+    ) throw new Error(`execution receipt lacks a valid pre-result Git commitment: ${key}`);
     receipts.set(key, receipt);
   }
   if (receipts.size !== repositories.size) throw new Error('execution receipts do not cover every frozen repository');
@@ -664,6 +937,12 @@ export function deriveCountsFromEvidence(input) {
     if (!Array.isArray(report?.result?.findings) || !Array.isArray(report?.result?.ruleResults)) {
       throw new Error(`LLM report is structurally incomplete: ${key}`);
     }
+    if (report.result.findings.some((finding) =>
+      !ENABLED_RULE_IDS.includes(finding?.ruleId) || typeof finding?.severity !== 'string' ||
+      typeof finding?.confidence !== 'string' || typeof finding?.summary !== 'string' ||
+      !isRepositoryRelativePath(finding?.evidence?.path) ||
+      !Number.isInteger(finding?.evidence?.line) || finding.evidence.line < 1
+    )) throw new Error(`LLM report contains an invalid finding: ${key}`);
     const reportRuleStates = report.result.ruleResults.map((result) => ({
       rule_id: result?.ruleId,
       state: result?.state,
@@ -671,17 +950,23 @@ export function deriveCountsFromEvidence(input) {
     if (
       reportRuleStates.length !== ENABLED_RULE_IDS.length ||
       new Set(reportRuleStates.map((entry) => entry.rule_id)).size !== ENABLED_RULE_IDS.length ||
-      reportRuleStates.some((entry) => !ENABLED_RULE_IDS.includes(entry.rule_id) ||
-        !['finding', 'no_finding', 'not_applicable', 'insufficient_data'].includes(entry.state)) ||
+      report.result.ruleResults.some((result) =>
+        !ENABLED_RULE_IDS.includes(result?.ruleId) ||
+        !['finding', 'verified_control', 'not_applicable', 'insufficient_data'].includes(result?.state) ||
+        !Array.isArray(result?.findings)
+      ) ||
       canonicalize([...reportRuleStates].sort((left, right) => left.rule_id.localeCompare(right.rule_id))) !==
         canonicalize([...receipt.rule_states].sort((left, right) => left.rule_id.localeCompare(right.rule_id)))
     ) throw new Error(`LLM report rule states do not match the receipt and frozen catalogue: ${key}`);
-    if (report.result.findings.some((finding) =>
-      !ENABLED_RULE_IDS.includes(finding?.ruleId) || typeof finding?.severity !== 'string' ||
-      typeof finding?.confidence !== 'string' || typeof finding?.summary !== 'string' ||
-      !isRepositoryRelativePath(finding?.evidence?.path) ||
-      !Number.isInteger(finding?.evidence?.line) || finding.evidence.line < 1
-    )) throw new Error(`LLM report contains an invalid finding: ${key}`);
+    for (const result of report.result.ruleResults) {
+      const topLevelFindings = report.result.findings.filter((finding) => finding.ruleId === result.ruleId);
+      const canonicalFindingSet = (items) => items.map((finding) => sha256Canonical(finding)).sort();
+      if (
+        (result.state === 'finding') !== (topLevelFindings.length > 0) ||
+        canonicalize(canonicalFindingSet(result.findings)) !==
+          canonicalize(canonicalFindingSet(topLevelFindings))
+      ) throw new Error(`LLM report rule state and findings are inconsistent: ${key}:${result.ruleId}`);
+    }
     const findingIds = report.result.findings.map((finding, findingIndex) =>
       `llm-finding-${sha256Canonical({ repository_id: wrapper.repository_id, index: findingIndex, finding })}`
     );
@@ -722,6 +1007,12 @@ export function deriveCountsFromEvidence(input) {
     if (!expected || label.repository.commit_sha !== expected.repository.commit_sha) {
       throw new Error(`label record is not bound to a frozen repository: ${label.label_id}`);
     }
+    if (label.review.role === 'finding_reviewer') {
+      const receipt = receipts.get(repoKey);
+      if (!receipt || Date.parse(label.created_at) <= Date.parse(receipt.completed_at)) {
+        throw new Error(`finding-review record must postdate its matching execution receipt: ${label.label_id}`);
+      }
+    }
     const predefined = opportunities.get(label.opportunity_id);
     if (predefined) {
       if (
@@ -729,12 +1020,7 @@ export function deriveCountsFromEvidence(input) {
         predefined.commit_sha !== label.repository.commit_sha || predefined.rule_id !== label.rule.rule_id
       ) throw new Error(`label does not match its predefined opportunity: ${label.label_id}`);
       const evidenceMatchesInventory = label.evidence.some((item) =>
-        item.kind === predefined.evidence_scope.kind &&
-        item.path_or_reference === predefined.evidence_scope.path_or_reference &&
-        item.sha256 === predefined.evidence_scope.sha256 &&
-        (predefined.evidence_scope.start_line === undefined ||
-          (item.start_line === predefined.evidence_scope.start_line &&
-            item.end_line === predefined.evidence_scope.end_line))
+        evidenceItemExactlyMatchesScope(item, predefined.evidence_scope)
       );
       if (!evidenceMatchesInventory) {
         throw new Error(`label evidence does not match its frozen opportunity scope: ${label.label_id}`);
@@ -749,6 +1035,9 @@ export function deriveCountsFromEvidence(input) {
         finding.cohort !== label.cohort || finding.repository_id !== label.repository.repository_id ||
         finding.ruleId !== label.rule.rule_id
       ) throw new Error(`label finding binding does not match repository, cohort, and rule: ${label.label_id}`);
+      if (!findingEvidenceMatchesOpportunity(finding, predefined)) {
+        throw new Error(`detector finding evidence does not overlap its frozen opportunity: ${label.label_id}`);
+      }
     }
     const key = `${repoKey}:${label.rule.rule_id}:${label.opportunity_id}`;
     const group = labelsByOpportunity.get(key) || [];
@@ -918,6 +1207,7 @@ export function deriveCountsFromEvidence(input) {
     bindings: {
       golden_manifest_sha256: golden.manifest_sha256,
       untouched_manifest_sha256: untouched.manifest_sha256,
+      source_evidence_index_sha256: sourceEvidenceIndex.index_sha256,
       opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
       detector_freeze_sha256: freeze.record_sha256,
       execution_receipts: receipts.size,

@@ -11,7 +11,9 @@
   "evidence": {
     "golden_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "untouched_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+    "source_evidence_index": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "opportunity_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+    "pre_result_commitment": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "detector_freeze": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
     "execution_receipts": [],
     "llm_reports": [],

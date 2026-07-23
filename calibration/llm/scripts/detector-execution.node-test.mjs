@@ -21,6 +21,7 @@ import {
   runFrozenRepository,
   validateImmutableManifest,
 } from './run-frozen-cohort.mjs';
+import { validatePreResultCommitment, verifyGitCommittedPreResult } from './pre-result-commitment.mjs';
 
 const BUILD_SHA = 'b'.repeat(64);
 const COMMIT_SHA = 'c'.repeat(40);
@@ -36,6 +37,7 @@ function ledger(goldenManifestSha256 = immutableManifest('golden').manifest_sha2
     status: 'frozen',
     detector_build_sha256: BUILD_SHA,
     golden_manifest_sha256: goldenManifestSha256,
+    golden_opportunity_manifest_sha256: '2'.repeat(64),
     frozen_at: '2026-07-22T20:00:00Z',
     frozen_before_untouched: true,
     reviewed_by: ['Alice Example', 'Bob Example'],
@@ -164,7 +166,7 @@ test('golden correction ledger must match the exact detector build and have no o
   const execution = goldenExecutionEvidence();
   const closedEntry = {
     correction_id: 'llm-correction-example-0001', status: 'resolved',
-    finding_id: execution.findingId, rule_id: 'LLM-IOH-001',
+    finding_id: execution.findingId, opportunity_id: null, rule_id: 'LLM-IOH-001',
     repository_id: 'owner/repository', commit_sha: COMMIT_SHA,
     original_outcome: 'detector_finding', final_outcome: 'false_positive',
     rationale: 'The source evidence proves this finding was incorrect.',
@@ -190,6 +192,36 @@ test('detector freeze validates the actual golden manifest and every repository-
   assert.equal(validateFrozenGoldenManifest(golden), golden);
   const tampered = { ...golden, repositories: [{ ...golden.repositories[0], commit_sha: 'f'.repeat(40) }] };
   assert.throws(() => validateFrozenGoldenManifest(tampered), /valid frozen golden manifest|repository entry/);
+});
+
+test('pre-result commitment is verified against exact Git blob bytes before execution', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-commitment-test-'));
+  const path = join(root, 'commitment.json');
+  const document = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen_pre_result',
+    created_at: '2026-07-22T18:00:00Z', detector_results_seen_before_commitment: false,
+    golden_manifest_sha256: immutableManifest('golden').manifest_sha256,
+    untouched_manifest_sha256: immutableManifest('untouched').manifest_sha256,
+    opportunity_manifest_sha256: '6'.repeat(64),
+    blind_label_bindings: [
+      { label_id: 'llm-label-example-0001', document_sha256: '7'.repeat(64), role: 'primary_labeler' },
+      { label_id: 'llm-label-example-0002', document_sha256: '8'.repeat(64), role: 'independent_reviewer' },
+    ],
+  };
+  const bytes = `${JSON.stringify(document)}\n`;
+  writeFileSync(path, bytes, 'utf8');
+  assert.equal(validatePreResultCommitment(document), document);
+  const verified = await verifyGitCommittedPreResult({
+    documentPath: path, gitRepo: root, gitCommit: '9'.repeat(40),
+    gitPath: 'calibration/llm/pre-result-commitment.json',
+    manifestSha256: immutableManifest('golden').manifest_sha256,
+  }, async () => bytes);
+  assert.equal(verified.git_commit, '9'.repeat(40));
+  await assert.rejects(() => verifyGitCommittedPreResult({
+    documentPath: path, gitRepo: root, gitCommit: '9'.repeat(40),
+    gitPath: 'calibration/llm/pre-result-commitment.json',
+    manifestSha256: immutableManifest('golden').manifest_sha256,
+  }, async () => `${JSON.stringify(document)} `), /exact Git blob/);
 });
 
 test('untouched execution requires both a valid detector freeze and explicit post-freeze confirmation', () => {
@@ -278,6 +310,10 @@ test('repository runner checks out and verifies only manifest commit/tree before
     detectorBuildSha256: BUILD_SHA,
     detectorFreezeSha256: detectorFreeze().record_sha256,
     manifestSha256: immutableManifest().manifest_sha256,
+    preResultCommitment: {
+      document_sha256: '3'.repeat(64), canonical_sha256: '4'.repeat(64),
+      git_commit: '5'.repeat(40), git_path: 'calibration/llm/pre-result-commitment.json',
+    },
   }, commandRunner);
 
   assert.equal(result.receipt.commit_sha, COMMIT_SHA);

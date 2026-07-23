@@ -4,8 +4,8 @@
 - Protocol: `cejel-llm-calibration-v1`
 - Selection policy: `llm-selection-v1.1` (re-locked before detector results)
 - Superseded policy: `llm-selection-v1`
-- Golden candidate SHA-256: `9ded2ffcf9bb51c4f724c98148516b5db86f734d9f603f03deebd1db54a24800`
-- Untouched candidate SHA-256: `51bde909ee76df88c32575fc1f4cd087e20a93144eb95449b9ae40ce8ca2347b`
+- Golden candidate byte SHA-256: `4612d3f2330ae0ba8a4416adf5723fdb69c00e4fefca703ef6b93afbec7c5014`
+- Untouched candidate byte SHA-256: `1d27ab86c85980e8ee516c672dc37934ee1df9b13842200ad20f2f28d826eeb3`
 - Detector results seen before review: `no`
 
 ## Independent review records

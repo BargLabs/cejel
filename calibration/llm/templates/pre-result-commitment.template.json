@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "frozen_pre_result",
+  "created_at": "2026-07-23T00:00:00Z",
+  "detector_results_seen_before_commitment": false,
+  "golden_manifest_sha256": "replace-with-golden-manifest-sha256",
+  "untouched_manifest_sha256": "replace-with-untouched-manifest-sha256",
+  "opportunity_manifest_sha256": "replace-with-opportunity-manifest-sha256",
+  "blind_label_bindings": [
+    {"label_id": "llm-label-example-0001", "document_sha256": "replace", "role": "primary_labeler"},
+    {"label_id": "llm-label-example-0002", "document_sha256": "replace", "role": "independent_reviewer"}
+  ]
+}

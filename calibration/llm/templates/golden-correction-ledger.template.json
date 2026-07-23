@@ -4,9 +4,10 @@
   "status": "template_not_frozen",
   "detector_build_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "golden_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "golden_opportunity_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "frozen_at": "2026-07-22T00:00:00Z",
   "frozen_before_untouched": true,
-  "reviewed_by": ["first-human-reviewer", "second-human-reviewer"],
+  "reviewed_by": ["first-independent-reviewer", "second-independent-reviewer"],
   "open_corrections": 0,
   "entries": []
 }

@@ -4,13 +4,14 @@
   "title": "Cejel Free LLM golden correction ledger",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "status", "detector_build_sha256", "golden_manifest_sha256", "frozen_at", "frozen_before_untouched", "reviewed_by", "open_corrections", "entries"],
+  "required": ["schema_version", "protocol_id", "status", "detector_build_sha256", "golden_manifest_sha256", "golden_opportunity_manifest_sha256", "frozen_at", "frozen_before_untouched", "reviewed_by", "open_corrections", "entries"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
     "status": {"const": "frozen"},
     "detector_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "golden_opportunity_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "frozen_at": {"type": "string", "format": "date-time"},
     "frozen_before_untouched": {"const": true},
     "reviewed_by": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 3}},
@@ -20,11 +21,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["correction_id", "status", "finding_id", "rule_id", "repository_id", "commit_sha", "original_outcome", "final_outcome", "rationale", "evidence", "resolved_at"],
+        "required": ["correction_id", "status", "finding_id", "opportunity_id", "rule_id", "repository_id", "commit_sha", "original_outcome", "final_outcome", "rationale", "evidence", "resolved_at"],
         "properties": {
           "correction_id": {"type": "string", "pattern": "^llm-correction-[a-z0-9-]{8,80}$"},
           "status": {"enum": ["resolved", "accepted_no_change"]},
-          "finding_id": {"type": "string", "pattern": "^llm-finding-[a-f0-9]{64}$"},
+          "finding_id": {"type": ["string", "null"], "pattern": "^llm-finding-[a-f0-9]{64}$"},
+          "opportunity_id": {"type": ["string", "null"], "minLength": 3},
           "rule_id": {"enum": ["LLM-IOH-001", "LLM-VAL-001", "LLM-AGY-001", "LLM-AGY-002", "LLM-DAT-001", "LLM-PRV-001", "LLM-EVL-001", "LLM-EVL-002"]},
           "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
           "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
@@ -33,7 +35,12 @@
           "rationale": {"type": "string", "minLength": 20},
           "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["reference", "sha256"], "properties": {"reference": {"type": "string", "minLength": 3}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}},
           "resolved_at": {"type": "string", "format": "date-time"}
-        }
+        },
+        "allOf": [{
+          "if": {"properties": {"original_outcome": {"const": "missed_defect"}}, "required": ["original_outcome"]},
+          "then": {"properties": {"finding_id": {"type": "null"}, "opportunity_id": {"type": "string", "minLength": 3}}},
+          "else": {"properties": {"finding_id": {"type": "string", "pattern": "^llm-finding-[a-f0-9]{64}$"}, "opportunity_id": {"type": "null"}}}
+        }]
       }
     }
   }

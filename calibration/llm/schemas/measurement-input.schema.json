@@ -23,11 +23,13 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["golden_manifest", "untouched_manifest", "opportunity_manifest", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
+      "required": ["golden_manifest", "untouched_manifest", "source_evidence_index", "opportunity_manifest", "pre_result_commitment", "detector_freeze", "execution_receipts", "llm_reports", "label_records"],
       "properties": {
         "golden_manifest": {"$ref": "#/$defs/bound_document"},
         "untouched_manifest": {"$ref": "#/$defs/bound_document"},
+        "source_evidence_index": {"$ref": "#/$defs/bound_document"},
         "opportunity_manifest": {"$ref": "#/$defs/bound_document"},
+        "pre_result_commitment": {"$ref": "#/$defs/bound_document"},
         "detector_freeze": {"$ref": "#/$defs/bound_document"},
         "execution_receipts": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/bound_document"}},
         "llm_reports": {

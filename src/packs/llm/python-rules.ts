@@ -14,6 +14,7 @@ const PYTHON_MODEL_OUTPUT_PATTERN =
   /(?:\.output_text\b|\.choices\s*\[[^\]]+\]\s*\.message\.content\b|\.content\s*\[[^\]]+\]\s*\.text\b)/;
 const PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN =
   /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
+const PYTHON_ASSIGNMENT_PATTERN = /^\s*(.+?)\s*=\s*(?!=)(.+)$/;
 const PYTHON_SENSITIVE_ENV_PATTERN =
   /(?:os\.environ\s*\[\s*['"]([A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|PRIVATE_KEY|DATABASE_URL|ACCESS_TOKEN|REFRESH_TOKEN|AUTH_TOKEN|SESSION_TOKEN)[A-Z0-9_]*)['"]\s*\]|os\.getenv\(\s*['"]([A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|PRIVATE_KEY|DATABASE_URL|ACCESS_TOKEN|REFRESH_TOKEN|AUTH_TOKEN|SESSION_TOKEN)[A-Z0-9_]*)['"])/;
 
@@ -100,10 +101,16 @@ export function supportedPythonModelCallIndices(contents: string): ReadonlySet<n
           indices.add(offset + statementOffset + match.index);
         }
       }
-      const assignment = statement.match(PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN);
-      const identifier = assignment?.[1];
+      const assignment = statement.match(PYTHON_ASSIGNMENT_PATTERN);
+      const target = assignment?.[1]?.trim() ?? '';
       const expression = assignment?.[2]?.trim() ?? '';
-      if (identifier) {
+      const identifiers = target
+        .replace(/^\(|\)$/g, '')
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part): part is string => /^[A-Za-z_][A-Za-z0-9_]*$/.test(part));
+      const singleIdentifier = identifiers.length === 1 ? identifiers[0] : undefined;
+      if (singleIdentifier && /^[A-Za-z_][A-Za-z0-9_]*$/.test(target)) {
         const constructor = [...imports.constructors].some((name) =>
           visibleBinding(name) === 'constructor' && new RegExp(`^${name}\\s*\\(`).test(expression),
         );
@@ -112,9 +119,13 @@ export function supportedPythonModelCallIndices(contents: string): ReadonlySet<n
             new RegExp(`^${name}\\.(?:OpenAI|Anthropic)\\s*\\(`).test(expression),
         );
         scopes.at(-1)?.bindings.set(
-          identifier,
+          singleIdentifier,
           constructor || moduleConstructor ? 'client' : 'other',
         );
+      } else {
+        for (const identifier of identifiers) {
+          scopes.at(-1)?.bindings.set(identifier, 'other');
+        }
       }
       statementOffset += statement.length + 1;
     }

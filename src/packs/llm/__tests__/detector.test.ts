@@ -183,6 +183,31 @@ describe('Free LLM Pack alpha', () => {
         'await client.responses.create({ input: process.env.DATABASE_URL });',
       ],
     ],
+    [
+      'OpenAI client array-destructuring reassignment',
+      [
+        "import OpenAI from 'openai';",
+        'let client = new OpenAI(); [client] = [mailbox];',
+        'await client.responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
+    [
+      'OpenAI client object-destructuring reassignment inside control flow',
+      [
+        "import OpenAI from 'openai';",
+        'let client = new OpenAI();',
+        'if (useMailbox) { ({ replacement: client } = mailbox); }',
+        'await client.responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
+    [
+      'OpenAI constructor destructuring reassignment',
+      [
+        "import OpenAI from 'openai';",
+        '[OpenAI] = [FakeClient];',
+        'await new OpenAI().responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
   ])('does not retain JavaScript SDK provenance after %s', (_name, lines) => {
     const result = scan(lines.join('\n'));
 
@@ -193,8 +218,8 @@ describe('Free LLM Pack alpha', () => {
   it('allows an ordinary assignment to establish genuine JavaScript SDK provenance', () => {
     const result = scan([
       "import OpenAI from 'openai';",
-      'let client = mailbox;',
-      'client = new OpenAI();',
+      'let client = mailbox; [client] = [mailbox];',
+      'if (restoreSdk) { client = new OpenAI(); }',
       'await client.responses.create({ input: process.env.DATABASE_URL });',
     ].join('\n'));
 

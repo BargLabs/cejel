@@ -1,7 +1,9 @@
 {
   "golden_manifest": "../cohorts/golden-manifest.json",
   "untouched_manifest": "../cohorts/untouched-manifest.json",
+  "source_evidence_index": "../source-evidence-index.json",
   "opportunity_manifest": "../opportunity-manifest.json",
+  "pre_result_commitment": "../pre-result-commitment.json",
   "detector_freeze": "../detector-freeze.json",
   "execution_receipts": ["/replace/with/every/calibration-execution.json"],
   "llm_reports": [

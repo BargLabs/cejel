@@ -7,8 +7,14 @@ select repositories, alter manifests, adjudicate findings, or tune rules.
 ## Required order
 
 1. Freeze and independently review both immutable cohort manifests with `freeze-cohorts.mjs`.
-2. Freeze the complete golden and untouched opportunity inventory, bound to both cohort-manifest
-   digests, before producing any detector output.
+2. Create and freeze the internal source-evidence index for every source span. The index must bind
+   whole-file bytes to the exact commit/root tree in the cohort manifests through Git tree-object
+   and blob proofs. Then freeze the complete golden and untouched opportunity inventory, bound to
+   both cohort-manifest digests and the verified source-file SHA-256 values, before producing any
+   detector output. Write `pre-result-commitment.json` from
+   `templates/pre-result-commitment.template.json`, commit that exact file to Git, and record the
+   immutable commit and repository-relative path. The runner verifies the committed blob bytes and
+   refuses either cohort without this commitment.
 3. Build Cejel from a clean, committed detector revision.
 4. Run the golden manifest with `run-frozen-cohort.mjs`, using an operating-system or container
    wrapper that prevents egress from the detector process.
@@ -53,6 +59,10 @@ node calibration/llm/scripts/run-frozen-cohort.mjs \
   --network-isolation-mode verified-no-egress-wrapper \
   --network-isolation-command /absolute/path/to/no-egress-wrapper \
   --network-isolation-arg=-- \
+  --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
+  --commitment-git-repo /absolute/path/to/cejel \
+  --commitment-git-commit <full-40-character-commit> \
+  --commitment-git-path calibration/llm/pre-result-commitment.json \
   --confirm-network-isolation
 ```
 
@@ -72,8 +82,10 @@ scan subprocess uses the selection policy's 30-minute wall-clock ceiling.
 
 Each receipt binds the cohort manifest SHA-256, detector build and (for untouched runs) detector-
 freeze SHA-256, exact commit/tree, canonical and byte-level LLM-report digests, deterministic
-finding IDs, and per-rule states. The measurement gate verifies these receipts against the embedded
-reports and final label/adjudication records before deriving any count.
+finding IDs, per-rule states, and the exact Git-committed pre-result record. The measurement gate verifies these receipts against the embedded
+reports, the manifest-rooted source evidence, and final label/adjudication records before deriving
+any count. A finding-review binding is accepted only when the finding path and line overlap the
+assigned frozen source span; non-source references use exact reference matching.
 
 ## Golden correction ledger
 
@@ -84,13 +96,16 @@ Start from `templates/golden-correction-ledger.template.json`. Before changing i
 - the frozen golden manifest SHA-256;
 - the UTC freeze time;
 - exactly two distinct reviewers;
-- every correction outcome; and
+- every correction outcome, using a finding binding for detector outcomes or a frozen opportunity
+  binding for a missed defect; and
 - `open_corrections: 0`.
 
 The detector-freeze script rejects a template, an open ledger, a ledger for another executable, or
 a ledger without two reviewers. It requires the actual frozen golden manifest and rejects a ledger
-whose `golden_manifest_sha256` does not match it. Every correction entry binds a finding, rule,
-repository commit, final outcome, rationale, evidence digest, and resolution timestamp.
+whose `golden_manifest_sha256` does not match it. Detector-result corrections bind an actual
+finding; missed defects carry a null finding ID and bind an actual frozen golden opportunity.
+Every entry also binds its rule, repository commit, final outcome, rationale, evidence digest, and
+resolution timestamp.
 The required golden execution index follows `schemas/golden-execution-evidence.schema.json`; it
 contains content-addressed receipts and LLM reports for every frozen golden repository. Each ledger
 entry must include `llm-report:<finding-id>` evidence whose digest is the canonical finding digest.
@@ -106,7 +121,13 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --cejel /absolute/path/to/local/built/cejel \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
   --golden-manifest calibration/llm/cohorts/golden-manifest.json \
+  --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
+  --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
+  --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
+  --commitment-git-repo /absolute/path/to/cejel \
+  --commitment-git-commit <full-40-character-commit> \
+  --commitment-git-path calibration/llm/pre-result-commitment.json \
   --network-isolation-mode verified-no-egress-wrapper \
   --network-isolation-command /absolute/path/to/no-egress-wrapper \
   --network-isolation-arg=-- \

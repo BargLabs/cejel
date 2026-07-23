@@ -18,8 +18,10 @@ import {
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
   validateGoldenExecutionEvidence,
+  validateGoldenOpportunityEvidence,
   validateGoldenCorrectionLedger,
 } from './freeze-detector.mjs';
+import { verifyGitCommittedPreResult } from './pre-result-commitment.mjs';
 
 const execFile = promisify(execFileCallback);
 
@@ -132,13 +134,14 @@ function repositoryDirectoryName(repositoryId) {
 }
 
 async function defaultRunner(command, args, options = {}) {
+  const { preserveOutput = false, ...execOptions } = options;
   const { stdout } = await execFile(command, args, {
     encoding: 'utf8',
     maxBuffer: 20 * 1024 * 1024,
     timeout: 30 * 60_000,
-    ...options,
+    ...execOptions,
   });
-  return stdout.trim();
+  return preserveOutput ? stdout : stdout.trim();
 }
 
 export async function runFrozenRepository(input, commandRunner = defaultRunner) {
@@ -207,6 +210,12 @@ export async function runFrozenRepository(input, commandRunner = defaultRunner) 
     llm_report_canonical_sha256: sha256Bytes(Buffer.from(canonicalize(llmReport), 'utf8')),
     finding_ids: findingIds,
     rule_states: ruleResults.map((result) => ({ rule_id: result.ruleId, state: result.state })),
+    pre_result_commitment: {
+      document_sha256: input.preResultCommitment.document_sha256,
+      canonical_sha256: input.preResultCommitment.canonical_sha256,
+      git_commit: input.preResultCommitment.git_commit,
+      git_path: input.preResultCommitment.git_path,
+    },
   };
   writeFileSync(join(output, 'calibration-execution.json'), `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
   return { source, output, receipt };
@@ -238,6 +247,11 @@ function parseArgs(argv) {
       case '--golden-correction-ledger': options.ledger = take(); break;
       case '--golden-manifest': options.goldenManifest = take(); break;
       case '--golden-execution-evidence': options.goldenExecutionEvidence = take(); break;
+      case '--opportunity-manifest': options.opportunityManifest = take(); break;
+      case '--pre-result-commitment': options.preResultCommitment = take(); break;
+      case '--commitment-git-repo': options.commitmentGitRepo = take(); break;
+      case '--commitment-git-commit': options.commitmentGitCommit = take(); break;
+      case '--commitment-git-path': options.commitmentGitPath = take(); break;
       case '--cejel': options.cejel = take(); break;
       case '--work-root': options.workRoot = take(); break;
       case '--output-root': options.outputRoot = take(); break;
@@ -258,8 +272,11 @@ function usage() {
   node calibration/llm/scripts/run-frozen-cohort.mjs \\
     --manifest <frozen-manifest.json> --cejel <local-built-cejel> \\
     --work-root <checkout-root> --output-root <separate-output-root> \\
+    --pre-result-commitment <commitment.json> --commitment-git-repo <repo> \\
+    --commitment-git-commit <full-sha> --commitment-git-path <repository-relative-path> \\
     [--detector-freeze <record.json> --golden-correction-ledger <ledger.json> \\
-     --golden-manifest <golden-manifest.json> --golden-execution-evidence <evidence.json>] \\
+     --golden-manifest <golden-manifest.json> --golden-execution-evidence <evidence.json> \\
+     --opportunity-manifest <opportunities.json>] \\
     [--confirm-untouched-after-freeze]
 
 Golden runs may supply an explicitly confirmed isolation command directly. Untouched runs must use
@@ -304,8 +321,8 @@ export async function main(argv, commandRunner = defaultRunner) {
     if (freezeRecord.detector.build_sha256 !== detectorBuildSha256) {
       throw new Error('local Cejel build SHA-256 does not match detector-freeze record');
     }
-    if (!options.ledger || !options.goldenManifest || !options.goldenExecutionEvidence) {
-      throw new Error('--golden-correction-ledger, --golden-manifest, and --golden-execution-evidence are required with --detector-freeze');
+    if (!options.ledger || !options.goldenManifest || !options.goldenExecutionEvidence || !options.opportunityManifest) {
+      throw new Error('--golden-correction-ledger, --golden-manifest, --golden-execution-evidence, and --opportunity-manifest are required with --detector-freeze');
     }
     const ledgerBytes = readFileSync(resolve(options.ledger));
     if (sha256Bytes(ledgerBytes) !== freezeRecord.golden_correction_ledger.sha256) {
@@ -323,11 +340,19 @@ export async function main(argv, commandRunner = defaultRunner) {
       goldenManifest,
       detectorBuildSha256,
     );
+    const opportunityEvidence = validateGoldenOpportunityEvidence(
+      JSON.parse(readFileSync(resolve(options.opportunityManifest), 'utf8')),
+      goldenManifest,
+    );
+    if (opportunityEvidence.manifest.manifest_sha256 !== freezeRecord.golden_correction_ledger.golden_opportunity_manifest_sha256) {
+      throw new Error('opportunity manifest does not match detector-freeze record');
+    }
     validateGoldenCorrectionLedger(
       JSON.parse(ledgerBytes.toString('utf8')),
       detectorBuildSha256,
       goldenManifest.manifest_sha256,
       executionEvidence,
+      opportunityEvidence,
     );
     isolationPrefix = freezeRecord.execution.network_isolation.argv_prefix;
     isolationMode = freezeRecord.execution.network_isolation.mode;
@@ -347,6 +372,21 @@ export async function main(argv, commandRunner = defaultRunner) {
     freezeRecord,
     options.confirmUntouchedAfterFreeze,
   );
+  for (const [flag, value] of [
+    ['--pre-result-commitment', options.preResultCommitment],
+    ['--commitment-git-repo', options.commitmentGitRepo],
+    ['--commitment-git-commit', options.commitmentGitCommit],
+    ['--commitment-git-path', options.commitmentGitPath],
+  ]) {
+    if (!value) throw new Error(`${flag} is required before cohort execution`);
+  }
+  const preResultCommitment = await verifyGitCommittedPreResult({
+    documentPath: options.preResultCommitment,
+    gitRepo: options.commitmentGitRepo,
+    gitCommit: options.commitmentGitCommit,
+    gitPath: options.commitmentGitPath,
+    manifestSha256: manifest.manifest_sha256,
+  }, commandRunner);
   if (!isolationPrefix) throw new Error('no network-isolation execution prefix is available');
   mkdirSync(roots.work, { recursive: true });
   mkdirSync(roots.output, { recursive: true });
@@ -364,6 +404,7 @@ export async function main(argv, commandRunner = defaultRunner) {
       detectorBuildSha256,
       detectorFreezeSha256: freezeRecord?.record_sha256,
       manifestSha256: manifest.manifest_sha256,
+      preResultCommitment,
     }, commandRunner));
   }
   console.log(JSON.stringify({

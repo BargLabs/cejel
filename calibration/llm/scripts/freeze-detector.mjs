@@ -74,7 +74,7 @@ function validUtc(value) {
 
 const LEDGER_KEYS = [
   'schema_version', 'protocol_id', 'status', 'detector_build_sha256',
-  'golden_manifest_sha256', 'frozen_at', 'frozen_before_untouched',
+  'golden_manifest_sha256', 'golden_opportunity_manifest_sha256', 'frozen_at', 'frozen_before_untouched',
   'reviewed_by', 'open_corrections', 'entries',
 ];
 
@@ -83,6 +83,7 @@ export function validateGoldenCorrectionLedger(
   expectedBuildSha256,
   expectedGoldenManifestSha256,
   goldenExecutionEvidence,
+  goldenOpportunityEvidence,
 ) {
   if (
     document?.schema_version !== '1.0.0' ||
@@ -104,6 +105,11 @@ export function validateGoldenCorrectionLedger(
   if (expectedGoldenManifestSha256 && document.golden_manifest_sha256 !== expectedGoldenManifestSha256) {
     throw new Error('golden correction ledger is not bound to the supplied golden manifest');
   }
+  if (
+    !/^[a-f0-9]{64}$/.test(document.golden_opportunity_manifest_sha256 || '') ||
+    (goldenOpportunityEvidence &&
+      document.golden_opportunity_manifest_sha256 !== goldenOpportunityEvidence.manifest.manifest_sha256)
+  ) throw new Error('golden correction ledger is not bound to the frozen opportunity manifest');
   if (!validUtc(document.frozen_at)) {
     throw new Error('golden correction ledger frozen_at must be a UTC ISO-8601 timestamp');
   }
@@ -120,7 +126,7 @@ export function validateGoldenCorrectionLedger(
   for (const [index, entry] of document.entries.entries()) {
     const scope = `golden correction ledger entry ${index}`;
     const allowed = [
-      'correction_id', 'status', 'finding_id', 'rule_id', 'repository_id', 'commit_sha',
+      'correction_id', 'status', 'finding_id', 'opportunity_id', 'rule_id', 'repository_id', 'commit_sha',
       'original_outcome', 'final_outcome', 'rationale', 'evidence', 'resolved_at',
     ];
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`${scope} must be an object`);
@@ -130,7 +136,8 @@ export function validateGoldenCorrectionLedger(
     if (correctionIds.has(entry.correction_id)) throw new Error(`${scope} correction_id is duplicated`);
     correctionIds.add(entry.correction_id);
     if (!['resolved', 'accepted_no_change'].includes(entry.status)) throw new Error(`${scope} status is not closed`);
-    if (!/^llm-finding-[a-f0-9]{64}$/.test(entry.finding_id || '')) throw new Error(`${scope} finding_id is invalid`);
+    if (entry.finding_id !== null && !/^llm-finding-[a-f0-9]{64}$/.test(entry.finding_id || '')) throw new Error(`${scope} finding_id is invalid`);
+    if (entry.opportunity_id !== null && typeof entry.opportunity_id !== 'string') throw new Error(`${scope} opportunity_id is invalid`);
     if (!FROZEN_LLM_RULE_IDS.includes(entry.rule_id)) throw new Error(`${scope} rule_id is invalid`);
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(entry.repository_id || '')) throw new Error(`${scope} repository_id is invalid`);
     if (!/^[a-f0-9]{40}$/.test(entry.commit_sha || '')) throw new Error(`${scope} commit_sha is invalid`);
@@ -146,14 +153,33 @@ export function validateGoldenCorrectionLedger(
     if (!repository || repository.commit_sha !== entry.commit_sha) {
       throw new Error(`${scope} does not match the frozen golden repository and commit`);
     }
-    const finding = goldenExecutionEvidence.findings.get(entry.finding_id);
-    if (
-      !finding || finding.repository_id !== entry.repository_id ||
-      finding.finding.ruleId !== entry.rule_id
-    ) throw new Error(`${scope} does not match an actual golden report finding and rule`);
-    if (!entry.evidence.some((item) =>
-      item.reference === `llm-report:${entry.finding_id}` && item.sha256 === finding.finding_sha256
-    )) throw new Error(`${scope} is not bound to the actual golden report finding evidence`);
+    if (entry.original_outcome === 'missed_defect') {
+      if (!goldenOpportunityEvidence) throw new Error(`${scope} missed_defect requires golden opportunity evidence`);
+      if (entry.finding_id !== null || typeof entry.opportunity_id !== 'string') {
+        throw new Error(`${scope} missed_defect requires a null finding and frozen opportunity`);
+      }
+      const opportunity = goldenOpportunityEvidence.opportunities.get(entry.opportunity_id);
+      if (
+        !opportunity || opportunity.repository_id !== entry.repository_id ||
+        opportunity.commit_sha !== entry.commit_sha || opportunity.rule_id !== entry.rule_id
+      ) throw new Error(`${scope} does not match a frozen golden opportunity`);
+      const proofSha = sha256Canonical(opportunity.evidence_scope);
+      if (!entry.evidence.some((item) =>
+        item.reference === `opportunity:${entry.opportunity_id}` && item.sha256 === proofSha
+      )) throw new Error(`${scope} is not bound to the frozen opportunity source proof`);
+    } else {
+      if (entry.opportunity_id !== null || !entry.finding_id) {
+        throw new Error(`${scope} detector outcome requires a finding and null opportunity`);
+      }
+      const finding = goldenExecutionEvidence.findings.get(entry.finding_id);
+      if (
+        !finding || finding.repository_id !== entry.repository_id ||
+        finding.finding.ruleId !== entry.rule_id
+      ) throw new Error(`${scope} does not match an actual golden report finding and rule`);
+      if (!entry.evidence.some((item) =>
+        item.reference === `llm-report:${entry.finding_id}` && item.sha256 === finding.finding_sha256
+      )) throw new Error(`${scope} is not bound to the actual golden report finding evidence`);
+    }
   }
   if (document.open_corrections !== 0) {
     throw new Error('golden correction ledger must have zero open corrections');
@@ -176,6 +202,30 @@ export function validateFrozenGoldenManifest(manifest) {
     ) throw new Error('--golden-manifest contains an invalid immutable repository entry');
   }
   return manifest;
+}
+
+export function validateGoldenOpportunityEvidence(manifest, goldenManifest) {
+  const { manifest_sha256: _hash, attestation: _attestation, ...hashable } = manifest || {};
+  if (
+    manifest?.schema_version !== '1.0.0' || manifest?.protocol_id !== 'cejel-llm-calibration-v1' ||
+    manifest?.status !== 'frozen' || manifest?.frozen_before_detector_results !== true ||
+    manifest?.detector_results_seen_before_freeze !== false ||
+    manifest?.cohort_bindings?.golden_manifest_sha256 !== goldenManifest.manifest_sha256 ||
+    sha256Canonical(hashable) !== manifest.manifest_sha256 || !Array.isArray(manifest.opportunities)
+  ) throw new Error('golden opportunity manifest is invalid or not pre-result bound');
+  const opportunities = new Map();
+  for (const opportunity of manifest.opportunities.filter((item) => item.cohort === 'golden')) {
+    if (opportunities.has(opportunity.opportunity_id)) throw new Error('duplicate golden opportunity');
+    const repository = goldenManifest.repositories.find((item) => item.repository_id === opportunity.repository_id);
+    if (
+      !repository || repository.commit_sha !== opportunity.commit_sha ||
+      !FROZEN_LLM_RULE_IDS.includes(opportunity.rule_id) ||
+      !/^[a-f0-9]{64}$/.test(opportunity.evidence_scope?.sha256 || '')
+    ) throw new Error('golden opportunity does not match the frozen golden cohort');
+    opportunities.set(opportunity.opportunity_id, opportunity);
+  }
+  if (opportunities.size < 1) throw new Error('golden opportunity manifest contains no golden opportunities');
+  return { manifest, opportunities };
 }
 
 export function validateGoldenExecutionEvidence(document, goldenManifest, expectedBuildSha256) {
@@ -275,6 +325,7 @@ export function createDetectorFreezeRecord(input) {
     golden_correction_ledger: {
       sha256: input.ledgerSha256,
       golden_manifest_sha256: input.ledger.golden_manifest_sha256,
+      golden_opportunity_manifest_sha256: input.ledger.golden_opportunity_manifest_sha256,
       status: 'frozen',
       entries: input.ledger.entries.length,
       open_corrections: 0,
@@ -381,6 +432,7 @@ function parseArgs(argv) {
       case '--cejel': options.cejel = take(); break;
       case '--golden-correction-ledger': options.ledger = take(); break;
       case '--golden-manifest': options.goldenManifest = take(); break;
+      case '--opportunity-manifest': options.opportunityManifest = take(); break;
       case '--golden-execution-evidence': options.goldenExecutionEvidence = take(); break;
       case '--network-isolation-mode': options.isolationMode = take(); break;
       case '--network-isolation-command': options.isolationCommand = take(); break;
@@ -402,6 +454,7 @@ function usage() {
     --detector-repo . --cejel ./dist/index.js \\
     --golden-correction-ledger ./golden-corrections.json \\
     --golden-manifest calibration/llm/cohorts/golden-manifest.json \\
+    --opportunity-manifest ./opportunity-manifest.json \\
     --golden-execution-evidence ./golden-execution-evidence.json \\
     --network-isolation-mode sandbox-no-egress \\
     --network-isolation-command /path/to/isolation-wrapper \\
@@ -442,6 +495,7 @@ export async function main(argv, commandRunner = run) {
     ['--cejel', options.cejel],
     ['--golden-correction-ledger', options.ledger],
     ['--golden-manifest', options.goldenManifest],
+    ['--opportunity-manifest', options.opportunityManifest],
     ['--golden-execution-evidence', options.goldenExecutionEvidence],
     ['--network-isolation-mode', options.isolationMode],
     ['--network-isolation-command', options.isolationCommand],
@@ -461,6 +515,10 @@ export async function main(argv, commandRunner = run) {
   );
   const buildBytes = readFileSync(cejel);
   const buildSha256 = sha256Bytes(buildBytes);
+  const goldenOpportunityEvidence = validateGoldenOpportunityEvidence(
+    JSON.parse(readFileSync(resolve(options.opportunityManifest), 'utf8')),
+    goldenManifest,
+  );
   const goldenExecutionEvidenceBytes = readFileSync(resolve(options.goldenExecutionEvidence));
   const goldenExecutionEvidence = validateGoldenExecutionEvidence(
     JSON.parse(goldenExecutionEvidenceBytes.toString('utf8')),
@@ -478,6 +536,7 @@ export async function main(argv, commandRunner = run) {
     buildSha256,
     goldenManifest.manifest_sha256,
     goldenExecutionEvidence,
+    goldenOpportunityEvidence,
   );
   const record = createDetectorFreezeRecord({
     gitCommit,

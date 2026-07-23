@@ -16,7 +16,14 @@ function loadDocument(base, path) {
 }
 
 export function assembleMeasurementInput(specification, baseDirectory) {
-  const requiredPaths = ['golden_manifest', 'untouched_manifest', 'opportunity_manifest', 'detector_freeze'];
+  const requiredPaths = [
+    'golden_manifest',
+    'untouched_manifest',
+    'source_evidence_index',
+    'opportunity_manifest',
+    'pre_result_commitment',
+    'detector_freeze',
+  ];
   for (const key of requiredPaths) {
     if (typeof specification[key] !== 'string') throw new Error(`${key} path is required`);
   }
@@ -38,7 +45,9 @@ export function assembleMeasurementInput(specification, baseDirectory) {
     evidence: {
       golden_manifest: loadDocument(baseDirectory, specification.golden_manifest),
       untouched_manifest: loadDocument(baseDirectory, specification.untouched_manifest),
+      source_evidence_index: loadDocument(baseDirectory, specification.source_evidence_index),
       opportunity_manifest: loadDocument(baseDirectory, specification.opportunity_manifest),
+      pre_result_commitment: loadDocument(baseDirectory, specification.pre_result_commitment),
       detector_freeze: loadDocument(baseDirectory, specification.detector_freeze),
       execution_receipts: specification.execution_receipts.map((path) => loadDocument(baseDirectory, path)),
       llm_reports: specification.llm_reports.map((entry) => ({

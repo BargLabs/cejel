@@ -72,11 +72,17 @@ Before any detector run:
    `manifest_sha256` and `attestation` omitted. Sign or otherwise witness that digest and put the
    resulting reference in `attestation`. These omissions avoid self-referential hashes.
 8. Before any detector output is generated, enumerate every golden and untouched defect/negative
-   opportunity in one inventory bound to both frozen cohort manifests. Freeze its canonical digest
-   using `schemas/opportunity-manifest.schema.json` and retain the attestation reference.
-9. Run `validate-calibration.mjs` and preserve its output with the release evidence.
+   opportunity. For every source span, first create an internal source-evidence entry containing
+   the whole-file bytes, their SHA-256, Git blob ID, and the raw Git tree-object chain that proves
+   the path from the repository root tree frozen in the cohort manifest. Freeze the complete index
+   using `schemas/source-evidence-index.schema.json`.
+9. Freeze the opportunity inventory bound to both cohort manifests. Its source-span digest must be
+   the verified whole-file digest in the source-evidence index. Freeze its canonical digest using
+   `schemas/opportunity-manifest.schema.json` and retain the attestation reference.
+10. Run `validate-calibration.mjs` and preserve its output with the release evidence.
 
-No repository source is copied into public calibration artifacts. Evidence pointers use paths,
+No repository source is copied into public calibration artifacts. The self-contained source index
+is retained with restricted internal measurement evidence; public evidence pointers use paths,
 line spans tied to the immutable commit, manifest keys, or stable external-result references.
 
 ## 6. Labeling
@@ -126,9 +132,11 @@ untouched cohort cannot be reused as untouched evidence for that new version.
 
 ## 8. Matching and denominators
 
-A detector finding matches a labeled defect only when repository SHA, rule ID, and the rule's
-declared evidence-overlap criterion match. One finding cannot satisfy two defects unless the rule
-catalogue explicitly permits a one-to-many relationship.
+A detector finding matches a labeled defect only when repository SHA and rule ID match and its
+evidence path and line fall inside the frozen source span. For non-source opportunities, the
+finding evidence reference must exactly equal the frozen manifest-key, configuration, or external-
+result reference (and fall inside its line range when one is declared). One finding cannot satisfy
+two defects unless the rule catalogue explicitly permits a one-to-many relationship.
 
 For eligible, adjudicated labels:
 
@@ -185,10 +193,12 @@ cases, findings require evidence and no general hallucination-rate claim is allo
 
 The gate does not accept manually entered confusion-matrix counts. `compute-metrics.mjs` derives
 release metrics only from the untouched cohort while validating the complete golden and untouched
-evidence chain: content-addressed frozen cohort and opportunity manifests, the detector-freeze
+evidence chain: content-addressed frozen cohort manifests, the manifest-rooted source-evidence
+index, the opportunity manifest, the detector-freeze
 record, per-repository execution receipts and LLM reports, and independent label/adjudication
 records. It rejects missing receipts, incomplete primary-label coverage, visible first-pass
-detector output, unreviewed finding IDs, hash mismatches, labels outside the frozen opportunity
+detector output, unreviewed finding IDs, source/blob/tree proof or line-bound mismatches, findings
+that do not overlap their assigned opportunity, labels outside the frozen opportunity
 inventory, and untouched receipts that are not bound to the frozen detector. A disagreement
 requires two `pending` originals and one distinct final adjudicator; an agreement or single label
 must remain `not_required`. Blind ground-truth records carry no detector finding ID; only the
@@ -199,6 +209,7 @@ kappa.
 
 Automatic NO-GO checks are evidence records, never bare booleans. Each record is canonically
 content-addressed. The gate derives and cross-checks network isolation, untouched-run chronology,
-and repository-relative finding paths from frozen records. Free-core parity requires a hashed
-`test_run`; prohibited-claim absence requires a hashed `claim_audit`. A missing, tampered, wrong-
-kind, or contradictory record prevents evaluation.
+and cryptographically resolved finding paths from frozen records. Free-core parity requires an
+embedded `test_run`; prohibited-claim absence requires an embedded `claim_audit`. Their exact JSON
+bytes, check-specific assertions, assertion evidence content, detector build, and source commit are
+verified. A missing, opaque, generic, tampered, wrong-kind, or contradictory record prevents evaluation.

@@ -10,12 +10,16 @@ used to tune rules. It contains no copied repository source and no private data.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
 - Candidate cohorts: `cohorts/golden-candidates.json` and
   `cohorts/untouched-candidates.json` are disjoint, pre-result candidate lists.
-- Metadata-only canonical renames and the single preregistered reserve substitution are recorded
-  in `cohorts/selection-amendments.json`; its record explicitly precedes detector execution.
+- Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
+  pre-result policy re-lock are recorded in `cohorts/selection-amendments.json`.
 - Immutable manifests: not frozen yet. Resolve every candidate to a full 40-character Git commit,
   record the source-tree hash, and create manifests from `templates/immutable-manifest.template.json`
   before the first detector run.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
+  create the internal source-evidence index from the exact blobs used by every `source_span` using
+  `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw
+  Git tree objects needed to prove `path -> blob` from the manifest's frozen root tree. Freeze its
+  canonical digest and validate it against `schemas/source-evidence-index.schema.json`. Then
   enumerate every predefined golden and untouched opportunity using
   `templates/opportunity-manifest.template.json`. Bind it to both cohort-manifest digests, compute
   every blind ground-truth label ID, role, and document digest into the same pre-result manifest,
@@ -41,10 +45,12 @@ node calibration/llm/scripts/compute-metrics.mjs /absolute/path/to/measurement-i
 ```
 
 The measurement input contains content-addressed evidence, not manually entered counts: both frozen
-cohort manifests, the frozen opportunity inventory, the detector-freeze record, every execution
+cohort manifests, the internal frozen source-evidence index, the frozen opportunity inventory, the detector-freeze record, every execution
 receipt and LLM report, and every independent label/adjudication record. The metrics command
 requires exactly one blind primary label for every predefined opportunity, validates blind
-independent labels and adjudication lifecycle states, rejects findings outside that inventory,
+independent labels and adjudication lifecycle states, verifies every source-span whole-file SHA-256
+and line range through its manifest-rooted Git tree/blob proof, and rejects a finding unless its
+path and line overlap the exact frozen opportunity (or its non-source reference matches exactly),
 derives aggregate and per-rule release counts from the untouched inventory only, reports zero
 denominators as `not_estimable`, and evaluates the locked thresholds in order:
 `automatic_no_go`, `public_v1`, `limited_experimental`, then `no_go`. Its output is a calculation;
@@ -53,13 +59,16 @@ it is not a substitute for the recorded adjudication and owner release decision.
 Automatic NO-GO inputs are content-addressed records conforming to
 `schemas/automatic-no-go-evidence.schema.json`, not operator-entered booleans. Network isolation,
 untouched chronology, and finding-path validity are derived and checked against those records;
-free-core parity and public-claim hygiene require hashed test-run and claim-audit evidence.
+free-core parity and public-claim hygiene require embedded test-run and claim-audit artifacts bound
+to the exact detector build and source commit. Each check-specific assertion embeds its evidence
+content and SHA-256; opaque or generic “passed” assertions are rejected.
 
 Both first-pass roles must set `detector_output_visible: false` and carry a null finding ID.
 Disagreements set both originals to `pending`; the distinct adjudicator also remains blind, uses
 `adjudicated`, and supersedes exactly the two originals. Agreement and single-label records use
 `not_required`. After execution, a separate `finding_reviewer` may see detector output and links
-exactly one finding to the frozen opportunity without changing its final ground-truth label.
+exactly one finding to the frozen opportunity without changing its final ground-truth label. A
+same-rule finding from another path or line span is not interchangeable.
 Double-label coverage and the minimum of two double-labeled opportunities per enabled rule are
 required for both public and limited-experimental GO.
 

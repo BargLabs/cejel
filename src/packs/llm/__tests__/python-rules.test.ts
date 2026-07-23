@@ -137,6 +137,41 @@ describe('Free LLM Pack Python rule foundation', () => {
         "OpenAI().responses.create(input=os.getenv('DATABASE_URL'))",
       ],
     ],
+    [
+      'tuple reassignment on a later line',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        'client, other = mailbox, value',
+        "client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'tuple reassignment in an earlier same-line statement',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        "client, other = mailbox, value; client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'tuple reassignment inside control flow',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        'if use_mailbox:',
+        '    client, other = mailbox, value',
+        "client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'constructor tuple reassignment',
+      [
+        'from openai import OpenAI',
+        'OpenAI, other = FakeClient, value',
+        "OpenAI().responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
   ])('does not retain Python SDK provenance after %s', (_name, lines) => {
     const file: LlmSourceFile = { path: 'src/reassigned.py', contents: lines.join('\n') };
 
@@ -149,7 +184,7 @@ describe('Free LLM Pack Python rule foundation', () => {
       path: 'src/reassigned.py',
       contents: [
         'from openai import OpenAI',
-        "client = mailbox; client = OpenAI(); client.responses.create(input=os.getenv('DATABASE_URL'))",
+        "client, other = mailbox, value; client = OpenAI(); client.responses.create(input=os.getenv('DATABASE_URL'))",
       ].join('\n'),
     };
     const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-DAT-001');

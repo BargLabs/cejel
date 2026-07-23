@@ -122,10 +122,19 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
         `|\\b(?:function|class)\\s+${escaped}\\b`,
       'g',
     );
-    return [...masked.slice(0, beforeIndex).matchAll(pattern)].map((match) => ({
+    const directEvents = [...masked.slice(0, beforeIndex).matchAll(pattern)].map((match) => ({
       index: match.index,
       expression: match[1] ?? match[2],
     }));
+    const destructuringEvents = [...masked.slice(0, beforeIndex).matchAll(
+      /(?:\[[^\]\n;]*\]|\{[^}\n;]*\})\s*=\s*(?!=)/g,
+    )].flatMap((match) => {
+      const assignmentTarget = match[0].slice(0, match[0].lastIndexOf('='));
+      return new RegExp(`\\b${escaped}\\b`).test(assignmentTarget)
+        ? [{ index: match.index, expression: undefined }]
+        : [];
+    });
+    return [...directEvents, ...destructuringEvents].sort((left, right) => left.index - right.index);
   };
 
   const visibleScopeChain = (callIndex: number): readonly (FunctionScope | undefined)[] => [
