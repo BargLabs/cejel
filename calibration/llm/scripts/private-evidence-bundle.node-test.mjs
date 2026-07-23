@@ -113,6 +113,19 @@ test('rejects malformed schemas, non-object JSON, and non-canonical keys', () =>
   );
 });
 
+test('rejects invalid UTF-8 even when replacement decoding would produce valid JSON', () => {
+  const { paths } = fixture();
+  writeFileSync(
+    paths.get('detector-freeze'),
+    Buffer.concat([
+      Buffer.from('{"value":"', 'utf8'),
+      Buffer.from([0xff]),
+      Buffer.from('"}\n', 'utf8'),
+    ]),
+  );
+  assert.throws(() => buildPrivateEvidenceDocument(paths), /not valid UTF-8 JSON/);
+});
+
 test('enforces per-file size limits before encryption', () => {
   const { paths } = fixture();
   writeFileSync(paths.get('opportunity-manifest'), Buffer.alloc(MAX_FILE_BYTES + 1, 0x20));

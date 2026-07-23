@@ -10,6 +10,7 @@ import {
   closeSync,
   constants,
   existsSync,
+  fstatSync,
   fsyncSync,
   linkSync,
   lstatSync,
@@ -21,6 +22,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 export const BUNDLE_KEY_ENV = 'CEJEL_LLM_CALIBRATION_BUNDLE_KEY';
@@ -48,6 +50,7 @@ const ENVELOPE_KEYS = [
 ];
 const DOCUMENT_KEYS = ['files', 'format'];
 const FILE_KEYS = ['content_base64', 'name', 'sha256'];
+const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 
 function fail(message) {
   throw new Error(`Private evidence bundle error: ${message}`);
@@ -89,16 +92,42 @@ function assertExistingPathIsNotSymlink(path) {
 function readRegularFile(path, maxBytes, label) {
   if (!isAbsolute(path)) fail(`${label} path must be absolute`);
   assertExistingPathIsNotSymlink(path);
-  const stat = lstatSync(path);
-  if (!stat.isFile()) fail(`${label} must be a regular file`);
-  if (stat.size > maxBytes) fail(`${label} exceeds the size limit`);
-  return readFileSync(path);
+  let descriptor;
+  try {
+    descriptor = openSync(
+      path,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+    );
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ELOOP') {
+      fail('symbolic links are not allowed');
+    }
+    fail(`${label} could not be opened`);
+  }
+  try {
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile()) fail(`${label} must be a regular file`);
+    if (stat.size > maxBytes) fail(`${label} exceeds the size limit`);
+    const bytes = readFileSync(descriptor);
+    if (bytes.length > maxBytes) fail(`${label} exceeds the size limit`);
+    return bytes;
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function decodeUtf8(bytes, label) {
+  try {
+    return UTF8_DECODER.decode(bytes);
+  } catch {
+    fail(`${label} is not valid UTF-8`);
+  }
 }
 
 function validateJsonObject(bytes, label) {
   let document;
   try {
-    document = JSON.parse(bytes.toString('utf8'));
+    document = JSON.parse(decodeUtf8(bytes, label));
   } catch {
     fail(`${label} is not valid UTF-8 JSON`);
   }
@@ -178,9 +207,9 @@ export function openPrivateEvidenceEnvelope(envelopeBytes, key) {
   }
   let envelope;
   try {
-    envelope = JSON.parse(envelopeBytes.toString('utf8'));
+    envelope = JSON.parse(decodeUtf8(envelopeBytes, 'encrypted envelope'));
   } catch {
-    fail('encrypted envelope is not valid JSON');
+    fail('encrypted envelope is not valid UTF-8 JSON');
   }
   exactKeys(envelope, ENVELOPE_KEYS, 'encrypted envelope');
   if (envelope.format !== BUNDLE_FORMAT || envelope.cipher !== 'AES-256-GCM') {
@@ -201,9 +230,9 @@ export function openPrivateEvidenceEnvelope(envelopeBytes, key) {
   }
   let document;
   try {
-    document = JSON.parse(plaintext.toString('utf8'));
+    document = JSON.parse(decodeUtf8(plaintext, 'decrypted document'));
   } catch {
-    fail('decrypted document is not valid JSON');
+    fail('decrypted document is not valid UTF-8 JSON');
   }
   return validatePrivateEvidenceDocument(document);
 }
