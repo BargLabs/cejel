@@ -12,9 +12,9 @@ used to tune rules. It contains no copied repository source and no private data.
   `cohorts/untouched-candidates.json` are disjoint, pre-result candidate lists.
 - Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
   pre-result policy re-lock are recorded in `cohorts/selection-amendments.json`.
-- Immutable manifests: not frozen yet. Resolve every candidate to a full 40-character Git commit,
-  record the source-tree hash, and create manifests from `templates/immutable-manifest.template.json`
-  before the first detector run.
+- Immutable manifests: frozen at `2026-07-23T04:08:14Z` after two recorded independent AI review
+  passes. `cohorts/golden-manifest.json` and `cohorts/untouched-manifest.json` each bind 24 exact
+  commits and root trees. Neither cohort had been passed to the detector at freeze time.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
   create the internal source-evidence index from the exact blobs used by every `source_span` using
   `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw
@@ -39,6 +39,20 @@ node --test calibration/llm/scripts/compute-metrics.node-test.mjs
 node --test calibration/llm/scripts/detector-execution.node-test.mjs
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden --resolve-only
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-only
+# After two blind labelers have independently reviewed every repository/rule cell and reconciled
+# the opportunity union, assemble private pre-result evidence outside every Git working tree:
+node calibration/llm/scripts/assemble-blind-evidence.mjs \
+  --golden-manifest calibration/llm/cohorts/golden-manifest.json \
+  --untouched-manifest calibration/llm/cohorts/untouched-manifest.json \
+  --golden-root /absolute/path/to/golden-checkouts \
+  --untouched-root /absolute/path/to/untouched-checkouts \
+  --primary-golden /absolute/path/to/golden-primary.json \
+  --primary-untouched /absolute/path/to/untouched-primary.json \
+  --independent-golden /absolute/path/to/golden-independent.json \
+  --independent-untouched /absolute/path/to/untouched-independent.json \
+  --frozen-at 2026-07-23T04:08:14Z \
+  --attestation-reference internal-witness:<record-id> \
+  --private-output-root /absolute/private/path/llm-pre-result
 # Assemble content-addressed evidence from the actual artifact paths, then evaluate it:
 node calibration/llm/scripts/assemble-measurement-input.mjs \
   /absolute/path/to/measurement-evidence-paths.json /absolute/path/to/measurement-input.json
@@ -54,6 +68,16 @@ also requires a live-verified public GitHub commitment comment, the two successf
 `workflow_dispatch` runs from `.github/workflows/llm-calibration.yml`, and their exact downloaded
 evidence archives. Each archive may contain only `evidence-bundle.json`; its server-recorded digest
 and its receipt/report bindings must match the measurement input.
+
+The blind-evidence assembler requires all 48 frozen repositories and all 384 repository/rule
+coverage cells from each reviewer, verifies exact local commits, root trees, Git blob/tree proofs,
+UTF-8 line bounds, and whole-file SHA-256 values, and requires the two reviewers to cross-review the
+final opportunity union. It emits source bytes and labels with owner-only permissions and refuses an
+output directory inside a Git working tree. Keep the complete output private. Only hashes and the
+specifically reviewed pre-result public records may be copied into the repository. If first-pass
+labels disagree, supply a distinct blind adjudication fragment with `--adjudication`; the assembler
+records both originals as `pending` and binds the superseding adjudication instead of erasing the
+disagreement.
 The detector freeze binds the exact workflow bytes. Each run may use the later calibration-data
 commit appropriate to its chronology, but GitHub must return workflow bytes with the frozen digest;
 a descendant that changes executable workflow logic is rejected. Every receipt independently binds
