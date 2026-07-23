@@ -1,6 +1,6 @@
 # Free LLM Pack calibration protocol v1
 
-Status: selection policy frozen; candidate repositories selected; immutable commit freeze pending
+Status: v1.4 selection policy and immutable cohort manifests frozen; blind opportunity freeze pending
 Protocol ID: `cejel-llm-calibration-v1`
 Claim boundary: static application-integrity and evaluation-hygiene findings only
 

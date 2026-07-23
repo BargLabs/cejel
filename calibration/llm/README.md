@@ -7,12 +7,15 @@ remain outside Git.
 
 ## State
 
-- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.3` before
-  detector results. The v1.2 policy remains at `selection-policy-v1.2.json`. The current policy
-  truthfully records the spent v1.2 evidence cycle and the fresh, disjoint v1.3 untouched selection.
+- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.4` before
+  v1.4 source access or detector results. The v1.2 and v1.3 policies remain at
+  `selection-policy-v1.2.json` and `selection-policy-v1.3.json`.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
-- Candidate cohorts: `cohorts/golden-candidates-v1.3.json` and
-  `cohorts/untouched-candidates-v1.3.json` are the current disjoint, pre-result candidate lists.
+- Candidate cohorts: `cohorts/golden-candidates-v1.4.json` and
+  `cohorts/untouched-candidates-v1.4.json` are the current fresh, disjoint, pre-result candidate
+  lists. `results/v1.4-cycle-reset.json` binds the complete 197-identity historical exclusion
+  ledger. `cohorts/selection-v1.4.json` binds both context-isolated metadata proposals, the exact
+  selector, both per-cohort selection records, and both candidate documents.
   Earlier candidate and manifest files remain audit evidence and are never accepted as fallback
   measurement inputs.
 - Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
@@ -23,8 +26,12 @@ remain outside Git.
   `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` were frozen before execution and
   reviewed in two sequential passes by the same AI task under the solo-owner exception. Those
   passes are not independent or human. The v1.3 manifests use the same disclosed sequential-review
-  mode. Golden retains the exact v1.2 pins used for development; untouched is a fresh disjoint
-  metadata-selected cohort. No earlier manifest can satisfy the v1.3 gate.
+  mode. The v1.3 golden set was then used for detector development, and its unexecuted untouched
+  set was conservatively withdrawn because the shared opportunity-discovery process was materially
+  incomplete. The fresh v1.4 golden and untouched manifests were frozen at
+  `2026-07-23T22:45:38Z` after two disclosed sequential owner review passes. All 48 repositories
+  resolve to immutable commit and root-tree identities, and no earlier manifest can satisfy the
+  v1.4 gate.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
   create the internal source-evidence index from the exact blobs used by every `source_span` using
   `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw
@@ -53,8 +60,8 @@ node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-onl
 # After two blind labelers have independently reviewed every repository/rule cell and reconciled
 # the opportunity union, assemble private pre-result evidence outside every Git working tree:
 node calibration/llm/scripts/assemble-blind-evidence.mjs \
-  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
-  --untouched-manifest calibration/llm/cohorts/untouched-manifest-v1.2.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.4.json \
+  --untouched-manifest calibration/llm/cohorts/untouched-manifest-v1.4.json \
   --golden-root /absolute/path/to/golden-checkouts \
   --untouched-root /absolute/path/to/untouched-checkouts \
   --primary-golden /absolute/path/to/golden-primary.json \
@@ -234,3 +241,10 @@ The v1.2 golden and untouched runs completed as GitHub Actions runs `29992864057
 retain the exact free-core compatibility record. Performance metrics are therefore not estimable,
 and no measured detector claim may be made from this cycle. See
 [`reviews/v1.2-integrity-no-go-2026-07-23.md`](./reviews/v1.2-integrity-no-go-2026-07-23.md).
+
+The v1.3 trusted golden gate also ended in an honest NO-GO because its opportunity inventory was
+materially incomplete. Subsequent 65/65 matching is development evidence only and did not reverse
+that decision. Version 1.4 now has fresh, disjoint, immutable golden and untouched cohorts. Release
+status remains **NO-GO**: blind opportunity enumeration, source evidence, discovery coverage, the
+new public pre-result commitment, trusted golden execution, a closed correction ledger, detector
+freeze, and the one-time untouched run are still pending.

@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "policy_id": "llm-selection-v1.3",
-  "supersedes_policy_id": "llm-selection-v1.2",
-  "recorded_at": "2026-07-23T19:10:00Z",
+  "policy_id": "llm-selection-v1.4",
+  "supersedes_policy_id": "llm-selection-v1.3",
+  "recorded_at": "2026-07-23T22:38:29Z",
   "detector_results_seen": false,
   "amendments": [
     {"cohort":"golden","kind":"canonical_rename","from":"vercel/ai-chatbot","to":"vercel/chatbot","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
@@ -28,6 +28,11 @@
     {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.1","to":"llm-selection-v1.2","reason":"Before any detector execution, the blinding incident was disclosed, the original untouched cohort was retired, and a completely disjoint replacement was selected and twice reviewed from metadata only. Release thresholds and detector rules did not change."},
     {"cohort":"untouched","kind":"dual_metadata_fresh_cycle_search","from":"spent-v1.2-cohort","to":"v1.3-proposal-union","reason":"Two isolated AI tasks independently searched GitHub metadata without cloning or labeling source and without detector-result access. Their canonical proposal SHA-256 values are 506c13a265abe8bf0ffbc7cf3d0b975ca16989430d245a31c951254befb923bb and d53d9f48f0eb21782b05a4ff68469b3d5a5220e12ec8a425b8096b22c0aee876."},
     {"cohort":"untouched","kind":"deterministic_fresh_cycle_selection","from":"v1.3-proposal-union","to":"cohorts/untouched-candidates-v1.3.json@84f1a4eb097c4ae33812b91da179623f2e2f47d0120157c148b689b4606acbcc","reason":"Selector source bfdee731e0834025402772ef85db9b8db5fe66a5c534317477d9dad343cff12d bound the exclusion set, v1.2 integrity NO-GO record, proposals, exact surface quotas, provider seeds, and candidate document. The selection-record byte SHA-256 is 14d9b439c6abc076cd45cabea499aeea3047a19ea4b8c46aa095d537a4ddf90d and canonical self-hash is ce636115daca5bfeb46d5e3b0a60d599635efc29e4d83e04b2dff66b4fb82b88."},
-    {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.2","to":"llm-selection-v1.3","reason":"The v1.2 evidence cycle ended in an integrity NO-GO and its untouched cohort is spent. Before v1.3 detector execution, a completely disjoint cohort was selected from two isolated metadata-only searches. Release thresholds did not change."}
+    {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.2","to":"llm-selection-v1.3","reason":"The v1.2 evidence cycle ended in an integrity NO-GO and its untouched cohort is spent. Before v1.3 detector execution, a completely disjoint cohort was selected from two isolated metadata-only searches. Release thresholds did not change."},
+    {"cohort":"golden","kind":"development_retirement","from":"golden-candidates-v1.3","to":"retired-from-release-measurement","reason":"The v1.3 opportunity inventory was materially incomplete and its golden labels and detector outputs were used for bounded detector development. It remains development evidence only."},
+    {"cohort":"untouched","kind":"conservative_unspent_withdrawal","from":"untouched-candidates-v1.3","to":"withdrawn-unexecuted-unspent","reason":"The v1.3 untouched detector was never executed and the cohort remains unspent. It is conservatively withdrawn because it used the same opportunity-discovery process whose golden inventory was materially incomplete; no untouched source, labels, or detector output were consulted."},
+    {"cohort":"both","kind":"dual_metadata_fresh_cycle_search","from":"withdrawn-v1.3-cycle","to":"v1.4-proposal-union","reason":"Two context-isolated AI tasks searched GitHub repository metadata only, without clones, source, labels, detector code, or detector results. Proposal byte SHA-256 values are f7cb0199ab63ad80f331c8e31e113e15697600032f94e39d8aab02cefb6a691a and e4c0a6fe33ca2e09ed4e292ada61b6ba1841625116d62de26b60658a8ab42efc."},
+    {"cohort":"both","kind":"deterministic_dual_cohort_selection","from":"v1.4-proposal-union","to":"cohorts/selection-v1.4.json@67e269df80f9352cda787c76b66e7816fc0f056e6bcb5111bdf10c33e6acb0d5","reason":"Selector source 6337399f4689206d77b8b74f036aac60ea3b89106f49b7f768063f3ff24bcead bound the exact 197-ID historical ledger, both proposal documents, exact surface quotas, provider coverage, language minima, and both candidate documents. Untouched additionally binds and excludes the exact golden candidate and selection record. Historical and cross-cohort overlap are zero."},
+    {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.3","to":"llm-selection-v1.4","reason":"Before any v1.4 source access or detector output, fresh disjoint golden and untouched cohorts were selected from metadata only. Release thresholds and detector rules did not change."}
   ]
 }

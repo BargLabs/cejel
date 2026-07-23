@@ -8,12 +8,18 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const read = (relative) => JSON.parse(readFileSync(resolve(root, relative), 'utf8'));
+const sha256File = (relative) =>
+  createHash('sha256').update(readFileSync(resolve(root, relative))).digest('hex');
 const policy = read('selection-policy.json');
+const cycle = policy.policy_id?.replace(/^llm-selection-/, '');
 const thresholds = read('release-thresholds.json');
-const golden = read('cohorts/golden-candidates-v1.3.json');
-const untouched = read('cohorts/untouched-candidates-v1.3.json');
+const golden = read(`cohorts/golden-candidates-${cycle}.json`);
+const untouched = read(`cohorts/untouched-candidates-${cycle}.json`);
 const amendments = read('cohorts/selection-amendments.json');
-const replacementSelection = read('cohorts/selection-v1.3.json');
+const replacementSelection = read(`cohorts/selection-${cycle}.json`);
+const goldenSelection = cycle === 'v1.4' ? read('cohorts/selection-golden-v1.4.json') : null;
+const untouchedSelection = cycle === 'v1.4' ? read('cohorts/selection-untouched-v1.4.json') : null;
+const cycleReset = cycle === 'v1.4' ? read('results/v1.4-cycle-reset.json') : null;
 const priorReplacementSelection = read('cohorts/replacement-selection-v1.2.json');
 const priorGolden = read('cohorts/golden-candidates.json');
 const priorUntouchedV12 = read('cohorts/untouched-candidates-v1.2.json');
@@ -53,7 +59,74 @@ if (!amendments.amendments.some((entry) =>
   entry.kind === 'policy_relock_before_results' && entry.to === policy.policy_id
 )) errors.push('selection amendment log does not record the pre-result policy re-lock');
 const { record_sha256: replacementRecordHash, ...replacementWithoutHash } = replacementSelection;
-if (
+if (cycle === 'v1.4') {
+  const validateSelectionRecord = (record, cohort, candidates) => {
+    const { record_sha256: recordHash, ...recordWithoutHash } = record;
+    if (
+      record.protocol_id !== 'cejel-llm-calibration-v1' ||
+      record.policy_id !== policy.policy_id ||
+      record.cohort !== cohort ||
+      record.detector_results_seen !== false ||
+      record.source_or_labels_used_for_selection !== false ||
+      record.candidate_document_sha256 !== sha256Canonical(candidates) ||
+      recordHash !== sha256Canonical(recordWithoutHash) ||
+      record.selected?.length !== policy.target_size_per_cohort ||
+      canonicalize(record.selected.map((entry) => entry.repository_id)) !==
+        canonicalize(candidates.repositories.map((entry) => entry.repository_id)) ||
+      record.selector_source_sha256 !==
+        sha256File('scripts/select-replacement-cohort.mjs') ||
+      record.historical_exclusion_ledger_sha256 !==
+        sha256File('results/v1.4-cycle-reset.json')
+    ) errors.push(`${cohort}: v1.4 selection record is absent, malformed, or unbound`);
+  };
+  validateSelectionRecord(goldenSelection, 'golden', golden);
+  validateSelectionRecord(untouchedSelection, 'untouched', untouched);
+  const historicalIds = cycleReset?.historical_exclusions?.repository_ids || [];
+  const untouchedExclusions = [...new Set([
+    ...historicalIds,
+    ...golden.repositories.map((repository) => repository.repository_id.toLowerCase()),
+  ])].sort();
+  if (
+    goldenSelection.excluded_repository_count !== historicalIds.length ||
+    goldenSelection.excluded_repository_ids_sha256 !== sha256Canonical(historicalIds) ||
+    untouchedSelection.excluded_repository_count !== untouchedExclusions.length ||
+    untouchedSelection.excluded_repository_ids_sha256 !== sha256Canonical(untouchedExclusions)
+  ) errors.push('v1.4 selection records do not bind the complete historical and sibling exclusion sets');
+  if (
+    untouchedSelection.golden_sibling_candidate_sha256 !==
+      sha256File('cohorts/golden-candidates-v1.4.json') ||
+    untouchedSelection.golden_sibling_selection_record_sha256 !==
+      sha256File('cohorts/selection-golden-v1.4.json')
+  ) errors.push('untouched: golden sibling bindings are absent or invalid');
+  if (
+    cycleReset?.record_type !== 'pre_result_cycle_reset' ||
+    cycleReset?.detector_results_seen_for_new_cohorts !== false ||
+    cycleReset?.repository_source_or_labels_used_for_new_cohort_selection !== false ||
+    cycleReset?.historical_exclusions?.repository_count !== 197 ||
+    cycleReset?.historical_exclusions?.repository_ids_sha256 !==
+      sha256Canonical(cycleReset?.historical_exclusions?.repository_ids || [])
+  ) errors.push('v1.4 cycle reset or historical exclusion ledger is invalid');
+  if (
+    replacementSelection.protocol_id !== 'cejel-llm-calibration-v1' ||
+    replacementSelection.policy_id !== policy.policy_id ||
+    replacementSelection.record_type !== 'dual_cohort_metadata_selection' ||
+    replacementSelection.detector_results_seen !== false ||
+    replacementSelection.source_or_labels_used_for_selection !== false ||
+    replacementRecordHash !== sha256Canonical(replacementWithoutHash) ||
+    replacementSelection.selector_source_sha256 !==
+      sha256File('scripts/select-replacement-cohort.mjs') ||
+    replacementSelection.cycle_reset_sha256 !==
+      sha256File('results/v1.4-cycle-reset.json') ||
+    replacementSelection.cohorts?.golden?.candidate_byte_sha256 !==
+      sha256File('cohorts/golden-candidates-v1.4.json') ||
+    replacementSelection.cohorts?.golden?.selection_record_byte_sha256 !==
+      sha256File('cohorts/selection-golden-v1.4.json') ||
+    replacementSelection.cohorts?.untouched?.candidate_byte_sha256 !==
+      sha256File('cohorts/untouched-candidates-v1.4.json') ||
+    replacementSelection.cohorts?.untouched?.selection_record_byte_sha256 !==
+      sha256File('cohorts/selection-untouched-v1.4.json')
+  ) errors.push('v1.4 dual-cohort selection envelope is absent, malformed, or unbound');
+} else if (
   replacementSelection.protocol_id !== 'cejel-llm-calibration-v1' ||
   replacementSelection.policy_id !== policy.policy_id ||
   replacementSelection.detector_results_seen !== false ||
@@ -105,11 +178,42 @@ for (const [expectedCohort, manifest] of [['golden', golden], ['untouched', unto
     if (!allowedProviders.has(repo.provider_surface)) errors.push(`${expectedCohort}: invalid provider for ${repo.repository_id}`);
     if (repo.inclusion_reason.length < 20) errors.push(`${expectedCohort}: short inclusion reason for ${repo.repository_id}`);
   }
+  for (const [surface, expected] of Object.entries({
+    gateway: 1,
+    chat_app: 3,
+    local_model: 3,
+    rag: 4,
+    agent_tools: 6,
+    evaluation_or_framework: 7,
+  })) {
+    const actual = manifest.repositories.filter((repository) =>
+      repository.primary_surface === surface).length;
+    if (actual !== expected) errors.push(`${expectedCohort}: ${surface} quota is ${actual}, expected ${expected}`);
+  }
+  if (
+    manifest.repositories.filter((repository) =>
+      repository.primary_language === 'typescript_javascript').length < 4 ||
+    manifest.repositories.filter((repository) =>
+      repository.primary_language === 'python').length < 8
+  ) errors.push(`${expectedCohort}: minimum language representation is not preserved`);
+  for (const provider of ['anthropic', 'openai', 'local_or_open_model']) {
+    if (!manifest.repositories.some((repository) => repository.provider_surface === provider)) {
+      errors.push(`${expectedCohort}: required ${provider} provider surface is absent`);
+    }
+  }
 }
 
 const goldenIds = new Set(golden.repositories.map((repo) => repo.repository_id.toLowerCase()));
 for (const repo of untouched.repositories) {
   if (goldenIds.has(repo.repository_id.toLowerCase())) errors.push(`cohort overlap: ${repo.repository_id}`);
+}
+if (cycle === 'v1.4') {
+  const historicalIds = new Set(cycleReset.historical_exclusions.repository_ids);
+  for (const repository of [...golden.repositories, ...untouched.repositories]) {
+    if (historicalIds.has(repository.repository_id.toLowerCase())) {
+      errors.push(`historical cohort overlap: ${repository.repository_id}`);
+    }
+  }
 }
 
 const releaseIneligibleIds = new Set(
@@ -162,7 +266,7 @@ if (
 
 const frozen = new Map();
 for (const cohort of ['golden', 'untouched']) {
-  const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest-v1.3.json`);
+  const manifestPath = resolve(root, 'cohorts', `${cohort}-manifest-${cycle}.json`);
   if (!existsSync(manifestPath)) continue;
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   frozen.set(cohort, manifest);
