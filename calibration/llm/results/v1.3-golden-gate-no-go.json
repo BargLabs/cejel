@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.3",
+  "record_type": "trusted_golden_gate_decision",
+  "status": "no_go",
+  "release_class": "not_releasable_golden_recall_and_inventory_incomplete",
+  "decided_at": "2026-07-23T20:42:27Z",
+  "experimental_go": false,
+  "public_go": false,
+  "untouched_cohort_executed": false,
+  "formal_detector_freeze_complete": false,
+  "trusted_golden_run": {
+    "provider": "github_actions_public_v1",
+    "run_id": 30040990346,
+    "url": "https://github.com/BargLabs/cejel/actions/runs/30040990346",
+    "head_sha": "068866cb64eff5c4cbae60888646e60cadd29dbf",
+    "conclusion": "success",
+    "repositories": 24,
+    "golden_manifest_sha256": "e4482071e0fdfc3d334838c5f0b9730281630a6a3c8b97fedf4ee9cd98f96ffb",
+    "detector_build_sha256": "cc9141e6b800f0eeb2288abd3911cedd900a43368f00850983a7e4bf91775ad6",
+    "pre_result_commitment_canonical_sha256": "740939b26357adae423ceac2f4d4fc756f619bf94354936099b51ff7db6bbf45",
+    "pre_result_commitment_byte_sha256": "88b17edd92aa10a04d2e759122eb93a98a6253de141756f18db9bbce0bc92f7e",
+    "evidence_bundle_byte_sha256": "92b59842fc69019f4eb7f04a4973bb7d53a389cca31805d323252710519232fe",
+    "evidence_bundle_canonical_sha256": "8d772b8460de5011f2065515e6f20c078f6d0ea6efaa331eb6a5e5f157141841",
+    "evidence_artifact": {
+      "artifact_id": 8577592524,
+      "archive_sha256": "2461f0fbcf8f4dba15e9b4873d8d5a908a72196bc42fdf6d04d40d23ccf116d5"
+    },
+    "raw_artifact": {
+      "artifact_id": 8577593153,
+      "archive_sha256": "948e747508d09374241003122f18249d69b860ae86c008c91cf7196cec31d81a"
+    },
+    "free_core_compatibility": {
+      "byte_sha256": "e76f838c73bc2ea03a92bc274e6f4a4843ef51d3ae9da181ee2c8858875e00de",
+      "canonical_sha256": "988e24bfa8c401b8c4ccd604dae5573204744a5f8300cb26b52ea8b849de825d",
+      "passed": true
+    }
+  },
+  "golden_ground_truth": {
+    "frozen_opportunities": 119,
+    "present": 65,
+    "absent": 40,
+    "insufficient_source": 14,
+    "detector_findings": 5,
+    "exact_opportunity_matches": 1,
+    "exact_missed_present_opportunities": 64,
+    "unmatched_detector_findings": 4,
+    "unmatched_finding_adjudication": {
+      "detector_false_positive": 0,
+      "real_present_omitted_from_inventory": 4,
+      "adjudication_record_sha256": "3e36e1ff36cbdc7965319c5da65bf123a6434db58e7facff4170572f3310008a"
+    },
+    "formal_release_metrics_estimable": false,
+    "diagnostic_only_adjusted_present_minimum": 69,
+    "diagnostic_only_detected_present": 5,
+    "diagnostic_only_recall_upper_bound": 0.07246376811594203
+  },
+  "per_rule": [
+    {
+      "rule_id": "LLM-AGY-001",
+      "present": 21,
+      "absent": 0,
+      "insufficient_source": 1,
+      "detector_findings": 1,
+      "exact_matched_present": 1,
+      "missed_present": 20
+    },
+    {
+      "rule_id": "LLM-AGY-002",
+      "present": 5,
+      "absent": 12,
+      "insufficient_source": 1,
+      "detector_findings": 0,
+      "exact_matched_present": 0,
+      "missed_present": 5
+    },
+    {
+      "rule_id": "LLM-EVL-001",
+      "present": 0,
+      "absent": 5,
+      "insufficient_source": 0,
+      "detector_findings": 0,
+      "exact_matched_present": 0,
+      "missed_present": 0
+    },
+    {
+      "rule_id": "LLM-EVL-002",
+      "present": 0,
+      "absent": 0,
+      "insufficient_source": 9,
+      "detector_findings": 1,
+      "exact_matched_present": 0,
+      "missed_present": 0
+    },
+    {
+      "rule_id": "LLM-IOH-001",
+      "present": 22,
+      "absent": 1,
+      "insufficient_source": 1,
+      "detector_findings": 0,
+      "exact_matched_present": 0,
+      "missed_present": 22
+    },
+    {
+      "rule_id": "LLM-PRV-001",
+      "present": 5,
+      "absent": 1,
+      "insufficient_source": 2,
+      "detector_findings": 2,
+      "exact_matched_present": 0,
+      "missed_present": 5
+    },
+    {
+      "rule_id": "LLM-VAL-001",
+      "present": 12,
+      "absent": 21,
+      "insufficient_source": 0,
+      "detector_findings": 1,
+      "exact_matched_present": 0,
+      "missed_present": 12
+    },
+    {
+      "rule_id": "LLM-DAT-001",
+      "present": 0,
+      "absent": 0,
+      "insufficient_source": 0,
+      "detector_findings": 0,
+      "exact_matched_present": 0,
+      "missed_present": 0
+    }
+  ],
+  "decision_reasons": [
+    "The candidate is below the locked 0.65 experimental recall threshold on frozen golden opportunities.",
+    "Four real present findings were omitted from the pre-result opportunity inventory, so formal release metrics cannot be completed from this cycle.",
+    "The current protocol requires every golden finding to bind to exactly one frozen opportunity; four findings cannot be bound without prohibited post-result backfilling.",
+    "The untouched cohort remains unexecuted and no untouched result was used to tune the detector."
+  ],
+  "required_next_cycle": [
+    "Broaden detector coverage only through bounded, fixture-backed golden development.",
+    "Replace manual opportunity discovery with an independently checked exhaustive discovery procedure.",
+    "Freeze a fresh golden opportunity inventory and new public pre-result commitment before the next trusted golden run.",
+    "Do not execute untouched until the corrected golden run, closed correction ledger, and formal detector freeze all pass."
+  ]
+}
