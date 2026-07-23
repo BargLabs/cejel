@@ -86,21 +86,27 @@ export function detectPythonConfiguredSelfJudge(
       )].find((candidate) => /judge/i.test(candidate[2] ?? ''));
       const verdictIdentifier = verdictAssignment?.[1];
       if (!verdictIdentifier || verdictAssignment.index === undefined) continue;
-      const verdictTail = classContents.slice(
+      const verdictTailWithLaterMethods = classContents.slice(
         verdictAssignment.index + verdictAssignment[0].length,
       );
+      const nextMethod = /\n[ \t]+(?:async\s+)?def\s+[A-Za-z_][A-Za-z0-9_]*\s*\(/.exec(
+        verdictTailWithLaterMethods,
+      );
+      const verdictTail = nextMethod
+        ? verdictTailWithLaterMethods.slice(0, nextMethod.index)
+        : verdictTailWithLaterMethods;
       const directlyRetainedVerdict = new RegExp(
         `\\bself\\.[A-Za-z_][A-Za-z0-9_.\\[\\]-]*\\.(?:judgement|judgment|verdict|judge_result)\\s*=\\s*${escaped(verdictIdentifier)}\\b`,
         'i',
-      ).test(verdictTail.slice(0, 1_200));
-      const retainedThroughLocalResult = [...verdictTail.slice(0, 1_200).matchAll(
+      ).test(verdictTail);
+      const retainedThroughLocalResult = [...verdictTail.matchAll(
         /\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*self\.[A-Za-z_][A-Za-z0-9_.\[\]-]*/g,
       )].some((resultAlias) =>
         Boolean(resultAlias[1]) &&
         new RegExp(
           `\\b${escaped(resultAlias[1] ?? '')}\\.(?:judgement|judgment|verdict|judge_result)\\s*=\\s*${escaped(verdictIdentifier)}\\b`,
           'i',
-        ).test(verdictTail.slice(0, 1_200)),
+        ).test(verdictTail),
       );
       const retainedVerdict = directlyRetainedVerdict || retainedThroughLocalResult;
       if (!retainedVerdict) continue;

@@ -186,22 +186,6 @@ export function javaScriptExecutableHelperParameterSinks(
   return sinks;
 }
 
-export function hasExportedExecutablePreviewSurface(file: LlmSourceFile): boolean {
-  if (isExcludedSourcePath(file.path)) return false;
-  const masked = maskJavaScriptNonCode(file.contents);
-  return javaScriptExecutableHelperParameterSinks(file).some((helper) => {
-    if (
-      !/(?:preview|srcdoc|artifact)/i.test(helper.functionName) ||
-      !/(?:code|source|component)/i.test(helper.parameterName)
-    ) {
-      return false;
-    }
-    return new RegExp(
-      `\\bexport\\s+function\\s+${escapeRegExp(helper.functionName)}\\s*\\(`,
-    ).test(masked);
-  });
-}
-
 const SENSITIVE_ENV_PATTERN =
   /process\.env\.(?:[A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|PRIVATE_KEY|DATABASE_URL|ACCESS_TOKEN|REFRESH_TOKEN|AUTH_TOKEN|SESSION_TOKEN)[A-Z0-9_]*)\b/;
 const UNBOUNDED_LOOP_PATTERN = /\bwhile\s*\(\s*true\s*\)|\bfor\s*\(\s*;\s*;\s*\)/g;
@@ -285,42 +269,6 @@ function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
     ),
   ];
   const findings: CejelLlmFinding[] = [];
-
-  // A public preview/srcdoc builder whose code-like parameter is compiled and dynamically
-  // evaluated is itself a complete active-content boundary. Point at the dynamic-evaluation
-  // locus rather than requiring a same-file SDK call: callers commonly live in a separate
-  // server module, while the exported builder is the locally observable execution surface.
-  for (const helper of executableHelpers) {
-    if (
-      !hasExportedExecutablePreviewSurface(file) ||
-      !/(?:preview|srcdoc|artifact)/i.test(helper.functionName) ||
-      !/(?:code|source|component)/i.test(helper.parameterName)
-    ) {
-      continue;
-    }
-    const declaration = new RegExp(
-      `\\bexport\\s+function\\s+${escapeRegExp(helper.functionName)}\\s*\\(`,
-    ).exec(maskedContents);
-    if (!declaration) continue;
-    const openBrace = maskedContents.indexOf('{', declaration.index);
-    const end = matchingDelimiterEnd(file.contents, openBrace, '{', '}');
-    if (end === null) continue;
-    const body = file.contents.slice(openBrace + 1, end - 1);
-    const evaluation = /(?:\(\s*0\s*,\s*eval\s*\)|(?<![.\w$])eval)\s*\(/.exec(body);
-    if (!evaluation) continue;
-    findings.push(
-      finding(
-        'LLM-IOH-001',
-        file,
-        openBrace + 1 + evaluation.index,
-        'critical',
-        'An exported active-preview builder compiles and dynamically evaluates its code-like input without an observable sandbox boundary.',
-        'Active preview source reaches dynamic evaluation',
-        'high',
-      ),
-    );
-  }
-
   const supportedCallIndices = supportedJavaScriptModelCallIndices(file.contents);
   let offset = 0;
 

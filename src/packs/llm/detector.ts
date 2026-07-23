@@ -18,11 +18,7 @@ import {
   CEJEL_LLM_PYTHON_RULES,
   hasSupportedPythonLlmIntegration,
 } from './python-rules.js';
-import {
-  CEJEL_LLM_V1_RULES,
-  hasExportedExecutablePreviewSurface,
-  type LlmSourceFile,
-} from './rules.js';
+import { CEJEL_LLM_V1_RULES, type LlmSourceFile } from './rules.js';
 import {
   CEJEL_LLM_PACK_ID,
   CEJEL_LLM_PACK_VERSION,
@@ -152,11 +148,7 @@ export function collectCejelLlmPack(
   const javascriptSourceFiles = sourceFiles.filter((file) => !isPythonSource(file));
   const javascriptLlmFiles = javascriptSourceFiles.filter(
     (file) =>
-      !isExcludedLlmSourcePath(file.path) &&
-      (
-        hasSupportedJavaScriptModelCall(file.contents) ||
-        hasExportedExecutablePreviewSurface(file)
-      ),
+      !isExcludedLlmSourcePath(file.path) && hasSupportedJavaScriptModelCall(file.contents),
   );
   const pythonLlmFiles = sourceFiles.filter(
     (file) => isPythonSource(file) && hasSupportedPythonLlmIntegration(file),

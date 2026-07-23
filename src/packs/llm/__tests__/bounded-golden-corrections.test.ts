@@ -81,7 +81,7 @@ describe('bounded golden corrections', () => {
     expect(rule?.detect(file)).toEqual([]);
   });
 
-  it('anchors an exported executable preview at its dynamic-evaluation locus', () => {
+  it('abstains from an exported executable preview without a resolved model-output path', () => {
     const file = source([
       'export function renderActivePreview(componentCode: string) {',
       '  return `<script>',
@@ -93,16 +93,15 @@ describe('bounded golden corrections', () => {
     ], 'src/active-preview.ts');
     const rule = CEJEL_LLM_V1_RULES.find((candidate) => candidate.id === 'LLM-IOH-001');
 
-    expect(rule?.detect(file)).toEqual([
-      expect.objectContaining({
-        evidence: expect.objectContaining({ line: 5 }),
-      }),
-    ]);
+    expect(rule?.detect(file)).toEqual([]);
   });
 
   it('detects an emitted identifier-bound discrete evaluation without config lineage', () => {
     const file = source([
+      "import OpenAI from 'openai';",
       "import { writeFileSync } from 'node:fs';",
+      'const client = new OpenAI();',
+      "await client.responses.create({ model: 'example', input: scenarioId });",
       'const evaluationRecord = {',
       '  scenario: scenarioId,',
       '  model: selectedModel,',
@@ -113,6 +112,53 @@ describe('bounded golden corrections', () => {
       "writeFileSync('evaluation.json', JSON.stringify(evaluationRecord, null, 2));",
     ]);
     expect(detectBoundedEvaluationResultProvenance([file])).toHaveLength(1);
+  });
+
+  it('does not infer model provenance from evaluation-shaped fields alone', () => {
+    const file = source([
+      "import { writeFileSync } from 'node:fs';",
+      'const evaluationRecord = {',
+      '  scenario: scenarioId,',
+      '  model: selectedModel,',
+      '  run: runNumber,',
+      '  score: measuredScore,',
+      '  ok: measuredScore > threshold,',
+      '};',
+      "writeFileSync('evaluation.json', JSON.stringify(evaluationRecord));",
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
+  });
+
+  it('does not borrow a model invocation from another function scope', () => {
+    const file = source([
+      "import OpenAI from 'openai';",
+      'async function unrelatedGeneration() {',
+      '  const client = new OpenAI();',
+      "  return client.responses.create({ model: 'example', input: 'draft' });",
+      '}',
+      'function publishEvaluation() {',
+      '  const evaluationRecord = {',
+      '    scenario: scenarioId, model: selectedModel, run: runNumber, score, ok',
+      '  };',
+      '  console.log(JSON.stringify(evaluationRecord));',
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
+  });
+
+  it('does not borrow a model invocation from an unrelated arrow-function scope', () => {
+    const file = source([
+      "import OpenAI from 'openai';",
+      'const unrelatedGeneration = async () => {',
+      '  const client = new OpenAI();',
+      "  return client.responses.create({ model: 'example', input: 'draft' });",
+      '};',
+      'const evaluationRecord = {',
+      '  scenario: scenarioId, model: selectedModel, run: runNumber, score, ok',
+      '};',
+      'console.log(JSON.stringify(evaluationRecord));',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
   });
 
   it('requires resolved emission and missing configuration for a discrete result', () => {
@@ -152,7 +198,9 @@ describe('bounded golden corrections', () => {
 
   it('detects incrementally built per-case results with resolved return evidence', () => {
     const file = source([
+      "import { generateText } from 'ai';",
       'async function executeEvaluation(dataset: Dataset) {',
+      "  await generateText({ model, prompt: 'evaluate' });",
       '  const report = {};',
       '  report.evaluationId = dataset.id;',
       '  report.rows = [];',
@@ -173,7 +221,9 @@ describe('bounded golden corrections', () => {
 
   it('detects parameter-backed per-case evaluation storage at the record declaration', () => {
     const file = source([
+      "import { generateText } from 'ai';",
       'async evaluateSuite(suiteId: string, report: any) {',
+      "  await generateText({ model, prompt: 'evaluate' });",
       '  for (const sample of report.samples) {',
       '    const record: any = {};',
       "    record.status = 'complete';",
@@ -188,14 +238,32 @@ describe('bounded golden corrections', () => {
     ]);
     expect(detectBoundedEvaluationResultProvenance([file])).toEqual([
       expect.objectContaining({
-        evidence: expect.objectContaining({ line: 3 }),
+        evidence: expect.objectContaining({ line: 5 }),
       }),
     ]);
   });
 
+  it('does not borrow per-case properties assigned after the record is stored', () => {
+    const file = source([
+      'async evaluateSuite(suiteId: string, report: any) {',
+      '  const record: any = {};',
+      "  record.status = 'pending';",
+      '  report.samples[0].results.push(record);',
+      '  record.output = await runSample();',
+      '  record.metrics = collectMetrics();',
+      '  record.latency = elapsed();',
+      '  record.runId = suiteId;',
+      '  return report;',
+      '}',
+    ]);
+    expect(detectBoundedEvaluationResultProvenance([file])).toEqual([]);
+  });
+
   it('anchors missing configuration lineage at a referenced configuration input', () => {
     const file = source([
+      "import { generateText } from 'ai';",
       "import { EVALUATION_SYSTEM_PROMPT } from './policy';",
+      "await generateText({ model, prompt: 'evaluate' });",
       'const systemMessage = EVALUATION_SYSTEM_PROMPT;',
       'const record = {',
       '  scenario: scenarioId, model: selectedModel, run: runNumber, score, ok',
@@ -204,7 +272,7 @@ describe('bounded golden corrections', () => {
     ]);
     expect(detectBoundedEvaluationResultProvenance([file])).toEqual([
       expect.objectContaining({
-        evidence: expect.objectContaining({ line: 1 }),
+        evidence: expect.objectContaining({ line: 2 }),
       }),
     ]);
   });
@@ -314,6 +382,31 @@ describe('bounded golden corrections', () => {
     expect(detectPythonConfiguredSelfJudge(file)).toEqual([]);
   });
 
+  it('does not borrow retained-verdict evidence from a later Python method', () => {
+    const file = source([
+      'class EvaluationAgent:',
+      '    def __init__(self, task_llm, judge_llm=None):',
+      '        if judge_llm is None:',
+      '            judge_llm = task_llm',
+      '        self.task_llm = task_llm',
+      '        self.judge_llm = judge_llm',
+      '    async def produce(self, messages):',
+      '        return await self.task_llm.ainvoke(messages)',
+      '    async def judge_trace(self, messages):',
+      '        return await self.judge_llm.ainvoke(messages)',
+      '    async def judge_without_retaining(self, messages):',
+      '        judgement = await self.judge_trace(messages)',
+      '        return judgement',
+      '    async def unrelated_retention(self, judgement):',
+      '        self.history.last_result.judgement = judgement',
+      '    async def finish(self, messages):',
+      '        if self.settings.use_judge:',
+      '            await self.judge_without_retaining(messages)',
+    ], 'src/evaluation_agent.py');
+
+    expect(detectPythonConfiguredSelfJudge(file)).toEqual([]);
+  });
+
   it('selects invoked Python model attributes and anchors at completion', () => {
     const file = source([
       'class EvaluationAgent:',
@@ -407,6 +500,9 @@ describe('bounded golden corrections', () => {
     writeFileSync(
       join(repo, 'evaluation.ts'),
       [
+        "import OpenAI from 'openai';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'example', input: scenarioId });",
         'const evaluationRecord = {',
         '  scenario: scenarioId,',
         '  model: selectedModel,',
