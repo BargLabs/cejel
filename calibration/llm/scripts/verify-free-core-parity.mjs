@@ -38,7 +38,7 @@ function run(executable, argv, gitCommit, output, clock) {
       ...process.env,
       CI: '1',
       CEJEL_PARITY_FIXED_TIME: clock.fixed_iso,
-      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${clock.hook_path}`.trim(),
+      NODE_OPTIONS: `--require=${clock.hook_path}`,
     },
     maxBuffer: 20 * 1024 * 1024,
   });

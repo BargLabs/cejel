@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
+import { lstatSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
@@ -21,6 +21,26 @@ import { verifyPublicSurfaces } from './verify-public-surfaces.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
 const sha256Bytes = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+export function hashDirectoryTree(root) {
+  const resolvedRoot = resolve(root);
+  const entries = [];
+  const visit = (directory) => {
+    for (const name of readdirSync(directory).sort()) {
+      const path = resolve(directory, name);
+      const stat = lstatSync(path);
+      if (stat.isSymbolicLink()) throw new Error('calibration fixture cannot contain symbolic links');
+      if (stat.isDirectory()) visit(path);
+      else if (stat.isFile()) entries.push({
+        path: relative(resolvedRoot, path).replaceAll('\\', '/'),
+        sha256: sha256Bytes(readFileSync(path)),
+      });
+    }
+  };
+  visit(resolvedRoot);
+  return sha256Bytes(Buffer.from(canonicalize(entries), 'utf8'));
+}
+
 const LOCKED_ARTIFACT_PATHS = {
   selection_policy_sha256: 'selection-policy.json',
   golden_candidates_sha256: 'cohorts/golden-candidates.json',
@@ -1038,7 +1058,9 @@ function deriveCheckSpecificAssertion(checkId, payload, context) {
     if (!payload.fixture || typeof payload.fixture !== 'object') return false;
     rejectUnknownKeys(payload.fixture, ['path', 'tree_sha256'], 'free-core parity fixture');
     if (payload.fixture.path !== 'calibration/llm/fixtures/free-core-parity' ||
-      !/^[a-f0-9]{64}$/.test(payload.fixture.tree_sha256 || '')) return false;
+      payload.fixture.tree_sha256 !== hashDirectoryTree(
+        resolve(calibrationRoot, 'fixtures/free-core-parity'),
+      )) return false;
     if (!payload.clock || typeof payload.clock !== 'object') return false;
     rejectUnknownKeys(
       payload.clock,
@@ -1051,6 +1073,9 @@ function deriveCheckSpecificAssertion(checkId, payload, context) {
       payload.clock.hook_path !== 'calibration/llm/scripts/fixed-clock-hook.cjs' ||
       !/^[a-f0-9]{64}$/.test(payload.clock.hook_sha256 || '') ||
       sha256Bytes(hookBytes) !== payload.clock.hook_sha256 ||
+      payload.clock.hook_sha256 !== sha256Bytes(
+        readFileSync(resolve(calibrationRoot, 'scripts/fixed-clock-hook.cjs')),
+      ) ||
       hookBytes.length < 100
     ) return false;
     if (!validateRun(payload.baseline, 'baseline') || !validateRun(payload.candidate, 'candidate')) {

@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   computeMetricsForUnitTest,
   ENABLED_RULE_IDS,
+  hashDirectoryTree,
   hashOpportunityDiscoveryCoverage,
   hashOpportunityManifest,
   hashSourceEvidenceIndex,
@@ -530,15 +532,16 @@ function fixture() {
     untouched_blinding_preserved: 'pre_result_git_commit_precedes_execution',
   };
   const automatic_no_go_evidence = Object.fromEntries(Object.entries(checkKinds).map(([check_id, kind]) => {
-    const parityClockContent = Buffer.from(
-      "'use strict';\n// deterministic fixed-clock parity hook used only by the synthetic measurement test fixture\n// exact bytes are embedded and hash-bound\n",
-      'utf8',
+    const parityClockContent = readFileSync(
+      new URL('./fixed-clock-hook.cjs', import.meta.url),
     );
     const payloads = {
       free_core_unchanged_without_pack: {
         fixture: {
           path: 'calibration/llm/fixtures/free-core-parity',
-          tree_sha256: 'a'.repeat(64),
+          tree_sha256: hashDirectoryTree(fileURLToPath(
+            new URL('../fixtures/free-core-parity/', import.meta.url),
+          )),
         },
         clock: {
           fixed_iso: '2026-07-23T00:00:00.000Z',
@@ -946,6 +949,46 @@ test('automatic no-go checks require hashed evidence and agree with derived chro
   parityArtifact.sha256 = rawSha(parityArtifact.content);
   unequalFreeCore.automatic_no_go_evidence.free_core_unchanged_without_pack = bound(parityRecord);
   assert.throws(() => computeMetrics(unequalFreeCore, thresholds), /not derived from its check-specific payload/);
+
+  const substitutedParityHook = fixture();
+  const substitutedHookRecord =
+    substitutedParityHook.automatic_no_go_evidence.free_core_unchanged_without_pack.document;
+  const substitutedHookArtifact = substitutedHookRecord.artifacts[0];
+  const substitutedHookAudit = JSON.parse(substitutedHookArtifact.content);
+  const substitutedHookPayload = JSON.parse(substitutedHookAudit.assertions[0].evidence_content);
+  const foreignHook = Buffer.from("'use strict';\n// foreign hook".padEnd(160, 'x'));
+  substitutedHookPayload.clock.hook_content_base64 = foreignHook.toString('base64');
+  substitutedHookPayload.clock.hook_sha256 = rawSha(foreignHook);
+  substitutedHookAudit.assertions[0].evidence_content = JSON.stringify(substitutedHookPayload);
+  substitutedHookAudit.assertions[0].evidence_sha256 =
+    rawSha(substitutedHookAudit.assertions[0].evidence_content);
+  substitutedHookArtifact.content = JSON.stringify(substitutedHookAudit);
+  substitutedHookArtifact.sha256 = rawSha(substitutedHookArtifact.content);
+  substitutedParityHook.automatic_no_go_evidence.free_core_unchanged_without_pack =
+    bound(substitutedHookRecord);
+  assert.throws(
+    () => computeMetrics(substitutedParityHook, thresholds),
+    /not derived from its check-specific payload/,
+  );
+
+  const substitutedFixture = fixture();
+  const substitutedFixtureRecord =
+    substitutedFixture.automatic_no_go_evidence.free_core_unchanged_without_pack.document;
+  const substitutedFixtureArtifact = substitutedFixtureRecord.artifacts[0];
+  const substitutedFixtureAudit = JSON.parse(substitutedFixtureArtifact.content);
+  const substitutedFixturePayload = JSON.parse(substitutedFixtureAudit.assertions[0].evidence_content);
+  substitutedFixturePayload.fixture.tree_sha256 = '0'.repeat(64);
+  substitutedFixtureAudit.assertions[0].evidence_content = JSON.stringify(substitutedFixturePayload);
+  substitutedFixtureAudit.assertions[0].evidence_sha256 =
+    rawSha(substitutedFixtureAudit.assertions[0].evidence_content);
+  substitutedFixtureArtifact.content = JSON.stringify(substitutedFixtureAudit);
+  substitutedFixtureArtifact.sha256 = rawSha(substitutedFixtureArtifact.content);
+  substitutedFixture.automatic_no_go_evidence.free_core_unchanged_without_pack =
+    bound(substitutedFixtureRecord);
+  assert.throws(
+    () => computeMetrics(substitutedFixture, thresholds),
+    /not derived from its check-specific payload/,
+  );
 
   const falsePublicClaim = fixture();
   const claimRecord2 = falsePublicClaim.automatic_no_go_evidence.prohibited_public_claims_absent.document;
