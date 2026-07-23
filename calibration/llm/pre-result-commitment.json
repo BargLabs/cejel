@@ -1,0 +1,3265 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "frozen_pre_result",
+  "created_at": "2026-07-23T06:00:23Z",
+  "detector_results_seen_before_commitment": false,
+  "golden_manifest_sha256": "85018c661675c700de39d8c5ddd12f5763e35c40aeff5ffb4c99918f5cde4edc",
+  "untouched_manifest_sha256": "9145bcd9c540168a54c4882d29489d8d9adb2c26a048d2145a448a4dbd19b47f",
+  "opportunity_manifest_sha256": "4129a91f1211dcc7ef767ae3d7c7651a0a757014d8e2567b85916f9e64ae74cb",
+  "opportunity_discovery_coverage_sha256": "4b1c1274640fd4366d9470a07919c001b06d975cf15b1d5c6b0674c0e1614b40",
+  "release_thresholds": {
+    "byte_sha256": "dffabeb3e6265d3c53fbde4ce3fb3e051d494d19ba90fcb70f9429ff1297ad5e",
+    "canonical_sha256": "ba3db61cff4c1286926061f8afea343ce8a507ba49ecbda49de34e5f44bf0391"
+  },
+  "public_surface_policy": {
+    "byte_sha256": "84387c1379195b251492ae39add236e480d7eecec4129a0db136594d567b2f34",
+    "canonical_sha256": "7bbc90394463860be0e636f0fa00c04140fa568698403adc381fa41c5aecf3ab"
+  },
+  "free_core_baseline_commit": "41d5a9faa35d84ca956c1a550d4f9dbf7a2a9c10",
+  "public_document_inventory": [
+    {
+      "path": "README.md",
+      "content_sha256": "319fede9b63fbdd5968b0ac1de72cbcc23dc65532da41125cc6d1636ba605c75"
+    },
+    {
+      "path": "package.json",
+      "content_sha256": "ac19e0f1e1df14f68f25daac2a8eb12cb6df40b83f4acbe0a6b59edbcfb6536a"
+    },
+    {
+      "path": "action.yml",
+      "content_sha256": "254506f46cb4b19968feada70448709294ffb696f27eda9955215a0b239c3938"
+    },
+    {
+      "path": "action/action.yml",
+      "content_sha256": "4ea4f9e6aa83741255904032bbaf50996454686334fa1bc85106842432b41d30"
+    },
+    {
+      "path": "server.json",
+      "content_sha256": "2b19fe645d15df9a5379c93d663e64d82f323dd3c950692cc11bac6fdab3f0dd"
+    },
+    {
+      "path": "smithery.yaml",
+      "content_sha256": "2c4bba9919b7d62232586232111c68afa8b0955e1782986b8f97dd3249feaba8"
+    },
+    {
+      "path": "docs/packs/free-llm-usage.md",
+      "content_sha256": "573030568a0f871f1a6f39813ebaa03d8841f26c275a2a565be6572d46067f9a"
+    },
+    {
+      "path": "docs/packs/free-llm-v1-rule-contract.md",
+      "content_sha256": "4be20cafbcca53fdacb5efc904d8b2834b338959ec66c7c8b1be3699a3cf5497"
+    },
+    {
+      "path": "docs/packs/free-llm-v1-support-and-claims.md",
+      "content_sha256": "3e77cad73ba2b7eda8f4300008297aa94bb5704c4d1d8b0a404413d988173fb2"
+    },
+    {
+      "path": "https://cejel.dev",
+      "content_sha256": "6cc3822f412b591ba2735f010cdd14cdb40023e945cecb435e988581494f4208"
+    },
+    {
+      "path": "https://raw.githubusercontent.com/BargLabs/cejel/main/README.md",
+      "content_sha256": "c3a6abce83867c2a89a8420b2e3cf96354c0cfa9631a86fb1789dce5380aab62"
+    },
+    {
+      "path": "https://registry.npmjs.org/@cejel%2Fcejel/latest",
+      "content_sha256": "14dad40da8dbae9c508cd75e673e4dec768b45c29b5df9a1fb0d56240913c52d"
+    },
+    {
+      "path": "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs%2Fcejel/versions/0.1.8",
+      "content_sha256": "f72adb41be30e1b33314fc3ad8b9d780f8ca026f1415a2986984907579ccb6a4"
+    },
+    {
+      "path": "https://api.smithery.ai/servers/cejel",
+      "content_sha256": "73e5af0f08c0939f3175f6ef6c4027cca9b560af1470cb4087770b0fc2f4af76"
+    }
+  ],
+  "blind_label_bindings": [
+    {
+      "label_id": "llm-label-golden-03e01c49cda46f030c6f6eacddc234a3-independent",
+      "document_sha256": "287d78029247f7750ab44a4f3e76d792c4b263cf28787c6debb8de7dc3c91b7e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-0843368c58d488a472dfb71a043683f8-independent",
+      "document_sha256": "0d7a0ca39b5ab2800d303cea2f9d3e2cefa6090b98b06fbe0a22f5e18e230876",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-0af8bdd5d1410de26ea84da8d0e3089a-independent",
+      "document_sha256": "d60ce071bf248e296db9f8f249dc5a4b7b8307bf776db3f7597477be8662411c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-0b2297a179b50034f3de713f9824d202-primary",
+      "document_sha256": "c510bc686d8e4d979fb69e1662affe8c755e34130ae408e58b851a817eaf0dbf",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-0e03c935a11ae206362761f15aff0d51-independent",
+      "document_sha256": "f5c5d9f07af8435111c3ee62c771cb394039bf99472578417efdd7f7732b607d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-0f00a902b1536774b81fb8894ef3b457-adjudicator",
+      "document_sha256": "fd3b66057caddd1c8946a9867f011fd1dc9453b3621cbd9c50e4b4d6c65020ab",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-10c03d7fbff84ddcdaac120747436524-primary",
+      "document_sha256": "99b6524c4d716416de8c0db400d00a1cd401fdd77048b62002898d4a1355537a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-1167fb3f3a243019c5492076ac5af694-primary",
+      "document_sha256": "8ab3514a7a001e0e2c7dad75e748a9d64e76893f76ad843c20ee42261a4c6aa7",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-117dbc47982c0c46abcbf8bb84cef9a4-independent",
+      "document_sha256": "7d18acfc0b27ba206d1bd90bd0fcf6bb215801d8ec0e3f61207a4c2260b8158a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-11e4582475a9283e818e407fe0de2f38-adjudicator",
+      "document_sha256": "9a4cde926d9ee2358a93acdeb5677749665b32468dabb8d08d09b92a966722aa",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-11f8502929d54c3d8bad4aea13512558-primary",
+      "document_sha256": "fce34e2660ee0c524c3dffdce803fb31da16b92f19fce1a98575391a4f0d4ac2",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-13590f8d14db25a27397499a519f4313-adjudicator",
+      "document_sha256": "26a491e76f9c494fda7d1dc66b97d16242a913a52d0d21367c4dc9471e872d9f",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-16b463e6cfa737ecbad5b68613cbc629-adjudicator",
+      "document_sha256": "c1350917f8a4a6949f151627ec6161d551abbbb7964dbf004f08dbb934e8b716",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-16d4d7c7e980fe23e5b71532f48c9eae-adjudicator",
+      "document_sha256": "3353052a3d3dbfbe7174cb83c86c3e3cfe8493cbcc38a829f5dca2acd02ce1fc",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-176ed4fc3734f453d04f5f3abccd2916-primary",
+      "document_sha256": "ac9475ffd6252de5a338b850ef2a4f9da11814acf6018c10b80ad4ab0dca36e7",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-177b02ff55bce299c5836b1d5f33ea6e-independent",
+      "document_sha256": "41bcb376306b52bb3837bfaab0f13c648ad68d66886d078e27bc8b842222ee7c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-19d2430296ebd4618da588752997b3d3-primary",
+      "document_sha256": "ee5afc9bcd0756aa0560e8b572f9b7e7fae5db73600c987349bb7d61fecddb17",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-1a2f26a995a7e7add2e53ad9fd284651-primary",
+      "document_sha256": "482530c07ecf16d6d84ca0d397bfd08a1aa6126834a6f689b00e79d09e4c76df",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-1a7cb9641dc228ee85ad8890c6f94128-adjudicator",
+      "document_sha256": "a5614036bf258c424c7805afbdfb9af5a1d0e4c52faf787473cafe3717016b77",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-1b7d6638bde8d903fe420a71f3b81a09-independent",
+      "document_sha256": "dcccd7d6a2759ef27ca742b3e3b7649c907f3de98f864a2a8a368b22f62f1f8d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-1c76353e44a817a3a957e78e4afc67b0-independent",
+      "document_sha256": "721e6414594def3c6c2beb6e49298d0d271176dcd60d85e7482191a34801d11e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-1ccd2fc1a3717f3e651eca5ba3c19e43-independent",
+      "document_sha256": "f92f136c5bda96fee4fd81e085b1dc4af46cbed247f26a98ed2c632e1f089501",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-1cdf15001f4d49d4302d5de5b2baeab6-adjudicator",
+      "document_sha256": "be8ccef49943c034fef50561cb8086bbb26193a0f714b2563d55c3f36a70538a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-1ce152c83f6d175c7a5e247617014c8b-independent",
+      "document_sha256": "9042cfbc6a7b648984811729d7e7cf106c4394c44149294eb96bdde9bfec6f6b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-1ce9045bb7258ce53ea828a5356d98ef-primary",
+      "document_sha256": "d46de00710353bd1d797e22c77239f7629fededd27e5ffeb8d07464ebb044214",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-1d3e6a27fb7f14651a6a466bb4b9724c-primary",
+      "document_sha256": "1f835829e2062b82c58240c651ca0efad04ff4e58082ad7315b49d19769bde99",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-1f52deb0c2e4f3d72e98f7fd9695e51f-adjudicator",
+      "document_sha256": "e34c4c6186afe6876987ac08624ee6d80fb91710646940c2ab5e7f704866c9ed",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-1f5d5d851ce9b39c479c72cbaf30d530-independent",
+      "document_sha256": "fc38ce2cdd481c88eeb4f8aefd13da9be68945e59d849d2486818e1de938870f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-21efcf13d2630ea8c245880843795239-adjudicator",
+      "document_sha256": "5887922531f6fea9072df23aa5fad50faea7d6ae26c025bd8597ff62245a0194",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-22bd9da4c743802be71d57262278728c-primary",
+      "document_sha256": "2b744af43de0f2be9f9a619bc2690ed6af80632492e0741f3e3257d25c77bdd5",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-24a60aee56d31401a805f4876081f5ea-adjudicator",
+      "document_sha256": "50935bc8074b006f1f110ca1bdd82e511e9815139a0f5debbbc949c54e3fc5af",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-25361ec3fd7b8759c09bd3207e6b8747-adjudicator",
+      "document_sha256": "577b4b760d5316ecf6517cf64e059b72188368fac8d2ff0a570ccc87b38a0633",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-253cefa8d951b1da91d8b5a3001a5550-adjudicator",
+      "document_sha256": "87464251eb8e595f0b9faa0e0555ddca196be433fab43ffc98490bf3208f602c",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-25b0ba81a677531d32cce90a02021aab-independent",
+      "document_sha256": "1a743c9d5814fe6008f032b7d456e8364f7841899ceb2f3ef211910cdc2ba8b5",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-2785ef2593ebae2d0ba1d02dde4d6ab6-primary",
+      "document_sha256": "63a2980e4219141e95559dddbcbb3c20aee10c26039109860dd4a58122e8b735",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-2905a371d610dc88964367ccdbaa02b6-primary",
+      "document_sha256": "a3e30c7036afb3292472f86bd589be1b3e4ccb3290ea09e57f7df49fafe4c4c9",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-2a740677f5cc1ae84ef6bf16f94ff447-independent",
+      "document_sha256": "cd4f44b492503e4263e81d3a86663fee2979514d4781a81750d0c866aad68c9c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-2abb0feced8d7d4d8466eb2c299b6537-independent",
+      "document_sha256": "cd4a3df886ce3b477be501d8d7f49cf0f16957b8988cc53409faf869797f1e24",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-2ccd6e5cdeec595cd7babba30c0465c0-independent",
+      "document_sha256": "4240f4faaf4f4469c0734f75891c5ea3e683a86301361bfedf5221ed3a18022a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-2d6c05494b448aff4cdceb03f4799499-primary",
+      "document_sha256": "dbfa415c78d3dc2b867444653582de326d5bd72d8e1a93845f044b0a187e3b02",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-2d8dde270e0d355a7b65cabe18d3476a-independent",
+      "document_sha256": "6b0d72d7790c224cb7f1ea08d38227f936e0e85bd0aebca72bf1a246dc1fe23a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-2f6a5040457953790e16380588975c2c-adjudicator",
+      "document_sha256": "f97d0a892fe823ec912448282ffd39dab1e6e4d063f3d772dbc339388b88eb69",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-2fe174c5c8d8e86efe40d9478d2cfa33-primary",
+      "document_sha256": "8fba8b4ed10e28dc1e58eb4f636ec9e3c361db97d4920d51cedbf6b658b11167",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-30e7ae0ea0f665eff3dc45cb95616f43-primary",
+      "document_sha256": "f5c1b5953abfb72029da312b21c813d6f34cfdfa5bb1da5ad4303c9a0a1796b3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-3170c901d3299954ba2f2e1d7e10bedc-independent",
+      "document_sha256": "fcfb97c8a84c8d41c97123c9ca43072020f116b564e6e9bd3ea0521ad73cc961",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-31af4d491c94ab7df942f75b59648b81-independent",
+      "document_sha256": "340222fd8e345112f217ba3396c6c74b6f2aef9646848e6046eab1d14d3e85f6",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-31d120780a1fa33c29515d8d5a5b2497-independent",
+      "document_sha256": "c7b44820fb7a21391f6c3ca8a01b8012356a6d0feb63e09407d78a7818f3e81f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-326bcb4001c2a0c9c41edc2172669b6f-adjudicator",
+      "document_sha256": "483e91c3de410433bfc09f192e9ec1ec70dab23cb06097b59fbed76adcc7f944",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-35f794a8910428adbc74ca598c521f96-primary",
+      "document_sha256": "38db137fd6b4ac30881ad93ff683bb5f06b3a9811c7a4d277d4dd083e51e4251",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-36ef1b7835b19acd78ed98b6de4f0ee1-independent",
+      "document_sha256": "ec613e03f5bc31eba182be219c12e0f28c376e6b2569a3e6e3af833799bebd9a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-37004371b10987c33df395afca2fb89f-primary",
+      "document_sha256": "d71d2194c065ee9a8e28b78f3d805d3d322a0d4ae8d8b11bb4caa42cda6c1f0a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-3725952efa730275d534457c151aa41e-independent",
+      "document_sha256": "0bb46e9c423663c1927e7dfe962213d218558105304ab582cae8a4ec22637f74",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-378152a2e0a357069a86cff88318ee38-adjudicator",
+      "document_sha256": "b6a55e3292f13aff667724365c2e04a6ac7f06421d92a30473aeb39606f551c0",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-382dd7b5557ac1cb9a81e8a49854bf2c-primary",
+      "document_sha256": "82c4bbbd25395f658f25f5a388f5d20481b6db8e473e263b46eb222c51289d9d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-38a8c1b097884d9dec7d8a9cdf65dc2c-primary",
+      "document_sha256": "5ca5d57788d5f2d49be338d27ec847ecd4eeb3378808c5a3f658b1f74aa40233",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-38e59c95a9ce5fa56f5f0f728b9618e7-independent",
+      "document_sha256": "d7fab05c41eda91d4b44782d529a186c40327c4b4fc485c1eb7db1e20a82a9b4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-3a89b67ba01669173d1670010bcaac4c-independent",
+      "document_sha256": "4fa54e6771d5d2ecc2750012f3da1fdccebf1bd637c074aa8e805688c60eddd3",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-3b3d2e083ba59709e5543d51609b4ddc-independent",
+      "document_sha256": "5b34ef8683a9ad6c8d0e7ea6d9f95fa90804b79c9fb6808d3dc80f83018b38cf",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-3debc30b4fa7fe3357363bd50db3afc3-primary",
+      "document_sha256": "d9eb57e8b4d51df8fc489daf667b3dc16291b28a9f4807060b1f42aed03db910",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-3df659e57896efa7eb1a95dd8985a4ae-adjudicator",
+      "document_sha256": "19a7d8691fb4ba1d0f561a72a2591fbe6ed0b812247e4dcb142758b6c921a097",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-3e94c2c9bf72ecb5159e42094998db7e-primary",
+      "document_sha256": "a9d2b8425572b701ae431cecea1445200b4bb0fcb99c774f7afb50a317c1c85c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-3ecea01f40cc2a66de0eefbb0d98f02d-independent",
+      "document_sha256": "dee954ecd999cae8e0b41794d569d9b30c212666db310f921dd3b7d374736f73",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-3f4de3f8b68edd9766a7cf71d3024547-independent",
+      "document_sha256": "b834d57ea9aacbdcafb70ef96aa1fe699ba165ebf0425336c58b1a66f85b4abe",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-403cb347d00e90a548eb729870908bf3-primary",
+      "document_sha256": "4a52da5b49ab0e0cb49c6447f5d00d49a6c5a89e71c8a4f596061eabb9959dd1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-40b6aa777d7e5e92e1ca05e34298df5b-independent",
+      "document_sha256": "c4f3e2e1a11d77f672be182c313d5ec6224665e795ed23ad43926ac551400d29",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-414b79a833b804c68e3bd89cab602504-adjudicator",
+      "document_sha256": "da5e78f7a81eb000fd001e6cd022c04f57b2659c4bffc731a9ac649dacdebcfd",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-41e24a74bc644f00da6a82c2fd1b6130-independent",
+      "document_sha256": "abfdf913b19ab046b6510911e40c4a939aa47d8bfe34bbf3673bdd705c070726",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-43806c5b1b489d75bbc1c358038a6aa8-primary",
+      "document_sha256": "110f82305bc2050d7f21ba1d420c28a474571c0845de0775919a2f61351ee995",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-450d01f8b84b8aba3177f8d257d66464-primary",
+      "document_sha256": "4e64b44a587a812a70bf37004c8cd3a3c70aa6aacd0f93d0d0874467355ddfa6",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-45449c56f250b28fb280dfd954fdfca4-adjudicator",
+      "document_sha256": "bde3b113397c46e3b81671fb1efac3dd01e82d592d17f067e95d1f257e58a1ce",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-45595f80472e03d7366f9499d48bd870-adjudicator",
+      "document_sha256": "b03daabfb6ca9d4503d149175954f7dd3cd275a1e7b31ae689d26b1abab7b91e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-459abaa8b431221eacd1245fd6f78446-primary",
+      "document_sha256": "984da4f5ee0fdbc3dbde5367d63646405232bb399bb325db93b560fe8dbf074d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-45b68dd3a222dd50ec214e165c449850-primary",
+      "document_sha256": "e724cd0d4fe1075e06d7b8ac28e0c6b57c839c23465c5b37fee7744a7001cbe5",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-4951b0427418cb089d14a83ae5b91a30-adjudicator",
+      "document_sha256": "abdf0b77569b802545adc70cb050334a6b9ebfb12442f3c1bd71d92fc1e04fef",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-4a0e2c6cb7e6d19319c46a70951a60f5-primary",
+      "document_sha256": "89405c205401c4ecc0c6647df15bdf54d176af3839308c126b0e5da347366c7a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-4b9a4b10f2b21d50586a09da792a0764-independent",
+      "document_sha256": "cfab053f3feac732cfc136de7faf5bd68543d004f31675cb42b23dcdf0825e39",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-4d1c9a53bb9c3334979b17e923048029-primary",
+      "document_sha256": "51578c886eae9ba933c9ff8a9fc923a5a11d2445ff0bebb17fa61c12c56b24e8",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-4e2d8607f8ac90946e3689be6d98ed48-independent",
+      "document_sha256": "91d9b6a95ab4248eced11c4d4f0275ba65c6b6c4c781717042d3592759339472",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-4e9974dc1031205d863a59381d786085-primary",
+      "document_sha256": "58413bcdf0ef5056ab54a343ef1da1706327c610b1a2ccdc4db45a7a2b0fedd9",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-4f638429828b23d56c45ef9613a399fa-primary",
+      "document_sha256": "9450c83aa73a7cceff390d2df1b36f6d2592afaecccea80d4c66955b9629f0fc",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-50dd03214d891f81b806fbe81314f401-adjudicator",
+      "document_sha256": "5fb0d44f9c77f52a81960257eb1b3a290e9281e67d86d77dad3f0a37a740fc40",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-53ee9436d3366873a756921cdb7a1167-adjudicator",
+      "document_sha256": "39f8fe491a4342d71f500d04fd4094f7800dc73577facdcce6ed5903ea31b639",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-5444ec2dff00a8bcdf7f48f5707381b2-primary",
+      "document_sha256": "de1b36b5171f0d16332e2883ee1758a68b2c9de1c24cab571bf84f1ea6c7e8c8",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-550c84876f2690e3d36cfa856c0a6bdc-adjudicator",
+      "document_sha256": "330479bbb95ac26d6cec82a87654a9a5aec0557fae031a4e2501ecb6106d5079",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-55c92050b24485b0ee3b943ae33871d8-primary",
+      "document_sha256": "90bd006e0e19d627865800843718a82cebdaac7d94c525906eae4b1670dfa68c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-55d39dabdbdf7d816f127f2e7bd5960a-adjudicator",
+      "document_sha256": "85bd717c320315be8b669396c6ebbaa8804549e71a2a96b06d242f5984caf80b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-5686570b87ef566314aa64c5573722e8-primary",
+      "document_sha256": "9d160a0b7e55061743f34a4b68ecf9d05649c1d3355df57ae3ce3eafe99e79bd",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-576e497e7a5ad66f0f1c484c7106d6cc-primary",
+      "document_sha256": "72913d75075f3d7e0367e83d69c822c0ab9290f86741f64d62caf43f6b50997a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-590305aa4ef0dfa18ac4f0491b3e6838-primary",
+      "document_sha256": "8de9557b3fefd9a09540ef93611acd0c77918bb4ea3694b0d2379b8c0131f6e8",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-59167ffb60e5c9c04da529d45e50d429-primary",
+      "document_sha256": "724af9bf6c2f9bbb6f9c7cdfee0bbdf124e6ce8c5215822f8e0881f629204d09",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-59a64f8c9a38ac0e3df51beab8456f86-adjudicator",
+      "document_sha256": "a1fee064d9c145c1917a636542f4784307a74667554825043cbdf9fc416c799a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-5d18a40f8a5003e596d5a717a8a1795b-adjudicator",
+      "document_sha256": "9c5faeda815ff261975e173d6e38dd84e317dbe7c7586fc12ec620c36ddec938",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-609bb5115e8b682589b4fe08a4566f0c-primary",
+      "document_sha256": "1a51afd8c0a2dd2e71b7448ee488437988c60f60c75ad09d9763b524b7cc0b98",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-60a1a2ff89ab1ce59dee42b78f48acd0-primary",
+      "document_sha256": "754ef9c6d0fc52ef4f6eb689c447ea3e1f8afe5c7c84040f8f5a3f2e2a05fce2",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-6251077e7b3f117821862686efa819ac-adjudicator",
+      "document_sha256": "55a890b71e7318067ad82776e17371876f76d3e392db68803702213810cbef89",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-635765f1233f3d9867f08a31ce6cc16b-independent",
+      "document_sha256": "6d5b8703eb10a1755739e0043aa79b7caf0fc8a85d992bf5ddff7f51deadd2ec",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-63edf99418ba5538d41ef1439c60643f-independent",
+      "document_sha256": "d173d2acc52a7e5dc174bccb2a8b7f98a0b51bdd09ab99304f579a883b065a3e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-641f9eed96025b7d5fc88ea70e8da01b-independent",
+      "document_sha256": "b67f4f0a425cca6d2ec3aa94568f508a9dd878af74bdd2a346b9baf0f10f8f5a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-6431099978fa4db85c9aba2839d2f269-independent",
+      "document_sha256": "4d35ac782bff64910e725ba70cc32bb6f48a498f479351f09694e20b5131e3ed",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-66a7aec2e802e4daf055b60b01c6b851-primary",
+      "document_sha256": "057e60de678cbc123715ed91c78d1c2041f95f0f9ec866663c77cedf72563f0e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-67a1497639fe0c7ac1466a79660e3d18-adjudicator",
+      "document_sha256": "909fabdd25080c1242d31d0884eef30516451b467b920875f1c8879adf1b7e43",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-6813ad339453aada65bf857ca08abb94-primary",
+      "document_sha256": "c05c01834743784f42cf1bf11f5e1134f2d3dcdbe7b4ac6c64d767a092779227",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-6820ad4467482f92f0c489891744133b-adjudicator",
+      "document_sha256": "a9a0d09cc62e30b0b561b68c02d99112b0fb3480363c547804b6ecf026fc4773",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-6865555d90f9cc7f34550787f6ae4695-adjudicator",
+      "document_sha256": "7f965fffa8b7caed0907e00858b9ee19c18105902b335ad657bc0494f837dd6f",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-698934a0a87c27a54f58634cb27cef32-primary",
+      "document_sha256": "9bfc7361c2695f8b22c4ef63b79834d090de2060cbdb9cc5f09f66c30259cf3f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-6c89c533a11128a4db0be3748067cb7d-adjudicator",
+      "document_sha256": "7a5c8afe29d2ee04b0a585b05ee26bcbf687e7e42164ef36dbf6858066a7c7a3",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-6e101bdd8dbc904eabb5aaebc6925375-independent",
+      "document_sha256": "f2b8c2f842ba4084406c8014b91b0ddef7bd059cc20c287cf38960cabbe3b4c9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-6e899ac17398967a615a95874d7b657d-independent",
+      "document_sha256": "df919f4facfd7ef3b1d425d7d74efa61e8e18657d1c9815bdccc3272a10d8a12",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-6ead619da4c5309caedd06ef25570f09-primary",
+      "document_sha256": "3ffdcb2136e4fd3f109f94813675897a9be1c7aa9178b1927dd831fec911e050",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-6f756844b666171e19b4cf3bc0049af6-adjudicator",
+      "document_sha256": "5b553203361229cafc9270866bdf1a21881825218e9f342e80bc59c9d7a6f2d7",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-70316d1b3cd9c0d22a94a4715d51401f-independent",
+      "document_sha256": "521af9e2735c953981e14fe01bd7b21239c05f703537db19da6071e0ec90ed87",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-70846c69a51eef346af748c61a8f65b8-primary",
+      "document_sha256": "4a5cedd6209eed6f11a9dd730d9af4f8955000430e2eb8a76752c46abbd472f7",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-70bdc37f28b138489aba7c1dae17b62b-primary",
+      "document_sha256": "d58155a851bca3d73e13b6de9e39c281886a1d4208e55f052f708e1f92a34700",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-7152bf24a231af7adf25f5d7f3f255d9-primary",
+      "document_sha256": "5cde0a257dbaabad2da74e8978ebf1e1f0619d3d451ad8dddca1e8cd8ae8c4b1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-7311d9b20a45f68f32aa563d452b30eb-independent",
+      "document_sha256": "489a5129e6a2bf432f25c37ba03e86abb5fdac53971c8e6f79e072765fb7bfbf",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-742ee489f99d4484768f8d4c2b3808bc-independent",
+      "document_sha256": "a41206195bb47476d59075ae1dd01308e4fd1a9fdcd749cd57c7f7d28b736ad0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-7482136181989f5746fcb0f506cb0079-primary",
+      "document_sha256": "2c702559ad29cd7c243b694141c3766b53bb21c2ce3ca936c140947cf89d4030",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-757bf69fad163d83b25f7c6d46c1a6c2-independent",
+      "document_sha256": "b2addb5f7c0acba3c9e1d094dfeb3ab2855caf7057d4231bd07b5d0e6688826d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-7581fda00fbdcd5c8fede2cc1594578d-independent",
+      "document_sha256": "8983e8a3200b3b2d66f2663adb1d19c9a34b640f29f666c15177a4f9790734ec",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-771862572d33c255a2f34cccdc4db72e-independent",
+      "document_sha256": "4cb270b79799268368140191984d4af6a1b7d8c76d5a30f4fab73713485dcb79",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-77a06eca7210e18ed1342d0fb869a695-primary",
+      "document_sha256": "f48e4e15ff309d37b66b1d73c7d325bf92256b79ee4592f833366ff09443fd02",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-77e25d5b5c9c19c08f4cfc11947bc3f5-independent",
+      "document_sha256": "65c855671941d2f36437ee56fb991f5fb43870d9932489b674c6dbf573a8e4d0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-78fdf6f5985ba0a2574545bfa5d2d9dc-adjudicator",
+      "document_sha256": "afcfc6bbec409fc8073f3acbccd3a88ac05f89a058dff9f94571e010018282d6",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-799b371099a5571506c401d18e6a7e59-independent",
+      "document_sha256": "9c404f68480a0c6db9a35848f5b54846de226e0fd9912f8f5b7a65fe7b63633f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-7e1785500314da3dfba373c7f1ede6f2-adjudicator",
+      "document_sha256": "63138ed5b6e53b66ebe607ce6efd1f60dde4d04763bf7fb5946f4a0e3c0eaadc",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-7f59db454645f1bd6a69a944c2f16adc-independent",
+      "document_sha256": "b886deac786c2ceff4234fc7002215a41825b8b4de956b749a49a58c21c61cd2",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-7f88881deb65010a9707b5df4ae93450-adjudicator",
+      "document_sha256": "c419a4376180534562c0efcc48e3be04d9bd23d08b2b6ce424569e2918510b50",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-809f83b04fc0973fd6d8fa4ec9cf4a9a-independent",
+      "document_sha256": "fc7ac2f523d526c0395a6925126f6da2fc9fd6775d8628a306fe651b10839cc7",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-829606609504c0a8f47a9f122c6ee582-adjudicator",
+      "document_sha256": "4f7f2c052fc84125745d0afefe9a255d2481428aeb2e58a3e0db71ed4ae95666",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-831164271635da7a94d5d5bd06f5e97f-adjudicator",
+      "document_sha256": "8e23dd832589087baae4256d276542d3808d598cdde4cb4cc721fe70281b0813",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-835c93700acf62d97b5b3e12304f4d82-independent",
+      "document_sha256": "a95484d945e3f4f41fcd0e829cae0b59d12f956f94ed5a4cc9d28fc86cbd9b7c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-84b1b7aff19958acd102cefe3598ddf1-primary",
+      "document_sha256": "b3610ecdcb8187387aa9870c05b7f447a4db57ee148de36421384aff0ea7604a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-8589e7983c6a9f4b52444e0f5e7c6bdb-independent",
+      "document_sha256": "9770268339f39d8ce750bfc692fbe09dc4c5cd17a6a4afb8a618a2fa144b589a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-85f53a2eaba5c35c6b10de4ee66e519f-primary",
+      "document_sha256": "476d7d86934d3970c3e040df531eccf367c1736b49ad79f6392f6ab0c53fb370",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-8895274aa3c6b5f2d9a6514dfb6193f7-independent",
+      "document_sha256": "706604626c0b64180cb1e27d28aa768e27919d7d3c0b4a292c49660077f6f394",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-88c256ab84a725711e2f126702031c75-primary",
+      "document_sha256": "254d5adc4f9ad6ee71cb7deafb11eb9656175adec03de05acb8af950a6e6f374",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-894c8bac79af723d98c4052c2adc9d12-independent",
+      "document_sha256": "ca23ed0401812f9849c3544494c0e8f820b631804998651f5c99bcfdcfa2803e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-89807dac075b53647f022f9353b1f210-independent",
+      "document_sha256": "63fb76dc369983a8ce238dcf9d6fb187ee282c17d4c499fc91ba6585295b01d4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-89f79d291153c1caf6127c8f7c869bda-primary",
+      "document_sha256": "70b62a04e01319e01c9f60db08a09efd60e0221e27615de7de1ed2ba1a72b615",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-8d78c2275fc72bf4a565b07393d48fb0-primary",
+      "document_sha256": "e645592585d6b9acf7b98258c375118eef0a2dffc02a30804ff13906f59d3d02",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-902a459c4c0c1f75f1023575c49bab96-adjudicator",
+      "document_sha256": "bae1a24bb286f4bd36c433178616f8490e27efc90d7f5374c8fe8eb3b514a1cf",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-92152b7f9c830268e6515589f4f83611-primary",
+      "document_sha256": "7d321c68306a12b96f507f480b9225fca77e1559a81a8ef25e8b453a3e7f12ae",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9299d6d8fd7d80ddcaa5430919a3b414-adjudicator",
+      "document_sha256": "c3b8f10d2059e38e410ca74eb34ad308265a2c1bcc48b9fcbe8f813c14c14967",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-9333071b4e6b296f40845226c1007d77-primary",
+      "document_sha256": "6e06787c8935217f6cf3a6f17e93f25378da70fbd6a741ff64d86a8ac1f2a8f2",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-95660accd96c0390af98b981694cba79-primary",
+      "document_sha256": "1ff6f5b351cf85b90c8632e0d710eb4e96d0c07f390de93ff32958be7aa6f181",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-96ee1e91b574b6fc6d4126c8b7c5667c-primary",
+      "document_sha256": "40187ae58c51e7365a1c2e471cb9235eeac57497f231231219bf178a3a3ec92a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9819f3b03db6061a8e5a73ddd357ead6-primary",
+      "document_sha256": "7337e41edaf1317a74c38097dfe510cce7efc845ad0800db3ff1878ed41d4efe",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-98788c586714707777bbda859369d157-primary",
+      "document_sha256": "822d2a796b68904dbd91afe294e89712c637cba9e30516b297f04d237203edec",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-99a6e92ad50760bb535238bff212a7ca-primary",
+      "document_sha256": "fb15b4590b18abf2563570721892b211d85d4d450544e6b43739b17ba32ed474",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9b0c1dbb25df48a5e3df68433835116f-primary",
+      "document_sha256": "7fc1b715cec7b16b15f0dcc3de423a8c1e3c1daef34aec53b014d9debd055256",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9bee4ce78941961aea50cf0e2922e830-independent",
+      "document_sha256": "9334f5e7a275d866b84934c3fdf41dbfb6eeae9e0097084e9407eb36f848f70d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-9c0956f913e773bf45c411521240985b-independent",
+      "document_sha256": "26ba192b9e7277150a0324f34c9977253576243c1e7084241e71e0a4506020a8",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-9c2dbc87e3eaa7826388638665bb15fb-primary",
+      "document_sha256": "690b97a160a0d341141488eef6bd41c065d40f0fa6afc6b426a94646c9b74dd2",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9d23fb9f6e5646cd3a7702e30e10c8f1-adjudicator",
+      "document_sha256": "45e9729fd757a3fcda504c63ff335965fad23d69a4d76f3c6d4707c790afc898",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-9d4e0732bb7913556fdd7167680e1de2-adjudicator",
+      "document_sha256": "7915b049f7c403f73e74c51446c6ec5fbe39ac398dc2b86481d9f43653777cd3",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-9e50fa7a20601103b8dd111f21d158a9-primary",
+      "document_sha256": "d096dadf1950b8b14d1d38e3234d40c0c60b47cf3a82a6aa82e6651ef4ca1bfa",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9ea8714c294bcd181d7a6b48171ef77e-primary",
+      "document_sha256": "8f08b528c1289f7ead9fed3e40a5b47a7f5b365edbf5265131e840d125004612",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-9fefaa03fb9cade0eeef44912c77b182-independent",
+      "document_sha256": "4049e4f55c428da12a773171567f83ee9700b74f98f38fbec36246fc9382721d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-a0b8ac96e891b54907e186840022bf90-adjudicator",
+      "document_sha256": "c004ce658980bd014ac3bee7df0a7fe9040d3354356290711eeafca0d2a0e397",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-a0b92f966bbbde7256b8785de1395057-primary",
+      "document_sha256": "93a612d8f25a05ebc62c14c9c92d8011d292a4d4ebad3b14a1788c2a302638ec",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-a0e82e500ca1b6cb59c24da211982342-independent",
+      "document_sha256": "2321a71ac2ac4a8f980a685ffc01e1794f9a297c8d81544dfdfb38007e1380b6",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-a175f6995d25c9d7870ccd6035bb4070-adjudicator",
+      "document_sha256": "ae3c8a91bcae00850883e5b84b167533cf6f656e7e6f9d31f52c92bd239eb7be",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-a3e1aa1a0713844a6ac98ea0857263f1-primary",
+      "document_sha256": "7d209358057157acc28e5abb65810dcf58b7b3517c5fed3f06ac0ddac6ce53ca",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-a5bf25afd548aa58f07ec767fdf33919-independent",
+      "document_sha256": "d88a9670f5fbfc0b40a556293828d06ef74a42a6e3333ebcfae20607e73e9d8c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-a6c15aa11733d7a2c3f77b454fb07703-primary",
+      "document_sha256": "d1b27cc2d867b43fe42f53e5b5b66fbce02c3241149e82f93c5d4f0eb54ec025",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-a7437b7741e1bbf7ceea8f35598dc077-primary",
+      "document_sha256": "fdf78744d64be3d1a19402b7d972e6d7d6964b8effa6d063b190ac4352f2b83d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-a7dd313cba3b1d56525241d68ace8e98-adjudicator",
+      "document_sha256": "14e9e59e471deb3ad239dcf280b08de696fdef9e9f2cc2755ae1fcdce77beb31",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-a901a5cc2d6498e87962c1a4e255384a-primary",
+      "document_sha256": "fd03fbaad0ae501f7abbc10ba39ccb6d0328d5eaf1c0169b176e6c5fe472eff1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-acd7d9d1cd7d90918395b622f0fee4a3-primary",
+      "document_sha256": "9b3aa9646eee64b912f231b6e45fb5cfb697165f90674a23fb7f7c6b4cbdea3c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-acebd9b5d799c7f0897f029d3b261c69-independent",
+      "document_sha256": "ef3dac3ae2cd75980a76d1b0c8ef05b8e4be8f90388b270aa3713dcd60931438",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-aea92b49df7ad8c29a22224fa21975b8-independent",
+      "document_sha256": "d16a940d78ab8d2da37ca1d356a2130e1399317a526290fb4000b2a44898eb97",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-af03e9f8aa1d529697d4efc82e8de5f3-primary",
+      "document_sha256": "4e44d2d3ce97e50d3bd61071f36a3f710820de248939fb4c2d63b07ac7027a49",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-af17e7a1ba15222b9f09aecab0c6ff94-independent",
+      "document_sha256": "92b2547b794fdf4bed7d5557d8de718e81303ba5bb7ef2bb37e3548f15a8dafa",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-af76f30ad2d8efe1d6279bd0a9e5ecac-primary",
+      "document_sha256": "8c12b0ec494024e29d5e060650a78e3baec82645c8398aa91f2a39fd6788cad5",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-af99ec58bdbfa9adb1119a89d9c328a5-primary",
+      "document_sha256": "32c3d4328a754c6661e2484735359a2be9feda4f6c865694b917d973af70a4ab",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-b005c8c51fbd1a9063a88512ede700bc-primary",
+      "document_sha256": "9a25c0f47ba5e42c6c0d8f543370d98d6081197e4c1a0b249bd2db31be0b37b4",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-b0d07fbd0b4e96bd7c40e4c015a50c4d-independent",
+      "document_sha256": "4f6881d41a71b26cccbf0c102d0fba9461476fcbd26aac7c997272016ab5ca64",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-b17f488ab1163a30b3d2163132dffc84-primary",
+      "document_sha256": "af4083bc6e653d92bd4673a1c26b79ffa11bffea62055e174c5b8a1b753edc74",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-b1870d4ef1ebabe88463000c7820cb3c-adjudicator",
+      "document_sha256": "96397fc5650e8a0d107873a9e5c103236535e017a55b44d948b3c9e0bfc153d7",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-b2675f8a63ca62681bc01c25886a4368-adjudicator",
+      "document_sha256": "4e181e029840ca6ad0ef9717bf6644e21456ab5e722acc290cdc5f211dc9d0d3",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-b272d7f9265a286e49167fc45f29fdd6-primary",
+      "document_sha256": "54ed34a2daad65c2141f5cdbeb7318e76aa2d0db84a1ceb8a84e58b5443342b6",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-b34ea559f6b05af21570351ad1be464f-primary",
+      "document_sha256": "17d1378c2c0caeeda3baf9643eee756c36732921a80a35c22bbd23d882ebf995",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-b38240e2c4ab12cdf88d8c2c3803b557-independent",
+      "document_sha256": "5649ecd2106432c97385e67d97f3ecf8c162e9394639e2e186bb1bd553ffc8f1",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-b3cb9addc9f569e780156d8e0a7c2e37-adjudicator",
+      "document_sha256": "d1635074b1661ca837eab5873902c580dede8564faed8685404e30187af29c09",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-b3ecdd0481f239f52a60db8bff097f71-adjudicator",
+      "document_sha256": "8efd2394717a9a52b5c57d52e100269719b71290de5bb9c5e8dd8592fe616614",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-b4127cfa57a78fd147fd98779e013795-independent",
+      "document_sha256": "87683f65c49d32fdee1f3193338273431d7a05f51f3f1be2f5aafe8eeac99f85",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-b45c6623f658c0f74c8dc26e46482a56-adjudicator",
+      "document_sha256": "6e8cea74fb9a336e470a8f0a5fb3fd2683ad0358fae3b7128619cd485665ee88",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-b4ff852494cff5818ef92f82cd1d58ba-independent",
+      "document_sha256": "6d8f0fcd11a4994bb2564e740d9939f9f6db3123a6b17d6db562538b127dad6d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-b6a41dc07ccd6036a2e1877c04263e4b-independent",
+      "document_sha256": "07c1bd613c7db2c50e337be80c6cd84ab86c5b88bd16e5ee7c4f9aed4a34dd6d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-b888a2cf44d784f59efd56e3ba926865-independent",
+      "document_sha256": "1195de27505aca87b9bcdfe208ea78db1c224ff3dc28e8f48c3e5f2372f9153b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-b9d9a92b774cc30fa94044e553d84315-independent",
+      "document_sha256": "9b58efd73a861b2c7f9cfb996e1911508f39f347279b6fc56d126f4f4c7c75c4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-baafa965cdb28ba139691de0c9615e62-adjudicator",
+      "document_sha256": "9496f544ee2aa4527c0a18a2b86036bd108117f879c11f24c8c3a7e09493df3d",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-bcac56341106ef658c4c864e581655fe-independent",
+      "document_sha256": "0618d557ddb3816cd10c6818633f080cb44ce61babfc577b9ea42f6f7ab39dcd",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-bd93fc99061eec5932e53c2b51dc36bd-primary",
+      "document_sha256": "f419ded23cc66df11bf4703551048c41ddc889ec73c35dff65fb5d53d2d4ce30",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-bda73aa171848735a302939c3905f958-primary",
+      "document_sha256": "41f9d3c9910cdd33e4085c07ec5c37ec9ad8dfedcd7614f56c5da89283f945da",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-bea0fec3f55733a25f2ae650c2a54a7e-independent",
+      "document_sha256": "40bdc5a58fd23d30d7bb27c269e660ff1ada90dc09355d3ede0cf3d21f65ea81",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-bebe180d93b494cab2b7ca805987a899-independent",
+      "document_sha256": "b211445ec2c01420314bad02c2f4a993402133648e733d6e3abc81c9d234c33d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-c03dac5d3e292d5f70a87efc6de21480-independent",
+      "document_sha256": "5258e8edcaddf68168f864eb8a9f36721417e9d2fb48042baf8d9949bfd7f81a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-c1cb81a273b3ac5e9ed4eef5c10f623c-adjudicator",
+      "document_sha256": "1b84842ff7db638eb381d5e22ff13b0e23c2d7cadc1b9a27615111e2fb84320e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-c25907a6783d328ea18a80eadd5d8740-adjudicator",
+      "document_sha256": "284c2c2644fe5a7cda34cf3ff045ffb9dc067ea36222859135a14b29e727bce6",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-c2fddb78a671f5fb0ebd0d7a169af0e9-independent",
+      "document_sha256": "a03d7d4b3b3b33d945277196c03a2822cd02c7fd4d6ef3ce0c5686c52da5b921",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-c3e232c8963ce8c71c46a61528f688a0-adjudicator",
+      "document_sha256": "c62137e3d34288ab833972846e132e11b26b3a685168ca8ef70d438cd4af4984",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-c595abb95bac0088b9b0390eb60b7050-primary",
+      "document_sha256": "5f5d6ec21ab803b21fc6f13dce8aec68ef1c594c5d4701d96238303a99e97576",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-c5c26ccc57ee403c0e2762a1d77b598b-adjudicator",
+      "document_sha256": "79eaee8f370ccae9877361b0faffcfa27170f62f2e038c338c57ef7dcbb643ca",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-c74a5754ab99c8a0ab963fef812a9085-adjudicator",
+      "document_sha256": "d3471f060480eea372451227b7a93cdca79fa3bed5ba7e4070aeedcd26496070",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-c74aa2983897774fe3599d5d6163a471-primary",
+      "document_sha256": "342c4af952c7aa4fd36bb5fa1793c1eb1b4366b10d6f5f198dbd2095bf5813e8",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-c7575aa3d339100424a80db9870b0542-adjudicator",
+      "document_sha256": "953b5dd3188da3f7ff29da7a4df6a1117ee5875196dfacadc9657c0b76cf3b0a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-c79a8256ac47fe6ca6415b9cb99af69e-independent",
+      "document_sha256": "a4a3e4b14c3d71fe5fad5672b1128db9a5f90c7cf47d22a4c4efb873ebb65f17",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-c7ad049316b3202676d3ba4676780cbb-primary",
+      "document_sha256": "db079b573877d37a1054a83730b8a54e15f3f760fd5c37d30bde362fbc405084",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-c909de0bd9b8e9c099b42e135575b692-primary",
+      "document_sha256": "30317260757e9a6d1dd8fb9b15dfb1588360680d01ff8f956b1cf22aa137946e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-c90c125020bc645f8220e3151bb1c59d-primary",
+      "document_sha256": "a501d81452d755ef2b3821c83b7945381cab115dedfd31cae4e6df1b817523a3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-c956ccfe0164e187966b741657001df7-adjudicator",
+      "document_sha256": "4a13e644be057c4abba658cc44fc1f63ae279f21d403911c6ce717024637cd06",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-ca0562be4add63872aa2a2e50c264cbc-independent",
+      "document_sha256": "37f15187a0ad06c0e896fa210779fee02fc44a373e1a540ce5cc67da903b9983",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-ca2c3b4f34e2122e14ff9a5c26b2e982-independent",
+      "document_sha256": "add8f7430bab2a5260dcdfd7d76b7726d5ad98d8eae5583a6d8d77077f0ea07e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-cc206ba803ddd7ff37bdf68e31a845bb-independent",
+      "document_sha256": "38737c17d6607a55bff173adc5906afe0d30e88d80816254b818feda3a68f669",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-cc36cda5e27cc6d323aea199f756ed7c-primary",
+      "document_sha256": "1a3097305d43e6a78d1a33336045104be1ab0e73c417426314fd6f98d14187af",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-ccaf977e3ee2c1153f6aedf09ced79b6-independent",
+      "document_sha256": "241a83f79619bc350b166a375d5112686b98f56547915fac5dd02dc3f7386352",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-cccd5e20b41c83230e80cd0a8e8a9df1-primary",
+      "document_sha256": "6bacbfb008c5e6414e517a1680e3a8e4c9be7a8dcdd23b024f6792fb7438f02f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-ce24da45f6f0c59d0ec34a0c49796fd6-primary",
+      "document_sha256": "576a4cf0aa4c853c419e2791f96c822a585fc3e0b24335a9a205f56e3d5c1c25",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-ce4b293853f7d2729ce797566d40d07b-adjudicator",
+      "document_sha256": "5f5c3b4ac29f147e298ed21361d206bcd0ed97036f54dbeb87f0fb34f43a415b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-ce5f5a58544e3199d667326cfac80e71-independent",
+      "document_sha256": "f23b7b3b434d7ecd99d1278ca602ad14c6e8ceb17ec0592bf7e5c6d629190ef9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-d06ec7f0d79b2bb261fd7de96c2b2f27-independent",
+      "document_sha256": "13ca1d65944a77500ce12a4ec35b0d8c1d16196f3ec2843e475ac6b7ebbce822",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-d26209fe7bce6f7fb2c0f253a1a2fafb-adjudicator",
+      "document_sha256": "d477c43ff572a8884603a126d67f41c97b53cd307680662d739a235241213b3e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-d26d03c8b4ae995334dc0fc101929749-primary",
+      "document_sha256": "01b0d5955b88ed53daa5c3e15a05ee06f30946e41fea2cb78534656e08cbe0c4",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-d27ea11fac9d14bb849c26ea7a1e4439-adjudicator",
+      "document_sha256": "ad2d1118db3b63737820da875d885f5ba0d3289af4da38bda5a3d08de5727f6f",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-d40363807c2c93ccfaf758889d7fea47-primary",
+      "document_sha256": "1a5851f6c1dacbea0399b57bf2169dec16672705851a3f30cbbbd43d6914c1df",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-d405d3be10f271056e649be75d7e800b-independent",
+      "document_sha256": "e7184a9cb4a426a9bd5bb44eab7c5b24c41940299dfa7c8afccebd1693531737",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-d4fd8f1362aa037d77073431317e0d03-primary",
+      "document_sha256": "30c91bed9655bb2af7aebc9a573d02d8745d16cb94615d89d1ad2795cc514b58",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-d8f6b25833698d08647d773420fb1e7c-independent",
+      "document_sha256": "1e66daf5f460dcb89ab0d44bba06d306b31db714705ae3d6ee2bbc86e0ad2d9b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-d97da2334291e11d67b3f5f4d2ae8034-adjudicator",
+      "document_sha256": "c9bdbce4f5b7e4e95bac8ea08ceaa3532f4ff28287ac1438b15633dbce9e4751",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-d97ffe373ced742985a3d70e33100084-adjudicator",
+      "document_sha256": "6efbe27ee4c4f4a32b8961e27058679266e959fa3bc8421a096ee05b53024ab2",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-d9d7981218e7446bdd0c9b2d5c3bd9a6-independent",
+      "document_sha256": "efebda037befaf6a63ae0bfc005ad5f8b99ab0b31e99a86e8ae0cc9ab8291074",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-da2c73c753305f5e6e85757ad57e2f18-primary",
+      "document_sha256": "f4dbb027a4f899478e737dbb2097900b4353102ca0fb546abb0e3cfceda044f0",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-db555ca1cf29007cbd7051c1a2875612-independent",
+      "document_sha256": "6880109ce3cf75ca03bd838d62584c283b4a20aa8bd699b1da755ea2b32307d9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-dd168b3002c7ce16a51b517b81df7243-independent",
+      "document_sha256": "3634fbf22b9697a632db0ac2e2a6190fc1804c2c8d8cedf04ae68a4078f1dd71",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-ddb393782548baeb8edfc049208cb408-independent",
+      "document_sha256": "8692fed30855cdcb557d3a3030f1c7b284154a078c414608275c481ad68aedf6",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-ddddee384437e13b3965c51b44f1289f-primary",
+      "document_sha256": "b0df32c0ebf1776cdcec61c986f87c5fd0ea4b69cddbaab1c5e009365228ad40",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-dfaec10be3398860a0765b4c78b0dc39-adjudicator",
+      "document_sha256": "ba3d49dbea019734e3a1012e2dcd3799097070510c75c1fd1de2f2af375b02db",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-e0708b18a757d84544f22e76802e7e63-independent",
+      "document_sha256": "ccd73a962014a8a21911814295c55c41f5ca1708acce3dba57d20fcab425e068",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-e0946af0275efc4e8f185dba1d0cc761-primary",
+      "document_sha256": "490ce0cf641542228ed803000df099a1daff573a77bf00681217f0f980491223",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-e20c4ffa094eba76d921dfd9672eda69-independent",
+      "document_sha256": "f353b7fa5f76ea76834fa25eb61a9c79e45e71132327960161b6c7a699a51bdd",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-e2e63127db1f313a505d426d798bca1f-primary",
+      "document_sha256": "d997c982fa4b8edbf74d01a3d2948b81d8ca7a6408961c65d829bd7c3463a24e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-e3aecd693db5ea2c8fd05bb558a27afa-primary",
+      "document_sha256": "5a0f686462083a114b5fd31230963e3de1d24ee57c2760c8f0b0cc98f14b0678",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-e71f130ca8b7fceeaf55656d7941e139-independent",
+      "document_sha256": "45d7e55ef9171dfbfc546fe537c36341ad0aefcb23ba81f36cdba1a507b4a4f4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-e8a19f5830b19e95461f54e860f67c36-primary",
+      "document_sha256": "0f15ef34343172c67e097aa8a1d501bb7c0966db2025b51db2f5f7b46c04790c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-e8dda5e9e1bad24fba3b727f7c3e1007-independent",
+      "document_sha256": "42b6ee5459adf6cc4cd84e4ee41daa043f6dbd7283e3b0839f48d8a3de0a4aae",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-ea0ca9adad0470cb281d93a29342f2b2-primary",
+      "document_sha256": "45c25497b1257f937e98ce7324df09efdc2e0893c14e8f283a8312c68654ab1b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-ea419c21755c47c7532268b7b5ba7797-adjudicator",
+      "document_sha256": "a2b79b9087cf375732f045373c614204703218aa803313a8c28978d0c9267c8c",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-eda0f47044159251ade33cc1f9e87ee2-independent",
+      "document_sha256": "933ed140898b1646cb6c4d8ac2b104c8860afcb255839cb1cde8eadb4185636f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-ededda02924dd757c659ef556dd0dc9e-independent",
+      "document_sha256": "0e04ad15106887b67e76b202df0a6c60710e205f91f9a860dbb58b888dc151a5",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-ee8d7f6a5fd793f7999fe94afbd4ec03-adjudicator",
+      "document_sha256": "7febce2c05dd53d577e6857166685560af3d700aae14ad27a7e0366834af18e8",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-ee9dcd30df06b150bb5ffb88b4c491ed-primary",
+      "document_sha256": "c625ef5e2a2c2270783b008d8f8220b6d1079f138da5a8e6b9cc649dda05d09b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-f139eb629aff55767c5c5348b738805b-independent",
+      "document_sha256": "cc3d608b02ae290d48631d242299474922dcdf3156aa41232685b76912f7f938",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-f18e5e77d67bbd1d347736cc13565b30-independent",
+      "document_sha256": "3d7060eedea76e6576ebddcb1cee0016b1024df8de84a72ada384810b47a3a2f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-f1c48350b3dd756c41175a098f7f6dfa-independent",
+      "document_sha256": "20a370bb863871bbd583629ad851ab5f4853fa4527b27bee3cced6f744982710",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-f38c06960ec6ad273d8c7484a760f7b0-adjudicator",
+      "document_sha256": "112eeea51250212caa6b8a5789704005da6b8f3ddcc8d46a75172a2250fcc1d9",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-f4ab27c68262e187b740fdddc6fa1501-independent",
+      "document_sha256": "80ef91163295df503b3f51af4f849bd7cf339a9ea652393318fbf4ffa2809697",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-f633f27e803bb8cd2728cbe49ba2d847-independent",
+      "document_sha256": "6545f5805121a332da67ae86760853f2d59a8b2ab0935d4d80f8853a771890d1",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-f8aa9836b80d5f7abfcdf160081e06ca-adjudicator",
+      "document_sha256": "31be80888143f06b1d40fcc7f7ef9e887114e8657237635bc54b0bae583c3878",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-fb1caae06981095877dc48af7924312a-independent",
+      "document_sha256": "4c06e3914982e2ef7beb8a344d137dbfb729e39f4d419eaabc8184a6fe4dc687",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-fb680975b752651f9513276c08186950-primary",
+      "document_sha256": "f28f284725542ee779e2f233ea879bc4e2cfaa367bfd18cc7acf84f3645a257f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-fbf806e56837f65ff74499bbbe87c9d3-independent",
+      "document_sha256": "7c2a9d30ba58449de22ed721180831e353101d61529871a9c5ac75c6eb90a97a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-fde3fdf1510d0dc6b77763c4c12b62c2-independent",
+      "document_sha256": "df7e36650a3f2010de07e870106de002de13be3f794d9d5154eff074311ea8d1",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-golden-fedbf1df1cf0eab6f6ca79ded970c6b3-primary",
+      "document_sha256": "210099c80dee3e3d359e69e90056ceac6f2e469690f4b8b6f89167da8398aba4",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-golden-feff8dc5a5fb025c70233744ddd4d5ff-adjudicator",
+      "document_sha256": "66ddbe463bbc9d4bab4500a6cee2a57208212109e939b5941004b8ff310f15db",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-golden-ff5ed8f879281c112dbd18aee2e19c97-independent",
+      "document_sha256": "3efe0cfa734eecae8e13631c700f2ce26b685345f8329ce2b2a82a17458a88cc",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-01a76405dcbf1e9c1791c5874d7ad616-independent",
+      "document_sha256": "e389c2859c30a1ff42bda720d1bc2dcaf024fefa4caebfc28a1cb5e8a8150966",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-020e796e4f0118de8ca7e07bfab8e83a-primary",
+      "document_sha256": "1899fdb884b3aa69aa841fbc0c41fc0bc1b817513e9d064722765c8077e8a600",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-02110901f15c0cd86ded38b974de9e0a-primary",
+      "document_sha256": "157579aae3ed986bfcb8633841a6ed0839c705a00dd6c52c5c9455e89d03563e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-030e3704ed71fde996d84a970c76525b-independent",
+      "document_sha256": "5fcc6eee318975f4ebfb1845ee1b284b9a8aa634aff34df27be8b7ad10dfefe4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-036fd5efbe5bdc392a66a572f9eafc18-primary",
+      "document_sha256": "612014c3488b3a44be8da71d84b0b156efd29a939c1c5ac1e930eea2caaebe2d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-05dd13eada228394e6f95eab7dae8199-independent",
+      "document_sha256": "9da6d180e94adcade46708d2ef0610fbb9ad5644f02eac63b0667c2f167c485b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-05e2956847d8ff4f2cc39d542f3ee268-independent",
+      "document_sha256": "735f4b436e4dc909cf0a6689b16dcba21e5330a32565429a1427a57df06617be",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-069aaaf94ce905daa31a73a082bc3aca-adjudicator",
+      "document_sha256": "24e1e8b5a7db37b1af9511b13e93252fa33723f51491dc0247a8e3fd129cc1b1",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-07d96b89f657f162b9d055611f30f54c-primary",
+      "document_sha256": "0ef1cd36b486cd82ef5010cff0b17e2d451a8f2f325a78d80744b99dbf9ecc1b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-08929d42434a2c4667b097ef9ced2bbf-adjudicator",
+      "document_sha256": "c5673cc90730e6d7f6491c683dfc877cd28d0d0d4b1bc1af8373bae1a629290f",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-089615c997a041511266f2b554575e7c-adjudicator",
+      "document_sha256": "be0aaef0dda9a5e1926c6f9b7055fcb9ff6932772c48a09d6860980203109e3c",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-08dabad6ec73a797d856ac7f6a4df846-independent",
+      "document_sha256": "bfc35b02cf28bd5cd0d2e45a2deec0c50c265454b8c85855fd0c97a8be7a180a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-0a00d0f039be9f4f734feacc0e7c1751-adjudicator",
+      "document_sha256": "dbc9b60499cb80be1f6638be87d054c64e3d73f0892fc4914c4ffda1eca916a4",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-0a348ef8ced3f53b3d87a3e323c0d06b-primary",
+      "document_sha256": "bd85359446f461ccbe3aa35d4c58429a68b42cf13acc08612b4336e8819a2740",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-0a96ff187776ac7a1e13e55382ee87c2-independent",
+      "document_sha256": "cb5789c92533553e67c83890b5277f5e1d14e34f3f4954efa43c4a6c57f6c395",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-0b62242adaec31bac2148ee75b170f14-primary",
+      "document_sha256": "f387296a0d7489748bac67103c0d1a6d58fc466aa72529751da8d53be072f4aa",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-0b9b52d6b90e2098e9df53f5c3e33c51-primary",
+      "document_sha256": "c8fd360f7560fe9eaee31e9f03b077a2389f8f138cddb574ed71bd9d274f349b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-0bbfd2de9017dc665bab3c04bbf52d4c-independent",
+      "document_sha256": "ceb5941f5885ff80b9b9be8c0669fbdea623549b889b1980bb2741383aa76160",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-0d29f43b70ee22fe07a2c3cba8e4d887-independent",
+      "document_sha256": "84185909aa15052dbdfb7fa4d2cc2e65ada5aa76340b7a174896a7e33df17479",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-0d3dd0f2cc3762de62c3c1b6edf16c12-adjudicator",
+      "document_sha256": "6906f7bd29d800817ad52f19bfe9a4c325da1e0f3854957d0e3c1a04f6716bb9",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-0d6d44fade82a5daac2cab5a20f3e5e2-adjudicator",
+      "document_sha256": "c066233468f0fda53dc9fde9a711a01d85ab97f33c629c2227343d8dec886494",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-0e3a31624d91758ed9663d823045d78f-adjudicator",
+      "document_sha256": "0ad4bebc87da20699b3b2b520d635d087d7cbc28b2434cdf54105d8e20ba959d",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-0ed2943c807ad63fee587a5b4a9a2158-independent",
+      "document_sha256": "68a631bcb148fe7c2f92b63462f8023041a88c3075a85f68a23e092731c7bbd0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-103b20681837b83e74fd499b5659cd4e-primary",
+      "document_sha256": "ac5c808e6f24e4eae0ddf2d0a8c7d3e236c0b1838cfdfae28672bc0fbd5dc811",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-1093fad4830dc2b237befccd83617c71-independent",
+      "document_sha256": "2e1e2b23b10144080520d38a7ad7fc2914fa8ae7843bca267aef99e2bec2a294",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-113b76c1d1cfd720a54e3f0c12ca2a34-independent",
+      "document_sha256": "94200c6edc7c9db841bfca5eba029609aba173dd023b4790c44cd207353c8f73",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-11706ef01e3aefe98e840cdc405a752d-independent",
+      "document_sha256": "800a594a081d9950f3a60d540a5c2fd7641f36e26cdf4353ace815c8475ca30b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-129deb709ca4c44bc81d31c1b7f1e558-independent",
+      "document_sha256": "aa41f1b70d9a7022fe3d08a875abb8ec0f97776605f35ea9d0f25f5aff8d7f97",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-12a45d8ebe2ae1d9f809e123edb02dcf-primary",
+      "document_sha256": "a09c08f572fc1a49600dbf4ff20cc9c48bdeb1251f62a7d1e06ccd53ed8b4417",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-13943642ce30cd9316b686bbc671d0a4-adjudicator",
+      "document_sha256": "af681ebb3b6807bd2b56944e2b24f1f272c9b0b367412e10e86daad662af6afd",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-13c7753f2493814f8b938538ea4a8512-independent",
+      "document_sha256": "f08f74100d8898e15ce9e64d6d60596a4116f98dc83b6b114a1695af725e7da3",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-1419b359ca1c2f031ee49b2d699e519c-independent",
+      "document_sha256": "cec3707bac4c97a45bcff728707902f4cd0f92cfa608b8f2be13f5bc3fa3af00",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-1435fa8521b80e09b7d16ade7556cdde-primary",
+      "document_sha256": "47603309f833faab609dde00155ed97bd4a566a50c4d37158a708cbf652a3785",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-14f66826e6acdeff7c5dc6d3a94ed161-independent",
+      "document_sha256": "fe12ed7897d84aa093aeea8b098f803c89e8798c7136204dbfe0a1b8084e094b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-15d662e7e6930040ad961168d2ee01f6-primary",
+      "document_sha256": "790819beb0d369ce1820bf6f4be86fddb695ebd2d63f7982358ce287b9ca98aa",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-16917d4607373c4ecb7ff338c16f8061-adjudicator",
+      "document_sha256": "880d45b8528345bcbded3654c44992bb01217f6919ed80dc0349c1132bc75fd2",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-17019c4c2aa342fa7c8eb43b8cb44e01-adjudicator",
+      "document_sha256": "280e537f1c743350182d49a21e47ba8476865d04e70d3edc875c7ea6e2e3e2ec",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-177b36d7978f0a4d843e9d29de2b8c0e-adjudicator",
+      "document_sha256": "6a75e2222ffa91617c1455e8c7927e91109e78fe3c01155f0e22098f2c746cfb",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-18b34da253aeac71eec3c17fe92e8339-primary",
+      "document_sha256": "8ba85cf82d3564e7a32d0745b1ea099f1cb408ed9fff9b53498bbfcc099dcffb",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-18fb70531c4917504a173ecdd7770496-adjudicator",
+      "document_sha256": "b97f9d53a8e6551c2a90385f25f1b4b51fbb0e53a4f01cb09530aa389fd5ae52",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-1d47ea34a001f6e5f2e42fe74a42b809-primary",
+      "document_sha256": "07eafc748d0c844d50c94e93eb0d2241b689f085136c9ccd4e54fd39be824712",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-1d5c6f334060d74e208bd67b936420b6-primary",
+      "document_sha256": "57ccd0fcf072f3b789c4fffb6eb89e7aa61d277458cf60093e1fe1cea3320761",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-1e18b123323873c48fda6269f2dc34a2-primary",
+      "document_sha256": "3962d7f3ef1d6df6b29e62a7cb89460a4ef050f4a155c5bd846548ed277166da",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-1fda0553314c0dde5272336c76c44b96-primary",
+      "document_sha256": "f460698217111b18baa60c98dcb28d9b35fbb74351b162a06002826c53d333c4",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-1fe4ad551f5200bd16be6ab7702f7f16-primary",
+      "document_sha256": "e9a2f6efc532096e5aa9f8a34f66ab61afe1c682beec52e591f8b959e0f1e956",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-2099ac2da48c84f102e96d5898af999c-primary",
+      "document_sha256": "fbe9492bfb62d14745588879c7e23ceacbadf6877019a9febb46564c0dab6ad3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-20b640dedc85b4a1bed170ade72fd7ef-primary",
+      "document_sha256": "90626ed26c5a8b8d52370c2b2f82d0d2300917a31ee3e993c8569c8d3860d645",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-20c2e63bf28229d26730e69df0eb27c3-independent",
+      "document_sha256": "9354566d2ea035c6aefa3458dd40a776a4ae1d17fda1d75c10ba207e0c158e59",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-20e3fd7d66c836b18372fa197d2e6ad5-independent",
+      "document_sha256": "a18425e2c9c3d3f0500c103e086e5ad2c895a212152fd721c7f92e0bd96d3c04",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-214e71d258566fc983a852bf8b06c026-adjudicator",
+      "document_sha256": "a7b34bca87392cb63e28ec12e3297614b692b4a8eef2bc7b526e0eb91371b936",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-2171e3a2d74c2c04e51329606e8d9b1d-independent",
+      "document_sha256": "dfbc2a8664bc02f857fc3f53238f428f01fbfc7993dc0646a6949482ba70cb6f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-22cf196dcc18b6ec027a520724a5f5bd-primary",
+      "document_sha256": "3c6089c91fa4bc259b5f917f47a9d6518468ea9cfd4b7bd2ac7d9a0147e2cda8",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-2321e112f304da0539b2ca53c7b5a41c-primary",
+      "document_sha256": "8fc0ef06d5e58a423b4c9e28fe4084ac6d2dac1ac2d0b1fab5a80fe6cf892a6f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-234a2fa35e23ccff779d024878e4cdad-primary",
+      "document_sha256": "55ea081f9a45261ede14026bee934fda88e2996463f8f4762ec3ce6e8826a09d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-239e0c737548f0f291548512bb38c2df-independent",
+      "document_sha256": "a3eb81c13c11cd3c8c69c8f9f75898d05cd4435f7bee6dac9f38185c94abbb4f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-25e9f9515b4abe87903cbea424f80ec6-adjudicator",
+      "document_sha256": "8fec9732e421a5e2195e75072e949a184eb82d169099547dc16feda1e857f119",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-26502b57f733d93d88e14ec07483388d-primary",
+      "document_sha256": "d86468f3e44885eabfcd6edd4fa92312b98beba263924f7ebcbdea293155b3ad",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-26ac694e3370a99f54565ff09fa18736-primary",
+      "document_sha256": "abb35dbdc80264557403e4fd3ecfa7f1bcdcef6cd34fa1b012474ca86dcafd80",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-28fde5a95beb6aaf09c29542b20d5632-adjudicator",
+      "document_sha256": "7c8d5f1d75575b1c2869e2dd62a02e89e40ebd7b5ffb1d660dd7290262794382",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-2929db71cc6292b116c4a9573c5c0978-independent",
+      "document_sha256": "42d448e7290f820f654a904388f04191d120b99838f96a6ae189f5bdf4baa55d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-297001c88d5bc58fbc13d660c24cdab3-primary",
+      "document_sha256": "e9f702c24bc3411a567b2ed2dd0055a751dc213bb638ced35489b4baa132149c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-29e2317ea59b517f0ecc8b4aaf7a4153-adjudicator",
+      "document_sha256": "45ec98116b957d72bcda076f0c421689ef9fcef1807a20ea2fc2566276f69151",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-2b68796b63e71723539629377b1d050b-independent",
+      "document_sha256": "8d4e7de41e6a6b26cccd333bc280d8e004d0e424b2573dadc7d029a02f2a600f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-2b8324bcfd4d63dbb336e4f4c74969ad-independent",
+      "document_sha256": "6eb0abbfcc8d01ca6cfce56b821606af102a7c9d5859eec98443fa5653e7c0bb",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-2bcda2af5c18d0f6f21565da0409f6a1-primary",
+      "document_sha256": "bd60f11b08c6f47012c3167cbac7e5d81efa0af0fc8fd88fd3d0b6be2e13d322",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-2d0409a7357529a1b8881ec2785c6e6d-primary",
+      "document_sha256": "f1653a06277412e951548b9f9d0694727ce9e2e0ebd74696e2f39822c16071f9",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-2d49f7d2daf28cd70078934af62fda1d-primary",
+      "document_sha256": "d04c4c6320926b5b8872a6b82771ed42aef10334bf57c0a05134dd42270bbc9f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-2d783104837bfdcbfeff8e8bd47101c2-independent",
+      "document_sha256": "407f166ff68dcf79a24e4f00126b001f229db83bbffe182bdcdf65f03f36d840",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-2d8dc766086e5271d3897916c1abf887-primary",
+      "document_sha256": "3806213e166f9d22620226eecda2cc6f48b2cc0942eb325fee47e774699883ae",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-2edd6b9440157cef96b7492a6eda5358-independent",
+      "document_sha256": "952b1c39d07b6ba2eabeda6beea5d834c0105ffebc53bc61ed838e211fad7209",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-2ee2d8a2ed4a516b15ae8b7de2114ecf-adjudicator",
+      "document_sha256": "b90f5e51e0fd3ee4d601acfdd65a0ff7748fdfa9e458ea0c0ebabd4b74fccaf0",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-2f54f33b1a0055954c40bc99deac3f40-independent",
+      "document_sha256": "7b3783107cf814d284c1e02392339cf2f9ded2cf734256a0434fc543a7fc91c4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-2fa55854106902ed2d09e605f5b24414-primary",
+      "document_sha256": "c5774c1240b6048f04c2ab088d28f3170e61c103b8feeb27eab8d2cc5e85c9df",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-30829841ea400c63b08f171a77636ed1-primary",
+      "document_sha256": "db74a56239c7f596f1adc891653679e1b6f5c711cd7ba6846d299513adf36365",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-30a51b2244d3b61e3047c41eab6066c4-independent",
+      "document_sha256": "f0d9810286d4368d63a9948aa88919cf2bddece8f250f789fbda375a5876b51d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-30e6b1fec4b0f52d626f3159db32a9eb-independent",
+      "document_sha256": "0a1177c336a72d81ce8e8677aaeb79706aad0b54d78b94d8fc63f9d92a4fd833",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-3128c154295ad9abe90a7550ef8bd40e-primary",
+      "document_sha256": "d0fb498ac3bb7a33012c847cbdcd01d7234bac4457f25768f1b68da15f53b4c8",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-313108fe9491310823cdaeaee8c4929c-primary",
+      "document_sha256": "f432714900d2772bd7e85df6a47891bc2500327c957d16386d2b69abf2cba484",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-317a8a6fb7ca265fd5eeaee9ee02c6d9-independent",
+      "document_sha256": "1ccece7c1cf187d1ee6d954d532f3f68ac397625e8428a3eeee9254c83fde2fa",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-323969d73b3f2323b2d179e5c2399dd8-adjudicator",
+      "document_sha256": "fade762845131c0231fd26edbc8f51dc4384d4d5ddc8d98a861187b0a17c40a1",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-32efa110196dfb07cd4e2e29e70ea27e-adjudicator",
+      "document_sha256": "acc8a6444f08d4611b5d8d4b460a32d755b10f32d3825ea4c453eb03a2300067",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-33b66c06bc5317f91d2a6b3f2189ec1e-primary",
+      "document_sha256": "2416daba96c2b2c9d5f74f1191d635c34759ffbc05a8a97105cd4eee91e0c4ae",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-34777d62ae01e6cf49a71055c2fc161b-primary",
+      "document_sha256": "b806ca21b75de6a0fb4809d3546591702f4a8ac5d39b33a0daaf4992b2ba963e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-35db1c0adf5a81a934479bea4cb6146e-adjudicator",
+      "document_sha256": "82edcc025125544cc6ab90d8396def3c38c3e4f9d11ce44d2c4c9c57e39b6417",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-35e86e598ff5998d3f92fd16ddeafe84-primary",
+      "document_sha256": "d013d1cc2ababa0224d1d789c935721701d5edd6f3739bed170bec7eb0c2e7e6",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-35eafc76235b043b9aeb8830c5f9c291-independent",
+      "document_sha256": "d2738819652f5c73ce84c2829abf773610b4d7ec7d517be5065973ca7081fb7f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-381ef37635e512f7ef4f8337a672831a-independent",
+      "document_sha256": "4379f5b3283cf71316401c7cb6ca431602215a9ee636dfde338fce37ebd207eb",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-38b83e7641f583b6c18bbeb5af705f7a-independent",
+      "document_sha256": "693428b0db0d80df38af4af4a847105cc4304c4e6577e79f7ac74c95e7616be9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-392a501c85c2aa44ee3c494f0f8d481d-primary",
+      "document_sha256": "6b03b741c4a84d21edf7de58a27032103eeee8cf540bd536e70ef9d7059a7ed6",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-39903b563f8e298d9b2f7176adbaa871-independent",
+      "document_sha256": "28d2ac7c7eb626d6c295e6f5a2d668c688def0aa81ef8eda1ca36e310a9d720a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-3a27c69733bc59e903e85d0dc3cb717f-adjudicator",
+      "document_sha256": "07147ee981d3a30bac9d27c567a8b687de18969701f232c3a4026b4a9fe2ff10",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-3ac68112dfe3d8ba57f8660b9cc995d0-primary",
+      "document_sha256": "e9f49d6af6411973d24d5276177e333fc2108d50f82ce8d28091552ea7aad1fc",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-3c0ff7dc265f96e2169daee5a048bd87-primary",
+      "document_sha256": "882e3a05b922d8ca9ec4cf4244fe0d8e52ca1caf0086122c36239f0171b050db",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-3c19cf9dcc3595c443e8cae1dbc61755-independent",
+      "document_sha256": "32eb47759db98870ff36d9bee018b839e346c6ca84b46f16b5c5ae756e243762",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-3e9bcc50ae758f444217eda68d13d3dd-adjudicator",
+      "document_sha256": "f05722a51761d161ecaba348e7e7ffaa39e71f417940893dd0ebad540b4083d9",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-3f2482916b22402edbf86595385c05b2-adjudicator",
+      "document_sha256": "7f219e8dbb78155dd570e18eab2547ff04625d4160ec5ac871ef363d9878ebf2",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-3fa0d9316c5e4d93d13a488a173bcc0c-primary",
+      "document_sha256": "2c2b0c722af1b99b7dca06b9a8092e50ba61baf7382c1c796947a8b5d7bcb099",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-3fb86e1d6bc1aa5ac407b75dfbebc7e1-primary",
+      "document_sha256": "1682445aa912a02c84dde6d369d4bde6f9c24ddf58b53466699cbf73b56353ac",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-41f5f472b9fad337b8bd4abf829dd048-adjudicator",
+      "document_sha256": "13d7abc6b05a09c7a83ce4998c4a31aefbad7e9be54f98be301b7a1d86be3e0b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-422fecc5945db157f33ad62ae6679a8f-independent",
+      "document_sha256": "7ac1ac31724a6d2f32ab857990e1f4714093c4672622cd50c92c21ce10fc382f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-426aba65c6a5a65fb04bf54a8af0bf74-independent",
+      "document_sha256": "52602d8ab90fc398aeff2545c6f0aae299995a15b0a0c7538f4acb97e77fd79c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-4549db309585e400911f9144aa667e6a-adjudicator",
+      "document_sha256": "ca57c4fe378c080483a1bdf3ad468b6328f12c74f21e12167bdb4c4582ce4ab1",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-4640e0cf677366e35bc7f285e5a1abc1-independent",
+      "document_sha256": "3612ba2f17535007a124a61ee5b34b4d8b770a94ea1b165ef3e6474fbea08496",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-46922269d5316b8809117eb0911ad970-independent",
+      "document_sha256": "985a79fd2d7cc4dea9e651b1ef006450192201538bc99e6eab5a59af075fb6f5",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-4748b43ca5be2878bf5dcaabc584cddf-independent",
+      "document_sha256": "3284bd5aea5869eac0a3963a6c34127d7ebdaab3e8433c1c85ab270e855b081c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-47a6402550e53fadd2c6ab619bd575e8-adjudicator",
+      "document_sha256": "df3b5b9984251901f6d8cdf48614e62b30c4b372094217e9243d994d9a759418",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-48204992040a6a91ca3efd5ad0a766fc-independent",
+      "document_sha256": "ad1cade6645718fdeeac49a8f5c164755d0b46ed5df941e090713953d172aa99",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-4a2ec0348e61a76d6921845819be6f51-primary",
+      "document_sha256": "a1a75f7d1308490932711a125cdfd2e4eb1c8bde5b5c4e4129bbb41c749a783f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-4a34e3446ab7d4b5f6ea1e0b660f3ad4-primary",
+      "document_sha256": "8e0674748b9bd12b522957f058ef8d5b96f06e7b061565efbd4921328a6db21c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-4ac2ceac6ecbc6a884d0029a517ef686-adjudicator",
+      "document_sha256": "d5b1d42c3b257a67d82864cdf97e4e568711dba895faac67e5239d01f4bbb56d",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-4c4adfbe03f324d78e092cfd8bb895f6-adjudicator",
+      "document_sha256": "16e9855625e9e5ae5fc2bed8dfc1e328eef171be4ca2c2772039e914eb9f4865",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-4cd7f9a9bf89f17a6d5e756f9986528f-independent",
+      "document_sha256": "347295871e44d1da3ce919d78b3304918c94cce216ac1bcc03a53ccba7c45d48",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-4d20f63ddc1fce788e9969871993224d-independent",
+      "document_sha256": "b6787b5134c87498bad9a129fb75f7f613301f2f07b0793c1fafd91ca2a93a44",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-506d730d148bcaab6f7006a2bbd85a74-adjudicator",
+      "document_sha256": "1a0930c617cb0bd46b4f941dbd8dc63ba453ae70c4e0e221dcc20ec8f8e40f79",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-50a52b64f64a9dd82977b825a9500c98-independent",
+      "document_sha256": "6274287a2a6aa16cd5f430edfe5d5a932c0283a6903dccae4fba3ac9ff797ad9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-50c055b4eee5c59bcde0c269f456a299-primary",
+      "document_sha256": "5c0b49c63cb7251f5f4ce8ae51c42696dfa65151d68b8cb598094daaf1138a8d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-51197befb69bf0b721352b0c035c3e98-primary",
+      "document_sha256": "2a8f7121beeb626a5a01db918218b9b6061e095f2a205517f8c009a0bc09b7f1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-5154cf69e041027e7b849c17c2c621fd-adjudicator",
+      "document_sha256": "cc43f6b68446b87a5298673d22eaa5dfe319540ac5892dedb278f801d87b4185",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-51a4feb685cbf8f1df67f1e26cb432c2-independent",
+      "document_sha256": "656d8001df2b40c03ab08bbeebe03607ac7b30e9b6cc9659c82a5d44c173c170",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-52a6ac57641c04543dc75c3c542adffb-primary",
+      "document_sha256": "03ddbf7498e44452e00e9141f3477b67d09fc534f65c15cd3278b69b29615061",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-53ede5d8f06708d58a1d4926cbaa80f8-independent",
+      "document_sha256": "398778a6f06eadcec10f2589100940f9f9cdda38ad9c7b3eacd42887eb813ab3",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-54eece4e1aac87c74361c931d3aacd05-adjudicator",
+      "document_sha256": "329e23f13d179a362f6053f07b25a9640b472e0ad3a209d448d3a13170ef70a5",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-5518de5bdbd2fe92fdb986d51059f155-independent",
+      "document_sha256": "50686a55db2e29ae2caa28564859021d7b9f081234b35e3847937b8a1caa2b01",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-5525ec253d492068648fae03eb64f8c5-primary",
+      "document_sha256": "d542bb186c42b72388fa303dc2ccbb67383f3f82a22c5e67cb80d3dedaf725cc",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-569bee6baeb9f0b18263747a3561d0d5-primary",
+      "document_sha256": "7382b6f94cba204d863f3cff1f0b210a7975a320bf93338528ecff84b8d11e24",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-56f919d1cf579504f040c22ba7ac33e8-independent",
+      "document_sha256": "fc39a026fab686cebd8b2856b4d1046bbc8472aa8b7e8ebf1f583d48dcf9dffa",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-57828240a949f90ac83cd8426a019e25-adjudicator",
+      "document_sha256": "1c0f20ac1623a7a426dabd43a92a62157165cbb0319f2663e681d7db4e71f22a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-591bf8506bb5a27be863aa260b920568-adjudicator",
+      "document_sha256": "49af82185b06d7e5cb06a11331d40fc2122d031bc3e5f0bb0bfc483ea3702633",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-59c06b989344be56812a9d319a719a76-independent",
+      "document_sha256": "a44c71d0ba207b8f01fec1bf2266e3395bf14b89ad41adb325d9c5a55c2dcf4f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-5c2cb40e791ea44556874717f0d7f6e6-adjudicator",
+      "document_sha256": "593a6f06439505590db3193485f0d9971e104b9015aedf7c1a50c4acabd81c3e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-5cb1d78d9f9c039a3abf80f300e6ae2a-independent",
+      "document_sha256": "4b37458c8fbe4f9c731cc7bf6d85c8c939a0f114acbc132eaf5cf2b74a473a66",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-5cb2168c8e49240a434fe268dc03f9ef-adjudicator",
+      "document_sha256": "72ade4dec9b294481e2292040dcda4d3b4b7bc8424277df10f24ffe8905de4eb",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-5cbce5cafa13ede1472491b8b92fe061-independent",
+      "document_sha256": "e09506c43b07a568da09abb3d17f72d3530aedd62697eaff32212d72e6b9f0df",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-5d90d88e4480bd4a9f89dc55ec74dc12-primary",
+      "document_sha256": "36d84c8d21ae5b879dcdfd9ccef7daca826a339203ddddb6b8bfac21bee98c13",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-5db636525b5dd648bc2da29f9988b190-independent",
+      "document_sha256": "d79b1242a9c0627cf3f1fd29034612dbda59af6f1ae207a7eb365a053893f3ed",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-5f637404d360004c62bd68e2c98c4f7d-primary",
+      "document_sha256": "d4111fe7613e7a07dc3428d63acd1b0662cf957b1a17db9fc39239d7c6c1c477",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-5fdb755e4bdb46b00f7fcf415ec6c3aa-primary",
+      "document_sha256": "8bbf86fa2d06fac894f611eea267e64fca1521741a752045d3d3db5c520e1e99",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-600fb7869b28da6b0a8b9a9dfca727b1-independent",
+      "document_sha256": "7a15bbdbd8caeab1fc4578b2798575649966b69e95a35a85b9146c64047e0a1f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-6348f1c3b3031afb6b7bfddaa8a5335b-primary",
+      "document_sha256": "9af9e1c0bb286a150d1a1b56c6d1b1576aff6600dc316122c69f3eb60484695d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-64876c28bf37280989c3cae064f43ae9-adjudicator",
+      "document_sha256": "cf60ead195f5a5dad6fd5399aebd7c89dca66bbd5a341591eecd1f1b2e8e697b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-65af2cf351b0c9dc33881bc6cb3fcded-independent",
+      "document_sha256": "d7eed9efba953de0ead4407acbfce2bd192258c4d2a11465bf8965d7b47cbe46",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-65d13dc6d279353cce83d1b128a5ddbc-primary",
+      "document_sha256": "25b46fbcca7790f072bb127460da8804c286d54e5f22ed479e36e1f8405ff025",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-661dfd1f20522d0e1662fe2624b63620-primary",
+      "document_sha256": "911d3132b555f810cab1a84eb2d1553ec49b496ae74999337f85e51440c74c22",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-66252baa12d09b316ef07f469dda8f1c-adjudicator",
+      "document_sha256": "b8bdbdaed990018b505e6c18c780ec89aef717cb4f49c57076245431abc2e983",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-667b350a14e30f57b77d844a5810b2f7-independent",
+      "document_sha256": "90e5be4c20373c37a11a303e894385467eb38f05a2d8d3cd90bf12bab3701130",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-67db0c2f1417c3c93fc2edfc16d9648b-primary",
+      "document_sha256": "afc83eed3ba5ffe9df6ef88af43d15261733f78d50126f55b162333465e9e5bb",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-692f960adf2d3b80e6a3e2d2ed647f52-independent",
+      "document_sha256": "9407858e6cbe30c2f543fe40ec44bfbcf95bd834f36344bfac4f2615272c7636",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-694289b08ed8af75d9ed01c7b802019d-primary",
+      "document_sha256": "06e964d6e28058a6972999dd18383e9109d9ef0dd5099348230af6f225781f9c",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-69dc652f66a5ccf0499547adc9b9150e-independent",
+      "document_sha256": "48d28b914292c9714db738f97c09539e1fe8d9467bc56362b79aa2aaf7b14f9d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-6d326c71a4c470f1cd2b787bea3944ba-independent",
+      "document_sha256": "3cb6edbbc3e9da95776516b9900f19fb8473e258784a77a053c51af83840c8e0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-6d7938d55f58a908b05b683a49b92957-primary",
+      "document_sha256": "5a5dbf4c6fc2d5de83234138602a15a16bea03dbff429372b712c85deb92f209",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-6e476aa5207b45fbc0d5697db38be60a-independent",
+      "document_sha256": "da6b95eb6641b3f92900812d09bf5a0df2864dffc27127bd709290feb267bd8b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-701ffd4bafd30d49e333b7fe4853850e-independent",
+      "document_sha256": "4da8165f8d411f470268f087c919f36d5c2070a2f84870774c0db1a54c5f3243",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-71040d39ad788b1ab605832444093803-independent",
+      "document_sha256": "65c6c09fbdcdef9dc1c475632106cbf3e8a1e1ee604d8720e33d7d2e9c3ba594",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-7284f4d83b529828024223a2d686212f-adjudicator",
+      "document_sha256": "8205405b1d238ad65507c4312df1546d491fc0da23060925b55d4f8aa598be7b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-72f9703d880dc9bb077e6de37d888b16-primary",
+      "document_sha256": "9eac20073264cd6508757fa6c70327c6790a472df2482f9e34f3d28e4f652dd4",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-7348b319a8e7beba4f58c40c3271f1b4-independent",
+      "document_sha256": "3737357b9df6e3446474721b44d3aaa6ecf11dc0cdcfb1a232d25ca15ce6877f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-737b1add7ca40642a6d786c660acf804-adjudicator",
+      "document_sha256": "d41bf9eace33f07a894098a49226ae08c8b8fee99da9a6774f02c1eaeb3891bd",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-73aaf85809b14842dac9e95ce187c9de-primary",
+      "document_sha256": "14396ad55757b28770e5d230f2d6a0f6fe8a518471c2ea3b87cd7dfda9e1dce1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-7403d382703221e0e5bf9a22e6f8073e-adjudicator",
+      "document_sha256": "c8d630eccabbc408a840818c3cb1fa357573b5bcac1063a3e59ae644a4572e03",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-756e7398f92469b8ea296055352a611f-independent",
+      "document_sha256": "c6fac48578417716823452244e9de65f9506757999c88db4f3e36c4853f6b22b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-75c0f5fdfcee1c6083837c1e6fa3c315-adjudicator",
+      "document_sha256": "564e639f470cb98659514af02b621ea36ab61eb03a0e9886b66cedc09ceebffd",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-760072117a7cc668e5e276c026867b01-primary",
+      "document_sha256": "c07e835e4b88e3613d3747b0d634c4bb2783831d62dd5a7731cff9f521cc9108",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-7613fcd0d163233d9a6ffc7a3f12d7c7-independent",
+      "document_sha256": "f014472ddda830ceafc87031826e39d7ad09cbc233ad995f3652c395e325926a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-764a3622e75b8d1e41262f6940c17ec6-adjudicator",
+      "document_sha256": "2c028243fc7138f82d5e1a2bb0060e6b0720b73265a480d62459f26d4e43fa60",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-7668bc800011d11ddc448f0ab8352047-adjudicator",
+      "document_sha256": "fb02ddb668a20957271f43cead0cace7cd9dcff2cf2457e320c2323035535397",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-768bb2a4cc18ec13e703084de45dcf9e-independent",
+      "document_sha256": "eea2e43d53ce222f09e34dbe4e61d4c8dbaf5f891d89ad37ae5be7305650eb91",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-76e83be61fb010bd82c517b6d2f2b857-primary",
+      "document_sha256": "6d96d7b673105cebef293b6512cf24306ebe5f6ae3c7c145d0057bbfde1673bd",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-777d2d17215fe1f923f30c2719e0ecad-adjudicator",
+      "document_sha256": "283a61e8fefc218123e94c9fdf7c89f24e3fe577e33f66251b7cc0665168fbc9",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-7821ad150d22c9bec88a16ffcba7def7-primary",
+      "document_sha256": "9cb8e2acfa24bcab4b52efa9d81e279670b8a548d3f812dcd00e7586ba5df8a9",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-799afe9c284b471060925f9fdba6691d-primary",
+      "document_sha256": "452ce40a9b3a6071ad9f2c06582b749471865e00290a4fe1905e5d19e5a690db",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-7afb8be913d431c3fd39843f9e8fabed-independent",
+      "document_sha256": "de528b18a63736e9bbe04fcdd12aee0257f9ca899b972a4b3dcaa6a494a4e9ce",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-7afd8952f6c8a8962282ca3203b542ee-independent",
+      "document_sha256": "db77d8d83bfadeab981cd79551eaf926d0269be1703bb084c130e918cf277ab7",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-7c4c798dfb7c8c87ebf25ca2691b5484-independent",
+      "document_sha256": "b805ae33d73c14cf352d5fd450841095f09e920396d281e4ebb7d6107c9c4879",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-7d0a3f504de7f17476caae96b888bf29-adjudicator",
+      "document_sha256": "e34917c26ba47a3d3af832365e2fc5e66e1d44104a578e8a46e8f49cc85bacf0",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-7d100916a97d386c2f04442ba298b7d1-independent",
+      "document_sha256": "296112b3c928be69c34b0d787bcc4bd55c1807b0581791dc9e75db089f1bf96c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-7d232fed745a84f4e94ccb83572f7fa0-primary",
+      "document_sha256": "44ce13bfe80478119d425fadc516d6175963bb707e1c7d3bf3c6740133a9e637",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-7d95434f0fe977147aca350887d40c0e-independent",
+      "document_sha256": "93a38cda16d2d38d0bce8df232cbe09c8fe7ec0fddab93e98ce86847b0c8f408",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-7e2285f277a0fe2339522538cb09e93c-adjudicator",
+      "document_sha256": "a315a8b16ac7de7e2901b2a5a68691fa3a6a68863a97cb6f391181056b9c1a2a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-7ef619dfc2114ab13bee18e2f962fbb3-independent",
+      "document_sha256": "a8d9d1682f14e9c8d39b475e1744b5fb855ae3bfc837247f878b1f59a3fa0cbb",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-80056d382b4452a189ff9adc7c2114b2-independent",
+      "document_sha256": "6eb2de91a59bbc9a446674a54bd60259c5009650f11f961bf3eba22c7c3c9b7b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-81357d4ed9068860ebcc5b4ca28d9146-adjudicator",
+      "document_sha256": "eaeed809eac74a075c34c5eef55c866ad82b736149ad6ff7ba93f51f5eed73ef",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-8160676138c9f647a568b157bb5a0033-primary",
+      "document_sha256": "2680407610b153de52d2eb11a2bd3dff7d2ac39d7148bf83102a3515c5ed6514",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8236c021ae9a91291ca8d031921c19d2-primary",
+      "document_sha256": "b48107583e31506b51179c0f1b6d9a4d310be0fc6d3ca89d8093b497eda5d039",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-82efb09fcc4761b1c74cd0c20045e10c-primary",
+      "document_sha256": "2ac0724dfb11d892f3e6492d9707555f037bc3fb7b2eed244a3d8a2f986605d3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8362cc6cbba2371fb1faf24193799764-independent",
+      "document_sha256": "4d10f82b6ac621c99f3bfd795f90371c07bfe7f1a5b3d4cb9527a30c02156c50",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-83b4d12ffc83d1842c58687cebd4b49d-adjudicator",
+      "document_sha256": "ebaa5da9c6d980c7dd6ac6d216eb4601f919b713f6c2dc79f887c0a9922f4226",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-84298f12ff7f7f29f3425e5fed971827-primary",
+      "document_sha256": "5a27aa4cb85ecfcfc975df9338f070309c43eff94b10937121646cd1a2b012ce",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-85ccd4afa331054d9c83023f22bc9679-primary",
+      "document_sha256": "b82259603f7d748386b345bb59503cf5d0c46f4000d90c5a410b258f47bcb728",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-86c8fac147a524546f7ccad119f9ec69-adjudicator",
+      "document_sha256": "27d3bf249c51929b4607019bc3cc2725f6e07fdb0f960b369cab473bdf03195b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-8762a1650913ae92135fd6133cb3858a-primary",
+      "document_sha256": "c1b9796481741ae2eed60950bc759f2123ae31521147be535d5f3429f05f7dea",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-87d0077e75d4c2de5b2376e8b9b23dd0-independent",
+      "document_sha256": "d40511568f5dc2f1a5a7fa517a77047f1911cf6ca2baa4250fa942dba71c27c0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-89a5d4e4a498fd825583988e72235870-primary",
+      "document_sha256": "187fda827454140d6b4127c0072280d3d04ff58f5ec591dc654b10b371f6a503",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8a9497f71da3508489baca2574f66def-primary",
+      "document_sha256": "04851069581f4bb587beda39037bb7e6a05f976e6f06fdf827912fe6a6a48d00",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8abf5f7be6888e59643e4f4e9541019a-independent",
+      "document_sha256": "14b0ec9ab9e1932f0a400346767b4c6ed7ff5696721a1688eb06f39b2ddfd3a4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-8b4a8f5f23d9b75e8bf0ed0cdb18dafe-independent",
+      "document_sha256": "5a723fd6cfd9b558c73527bc6669b0f08bfd36a88194862f623b7d72f18a2559",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-8b53afa8511ab24aba23aee0f9034ec9-primary",
+      "document_sha256": "bd125430be3501bcde3511e9f871c81b8cc13958a68371d6f83bee7470f668f9",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8b9f0ea04261a6d9a955694c7f62687e-primary",
+      "document_sha256": "30ee93b4ad1541f56ab845a68bf9da41687b0ac7d33d9bfc66ea2f4b8056da39",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8c615436a6dde320be58677f0fdc6373-independent",
+      "document_sha256": "c5d57c2e229da1616f2204f22899a0c37bcd59ee34e6c5518c7bf1967cf47988",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-8c74de5d16e03971abeb57ab025e88ce-independent",
+      "document_sha256": "20818f45bd6922c5c5614eb48893d895289673a7e1af425ca3263681b32882c5",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-8ed507c3385916784ef8ee40ce9b5421-primary",
+      "document_sha256": "8e935b1ff220757574eac798efe198ae7057d8c16c4444ea1fa4f66bef412697",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-8f9da97abcee88766903e9e8e7ea96fc-primary",
+      "document_sha256": "5475667eaa02f5ff800eb10b0ebd8286774184dfedb70824244dc71fc9002aaa",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-906ca1ed27275bcd0163bb8bd7df5a71-primary",
+      "document_sha256": "a0feb7707aadfcf485c0f1cef84174a5d7be54aa0234d20680f660309bec9533",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-90ca14d4db67115f2f213c455be5d1d1-independent",
+      "document_sha256": "ead491498ee274dc4b08a34c1cc0083e1489309a7e2615b529453ad3d80a677f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-91dd67a1562d1a3646858dd71a91d478-independent",
+      "document_sha256": "748bacc7b4eb4a63f7fea7506c6c3b573d6a3fa3edc21597cf6b617ab28b483e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-93685da6e57f47bcf9f6d6c1962a9d18-independent",
+      "document_sha256": "d9673110f8d21c7ad6a04313a9e1dbbf403069ae78e0adfd1d3eda28c5ecdad0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-93a21f57c99510b2821697cd4c99fd94-adjudicator",
+      "document_sha256": "1b9dff96ac772ad12e1c95ac1778078a74a9601698c99b66ee15699826f790e7",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-93dbc1b671661f544bb4cbb3437ce560-primary",
+      "document_sha256": "cfc679daeaef76631f1c21964523498d3b5f4d8a09121331cb9e890605e37701",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-93efeaca8d6ff8850d56f22d87bb67e4-independent",
+      "document_sha256": "a547400ca5f103aafc153bb33d06fd6c1610ea9cd7199452fe3376edb3c41807",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-94a23447f9cc56a2f542db4836d223c5-primary",
+      "document_sha256": "330191a953f17fc48e14d7f45a5296dc56b4b57f22e6b84ac52cd4095c573882",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-95029331f223b5ef461bab2ab03408e9-independent",
+      "document_sha256": "df822836d4e26282f4cf65ccf5b56a89cfa5c193ee434fd1e1adee8767979d63",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-961d48d5d81cc62be37b8499f9429cf4-adjudicator",
+      "document_sha256": "1a82199271d613e64bef224ba3e5cfb65bb7eb5789eb844772f1b7c9db1a4e33",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-968123c79c06eacd2e010f6379829e35-independent",
+      "document_sha256": "cf688f154ec3bebb7e7bb8d581dd0db36ad03acc18fbebd1d0682de939e8301a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-96ad32b871b69838b5c4358b5d30686b-adjudicator",
+      "document_sha256": "eae015b2864aa66ea8fe72382a98b901dc7321766b292793f8d1c2d246f93f96",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-972e351279a6a69531ef8389268c498e-independent",
+      "document_sha256": "577bd1f7bf171c84cd6b23bd60740011d4d9336ac772479051608a18db710728",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-991fb3f73b092c1e8fb99e1fdcbcab7c-adjudicator",
+      "document_sha256": "af28dccfde73b754fe932d5f6728d11755d06bf7bf9e4e8057b6a93ba4285bbe",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-9a115d92f49f18bbc5d065c264f21841-independent",
+      "document_sha256": "44b15549f746343a784f78c3306619a61b2367facccda3fa0bea55f0581e1117",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-9a15ada337ffe12ae5ee262d0dbfe29f-independent",
+      "document_sha256": "ae76a4cc0934ef5a9b7bd52d42a6ce0d5e16047c80317049371e81cb314c764e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-9a5601d0469e91e6e51099514e991191-independent",
+      "document_sha256": "a4528422ed81e9f12351ce12af63d4cf534ec498cd649eff9fe5d3b847ebfa81",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-9afd450304048ab4730b9cc12c5c2579-adjudicator",
+      "document_sha256": "7a433e029aa0c3e93c227a24932c8ffbb4adf10110a6caf7eb821316d4b0f107",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-9c0540019a527433d05849c02540c4f9-primary",
+      "document_sha256": "8f6768f57dedcd281e7b6516c48d72fbb8dfde94471b87399553212920f88abe",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-9c3ac9ff386804a639df5e31c7d16f0f-adjudicator",
+      "document_sha256": "53b3020db651bbc64c4008bd779e7f1997e743fd0fa0817ff780fa26d7e8eacf",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-9cbb84fe263cb87f0694b5385b40fc34-independent",
+      "document_sha256": "b17b68c652ec2fb0f49cd8a9f78d9da1528d2e0bd081799fdd23388a8735061c",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-9d61580a338d5c90c486dc33d83e9695-independent",
+      "document_sha256": "b9e56d6534289b382eecd5bbb1ada0f9883bc96866c44aeda39a71e4965621e0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-9ec97cb5e6ae3853fce4e7544216177c-independent",
+      "document_sha256": "f115072a4114483f1ec15903188a2b87650bf33f4a789e3ccd65f716527b07dc",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-9f5f824918fe4afddde51ea7ac629d3d-adjudicator",
+      "document_sha256": "a513a9fa32f51fa33140bf58ea8908a870c35b902e605ae0667ab3123c21befd",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-9ff1c03788dd0098933a17273a686e15-adjudicator",
+      "document_sha256": "bbd82abb35c668de5b5e2747ff33ad27cd51c1d163aa38332acdae8a9cdaf557",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-a18de8fb4197a610ca11f3bac182a95c-primary",
+      "document_sha256": "ae6ff0b8f083398a3d0c0861fd18d64c7c7717708637cc2b0f081632c82cc9d0",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a21d3f6f427283c8bb6dd190b33a31b0-primary",
+      "document_sha256": "888667526830d39b6cbc542a0adcbbc6f495c368e359e56c3d44bde313f20876",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a2effd6c5de549628d31581f11c52fca-adjudicator",
+      "document_sha256": "28e382f872d8e53e74474c0ee3bb529fc10c53f4a968435529d485f69a137856",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-a3100dc0770b822387e754fe144c7025-primary",
+      "document_sha256": "65d28f1cb74228c478cf3c291a010d4b7ba6eb77e49c3602136e1c1425dc8da3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a3ed0a9648e3a1c031b82bba06ccc93c-adjudicator",
+      "document_sha256": "1e4599535afdbce32ba2d6f66f4afeee77c718ab69c0f77361c04ccf4593a392",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-a4017719147ddfb79aaf095b46120a85-independent",
+      "document_sha256": "86cafa4030a656a992791f97b77bfa2f713bc3825ae7536830ba89b2dd86c7ee",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-a465eec2e352ebae9e236b3525436f06-independent",
+      "document_sha256": "9f4624dd42565cf0b5b21da7f46001f1fb8bbcb2e5d85aba1f7ecaa7f64a7d7b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-a49a5ae7306ddef207fd762e1636443e-adjudicator",
+      "document_sha256": "2cfdd3fe91da7ddd9eaa93b0e6e75241435b66068b5ca597af5afd8a70632be4",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-a4bc65be58d7892be1c7462b2d19373b-primary",
+      "document_sha256": "05820092a33d40853fb273222124c4c53c2416be72ae16be5d083ce7b5e8abd3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a520b6abd153ee013abb9e179fadf52f-primary",
+      "document_sha256": "9fa4711a883890779cb3893153b61ec2875ebf1484d558d52065284ef49bf22d",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a622ce6531389ccde3e0b8922e03bb47-primary",
+      "document_sha256": "e653a061b7e8422bfe03d03c54168bc34ada8035ca92419c7572344506d4f260",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a7a2593c4ff638529d7793a440c7c5a7-primary",
+      "document_sha256": "487e115757ac4da5eea02a0ca5bf8e296610a952074578dc825940a3591c7b69",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-a8830d3d5ae5ece7308739e4dc4052de-independent",
+      "document_sha256": "adde3c21f34147d64653fc0c572975b317a8816af96b7317631ed6b365d4531a",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-a951bed9b8c16c29945595dea130c6cc-primary",
+      "document_sha256": "54ee90e765db2e8dfe2e20ca7756620f041f37b2acb3321a23be8733d03ca323",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-aa019e625bd2a0e85c044a70d8a3e290-adjudicator",
+      "document_sha256": "db1a76aec53f31b6b2b75e81ffaafd6ce9d68a207e516f6502c21a9eb57d5883",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-aa38ab295046ed8fe4aab11334e577a0-adjudicator",
+      "document_sha256": "04fd32376eae0f65806bd02ff15ae8fbd808d3f111832e97ee3218dfcd14e71a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ab80e70fd22a2d929bf773f5b97b8d54-primary",
+      "document_sha256": "3199a640fcb032304b58dda1b205b9b95a736ec5356c034a437623cf8acf1d0e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-abaaba1bbce447f16a8f7c2714f4acbf-adjudicator",
+      "document_sha256": "a570115757276e790bab5cd1c720aee86ff0f3e8e3873f4e9146172048f37def",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-abd17ab769629183dc004b00f6534417-independent",
+      "document_sha256": "a0d0a479dde4b5cc0d2b49c6173a10012ef2add2960f5fb253ab28d49e10ba8f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ac5700c867734934168bc8e496232184-independent",
+      "document_sha256": "18105aac238edc7fec3e0dfe12e98ddc0e591c8cc0b81b19ee4d03032ea38abd",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ac728a904600a15619b771580927925c-independent",
+      "document_sha256": "917e66d04e3e926bb9f9ad927f2cb7890c5efe2cb40c24f4f7ed2a38e93e75ae",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-acca22d2cf08a3c0a4a2f50f857f371e-independent",
+      "document_sha256": "623d436c03d5eb53da60e48cd6fa58e339481eee374c4d8908893c4f140ecd0e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ad5657073a4955eda1df87ee68118451-primary",
+      "document_sha256": "478dafd686e5adefbfb873b3503ec6c8a544fe3f19e8852223d9a02048e9ae78",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-aec5f3db00004cfc9f810e2990330bcf-primary",
+      "document_sha256": "b9df9292ca34431e8c5adcc745387c348329a73091a15ccd9ff519d3fb8a842e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-af939ec5f9cdbe32b33086bff314abbc-independent",
+      "document_sha256": "4b282dbf2bc783ceabe47113d0f9afeedf358a132f4667e51eb486c544ce6496",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-b000dccf7be21f75cb02fa22f24861fb-primary",
+      "document_sha256": "9284bc7aa4c2516167aa53dac852f4560a54d3fc558db608eacc70a5b6960c20",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-b13a609f887b456e2100a9a8226b6a32-independent",
+      "document_sha256": "ff3e7f7ae427174c8489a13752092829e4a8051a6685e03fcaa105ce85e9f203",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-b158cfb5e5360f67f1ce2c7599419e3c-independent",
+      "document_sha256": "fa8b705ed809dff4e593c4f167aa8bd228cbc5105903724f77511d78c8b464f0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-b1e8a52037643ff05f08060cc66ea766-adjudicator",
+      "document_sha256": "abe077fafb7fd8895c4e5bf6321bd1a767de05a678a871f4ac58a5c6a3f2f9c8",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-b3d5d77b5e7559a1bf82afa9181acd75-independent",
+      "document_sha256": "50ecde62b09418fa4c3e68d96e24b86352b3dd6ea346f26cb4e00cbcac7d2d64",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-b557643cecdd9f6d424eb21c3931e41d-adjudicator",
+      "document_sha256": "5c13d48af1791d10740a063099ce302735223313bec7dfaa1ba1fec48b196806",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-b6ca462dc6f6d74991992033f15a0947-primary",
+      "document_sha256": "34e23aed6cb10f123ee530bb89c4019e4f1e9dfa8df58bb03ef8ace92ec74161",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-b7676bd6d4bbe74ec12c4a6b6fa9444c-adjudicator",
+      "document_sha256": "bb9c58abc76ce66e82a57a3952e6e0ca3f7223240f4eb201a6b2ec797867811e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-bac4bb6d33ff634b91f4899f17555afa-independent",
+      "document_sha256": "1fc46ba751d9e2a7ae6f261d2f0b8e68b90bf0b3bb9531039deae1b199ea8455",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-bb1da97359eaffe5d524aac58f67b6b6-independent",
+      "document_sha256": "e796829759cd53f6009583f7562ac24bb7304ccbb879ae10c48556860eb48fe0",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-bb91d01c6b797bae7742011e4025c150-adjudicator",
+      "document_sha256": "195257c912d53c1fd9ba004027dabe513204132dd5430c3fdb1965eda784c7ba",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-bc1da13f6ea232dac6894704a7f019e6-adjudicator",
+      "document_sha256": "afbf7829aadb98466902c48d568c69c9f92b8fad6c5757a790c3ff7b68103798",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-bc65328739486618acdb7427286bd006-independent",
+      "document_sha256": "f4f310ffb25ad359547d117d56a6642fba38924263e8bce11039fb55469b3cce",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-bc8eb4b6fbfa8485db1f0de28e881dd9-primary",
+      "document_sha256": "225e9bf0baeb7c89a4225f2038b3ea5abfa52ea95e8b678a477ca44bb6ac6847",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-bcf1e14f37abb4fb4512970ab9680f1b-primary",
+      "document_sha256": "8801a26d920b1b3d3d83bc5fafd35f166c57f2b9d4a2c48535ed30678ee1e4d5",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-bdabdcd7e448bb95c7ccb0647d9b984b-independent",
+      "document_sha256": "dace5222c6322d247351e6c9fcc967a51901c45b2fc75834ca2e932a2250063e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-bde538581fcaae70b2feb492d7c55a7d-primary",
+      "document_sha256": "b0f853a37d63d922697c88df712fc41892c76cb816d5bf2306266e54fe6df21b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-bdf2718506eaec0a3d391f72f080d44c-independent",
+      "document_sha256": "dbe8df5ad1161c80523c20544f096d760bcc0cef3da70e4c748f9c07ca036d85",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-be19e8d2ec6ea62d2aa5dcff88959d9b-primary",
+      "document_sha256": "29081f2098e09689b5a04f7960d0564640b266c1139871310bf3e508434ebfcc",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-bee83b7c235552ebec3f427aeb384e16-primary",
+      "document_sha256": "d6bb6582b4d30ad9a0cc1323db8cec66927c734e6063fc501a93a53393416e57",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-bf36618300f726ea879c1c3a01c8ea1a-primary",
+      "document_sha256": "803a8bca0013c6485edbc76a3b1f9603814198dab0c5f5648190e1dc70aa0ebb",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-c02b9eca657d290ac94a1f5b3aebfac9-primary",
+      "document_sha256": "29f99dfce952451b784c23475ac5826936cc426659774eba0fae35e35278df20",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-c0f66f5fa26e39565fb2cdfddbddd43a-primary",
+      "document_sha256": "8387d92e0b2d065e729ea5f7672189f04d57022e958341c59977e25930d38aba",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-c1685ed9857b50eb7408584fece6425c-adjudicator",
+      "document_sha256": "671b4a40973b9cff25c9bbe84c227eec57759d15ecd8cccbf23c9ab92392f841",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-c1ecee4c534d7fa7c1ae080f5777343d-independent",
+      "document_sha256": "45762eb1981906ef36637f0cc92303f8b40c12a0b3381a36ac4784e4c04f68d9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-c2e7af3a4d86e1dda43655feeefc0f63-adjudicator",
+      "document_sha256": "5e36e95712cc43db328293c2bf184f20301c9ee785d4e5c24da553f53ffa01b7",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-c3a7bc4dd2a59ad53ae42178d14a557c-independent",
+      "document_sha256": "660fa23980481d6d0572d92560b5fb0a97da3da076111892a6bb0e98123d8fe9",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-c4903a132c80357a93bdfc563942c4f7-primary",
+      "document_sha256": "52176ad26d9736221663bfb0f93b7a5aa6fc15338cc3bd7131cabb4b649a6cf4",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-c5240399f4bf740a08cba0c809f0ff28-adjudicator",
+      "document_sha256": "cff389197b7aee24acc63fa89f78230f9582d68ebb3f2b2720437907ff43a79b",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-c527d963e06f4aaac214072d9429ab06-independent",
+      "document_sha256": "665bcc01490beb6634028c08450aad060332ecab78d5a1269d1ee19d744b2c6d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-c57b0357c62c2f02cefa19765e7d8515-adjudicator",
+      "document_sha256": "f762813fa5a4ddebf562f5ad33c0ff235f79586353c02cda05e729b542823b09",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-c683a719b45d4491e05c436ec82d7b7b-independent",
+      "document_sha256": "e34e86ce7ce3c8fbdb1f1f22a135997f285fdef7a07fa97f2788e130ed97acae",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-c6d93c8a9698355b51753b089957e58b-independent",
+      "document_sha256": "31043efafd60b6398a5d4bae9c8379d4412cce4087b85a1d8438d1e65c87d0ce",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-c72eaeaab676ee0960a978412f32f590-primary",
+      "document_sha256": "306356a813c662ecdbe3e0c31b1d8c5d4b045387da4ac8a87be2c68bd36427e0",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-c86cfd48ed682dc3b911b2915fb2b094-primary",
+      "document_sha256": "3429ab285b6285dce2bc6c600708b4febe8558401bcf432fdc410760537867ee",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-ca1757bc1c9b835b330f7fe1c8b5a966-primary",
+      "document_sha256": "b3b61be41812a9e452671d5fb545c6cd41fb010b34a0adf3997367f0a5eff87e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-ca53112cc713bcfbb7083cf433fe6a00-primary",
+      "document_sha256": "2d35a7f248770f9fa55683b75da42ad4c2ad1bd72a33c68c46ff85e943843759",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-cabe8268df665a0eb48b7f3f2c3c5e27-independent",
+      "document_sha256": "06ce9dd1f37ae457bbd5a26a6a5d2ffb38da7460018194539e1ed7498bae7f46",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-cae0d252f6f01a39ed08f6e069c0579c-adjudicator",
+      "document_sha256": "4e97b0b931ca4c0919994f0178d16312c6dc4355eb943e503fa21b22dfdea237",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ccf45cf9a67366eda73fc81fea77e3f4-primary",
+      "document_sha256": "ee2d4f46a6a79bb39694f1a545ecfe8ad4bf574e6b03c1ee6c18a659d95d13b5",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-ce61e52f0c7d9c27f424d34229d40377-adjudicator",
+      "document_sha256": "123021282082d72a022d3eca46e22862628084e5e25d662cdf763b52f069df51",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-cec81a759c07a84c27e14a1b02f96767-primary",
+      "document_sha256": "ad133f421372d51daefa1ab5de1b4bdd11ca458fc478d7fe146b97416cc61e85",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-cefa52a4fba04769f6b7866ca760402c-independent",
+      "document_sha256": "43d88dd3020329c76e0eac081293fc5e15f9799ba9cde7afbbb810c3402f2869",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-cf2cb58d5cf4a27098467abb91dddcb5-primary",
+      "document_sha256": "51aedade99e51afaaeb2d849b37ec189ef8f05b08168140b4e14e5d573a92538",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-cffc9a7b989d91c2c1261b1a1db76026-adjudicator",
+      "document_sha256": "65e5e100161ea21928304fc0314d75875e489cc830070904996a193b028a6abb",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-d0156d5d579780c0ce107a1c57806a19-primary",
+      "document_sha256": "ebeeeea8d3ed38ad56751895b1372d6733ae1cce24c17a12b76bd6392c265c8e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-d05a488d69f01a7c5d4109235a027b46-independent",
+      "document_sha256": "19916d8490e153498eadf7389f036c9449fef4f31da8d396a47666b12e5fef8b",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-d0edf08960d519d6e7caf51af437dffe-adjudicator",
+      "document_sha256": "27aac01c2c47b7cedbfac3e3e04d035e2ab8228b8c76b6bea01c2c72410517c7",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-d14f281b5c7fe9b232cf7a9bfb9cdbb7-independent",
+      "document_sha256": "8e38d9fb21832e78ee1270e74d25ccb607bf9c6fe282138c7ca0a585ff2bb7b3",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-d18e50a0dfc33cc565620e35d976728b-adjudicator",
+      "document_sha256": "2025695d333eba24e220882bdf9b38d93f287468f1576daf8d30bc90be774026",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-d2b67a14e0c1c4a5fbc95838aa95ce57-independent",
+      "document_sha256": "65007b1905f266d9e9f969e9b570caf789beb0de3ece7ba251ffa7d43e2f2c62",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-d359b006e5f85528f7adc55211cc5f61-adjudicator",
+      "document_sha256": "f5fbbd8720411e6edbbf128d50b878ec050b3d4e680986a078c0839d09b21cc6",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-d7715e55bde69d0a56b297ea3ae88fdd-adjudicator",
+      "document_sha256": "3f0b316d99d4a6c9e3ece6bb43d9b1f9c1a565ab7b943b96d0b8e1bc0636d73f",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-d848dc9bf50ad07a278a5f376c99a95d-primary",
+      "document_sha256": "fe061f9e4eb8a6891b7e789d7a9b5f8aad4ce56418d7a826e702791b274d60ac",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-d88c7ab9c8f2543873da95613c24b500-independent",
+      "document_sha256": "b17337c0c391e743a4a2cfa796eed3b8cd6b041915664383d7416a14d000991d",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-d91e962c45b7a0d1e27cdb13b440cc23-primary",
+      "document_sha256": "9cffbc0048accb231eb1b34bbd2594ca6f18de5ca9aede3d2d9fe5c78709fb2b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-da0d93f553041b05d3b8b1cd21714dfb-primary",
+      "document_sha256": "2c087d2d03b7d9ea239c75429a1c9c3b3e0a95002bf2dab3d7e9540a1e658fd3",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-da8bc2524a1456e9343a0d96a0a6db7f-primary",
+      "document_sha256": "a04165119d670734f4d5ceb6b037d2d8bde8e50c1dee177a0d2c914bae26fc73",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-daa3bf8d9d10770bec3f33e735c9b51a-adjudicator",
+      "document_sha256": "3e2b9350adaca5de138749c863fe98f4efcabcec83a30bacb92ea220247864ac",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-daf2eb89120992f2857faf6b152ddbdf-primary",
+      "document_sha256": "fd14dc9e1fcd676c42cfcc077a9f69745f481fa2434103e0bb8f66a24a2bea0a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-dc802cbc181b220e0a100279fbbaf226-primary",
+      "document_sha256": "f98c130828e1a78af215b811480a60f076118a6cd33ea7e275310e3b72cff11b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-dcc34715c7b3b1188505e72b15a27398-adjudicator",
+      "document_sha256": "cced39b4983d0268851bc9a31b59e2e8f93d981d59d66029ab692aa4c15c7035",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-dcf31c64f17bb092b1ca8f25c7080852-independent",
+      "document_sha256": "45048036c90e4e5e40c3c256becd5997ab55da0de23cdd131d4762189a42d5da",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-dd96db0f63dd28af0a515038fea0a3b9-adjudicator",
+      "document_sha256": "52b5f97d627f0a5891d9e28c6fd850fb5614334371bd7567e60ad4c7063fcf2e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-de0d617d57851aad0229fbb07bbf8905-independent",
+      "document_sha256": "3a46cd5f281a55fe5add0ffa24dded6b241aac35fdda7b7f8492affc71e79f86",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-de4f21f8e67ff3b4636fa7be374ad042-primary",
+      "document_sha256": "ae13cd4c8e654d9bb8370f60552425a1bff0b0acccb1a099fd263592d466c308",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-de772b9df32f1164abac9929fd80fec8-independent",
+      "document_sha256": "27dc8be9ca0858fc6a62905744c1f3f771e80623f7ccc76038751fa7aceeb083",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-df47a9ba40ef343bef832105a4da84cd-independent",
+      "document_sha256": "34c1cd6617c5887ad981b4415c71f4cb69306fc989f1511b1b39c74f66e6d8b2",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-df909851e0a7cb0ccef93daad15170cb-primary",
+      "document_sha256": "0a8753f5d3bd3fe51e4275da5477dfefc820e6ef435e345bd47d63f6a68d6f42",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-dfa05f1592b0e1e5a0db464f21c3112c-independent",
+      "document_sha256": "a9c53d65a405d04021352beda66e8edc3f1fe13475cfaa6cdb90b9fabface2f4",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-dfecd3c99139783864e1d98a9e6c292f-independent",
+      "document_sha256": "49b49dbb17f4ada7feaed884683aa2ddc0a0894ab48d2fd00d92a534e4328b3e",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-e0e0e2e6a0ea95d6f8cf1c24c6307752-primary",
+      "document_sha256": "18911b5f2792f167c14398be4899624f9c4efb4d6f1f5f1903d7d6d421b48e93",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e13a01c389bdeadea1119a5e104247b7-primary",
+      "document_sha256": "19cc365e2a5b90c84bc5d590e8d5eaa49d0e55fd81a36dae7e735df74a122a0f",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e3d0ed9f3901121c31e700d620c1f166-independent",
+      "document_sha256": "e0b6b0d5f78f8564e3ccc4efbf13d59400d34bdd07dbd869d5d17b2edd804eea",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-e3e60ee1c85ea9b4e160ed6f645c448f-independent",
+      "document_sha256": "8dffa77988b7c7093f0f234bf6c15d35ad1fe6403af96d79fd97ffd09eccd21f",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-e48eec4acc22a3f8224a4b39861011f9-independent",
+      "document_sha256": "c204f3609a00dd102ecb5491621e463715fa1155094bc2e4d00d2f1a68dddd67",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-e4b335b585ecd18b49a2c5ba3b5a1995-independent",
+      "document_sha256": "2aa82491200ebbbda3a0b8b71f2595b157ed60a1273eb07a57e00059746ef124",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-e4d715d3bcb7dcffa4826c5ac51c63c4-primary",
+      "document_sha256": "e1cce6949b84c382e0524a36d5d0a45949024c38d393185e21588fb5249b4fb6",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e5015edd4a6342132b4bad5fe59317bb-primary",
+      "document_sha256": "5e81c24c7eea76c0881f66b911768d4da8bc560a14db8bc9721c0a68fc858ad1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e52a64e5e91bc703b8e3f611681a9b56-primary",
+      "document_sha256": "cd97844342d650f4c703dda8c79ec1c6079069de239c878a3b8bdb80ffb87bfe",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e6df84507839201582afa161e1fee168-adjudicator",
+      "document_sha256": "139d9802c0ac8185b30d390423e33302dac87668084a2c40cb0abb9c9d116637",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-e853acc822cc13bf249701c0a1f44dee-primary",
+      "document_sha256": "9582379f85f0a7edec79db34d9f2a1cf3fbc7c5b7f1877a7ffbf63ad7b827f92",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e8b6f0351f2566840d5412f75f714b82-primary",
+      "document_sha256": "5b6fca8d5acb85c25a9b15e1096ddc7fbed2243d0910ba7f121bdd761b93e3c2",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-e8f4881963a5e848fb6c298132cb6b6f-independent",
+      "document_sha256": "cd859b6cad440ddec8b2d93d868c585f801aecde83288f7ef6a55b18f5c57911",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-e9a31a6edc3d24637e531d9c5f828756-independent",
+      "document_sha256": "3103b0e82674ca160a43316c678baf6f91a300fde84077c65fd2b48e452f4d93",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ea127a7d0cfeb8cb1daa781f8290b68f-adjudicator",
+      "document_sha256": "d91a2aa77e1691584c667507595650310cf18cdf1febcd77609f45970c4c4226",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ea291b7ef0b4786c56ceb352e9c8ecb9-adjudicator",
+      "document_sha256": "04b766eaa5184d95f01a8f8ad1c2b947755124cf21875f7b3bc1b02ef23c2124",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ea6d7ee813c71875178e9ce8e1c8621e-primary",
+      "document_sha256": "0d1132f4fb6f20b998baff206626880251cac4ed7b2fbcc4b7bdce4d168452b1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-ea77815d720b03841d666f17ca765665-adjudicator",
+      "document_sha256": "940ffb4a99162e1130281ee84c6525de303a064c2b1075fb23ec7c991a01d246",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ea96657e7d96372a24dbc5ebd1031d79-primary",
+      "document_sha256": "939c947ad652a991760939079c39df13eec79850d8e407f9dc3fa3e9d2884139",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-eab4ed8fac2fb974e6de9d431addaa26-adjudicator",
+      "document_sha256": "3d98876d04f3a01754735c378831e4078480bf2e58763b50fd66778a9094a638",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-eafde7a8ae0dc54dd36701d4bea41a23-independent",
+      "document_sha256": "ca6a49bcc3fc6db9dd20591bf20d1179aae74ac4476b34da0692e32c10f88188",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ebba1818514c7fa9b4c8520ac3b518ca-primary",
+      "document_sha256": "eafcd6140e3b9b587963b7294ba1ab1053e8b0ff20040361590d6174eed0af52",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-ebbcecc65b3341710c6483d68bde2746-independent",
+      "document_sha256": "f9ca2ed83207a12a009e11897dafc284fc12b19eeb6c367885982346ae500f36",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ec3f3214f0d55c018d1ae7552de85762-adjudicator",
+      "document_sha256": "c78fd402671d51254d9ae4aa73b8a40411c200c58e851f88166fa16c735fd503",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ec9e36b9c123eac470461df523397abc-adjudicator",
+      "document_sha256": "2b688f007afd3d5c40de6a04352bab33668c2b18c6cd5e97ab7af9163d74829d",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ecb2499a3925b28826a2e26e6c86efc2-independent",
+      "document_sha256": "8a78d6318efc77baf84c350c92c0ac6109020626c2b24de11c5f5f6b2f76a7b5",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ed8b53c58c8103b25c0df7d56629e1c3-independent",
+      "document_sha256": "f940c9ff1844cddce3a2d5f2af6ec782322f5fa66cead909f7892d247c801882",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ee32b90b6bb4b400f200463568d6b6e0-primary",
+      "document_sha256": "c8b15783f905e7b29fe64e9c575403d6ea169035d1a0407fa11e633373d2ff5e",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-ef0b98df0d84094c7bdb0d9a52ee2bb8-adjudicator",
+      "document_sha256": "aea44c3f6e8b36ece64af77895f9eca03011e9f1ba1ec3375f4b71ef297e9770",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-ef78c49de4f2f8b78fa3e716b83ee5e3-primary",
+      "document_sha256": "56a4dd35d743ca7d4e95d96f2aae18d1c871812f5e5792fd55b6dcc5182d01c7",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-efa68b7dad0e68e65fd130a0f977220b-primary",
+      "document_sha256": "98c470f3c9552a447de33dfb5d16756376223f10624f9c4416b4eb02b0fbb5b1",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-f103fca49b9a33d86571881705260a93-independent",
+      "document_sha256": "963a01a64f804526bf499a7b190f4224dd331930c187e3d63d12698063c66769",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-f1be840a23ee9677edd4445aebc387c5-primary",
+      "document_sha256": "6cb7cf3c52dfb98a2dd6837b77e89f9de1f8aa917e0718d066724be954ceb21b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-f1cc53f658560d587c8b2c7d69ee6687-independent",
+      "document_sha256": "6079615fb69459fa8b8a445ae643cc4366427f085373061bfdb9441e715a0d01",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-f399531386fe508d6129169d7618ebc4-adjudicator",
+      "document_sha256": "efe8f2da76dbc51172b3bae0eed48b038f1d498968caf1c8aabdabfd9a9222ae",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-f425a7fe0b366aef1be292b05d56919f-primary",
+      "document_sha256": "5e86418dd7571310892cd734957bbd24dbbe9f4e026c60b0c0c28bcb6a4dac3a",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-f435f3bb1e5f165179f47f96444d90a3-primary",
+      "document_sha256": "e8f513584dfb8dd665fdfa429a0487ed0da0b85505cc92d2457773922159bc81",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-f67b2a056fc1e54ecce740ae54c5c872-independent",
+      "document_sha256": "ff6d6793d163e6cd34631186a528aa27e8fa6016b222d0d2b531090282f9d298",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-f7e40f72ca5424910315dc3f372b02fe-primary",
+      "document_sha256": "2bb71f184129ce6c826bc0e8da029c1b9f98870324457e9b7c60bd6362541345",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-fab3d0ea430c8f4281d6710ed04f08af-adjudicator",
+      "document_sha256": "1c272eb5adfda085d3faf45064aca5fbfd7566d9efb147bc2db375ef123c28c9",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-fc677c890b36ec758b8376b30c7687f7-primary",
+      "document_sha256": "6670a76169727e1277a0fe4dc2ce7547550f8fef6875c852aecad8dabe49e9d2",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-fcba71b0d1205deb86154db036d53b47-adjudicator",
+      "document_sha256": "3c696b831006c83cd01709eb9e94d1164972a31ce306d20b6a99f033d575573e",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-fcd0370fa566195bdbabf634d958f745-primary",
+      "document_sha256": "26a85399257d94d5698ad5633fdbc3a7e1461cbf3549641948acb489df24817b",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-fd0a1f248072f351e82723156a4b3988-primary",
+      "document_sha256": "95cdb53732af494872265f9c6b1c9a42374c1956f3557dc09d1c260341428d92",
+      "role": "primary_labeler"
+    },
+    {
+      "label_id": "llm-label-untouched-fd15989265126bfb57e59b8dadc92c53-adjudicator",
+      "document_sha256": "bbad78b52fe417262e6a98f81d01cfea4b89114a05712e491f8242324d54c61c",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-fda3a4f6d1b890611a9791aadf1126ca-adjudicator",
+      "document_sha256": "390fda5ae7abac367973a0c1b46ec5388ac07548b31ae57ff0023cca6a60c66a",
+      "role": "adjudicator"
+    },
+    {
+      "label_id": "llm-label-untouched-fe5e46eba45f9c49f6903552b2d0a533-independent",
+      "document_sha256": "19b303c9f86839b4ac9e3153b1ec81e43f29a005a92368ce4a046249d5b75362",
+      "role": "independent_reviewer"
+    },
+    {
+      "label_id": "llm-label-untouched-ff50e5a105443d30ee22e28dd042741b-independent",
+      "document_sha256": "6bfb4ac6cf0e6793b81038936ada34da73246afc7327b11d232c5313c5a6bea5",
+      "role": "independent_reviewer"
+    }
+  ]
+}
