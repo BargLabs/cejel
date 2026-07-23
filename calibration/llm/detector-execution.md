@@ -62,12 +62,18 @@ cejel scan <source> --out <separate-output> --pack llm --quiet
 
 The detector invocation occurs behind the no-egress argv prefix. Clone and checkout happen first;
 submodules are not initialized and Git LFS smudging is disabled. Each output directory receives a
-`calibration-execution.json` receipt alongside Cejel's pack artifacts.
+`calibration-execution.json` receipt alongside Cejel's pack artifacts. Each clone, checkout, and
+scan subprocess uses the selection policy's 30-minute wall-clock ceiling.
+
+Each receipt binds the cohort manifest SHA-256, detector build and (for untouched runs) detector-
+freeze SHA-256, exact commit/tree, canonical and byte-level LLM-report digests, deterministic
+finding IDs, and per-rule states. The measurement gate verifies these receipts against the embedded
+reports and final label/adjudication records before deriving any count.
 
 ## Golden correction ledger
 
 Start from `templates/golden-correction-ledger.template.json`. Before changing its status to
-`frozen`, fill in:
+`frozen`, validate it against `schemas/golden-correction-ledger.schema.json` and fill in:
 
 - the SHA-256 of the final built executable used for the final golden run;
 - the frozen golden manifest SHA-256;
@@ -77,7 +83,9 @@ Start from `templates/golden-correction-ledger.template.json`. Before changing i
 - `open_corrections: 0`.
 
 The detector-freeze script rejects a template, an open ledger, a ledger for another executable, or
-a ledger without two reviewers.
+a ledger without two reviewers. It requires the actual frozen golden manifest and rejects a ledger
+whose `golden_manifest_sha256` does not match it. Every correction entry binds a finding, rule,
+repository commit, final outcome, rationale, evidence digest, and resolution timestamp.
 
 ## Freeze the detector
 
@@ -89,6 +97,7 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --detector-repo /absolute/path/to/cejel \
   --cejel /absolute/path/to/local/built/cejel \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest.json \
   --network-isolation-mode verified-no-egress-wrapper \
   --network-isolation-command /absolute/path/to/no-egress-wrapper \
   --network-isolation-arg=-- \

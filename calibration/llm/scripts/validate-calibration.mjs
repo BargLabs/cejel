@@ -94,13 +94,18 @@ for (const cohort of ['golden', 'untouched']) {
   if (!existsSync(manifestPath)) continue;
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   frozen.set(cohort, manifest);
+  const validReviewGovernance =
+    (manifest.review_method === 'two_human' &&
+      manifest.attestation?.method === 'internal_witness') ||
+    (manifest.review_method === 'two_independent_ai' &&
+      manifest.attestation?.method === 'internal_dual_ai_review');
   if (
     manifest.cohort !== cohort ||
     manifest.status !== 'frozen' ||
     manifest.detector_results_seen_before_freeze !== false ||
     !Array.isArray(manifest.frozen_by) ||
     new Set(manifest.frozen_by).size !== 2 ||
-    manifest.attestation?.method !== 'internal_witness' ||
+    !validReviewGovernance ||
     !manifest.attestation?.reference?.startsWith('internal-witness:')
   ) {
     errors.push(`${cohort}: invalid immutable freeze governance fields`);

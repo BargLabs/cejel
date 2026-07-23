@@ -3,6 +3,7 @@ import type {
   CejelLlmEnabledRuleId,
   CejelLlmFinding,
 } from './types.js';
+import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
 import { maskJavaScriptNonCode } from './lexical.js';
 
 export interface LlmSourceFile {
@@ -162,13 +163,16 @@ function visibleOutputIdentifiers(scopes: readonly ReadonlyMap<string, boolean>[
   return new Set([...visible].filter(([, output]) => output).map(([identifier]) => identifier));
 }
 
-function isDirectModelOutputAssignment(expression: string): boolean {
+function expressionContainsBoundModelOutput(
+  expression: string,
+  boundIdentifiers: ReadonlySet<string>,
+): boolean {
   const normalized = expression.trim().replace(/;$/, '').trim();
   const output = normalized.match(MODEL_OUTPUT_PATTERN);
   if (!output || output.index === undefined) return false;
   const receiver = normalized.slice(0, output.index);
-  const trailing = normalized.slice(output.index + output[0].length);
-  return /^[A-Za-z_$][\w$.\[\]\s]*$/.test(receiver) && trailing.trim().length === 0;
+  const identifier = receiver.match(/([A-Za-z_$][\w$]*)[.\[\]\w$\s]*$/)?.[1];
+  return Boolean(identifier && boundIdentifiers.has(identifier));
 }
 
 function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
@@ -180,21 +184,31 @@ function detectUnsafeSink(file: LlmSourceFile): readonly CejelLlmFinding[] {
     ...importedProcessSinks(file.contents, maskedContents),
   ];
   const findings: CejelLlmFinding[] = [];
+  const supportedCallIndices = supportedJavaScriptModelCallIndices(file.contents);
   let offset = 0;
 
   for (const line of maskedContents.split('\n')) {
     const assignment = line.match(IDENTIFIER_ASSIGNMENT_PATTERN);
     const identifier = assignment?.[1];
     const expression = assignment?.[2];
+    const visibleBeforeAssignment = visibleOutputIdentifiers(scopes);
     if (identifier && expression) {
-      scopes.at(-1)?.set(identifier, isDirectModelOutputAssignment(expression));
+      const lineHasSupportedResponseAssignment = [...supportedCallIndices].some(
+        (index) => offset <= index && index < offset + line.length,
+      );
+      scopes.at(-1)?.set(
+        identifier,
+        lineHasSupportedResponseAssignment ||
+          expressionContainsBoundModelOutput(expression, visibleBeforeAssignment),
+      );
     }
     const outputIdentifiers = visibleOutputIdentifiers(scopes);
     for (const sink of dangerousSinks) {
       const sinkMatch = line.match(sink.pattern);
       if (!sinkMatch) continue;
       const containsModelOutput =
-        MODEL_OUTPUT_PATTERN.test(line) || containsIdentifier(line, outputIdentifiers);
+        expressionContainsBoundModelOutput(line, outputIdentifiers) ||
+        containsIdentifier(line, outputIdentifiers);
       if (!containsModelOutput) continue;
 
       findings.push(
@@ -284,8 +298,8 @@ function detectUnboundedLoop(file: LlmSourceFile): readonly CejelLlmFinding[] {
     if (maskedContents[bodyStart] !== '{') continue;
     const bodyEnd = matchingDelimiterEnd(maskedContents, bodyStart, '{', '}');
     if (bodyEnd === null) continue;
-    const body = maskedContents.slice(bodyStart + 1, bodyEnd - 1);
-    if (!MODEL_CALL_PATTERN.test(body)) continue;
+    const supportedCalls = supportedJavaScriptModelCallIndices(file.contents);
+    if (![...supportedCalls].some((index) => bodyStart < index && index < bodyEnd)) continue;
     findings.push(
       finding(
         'LLM-AGY-002',
@@ -306,7 +320,9 @@ function modelCallArguments(
 ): readonly { readonly text: string; readonly index: number }[] {
   const calls: { text: string; index: number }[] = [];
   const masked = maskJavaScriptNonCode(contents);
+  const supportedCalls = supportedJavaScriptModelCallIndices(contents);
   for (const match of masked.matchAll(new RegExp(MODEL_CALL_PATTERN, 'g'))) {
+    if (!supportedCalls.has(match.index)) continue;
     const openParen = match.index + match[0].lastIndexOf('(');
     const end = matchingDelimiterEnd(contents, openParen, '(', ')');
     if (end === null) continue;
@@ -347,12 +363,7 @@ function detectSensitivePromptData(file: LlmSourceFile): readonly CejelLlmFindin
 }
 
 function hasUnsafeSinkSurface(file: LlmSourceFile): boolean {
-  if (isExcludedSourcePath(file.path)) return false;
-  const masked = maskJavaScriptNonCode(file.contents);
-  if (!MODEL_OUTPUT_PATTERN.test(masked)) return false;
-  return [...BASE_DANGEROUS_SINKS, ...importedProcessSinks(file.contents, masked)].some((sink) =>
-    sink.pattern.test(masked),
-  );
+  return detectUnsafeSink(file).length > 0;
 }
 
 export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [

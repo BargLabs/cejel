@@ -4,7 +4,7 @@
   "title": "Cejel Free LLM immutable cohort manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "policy_id", "cohort", "status", "frozen_at", "frozen_by", "detector_results_seen_before_freeze", "hash_contract", "repositories", "manifest_sha256", "attestation"],
+  "required": ["schema_version", "protocol_id", "policy_id", "cohort", "status", "frozen_at", "frozen_by", "review_method", "detector_results_seen_before_freeze", "hash_contract", "repositories", "manifest_sha256", "attestation"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
@@ -13,6 +13,7 @@
     "status": {"const": "frozen"},
     "frozen_at": {"type": "string", "format": "date-time"},
     "frozen_by": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 3}},
+    "review_method": {"enum": ["two_human", "two_independent_ai"]},
     "detector_results_seen_before_freeze": {"const": false},
     "hash_contract": {"const": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation"},
     "repositories": {
@@ -27,7 +28,7 @@
       "additionalProperties": false,
       "required": ["method", "reference"],
       "properties": {
-        "method": {"enum": ["sigstore", "gpg", "signed_release", "internal_witness"]},
+        "method": {"enum": ["sigstore", "gpg", "signed_release", "internal_witness", "internal_dual_ai_review"]},
         "reference": {"type": "string", "minLength": 8}
       }
     }

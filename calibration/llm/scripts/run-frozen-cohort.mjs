@@ -13,7 +13,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-import { hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
   validateDetectorFreezeRecord,
   validateGoldenCorrectionLedger,
@@ -48,10 +48,16 @@ export function validateImmutableManifest(manifest) {
   ) {
     throw new Error('runner requires a frozen golden or untouched immutable manifest');
   }
+  const validReviewGovernance =
+    (manifest.review_method === 'two_human' &&
+      manifest.attestation?.method === 'internal_witness') ||
+    (manifest.review_method === 'two_independent_ai' &&
+      manifest.attestation?.method === 'internal_dual_ai_review');
   if (
     manifest.detector_results_seen_before_freeze !== false ||
     !Array.isArray(manifest.frozen_by) ||
     manifest.frozen_by.length !== 2 ||
+    !validReviewGovernance ||
     typeof manifest.attestation?.reference !== 'string' ||
     manifest.attestation.reference.length < 8
   ) {
@@ -127,7 +133,7 @@ async function defaultRunner(command, args, options = {}) {
   const { stdout } = await execFile(command, args, {
     encoding: 'utf8',
     maxBuffer: 20 * 1024 * 1024,
-    timeout: 10 * 60_000,
+    timeout: 30 * 60_000,
     ...options,
   });
   return stdout.trim();
@@ -168,6 +174,20 @@ export async function runFrozenRepository(input, commandRunner = defaultRunner) 
     env: { ...process.env, CI: '1' },
   });
   if (!existsSync(output)) mkdirSync(output, { recursive: true });
+  const llmReportPath = join(output, 'llm-report.json');
+  if (!existsSync(llmReportPath)) {
+    throw new Error(`${input.repository.repository_id}: scan did not emit llm-report.json`);
+  }
+  const llmReportBytes = readFileSync(llmReportPath);
+  const llmReport = JSON.parse(llmReportBytes.toString('utf8'));
+  const findings = Array.isArray(llmReport?.result?.findings) ? llmReport.result.findings : null;
+  const ruleResults = Array.isArray(llmReport?.result?.ruleResults) ? llmReport.result.ruleResults : null;
+  if (!findings || !ruleResults) {
+    throw new Error(`${input.repository.repository_id}: llm-report.json lacks findings or rule results`);
+  }
+  const findingIds = findings.map((finding, index) =>
+    `llm-finding-${sha256Bytes(Buffer.from(canonicalize({ repository_id: input.repository.repository_id, index, finding }), 'utf8'))}`
+  );
   const receipt = {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
@@ -175,11 +195,16 @@ export async function runFrozenRepository(input, commandRunner = defaultRunner) 
     repository_id: input.repository.repository_id,
     commit_sha: actualCommit,
     git_tree_sha: actualTree,
+    manifest_sha256: input.manifestSha256,
     detector_build_sha256: input.detectorBuildSha256,
     detector_freeze_sha256: input.detectorFreezeSha256 || null,
     network_isolation_mode: input.networkIsolationMode,
     completed_at: new Date().toISOString(),
     output_outside_source: !isWithin(source, output) && !isWithin(output, source),
+    llm_report_sha256: sha256Bytes(llmReportBytes),
+    llm_report_canonical_sha256: sha256Bytes(Buffer.from(canonicalize(llmReport), 'utf8')),
+    finding_ids: findingIds,
+    rule_states: ruleResults.map((result) => ({ rule_id: result.ruleId, state: result.state })),
   };
   writeFileSync(join(output, 'calibration-execution.json'), `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
   return { source, output, receipt };
@@ -281,7 +306,11 @@ export async function main(argv, commandRunner = defaultRunner) {
     if (sha256Bytes(ledgerBytes) !== freezeRecord.golden_correction_ledger.sha256) {
       throw new Error('golden correction ledger bytes do not match detector-freeze record');
     }
-    validateGoldenCorrectionLedger(JSON.parse(ledgerBytes.toString('utf8')), detectorBuildSha256);
+    validateGoldenCorrectionLedger(
+      JSON.parse(ledgerBytes.toString('utf8')),
+      detectorBuildSha256,
+      freezeRecord.golden_correction_ledger.golden_manifest_sha256,
+    );
     isolationPrefix = freezeRecord.execution.network_isolation.argv_prefix;
     isolationMode = freezeRecord.execution.network_isolation.mode;
   } else {
@@ -316,6 +345,7 @@ export async function main(argv, commandRunner = defaultRunner) {
       networkIsolationMode: isolationMode,
       detectorBuildSha256,
       detectorFreezeSha256: freezeRecord?.record_sha256,
+      manifestSha256: manifest.manifest_sha256,
     }, commandRunner));
   }
   console.log(JSON.stringify({

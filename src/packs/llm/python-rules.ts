@@ -29,6 +29,93 @@ const PYTHON_DANGEROUS_SINKS: readonly {
   },
 ];
 
+interface PythonSdkImports {
+  readonly constructors: ReadonlySet<string>;
+  readonly modules: ReadonlySet<string>;
+}
+
+function pythonSdkImports(masked: string): PythonSdkImports {
+  const constructors = new Set<string>();
+  const modules = new Set<string>();
+  for (const match of masked.matchAll(
+    /(?:^|\n)\s*from\s+(openai|anthropic)\s+import\s+(OpenAI|Anthropic)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?/g,
+  )) {
+    if (match[2]) constructors.add(match[3] ?? match[2]);
+  }
+  for (const match of masked.matchAll(
+    /(?:^|\n)\s*import\s+(openai|anthropic)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?/g,
+  )) {
+    if (match[1]) modules.add(match[2] ?? match[1]);
+  }
+  return { constructors, modules };
+}
+
+function pythonParameters(line: string): readonly string[] {
+  const parameters = line.match(/^\s*(?:async\s+)?def\s+[A-Za-z_][A-Za-z0-9_]*\s*\(([^)]*)\)/)?.[1];
+  if (parameters === undefined) return [];
+  return parameters.split(',').flatMap((parameter) => {
+    const name = parameter.trim().match(/^(?:\*{1,2})?([A-Za-z_][A-Za-z0-9_]*)/)?.[1];
+    return name ? [name] : [];
+  });
+}
+
+export function supportedPythonModelCallIndices(contents: string): ReadonlySet<number> {
+  const masked = maskPythonNonCode(contents);
+  const imports = pythonSdkImports(masked);
+  const scopes: { indent: number; clients: Map<string, boolean> }[] = [
+    { indent: -1, clients: new Map([...imports.modules].map((name) => [name, true])) },
+  ];
+  const indices = new Set<number>();
+  let offset = 0;
+  const visibleClient = (name: string): boolean => {
+    for (let index = scopes.length - 1; index >= 0; index -= 1) {
+      const value = scopes[index]?.clients.get(name);
+      if (value !== undefined) return value;
+    }
+    return false;
+  };
+  for (const line of masked.split('\n')) {
+    const indentation = line.match(/^\s*/)?.[0].length ?? 0;
+    if (line.trim().length > 0) {
+      while (scopes.length > 1 && indentation <= (scopes.at(-1)?.indent ?? -1)) scopes.pop();
+    }
+    for (const match of line.matchAll(new RegExp(PYTHON_MODEL_CALL_PATTERN, 'g'))) {
+      const prefix = line.slice(0, match.index);
+      const receiver = prefix.match(/([A-Za-z_][A-Za-z0-9_]*)\s*$/)?.[1];
+      const directConstructor = prefix.match(/([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*$/)?.[1];
+      if (
+        (receiver && visibleClient(receiver)) ||
+        (directConstructor && imports.constructors.has(directConstructor))
+      ) {
+        indices.add(offset + match.index);
+      }
+    }
+    const assignment = line.match(PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN);
+    const identifier = assignment?.[1];
+    const expression = assignment?.[2]?.trim() ?? '';
+    if (identifier) {
+      const constructor = [...imports.constructors].some((name) =>
+        new RegExp(`^${name}\\s*\\(`).test(expression),
+      );
+      const moduleConstructor = [...imports.modules].some((name) =>
+        new RegExp(`^${name}\\.(?:OpenAI|Anthropic)\\s*\\(`).test(expression),
+      );
+      scopes.at(-1)?.clients.set(identifier, constructor || moduleConstructor);
+    }
+    const parameters = pythonParameters(line);
+    if (parameters.length > 0) {
+      scopes.push({
+        indent: indentation,
+        clients: new Map(parameters.map((name) => [name, false])),
+      });
+    } else if (/^\s*class\s+[A-Za-z_][A-Za-z0-9_]*\b/.test(line)) {
+      scopes.push({ indent: indentation, clients: new Map() });
+    }
+    offset += line.length + 1;
+  }
+  return indices;
+}
+
 function isExcludedSourcePath(path: string): boolean {
   return (
     /(?:^|\/)(?:__tests__|test|tests|fixtures?|examples?|vendor|generated)(?:\/|$)/i.test(
@@ -81,13 +168,16 @@ function visiblePythonOutputIdentifiers(
   return new Set([...visible].filter(([, output]) => output).map(([identifier]) => identifier));
 }
 
-function isDirectPythonModelOutputAssignment(expression: string): boolean {
+function expressionContainsBoundPythonModelOutput(
+  expression: string,
+  boundIdentifiers: ReadonlySet<string>,
+): boolean {
   const normalized = expression.trim();
   const output = normalized.match(PYTHON_MODEL_OUTPUT_PATTERN);
   if (!output || output.index === undefined) return false;
   const receiver = normalized.slice(0, output.index);
-  const trailing = normalized.slice(output.index + output[0].length);
-  return /^[A-Za-z_][A-Za-z0-9_.\[\]\s]*$/.test(receiver) && trailing.trim().length === 0;
+  const identifier = receiver.match(/([A-Za-z_][A-Za-z0-9_]*)[.\[\]\w\s]*$/)?.[1];
+  return Boolean(identifier && boundIdentifiers.has(identifier));
 }
 
 export function hasSupportedPythonLlmIntegration(file: LlmSourceFile): boolean {
@@ -95,7 +185,7 @@ export function hasSupportedPythonLlmIntegration(file: LlmSourceFile): boolean {
   return (
     !isExcludedSourcePath(file.path) &&
     PYTHON_INTEGRATION_PATTERN.test(maskedContents) &&
-    PYTHON_MODEL_CALL_PATTERN.test(maskedContents)
+    supportedPythonModelCallIndices(file.contents).size > 0
   );
 }
 
@@ -108,6 +198,7 @@ export function detectPythonUnsafeModelOutputSink(
     { indent: -1, aliases: new Map() },
   ];
   const findings: CejelLlmFinding[] = [];
+  const supportedCalls = supportedPythonModelCallIndices(file.contents);
   let offset = 0;
 
   for (const line of maskedContents.split('\n')) {
@@ -118,15 +209,23 @@ export function detectPythonUnsafeModelOutputSink(
     const assignment = line.match(PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN);
     const identifier = assignment?.[1];
     const expression = assignment?.[2];
+    const visibleBeforeAssignment = visiblePythonOutputIdentifiers(scopes);
     if (identifier && expression) {
-      scopes.at(-1)?.aliases.set(identifier, isDirectPythonModelOutputAssignment(expression));
+      const lineHasSupportedResponseAssignment = [...supportedCalls].some(
+        (index) => offset <= index && index < offset + line.length,
+      );
+      scopes.at(-1)?.aliases.set(
+        identifier,
+        lineHasSupportedResponseAssignment ||
+          expressionContainsBoundPythonModelOutput(expression, visibleBeforeAssignment),
+      );
     }
     const outputIdentifiers = visiblePythonOutputIdentifiers(scopes);
     for (const sink of PYTHON_DANGEROUS_SINKS) {
       const sinkMatch = line.match(sink.pattern);
       if (!sinkMatch) continue;
       if (
-        !PYTHON_MODEL_OUTPUT_PATTERN.test(line) &&
+        !expressionContainsBoundPythonModelOutput(line, outputIdentifiers) &&
         !containsIdentifier(line, outputIdentifiers)
       ) {
         continue;
@@ -157,6 +256,7 @@ export function detectPythonUnboundedAgentLoop(
   if (!hasSupportedPythonLlmIntegration(file)) return [];
   const findings: CejelLlmFinding[] = [];
   const lines = maskPythonNonCode(file.contents).split('\n');
+  const supportedCalls = supportedPythonModelCallIndices(file.contents);
   let offset = 0;
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -167,18 +267,19 @@ export function detectPythonUnboundedAgentLoop(
       continue;
     }
     const loopIndent = loop[1]?.length ?? 0;
-    const body: string[] = [];
+    const bodyStartOffset = offset + line.length + 1;
+    let bodyEndOffset = bodyStartOffset;
     for (let bodyIndex = lineIndex + 1; bodyIndex < lines.length; bodyIndex += 1) {
       const candidate = lines[bodyIndex] ?? '';
       if (candidate.trim().length === 0 || candidate.trimStart().startsWith('#')) {
-        body.push(candidate);
+        bodyEndOffset += candidate.length + 1;
         continue;
       }
       const indent = candidate.match(/^\s*/)?.[0].length ?? 0;
       if (indent <= loopIndent) break;
-      body.push(candidate);
+      bodyEndOffset += candidate.length + 1;
     }
-    if (!PYTHON_MODEL_CALL_PATTERN.test(body.join('\n'))) {
+    if (![...supportedCalls].some((index) => bodyStartOffset <= index && index < bodyEndOffset)) {
       offset += line.length + 1;
       continue;
     }
@@ -249,7 +350,9 @@ function pythonModelCallArguments(
 ): readonly { readonly text: string; readonly index: number }[] {
   const calls: { text: string; index: number }[] = [];
   const masked = maskPythonNonCode(contents);
+  const supportedCalls = supportedPythonModelCallIndices(contents);
   for (const match of masked.matchAll(new RegExp(PYTHON_MODEL_CALL_PATTERN, 'g'))) {
+    if (!supportedCalls.has(match.index)) continue;
     const openParen = match.index + match[0].lastIndexOf('(');
     const end = matchingPythonCallEnd(contents, openParen);
     if (end === null) continue;

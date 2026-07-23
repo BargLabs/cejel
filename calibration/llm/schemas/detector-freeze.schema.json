@@ -61,9 +61,10 @@
     "golden_correction_ledger": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sha256", "status", "entries", "open_corrections", "frozen_at"],
+      "required": ["sha256", "golden_manifest_sha256", "status", "entries", "open_corrections", "frozen_at"],
       "properties": {
         "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "status": {"const": "frozen"},
         "entries": {"type": "integer", "minimum": 0},
         "open_corrections": {"const": 0},

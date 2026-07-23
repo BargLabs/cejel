@@ -124,6 +124,21 @@ function dispatchFixed() {
     expect(findings[0]?.summary).toContain('writeAuditTool');
   });
 
+  it('does not treat an unbound generic registerTool call as model exposure', () => {
+    const rule = CEJEL_LLM_ACTION_RULES.find((candidate) => candidate.id === 'LLM-AGY-001');
+    const findings = rule?.detect({
+      path: 'src/tool.ts',
+      contents: [
+        "import { writeFile } from 'node:fs';",
+        "import { generateText, tool } from 'ai';",
+        "await generateText({ model, prompt: 'unrelated' });",
+        'const writeAuditTool = tool({ execute: (input) => writeFile("audit.log", input) });',
+        'mailbox.registerTool(writeAuditTool);',
+      ].join('\n'),
+    }) ?? [];
+    expect(findings).toEqual([]);
+  });
+
   it('does not assert an authority finding when human approval fails closed', () => {
     const findings = detectSideEffectingToolWithoutAuthorityBoundary({
       path: 'src/mail-agent.ts',

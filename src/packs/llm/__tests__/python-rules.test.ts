@@ -79,6 +79,38 @@ describe('Free LLM Pack Python rule foundation', () => {
     expect(rule?.detect(source('python-sensitive-prompt.negative.fixture'))).toEqual([]);
   });
 
+  it('does not attribute unrelated same-shape Python calls or outputs to a real SDK client', () => {
+    const file: LlmSourceFile = {
+      path: 'src/mixed.py',
+      contents: [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        "model_response = client.responses.create(model='gpt-5', input='safe')",
+        "mail = mailbox.responses.create(input=os.getenv('DATABASE_PASSWORD'))",
+        'analytics = internal_job()',
+        'exec(analytics.output_text)',
+      ].join('\n'),
+    };
+    for (const rule of CEJEL_LLM_PYTHON_RULES) {
+      expect(rule.detect(file)).toEqual([]);
+    }
+  });
+
+  it('does not accept a function parameter shadowing an SDK client binding', () => {
+    const file: LlmSourceFile = {
+      path: 'src/shadow.py',
+      contents: [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        'def process_mail(client):',
+        "    response = client.responses.create(input='mail')",
+        '    exec(response.output_text)',
+      ].join('\n'),
+    };
+    expect(hasSupportedPythonLlmIntegration(file)).toBe(false);
+    for (const rule of CEJEL_LLM_PYTHON_RULES) expect(rule.detect(file)).toEqual([]);
+  });
+
   it('does not carry a Python model-output alias through a reassignment', () => {
     const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-IOH-001');
     const file: LlmSourceFile = {

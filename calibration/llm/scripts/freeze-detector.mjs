@@ -7,7 +7,7 @@ import { basename, dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { canonicalize } from './freeze-cohorts.mjs';
+import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 
 const execFile = promisify(execFileCallback);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -63,7 +63,13 @@ function validUtc(value) {
   return typeof value === 'string' && value.endsWith('Z') && !Number.isNaN(Date.parse(value));
 }
 
-export function validateGoldenCorrectionLedger(document, expectedBuildSha256) {
+const LEDGER_KEYS = [
+  'schema_version', 'protocol_id', 'status', 'detector_build_sha256',
+  'golden_manifest_sha256', 'frozen_at', 'frozen_before_untouched',
+  'reviewed_by', 'open_corrections', 'entries',
+];
+
+export function validateGoldenCorrectionLedger(document, expectedBuildSha256, expectedGoldenManifestSha256) {
   if (
     document?.schema_version !== '1.0.0' ||
     document?.protocol_id !== 'cejel-llm-calibration-v1'
@@ -76,8 +82,13 @@ export function validateGoldenCorrectionLedger(document, expectedBuildSha256) {
   if (document.detector_build_sha256 !== expectedBuildSha256) {
     throw new Error('golden correction ledger is not bound to this detector build SHA-256');
   }
+  const unknown = Object.keys(document).filter((key) => !LEDGER_KEYS.includes(key));
+  if (unknown.length > 0) throw new Error(`golden correction ledger has unknown fields: ${unknown.join(', ')}`);
   if (!/^[a-f0-9]{64}$/.test(document.golden_manifest_sha256 || '')) {
     throw new Error('golden correction ledger lacks a frozen golden manifest SHA-256');
+  }
+  if (expectedGoldenManifestSha256 && document.golden_manifest_sha256 !== expectedGoldenManifestSha256) {
+    throw new Error('golden correction ledger is not bound to the supplied golden manifest');
   }
   if (!validUtc(document.frozen_at)) {
     throw new Error('golden correction ledger frozen_at must be a UTC ISO-8601 timestamp');
@@ -91,10 +102,53 @@ export function validateGoldenCorrectionLedger(document, expectedBuildSha256) {
   if (!Array.isArray(document.entries)) {
     throw new Error('golden correction ledger entries must be an array');
   }
+  const correctionIds = new Set();
+  for (const [index, entry] of document.entries.entries()) {
+    const scope = `golden correction ledger entry ${index}`;
+    const allowed = [
+      'correction_id', 'status', 'finding_id', 'rule_id', 'repository_id', 'commit_sha',
+      'original_outcome', 'final_outcome', 'rationale', 'evidence', 'resolved_at',
+    ];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`${scope} must be an object`);
+    const entryUnknown = Object.keys(entry).filter((key) => !allowed.includes(key));
+    if (entryUnknown.length > 0) throw new Error(`${scope} has unknown fields: ${entryUnknown.join(', ')}`);
+    if (!/^llm-correction-[a-z0-9-]{8,80}$/.test(entry.correction_id || '')) throw new Error(`${scope} correction_id is invalid`);
+    if (correctionIds.has(entry.correction_id)) throw new Error(`${scope} correction_id is duplicated`);
+    correctionIds.add(entry.correction_id);
+    if (!['resolved', 'accepted_no_change'].includes(entry.status)) throw new Error(`${scope} status is not closed`);
+    if (!/^llm-finding-[a-f0-9]{64}$/.test(entry.finding_id || '')) throw new Error(`${scope} finding_id is invalid`);
+    if (!FROZEN_LLM_RULE_IDS.includes(entry.rule_id)) throw new Error(`${scope} rule_id is invalid`);
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(entry.repository_id || '')) throw new Error(`${scope} repository_id is invalid`);
+    if (!/^[a-f0-9]{40}$/.test(entry.commit_sha || '')) throw new Error(`${scope} commit_sha is invalid`);
+    if (!['detector_finding', 'missed_defect', 'classification_error'].includes(entry.original_outcome)) throw new Error(`${scope} original_outcome is invalid`);
+    if (!['true_positive', 'false_positive', 'false_negative', 'accepted_limitation'].includes(entry.final_outcome)) throw new Error(`${scope} final_outcome is invalid`);
+    if (typeof entry.rationale !== 'string' || entry.rationale.trim().length < 20) throw new Error(`${scope} rationale is too short`);
+    if (!Array.isArray(entry.evidence) || entry.evidence.length < 1 || entry.evidence.some((item) =>
+      !item || typeof item.reference !== 'string' || item.reference.length < 3 || !/^[a-f0-9]{64}$/.test(item.sha256 || '')
+    )) throw new Error(`${scope} evidence is invalid`);
+    if (!validUtc(entry.resolved_at)) throw new Error(`${scope} resolved_at is invalid`);
+  }
   if (document.open_corrections !== 0) {
     throw new Error('golden correction ledger must have zero open corrections');
   }
   return document;
+}
+
+export function validateFrozenGoldenManifest(manifest) {
+  if (
+    manifest?.schema_version !== '1.0.0' || manifest?.protocol_id !== 'cejel-llm-calibration-v1' ||
+    manifest?.cohort !== 'golden' || manifest?.status !== 'frozen' ||
+    !Array.isArray(manifest.repositories) || manifest.repositories.length < 1 ||
+    hashManifest(manifest) !== manifest.manifest_sha256
+  ) throw new Error('--golden-manifest must be a valid frozen golden manifest');
+  for (const repository of manifest.repositories) {
+    if (
+      !/^[a-f0-9]{40}$/.test(repository.commit_sha || '') ||
+      !/^[a-f0-9]{40}$/.test(repository.git_tree_sha || '') ||
+      hashRepositoryEntry(repository) !== repository.entry_sha256
+    ) throw new Error('--golden-manifest contains an invalid immutable repository entry');
+  }
+  return manifest;
 }
 
 export function createDetectorFreezeRecord(input) {
@@ -146,6 +200,7 @@ export function createDetectorFreezeRecord(input) {
     support_matrix: FROZEN_SUPPORT_MATRIX,
     golden_correction_ledger: {
       sha256: input.ledgerSha256,
+      golden_manifest_sha256: input.ledger.golden_manifest_sha256,
       status: 'frozen',
       entries: input.ledger.entries.length,
       open_corrections: 0,
@@ -207,6 +262,7 @@ export function validateDetectorFreezeRecord(record) {
     record.golden_correction_ledger?.status !== 'frozen' ||
     record.golden_correction_ledger?.open_corrections !== 0 ||
     !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.sha256 || '')
+    || !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.golden_manifest_sha256 || '')
   ) {
     throw new Error('detector freeze lacks a closed golden correction ledger');
   }
@@ -236,6 +292,7 @@ function parseArgs(argv) {
       case '--detector-repo': options.detectorRepo = take(); break;
       case '--cejel': options.cejel = take(); break;
       case '--golden-correction-ledger': options.ledger = take(); break;
+      case '--golden-manifest': options.goldenManifest = take(); break;
       case '--network-isolation-mode': options.isolationMode = take(); break;
       case '--network-isolation-command': options.isolationCommand = take(); break;
       case '--network-isolation-arg': options.isolationArgs.push(take()); break;
@@ -255,6 +312,7 @@ function usage() {
   node calibration/llm/scripts/freeze-detector.mjs \\
     --detector-repo . --cejel ./dist/index.js \\
     --golden-correction-ledger ./golden-corrections.json \\
+    --golden-manifest calibration/llm/cohorts/golden-manifest.json \\
     --network-isolation-mode sandbox-no-egress \\
     --network-isolation-command /path/to/isolation-wrapper \\
     --network-isolation-evidence internal-witness:isolation-proof \\
@@ -293,6 +351,7 @@ export async function main(argv, commandRunner = run) {
   for (const [flag, value] of [
     ['--cejel', options.cejel],
     ['--golden-correction-ledger', options.ledger],
+    ['--golden-manifest', options.goldenManifest],
     ['--network-isolation-mode', options.isolationMode],
     ['--network-isolation-command', options.isolationCommand],
     ['--network-isolation-evidence', options.isolationEvidence],
@@ -306,6 +365,9 @@ export async function main(argv, commandRunner = run) {
   const detectorRepo = resolve(options.detectorRepo || '.');
   const cejel = realpathSync(resolve(options.cejel));
   const ledgerPath = resolve(options.ledger);
+  const goldenManifest = validateFrozenGoldenManifest(
+    JSON.parse(readFileSync(resolve(options.goldenManifest), 'utf8')),
+  );
   const buildBytes = readFileSync(cejel);
   const buildSha256 = sha256Bytes(buildBytes);
   const gitCommit = await commandRunner('git', ['-C', detectorRepo, 'rev-parse', 'HEAD']);
@@ -317,6 +379,7 @@ export async function main(argv, commandRunner = run) {
   const ledger = validateGoldenCorrectionLedger(
     JSON.parse(ledgerBytes.toString('utf8')),
     buildSha256,
+    goldenManifest.manifest_sha256,
   );
   const record = createDetectorFreezeRecord({
     gitCommit,

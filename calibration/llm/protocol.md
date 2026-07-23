@@ -59,7 +59,9 @@ primary stratum. Do not replace a repository because a detector performs poorly 
 
 Before any detector run:
 
-1. Two people review cohort disjointness and eligibility without running Cejel.
+1. Two isolated review passes examine cohort disjointness and eligibility without running Cejel.
+   The manifest discloses whether these were `two_human` or `two_independent_ai`; AI review is not
+   represented as human review.
 2. Resolve each URL to a 40-character commit SHA. Branches and tags are insufficient.
 3. Record the default branch only as metadata; the SHA is normative.
 4. Record the repository tree hash obtained from the pinned commit. Compute `entry_sha256` over
@@ -134,7 +136,8 @@ negative false-positive rate   = FP / (FP + TN)  [only for predefined negative o
 precision                      = TP / (TP + FP)
 abstention rate                = A / E
 not-applicable rate            = N / all scanned repositories
-raw reviewer agreement         = agreements / double-labeled items
+raw reviewer agreement         = agreements / double-labeled adjudicated items
+double-label coverage          = double-labeled items / all eligible adjudicated items
 Cohen's kappa                  = (observed agreement - expected agreement) /
                                  (1 - expected agreement)
 ```
@@ -151,7 +154,8 @@ for binomial proportions unless the final report preregisters another method bef
 - Every detector finding in the untouched cohort is reviewed where feasible; otherwise use a
   preregistered stratified random sample by rule ID and severity.
 - Every labeled positive defect in the untouched cohort contributes to recall.
-- At least 20% of untouched items and at least two items per enabled rule are double-labeled. If a
+- At least 20% of eligible adjudicated untouched opportunities (not repository scans) and at least
+  two adjudicated opportunities per enabled rule are double-labeled. If a
   rule has fewer than two supported items, publish that limitation and do not make a strong rule-
   level performance claim.
 - The final report names roles, independence constraints, conflicts, exclusions, repository
@@ -164,3 +168,12 @@ detector run in `release-thresholds.json`. Apply its automatic-NO-GO conditions 
 the public-v1 and limited-experimental gates in the declared order. A limited experimental release
 must say `experimental` on every public surface and publish the complete denominated record. In all
 cases, findings require evidence and no general hallucination-rate claim is allowed.
+
+The gate does not accept manually entered confusion-matrix counts. `compute-metrics.mjs` derives
+release metrics only from the untouched cohort while validating the complete golden and untouched
+evidence chain: content-addressed frozen manifests, the detector-freeze record, per-repository execution
+receipts and LLM reports, and independent label/adjudication records. It rejects missing receipts,
+unreviewed finding IDs, hash mismatches, labels outside the frozen cohorts, and untouched receipts
+that are not bound to the frozen detector. Raw agreement and Cohen's kappa are derived from the
+full paired-label contingency table; single-category pairs are reported as `not_estimable`, not as
+perfect kappa.

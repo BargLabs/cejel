@@ -1,153 +1,176 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import test from 'node:test';
 
 import { computeMetrics, ENABLED_RULE_IDS } from './compute-metrics.mjs';
+import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import { createDetectorFreezeRecord } from './freeze-detector.mjs';
 
 const thresholds = JSON.parse(readFileSync(new URL('../release-thresholds.json', import.meta.url), 'utf8'));
+const sha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
+const bound = (document, extra = {}) => ({ ...extra, document_sha256: sha(document), document });
+const BUILD_SHA = 'b'.repeat(64);
 
-const counts = (overrides = {}) => ({
-  true_positives: 8,
-  false_negatives: 2,
-  false_positives: 0,
-  true_negatives: 5,
-  abstentions: 2,
-  eligible_scans: 24,
-  not_applicable: 0,
-  all_scans: 24,
-  reviewer_agreements: 4,
-  double_labeled_items: 5,
-  unresolved_critical_false_positives: 0,
-  ...overrides,
-});
+function manifest(cohort, repositoryId, commit) {
+  const entryWithoutHash = {
+    repository_id: repositoryId,
+    url: `https://github.com/${repositoryId}`,
+    default_branch_observed: 'main',
+    commit_sha: commit,
+    git_tree_sha: 'd'.repeat(40),
+    license_spdx: 'MIT',
+    primary_language: 'typescript_javascript',
+    primary_surface: 'chat_app',
+    provider_surface: 'openai',
+    inclusion_reason: 'Synthetic measurement evidence used by the unit test.',
+    source_available_at_freeze: true,
+  };
+  const withoutHash = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', policy_id: 'llm-selection-v1',
+    cohort, status: 'frozen', frozen_at: '2026-07-22T00:00:00Z',
+    frozen_by: ['reviewer-a', 'reviewer-b'], review_method: 'two_independent_ai',
+    detector_results_seen_before_freeze: false,
+    hash_contract: 'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation',
+    repositories: [{ ...entryWithoutHash, entry_sha256: hashRepositoryEntry(entryWithoutHash) }],
+  };
+  return { ...withoutHash, manifest_sha256: hashManifest(withoutHash), attestation: { method: 'internal_dual_ai_review', reference: 'internal-witness:test' } };
+}
 
-const input = (countOverrides = {}, inputOverrides = {}) => {
-  const perRuleCounts = counts(countOverrides);
-  const aggregate = { ...perRuleCounts };
-  for (const key of [
-    'true_positives',
-    'false_negatives',
-    'false_positives',
-    'true_negatives',
-    'unresolved_critical_false_positives',
-  ]) {
-    aggregate[key] = perRuleCounts[key] * ENABLED_RULE_IDS.length;
+function fixture() {
+  const golden = manifest('golden', 'owner/golden', 'a'.repeat(40));
+  const untouched = manifest('untouched', 'owner/untouched', 'c'.repeat(40));
+  const ledger = {
+    schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen',
+    detector_build_sha256: BUILD_SHA, golden_manifest_sha256: golden.manifest_sha256,
+    frozen_at: '2026-07-22T01:00:00Z', frozen_before_untouched: true,
+    reviewed_by: ['reviewer-a', 'reviewer-b'], open_corrections: 0, entries: [],
+  };
+  const freeze = createDetectorFreezeRecord({
+    gitCommit: 'e'.repeat(40), buildSha256: BUILD_SHA, artifactName: 'cejel',
+    frozenAt: '2026-07-22T02:00:00Z',
+    runtime: { name: 'node', version: 'v24', platform: 'linux', architecture: 'x64' },
+    networkIsolation: { mode: 'no-egress', argvPrefix: ['/no-egress'], evidenceReference: 'internal-witness:no-egress', confirmed: true },
+    ledger, ledgerSha256: sha(ledger),
+  });
+  const execution_receipts = [];
+  const llm_reports = [];
+  const label_records = [];
+  for (const [cohort, current] of [['golden', golden], ['untouched', untouched]]) {
+    const repository = current.repositories[0];
+    const findings = ENABLED_RULE_IDS.map((ruleId) => ({
+      ruleId, severity: 'warning', confidence: 'high', summary: `${ruleId} synthetic finding`,
+      evidence: { path: 'src/app.ts', line: 1, label: 'synthetic evidence' },
+    }));
+    const report = {
+      result: {
+        status: 'assessed_with_limitations', findings,
+        ruleResults: ENABLED_RULE_IDS.map((ruleId, index) => ({ ruleId, state: 'finding', findings: [findings[index]] })),
+      },
+    };
+    const findingIds = findings.map((finding, index) => `llm-finding-${sha({ repository_id: repository.repository_id, index, finding })}`);
+    const receipt = {
+      schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', cohort,
+      repository_id: repository.repository_id, commit_sha: repository.commit_sha,
+      git_tree_sha: repository.git_tree_sha, manifest_sha256: current.manifest_sha256,
+      detector_build_sha256: BUILD_SHA,
+      detector_freeze_sha256: cohort === 'untouched' ? freeze.record_sha256 : null,
+      network_isolation_mode: 'no-egress', completed_at: '2026-07-22T03:00:00Z',
+      output_outside_source: true, llm_report_sha256: 'f'.repeat(64),
+      llm_report_canonical_sha256: sha(report), finding_ids: findingIds,
+      rule_states: ENABLED_RULE_IDS.map((rule_id) => ({ rule_id, state: 'finding' })),
+    };
+    execution_receipts.push(bound(receipt));
+    llm_reports.push(bound(report, { cohort, repository_id: repository.repository_id }));
+    ENABLED_RULE_IDS.forEach((ruleId, ruleIndex) => {
+      for (const reviewer of ['reviewer-a', 'reviewer-b']) {
+        const label = {
+          schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1',
+          label_id: `llm-label-${cohort}-${ruleIndex}-${reviewer}`,
+          cohort, repository: { repository_id: repository.repository_id, commit_sha: repository.commit_sha },
+          rule: { catalogue_id: 'llm-rules-v1', rule_id: ruleId, rule_version: '1.0.0' },
+          opportunity_id: `${cohort}.opportunity:${ruleIndex}`, detector_finding_id: findingIds[ruleIndex],
+          label: 'present', evidence: [{ kind: 'source_span', path_or_reference: 'src/app.ts', start_line: 1, end_line: 1, sha256: '9'.repeat(64), rationale: 'Synthetic evidence rationale for measurement testing.' }],
+          review: { labeler_id: reviewer, role: reviewer === 'reviewer-a' ? 'primary_labeler' : 'independent_reviewer', independent_of_rule_author: true, detector_output_visible: true, adjudication_status: 'not_required' },
+          created_at: '2026-07-22T04:00:00Z',
+        };
+        label_records.push(bound(label));
+      }
+    });
   }
   return {
     protocol_id: 'cejel-llm-calibration-v1',
-    detector_version: 'test-artifact-sha256',
     automatic_no_go_checks: {
-      free_core_unchanged_without_pack: true,
-      offline_scan_path_verified: true,
-      all_findings_have_resolvable_evidence: true,
-      prohibited_public_claims_absent: true,
+      free_core_unchanged_without_pack: true, offline_scan_path_verified: true,
+      all_findings_have_resolvable_evidence: true, prohibited_public_claims_absent: true,
       untouched_blinding_preserved: true,
     },
-    counts: aggregate,
-    per_rule: ENABLED_RULE_IDS.map((rule_id) => ({
-      rule_id,
-      counts: { ...perRuleCounts },
-    })),
-    ...inputOverrides,
+    evidence: {
+      golden_manifest: bound(golden), untouched_manifest: bound(untouched), detector_freeze: bound(freeze),
+      execution_receipts, llm_reports, label_records,
+    },
   };
-};
+}
 
-test('emits denominated aggregate and per-rule metrics and a public-v1 decision', () => {
-  const output = computeMetrics(input(), thresholds);
-  assert.equal(output.metrics.finding_recall.value, 0.8);
-  assert.equal(output.metrics.precision.value, 1);
-  assert.equal(output.metrics.incorrect_finding_rate_fdr.value, 0);
-  assert.equal(output.metrics.abstention_rate.denominator, 24);
-  assert.equal(output.metrics.double_label_coverage.value, 5 / 24);
-  const validationRule = output.per_rule.find((rule) => rule.rule_id === 'LLM-VAL-001');
-  assert.equal(validationRule.support.positive_defects, 10);
-  assert.equal(validationRule.metrics.finding_recall.denominator, 10);
-  assert.equal(output.release_evaluation.verdict, 'public_v1');
-  assert.deepEqual(output.not_estimable, []);
-});
-
-test('returns limited_experimental when public thresholds fail but limited thresholds pass', () => {
-  const output = computeMetrics(input({
-    true_positives: 7,
-    false_negatives: 3,
-    false_positives: 1,
-    double_labeled_items: 0,
-    reviewer_agreements: 0,
-  }), thresholds);
+test('derives denominated counts from cryptographically bound receipts, reports, and labels', () => {
+  const output = computeMetrics(fixture(), thresholds);
+  assert.equal(output.counts.true_positives, 8);
+  assert.equal(output.counts.adjudicated_items, 8);
+  assert.equal(output.metrics.double_label_coverage.denominator, 8);
+  assert.equal(output.metrics.double_label_coverage.value, 1);
+  assert.equal(output.quality_controls.cohen_kappa.denominator, 8);
+  assert.equal(output.quality_controls.cohen_kappa.status, 'not_estimable');
+  assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 1);
+  assert.equal(output.evidence_bindings.execution_receipts, 2);
   assert.equal(output.release_evaluation.verdict, 'limited_experimental');
-  assert.equal(output.release_evaluation.public_v1.passed, false);
-  assert.equal(output.release_evaluation.limited_experimental.passed, true);
-  assert.equal(output.release_evaluation.limited_experimental.required_label, 'experimental');
 });
 
-test('automatic check failure and unresolved critical false positive force no-go', () => {
-  const candidate = input({
-    true_positives: 8,
-    false_positives: 1,
-    unresolved_critical_false_positives: 1,
-  });
-  candidate.automatic_no_go_checks.all_findings_have_resolvable_evidence = false;
-  const output = computeMetrics(candidate, thresholds);
-  assert.equal(output.release_evaluation.verdict, 'no_go');
-  assert.equal(output.release_evaluation.automatic_no_go.triggered, true);
-  assert.match(output.release_evaluation.decision_reasons.join('\n'), /resolvable repository-relative evidence/);
-  assert.match(output.release_evaluation.decision_reasons.join('\n'), /8 unresolved critical/);
-});
+test('rejects arbitrary evidence changes and incomplete finding adjudication', () => {
+  const tampered = fixture();
+  tampered.evidence.label_records[0].document.label = 'absent';
+  assert.throws(() => computeMetrics(tampered, thresholds), /SHA-256 mismatch/);
 
-test('zero denominators are not_estimable and cannot pass a release gate', () => {
-  const zero = counts({
-    true_positives: 0,
-    false_negatives: 0,
-    false_positives: 0,
-    true_negatives: 0,
-    abstentions: 0,
-    eligible_scans: 0,
-    not_applicable: 0,
-    all_scans: 0,
-    reviewer_agreements: 0,
-    double_labeled_items: 0,
-  });
-  const output = computeMetrics(input({}, {
-    counts: zero,
-    per_rule: ENABLED_RULE_IDS.map((rule_id) => ({ rule_id, counts: { ...zero } })),
-  }), thresholds);
-  assert.equal(output.metrics.finding_recall.status, 'not_estimable');
-  assert.equal(output.metrics.finding_recall.value, null);
-  assert.equal(output.release_evaluation.verdict, 'no_go');
-  assert.ok(output.not_estimable.includes('aggregate.finding_recall'));
-  assert.match(output.release_evaluation.decision_reasons.join('\n'), /not_estimable/);
-});
-
-test('rejects inconsistent aggregate and per-rule denominators', () => {
-  const candidate = input();
-  candidate.per_rule[0].counts.true_positives = 7;
-  assert.throws(() => computeMetrics(candidate, thresholds), /does not equal per-rule sum/);
-  const subsetError = input({ unresolved_critical_false_positives: 1 });
-  assert.throws(() => computeMetrics(subsetError, thresholds), /exceed false positives/);
-});
-
-test('normalizes per-rule output order for deterministic evaluation', () => {
-  const base = input();
-  const reversed = { ...base, per_rule: [...base.per_rule].reverse() };
-  assert.deepEqual(computeMetrics(base, thresholds), computeMetrics(reversed, thresholds));
-  assert.deepEqual(
-    computeMetrics(base, thresholds).per_rule.map((rule) => rule.rule_id),
-    [...ENABLED_RULE_IDS].sort((left, right) => left.localeCompare(right, 'en-US')),
+  const incomplete = fixture();
+  incomplete.evidence.label_records = incomplete.evidence.label_records.filter(
+    (record) => record.document.detector_finding_id !== incomplete.evidence.execution_receipts[0].document.finding_ids[0],
   );
+  assert.throws(() => computeMetrics(incomplete, thresholds), /lacks final adjudication/);
 });
 
-test('requires the exact frozen eight-rule catalogue with no omissions or fake ids', () => {
-  const omitted = input();
-  omitted.per_rule = omitted.per_rule.slice(1);
-  assert.throws(() => computeMetrics(omitted, thresholds), /exactly 8 frozen enabled rules/);
+test('requires untouched receipts to bind the frozen detector', () => {
+  const candidate = fixture();
+  const receipt = candidate.evidence.execution_receipts[1].document;
+  receipt.detector_freeze_sha256 = '0'.repeat(64);
+  candidate.evidence.execution_receipts[1] = bound(receipt);
+  assert.throws(() => computeMetrics(candidate, thresholds), /not bound to detector freeze/);
+});
 
-  const fake = input();
-  fake.per_rule = fake.per_rule.map((rule, index) => index === 0
-    ? { ...rule, rule_id: 'LLM-EXM-001' }
-    : rule);
-  assert.throws(() => computeMetrics(fake, thresholds), /frozen enabled catalogue/);
+test('derives Cohen kappa from the full paired-label contingency table', () => {
+  const candidate = fixture();
+  const pair = candidate.evidence.label_records.filter((record) =>
+    record.document.cohort === 'untouched' && record.document.opportunity_id === 'untouched.opportunity:0'
+  );
+  const independent = pair.find((record) => record.document.review.role === 'independent_reviewer');
+  independent.document.label = 'absent';
+  independent.document.review.adjudication_status = 'pending';
+  independent.document_sha256 = sha(independent.document);
+  const primary = pair.find((record) => record.document.review.role === 'primary_labeler');
+  primary.document.review.adjudication_status = 'pending';
+  primary.document_sha256 = sha(primary.document);
+  const adjudicator = structuredClone(primary.document);
+  adjudicator.label_id = 'llm-label-untouched-0-adjudicator';
+  adjudicator.review = {
+    labeler_id: 'reviewer-c', role: 'adjudicator', independent_of_rule_author: true,
+    detector_output_visible: true, adjudication_status: 'adjudicated',
+    supersedes_label_ids: pair.map((record) => record.document.label_id),
+    rationale: 'The source evidence supports the original present label after resolving the disagreement.',
+  };
+  candidate.evidence.label_records.push(bound(adjudicator));
 
-  const duplicate = input();
-  duplicate.per_rule[0] = { ...duplicate.per_rule[1] };
-  assert.throws(() => computeMetrics(duplicate, thresholds), /duplicate per-rule entry/);
+  const output = computeMetrics(candidate, thresholds);
+  assert.equal(output.quality_controls.cohen_kappa.denominator, 8);
+  assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 0.875);
+  assert.equal(output.quality_controls.cohen_kappa.expected_agreement, 0.875);
+  assert.equal(output.quality_controls.cohen_kappa.value, 0);
+  assert.equal(output.quality_controls.cohen_kappa.contingency.present.absent, 1);
 });

@@ -1,155 +1,19 @@
 {
   "$schema": "../schemas/measurement-input.schema.json",
   "protocol_id": "cejel-llm-calibration-v1",
-  "detector_version": "replace-before-run",
   "automatic_no_go_checks": {
-    "free_core_unchanged_without_pack": true,
-    "offline_scan_path_verified": true,
-    "all_findings_have_resolvable_evidence": true,
-    "prohibited_public_claims_absent": true,
-    "untouched_blinding_preserved": true
+    "free_core_unchanged_without_pack": false,
+    "offline_scan_path_verified": false,
+    "all_findings_have_resolvable_evidence": false,
+    "prohibited_public_claims_absent": false,
+    "untouched_blinding_preserved": false
   },
-  "counts": {
-    "true_positives": 0,
-    "false_negatives": 0,
-    "false_positives": 0,
-    "true_negatives": 0,
-    "abstentions": 0,
-    "eligible_scans": 0,
-    "not_applicable": 0,
-    "all_scans": 0,
-    "reviewer_agreements": 0,
-    "double_labeled_items": 0,
-    "unresolved_critical_false_positives": 0
-  },
-  "per_rule": [
-    {
-      "rule_id": "LLM-IOH-001",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-VAL-001",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-AGY-001",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-AGY-002",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-DAT-001",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-PRV-001",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-EVL-001",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    },
-    {
-      "rule_id": "LLM-EVL-002",
-      "counts": {
-        "true_positives": 0,
-        "false_negatives": 0,
-        "false_positives": 0,
-        "true_negatives": 0,
-        "abstentions": 0,
-        "eligible_scans": 0,
-        "not_applicable": 0,
-        "all_scans": 0,
-        "reviewer_agreements": 0,
-        "double_labeled_items": 0,
-        "unresolved_critical_false_positives": 0
-      }
-    }
-  ]
+  "evidence": {
+    "golden_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+    "untouched_manifest": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+    "detector_freeze": {"document_sha256": "replace-with-canonical-sha256", "document": {}},
+    "execution_receipts": [],
+    "llm_reports": [],
+    "label_records": []
+  }
 }

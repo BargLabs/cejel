@@ -8,6 +8,7 @@ import { hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
   createDetectorFreezeRecord,
   validateDetectorFreezeRecord,
+  validateFrozenGoldenManifest,
   validateGoldenCorrectionLedger,
 } from './freeze-detector.mjs';
 import {
@@ -83,6 +84,7 @@ function immutableManifest(cohort = 'untouched') {
     status: 'frozen',
     frozen_at: '2026-07-22T19:00:00Z',
     frozen_by: ['Alice Example', 'Bob Example'],
+    review_method: 'two_human',
     detector_results_seen_before_freeze: false,
     hash_contract: 'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation',
     repositories: [repository],
@@ -100,6 +102,7 @@ test('detector freeze binds build, runtime, rules, support, isolation, and close
   assert.equal(record.rule_ids.length, 8);
   assert.equal(record.support_matrix.python.status, 'narrow_fixture_backed_alpha');
   assert.equal(record.golden_correction_ledger.open_corrections, 0);
+  assert.equal(record.golden_correction_ledger.golden_manifest_sha256, ledger().golden_manifest_sha256);
   assert.throws(
     () => validateDetectorFreezeRecord({ ...record, frozen_at: '2026-07-23T00:00:00Z' }),
     /SHA-256/,
@@ -112,6 +115,31 @@ test('golden correction ledger must match the exact detector build and have no o
     () => validateGoldenCorrectionLedger({ ...ledger(), open_corrections: 1 }, BUILD_SHA),
     /zero open/,
   );
+  assert.throws(
+    () => validateGoldenCorrectionLedger(ledger(), BUILD_SHA, 'f'.repeat(64)),
+    /supplied golden manifest/,
+  );
+  assert.throws(
+    () => validateGoldenCorrectionLedger({ ...ledger(), entries: [{ correction_id: 'bad' }] }, BUILD_SHA),
+    /correction_id is invalid/,
+  );
+  const closedEntry = {
+    correction_id: 'llm-correction-example-0001', status: 'resolved',
+    finding_id: `llm-finding-${'1'.repeat(64)}`, rule_id: 'LLM-IOH-001',
+    repository_id: 'owner/repository', commit_sha: COMMIT_SHA,
+    original_outcome: 'detector_finding', final_outcome: 'false_positive',
+    rationale: 'The source evidence proves this finding was incorrect.',
+    evidence: [{ reference: 'src/app.ts:10', sha256: '2'.repeat(64) }],
+    resolved_at: '2026-07-22T20:00:00Z',
+  };
+  assert.doesNotThrow(() => validateGoldenCorrectionLedger({ ...ledger(), entries: [closedEntry] }, BUILD_SHA));
+});
+
+test('detector freeze validates the actual golden manifest and every repository-entry hash', () => {
+  const golden = immutableManifest('golden');
+  assert.equal(validateFrozenGoldenManifest(golden), golden);
+  const tampered = { ...golden, repositories: [{ ...golden.repositories[0], commit_sha: 'f'.repeat(40) }] };
+  assert.throws(() => validateFrozenGoldenManifest(tampered), /valid frozen golden manifest|repository entry/);
 });
 
 test('untouched execution requires both a valid detector freeze and explicit post-freeze confirmation', () => {
@@ -182,6 +210,9 @@ test('repository runner checks out and verifies only manifest commit/tree before
     if (command === '/usr/bin/no-egress') {
       const outputIndex = args.indexOf('--out');
       mkdirSync(args[outputIndex + 1], { recursive: true });
+      writeFileSync(join(args[outputIndex + 1], 'llm-report.json'), JSON.stringify({
+        result: { findings: [], ruleResults: [{ ruleId: 'LLM-IOH-001', state: 'not_applicable' }] },
+      }));
     }
     return '';
   };
@@ -196,11 +227,14 @@ test('repository runner checks out and verifies only manifest commit/tree before
     networkIsolationMode: 'test-no-egress',
     detectorBuildSha256: BUILD_SHA,
     detectorFreezeSha256: detectorFreeze().record_sha256,
+    manifestSha256: immutableManifest().manifest_sha256,
   }, commandRunner);
 
   assert.equal(result.receipt.commit_sha, COMMIT_SHA);
   assert.equal(result.receipt.git_tree_sha, TREE_SHA);
   assert.equal(result.receipt.output_outside_source, true);
+  assert.equal(result.receipt.manifest_sha256, immutableManifest().manifest_sha256);
+  assert.match(result.receipt.llm_report_canonical_sha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(commands[0], [
     'git',
     ['clone', '--no-checkout', 'https://github.com/owner/repository', result.source],

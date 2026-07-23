@@ -6,6 +6,7 @@
   "status": "frozen",
   "frozen_at": "2026-07-22T00:00:00Z",
   "frozen_by": ["reviewer-one", "reviewer-two"],
+  "review_method": "two_independent_ai",
   "detector_results_seen_before_freeze": false,
   "hash_contract": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation",
   "repositories": [
@@ -26,7 +27,7 @@
   ],
   "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "attestation": {
-    "method": "internal_witness",
+    "method": "internal_dual_ai_review",
     "reference": "replace-with-attestation-reference"
   }
 }

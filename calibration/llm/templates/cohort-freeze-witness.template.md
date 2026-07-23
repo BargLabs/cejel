@@ -2,20 +2,25 @@
 
 - Witness record ID: `replace-with-internal-record-id`
 - Protocol: `cejel-llm-calibration-v1`
-- Golden candidate SHA-256: `fcb323f73325bfc7bb18f2bd2a5767ddcd6979aaa1feaa2674f2710c0cda5cc8`
-- Untouched candidate SHA-256: `5c2e362a2eb8542b42d7083c330457bc7a9b458a95e81f6fe56e3ededd2a9b5d`
+- Golden candidate SHA-256: `44cce3b29a923b759cc80b847cf6a3bf6257df2c4212f4c9677662f5d0831f6f`
+- Untouched candidate SHA-256: `939af28c19370afb4f94585875740da5a86995c2dcbc11400caefb3d893136ba`
 - Detector results seen before review: `no`
 
-## Reviewer attestations
+## Independent review records
 
-Each reviewer confirms that they are a person, reviewed both 24-repository candidate lists and the
-selection amendments, found no cohort overlap or detector-result-driven selection, and approved
-the metadata-only freeze before either cohort is scanned.
+Each reviewer confirms that it reviewed both 24-repository candidate lists and the selection
+amendments in an isolated pass, found no cohort overlap or detector-result-driven selection, and
+approved the metadata-only freeze before either cohort is scanned. Record reviewer kind honestly.
 
-- Reviewer 1 full name: `replace`
+- Review method: `two_human | two_independent_ai`
+- Reviewer 1 stable identity: `replace`
+- Reviewer 1 kind: `human | ai`
 - Reviewer 1 confirmation/date: `replace`
-- Reviewer 2 full name: `replace`
+- Reviewer 1 review-record SHA-256: `replace`
+- Reviewer 2 stable identity: `replace`
+- Reviewer 2 kind: `human | ai`
 - Reviewer 2 confirmation/date: `replace`
+- Reviewer 2 review-record SHA-256: `replace`
 
 ## Amendments reviewed
 

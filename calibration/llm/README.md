@@ -26,16 +26,19 @@ node --test calibration/llm/scripts/compute-metrics.node-test.mjs
 node --test calibration/llm/scripts/detector-execution.node-test.mjs
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden --resolve-only
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-only
-node calibration/llm/scripts/compute-metrics.mjs \
-  calibration/llm/templates/measurement-input.template.json
+# Assemble content-addressed evidence from the actual artifact paths, then evaluate it:
+node calibration/llm/scripts/assemble-measurement-input.mjs \
+  /absolute/path/to/measurement-evidence-paths.json /absolute/path/to/measurement-input.json
+node calibration/llm/scripts/compute-metrics.mjs /absolute/path/to/measurement-input.json
 ```
 
-The measurement input must include aggregate counts, the same finding and defect counts broken out
-for every enabled rule, double-label support, unresolved critical false positives, and the five
-predeclared automatic-NO-GO checks. The metrics command validates subset and per-rule sums, reports
-zero denominators as `not_estimable`, and evaluates the locked thresholds in order:
+The measurement input contains content-addressed evidence, not manually entered counts: both frozen
+manifests, the detector-freeze record, every execution receipt and LLM report, and every independent
+label/adjudication record. The metrics command validates those bindings, derives aggregate and
+per-rule release counts from the untouched cohort only, reports zero denominators as
+`not_estimable`, and evaluates the locked thresholds in order:
 `automatic_no_go`, `public_v1`, `limited_experimental`, then `no_go`. Its output is a calculation;
-it is not a substitute for the signed adjudication record or human release decision.
+it is not a substitute for the recorded adjudication and owner release decision.
 
 `--resolve-only` (or `--dry-run`) uses `gh api` and `git ls-remote` to resolve each candidate's
 observed default branch, full commit, Git tree, and SPDX licence identifier. It prints technical
@@ -44,23 +47,25 @@ to identify unavailable or renamed candidates before applying the preregistered 
 Canonical renames preserve the originally selected repository. The archived gpt-engineer
 candidate was replaced by the first eligible `agent_tools` reserve under the locked policy.
 
-A real freeze requires exactly two distinct, explicitly named human reviewers, an explicit
-confirmation that they are people, and a reference to the internal witness record:
+A real freeze requires exactly two distinct review passes and a reference to the internal review
+record. Human review remains supported. When two people are unavailable, the owner may authorize
+two isolated AI passes, which must be identified as AI and must not be presented as human review:
 
 ```bash
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden \
-  --reviewer "First Human Name" \
-  --reviewer "Second Human Name" \
-  --confirm-human-reviewers \
+  --review-mode independent-ai \
+  --reviewer "codex-review-a:record-id" \
+  --reviewer "codex-review-b:record-id" \
+  --confirm-independent-reviews \
   --attestation-reference "internal-witness:review-record-id"
 ```
 
-The script never invents or infers reviewer identities. Model, bot, CI, or automation identities
-must not be supplied as reviewers. A dry run with the freeze arguments previews the complete
-manifest without writing it. The final write uses exclusive creation and refuses to overwrite an
-existing manifest.
+The script never invents or infers reviewer identities. Human and AI identities are validated under
+different modes, and the manifest records `two_human` or `two_independent_ai`. A dry run with the
+freeze arguments previews the complete manifest without writing it. The final write uses exclusive
+creation and refuses to overwrite an existing manifest.
 
-Use `templates/cohort-freeze-witness.template.md` to collect the two confirmations. The completed
+Use `templates/cohort-freeze-witness.template.md` to collect both review records. The completed
 record stays internal; immutable manifests contain only its opaque `internal-witness:` reference.
 
 Repository entries are hashed from RFC 8785-style canonical JSON with recursively sorted object

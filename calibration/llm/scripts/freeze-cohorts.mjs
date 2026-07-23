@@ -13,6 +13,7 @@ const calibrationRoot = resolve(here, '..');
 const HASH_CONTRACT =
   'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation';
 const AUTOMATION_IDENTITY = /(?:^|[\s_-])(bot|claude|codex|gpt|agent|automation|machine|ci|github[\s_-]*actions?)(?:$|[\s_-])/i;
+const REVIEW_MODES = new Set(['human', 'independent-ai']);
 
 export function canonicalize(value) {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') {
@@ -50,22 +51,34 @@ export function hashManifest(manifest) {
   return sha256Canonical(hashable);
 }
 
-export function validateHumanReviewers(reviewers, confirmedHuman) {
-  if (!confirmedHuman) {
-    throw new Error('freeze requires --confirm-human-reviewers; the script cannot infer that a reviewer is human');
+export function validateReviewers(reviewers, reviewMode, confirmation) {
+  if (!REVIEW_MODES.has(reviewMode)) {
+    throw new Error('freeze requires --review-mode human or independent-ai');
   }
   if (reviewers.length !== 2) {
     throw new Error('freeze requires exactly two explicit --reviewer values');
   }
   const normalized = reviewers.map((reviewer) => reviewer.trim());
   if (normalized.some((reviewer) => reviewer.length < 3)) {
-    throw new Error('each reviewer must be an explicit human name of at least three characters');
+    throw new Error('each reviewer must have a stable identity of at least three characters');
   }
   if (new Set(normalized.map((reviewer) => reviewer.toLocaleLowerCase('en-US'))).size !== 2) {
     throw new Error('freeze requires two distinct reviewer names');
   }
-  if (normalized.some((reviewer) => AUTOMATION_IDENTITY.test(reviewer))) {
-    throw new Error('automation or model identities cannot be recorded as human reviewers');
+  if (reviewMode === 'human') {
+    if (!confirmation.confirmedHuman) {
+      throw new Error('human review requires --confirm-human-reviewers');
+    }
+    if (normalized.some((reviewer) => AUTOMATION_IDENTITY.test(reviewer))) {
+      throw new Error('automation or model identities cannot be recorded as human reviewers');
+    }
+  } else {
+    if (!confirmation.confirmedIndependent) {
+      throw new Error('independent AI review requires --confirm-independent-reviews');
+    }
+    if (normalized.some((reviewer) => !AUTOMATION_IDENTITY.test(reviewer))) {
+      throw new Error('independent AI reviewers must be explicitly identified as model or agent identities');
+    }
   }
   return normalized;
 }
@@ -76,6 +89,7 @@ function parseArgs(argv) {
     dryRun: false,
     resolveOnly: false,
     confirmHumanReviewers: false,
+    confirmIndependentReviews: false,
     concurrency: 4,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -91,10 +105,12 @@ function parseArgs(argv) {
       case '--candidate-file': options.candidateFile = takeValue(); break;
       case '--output': options.output = takeValue(); break;
       case '--reviewer': options.reviewers.push(takeValue()); break;
+      case '--review-mode': options.reviewMode = takeValue(); break;
       case '--attestation-reference': options.attestationReference = takeValue(); break;
       case '--frozen-at': options.frozenAt = takeValue(); break;
       case '--concurrency': options.concurrency = Number.parseInt(takeValue(), 10); break;
       case '--confirm-human-reviewers': options.confirmHumanReviewers = true; break;
+      case '--confirm-independent-reviews': options.confirmIndependentReviews = true; break;
       case '--dry-run': options.dryRun = true; break;
       case '--resolve-only': options.resolveOnly = true; break;
       case '--help': options.help = true; break;
@@ -109,7 +125,9 @@ function usage() {
   node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden --resolve-only
   node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --dry-run
   node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden \\
-    --reviewer "Human One" --reviewer "Human Two" --confirm-human-reviewers \\
+    --review-mode independent-ai \\
+    --reviewer "codex-review-a:record-id" --reviewer "codex-review-b:record-id" \\
+    --confirm-independent-reviews \\
     --attestation-reference "internal-witness:review-record-id"
 
 Modes:
@@ -119,7 +137,10 @@ Modes:
 
 Freeze options:
   --reviewer NAME              Required exactly twice for a real freeze.
+  --review-mode MODE           Required: human or independent-ai.
   --confirm-human-reviewers    Explicit assertion that both named reviewers are people.
+  --confirm-independent-reviews
+                               Explicit assertion that two isolated AI review passes completed.
   --attestation-reference REF  Required internal witness record reference.
   --frozen-at ISO              Optional explicit UTC timestamp; defaults to current time.
   --output PATH                Optional output; defaults to cohorts/<cohort>-manifest.json.
@@ -155,6 +176,10 @@ export async function resolveRepository(candidate, commandRunner = run) {
     );
   }
   if (metadata.fork) throw new Error(`${candidate.repository_id}: repository is a fork`);
+  if (metadata.archived) throw new Error(`${candidate.repository_id}: repository is archived`);
+  if (Number.isFinite(metadata.size) && metadata.size > 4 * 1024 * 1024) {
+    throw new Error(`${candidate.repository_id}: repository exceeds the 4 GiB metadata ceiling`);
+  }
   if (!metadata.default_branch) throw new Error(`${candidate.repository_id}: default branch is unavailable`);
 
   const remote = await commandRunner('git', [
@@ -241,7 +266,14 @@ function toResolution(candidateDocument, repositories, candidateSha256) {
   };
 }
 
-function toManifest(candidateDocument, repositories, reviewers, attestationReference, frozenAt) {
+function toManifest(
+  candidateDocument,
+  repositories,
+  reviewers,
+  reviewMode,
+  attestationReference,
+  frozenAt,
+) {
   const withoutHash = {
     schema_version: '1.0.0',
     protocol_id: candidateDocument.protocol_id,
@@ -250,6 +282,7 @@ function toManifest(candidateDocument, repositories, reviewers, attestationRefer
     status: 'frozen',
     frozen_at: frozenAt,
     frozen_by: reviewers,
+    review_method: reviewMode === 'human' ? 'two_human' : 'two_independent_ai',
     detector_results_seen_before_freeze: false,
     hash_contract: HASH_CONTRACT,
     repositories,
@@ -258,7 +291,7 @@ function toManifest(candidateDocument, repositories, reviewers, attestationRefer
     ...withoutHash,
     manifest_sha256: hashManifest(withoutHash),
     attestation: {
-      method: 'internal_witness',
+      method: reviewMode === 'human' ? 'internal_witness' : 'internal_dual_ai_review',
       reference: attestationReference,
     },
   };
@@ -300,12 +333,20 @@ export async function main(argv) {
   const candidateSha256 = createHash('sha256').update(candidateBytes).digest('hex');
 
   const hasFreezeArguments =
-    options.reviewers.length > 0 || options.confirmHumanReviewers || options.attestationReference || options.frozenAt;
+    options.reviewers.length > 0 ||
+    options.reviewMode ||
+    options.confirmHumanReviewers ||
+    options.confirmIndependentReviews ||
+    options.attestationReference ||
+    options.frozenAt;
   const technicalResolutionOnly = options.resolveOnly || (options.dryRun && !hasFreezeArguments);
   let reviewers;
   let frozenAt;
   if (!technicalResolutionOnly) {
-    reviewers = validateHumanReviewers(options.reviewers, options.confirmHumanReviewers);
+    reviewers = validateReviewers(options.reviewers, options.reviewMode, {
+      confirmedHuman: options.confirmHumanReviewers,
+      confirmedIndependent: options.confirmIndependentReviews,
+    });
     if (!options.attestationReference || !options.attestationReference.startsWith('internal-witness:')) {
       throw new Error('freeze requires --attestation-reference beginning with internal-witness:');
     }
@@ -345,6 +386,7 @@ export async function main(argv) {
     candidateDocument,
     repositories,
     reviewers,
+    options.reviewMode,
     options.attestationReference,
     frozenAt,
   );

@@ -1,5 +1,6 @@
 import type { LlmSourceFile } from './rules.js';
 import type { CejelLlmConfidence, CejelLlmFinding } from './types.js';
+import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
 
 export type LlmActionRuleId = 'LLM-VAL-001' | 'LLM-AGY-001';
 
@@ -131,6 +132,8 @@ function escapeRegExp(value: string): string {
 function modelOutputAliasesBeforeLines(
   maskedLines: readonly string[],
   depths: readonly number[],
+  lineOffsets: readonly number[],
+  supportedCallIndices: ReadonlySet<number>,
 ): readonly ReadonlySet<string>[] {
   const aliasesByDepth = new Map<number, Set<string>>();
   const snapshots: ReadonlySet<string>[] = [];
@@ -149,7 +152,14 @@ function modelOutputAliasesBeforeLines(
     const identifier = assignment?.[1];
     const expression = assignment?.[2];
     if (!identifier || !expression) continue;
-    if (MODEL_OUTPUT_PATTERN.test(expression)) aliases.add(identifier);
+    const lineStart = lineOffsets[lineIndex] ?? 0;
+    const lineHasSupportedResponseAssignment = [...supportedCallIndices].some(
+      (index) => lineStart <= index && index < lineStart + (maskedLines[lineIndex]?.length ?? 0),
+    );
+    if (
+      lineHasSupportedResponseAssignment ||
+      expressionContainsModelOutput(expression, aliases)
+    ) aliases.add(identifier);
     else aliases.delete(identifier);
   }
 
@@ -160,7 +170,12 @@ function expressionContainsModelOutput(
   expression: string,
   modelOutputAliases: ReadonlySet<string>,
 ): boolean {
-  if (MODEL_OUTPUT_PATTERN.test(expression)) return true;
+  const output = expression.match(MODEL_OUTPUT_PATTERN);
+  if (output?.index !== undefined) {
+    const receiver = expression.slice(0, output.index);
+    const identifier = receiver.match(/([A-Za-z_$][\w$]*)[.\[\]\w$\s]*$/)?.[1];
+    if (identifier && modelOutputAliases.has(identifier)) return true;
+  }
   for (const alias of modelOutputAliases) {
     if (new RegExp(`\\b${escapeRegExp(alias)}\\b`).test(expression)) return true;
   }
@@ -192,7 +207,18 @@ export function detectUnvalidatedConsequentialAction(
   const lines = file.contents.split('\n');
   const maskedLines = maskNonCode(file.contents).split('\n');
   const depths = lineStartDepths(file.contents);
-  const aliasesBeforeLines = modelOutputAliasesBeforeLines(maskedLines, depths);
+  const lineOffsets: number[] = [];
+  let runningOffset = 0;
+  for (const line of maskedLines) {
+    lineOffsets.push(runningOffset);
+    runningOffset += line.length + 1;
+  }
+  const aliasesBeforeLines = modelOutputAliasesBeforeLines(
+    maskedLines,
+    depths,
+    lineOffsets,
+    supportedJavaScriptModelCallIndices(file.contents),
+  );
   let offset = 0;
 
   for (let assignmentLine = 0; assignmentLine < lines.length; assignmentLine += 1) {
@@ -266,12 +292,40 @@ export function detectUnvalidatedConsequentialAction(
 
 function hasConsequentialStructuredActionSurface(file: LlmSourceFile): boolean {
   if (isExcludedSourcePath(file.path)) return false;
-  const masked = maskNonCode(file.contents);
-  return (
-    MODEL_OUTPUT_PATTERN.test(masked) &&
-    STRUCTURED_PARSE_PATTERN.test(masked) &&
-    CONSEQUENTIAL_DISPATCH_PATTERN.test(masked)
+  const maskedLines = maskNonCode(file.contents).split('\n');
+  const depths = lineStartDepths(file.contents);
+  const lineOffsets: number[] = [];
+  let runningOffset = 0;
+  for (const line of maskedLines) {
+    lineOffsets.push(runningOffset);
+    runningOffset += line.length + 1;
+  }
+  const aliasesBeforeLines = modelOutputAliasesBeforeLines(
+    maskedLines,
+    depths,
+    lineOffsets,
+    supportedJavaScriptModelCallIndices(file.contents),
   );
+  for (let lineIndex = 0; lineIndex < maskedLines.length; lineIndex += 1) {
+    const assignment = (maskedLines[lineIndex] ?? '').match(IDENTIFIER_ASSIGNMENT_PATTERN);
+    const expression = assignment?.[2];
+    const parsed = expression?.match(STRUCTURED_PARSE_PATTERN)?.[1];
+    if (
+      !parsed ||
+      !expressionContainsModelOutput(parsed, aliasesBeforeLines[lineIndex] ?? new Set<string>())
+    ) {
+      continue;
+    }
+    const depth = depths[lineIndex] ?? 0;
+    for (let later = lineIndex + 1; later < maskedLines.length; later += 1) {
+      const laterDepth = depths[later] ?? 0;
+      if (laterDepth < depth) break;
+      if (laterDepth === depth && CONSEQUENTIAL_DISPATCH_PATTERN.test(maskedLines[later] ?? '')) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function matchingCallEnd(contents: string, openParen: number): number | null {
@@ -328,13 +382,22 @@ function matchingCallEnd(contents: string, openParen: number): number | null {
   return null;
 }
 
-function isToolExposed(contents: string, toolName: string, afterIndex: number): boolean {
+function isToolExposed(
+  contents: string,
+  maskedContents: string,
+  toolName: string,
+  afterIndex: number,
+): boolean {
   const escaped = escapeRegExp(toolName);
-  const remainder = contents.slice(afterIndex);
-  return new RegExp(
-    `(?:\\b(?:generateText|streamText|createAgent|agent)\\s*\\([\\s\\S]{0,2000}?\\btools\\s*:\\s*\\{[^}]*\\b${escaped}\\b|\\b(?:agent|assistant|model)\\.registerTool\\s*\\(\\s*${escaped}\\s*\\)|\\b(?:agent|assistant|model)\\.registerTools\\s*\\(\\s*\\[[^\\]]*\\b${escaped}\\b)`,
-    's',
-  ).test(remainder);
+  const remainder = maskedContents.slice(afterIndex);
+  const supportedCalls = supportedJavaScriptModelCallIndices(contents);
+  for (const match of remainder.matchAll(new RegExp(
+    `\\b(?:generateText|streamText)\\s*\\([\\s\\S]{0,2000}?\\btools\\s*:\\s*\\{[^}]*\\b${escaped}\\b`,
+    'gs',
+  ))) {
+    if (supportedCalls.has(afterIndex + match.index)) return true;
+  }
+  return false;
 }
 
 const OBSERVABLE_SIDE_EFFECT_EXPORTS: Readonly<Record<string, ReadonlySet<string>>> = {
@@ -425,7 +488,7 @@ function hasSideEffectingToolSurface(file: LlmSourceFile): boolean {
     if (end === null) continue;
     if (
       observableSideEffectIndex(masked.slice(registration.index, end), bindings) !== null &&
-      isToolExposed(masked, toolName, end)
+      isToolExposed(file.contents, masked, toolName, end)
     ) {
       return true;
     }
@@ -453,7 +516,10 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
     if (end === null) continue;
     const declaration = maskedContents.slice(registration.index, end);
     const sideEffectIndex = observableSideEffectIndex(declaration, sideEffectBindings);
-    if (sideEffectIndex === null || !isToolExposed(maskedContents, toolName, end)) continue;
+    if (
+      sideEffectIndex === null ||
+      !isToolExposed(file.contents, maskedContents, toolName, end)
+    ) continue;
 
     const beforeSideEffect = declaration.slice(0, sideEffectIndex);
     if (
@@ -504,6 +570,7 @@ export const CEJEL_LLM_ACTION_RULES: readonly LlmActionRuleDefinition[] = [
       'Unbound business-operation names whose side effects cannot be established locally',
       'Dynamic or remotely supplied registries and policy middleware',
       'Tool declarations not observably exposed to a model or agent',
+      'Generic registerTool calls or agent objects without an import-resolved supported model call',
     ],
     applies: hasSideEffectingToolSurface,
     detect: detectSideEffectingToolWithoutAuthorityBoundary,

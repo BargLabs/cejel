@@ -1,0 +1,17 @@
+{
+  "golden_manifest": "../cohorts/golden-manifest.json",
+  "untouched_manifest": "../cohorts/untouched-manifest.json",
+  "detector_freeze": "../detector-freeze.json",
+  "execution_receipts": ["/replace/with/every/calibration-execution.json"],
+  "llm_reports": [
+    {"cohort": "golden", "repository_id": "owner/repository", "path": "/replace/with/llm-report.json"}
+  ],
+  "label_records": ["/replace/with/every/label-record.json"],
+  "automatic_no_go_checks": {
+    "free_core_unchanged_without_pack": false,
+    "offline_scan_path_verified": false,
+    "all_findings_have_resolvable_evidence": false,
+    "prohibited_public_claims_absent": false,
+    "untouched_blinding_preserved": false
+  }
+}

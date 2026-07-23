@@ -62,8 +62,8 @@ It does not:
 - treat an unobserved control as absent when external middleware may supply it.
 
 Generated, vendored, dependency, fixture, snapshot, and example paths are excluded by default.
-Repositories may override path classification only through an explicit, versioned pack
-configuration recorded in the report.
+Path classification is detector-defined in this version. There is no repository override surface;
+unusual layouts must be reported as a limitation or correction request.
 
 ## Permitted claims
 

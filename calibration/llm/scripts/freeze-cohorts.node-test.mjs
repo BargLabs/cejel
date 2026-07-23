@@ -6,7 +6,7 @@ import {
   hashManifest,
   hashRepositoryEntry,
   resolveRepository,
-  validateHumanReviewers,
+  validateReviewers,
 } from './freeze-cohorts.mjs';
 
 test('canonicalize sorts object keys recursively without sorting arrays', () => {
@@ -34,14 +34,30 @@ test('manifest hash excludes its hash and attestation', () => {
   }), hash);
 });
 
-test('freeze requires two distinct explicitly confirmed human reviewers', () => {
-  assert.throws(() => validateHumanReviewers(['Alice Smith', 'Bob Jones'], false), /confirm-human-reviewers/);
-  assert.throws(() => validateHumanReviewers(['Alice Smith'], true), /exactly two/);
-  assert.throws(() => validateHumanReviewers(['Alice Smith', 'alice smith'], true), /distinct/);
-  assert.throws(() => validateHumanReviewers(['Codex Agent', 'Alice Smith'], true), /cannot be recorded/);
+test('freeze supports explicit human or independent AI dual review without conflating them', () => {
+  assert.throws(() => validateReviewers(['Alice Smith', 'Bob Jones'], 'human', {}), /confirm-human-reviewers/);
+  assert.throws(() => validateReviewers(['Alice Smith'], 'human', { confirmedHuman: true }), /exactly two/);
+  assert.throws(() => validateReviewers(['Alice Smith', 'alice smith'], 'human', { confirmedHuman: true }), /distinct/);
+  assert.throws(() => validateReviewers(['Codex Agent', 'Alice Smith'], 'human', { confirmedHuman: true }), /cannot be recorded/);
   assert.deepEqual(
-    validateHumanReviewers([' Alice Smith ', 'Bob Jones'], true),
+    validateReviewers([' Alice Smith ', 'Bob Jones'], 'human', { confirmedHuman: true }),
     ['Alice Smith', 'Bob Jones'],
+  );
+  assert.throws(
+    () => validateReviewers(['codex-review-a:test', 'codex-review-b:test'], 'independent-ai', {}),
+    /confirm-independent-reviews/,
+  );
+  assert.throws(
+    () => validateReviewers(['Alice Smith', 'codex-review-b:test'], 'independent-ai', { confirmedIndependent: true }),
+    /explicitly identified/,
+  );
+  assert.deepEqual(
+    validateReviewers(
+      ['codex-review-a:test', 'codex-review-b:test'],
+      'independent-ai',
+      { confirmedIndependent: true },
+    ),
+    ['codex-review-a:test', 'codex-review-b:test'],
   );
 });
 
@@ -55,6 +71,8 @@ test('repository resolution uses GitHub metadata, git branch commit, and commit 
         full_name: 'owner/repo',
         default_branch: 'main',
         fork: false,
+        archived: false,
+        size: 1024,
         license: { spdx_id: 'MIT' },
       });
     }
@@ -73,4 +91,27 @@ test('repository resolution uses GitHub metadata, git branch commit, and commit 
   assert.equal(result.license_spdx, 'MIT');
   assert.equal(result.entry_sha256.length, 64);
   assert.deepEqual(commands.map(([command]) => command), ['gh', 'git', 'gh']);
+});
+
+test('repository resolution rejects archived and oversized candidates before Git access', async () => {
+  const candidate = {
+    repository_id: 'owner/repo',
+    url: 'https://github.com/owner/repo',
+    primary_language: 'python',
+    primary_surface: 'rag',
+    provider_surface: 'openai',
+    inclusion_reason: 'A sufficiently specific preregistered reason.',
+  };
+  await assert.rejects(
+    () => resolveRepository(candidate, async () => JSON.stringify({
+      full_name: 'owner/repo', default_branch: 'main', fork: false, archived: true, size: 10,
+    })),
+    /archived/,
+  );
+  await assert.rejects(
+    () => resolveRepository(candidate, async () => JSON.stringify({
+      full_name: 'owner/repo', default_branch: 'main', fork: false, archived: false, size: 5 * 1024 * 1024,
+    })),
+    /4 GiB/,
+  );
 });

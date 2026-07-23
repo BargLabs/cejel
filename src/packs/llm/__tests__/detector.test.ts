@@ -103,6 +103,7 @@ describe('Free LLM Pack alpha', () => {
   it('does not link an unused SDK import to an unrelated same-shape receiver', () => {
     const result = scan([
       "import OpenAI from 'openai';",
+      "import { exec } from 'node:child_process';",
       "import { writeFileSync } from 'node:fs';",
       "const response = await mailbox.responses.create({ input: 'hello' });",
       'const output = response.output_text;',
@@ -177,6 +178,34 @@ describe('Free LLM Pack alpha', () => {
 
       expect(result.findings).toEqual([]);
       expect(result.status).toBe('not_applicable');
+    }
+  });
+
+  it('does not attribute unrelated same-shape calls or outputs in a genuinely eligible file', () => {
+    const base = [
+      "import OpenAI from 'openai';",
+      "import { exec } from 'node:child_process';",
+      'const client = new OpenAI();',
+      "const modelResponse = await client.responses.create({ model: 'gpt-5', input: 'safe' });",
+    ];
+    const cases = [
+      [
+        "const mail = await mailbox.responses.create({ input: process.env.DATABASE_PASSWORD });",
+      ],
+      [
+        'const analytics = internalJob();',
+        'exec(analytics.output_text);',
+      ],
+      [
+        'const analytics = internalJob();',
+        'const action = JSON.parse(analytics.output_text);',
+        'await deploy(action.target);',
+      ],
+    ];
+    for (const lines of cases) {
+      const result = scan([...base, ...lines].join('\n'));
+      expect(result.findings).toEqual([]);
+      expect(result.status).toBe('assessed_with_limitations');
     }
   });
 

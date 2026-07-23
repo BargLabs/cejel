@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "recorded_at": "2026-07-22T00:00:00Z",
+  "recorded_at": "2026-07-23T01:38:07Z",
   "detector_results_seen": false,
   "amendments": [
     {"cohort":"golden","kind":"canonical_rename","from":"vercel/ai-chatbot","to":"vercel/chatbot","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
@@ -11,5 +11,12 @@
     {"cohort":"untouched","kind":"reserve_replacement","from":"gpt-engineer-org/gpt-engineer","to":"OpenBMB/XAgent","reason":"The canonical repository AntonOsika/gpt-engineer is archived. Under the locked replacement rule, OpenBMB/XAgent is the first eligible reserve with the same agent_tools surface."},
     {"cohort":"untouched","kind":"canonical_rename","from":"explodinggradients/ragas","to":"vibrantlabsai/ragas","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
     {"cohort":"untouched","kind":"canonical_rename","from":"aws-samples/bedrock-claude-chat","to":"aws-samples/bedrock-chat","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."}
+    ,{"cohort":"reserve","kind":"canonical_rename","from":"embedchain/embedchain","to":"mem0ai/mem0","reason":"GitHub API resolves the preregistered reserve repository to its current canonical identity; reserve ordering did not change."}
+    ,{"cohort":"reserve","kind":"canonical_rename","from":"e2b-dev/ai-artifacts","to":"e2b-dev/fragments","reason":"GitHub API resolves the preregistered reserve repository to its current canonical identity; reserve ordering did not change."}
+    ,{"cohort":"reserve","kind":"reserve_ineligible","from":"NVIDIA/ChatRTX","to":"mem0ai/mem0","reason":"The first RAG reserve is archived and supplies no unique selected stratum; the next canonical active RAG reserve is used without consulting detector output."}
+    ,{"cohort":"reserve","kind":"reserve_extension_before_results","from":"ordered-reserve-end","to":"browser-use/browser-use","reason":"The locked agent-tools reserves were consumed or found unavailable while three selected repositories failed the archive exclusion. This active same-surface reserve was appended before any detector execution or results."}
+    ,{"cohort":"golden","kind":"reserve_replacement","from":"reworkd/AgentGPT","to":"e2b-dev/fragments","reason":"AgentGPT is archived and supplies no unique stratum. The first remaining eligible canonical agent_tools reserve is e2b-dev/fragments; no detector output was consulted."}
+    ,{"cohort":"golden","kind":"reserve_replacement","from":"microsoft/TaskWeaver","to":"browser-use/browser-use","reason":"TaskWeaver is archived and supplies no unique stratum. The next eligible agent_tools reserve is browser-use/browser-use; no detector output was consulted."}
+    ,{"cohort":"untouched","kind":"reserve_replacement","from":"h2oai/h2ogpt","to":"mem0ai/mem0","reason":"h2ogpt is archived and supplies no unique stratum. The first eligible canonical RAG reserve after archived NVIDIA/ChatRTX is mem0ai/mem0; no detector output was consulted."}
   ]
 }

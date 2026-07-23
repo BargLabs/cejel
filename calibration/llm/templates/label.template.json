@@ -9,10 +9,10 @@
   },
   "rule": {
     "catalogue_id": "llm-rules-v1",
-    "rule_id": "LLM-OUTPUT-SINK",
+    "rule_id": "LLM-IOH-001",
     "rule_version": "1.0.0"
   },
-  "opportunity_id": "owner.repository:llm-output-sink:001",
+  "opportunity_id": "owner.repository:llm-ioh-001:001",
   "detector_finding_id": null,
   "label": "present",
   "evidence": [
