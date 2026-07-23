@@ -14,7 +14,6 @@ const PYTHON_MODEL_OUTPUT_PATTERN =
   /(?:\.output_text\b|\.choices\s*\[[^\]]+\]\s*\.message\.content\b|\.content\s*\[[^\]]+\]\s*\.text\b)/;
 const PYTHON_IDENTIFIER_ASSIGNMENT_PATTERN =
   /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/;
-const PYTHON_ASSIGNMENT_PATTERN = /^\s*(.+?)\s*=\s*(?!=)(.+)$/;
 const PYTHON_SENSITIVE_ENV_PATTERN =
   /(?:os\.environ\s*\[\s*['"]([A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|PRIVATE_KEY|DATABASE_URL|ACCESS_TOKEN|REFRESH_TOKEN|AUTH_TOKEN|SESSION_TOKEN)[A-Z0-9_]*)['"]\s*\]|os\.getenv\(\s*['"]([A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|PRIVATE_KEY|DATABASE_URL|ACCESS_TOKEN|REFRESH_TOKEN|AUTH_TOKEN|SESSION_TOKEN)[A-Z0-9_]*)['"])/;
 
@@ -60,6 +59,92 @@ function pythonParameters(line: string): readonly string[] {
   });
 }
 
+interface PythonAssignment {
+  readonly targets: readonly {
+    readonly identifiers: readonly string[];
+    readonly simple: boolean;
+  }[];
+  readonly expression: string;
+}
+
+function splitPythonTopLevel(value: string, delimiter: string): readonly string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '(') round += 1;
+    else if (character === ')') round -= 1;
+    else if (character === '[') square += 1;
+    else if (character === ']') square -= 1;
+    else if (character === '{') curly += 1;
+    else if (character === '}') curly -= 1;
+    else if (character === delimiter && round === 0 && square === 0 && curly === 0) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+function pythonTargetIdentifiers(target: string): {
+  readonly identifiers: readonly string[];
+  readonly simple: boolean;
+} {
+  let normalized = target.trim();
+  while (
+    (normalized.startsWith('(') && normalized.endsWith(')')) ||
+    (normalized.startsWith('[') && normalized.endsWith(']'))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  const tuple = splitPythonTopLevel(normalized, ',');
+  if (tuple.length > 1) {
+    return {
+      identifiers: tuple.flatMap((part) => pythonTargetIdentifiers(part).identifiers),
+      simple: false,
+    };
+  }
+  normalized = normalized.replace(/^\*+/, '').trim();
+  const annotation = splitPythonTopLevel(normalized, ':');
+  if (annotation.length > 1) normalized = annotation[0]?.trim() ?? '';
+  const identifier = /^[A-Za-z_][A-Za-z0-9_]*$/.test(normalized) ? normalized : undefined;
+  return { identifiers: identifier ? [identifier] : [], simple: Boolean(identifier) };
+}
+
+function pythonAssignment(statement: string): PythonAssignment | undefined {
+  const equalityIndices: number[] = [];
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  for (let index = 0; index < statement.length; index += 1) {
+    const character = statement[index];
+    if (character === '(') round += 1;
+    else if (character === ')') round -= 1;
+    else if (character === '[') square += 1;
+    else if (character === ']') square -= 1;
+    else if (character === '{') curly += 1;
+    else if (character === '}') curly -= 1;
+    else if (
+      character === '=' && round === 0 && square === 0 && curly === 0 &&
+      !/[=<>!:+\-*/%@&|^]/.test(statement[index - 1] ?? '') &&
+      statement[index + 1] !== '='
+    ) equalityIndices.push(index);
+  }
+  if (equalityIndices.length === 0) return undefined;
+  const targets = equalityIndices.map((equalityIndex, index) => {
+    const start = index === 0 ? 0 : (equalityIndices[index - 1] ?? -1) + 1;
+    return pythonTargetIdentifiers(statement.slice(start, equalityIndex));
+  });
+  return {
+    targets,
+    expression: statement.slice((equalityIndices.at(-1) ?? -1) + 1).trim(),
+  };
+}
+
 export function supportedPythonModelCallIndices(contents: string): ReadonlySet<number> {
   const masked = maskPythonNonCode(contents);
   const imports = pythonSdkImports(masked);
@@ -101,30 +186,24 @@ export function supportedPythonModelCallIndices(contents: string): ReadonlySet<n
           indices.add(offset + statementOffset + match.index);
         }
       }
-      const assignment = statement.match(PYTHON_ASSIGNMENT_PATTERN);
-      const target = assignment?.[1]?.trim() ?? '';
-      const expression = assignment?.[2]?.trim() ?? '';
-      const identifiers = target
-        .replace(/^\(|\)$/g, '')
-        .split(',')
-        .map((part) => part.trim())
-        .filter((part): part is string => /^[A-Za-z_][A-Za-z0-9_]*$/.test(part));
-      const singleIdentifier = identifiers.length === 1 ? identifiers[0] : undefined;
-      if (singleIdentifier && /^[A-Za-z_][A-Za-z0-9_]*$/.test(target)) {
+      const assignment = pythonAssignment(statement);
+      if (assignment) {
         const constructor = [...imports.constructors].some((name) =>
-          visibleBinding(name) === 'constructor' && new RegExp(`^${name}\\s*\\(`).test(expression),
+          visibleBinding(name) === 'constructor' &&
+            new RegExp(`^${name}\\s*\\(`).test(assignment.expression),
         );
         const moduleConstructor = [...imports.modules].some((name) =>
           visibleBinding(name) === 'module' &&
-            new RegExp(`^${name}\\.(?:OpenAI|Anthropic)\\s*\\(`).test(expression),
+            new RegExp(`^${name}\\.(?:OpenAI|Anthropic)\\s*\\(`).test(assignment.expression),
         );
-        scopes.at(-1)?.bindings.set(
-          singleIdentifier,
-          constructor || moduleConstructor ? 'client' : 'other',
-        );
-      } else {
-        for (const identifier of identifiers) {
-          scopes.at(-1)?.bindings.set(identifier, 'other');
+        const establishesClient = constructor || moduleConstructor;
+        for (const target of assignment.targets) {
+          for (const identifier of target.identifiers) {
+            scopes.at(-1)?.bindings.set(
+              identifier,
+              target.simple && establishesClient ? 'client' : 'other',
+            );
+          }
         }
       }
       statementOffset += statement.length + 1;

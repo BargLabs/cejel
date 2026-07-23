@@ -7,6 +7,9 @@
   "golden_manifest_sha256": "replace-with-golden-manifest-sha256",
   "untouched_manifest_sha256": "replace-with-untouched-manifest-sha256",
   "opportunity_manifest_sha256": "replace-with-opportunity-manifest-sha256",
+  "public_document_inventory": [
+    {"path": "README.md", "content_sha256": "replace-with-exact-file-byte-sha256"}
+  ],
   "blind_label_bindings": [
     {"label_id": "llm-label-example-0001", "document_sha256": "replace", "role": "primary_labeler"},
     {"label_id": "llm-label-example-0002", "document_sha256": "replace", "role": "independent_reviewer"}

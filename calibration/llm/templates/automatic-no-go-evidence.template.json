@@ -13,7 +13,7 @@
       "name": "free-core-parity.json",
       "media_type": "application/json",
       "encoding": "utf8",
-      "content": "{\"schema_version\":\"1.0.0\",\"protocol_id\":\"cejel-llm-calibration-v1\",\"check_id\":\"free_core_unchanged_without_pack\",\"detector_build_sha256\":\"replace\",\"detector_source_commit\":\"replace\",\"generated_at\":\"2026-07-23T00:00:00Z\",\"passed\":false,\"assertions\":[{\"name\":\"default_without_pack_byte_identical\",\"passed\":false,\"evidence_content\":\"replace with exact test output or comparison record\",\"evidence_sha256\":\"replace with SHA-256 of evidence_content\"}]}",
+      "content": "{\"schema_version\":\"1.0.0\",\"protocol_id\":\"cejel-llm-calibration-v1\",\"check_id\":\"free_core_unchanged_without_pack\",\"detector_build_sha256\":\"replace\",\"detector_source_commit\":\"replace\",\"generated_at\":\"2026-07-23T00:00:00Z\",\"passed\":false,\"assertions\":[{\"name\":\"default_without_pack_byte_identical\",\"passed\":false,\"evidence_content\":\"{\\\"baseline_output_base64\\\":\\\"replace\\\",\\\"candidate_output_base64\\\":\\\"replace\\\",\\\"baseline_exit_code\\\":1,\\\"candidate_exit_code\\\":1}\",\"evidence_sha256\":\"replace with SHA-256 of exact evidence_content UTF-8 bytes\"}]}",
       "sha256": "replace-with-sha256-of-exact-utf8-content-bytes"
     }
   ]

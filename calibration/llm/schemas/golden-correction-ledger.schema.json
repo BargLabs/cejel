@@ -4,7 +4,7 @@
   "title": "Cejel Free LLM golden correction ledger",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "protocol_id", "status", "detector_build_sha256", "golden_manifest_sha256", "golden_opportunity_manifest_sha256", "frozen_at", "frozen_before_untouched", "reviewed_by", "open_corrections", "entries"],
+  "required": ["schema_version", "protocol_id", "status", "detector_build_sha256", "golden_manifest_sha256", "golden_opportunity_manifest_sha256", "golden_label_evidence_sha256", "missed_defect_opportunity_ids", "frozen_at", "frozen_before_untouched", "reviewed_by", "open_corrections", "entries"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
@@ -12,6 +12,8 @@
     "detector_build_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "golden_opportunity_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "golden_label_evidence_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "missed_defect_opportunity_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 3}},
     "frozen_at": {"type": "string", "format": "date-time"},
     "frozen_before_untouched": {"const": true},
     "reviewed_by": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 3}},

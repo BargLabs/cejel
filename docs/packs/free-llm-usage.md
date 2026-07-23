@@ -66,9 +66,11 @@ before making an absence finding.
 Current native source coverage is:
 
 - **JavaScript/TypeScript:** `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`.
-  Integration indicators include OpenAI, Anthropic, Vercel AI SDK, and LangChain imports plus
-  recognized OpenAI/Anthropic and `generateText`/`streamText` call shapes. The eight rules below
-  use deliberately bounded, local patterns; an import alone never creates a finding.
+  Integration metadata can record OpenAI, Anthropic, Vercel AI SDK, and LangChain imports.
+  Applicability requires a recognized OpenAI/Anthropic or `generateText`/`streamText` call shape;
+  LangChain metadata alone does not establish v1 applicability or framework-specific coverage.
+  The eight rules below use deliberately bounded, local patterns; an import alone never creates
+  a finding.
 - **Python:** `.py` files using observable official OpenAI or Anthropic SDK imports and call/response
   shapes. The alpha currently applies only `LLM-IOH-001`, `LLM-AGY-002`, and `LLM-DAT-001` to
   Python. Action-governance and evaluation-hygiene checks require complete local JavaScript or

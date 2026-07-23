@@ -22,6 +22,7 @@
     "artifacts": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -36,5 +37,12 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {"if": {"properties": {"check_id": {"const": "free_core_unchanged_without_pack"}}}, "then": {"properties": {"artifacts": {"contains": {"properties": {"kind": {"const": "test_run"}}, "required": ["kind"]}}}}},
+    {"if": {"properties": {"check_id": {"const": "offline_scan_path_verified"}}}, "then": {"properties": {"artifacts": {"contains": {"properties": {"kind": {"const": "network_isolation_audit"}}, "required": ["kind"]}}}}},
+    {"if": {"properties": {"check_id": {"const": "all_findings_have_resolvable_evidence"}}}, "then": {"properties": {"artifacts": {"contains": {"properties": {"kind": {"const": "derived_finding_path_audit"}}, "required": ["kind"]}}}}},
+    {"if": {"properties": {"check_id": {"const": "prohibited_public_claims_absent"}}}, "then": {"properties": {"artifacts": {"contains": {"properties": {"kind": {"const": "claim_audit"}}, "required": ["kind"]}}}}},
+    {"if": {"properties": {"check_id": {"const": "untouched_blinding_preserved"}}}, "then": {"properties": {"artifacts": {"contains": {"properties": {"kind": {"const": "chronology_audit"}}, "required": ["kind"]}}}}}
+  ]
 }

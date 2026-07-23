@@ -201,6 +201,15 @@ describe('Free LLM Pack alpha', () => {
       ],
     ],
     [
+      'OpenAI client nested object-destructuring reassignment',
+      [
+        "import OpenAI from 'openai';",
+        'let client = new OpenAI();',
+        '({ nested: { client } } = mailbox);',
+        'await client.responses.create({ input: process.env.DATABASE_URL });',
+      ],
+    ],
+    [
       'OpenAI constructor destructuring reassignment',
       [
         "import OpenAI from 'openai';",
@@ -225,6 +234,53 @@ describe('Free LLM Pack alpha', () => {
 
     expect(result.findings.some((finding) => finding.ruleId === 'LLM-DAT-001')).toBe(true);
     expect(result.status).toBe('assessed_with_limitations');
+  });
+
+  it('does not treat an object destructuring property key as the assigned binding', () => {
+    const result = scan([
+      "import OpenAI from 'openai';",
+      'const client = new OpenAI();',
+      '({ client: replacement } = mailbox);',
+      'await client.responses.create({ input: process.env.DATABASE_URL });',
+    ].join('\n'));
+
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-DAT-001')).toBe(true);
+    expect(result.status).toBe('assessed_with_limitations');
+  });
+
+  it.each([
+    [
+      'object-destructured OpenAI parameter',
+      [
+        "import OpenAI from 'openai';",
+        'async function processMailbox({ OpenAI }) {',
+        "  return new OpenAI().responses.create({ input: 'mail' });",
+        '}',
+      ],
+    ],
+    [
+      'array-destructured OpenAI parameter',
+      [
+        "import OpenAI from 'openai';",
+        'async function processMailbox([OpenAI]) {',
+        "  return new OpenAI().responses.create({ input: 'mail' });",
+        '}',
+      ],
+    ],
+    [
+      'object-destructured Vercel parameter',
+      [
+        "import { generateText } from 'ai';",
+        'async function processMailbox({ generateText }) {',
+        "  return generateText({ prompt: 'mail' });",
+        '}',
+      ],
+    ],
+  ])('does not link %s to an imported SDK binding', (_name, lines) => {
+    const result = scan(lines.join('\n'));
+
+    expect(result.findings).toEqual([]);
+    expect(result.status).toBe('not_applicable');
   });
 
   it('does not link a shadowing parameter to an imported Vercel AI function', () => {

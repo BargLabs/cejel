@@ -5,12 +5,18 @@ import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import {
+  canonicalize,
+  hashManifest,
+  hashRepositoryEntry,
+  validateReviewBindings,
+} from './freeze-cohorts.mjs';
 import { validateDetectorFreezeRecord } from './freeze-detector.mjs';
-import { validatePreResultCommitment } from './pre-result-commitment.mjs';
+import { validateGitCommitmentProof, validatePreResultCommitment } from './pre-result-commitment.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
+const sha256Bytes = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const COUNT_KEYS = [
   'true_positives',
   'false_negatives',
@@ -24,6 +30,7 @@ const COUNT_KEYS = [
   'double_labeled_items',
   'adjudicated_items',
   'unresolved_critical_false_positives',
+  'gate_blocking_matched_findings',
 ];
 const SUMMED_RULE_KEYS = [
   'true_positives',
@@ -31,6 +38,7 @@ const SUMMED_RULE_KEYS = [
   'false_positives',
   'true_negatives',
   'unresolved_critical_false_positives',
+  'gate_blocking_matched_findings',
 ];
 const CHECK_TO_REASON = {
   free_core_unchanged_without_pack: 'default free-core report changed when --pack was not selected',
@@ -173,6 +181,9 @@ function supportForCounts(counts) {
   return {
     positive_defects: counts.true_positives + counts.false_negatives,
     reviewed_findings: counts.true_positives + counts.false_positives,
+    matched_findings_total:
+      counts.true_positives + counts.false_positives + counts.gate_blocking_matched_findings,
+    gate_blocking_matched_findings: counts.gate_blocking_matched_findings,
     negative_opportunities: counts.false_positives + counts.true_negatives,
     eligible_scans: counts.eligible_scans,
     all_scans: counts.all_scans,
@@ -193,6 +204,11 @@ function evaluateGate(input, thresholds, aggregateMetrics, perRule) {
     if (input.automatic_no_go_checks[check] !== true) automaticReasons.push(reason);
   }
   const unresolvedCritical = input.counts.unresolved_critical_false_positives;
+  if (input.counts.gate_blocking_matched_findings > 0) {
+    automaticReasons.push(
+      `${input.counts.gate_blocking_matched_findings} matched finding(s) lack a binary present/absent adjudication`,
+    );
+  }
   if (unresolvedCritical > thresholds.limited_experimental_go.maximum_unresolved_critical_false_positives) {
     automaticReasons.push(`${unresolvedCritical} unresolved critical false positive(s)`);
   }
@@ -496,7 +512,8 @@ function validateManifestBinding(wrapper, expectedCohort) {
   const manifest = unwrapBoundDocument(wrapper, `${expectedCohort} manifest`);
   if (
     manifest.cohort !== expectedCohort || manifest.status !== 'frozen' ||
-    hashManifest(manifest) !== manifest.manifest_sha256
+    hashManifest(manifest) !== manifest.manifest_sha256 ||
+    !validateReviewBindings(manifest.review_bindings)
   ) {
     throw new Error(`${expectedCohort} manifest binding is not a valid frozen manifest`);
   }
@@ -539,6 +556,9 @@ function validateOpportunityManifestBinding(wrapper, golden, untouched, reposito
   rejectUnknownKeys(manifest.attestation, ['method', 'reference'], 'opportunity manifest attestation');
 
   const opportunities = new Map();
+  const evidenceKinds = new Map();
+  const nonSourceScopes = new Set();
+  const sourceScopes = [];
   const representedCohorts = new Set();
   for (const [index, opportunity] of manifest.opportunities.entries()) {
     const scope = `opportunity manifest item ${index}`;
@@ -581,6 +601,35 @@ function validateOpportunityManifestBinding(wrapper, golden, untouched, reposito
     ) throw new Error(`${scope} is invalid`);
     if (opportunities.has(opportunity.opportunity_id)) {
       throw new Error(`duplicate predefined opportunity_id: ${opportunity.opportunity_id}`);
+    }
+    const evidenceIdentity = canonicalize({
+      cohort: opportunity.cohort,
+      repository_id: opportunity.repository_id,
+      commit_sha: opportunity.commit_sha,
+      rule_id: opportunity.rule_id,
+      path_or_reference: opportunity.evidence_scope.path_or_reference,
+    });
+    const priorKind = evidenceKinds.get(evidenceIdentity);
+    if (priorKind && priorKind !== opportunity.evidence_scope.kind) {
+      throw new Error(`${scope} reuses an evidence identity with another scope kind`);
+    }
+    evidenceKinds.set(evidenceIdentity, opportunity.evidence_scope.kind);
+    if (opportunity.evidence_scope.kind === 'source_span') {
+      if (sourceScopes.some((prior) =>
+        prior.identity === evidenceIdentity &&
+        prior.startLine <= opportunity.evidence_scope.end_line &&
+        opportunity.evidence_scope.start_line <= prior.endLine
+      )) throw new Error(`${scope} overlaps another same-rule source opportunity`);
+      sourceScopes.push({
+        identity: evidenceIdentity,
+        startLine: opportunity.evidence_scope.start_line,
+        endLine: opportunity.evidence_scope.end_line,
+      });
+    } else {
+      if (nonSourceScopes.has(evidenceIdentity)) {
+        throw new Error(`${scope} duplicates another same-rule non-source opportunity`);
+      }
+      nonSourceScopes.add(evidenceIdentity);
     }
     const expected = repositories.get(`${opportunity.cohort}:${opportunity.repository_id}`);
     if (!expected || expected.repository.commit_sha !== opportunity.commit_sha) {
@@ -710,7 +759,65 @@ function findingEvidenceMatchesOpportunity(finding, opportunity) {
   return finding.evidence.line >= scope.start_line && finding.evidence.line <= scope.end_line;
 }
 
-function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredEvidenceKind, freeze) {
+function deriveCheckSpecificAssertion(checkId, payload, context) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  if (checkId === 'free_core_unchanged_without_pack') {
+    rejectUnknownKeys(payload, ['baseline_output_base64', 'candidate_output_base64', 'baseline_exit_code', 'candidate_exit_code'], 'free-core parity evidence');
+    const baseline = Buffer.from(payload.baseline_output_base64 || '', 'base64');
+    const candidate = Buffer.from(payload.candidate_output_base64 || '', 'base64');
+    return Number.isInteger(payload.baseline_exit_code) && payload.baseline_exit_code === 0 &&
+      payload.candidate_exit_code === 0 && baseline.length > 0 && baseline.equals(candidate);
+  }
+  if (checkId === 'prohibited_public_claims_absent') {
+    rejectUnknownKeys(payload, ['documents'], 'public-claim evidence');
+    if (!Array.isArray(payload.documents) || payload.documents.length < 1) return false;
+    const prohibited = [/\bdetects? hallucinations?\b/i, /\bhallucination rate\b/i, /\bguarante(?:e|es|ed)\b/i];
+    const observed = payload.documents.map((document) => {
+      rejectUnknownKeys(document, ['path', 'content', 'sha256'], 'public-claim document');
+      if (!(isRepositoryRelativePath(document.path) && typeof document.content === 'string' &&
+        sha256Bytes(Buffer.from(document.content, 'utf8')) === document.sha256 &&
+        prohibited.every((pattern) => !pattern.test(document.content)))) return null;
+      return { path: document.path, content_sha256: document.sha256 };
+    });
+    if (observed.includes(null) || new Set(observed.map((item) => item.path)).size !== observed.length) return false;
+    const sort = (items) => [...items].sort((a, b) => a.path.localeCompare(b.path));
+    return canonicalize(sort(observed)) === canonicalize(sort(context.publicDocumentInventory));
+  }
+  if (checkId === 'offline_scan_path_verified') {
+    rejectUnknownKeys(payload, ['executions'], 'network-isolation evidence');
+    const expected = [...context.receipts.values()].map((receipt) => ({
+      cohort: receipt.cohort, repository_id: receipt.repository_id,
+      network_isolation_mode: receipt.network_isolation_mode, no_egress_confirmed: true,
+    })).sort((a, b) => canonicalize(a).localeCompare(canonicalize(b)));
+    return canonicalize(payload.executions) === canonicalize(expected) && expected.every((item) =>
+      item.network_isolation_mode === context.freeze.execution.network_isolation.mode
+    );
+  }
+  if (checkId === 'all_findings_have_resolvable_evidence') {
+    rejectUnknownKeys(payload, ['findings'], 'finding-path evidence');
+    const expected = [...context.findings.entries()].map(([finding_id, finding]) => ({
+      finding_id, path: finding.evidence.path, line: finding.evidence.line,
+    })).sort((a, b) => a.finding_id.localeCompare(b.finding_id));
+    return canonicalize(payload.findings) === canonicalize(expected) && expected.every((item) =>
+      isRepositoryRelativePath(item.path) && Number.isInteger(item.line) && item.line >= 1
+    );
+  }
+  if (checkId === 'untouched_blinding_preserved') {
+    rejectUnknownKeys(payload, ['executions'], 'chronology evidence');
+    const expected = [...context.receipts.values()].filter((receipt) => receipt.cohort === 'untouched').map((receipt) => ({
+      repository_id: receipt.repository_id,
+      commitment_git_oid: receipt.pre_result_commitment.git_proof.commit_oid,
+      commitment_time_unix: receipt.pre_result_commitment.git_proof.committed_at_unix,
+      completed_at: receipt.completed_at,
+    })).sort((a, b) => a.repository_id.localeCompare(b.repository_id));
+    return canonicalize(payload.executions) === canonicalize(expected) && expected.every((item) =>
+      item.commitment_time_unix * 1000 < Date.parse(item.completed_at)
+    );
+  }
+  return false;
+}
+
+function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredEvidenceKind, freeze, context) {
   const requiredAssertionNames = {
     free_core_unchanged_without_pack: 'default_without_pack_byte_identical',
     offline_scan_path_verified: 'network_isolation_receipts_match',
@@ -746,7 +853,7 @@ function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredE
     typeof document.observed_at !== 'string' || Number.isNaN(Date.parse(document.observed_at)) ||
     document.detector_binding?.build_sha256 !== freeze.detector.build_sha256 ||
     document.detector_binding?.source_commit !== freeze.detector.git_commit ||
-    !Array.isArray(document.artifacts) || document.artifacts.length < 1 ||
+    !Array.isArray(document.artifacts) || document.artifacts.length !== 1 ||
     document.artifacts.some((item) =>
       !item || !['test_run', 'network_isolation_audit', 'derived_finding_path_audit',
         'claim_audit', 'chronology_audit'].includes(item.kind) ||
@@ -796,14 +903,24 @@ function validateAutomaticCheckRecord(wrapper, checkId, derivedStatus, requiredE
   if (!audit.assertions.some((assertion) => assertion.name === requiredAssertionNames[checkId])) {
     throw new Error(`automatic no-go evidence ${checkId} lacks its required check-specific assertion`);
   }
-  const passed = audit.passed;
+  const requiredAssertion = audit.assertions.find((assertion) => assertion.name === requiredAssertionNames[checkId]);
+  let payload;
+  try {
+    payload = JSON.parse(requiredAssertion.evidence_content);
+  } catch {
+    throw new Error(`automatic no-go evidence ${checkId} check-specific payload is not valid JSON`);
+  }
+  const passed = deriveCheckSpecificAssertion(checkId, payload, context);
+  if (requiredAssertion.passed !== passed || audit.passed !== passed || audit.assertions.length !== 1) {
+    throw new Error(`automatic no-go evidence ${checkId} result is not derived from its check-specific payload`);
+  }
   if (typeof derivedStatus === 'boolean' && passed !== derivedStatus) {
     throw new Error(`automatic no-go evidence ${checkId} contradicts derived evidence`);
   }
   return { passed, document_sha256: wrapper.document_sha256 };
 }
 
-function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings) {
+function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings, preResultCommitment) {
   const records = input.automatic_no_go_evidence;
   if (!records || typeof records !== 'object' || Array.isArray(records)) {
     throw new Error('automatic_no_go_evidence must be an object of content-addressed records');
@@ -835,7 +952,10 @@ function deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings)
   const checks = {};
   const bindings = {};
   for (const [checkId, rule] of Object.entries(rules)) {
-    const validated = validateAutomaticCheckRecord(records[checkId], checkId, rule.derived, rule.kind, freeze);
+    const validated = validateAutomaticCheckRecord(
+      records[checkId], checkId, rule.derived, rule.kind, freeze,
+      { freeze, receipts, findings, publicDocumentInventory: preResultCommitment.public_document_inventory },
+    );
     checks[checkId] = validated.passed;
     bindings[checkId] = validated.document_sha256;
   }
@@ -914,6 +1034,17 @@ export function deriveCountsFromEvidence(input) {
       typeof receipt.pre_result_commitment?.git_path !== 'string' ||
       Date.parse(preResultCommitment.created_at) >= Date.parse(receipt.completed_at)
     ) throw new Error(`execution receipt lacks a valid pre-result Git commitment: ${key}`);
+    validateGitCommitmentProof(
+      receipt.pre_result_commitment.git_proof,
+      preResultCommitment,
+      receipt.pre_result_commitment.document_sha256,
+      receipt.pre_result_commitment.git_commit,
+      receipt.pre_result_commitment.git_path,
+      preResultCommitment.created_at,
+    );
+    if (receipt.pre_result_commitment.git_proof.committed_at_unix * 1000 >= Date.parse(receipt.completed_at)) {
+      throw new Error(`pre-result Git commit does not predate detector execution: ${key}`);
+    }
     receipts.set(key, receipt);
   }
   if (receipts.size !== repositories.size) throw new Error('execution receipts do not cover every frozen repository');
@@ -980,7 +1111,7 @@ export function deriveCountsFromEvidence(input) {
     reports.set(key, report);
   }
   if (reports.size !== repositories.size) throw new Error('LLM reports do not cover every frozen repository');
-  const automatic = deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings);
+  const automatic = deriveAutomaticNoGoChecks(input, freeze, untouched, receipts, findings, preResultCommitment);
 
   if (!Array.isArray(evidence.label_records) || evidence.label_records.length < 1) {
     throw new Error('at least one bound label record is required');
@@ -1144,6 +1275,7 @@ export function deriveCountsFromEvidence(input) {
     abstentions: 0, eligible_scans: 0, not_applicable: 0, all_scans: allScans,
     reviewer_agreements: 0, double_labeled_items: 0, adjudicated_items: 0,
     unresolved_critical_false_positives: 0,
+    gate_blocking_matched_findings: 0,
   });
   const untouchedRepositoryCount = untouched.repositories.length;
   const aggregate = emptyCounts(untouchedRepositoryCount);
@@ -1188,6 +1320,8 @@ export function deriveCountsFromEvidence(input) {
         if (item.detectorFindingId && findings.get(item.detectorFindingId)?.severity === 'critical') {
           target.unresolved_critical_false_positives += 1;
         }
+      } else if (item.detectorFindingId) {
+        target.gate_blocking_matched_findings += 1;
       }
     }
     if (item.final.label !== 'not_applicable' && item.reviewerPair) {
@@ -1298,6 +1432,7 @@ export function computeMetrics(input, thresholds) {
     per_rule: perRule,
     quality_controls: {
       unresolved_critical_false_positives: counts.unresolved_critical_false_positives,
+      gate_blocking_matched_findings: counts.gate_blocking_matched_findings,
       double_label_coverage: aggregateMetrics.double_label_coverage,
       cohen_kappa: derived.reviewerAgreement.aggregate,
       cohen_kappa_per_rule: derived.reviewerAgreement.perRule,

@@ -8,7 +8,18 @@
   "frozen_by": ["reviewer-one", "reviewer-two"],
   "review_method": "two_independent_ai",
   "detector_results_seen_before_freeze": false,
-  "hash_contract": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation",
+  "hash_contract": "rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256",
+  "review_bindings": {
+    "selection_policy_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "golden_candidates_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "untouched_candidates_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "reserve_candidates_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "selection_amendments_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "review_record_sha256s": [
+      "0000000000000000000000000000000000000000000000000000000000000000",
+      "1111111111111111111111111111111111111111111111111111111111111111"
+    ]
+  },
   "repositories": [
     {
       "repository_id": "owner/repository",

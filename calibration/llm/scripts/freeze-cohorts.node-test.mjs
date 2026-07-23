@@ -6,6 +6,7 @@ import {
   hashManifest,
   hashRepositoryEntry,
   resolveRepository,
+  validateReviewBindings,
   validateReviewers,
 } from './freeze-cohorts.mjs';
 
@@ -24,14 +25,37 @@ test('entry hash excludes only entry_sha256', () => {
   assert.notEqual(hashRepositoryEntry({ ...entry, commit_sha: 'b'.repeat(40) }), hash);
 });
 
-test('manifest hash excludes its hash and attestation', () => {
-  const manifest = { cohort: 'golden', repositories: [] };
+test('manifest hash excludes only its hash and binds attestation plus review artifacts', () => {
+  const manifest = {
+    cohort: 'golden',
+    repositories: [],
+    review_bindings: {
+      selection_policy_sha256: '1'.repeat(64),
+      golden_candidates_sha256: '2'.repeat(64),
+      untouched_candidates_sha256: '3'.repeat(64),
+      reserve_candidates_sha256: '4'.repeat(64),
+      selection_amendments_sha256: '5'.repeat(64),
+      review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
+    },
+    attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
+  };
   const hash = hashManifest(manifest);
   assert.equal(hashManifest({
     ...manifest,
     manifest_sha256: 'f'.repeat(64),
-    attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
   }), hash);
+  assert.notEqual(hashManifest({
+    ...manifest,
+    attestation: { ...manifest.attestation, reference: 'internal-witness:changed' },
+  }), hash);
+  assert.equal(validateReviewBindings(manifest.review_bindings), manifest.review_bindings);
+  assert.throws(
+    () => validateReviewBindings({
+      ...manifest.review_bindings,
+      review_record_sha256s: ['6'.repeat(64), '6'.repeat(64)],
+    }),
+    /review-artifact bindings/,
+  );
 });
 
 test('freeze supports explicit human or independent AI dual review without conflating them', () => {

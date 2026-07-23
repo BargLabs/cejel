@@ -11,7 +11,7 @@ const execFile = promisify(execFileCallback);
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
 const HASH_CONTRACT =
-  'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation';
+  'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256';
 const AUTOMATION_IDENTITY = /(?:^|[\s_-])(bot|claude|codex|gpt|agent|automation|machine|ci|github[\s_-]*actions?)(?:$|[\s_-])/i;
 const REVIEW_MODES = new Set(['human', 'independent-ai']);
 
@@ -43,12 +43,30 @@ export function hashRepositoryEntry(entry) {
 }
 
 export function hashManifest(manifest) {
-  const {
-    manifest_sha256: _manifestHashExcluded,
-    attestation: _attestationExcluded,
-    ...hashable
-  } = manifest;
+  const { manifest_sha256: _manifestHashExcluded, ...hashable } = manifest;
   return sha256Canonical(hashable);
+}
+
+export function validateReviewBindings(bindings) {
+  const expected = [
+    'selection_policy_sha256',
+    'golden_candidates_sha256',
+    'untouched_candidates_sha256',
+    'reserve_candidates_sha256',
+    'selection_amendments_sha256',
+    'review_record_sha256s',
+  ];
+  if (
+    !bindings || typeof bindings !== 'object' || Array.isArray(bindings) ||
+    Object.keys(bindings).some((key) => !expected.includes(key)) ||
+    expected.some((key) => !(key in bindings)) ||
+    expected.slice(0, -1).some((key) => !/^[a-f0-9]{64}$/.test(bindings[key] || '')) ||
+    !Array.isArray(bindings.review_record_sha256s) ||
+    bindings.review_record_sha256s.length !== 2 ||
+    new Set(bindings.review_record_sha256s).size !== 2 ||
+    bindings.review_record_sha256s.some((hash) => !/^[a-f0-9]{64}$/.test(hash))
+  ) throw new Error('cohort manifest has invalid normative review-artifact bindings');
+  return bindings;
 }
 
 export function validateReviewers(reviewers, reviewMode, confirmation) {
@@ -86,6 +104,7 @@ export function validateReviewers(reviewers, reviewMode, confirmation) {
 function parseArgs(argv) {
   const options = {
     reviewers: [],
+    reviewRecords: [],
     dryRun: false,
     resolveOnly: false,
     confirmHumanReviewers: false,
@@ -105,6 +124,7 @@ function parseArgs(argv) {
       case '--candidate-file': options.candidateFile = takeValue(); break;
       case '--output': options.output = takeValue(); break;
       case '--reviewer': options.reviewers.push(takeValue()); break;
+      case '--review-record': options.reviewRecords.push(takeValue()); break;
       case '--review-mode': options.reviewMode = takeValue(); break;
       case '--attestation-reference': options.attestationReference = takeValue(); break;
       case '--frozen-at': options.frozenAt = takeValue(); break;
@@ -127,6 +147,7 @@ function usage() {
   node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden \\
     --review-mode independent-ai \\
     --reviewer "codex-review-a:record-id" --reviewer "codex-review-b:record-id" \\
+    --review-record /path/to/review-a.md --review-record /path/to/review-b.md \\
     --confirm-independent-reviews \\
     --attestation-reference "internal-witness:review-record-id"
 
@@ -137,6 +158,7 @@ Modes:
 
 Freeze options:
   --reviewer NAME              Required exactly twice for a real freeze.
+  --review-record PATH         Required exactly twice; exact bytes are bound into the manifest.
   --review-mode MODE           Required: human or independent-ai.
   --confirm-human-reviewers    Explicit assertion that both named reviewers are people.
   --confirm-independent-reviews
@@ -272,6 +294,7 @@ function toManifest(
   reviewers,
   reviewMode,
   attestationReference,
+  reviewBindings,
   frozenAt,
 ) {
   const withoutHash = {
@@ -285,16 +308,14 @@ function toManifest(
     review_method: reviewMode === 'human' ? 'two_human' : 'two_independent_ai',
     detector_results_seen_before_freeze: false,
     hash_contract: HASH_CONTRACT,
+    review_bindings: validateReviewBindings(reviewBindings),
     repositories,
-  };
-  const manifest = {
-    ...withoutHash,
-    manifest_sha256: hashManifest(withoutHash),
     attestation: {
       method: reviewMode === 'human' ? 'internal_witness' : 'internal_dual_ai_review',
       reference: attestationReference,
     },
   };
+  const manifest = { ...withoutHash, manifest_sha256: hashManifest(withoutHash) };
   if (hashManifest(manifest) !== manifest.manifest_sha256) {
     throw new Error('internal manifest hash verification failed');
   }
@@ -309,6 +330,10 @@ function writeNewFile(path, document) {
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
   }
+}
+
+function sha256File(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
 export async function main(argv) {
@@ -334,6 +359,7 @@ export async function main(argv) {
 
   const hasFreezeArguments =
     options.reviewers.length > 0 ||
+    options.reviewRecords.length > 0 ||
     options.reviewMode ||
     options.confirmHumanReviewers ||
     options.confirmIndependentReviews ||
@@ -349,6 +375,9 @@ export async function main(argv) {
     });
     if (!options.attestationReference || !options.attestationReference.startsWith('internal-witness:')) {
       throw new Error('freeze requires --attestation-reference beginning with internal-witness:');
+    }
+    if (options.reviewRecords.length !== 2) {
+      throw new Error('freeze requires exactly two --review-record files');
     }
     frozenAt = options.frozenAt || new Date().toISOString();
     if (Number.isNaN(Date.parse(frozenAt)) || !frozenAt.endsWith('Z')) {
@@ -388,6 +417,26 @@ export async function main(argv) {
     reviewers,
     options.reviewMode,
     options.attestationReference,
+    {
+      selection_policy_sha256: sha256File(resolve(calibrationRoot, 'selection-policy.json')),
+      golden_candidates_sha256: sha256File(
+        options.cohort === 'golden'
+          ? candidatePath
+          : resolve(calibrationRoot, 'cohorts/golden-candidates.json'),
+      ),
+      untouched_candidates_sha256: sha256File(
+        options.cohort === 'untouched'
+          ? candidatePath
+          : resolve(calibrationRoot, 'cohorts/untouched-candidates.json'),
+      ),
+      reserve_candidates_sha256: sha256File(
+        resolve(calibrationRoot, 'cohorts/reserve-candidates.json'),
+      ),
+      selection_amendments_sha256: sha256File(
+        resolve(calibrationRoot, 'cohorts/selection-amendments.json'),
+      ),
+      review_record_sha256s: options.reviewRecords.map((path) => sha256File(resolve(path))),
+    },
     frozenAt,
   );
   if (options.dryRun) {

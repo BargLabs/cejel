@@ -115,6 +115,16 @@ for (const cohort of ['golden', 'untouched']) {
   ) {
     errors.push(`${cohort}: invalid immutable freeze governance fields`);
   }
+  const reviewBindings = manifest.review_bindings;
+  if (
+    !reviewBindings ||
+    ['selection_policy_sha256', 'golden_candidates_sha256', 'untouched_candidates_sha256',
+      'reserve_candidates_sha256', 'selection_amendments_sha256']
+      .some((key) => !/^[a-f0-9]{64}$/.test(reviewBindings[key] || '')) ||
+    !Array.isArray(reviewBindings.review_record_sha256s) ||
+    reviewBindings.review_record_sha256s.length !== 2 ||
+    new Set(reviewBindings.review_record_sha256s).size !== 2
+  ) errors.push(`${cohort}: normative review-artifact bindings are missing or invalid`);
   if (manifest.repositories?.length !== policy.target_size_per_cohort) {
     errors.push(`${cohort}: immutable manifest repository count mismatch`);
     continue;
@@ -128,7 +138,7 @@ for (const cohort of ['golden', 'untouched']) {
       errors.push(`${cohort}: entry hash mismatch for ${repo.repository_id ?? '<unknown>'}`);
     }
   }
-  const { manifest_sha256: manifestHash, attestation: _attestation, ...manifestWithoutHash } = manifest;
+  const { manifest_sha256: manifestHash, ...manifestWithoutHash } = manifest;
   if (manifestHash !== sha256Canonical(manifestWithoutHash)) {
     errors.push(`${cohort}: manifest hash mismatch`);
   }

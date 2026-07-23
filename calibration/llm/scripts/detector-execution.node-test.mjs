@@ -12,6 +12,8 @@ import {
   validateFrozenGoldenManifest,
   validateGoldenCorrectionLedger,
   validateGoldenExecutionEvidence,
+  validateGoldenLabelEvidence,
+  validateGoldenOpportunityEvidence,
 } from './freeze-detector.mjs';
 import {
   assertCohortRunAllowed,
@@ -26,8 +28,21 @@ import { validatePreResultCommitment, verifyGitCommittedPreResult } from './pre-
 const BUILD_SHA = 'b'.repeat(64);
 const COMMIT_SHA = 'c'.repeat(40);
 const TREE_SHA = 'd'.repeat(40);
+const REVIEW_BINDINGS = {
+  selection_policy_sha256: '1'.repeat(64),
+  golden_candidates_sha256: '2'.repeat(64),
+  untouched_candidates_sha256: '3'.repeat(64),
+  reserve_candidates_sha256: '4'.repeat(64),
+  selection_amendments_sha256: '5'.repeat(64),
+  review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
+};
 
 const canonicalSha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
+const gitObjectSha1 = (type, bytes) => createHash('sha1')
+  .update(Buffer.from(`${type} ${bytes.length}\0`, 'utf8')).update(bytes).digest('hex');
+const gitTreeEntry = (mode, name, oid) => Buffer.concat([
+  Buffer.from(`${mode} ${name}\0`, 'utf8'), Buffer.from(oid, 'hex'),
+]);
 const bound = (document) => ({ document_sha256: canonicalSha(document), document });
 
 function ledger(goldenManifestSha256 = immutableManifest('golden').manifest_sha256) {
@@ -38,6 +53,8 @@ function ledger(goldenManifestSha256 = immutableManifest('golden').manifest_sha2
     detector_build_sha256: BUILD_SHA,
     golden_manifest_sha256: goldenManifestSha256,
     golden_opportunity_manifest_sha256: '2'.repeat(64),
+    golden_label_evidence_sha256: '3'.repeat(64),
+    missed_defect_opportunity_ids: [],
     frozen_at: '2026-07-22T20:00:00Z',
     frozen_before_untouched: true,
     reviewed_by: ['Alice Example', 'Bob Example'],
@@ -46,7 +63,73 @@ function ledger(goldenManifestSha256 = immutableManifest('golden').manifest_sha2
   };
 }
 
-function goldenExecutionEvidence() {
+function goldenOpportunityAndLabels(includeFinding = true) {
+  const execution = goldenExecutionEvidence(includeFinding);
+  const repository = execution.manifest.repositories[0];
+  const opportunity = {
+    opportunity_id: 'llm-opportunity-example-0001',
+    cohort: 'golden',
+    repository_id: repository.repository_id,
+    commit_sha: repository.commit_sha,
+    rule_id: 'LLM-IOH-001',
+    evidence_scope: {
+      kind: 'source_span',
+      path_or_reference: 'src/app.ts',
+      sha256: '9'.repeat(64),
+      start_line: 1,
+      end_line: 1,
+    },
+  };
+  const primary = {
+    schema_version: '1.0.0',
+    protocol_id: 'cejel-llm-calibration-v1',
+    label_id: 'llm-label-primary-example-0001',
+    opportunity_id: opportunity.opportunity_id,
+    cohort: 'golden',
+    repository: {
+      repository_id: repository.repository_id,
+      commit_sha: repository.commit_sha,
+    },
+    rule: { rule_id: opportunity.rule_id },
+    label: 'present',
+    detector_finding_id: null,
+    evidence: [{ ...opportunity.evidence_scope }],
+    review: { role: 'primary_labeler', detector_output_visible: false },
+  };
+  const findingReview = {
+    ...primary,
+    label_id: 'llm-label-finding-example-0001',
+    detector_finding_id: execution.findingId,
+    review: { role: 'finding_reviewer', detector_output_visible: true },
+  };
+  const withoutHash = {
+    schema_version: '1.0.0',
+    protocol_id: 'cejel-llm-calibration-v1',
+    status: 'frozen',
+    frozen_before_detector_results: true,
+    detector_results_seen_before_freeze: false,
+    cohort_bindings: { golden_manifest_sha256: execution.manifest.manifest_sha256 },
+    blind_label_bindings: [{
+      label_id: primary.label_id,
+      document_sha256: canonicalSha(primary),
+      role: 'primary_labeler',
+    }],
+    opportunities: [opportunity],
+    attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
+  };
+  const { attestation: _attestation, ...hashable } = withoutHash;
+  const manifest = { ...withoutHash, manifest_sha256: canonicalSha(hashable) };
+  return {
+    execution,
+    opportunity,
+    manifest,
+    primary: bound(primary),
+    findingReview: bound(findingReview),
+    validatedOpportunity: validateGoldenOpportunityEvidence(manifest, execution.manifest),
+  };
+}
+
+function goldenExecutionEvidence(includeFinding = true) {
   const manifest = immutableManifest('golden');
   const repository = manifest.repositories[0];
   const finding = {
@@ -54,13 +137,13 @@ function goldenExecutionEvidence() {
     summary: 'Synthetic golden correction finding.',
     evidence: { path: 'src/app.ts', line: 1, label: 'synthetic evidence' },
   };
-  const report = { result: { findings: [finding], ruleResults: [] } };
+  const report = { result: { findings: includeFinding ? [finding] : [], ruleResults: [] } };
   const findingId = `llm-finding-${canonicalSha({ repository_id: repository.repository_id, index: 0, finding })}`;
   const receipt = {
     protocol_id: 'cejel-llm-calibration-v1', cohort: 'golden', repository_id: repository.repository_id,
     commit_sha: repository.commit_sha, git_tree_sha: repository.git_tree_sha,
     manifest_sha256: manifest.manifest_sha256, detector_build_sha256: BUILD_SHA,
-    llm_report_canonical_sha256: canonicalSha(report), finding_ids: [findingId],
+    llm_report_canonical_sha256: canonicalSha(report), finding_ids: includeFinding ? [findingId] : [],
   };
   const document = {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', cohort: 'golden',
@@ -125,13 +208,14 @@ function immutableManifest(cohort = 'untouched') {
     frozen_by: ['Alice Example', 'Bob Example'],
     review_method: 'two_human',
     detector_results_seen_before_freeze: false,
-    hash_contract: 'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation',
+    hash_contract: 'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256',
+    review_bindings: REVIEW_BINDINGS,
     repositories: [repository],
+    attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
   };
   return {
     ...withoutManifestHash,
     manifest_sha256: hashManifest(withoutManifestHash),
-    attestation: { method: 'internal_witness', reference: 'internal-witness:test' },
   };
 }
 
@@ -187,6 +271,97 @@ test('golden correction ledger must match the exact detector build and have no o
   ), /frozen golden repository and commit/);
 });
 
+test('golden labels derive the exact missed-defect ledger set with no omissions or extras', () => {
+  const evidence = goldenOpportunityAndLabels();
+  const matched = validateGoldenLabelEvidence(
+    [evidence.primary, evidence.findingReview],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    evidence.execution.validated,
+  );
+  assert.deepEqual(matched.missedOpportunityIds, []);
+
+  assert.throws(() => validateGoldenLabelEvidence(
+    [evidence.primary],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    evidence.execution.validated,
+  ), /every golden detector finding requires exactly one opportunity-bound finding review/);
+
+  const overlappingManifest = structuredClone(evidence.manifest);
+  overlappingManifest.opportunities.push({
+    ...structuredClone(evidence.opportunity),
+    opportunity_id: 'llm-opportunity-overlap-0002',
+  });
+  const { manifest_sha256: _oldHash, attestation: _attestation, ...overlappingHashable } =
+    overlappingManifest;
+  overlappingManifest.manifest_sha256 = canonicalSha(overlappingHashable);
+  assert.throws(
+    () => validateGoldenOpportunityEvidence(overlappingManifest, evidence.execution.manifest),
+    /overlap/,
+  );
+
+  const missedEvidence = goldenOpportunityAndLabels(false);
+  const missed = validateGoldenLabelEvidence(
+    [missedEvidence.primary],
+    missedEvidence.execution.manifest,
+    missedEvidence.validatedOpportunity,
+    missedEvidence.execution.validated,
+  );
+  assert.deepEqual(missed.missedOpportunityIds, [missedEvidence.opportunity.opportunity_id]);
+  const missedEntry = {
+    correction_id: 'llm-correction-missed-example-0001',
+    status: 'resolved',
+    finding_id: null,
+    opportunity_id: missedEvidence.opportunity.opportunity_id,
+    rule_id: missedEvidence.opportunity.rule_id,
+    repository_id: missedEvidence.opportunity.repository_id,
+    commit_sha: missedEvidence.opportunity.commit_sha,
+    original_outcome: 'missed_defect',
+    final_outcome: 'false_negative',
+    rationale: 'The committed blind label identifies a defect with no matching golden finding.',
+    evidence: [{
+      reference: `opportunity:${missedEvidence.opportunity.opportunity_id}`,
+      sha256: canonicalSha(missedEvidence.opportunity.evidence_scope),
+    }],
+    resolved_at: '2026-07-22T20:00:00Z',
+  };
+  const exactLedger = {
+    ...ledger(missedEvidence.execution.manifest.manifest_sha256),
+    golden_opportunity_manifest_sha256: missedEvidence.validatedOpportunity.manifest.manifest_sha256,
+    golden_label_evidence_sha256: missed.document_sha256,
+    missed_defect_opportunity_ids: [...missed.missedOpportunityIds],
+    entries: [missedEntry],
+  };
+  assert.doesNotThrow(() => validateGoldenCorrectionLedger(
+    exactLedger,
+    BUILD_SHA,
+    missedEvidence.execution.manifest.manifest_sha256,
+    missedEvidence.execution.validated,
+    missedEvidence.validatedOpportunity,
+    missed,
+  ));
+  assert.throws(() => validateGoldenCorrectionLedger(
+    { ...exactLedger, entries: [] },
+    BUILD_SHA,
+    missedEvidence.execution.manifest.manifest_sha256,
+    missedEvidence.execution.validated,
+    missedEvidence.validatedOpportunity,
+    missed,
+  ), /omits or adds/);
+  assert.throws(() => validateGoldenCorrectionLedger(
+    {
+      ...exactLedger,
+      missed_defect_opportunity_ids: ['llm-opportunity-extra-0002'],
+    },
+    BUILD_SHA,
+    missedEvidence.execution.manifest.manifest_sha256,
+    missedEvidence.execution.validated,
+    missedEvidence.validatedOpportunity,
+    missed,
+  ), /does not match committed labels/);
+});
+
 test('detector freeze validates the actual golden manifest and every repository-entry hash', () => {
   const golden = immutableManifest('golden');
   assert.equal(validateFrozenGoldenManifest(golden), golden);
@@ -207,21 +382,49 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
       { label_id: 'llm-label-example-0001', document_sha256: '7'.repeat(64), role: 'primary_labeler' },
       { label_id: 'llm-label-example-0002', document_sha256: '8'.repeat(64), role: 'independent_reviewer' },
     ],
+    public_document_inventory: [{ path: 'README.md', content_sha256: 'a'.repeat(64) }],
   };
   const bytes = `${JSON.stringify(document)}\n`;
   writeFileSync(path, bytes, 'utf8');
   assert.equal(validatePreResultCommitment(document), document);
+  const blobOid = gitObjectSha1('blob', Buffer.from(bytes));
+  const leafTree = gitTreeEntry('100644', 'pre-result-commitment.json', blobOid);
+  const leafTreeOid = gitObjectSha1('tree', leafTree);
+  const llmTree = gitTreeEntry('40000', 'llm', leafTreeOid);
+  const llmTreeOid = gitObjectSha1('tree', llmTree);
+  const rootTree = gitTreeEntry('40000', 'calibration', llmTreeOid);
+  const treeOid = gitObjectSha1('tree', rootTree);
+  const commitContent = `tree ${treeOid}\nauthor Test <test@example.com> 1784746800 +0000\ncommitter Test <test@example.com> 1784746800 +0000\n\nFreeze\n`;
+  const commitOid = gitObjectSha1('commit', Buffer.from(commitContent));
+  const runner = async (_command, args) => {
+    const operation = args.slice(2).join(' ');
+    if (operation === 'rev-parse --show-object-format') return 'sha1';
+    if (operation === `rev-parse ${commitOid}^{commit}`) return commitOid;
+    if (operation === `rev-parse ${commitOid}^{tree}`) return treeOid;
+    if (operation === `rev-parse ${commitOid}:calibration/llm/pre-result-commitment.json`) return blobOid;
+    if (operation === `cat-file commit ${commitOid}`) return commitContent;
+    if (operation === `cat-file blob ${blobOid}`) return bytes;
+    if (operation === `cat-file tree ${treeOid}`) return rootTree;
+    if (operation === `cat-file tree ${llmTreeOid}`) return llmTree;
+    if (operation === `cat-file tree ${leafTreeOid}`) return leafTree;
+    if (operation === `show -s --format=%ct ${commitOid}`) return '1784746800';
+    throw new Error(`unexpected Git command: ${operation}`);
+  };
   const verified = await verifyGitCommittedPreResult({
-    documentPath: path, gitRepo: root, gitCommit: '9'.repeat(40),
+    documentPath: path, gitRepo: root, gitCommit: commitOid,
     gitPath: 'calibration/llm/pre-result-commitment.json',
     manifestSha256: immutableManifest('golden').manifest_sha256,
-  }, async () => bytes);
-  assert.equal(verified.git_commit, '9'.repeat(40));
+  }, runner);
+  assert.equal(verified.git_commit, commitOid);
+  assert.equal(verified.git_proof.blob_oid, blobOid);
   await assert.rejects(() => verifyGitCommittedPreResult({
-    documentPath: path, gitRepo: root, gitCommit: '9'.repeat(40),
+    documentPath: path, gitRepo: root, gitCommit: commitOid,
     gitPath: 'calibration/llm/pre-result-commitment.json',
     manifestSha256: immutableManifest('golden').manifest_sha256,
-  }, async () => `${JSON.stringify(document)} `), /exact Git blob/);
+  }, async (_command, args) => {
+    const value = await runner(_command, args);
+    return args.includes('blob') ? `${JSON.stringify(document)} ` : value;
+  }), /exact Git blob/);
 });
 
 test('untouched execution requires both a valid detector freeze and explicit post-freeze confirmation', () => {

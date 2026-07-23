@@ -13,7 +13,12 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import {
+  canonicalize,
+  hashManifest,
+  hashRepositoryEntry,
+  validateReviewBindings,
+} from './freeze-cohorts.mjs';
 import {
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
@@ -70,6 +75,7 @@ export function validateImmutableManifest(manifest) {
   if (!Array.isArray(manifest.repositories) || manifest.repositories.length < 1) {
     throw new Error('immutable manifest contains no repositories');
   }
+  validateReviewBindings(manifest.review_bindings);
   if (hashManifest(manifest) !== manifest.manifest_sha256) {
     throw new Error('immutable manifest SHA-256 does not match its contents');
   }
@@ -134,14 +140,14 @@ function repositoryDirectoryName(repositoryId) {
 }
 
 async function defaultRunner(command, args, options = {}) {
-  const { preserveOutput = false, ...execOptions } = options;
+  const { preserveOutput = false, preserveBuffer = false, ...execOptions } = options;
   const { stdout } = await execFile(command, args, {
-    encoding: 'utf8',
+    encoding: preserveBuffer ? null : 'utf8',
     maxBuffer: 20 * 1024 * 1024,
     timeout: 30 * 60_000,
     ...execOptions,
   });
-  return preserveOutput ? stdout : stdout.trim();
+  return preserveBuffer || preserveOutput ? stdout : stdout.trim();
 }
 
 export async function runFrozenRepository(input, commandRunner = defaultRunner) {
@@ -215,6 +221,7 @@ export async function runFrozenRepository(input, commandRunner = defaultRunner) 
       canonical_sha256: input.preResultCommitment.canonical_sha256,
       git_commit: input.preResultCommitment.git_commit,
       git_path: input.preResultCommitment.git_path,
+      git_proof: input.preResultCommitment.git_proof,
     },
   };
   writeFileSync(join(output, 'calibration-execution.json'), `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');

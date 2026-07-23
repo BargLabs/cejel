@@ -17,6 +17,14 @@ const sha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').
 const rawSha = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
 const bound = (document, extra = {}) => ({ ...extra, document_sha256: sha(document), document });
 const BUILD_SHA = 'b'.repeat(64);
+const REVIEW_BINDINGS = {
+  selection_policy_sha256: '1'.repeat(64),
+  golden_candidates_sha256: '2'.repeat(64),
+  untouched_candidates_sha256: '3'.repeat(64),
+  reserve_candidates_sha256: '4'.repeat(64),
+  selection_amendments_sha256: '5'.repeat(64),
+  review_record_sha256s: ['6'.repeat(64), '7'.repeat(64)],
+};
 const SOURCE_CONTENT = Buffer.from('const first = true;\nconst second = true;', 'utf8');
 const SOURCE_SHA256 = createHash('sha256').update(SOURCE_CONTENT).digest('hex');
 const gitObjectSha1 = (type, bytes) => createHash('sha1')
@@ -52,10 +60,12 @@ function manifest(cohort, repositoryId, commit) {
     cohort, status: 'frozen', frozen_at: '2026-07-22T00:00:00Z',
     frozen_by: ['reviewer-a', 'reviewer-b'], review_method: 'two_independent_ai',
     detector_results_seen_before_freeze: false,
-    hash_contract: 'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256 and attestation',
+    hash_contract: 'rfc8785-sha256-v1; entry excludes entry_sha256; manifest excludes manifest_sha256',
+    review_bindings: REVIEW_BINDINGS,
     repositories: [{ ...entryWithoutHash, entry_sha256: hashRepositoryEntry(entryWithoutHash) }],
+    attestation: { method: 'internal_dual_ai_review', reference: 'internal-witness:test' },
   };
-  return { ...withoutHash, manifest_sha256: hashManifest(withoutHash), attestation: { method: 'internal_dual_ai_review', reference: 'internal-witness:test' } };
+  return { ...withoutHash, manifest_sha256: hashManifest(withoutHash) };
 }
 
 function fixture() {
@@ -94,6 +104,8 @@ function fixture() {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen',
     detector_build_sha256: BUILD_SHA, golden_manifest_sha256: golden.manifest_sha256,
     golden_opportunity_manifest_sha256: '2'.repeat(64),
+    golden_label_evidence_sha256: '3'.repeat(64),
+    missed_defect_opportunity_ids: [],
     frozen_at: '2026-07-22T01:00:00Z', frozen_before_untouched: true,
     reviewed_by: ['reviewer-a', 'reviewer-b'], open_corrections: 0, entries: [],
   };
@@ -215,12 +227,40 @@ function fixture() {
     untouched_manifest_sha256: untouched.manifest_sha256,
     opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
     blind_label_bindings: opportunityManifest.blind_label_bindings,
+    public_document_inventory: [{
+      path: 'README.md', content_sha256: rawSha('Cejel reports static, evidence-backed engineering signals.'),
+    }],
   };
   const commitmentBinding = bound(preResultCommitment);
+  const commitmentBytes = Buffer.from(`${JSON.stringify(preResultCommitment, null, 2)}\n`, 'utf8');
+  const commitmentBlobOid = gitObjectSha1('blob', commitmentBytes);
+  const leafTreeBytes = gitTreeEntry('100644', 'pre-result-commitment.json', commitmentBlobOid);
+  const leafTreeOid = gitObjectSha1('tree', leafTreeBytes);
+  const llmTreeBytes = gitTreeEntry('40000', 'llm', leafTreeOid);
+  const llmTreeOid = gitObjectSha1('tree', llmTreeBytes);
+  const calibrationTreeBytes = gitTreeEntry('40000', 'calibration', llmTreeOid);
+  const commitmentTreeOid = gitObjectSha1('tree', calibrationTreeBytes);
+  const commitmentCommitBytes = Buffer.from(
+    `tree ${commitmentTreeOid}\nauthor Test <test@example.com> 1784681400 +0000\ncommitter Test <test@example.com> 1784681400 +0000\n\nFreeze calibration commitment\n`,
+    'utf8',
+  );
+  const commitmentCommitOid = gitObjectSha1('commit', commitmentCommitBytes);
+  const commitmentProof = {
+    object_format: 'sha1', commit_oid: commitmentCommitOid, root_tree_oid: commitmentTreeOid,
+    blob_oid: commitmentBlobOid, commit_content_base64: commitmentCommitBytes.toString('base64'),
+    blob_content_base64: commitmentBytes.toString('base64'), committed_at_unix: 1784681400,
+    git_path: 'calibration/llm/pre-result-commitment.json',
+    tree_chain: [
+      { oid: commitmentTreeOid, content_base64: calibrationTreeBytes.toString('base64') },
+      { oid: llmTreeOid, content_base64: llmTreeBytes.toString('base64') },
+      { oid: leafTreeOid, content_base64: leafTreeBytes.toString('base64') },
+    ],
+  };
   for (const receiptBinding of execution_receipts) {
     receiptBinding.document.pre_result_commitment = {
-      document_sha256: '6'.repeat(64), canonical_sha256: commitmentBinding.document_sha256,
-      git_commit: '9'.repeat(40), git_path: 'calibration/llm/pre-result-commitment.json',
+      document_sha256: rawSha(commitmentBytes.toString('utf8')), canonical_sha256: commitmentBinding.document_sha256,
+      git_commit: commitmentCommitOid, git_path: 'calibration/llm/pre-result-commitment.json',
+      git_proof: commitmentProof,
     };
     receiptBinding.document_sha256 = sha(receiptBinding.document);
   }
@@ -239,7 +279,42 @@ function fixture() {
     untouched_blinding_preserved: 'pre_result_git_commit_precedes_execution',
   };
   const automatic_no_go_evidence = Object.fromEntries(Object.entries(checkKinds).map(([check_id, kind]) => {
-    const evidenceContent = JSON.stringify({ check_id, detector_build_sha256: BUILD_SHA, verified: true });
+    const payloads = {
+      free_core_unchanged_without_pack: {
+        baseline_output_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
+        candidate_output_base64: Buffer.from('{"verdict":"ok"}\n').toString('base64'),
+        baseline_exit_code: 0, candidate_exit_code: 0,
+      },
+      offline_scan_path_verified: {
+        executions: execution_receipts.map(({ document: receipt }) => ({
+          cohort: receipt.cohort, repository_id: receipt.repository_id,
+          network_isolation_mode: receipt.network_isolation_mode, no_egress_confirmed: true,
+        })).sort((a, b) => canonicalize(a).localeCompare(canonicalize(b))),
+      },
+      all_findings_have_resolvable_evidence: {
+        findings: execution_receipts.flatMap(({ document: receipt }, receiptIndex) =>
+          receipt.finding_ids.map((finding_id, findingIndex) => ({
+            finding_id,
+            path: llm_reports[receiptIndex].document.result.findings[findingIndex].evidence.path,
+            line: llm_reports[receiptIndex].document.result.findings[findingIndex].evidence.line,
+          }))).sort((a, b) => a.finding_id.localeCompare(b.finding_id)),
+      },
+      prohibited_public_claims_absent: {
+        documents: [{
+          path: 'README.md', content: 'Cejel reports static, evidence-backed engineering signals.',
+          sha256: rawSha('Cejel reports static, evidence-backed engineering signals.'),
+        }],
+      },
+      untouched_blinding_preserved: {
+        executions: execution_receipts.filter(({ document }) => document.cohort === 'untouched').map(({ document }) => ({
+          repository_id: document.repository_id,
+          commitment_git_oid: document.pre_result_commitment.git_proof.commit_oid,
+          commitment_time_unix: document.pre_result_commitment.git_proof.committed_at_unix,
+          completed_at: document.completed_at,
+        })).sort((a, b) => a.repository_id.localeCompare(b.repository_id)),
+      },
+    };
+    const evidenceContent = JSON.stringify(payloads[check_id]);
     const audit = {
       schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', check_id,
       detector_build_sha256: BUILD_SHA, detector_source_commit: 'e'.repeat(40),
@@ -286,11 +361,54 @@ function refreshBlindLabelBindings(candidate) {
   commitment.opportunity_manifest_sha256 = manifest.manifest_sha256;
   commitment.blind_label_bindings = manifest.blind_label_bindings;
   candidate.evidence.pre_result_commitment = bound(commitment);
+  const commitmentBytes = Buffer.from(`${JSON.stringify(commitment, null, 2)}\n`, 'utf8');
+  const blobOid = gitObjectSha1('blob', commitmentBytes);
+  const leafTreeBytes = gitTreeEntry('100644', 'pre-result-commitment.json', blobOid);
+  const leafTreeOid = gitObjectSha1('tree', leafTreeBytes);
+  const llmTreeBytes = gitTreeEntry('40000', 'llm', leafTreeOid);
+  const llmTreeOid = gitObjectSha1('tree', llmTreeBytes);
+  const calibrationTreeBytes = gitTreeEntry('40000', 'calibration', llmTreeOid);
+  const treeOid = gitObjectSha1('tree', calibrationTreeBytes);
+  const commitBytes = Buffer.from(
+    `tree ${treeOid}\nauthor Test <test@example.com> 1784681400 +0000\ncommitter Test <test@example.com> 1784681400 +0000\n\nFreeze calibration commitment\n`,
+    'utf8',
+  );
+  const commitOid = gitObjectSha1('commit', commitBytes);
   for (const receipt of candidate.evidence.execution_receipts) {
     receipt.document.pre_result_commitment.canonical_sha256 =
       candidate.evidence.pre_result_commitment.document_sha256;
+    receipt.document.pre_result_commitment.document_sha256 = rawSha(commitmentBytes.toString('utf8'));
+    receipt.document.pre_result_commitment.git_commit = commitOid;
+    receipt.document.pre_result_commitment.git_proof = {
+      object_format: 'sha1', commit_oid: commitOid, root_tree_oid: treeOid, blob_oid: blobOid,
+      commit_content_base64: commitBytes.toString('base64'),
+      blob_content_base64: commitmentBytes.toString('base64'), committed_at_unix: 1784681400,
+      git_path: 'calibration/llm/pre-result-commitment.json',
+      tree_chain: [
+        { oid: treeOid, content_base64: calibrationTreeBytes.toString('base64') },
+        { oid: llmTreeOid, content_base64: llmTreeBytes.toString('base64') },
+        { oid: leafTreeOid, content_base64: leafTreeBytes.toString('base64') },
+      ],
+    };
     receipt.document_sha256 = sha(receipt.document);
   }
+  const chronologyRecord = candidate.automatic_no_go_evidence.untouched_blinding_preserved.document;
+  const chronologyArtifact = chronologyRecord.artifacts[0];
+  const chronologyAudit = JSON.parse(chronologyArtifact.content);
+  chronologyAudit.assertions[0].evidence_content = JSON.stringify({
+    executions: candidate.evidence.execution_receipts
+      .filter(({ document }) => document.cohort === 'untouched')
+      .map(({ document }) => ({
+        repository_id: document.repository_id,
+        commitment_git_oid: document.pre_result_commitment.git_proof.commit_oid,
+        commitment_time_unix: document.pre_result_commitment.git_proof.committed_at_unix,
+        completed_at: document.completed_at,
+      })).sort((a, b) => a.repository_id.localeCompare(b.repository_id)),
+  });
+  chronologyAudit.assertions[0].evidence_sha256 = rawSha(chronologyAudit.assertions[0].evidence_content);
+  chronologyArtifact.content = JSON.stringify(chronologyAudit);
+  chronologyArtifact.sha256 = rawSha(chronologyArtifact.content);
+  candidate.automatic_no_go_evidence.untouched_blinding_preserved = bound(chronologyRecord);
 }
 
 function refreshSourceEvidenceIndex(candidate) {
@@ -330,6 +448,28 @@ test('derives denominated counts from cryptographically bound receipts, reports,
   assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 1);
   assert.equal(output.evidence_bindings.execution_receipts, 2);
   assert.equal(output.release_evaluation.verdict, 'limited_experimental');
+});
+
+test('publishes and gate-blocks matched findings without a binary present/absent adjudication', () => {
+  for (const label of ['not_applicable', 'insufficient_source']) {
+    const candidate = fixture();
+    for (const record of candidate.evidence.label_records.filter((item) =>
+      item.document.cohort === 'untouched' &&
+      item.document.opportunity_id === 'untouched.opportunity:0:0'
+    )) {
+      record.document.label = label;
+      record.document_sha256 = sha(record.document);
+    }
+    refreshBlindLabelBindings(candidate);
+    const output = computeMetrics(candidate, thresholds);
+    assert.equal(output.counts.gate_blocking_matched_findings, 1);
+    assert.equal(output.support.matched_findings_total, 16);
+    assert.equal(output.release_evaluation.verdict, 'no_go');
+    assert.match(
+      output.release_evaluation.automatic_no_go.reasons.join('\n'),
+      /matched finding.*binary present\/absent adjudication/,
+    );
+  }
 });
 
 test('rejects arbitrary evidence changes and incomplete finding adjudication', () => {
@@ -417,7 +557,7 @@ test('automatic no-go checks require hashed evidence and agree with derived chro
   artifact.content = JSON.stringify(audit);
   artifact.sha256 = rawSha(artifact.content);
   contradiction.automatic_no_go_evidence.untouched_blinding_preserved = bound(record);
-  assert.throws(() => computeMetrics(contradiction, thresholds), /contradicts derived evidence/);
+  assert.throws(() => computeMetrics(contradiction, thresholds), /not derived from its check-specific payload/);
 
   const wrongKind = fixture();
   const claim = wrongKind.automatic_no_go_evidence.prohibited_public_claims_absent.document;
@@ -444,6 +584,64 @@ test('automatic no-go checks require hashed evidence and agree with derived chro
   claimArtifact.sha256 = rawSha(claimArtifact.content);
   genericAssertion.automatic_no_go_evidence.prohibited_public_claims_absent = bound(claimRecord);
   assert.throws(() => computeMetrics(genericAssertion, thresholds), /required check-specific assertion/);
+
+  const unequalFreeCore = fixture();
+  const parityRecord = unequalFreeCore.automatic_no_go_evidence.free_core_unchanged_without_pack.document;
+  const parityArtifact = parityRecord.artifacts[0];
+  const parityAudit = JSON.parse(parityArtifact.content);
+  const parityPayload = JSON.parse(parityAudit.assertions[0].evidence_content);
+  parityPayload.candidate_output_base64 = Buffer.from('{"verdict":"changed"}\n').toString('base64');
+  parityAudit.assertions[0].evidence_content = JSON.stringify(parityPayload);
+  parityAudit.assertions[0].evidence_sha256 = rawSha(parityAudit.assertions[0].evidence_content);
+  parityArtifact.content = JSON.stringify(parityAudit);
+  parityArtifact.sha256 = rawSha(parityArtifact.content);
+  unequalFreeCore.automatic_no_go_evidence.free_core_unchanged_without_pack = bound(parityRecord);
+  assert.throws(() => computeMetrics(unequalFreeCore, thresholds), /not derived from its check-specific payload/);
+
+  const falsePublicClaim = fixture();
+  const claimRecord2 = falsePublicClaim.automatic_no_go_evidence.prohibited_public_claims_absent.document;
+  const claimArtifact2 = claimRecord2.artifacts[0];
+  const claimAudit2 = JSON.parse(claimArtifact2.content);
+  const claimPayload2 = JSON.parse(claimAudit2.assertions[0].evidence_content);
+  claimPayload2.documents[0].content = 'Cejel detects hallucinations.';
+  claimPayload2.documents[0].sha256 = rawSha(claimPayload2.documents[0].content);
+  claimAudit2.assertions[0].evidence_content = JSON.stringify(claimPayload2);
+  claimAudit2.assertions[0].evidence_sha256 = rawSha(claimAudit2.assertions[0].evidence_content);
+  claimArtifact2.content = JSON.stringify(claimAudit2);
+  claimArtifact2.sha256 = rawSha(claimArtifact2.content);
+  falsePublicClaim.automatic_no_go_evidence.prohibited_public_claims_absent = bound(claimRecord2);
+  assert.throws(() => computeMetrics(falsePublicClaim, thresholds), /not derived from its check-specific payload/);
+
+  const omittedPublicDocument = fixture();
+  const omittedRecord = omittedPublicDocument.automatic_no_go_evidence.prohibited_public_claims_absent.document;
+  const omittedArtifact = omittedRecord.artifacts[0];
+  const omittedAudit = JSON.parse(omittedArtifact.content);
+  omittedAudit.assertions[0].evidence_content = JSON.stringify({ documents: [] });
+  omittedAudit.assertions[0].evidence_sha256 = rawSha(omittedAudit.assertions[0].evidence_content);
+  omittedArtifact.content = JSON.stringify(omittedAudit);
+  omittedArtifact.sha256 = rawSha(omittedArtifact.content);
+  omittedPublicDocument.automatic_no_go_evidence.prohibited_public_claims_absent = bound(omittedRecord);
+  assert.throws(() => computeMetrics(omittedPublicDocument, thresholds), /not derived from its check-specific payload/);
+});
+
+test('measurement rejects fabricated pre-result Git object proofs and post-execution commitments', () => {
+  const badBlob = fixture();
+  badBlob.evidence.execution_receipts[0].document.pre_result_commitment.git_proof.blob_oid = 'f'.repeat(40);
+  badBlob.evidence.execution_receipts[0] = bound(badBlob.evidence.execution_receipts[0].document);
+  assert.throws(() => computeMetrics(badBlob, thresholds), /Git tree proof does not terminate|Git object proof does not verify/);
+
+  const badIntermediateTree = fixture();
+  badIntermediateTree.evidence.execution_receipts[0].document.pre_result_commitment.git_proof.tree_chain[1].content_base64 =
+    Buffer.from('fabricated tree').toString('base64');
+  badIntermediateTree.evidence.execution_receipts[0] = bound(badIntermediateTree.evidence.execution_receipts[0].document);
+  assert.throws(() => computeMetrics(badIntermediateTree, thresholds), /Git tree object does not verify/);
+
+  const lateCommit = fixture();
+  for (const receipt of lateCommit.evidence.execution_receipts) {
+    receipt.document.pre_result_commitment.git_proof.committed_at_unix = 1893456000;
+    receipt.document_sha256 = sha(receipt.document);
+  }
+  assert.throws(() => computeMetrics(lateCommit, thresholds), /Git object proof does not verify|does not predate/);
 });
 
 test('requires a frozen opportunity inventory and exact primary-label coverage', () => {
@@ -484,6 +682,36 @@ test('requires a frozen opportunity inventory and exact primary-label coverage',
   lateInventory.evidence.opportunity_manifest.document.frozen_at = '2026-07-22T03:00:00Z';
   refreshBlindLabelBindings(lateInventory);
   assert.throws(() => computeMetrics(lateInventory, thresholds), /not frozen before detector results/);
+
+  const overlappingInventory = fixture();
+  overlappingInventory.evidence.opportunity_manifest.document.opportunities.push({
+    ...structuredClone(overlappingInventory.evidence.opportunity_manifest.document.opportunities[0]),
+    opportunity_id: 'golden.overlapping-opportunity:0:0',
+  });
+  refreshBlindLabelBindings(overlappingInventory);
+  assert.throws(
+    () => computeMetrics(overlappingInventory, thresholds),
+    /overlaps another same-rule source opportunity/,
+  );
+
+  const duplicateNonSourceInventory = fixture();
+  const originalNonSource = duplicateNonSourceInventory.evidence.opportunity_manifest.document
+    .opportunities[0];
+  rewriteOpportunityEvidence(duplicateNonSourceInventory, originalNonSource.opportunity_id, {
+    kind: 'configuration',
+    path_or_reference: 'package.json#scripts',
+    sha256: SOURCE_SHA256,
+    rationale: 'Synthetic configuration scope used to enforce unique non-source identities.',
+  });
+  duplicateNonSourceInventory.evidence.opportunity_manifest.document.opportunities.push({
+    ...structuredClone(originalNonSource),
+    opportunity_id: 'golden.duplicate-configuration:0:0',
+  });
+  refreshBlindLabelBindings(duplicateNonSourceInventory);
+  assert.throws(
+    () => computeMetrics(duplicateNonSourceInventory, thresholds),
+    /duplicates another same-rule non-source opportunity/,
+  );
 });
 
 test('cryptographically verifies source bytes, Git path proofs, and source-span bounds', () => {

@@ -61,10 +61,13 @@
     "golden_correction_ledger": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sha256", "golden_manifest_sha256", "status", "entries", "open_corrections", "frozen_at"],
+      "required": ["sha256", "golden_manifest_sha256", "golden_opportunity_manifest_sha256", "golden_label_evidence_sha256", "missed_defects", "status", "entries", "open_corrections", "frozen_at"],
       "properties": {
         "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "golden_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "golden_opportunity_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "golden_label_evidence_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "missed_defects": {"type": "integer", "minimum": 0},
         "status": {"const": "frozen"},
         "entries": {"type": "integer", "minimum": 0},
         "open_corrections": {"const": 0},

@@ -7,7 +7,12 @@ import { basename, dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import {
+  canonicalize,
+  hashManifest,
+  hashRepositoryEntry,
+  validateReviewBindings,
+} from './freeze-cohorts.mjs';
 
 const execFile = promisify(execFileCallback);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -75,8 +80,156 @@ function validUtc(value) {
 const LEDGER_KEYS = [
   'schema_version', 'protocol_id', 'status', 'detector_build_sha256',
   'golden_manifest_sha256', 'golden_opportunity_manifest_sha256', 'frozen_at', 'frozen_before_untouched',
+  'golden_label_evidence_sha256', 'missed_defect_opportunity_ids',
   'reviewed_by', 'open_corrections', 'entries',
 ];
+
+function labelEvidenceExactlyMatchesOpportunity(label, opportunity) {
+  const scope = opportunity.evidence_scope;
+  return Array.isArray(label.evidence) && label.evidence.some((item) =>
+    item.kind === scope.kind &&
+    item.path_or_reference === scope.path_or_reference &&
+    item.sha256 === scope.sha256 &&
+    item.start_line === scope.start_line &&
+    item.end_line === scope.end_line
+  );
+}
+
+function goldenFindingMatchesOpportunity(finding, opportunity) {
+  const scope = opportunity.evidence_scope;
+  return finding.finding.ruleId === opportunity.rule_id &&
+    finding.repository_id === opportunity.repository_id &&
+    finding.finding.evidence?.path === scope.path_or_reference &&
+    (scope.start_line === undefined ||
+      (finding.finding.evidence?.line >= scope.start_line &&
+        finding.finding.evidence?.line <= scope.end_line));
+}
+
+export function validateGoldenLabelEvidence(
+  wrappers,
+  goldenManifest,
+  goldenOpportunityEvidence,
+  goldenExecutionEvidence,
+) {
+  if (!Array.isArray(wrappers) || wrappers.length < 1) {
+    throw new Error('golden label evidence requires bound blind labels and finding reviews');
+  }
+  const opportunityBindings = new Map(
+    (goldenOpportunityEvidence.manifest.blind_label_bindings || [])
+      .map((binding) => [binding.label_id, binding]),
+  );
+  const repositories = new Map(
+    goldenManifest.repositories.map((repository) => [repository.repository_id, repository]),
+  );
+  const labelsByOpportunity = new Map();
+  const blindBindings = [];
+  const findingReviewBindings = [];
+  const labelIds = new Set();
+  for (const [index, wrapper] of wrappers.entries()) {
+    const label = unwrapBoundDocument(wrapper, `golden label evidence ${index}`);
+    if (
+      label?.schema_version !== '1.0.0' || label.protocol_id !== 'cejel-llm-calibration-v1' ||
+      label.cohort !== 'golden' || typeof label.label_id !== 'string' || labelIds.has(label.label_id) ||
+      !['primary_labeler', 'independent_reviewer', 'adjudicator', 'finding_reviewer']
+        .includes(label.review?.role) ||
+      !['present', 'absent', 'ambiguous', 'not_applicable', 'insufficient_source'].includes(label.label)
+    ) throw new Error(`golden label evidence ${index} is invalid or duplicated`);
+    labelIds.add(label.label_id);
+    const opportunity = goldenOpportunityEvidence.opportunities.get(label.opportunity_id);
+    const repository = repositories.get(label.repository?.repository_id);
+    if (
+      !opportunity || !repository || repository.commit_sha !== label.repository?.commit_sha ||
+      opportunity.repository_id !== label.repository.repository_id ||
+      opportunity.commit_sha !== label.repository.commit_sha ||
+      opportunity.rule_id !== label.rule?.rule_id ||
+      !labelEvidenceExactlyMatchesOpportunity(label, opportunity)
+    ) throw new Error(`golden label evidence ${index} does not match its frozen opportunity`);
+    const group = labelsByOpportunity.get(label.opportunity_id) || [];
+    group.push(label);
+    labelsByOpportunity.set(label.opportunity_id, group);
+    if (label.review.role === 'finding_reviewer') {
+      const finding = goldenExecutionEvidence.findings.get(label.detector_finding_id);
+      if (
+        !finding || !goldenFindingMatchesOpportunity(finding, opportunity) ||
+        label.review.detector_output_visible !== true
+      ) throw new Error(`golden finding review ${label.label_id} does not match an actual finding`);
+      findingReviewBindings.push({
+        label_id: label.label_id,
+        document_sha256: wrapper.document_sha256,
+        detector_finding_id: label.detector_finding_id,
+        opportunity_id: label.opportunity_id,
+      });
+    } else {
+      const binding = opportunityBindings.get(label.label_id);
+      if (
+        !binding || binding.document_sha256 !== wrapper.document_sha256 ||
+        binding.role !== label.review.role || label.detector_finding_id != null ||
+        label.review.detector_output_visible !== false
+      ) throw new Error(`golden blind label ${label.label_id} is not pre-result committed`);
+      blindBindings.push({
+        label_id: label.label_id,
+        document_sha256: wrapper.document_sha256,
+        role: label.review.role,
+      });
+    }
+  }
+
+  const finalLabels = new Map();
+  const matchedOpportunities = new Set();
+  const matchedFindingIds = new Set();
+  for (const opportunity of goldenOpportunityEvidence.opportunities.values()) {
+    const labels = labelsByOpportunity.get(opportunity.opportunity_id) || [];
+    const primary = labels.filter((label) => label.review.role === 'primary_labeler');
+    const independent = labels.filter((label) => label.review.role === 'independent_reviewer');
+    const adjudicators = labels.filter((label) => label.review.role === 'adjudicator');
+    const findingReviews = labels.filter((label) => label.review.role === 'finding_reviewer');
+    if (primary.length !== 1 || independent.length > 1 || adjudicators.length > 1 || findingReviews.length > 1) {
+      throw new Error(`golden opportunity ${opportunity.opportunity_id} has incomplete or duplicate labels`);
+    }
+    const originals = [...primary, ...independent];
+    let final = primary[0];
+    if (adjudicators.length === 1) {
+      const superseded = new Set(adjudicators[0].review.supersedes_label_ids || []);
+      if (
+        originals.length !== 2 || originals[0].label === originals[1].label ||
+        superseded.size !== 2 || originals.some((label) => !superseded.has(label.label_id))
+      ) throw new Error(`golden opportunity ${opportunity.opportunity_id} has invalid adjudication`);
+      final = adjudicators[0];
+    } else if (originals.length === 2 && originals[0].label !== originals[1].label) {
+      throw new Error(`golden opportunity ${opportunity.opportunity_id} has an unadjudicated disagreement`);
+    }
+    if (final.label === 'ambiguous') {
+      throw new Error(`golden opportunity ${opportunity.opportunity_id} remains ambiguous`);
+    }
+    finalLabels.set(opportunity.opportunity_id, final.label);
+    if (findingReviews.length === 1) {
+      const review = findingReviews[0];
+      if (review.label !== final.label || matchedFindingIds.has(review.detector_finding_id)) {
+        throw new Error(`golden opportunity ${opportunity.opportunity_id} has an invalid finding review`);
+      }
+      matchedFindingIds.add(review.detector_finding_id);
+      matchedOpportunities.add(opportunity.opportunity_id);
+    }
+  }
+  const missedOpportunityIds = [...finalLabels]
+    .filter(([opportunityId, label]) => label === 'present' && !matchedOpportunities.has(opportunityId))
+    .map(([opportunityId]) => opportunityId)
+    .sort();
+  if (matchedFindingIds.size !== goldenExecutionEvidence.findings.size) {
+    throw new Error('every golden detector finding requires exactly one opportunity-bound finding review');
+  }
+  const bindingDocument = {
+    blind_label_bindings: blindBindings.sort((left, right) => left.label_id.localeCompare(right.label_id)),
+    finding_review_bindings: findingReviewBindings.sort((left, right) =>
+      left.label_id.localeCompare(right.label_id)
+    ),
+  };
+  return {
+    document_sha256: sha256Canonical(bindingDocument),
+    missedOpportunityIds,
+    finalLabels,
+  };
+}
 
 export function validateGoldenCorrectionLedger(
   document,
@@ -84,6 +237,7 @@ export function validateGoldenCorrectionLedger(
   expectedGoldenManifestSha256,
   goldenExecutionEvidence,
   goldenOpportunityEvidence,
+  goldenLabelEvidence,
 ) {
   if (
     document?.schema_version !== '1.0.0' ||
@@ -110,6 +264,18 @@ export function validateGoldenCorrectionLedger(
     (goldenOpportunityEvidence &&
       document.golden_opportunity_manifest_sha256 !== goldenOpportunityEvidence.manifest.manifest_sha256)
   ) throw new Error('golden correction ledger is not bound to the frozen opportunity manifest');
+  if (
+    !/^[a-f0-9]{64}$/.test(document.golden_label_evidence_sha256 || '') ||
+    !Array.isArray(document.missed_defect_opportunity_ids) ||
+    new Set(document.missed_defect_opportunity_ids).size !== document.missed_defect_opportunity_ids.length ||
+    document.missed_defect_opportunity_ids.some((id) => typeof id !== 'string' || id.length < 3)
+  ) throw new Error('golden correction ledger lacks exact committed label/missed-defect bindings');
+  if (
+    goldenLabelEvidence &&
+    (document.golden_label_evidence_sha256 !== goldenLabelEvidence.document_sha256 ||
+      canonicalize([...document.missed_defect_opportunity_ids].sort()) !==
+        canonicalize(goldenLabelEvidence.missedOpportunityIds))
+  ) throw new Error('golden correction ledger does not match committed labels and derived missed defects');
   if (!validUtc(document.frozen_at)) {
     throw new Error('golden correction ledger frozen_at must be a UTC ISO-8601 timestamp');
   }
@@ -123,6 +289,7 @@ export function validateGoldenCorrectionLedger(
     throw new Error('golden correction ledger entries must be an array');
   }
   const correctionIds = new Set();
+  const missedCorrectionIds = new Set();
   for (const [index, entry] of document.entries.entries()) {
     const scope = `golden correction ledger entry ${index}`;
     const allowed = [
@@ -167,6 +334,13 @@ export function validateGoldenCorrectionLedger(
       if (!entry.evidence.some((item) =>
         item.reference === `opportunity:${entry.opportunity_id}` && item.sha256 === proofSha
       )) throw new Error(`${scope} is not bound to the frozen opportunity source proof`);
+      if (!['false_negative', 'accepted_limitation'].includes(entry.final_outcome)) {
+        throw new Error(`${scope} missed_defect must resolve as false_negative or accepted_limitation`);
+      }
+      if (missedCorrectionIds.has(entry.opportunity_id)) {
+        throw new Error(`${scope} duplicates a missed-defect correction`);
+      }
+      missedCorrectionIds.add(entry.opportunity_id);
     } else {
       if (entry.opportunity_id !== null || !entry.finding_id) {
         throw new Error(`${scope} detector outcome requires a finding and null opportunity`);
@@ -181,6 +355,10 @@ export function validateGoldenCorrectionLedger(
       )) throw new Error(`${scope} is not bound to the actual golden report finding evidence`);
     }
   }
+  if (
+    canonicalize([...missedCorrectionIds].sort()) !==
+    canonicalize([...document.missed_defect_opportunity_ids].sort())
+  ) throw new Error('golden correction ledger omits or adds a derived missed-defect correction');
   if (document.open_corrections !== 0) {
     throw new Error('golden correction ledger must have zero open corrections');
   }
@@ -192,7 +370,8 @@ export function validateFrozenGoldenManifest(manifest) {
     manifest?.schema_version !== '1.0.0' || manifest?.protocol_id !== 'cejel-llm-calibration-v1' ||
     manifest?.cohort !== 'golden' || manifest?.status !== 'frozen' ||
     !Array.isArray(manifest.repositories) || manifest.repositories.length < 1 ||
-    hashManifest(manifest) !== manifest.manifest_sha256
+    hashManifest(manifest) !== manifest.manifest_sha256 ||
+    !validateReviewBindings(manifest.review_bindings)
   ) throw new Error('--golden-manifest must be a valid frozen golden manifest');
   for (const repository of manifest.repositories) {
     if (
@@ -214,6 +393,9 @@ export function validateGoldenOpportunityEvidence(manifest, goldenManifest) {
     sha256Canonical(hashable) !== manifest.manifest_sha256 || !Array.isArray(manifest.opportunities)
   ) throw new Error('golden opportunity manifest is invalid or not pre-result bound');
   const opportunities = new Map();
+  const evidenceKinds = new Map();
+  const nonSourceScopes = new Set();
+  const sourceScopes = [];
   for (const opportunity of manifest.opportunities.filter((item) => item.cohort === 'golden')) {
     if (opportunities.has(opportunity.opportunity_id)) throw new Error('duplicate golden opportunity');
     const repository = goldenManifest.repositories.find((item) => item.repository_id === opportunity.repository_id);
@@ -222,6 +404,33 @@ export function validateGoldenOpportunityEvidence(manifest, goldenManifest) {
       !FROZEN_LLM_RULE_IDS.includes(opportunity.rule_id) ||
       !/^[a-f0-9]{64}$/.test(opportunity.evidence_scope?.sha256 || '')
     ) throw new Error('golden opportunity does not match the frozen golden cohort');
+    const evidenceIdentity = canonicalize({
+      repository_id: opportunity.repository_id,
+      commit_sha: opportunity.commit_sha,
+      rule_id: opportunity.rule_id,
+      path_or_reference: opportunity.evidence_scope?.path_or_reference,
+    });
+    const priorKind = evidenceKinds.get(evidenceIdentity);
+    if (priorKind && priorKind !== opportunity.evidence_scope?.kind) {
+      throw new Error('golden opportunity reuses an evidence identity with another scope kind');
+    }
+    evidenceKinds.set(evidenceIdentity, opportunity.evidence_scope?.kind);
+    if (opportunity.evidence_scope?.kind === 'source_span') {
+      const startLine = opportunity.evidence_scope.start_line;
+      const endLine = opportunity.evidence_scope.end_line;
+      if (!Number.isInteger(startLine) || !Number.isInteger(endLine) || endLine < startLine) {
+        throw new Error('golden source opportunity has invalid line bounds');
+      }
+      if (sourceScopes.some((prior) =>
+        prior.identity === evidenceIdentity && prior.startLine <= endLine && startLine <= prior.endLine
+      )) throw new Error('golden source opportunities overlap for the same rule and path');
+      sourceScopes.push({ identity: evidenceIdentity, startLine, endLine });
+    } else {
+      if (nonSourceScopes.has(evidenceIdentity)) {
+        throw new Error('golden non-source opportunity is duplicated for the same rule and reference');
+      }
+      nonSourceScopes.add(evidenceIdentity);
+    }
     opportunities.set(opportunity.opportunity_id, opportunity);
   }
   if (opportunities.size < 1) throw new Error('golden opportunity manifest contains no golden opportunities');
@@ -326,6 +535,8 @@ export function createDetectorFreezeRecord(input) {
       sha256: input.ledgerSha256,
       golden_manifest_sha256: input.ledger.golden_manifest_sha256,
       golden_opportunity_manifest_sha256: input.ledger.golden_opportunity_manifest_sha256,
+      golden_label_evidence_sha256: input.ledger.golden_label_evidence_sha256,
+      missed_defects: input.ledger.missed_defect_opportunity_ids.length,
       status: 'frozen',
       entries: input.ledger.entries.length,
       open_corrections: 0,
@@ -400,8 +611,11 @@ export function validateDetectorFreezeRecord(record) {
   if (
     record.golden_correction_ledger?.status !== 'frozen' ||
     record.golden_correction_ledger?.open_corrections !== 0 ||
-    !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.sha256 || '')
-    || !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.golden_manifest_sha256 || '')
+    !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.golden_manifest_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.golden_label_evidence_sha256 || '') ||
+    !Number.isInteger(record.golden_correction_ledger?.missed_defects) ||
+    record.golden_correction_ledger.missed_defects < 0
   ) {
     throw new Error('detector freeze lacks a closed golden correction ledger');
   }
@@ -412,7 +626,11 @@ export function validateDetectorFreezeRecord(record) {
 }
 
 function parseArgs(argv) {
-  const options = { isolationArgs: [], confirmNetworkIsolation: false };
+  const options = {
+    isolationArgs: [],
+    goldenLabelRecords: [],
+    confirmNetworkIsolation: false,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument.startsWith('--network-isolation-arg=')) {
@@ -434,6 +652,7 @@ function parseArgs(argv) {
       case '--golden-manifest': options.goldenManifest = take(); break;
       case '--opportunity-manifest': options.opportunityManifest = take(); break;
       case '--golden-execution-evidence': options.goldenExecutionEvidence = take(); break;
+      case '--golden-label-record': options.goldenLabelRecords.push(take()); break;
       case '--network-isolation-mode': options.isolationMode = take(); break;
       case '--network-isolation-command': options.isolationCommand = take(); break;
       case '--network-isolation-arg': options.isolationArgs.push(take()); break;
@@ -456,12 +675,15 @@ function usage() {
     --golden-manifest calibration/llm/cohorts/golden-manifest.json \\
     --opportunity-manifest ./opportunity-manifest.json \\
     --golden-execution-evidence ./golden-execution-evidence.json \\
+    --golden-label-record ./labels/golden-primary.json \\
+    --golden-label-record ./labels/golden-finding-review.json \\
     --network-isolation-mode sandbox-no-egress \\
     --network-isolation-command /path/to/isolation-wrapper \\
     --network-isolation-evidence internal-witness:isolation-proof \\
     --confirm-network-isolation
 
 The detector repository must be clean. The output is created exclusively and is never overwritten.
+Repeat --golden-label-record for every committed golden blind label and finding review.
 `;
 }
 
@@ -506,6 +728,9 @@ export async function main(argv, commandRunner = run) {
   if (!options.confirmNetworkIsolation) {
     throw new Error('--confirm-network-isolation is required');
   }
+  if (options.goldenLabelRecords.length < 1) {
+    throw new Error('--golden-label-record is required at least once');
+  }
 
   const detectorRepo = resolve(options.detectorRepo || '.');
   const cejel = realpathSync(resolve(options.cejel));
@@ -525,6 +750,18 @@ export async function main(argv, commandRunner = run) {
     goldenManifest,
     buildSha256,
   );
+  const goldenLabelEvidence = validateGoldenLabelEvidence(
+    options.goldenLabelRecords.map((labelPath) => {
+      const document = JSON.parse(readFileSync(resolve(labelPath), 'utf8'));
+      return {
+        document,
+        document_sha256: sha256Canonical(document),
+      };
+    }),
+    goldenManifest,
+    goldenOpportunityEvidence,
+    goldenExecutionEvidence,
+  );
   const gitCommit = await commandRunner('git', ['-C', detectorRepo, 'rev-parse', 'HEAD']);
   if (!/^[a-f0-9]{40}$/.test(gitCommit)) throw new Error('detector repository HEAD is not a full commit');
   const gitStatus = await commandRunner('git', ['-C', detectorRepo, 'status', '--porcelain']);
@@ -537,6 +774,7 @@ export async function main(argv, commandRunner = run) {
     goldenManifest.manifest_sha256,
     goldenExecutionEvidence,
     goldenOpportunityEvidence,
+    goldenLabelEvidence,
   );
   const record = createDetectorFreezeRecord({
     gitCommit,

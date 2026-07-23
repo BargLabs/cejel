@@ -19,7 +19,7 @@ imply that every rule supports that syntax.
 | Vercel AI SDK | `generateText` and `streamText` calls; local `tool`/`defineTool`/`createTool` declarations for the action rule | Not implemented |
 | Consequential actions | Direct local JavaScript/TypeScript JSON parse, named dispatch, tool exposure, and fail-closed gate patterns | Not implemented |
 | Evaluation hygiene | Direct local JavaScript/TypeScript model invocation, aggregate, JSON emitter, lineage, denominator, and sole-judge patterns | Not implemented |
-| LangChain / LangGraph | Import establishes applicability only; no framework-specific finding claim | Import establishes no Python rule coverage |
+| LangChain / LangGraph | Import is recorded as metadata only; it does not establish v1 applicability or a framework-specific finding claim | Import establishes no Python rule coverage |
 | Raw provider HTTP, local-model SDKs, external evaluators | Not implemented; Cejel abstains or reports a limitation | Not implemented; Cejel abstains or reports a limitation |
 
 Initial deep detector support is limited to JavaScript/TypeScript and Python. Files in other Cejel-

@@ -165,11 +165,38 @@ describe('Free LLM Pack Python rule foundation', () => {
       ],
     ],
     [
+      'nested list reassignment',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        '[client, [other]] = mailbox, [value]',
+        "client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
       'constructor tuple reassignment',
       [
         'from openai import OpenAI',
         'OpenAI, other = FakeClient, value',
         "OpenAI().responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'annotated client reassignment',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        'client: OpenAI = mailbox',
+        "client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'chained client reassignment',
+      [
+        'from openai import OpenAI',
+        'other = OpenAI()',
+        'client = other = mailbox',
+        "other.responses.create(input=os.getenv('DATABASE_URL'))",
       ],
     ],
   ])('does not retain Python SDK provenance after %s', (_name, lines) => {
@@ -187,6 +214,31 @@ describe('Free LLM Pack Python rule foundation', () => {
         "client, other = mailbox, value; client = OpenAI(); client.responses.create(input=os.getenv('DATABASE_URL'))",
       ].join('\n'),
     };
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-DAT-001');
+
+    expect(hasSupportedPythonLlmIntegration(file)).toBe(true);
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      'an annotated assignment',
+      [
+        'from openai import OpenAI',
+        'client: OpenAI = OpenAI()',
+        "client.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+    [
+      'a chained assignment',
+      [
+        'from openai import OpenAI',
+        'client = other = OpenAI()',
+        "other.responses.create(input=os.getenv('DATABASE_URL'))",
+      ],
+    ],
+  ])('allows %s to establish genuine Python SDK provenance', (_name, lines) => {
+    const file: LlmSourceFile = { path: 'src/reassigned.py', contents: lines.join('\n') };
     const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-DAT-001');
 
     expect(hasSupportedPythonLlmIntegration(file)).toBe(true);

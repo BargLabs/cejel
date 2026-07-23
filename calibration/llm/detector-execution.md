@@ -12,15 +12,18 @@ select repositories, alter manifests, adjudicate findings, or tune rules.
    and blob proofs. Then freeze the complete golden and untouched opportunity inventory, bound to
    both cohort-manifest digests and the verified source-file SHA-256 values, before producing any
    detector output. Write `pre-result-commitment.json` from
-   `templates/pre-result-commitment.template.json`, commit that exact file to Git, and record the
-   immutable commit and repository-relative path. The runner verifies the committed blob bytes and
+   `templates/pre-result-commitment.template.json`, including the exact path and byte SHA-256 of
+   every public document covered by the prohibited-claims check. Commit that exact file to Git and record the
+   immutable commit and repository-relative path. The runner embeds and verifies the commit object,
+   every raw tree object from the root to the path, and the committed blob bytes, and
    refuses either cohort without this commitment.
 3. Build Cejel from a clean, committed detector revision.
 4. Run the golden manifest with `run-frozen-cohort.mjs`, using an operating-system or container
    wrapper that prevents egress from the detector process.
-5. Complete golden adjudication and corrections. If detector code changes, rebuild and rerun the
-   golden cohort. Freeze a correction ledger only after it is bound to the final executable
-   SHA-256 and has zero open corrections.
+5. Complete golden blind labels and finding reviews, then derive the exact missed-defect set.
+   If detector code changes, rebuild and rerun the golden cohort. Freeze a correction ledger only
+   after it is bound to those committed labels, the final executable SHA-256, and has zero open
+   corrections.
 6. Create `detector-freeze.json`. This binds the clean Git commit, executable SHA-256, runtime,
    exact scan command, no-egress argv prefix, eight rule IDs, support matrix, and correction-ledger
    digest before any untouched result is seen.
@@ -82,7 +85,10 @@ scan subprocess uses the selection policy's 30-minute wall-clock ceiling.
 
 Each receipt binds the cohort manifest SHA-256, detector build and (for untouched runs) detector-
 freeze SHA-256, exact commit/tree, canonical and byte-level LLM-report digests, deterministic
-finding IDs, per-rule states, and the exact Git-committed pre-result record. The measurement gate verifies these receipts against the embedded
+finding IDs, per-rule states, and the exact Git-committed pre-result record. The receipt's Git proof
+is self-contained: measurement recomputes the commit, every tree, and blob object ID and follows the
+complete path offline. The prohibited-claims audit must embed exactly the public-document inventory
+frozen in that record, with matching paths and content hashes and no omissions or extras. The measurement gate verifies these receipts against the embedded
 reports, the manifest-rooted source evidence, and final label/adjudication records before deriving
 any count. A finding-review binding is accepted only when the finding path and line overlap the
 assigned frozen source span; non-source references use exact reference matching.
@@ -94,16 +100,19 @@ Start from `templates/golden-correction-ledger.template.json`. Before changing i
 
 - the SHA-256 of the final built executable used for the final golden run;
 - the frozen golden manifest SHA-256;
+- the canonical digest of every committed golden blind label and finding review;
+- the exact derived set of `present` opportunities with no matching golden finding;
 - the UTC freeze time;
 - exactly two distinct reviewers;
 - every correction outcome, using a finding binding for detector outcomes or a frozen opportunity
-  binding for a missed defect; and
+  binding for every and only the derived missed defects; and
 - `open_corrections: 0`.
 
 The detector-freeze script rejects a template, an open ledger, a ledger for another executable, or
 a ledger without two reviewers. It requires the actual frozen golden manifest and rejects a ledger
 whose `golden_manifest_sha256` does not match it. Detector-result corrections bind an actual
 finding; missed defects carry a null finding ID and bind an actual frozen golden opportunity.
+The validator rejects an omitted or extra missed-defect entry.
 Every entry also binds its rule, repository commit, final outcome, rationale, evidence digest, and
 resolution timestamp.
 The required golden execution index follows `schemas/golden-execution-evidence.schema.json`; it
@@ -123,11 +132,8 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --golden-manifest calibration/llm/cohorts/golden-manifest.json \
   --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
-  --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
-  --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
-  --commitment-git-repo /absolute/path/to/cejel \
-  --commitment-git-commit <full-40-character-commit> \
-  --commitment-git-path calibration/llm/pre-result-commitment.json \
+  --golden-label-record /absolute/path/to/golden-primary-label.json \
+  --golden-label-record /absolute/path/to/golden-finding-review.json \
   --network-isolation-mode verified-no-egress-wrapper \
   --network-isolation-command /absolute/path/to/no-egress-wrapper \
   --network-isolation-arg=-- \

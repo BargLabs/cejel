@@ -24,13 +24,129 @@ function matchingBrace(masked: string, start: number): number {
   return masked.length;
 }
 
+function splitTopLevel(value: string, delimiter: string): readonly string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '(') round += 1;
+    else if (character === ')') round -= 1;
+    else if (character === '[') square += 1;
+    else if (character === ']') square -= 1;
+    else if (character === '{') curly += 1;
+    else if (character === '}') curly -= 1;
+    else if (character === delimiter && round === 0 && square === 0 && curly === 0) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+function topLevelCharacter(value: string, sought: string): number {
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '(') round += 1;
+    else if (character === ')') round -= 1;
+    else if (character === '[') square += 1;
+    else if (character === ']') square -= 1;
+    else if (character === '{') curly += 1;
+    else if (character === '}') curly -= 1;
+    else if (character === sought && round === 0 && square === 0 && curly === 0) return index;
+  }
+  return -1;
+}
+
+function matchingOpeningDelimiter(value: string, closeIndex: number): number {
+  const close = value[closeIndex];
+  const open = close === '}' ? '{' : close === ']' ? '[' : '(';
+  let depth = 0;
+  for (let index = closeIndex; index >= 0; index -= 1) {
+    if (value[index] === close) depth += 1;
+    if (value[index] === open) {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+function unwrapBindingParentheses(value: string): string {
+  let normalized = value.trim();
+  while (normalized.startsWith('(') && normalized.endsWith(')')) {
+    if (matchingOpeningDelimiter(normalized, normalized.length - 1) !== 0) break;
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized;
+}
+
+function bindingNames(pattern: string): ReadonlySet<string> {
+  const names = new Set<string>();
+  const collect = (input: string): void => {
+    let normalized = unwrapBindingParentheses(input).trim();
+    if (normalized.startsWith('...')) normalized = normalized.slice(3).trim();
+    const defaultIndex = topLevelCharacter(normalized, '=');
+    if (defaultIndex >= 0) normalized = normalized.slice(0, defaultIndex).trim();
+    if (normalized.startsWith('[') && normalized.endsWith(']')) {
+      for (const element of splitTopLevel(normalized.slice(1, -1), ',')) collect(element);
+      return;
+    }
+    if (normalized.startsWith('{') && normalized.endsWith('}')) {
+      for (const property of splitTopLevel(normalized.slice(1, -1), ',')) {
+        const colon = topLevelCharacter(property, ':');
+        if (colon >= 0) collect(property.slice(colon + 1));
+        else collect(property);
+      }
+      return;
+    }
+    const identifier = normalized.match(/^[A-Za-z_$][\w$]*$/)?.[0];
+    if (identifier) names.add(identifier);
+  };
+  collect(pattern);
+  return names;
+}
+
 function parameterNames(parameters: string): ReadonlySet<string> {
   const names = new Set<string>();
-  for (const parameter of parameters.split(',')) {
-    const name = parameter.trim().match(/^(?:\.\.\.\s*)?([A-Za-z_$][\w$]*)/)?.[1];
-    if (name) names.add(name);
+  for (const parameter of splitTopLevel(parameters, ',')) {
+    for (const name of bindingNames(parameter)) names.add(name);
   }
   return names;
+}
+
+function destructuringAssignmentEvents(
+  masked: string,
+  beforeIndex: number,
+  identifier: string,
+): readonly { readonly index: number; readonly expression?: string }[] {
+  const events: { index: number; expression?: string }[] = [];
+  const prefix = masked.slice(0, beforeIndex);
+  for (let index = 0; index < prefix.length; index += 1) {
+    if (
+      prefix[index] !== '=' ||
+      prefix[index - 1] === '=' ||
+      prefix[index + 1] === '=' ||
+      prefix[index + 1] === '>' ||
+      /[!<>+\-*/%&|^?]/.test(prefix[index - 1] ?? '')
+    ) continue;
+    let targetEnd = index - 1;
+    while (/\s/.test(prefix[targetEnd] ?? '')) targetEnd -= 1;
+    if (!['}', ']'].includes(prefix[targetEnd] ?? '')) continue;
+    const targetStart = matchingOpeningDelimiter(prefix, targetEnd);
+    if (targetStart < 0) continue;
+    const target = prefix.slice(targetStart, targetEnd + 1);
+    if (bindingNames(target).has(identifier)) {
+      events.push({ index: targetStart, expression: undefined });
+    }
+  }
+  return events;
 }
 
 function functionScopes(masked: string): readonly FunctionScope[] {
@@ -126,14 +242,7 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
       index: match.index,
       expression: match[1] ?? match[2],
     }));
-    const destructuringEvents = [...masked.slice(0, beforeIndex).matchAll(
-      /(?:\[[^\]\n;]*\]|\{[^}\n;]*\})\s*=\s*(?!=)/g,
-    )].flatMap((match) => {
-      const assignmentTarget = match[0].slice(0, match[0].lastIndexOf('='));
-      return new RegExp(`\\b${escaped}\\b`).test(assignmentTarget)
-        ? [{ index: match.index, expression: undefined }]
-        : [];
-    });
+    const destructuringEvents = destructuringAssignmentEvents(masked, beforeIndex, identifier);
     return [...directEvents, ...destructuringEvents].sort((left, right) => left.index - right.index);
   };
 

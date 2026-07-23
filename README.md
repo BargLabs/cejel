@@ -215,7 +215,9 @@ not call a model, execute the target application, or send source, prompts, or fi
 network. Its findings and status never alter the base Cejel score or verdict.
 
 The alpha recognizes fixture-backed JavaScript/TypeScript patterns around OpenAI, Anthropic,
-Vercel AI SDK, LangChain imports, and named model-call shapes. Python coverage is narrower: it
+Vercel AI SDK, and named model-call shapes. It records LangChain imports as integration metadata,
+but a LangChain import alone does not establish v1 applicability or framework-specific coverage.
+Python coverage is narrower: it
 recognizes official OpenAI and Anthropic SDK call/response shapes for direct unsafe sinks,
 unbounded loops, and secret-like environment values in model requests. See
 [Free LLM Pack usage and limitations](./docs/packs/free-llm-usage.md) for the eight rule IDs,

@@ -55,6 +55,9 @@ derives aggregate and per-rule release counts from the untouched inventory only,
 denominators as `not_estimable`, and evaluates the locked thresholds in order:
 `automatic_no_go`, `public_v1`, `limited_experimental`, then `no_go`. Its output is a calculation;
 it is not a substitute for the recorded adjudication and owner release decision.
+Every matched detector finding must have a binary `present` or `absent` finding review. Matched
+`not_applicable` or `insufficient_source` reviews are published under
+`gate_blocking_matched_findings` and force automatic NO-GO.
 
 Automatic NO-GO inputs are content-addressed records conforming to
 `schemas/automatic-no-go-evidence.schema.json`, not operator-entered booleans. Network isolation,
@@ -90,6 +93,8 @@ node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden \
   --review-mode independent-ai \
   --reviewer "codex-review-a:record-id" \
   --reviewer "codex-review-b:record-id" \
+  --review-record /absolute/path/to/review-a.md \
+  --review-record /absolute/path/to/review-b.md \
   --confirm-independent-reviews \
   --attestation-reference "internal-witness:review-record-id"
 ```
@@ -100,11 +105,14 @@ freeze arguments previews the complete manifest without writing it. The final wr
 creation and refuses to overwrite an existing manifest.
 
 Use `templates/cohort-freeze-witness.template.md` to collect both review records. The completed
-record stays internal; immutable manifests contain only its opaque `internal-witness:` reference.
+records stay internal; immutable manifests contain their byte-level SHA-256 values plus an opaque
+`internal-witness:` reference.
 
 Repository entries are hashed from RFC 8785-style canonical JSON with recursively sorted object
 keys, excluding `entry_sha256`. The manifest hash uses the same canonical representation and
-excludes `manifest_sha256` and `attestation`, as declared by `hash_contract`. Array order remains
+excludes only `manifest_sha256`, as declared by `hash_contract`. The attestation and strict hashes
+for the selection policy, golden and untouched candidate files, reserve list, amendment log, and
+both review records are therefore hash-bound. Array order remains
 the preregistered candidate order. The candidate file's byte-level SHA-256 is included in
 resolve-only output so a technical resolution can be tied back to its exact input.
 

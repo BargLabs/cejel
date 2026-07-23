@@ -4,8 +4,11 @@
 - Protocol: `cejel-llm-calibration-v1`
 - Selection policy: `llm-selection-v1.1` (re-locked before detector results)
 - Superseded policy: `llm-selection-v1`
+- Selection policy byte SHA-256: `706c0c47786b4e36da455c80e72e7d4d61212a64972d87e79488d9a7ac5277fc`
 - Golden candidate byte SHA-256: `4612d3f2330ae0ba8a4416adf5723fdb69c00e4fefca703ef6b93afbec7c5014`
 - Untouched candidate byte SHA-256: `1d27ab86c85980e8ee516c672dc37934ee1df9b13842200ad20f2f28d826eeb3`
+- Reserve candidate byte SHA-256: `b8c84b333b8c5239782e0282a887961be53113094937db47a5829ceaa00425ae`
+- Selection amendments byte SHA-256: `d72b42743f10eeb193c1d74a277aec1b58f01bdbd62b9bcbed123cf2a0254146`
 - Detector results seen before review: `no`
 
 ## Independent review records
@@ -39,6 +42,7 @@ freeze before either cohort is scanned. Record reviewer kind honestly.
   order 9 under that re-locked policy before any detector execution; thresholds and rules did not
   change.
 
-Store the completed witness record in the approved internal governance system. Put only its opaque
-`internal-witness:<record-id>` reference in the public immutable manifests; do not publish personal
-signatures or private contact information.
+Store the completed witness records in the approved internal governance system. Pass both files to
+the freezer so their exact byte hashes are bound in `review_bindings`; the manifest also binds its
+opaque `internal-witness:<record-id>` attestation. Do not publish personal signatures or private
+contact information.
