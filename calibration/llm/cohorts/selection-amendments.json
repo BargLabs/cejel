@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "policy_id": "llm-selection-v1.4",
-  "supersedes_policy_id": "llm-selection-v1.3",
-  "recorded_at": "2026-07-23T22:38:29Z",
+  "policy_id": "llm-selection-v1.5",
+  "supersedes_policy_id": "llm-selection-v1.4",
+  "recorded_at": "2026-07-24T01:24:55.000Z",
   "detector_results_seen": false,
   "amendments": [
     {"cohort":"golden","kind":"canonical_rename","from":"vercel/ai-chatbot","to":"vercel/chatbot","reason":"GitHub API resolves the preregistered repository to its current canonical identity; repository selection did not change."},
@@ -33,6 +33,10 @@
     {"cohort":"untouched","kind":"conservative_unspent_withdrawal","from":"untouched-candidates-v1.3","to":"withdrawn-unexecuted-unspent","reason":"The v1.3 untouched detector was never executed and the cohort remains unspent. It is conservatively withdrawn because it used the same opportunity-discovery process whose golden inventory was materially incomplete; no untouched source, labels, or detector output were consulted."},
     {"cohort":"both","kind":"dual_metadata_fresh_cycle_search","from":"withdrawn-v1.3-cycle","to":"v1.4-proposal-union","reason":"Two context-isolated AI tasks searched GitHub repository metadata only, without clones, source, labels, detector code, or detector results. Proposal byte SHA-256 values are f7cb0199ab63ad80f331c8e31e113e15697600032f94e39d8aab02cefb6a691a and e4c0a6fe33ca2e09ed4e292ada61b6ba1841625116d62de26b60658a8ab42efc."},
     {"cohort":"both","kind":"deterministic_dual_cohort_selection","from":"v1.4-proposal-union","to":"cohorts/selection-v1.4.json@67e269df80f9352cda787c76b66e7816fc0f056e6bcb5111bdf10c33e6acb0d5","reason":"Selector source 6337399f4689206d77b8b74f036aac60ea3b89106f49b7f768063f3ff24bcead bound the exact 197-ID historical ledger, both proposal documents, exact surface quotas, provider coverage, language minima, and both candidate documents. Untouched additionally binds and excludes the exact golden candidate and selection record. Historical and cross-cohort overlap are zero."},
-    {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.3","to":"llm-selection-v1.4","reason":"Before any v1.4 source access or detector output, fresh disjoint golden and untouched cohorts were selected from metadata only. Release thresholds and detector rules did not change."}
+    {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.3","to":"llm-selection-v1.4","reason":"Before any v1.4 source access or detector output, fresh disjoint golden and untouched cohorts were selected from metadata only. Release thresholds and detector rules did not change."},
+    {"cohort":"both","kind":"fresh_cycle_reset_before_results","from":"v1.4-golden-development-and-withdrawn-untouched","to":"v1.5-pre-source-metadata-selection","reason":"The v1.4 golden cohort is retired from release measurement after detector development; the v1.4 untouched cohort remains unexecuted and is conservatively withdrawn. The v1.5 exact historical exclusion ledger was committed before fresh metadata-only selection. No v1.5 source, labels, detector code, or detector output were consulted."},
+    {"cohort":"both","kind":"detector_independent_discovery_contract_locked","from":"semantic-cues-only-contract","to":"machine-readable-lexical-collector-contract","reason":"The public discovery contract locks a detector-independent collector, file eligibility rules, recipe patterns, deterministic IDs, explicit zero-hit rows, and output hashes before any v1.5 cohort source access."},
+    {"cohort":"both","kind":"deterministic_dual_cohort_selection","from":"v1.5-proposal-union","to":"cohorts/selection-v1.5.json","reason":"Two context-isolated GitHub metadata-only proposals were selected into fresh disjoint golden and untouched cohorts by the deterministic constraint selector. The exact reset ledger, proposal documents, surface quotas, provider coverage, language minima, and golden sibling bindings are recorded in the selection envelope; source, labels, and detector output were not consulted."},
+    {"cohort":"policy","kind":"policy_relock_before_results","from":"llm-selection-v1.4","to":"llm-selection-v1.5","reason":"Before any v1.5 cohort source access or detector output, fresh disjoint cohorts were selected from metadata only under a detector-independent discovery contract. Release thresholds and detector rules did not change."}
   ]
 }

@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.5",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "djtelicloud/grok-mcp-server",
+      "url": "https://github.com/djtelicloud/grok-mcp-server",
+      "primary_language": "python",
+      "primary_surface": "gateway",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub repository metadata search matched the gateway stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "decolua/9router",
+      "url": "https://github.com/decolua/9router",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the chat_app stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "DSXiangLi/DecryptPrompt",
+      "url": "https://github.com/DSXiangLi/DecryptPrompt",
+      "primary_language": "mixed",
+      "primary_surface": "chat_app",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub repository metadata search matched the chat_app stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "Open-LLM-VTuber/Open-LLM-VTuber",
+      "url": "https://github.com/Open-LLM-VTuber/Open-LLM-VTuber",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata description identifies a chat_app LLM application or framework; GitHub reports Python as the primary language."
+    },
+    {
+      "repository_id": "ariya/ask-llm",
+      "url": "https://github.com/ariya/ask-llm",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "local_model",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the local_model stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "cognitivetech/ollama-ebook-summary",
+      "url": "https://github.com/cognitivetech/ollama-ebook-summary",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the local_model stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "Abhi5h3k/PrivateDocBot",
+      "url": "https://github.com/Abhi5h3k/PrivateDocBot",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the local_model stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "neuml/txtai",
+      "url": "https://github.com/neuml/txtai",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a rag LLM application or framework; GitHub reports Python as the primary language."
+    },
+    {
+      "repository_id": "activeloopai/deeplake",
+      "url": "https://github.com/activeloopai/deeplake",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the rag stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "Vbj1808/Dokis",
+      "url": "https://github.com/Vbj1808/Dokis",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a rag LLM application or framework; GitHub reports Python as the primary language."
+    },
+    {
+      "repository_id": "adongwanai/AgentGuide",
+      "url": "https://github.com/adongwanai/AgentGuide",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the rag stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "Alibaba-NLP/DeepResearch",
+      "url": "https://github.com/Alibaba-NLP/DeepResearch",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the agent_tools stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "algorithmicsuperintelligence/optillm",
+      "url": "https://github.com/algorithmicsuperintelligence/optillm",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub repository metadata search matched the agent_tools stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "TanStack/ai",
+      "url": "https://github.com/TanStack/ai",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a agent_tools LLM application or framework; GitHub reports TypeScript as the primary language."
+    },
+    {
+      "repository_id": "areal-project/AReaL",
+      "url": "https://github.com/areal-project/AReaL",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the agent_tools stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "dataelement/Clawith",
+      "url": "https://github.com/dataelement/Clawith",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the agent_tools stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "FoundationAgents/MetaGPT",
+      "url": "https://github.com/FoundationAgents/MetaGPT",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a agent_tools LLM application or framework; GitHub reports Python as the primary language."
+    },
+    {
+      "repository_id": "arthur-ai/arthur-engine",
+      "url": "https://github.com/arthur-ai/arthur-engine",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the evaluation_or_framework stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "fabian-lu/Cafe",
+      "url": "https://github.com/fabian-lu/Cafe",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a evaluation_or_framework LLM application or framework; GitHub reports Python as the primary language."
+    },
+    {
+      "repository_id": "pezzolabs/pezzo",
+      "url": "https://github.com/pezzolabs/pezzo",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a evaluation_or_framework LLM application or framework; GitHub reports TypeScript as the primary language."
+    },
+    {
+      "repository_id": "3DCF-Labs/doc2dataset",
+      "url": "https://github.com/3DCF-Labs/doc2dataset",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the evaluation_or_framework stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "rhesis-ai/rhesis",
+      "url": "https://github.com/rhesis-ai/rhesis",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata description identifies a evaluation_or_framework LLM application or framework; GitHub reports Python as the primary language."
+    },
+    {
+      "repository_id": "deshwalmahesh/PHUDGE",
+      "url": "https://github.com/deshwalmahesh/PHUDGE",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the evaluation_or_framework stratum; description/topics indicate an observable LLM application or integration surface."
+    },
+    {
+      "repository_id": "arklexai/arksim",
+      "url": "https://github.com/arklexai/arksim",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata search matched the evaluation_or_framework stratum; description/topics indicate an observable LLM application or integration surface."
+    }
+  ]
+}
