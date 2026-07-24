@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { collectDiscoveryHits } from './collect-discovery-hits.mjs';
+import { collectDiscoveryHits, groupCorroboratedCandidateLoci } from './collect-discovery-hits.mjs';
 import { canonicalize } from './freeze-cohorts.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -156,4 +156,22 @@ test('fails closed when a file or per-query hit ceiling is reached', () => {
     rmSync(golden, { recursive: true, force: true });
     rmSync(untouched, { recursive: true, force: true });
   }
+});
+
+test('groups only deterministically corroborated loci while retaining every supporting hit', () => {
+  const anchor = {
+    kind: 'executable_sink', path: 'src/a.ts', start_line: 4, end_line: 4,
+    content_sha256: 'c'.repeat(64),
+  };
+  const hit = (id, queryId, line = 4) => ({
+    hit_id: id, cohort: 'golden', repository_id: 'fixture/golden', commit_sha: 'a'.repeat(40),
+    rule_id: 'LLM-IOH-001', query_id: queryId, anchor: { ...anchor, start_line: line, end_line: line },
+  });
+  const grouped = groupCorroboratedCandidateLoci([
+    hit('h3', 'third'), hit('h1', 'first'), hit('h2', 'second'), hit('other', 'first', 8),
+  ], 3);
+  assert.equal(grouped.length, 1);
+  assert.deepEqual(grouped[0].query_ids, ['first', 'second', 'third']);
+  assert.deepEqual(grouped[0].supporting_hit_ids, ['h1', 'h2', 'h3']);
+  assert.throws(() => groupCorroboratedCandidateLoci([], 0), /positive integer/);
 });

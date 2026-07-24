@@ -123,6 +123,54 @@ function fileManifestHash(files) {
   });
 }
 
+/**
+ * Groups lexical hits into one reviewable source locus.  It never discards
+ * provenance: each included locus retains every supporting raw-hit ID.  The
+ * caller must lock the corroboration threshold before source access.
+ */
+export function groupCorroboratedCandidateLoci(rawHits, minimumDistinctQueries) {
+  if (!Number.isInteger(minimumDistinctQueries) || minimumDistinctQueries < 1) {
+    throw new Error('candidate corroboration threshold must be a positive integer');
+  }
+  const groups = new Map();
+  for (const hit of rawHits) {
+    const key = canonicalize({
+      cohort: hit.cohort,
+      repository_id: hit.repository_id,
+      commit_sha: hit.commit_sha,
+      rule_id: hit.rule_id,
+      anchor: hit.anchor,
+    });
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        cohort: hit.cohort,
+        repository_id: hit.repository_id,
+        commit_sha: hit.commit_sha,
+        rule_id: hit.rule_id,
+        anchor: hit.anchor,
+        query_ids: new Set(),
+        supporting_hit_ids: new Set(),
+      };
+      groups.set(key, group);
+    }
+    group.query_ids.add(hit.query_id);
+    group.supporting_hit_ids.add(hit.hit_id);
+  }
+  return [...groups.values()]
+    .filter((group) => group.query_ids.size >= minimumDistinctQueries)
+    .map((group) => ({
+      cohort: group.cohort,
+      repository_id: group.repository_id,
+      commit_sha: group.commit_sha,
+      rule_id: group.rule_id,
+      anchor: group.anchor,
+      query_ids: [...group.query_ids].sort(codePointCompare),
+      supporting_hit_ids: [...group.supporting_hit_ids].sort(codePointCompare),
+    }))
+    .sort((left, right) => codePointCompare(canonicalize(left), canonicalize(right)));
+}
+
 function executeRecipe(repository, rule, recipe, files, maximumHits) {
   const patterns = recipe.query_patterns.map((pattern) => ({
     ...pattern,
