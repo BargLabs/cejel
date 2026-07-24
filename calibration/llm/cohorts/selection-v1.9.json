@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.9",
+  "record_type": "dual_cohort_metadata_selection",
+  "selected_at": "2026-07-24T22:55:05.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "cycle_reset_sha256": "70d7106bdde7fc54afabc8ae255f69141c2d0684a77445d929072e4d036d3a3c",
+  "historical_repository_count": 879,
+  "historical_repository_ids_sha256": "234a70b566cb10a2010be88333cda2599e1caa3498c9c808940571b8542be5c5",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "metadata-collector-a",
+      "canonical_document_sha256": "bfb693e3e3f69023147ae120454db14751929949ff16d3050dfac09cc0d237b4",
+      "byte_sha256": "6d53f7d5a7515dd57780ae3cffc77a7fa6db35eaa7da7c54a70e7d8f3256fc26"
+    },
+    {
+      "reviewer_id": "v19-proposal-b-metadata-reviewer",
+      "canonical_document_sha256": "319b79868687990ff4b7022c2bd1b7b5be989e9e08835ce1c5c074e5704d800e",
+      "byte_sha256": "037a3c8bb970004c8c6d0ffb88e071beadd13bef5b72b34faf156ba3d159dea3"
+    }
+  ],
+  "cohorts": {
+    "golden": {
+      "candidate_byte_sha256": "4874c3b11ecd871ae314c0fc2ecdead7058c41afb89b3c125e8e56352584261d",
+      "candidate_canonical_sha256": "4c1045265de67bb60d7105ee044ca7d0b1e66bd0f756cc1b759f17cdda726869",
+      "selection_record_byte_sha256": "2ee2c23af4f22eaadd776a323756bb5947ccf4aaa891ae34661b3c903f9fb696",
+      "selection_record_canonical_sha256": "41b2c26bc78978b1bdaba25bd2f87c1f1fafa64d0886d050fd95f76d3be0ce6a"
+    },
+    "untouched": {
+      "candidate_byte_sha256": "e59a2f6b040ce054d088e8d26d14119483f8e0c618c8a2166763c4eb2c2fcffb",
+      "candidate_canonical_sha256": "1d712401abc358dbb6bd0cb9398204ee378439925a914c1f345a46ea4bef61c1",
+      "selection_record_byte_sha256": "5d60f61f7bc21599eabf08c31bfb609124e2e9c51477925bce50a80d627c29c2",
+      "selection_record_canonical_sha256": "3ec5d34a67bd0cc85f0a41caab63812f9e87ffd1f8f3a8d3495097bd004455e4"
+    }
+  },
+  "surface_targets_per_cohort": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "minimum_language_counts_per_cohort": {
+    "typescript_javascript": 4,
+    "python": 8
+  },
+  "required_provider_surfaces_per_cohort": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_overlap": 0,
+  "cross_cohort_overlap": 0,
+  "record_sha256": "8d9b9dab605cb46cfc33b53047d6317568badb75d4797879e191555391c76b2f"
+}

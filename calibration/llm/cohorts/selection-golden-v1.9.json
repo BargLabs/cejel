@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.9",
+  "selection_event_id": "v1.9-pre-result-cycle-reset",
+  "cohort": "golden",
+  "selected_at": "2026-07-24T22:55:00.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "70d7106bdde7fc54afabc8ae255f69141c2d0684a77445d929072e4d036d3a3c",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "70d7106bdde7fc54afabc8ae255f69141c2d0684a77445d929072e4d036d3a3c",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "metadata-collector-a",
+      "document_sha256": "bfb693e3e3f69023147ae120454db14751929949ff16d3050dfac09cc0d237b4"
+    },
+    {
+      "reviewer_id": "v19-proposal-b-metadata-reviewer",
+      "document_sha256": "319b79868687990ff4b7022c2bd1b7b5be989e9e08835ce1c5c074e5704d800e"
+    }
+  ],
+  "excluded_repository_count": 879,
+  "excluded_repository_ids_sha256": "234a70b566cb10a2010be88333cda2599e1caa3498c9c808940571b8542be5c5",
+  "classification_conflicts_excluded": [],
+  "selected": [
+    {
+      "repository_id": "EffNine/Conductor",
+      "tier": 1,
+      "selection_hash": "0c599baa013db0cd7bcc53d5eb0530e43f93e32044a2f5ba3817e196a7da7c4b",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "pyscripter/ChatLLM",
+      "tier": 1,
+      "selection_hash": "13c537a803c469d12661e86c65a7e936eff3e6c69999a9f00a2907b33e3444ba",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "RYOITABASHI/Shelly",
+      "tier": 1,
+      "selection_hash": "1a4c31bc13f29856a8e27635885a0d8203e10c94be4157380bdb98088720dc32",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "DakshBhavsar007/Multi-Agent-Resume-Project",
+      "tier": 1,
+      "selection_hash": "1dd17c0052eaf8f06615d23181a710f40412e1da80ff7be910aed250715da58b",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "tier": 1,
+      "selection_hash": "0ba16f3e00dc49f786ed059a2f4129f1edd3cbeba6093601d0af4b58449d6732",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "tattn/LocalLLMClient",
+      "tier": 1,
+      "selection_hash": "1eb273a61b22ca34619b4b45988553eb8b4dbd59beb2bcbc11b87771b3b2b1f5",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "vndee/local-talking-llm",
+      "tier": 1,
+      "selection_hash": "23a0988d27c08ab2ae35391bc5b0f883f08b1f8bd78ff13735a23294095caa03",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "Danielskry/Awesome-RAG",
+      "tier": 1,
+      "selection_hash": "23f3a8a772ff2d4bcbcd0610bc827494b28368a98252470a8324bd8606e2caf7",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "Azure-Samples/rag-postgres-openai-python",
+      "tier": 1,
+      "selection_hash": "309c1e650a3a076bb34356f6da45a510c941a791066caee8594429045b8775ae",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "nguyenquoaca-hash/agentic-mesh",
+      "tier": 1,
+      "selection_hash": "3c30568d782ce83f480129bf2d6758f662212a243150b0632eb20e903cf75bc4",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "Ankitha-GS/rag-qa",
+      "tier": 1,
+      "selection_hash": "4247b76058be5c451ee092e6e34d25ef1546f283a3093a527512192919f4e048",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "jarrodwatts/claude-hud",
+      "tier": 1,
+      "selection_hash": "187bea2bc20b32a2c3a719d8aefe83b6dfc5dc6198028efdb922c759851b7dad",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "numtide/llm-agents.nix",
+      "tier": 1,
+      "selection_hash": "263cf54bc6789917057195f357ac667934d43d40028febff0e1cb21318d9c5ca",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "sreyun/aiops-monitor",
+      "tier": 1,
+      "selection_hash": "35e17484f0d69e0e32c11d235abe61821c1045193c5c793a113bb37fe650d83c",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "squesadag2000/InventoryForecastAnalysis",
+      "tier": 1,
+      "selection_hash": "47ab31b867d90621eb077a29198b7863ac32c142b62a039ffff9387ccf7448a8",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "twostraws/SwiftUI-Agent-Skill",
+      "tier": 1,
+      "selection_hash": "5067a95a6881500444457d3f1626aab5633949683daeb226e9243164cf89dc65",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "jim-schwoebel/awesome_ai_agents",
+      "tier": 1,
+      "selection_hash": "5906e82dbe72ce0b3ccaf6e39537943db0437e1e94e6b7c892c12e61d064e784",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "SitaraLiang/llm-finmath-reasoning-eval",
+      "tier": 1,
+      "selection_hash": "11f3de8f1d56720644d7521e99d1bed66434bd31514c9b1dd98dc5cce568b733",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "harnexa/nexa-gauge",
+      "tier": 1,
+      "selection_hash": "39d36bdefb98c4c51e4f1fc6a351db3cc360494fab9c68961d0e83294bbc108a",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "memoturn/memoturn",
+      "tier": 1,
+      "selection_hash": "4b88212fa3eb3db52f723363f8c9abbff58c8f5db5d504d9432bb947a2c4a0e7",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "tier": 1,
+      "selection_hash": "5727b3426dcf58aac0072a808ee9d3c000be66d18a6dd58d52d613b9bec23ef9",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "manuhalapeth/abundant-ai-eval-design",
+      "tier": 1,
+      "selection_hash": "5897f92a2b2beafcfcb3b73ca1334042cea4b6708646eff6a2ed2b5ffb6192f0",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "linny006/llm-eval-tracker",
+      "tier": 1,
+      "selection_hash": "6088f1be43f53d3f8c0be2e5d1064d837498fae753383df460b8889ea17fbb79",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "tier": 1,
+      "selection_hash": "7c47d062f8a4a3cb055f507698f5fb8a9426a7f19fcc3947cea4c310f20780e0",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "4c1045265de67bb60d7105ee044ca7d0b1e66bd0f756cc1b759f17cdda726869",
+  "record_sha256": "1bfc8e5295c2ce3607c1aecc388feda67f7fad14e58dfcac7a0ec6b6afe4062c"
+}

@@ -1,32 +1,32 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "cejel-llm-calibration-v1",
-  "policy_id": "llm-selection-v1.8",
-  "supersedes_policy_id": "llm-selection-v1.7",
-  "recorded_at": "2026-07-24T02:44:46.000Z",
+  "policy_id": "llm-selection-v1.9",
+  "supersedes_policy_id": "llm-selection-v1.8",
+  "recorded_at": "2026-07-24T22:54:04.000Z",
   "detector_results_seen": false,
   "source_accessed": false,
   "amendments": [
     {
       "cohort": "both",
       "kind": "fresh_cycle_reset_before_results",
-      "from": "v1.5-collector-development-and-withdrawn-untouched",
-      "to": "v1.8-pre-source-metadata-selection",
-      "reason": "The v1.5 golden cohort is retired after the collector failed closed before producing a collection record; the v1.5 untouched cohort remains unexecuted and is conservatively withdrawn. The v1.8 exact historical exclusion ledger is committed before fresh metadata-only selection. No v1.8 source, labels, detector code, or detector output were consulted."
+      "from": "v1.8-golden-only-unreviewable-inventory",
+      "to": "v1.9-pre-source-metadata-selection",
+      "reason": "The v1.8 golden-only discovery run completed under the v1.7 methodology produced 329,191 raw hits and 290,350 basic loci, which made the golden opportunity inventory unreviewable; no detector was executed and the v1.8 untouched cohort was never accessed and remains conservatively unspent. The v1.9 exact historical exclusion ledger folds in the prior ledger, both v1.8 candidate cohorts, and both real v1.8 selection proposals before fresh metadata-only selection. No v1.9 source, labels, detector code, or detector output were consulted."
     },
     {
       "cohort": "both",
       "kind": "detector_independent_discovery_contract_locked",
-      "from": "v1.5-collector-contract",
-      "to": "v1.6-regular-file-collector-contract",
-      "reason": "The public discovery contract locks a detector-independent collector that ignores non-regular Git symlinks without traversing them, plus file eligibility rules, recipe patterns, deterministic IDs, explicit zero-hit rows, and output hashes before any v1.8 cohort source access."
+      "from": "v1.7-bounded-discovery-contract",
+      "to": "v1.9-corroborated-discovery-contract",
+      "reason": "The public discovery contract locks a detector-independent collector that groups lexical hits into one candidate per rule-specific canonical locus and requires deterministic corroboration across at least three distinct locked query recipes before a candidate is reviewable, cutting the development-only measured denominator from 290,350 basic loci to 2,843 corroborated loci while retaining every supporting raw-hit ID. This is locked before any v1.9 cohort source access."
     },
     {
       "cohort": "policy",
       "kind": "policy_relock_before_results",
-      "from": "llm-selection-v1.7",
-      "to": "llm-selection-v1.8",
-      "reason": "Fresh disjoint v1.8 cohorts will be selected from two new context-isolated GitHub metadata-only proposals after excluding the exact reset ledger. Release thresholds and detector rules do not change."
+      "from": "llm-selection-v1.8",
+      "to": "llm-selection-v1.9",
+      "reason": "Fresh disjoint v1.9 cohorts will be selected from two new context-isolated GitHub metadata-only proposals after excluding the exact reset ledger. Release thresholds and detector rules do not change."
     }
   ]
 }
