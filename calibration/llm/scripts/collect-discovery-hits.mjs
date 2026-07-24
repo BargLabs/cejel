@@ -90,7 +90,9 @@ function enumerateEligibleFiles(sourceRoot, fileEligibility, maximumFiles) {
       const absolutePath = resolve(directory, name);
       const entry = lstatSync(absolutePath);
       if (entry.isSymbolicLink()) {
-        throw new Error(`eligible source enumeration rejects symbolic link ${normalisePath(relative(sourceRoot, absolutePath))}`);
+        // A Git symlink is not a regular source file. Do not traverse or read its target;
+        // omitting it is deterministic and prevents source discovery from escaping the frozen tree.
+        continue;
       }
       if (entry.isDirectory()) {
         visit(absolutePath);

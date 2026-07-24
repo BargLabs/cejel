@@ -119,7 +119,7 @@ export async function createPreResultCommitment(input) {
   const discoveryIntegrity =
     readDocument(resolve(privateRoot, 'discovery-integrity.json')).document;
   const discoveryContract = readDocument(
-    resolve(repositoryRoot, 'calibration/llm/discovery-anchor-contract-v1.5.json'),
+    resolve(repositoryRoot, `calibration/llm/discovery-anchor-contract-${cycle}.json`),
   ).document;
   if (
     opportunityManifest.cohort_bindings?.golden_manifest_sha256 !== goldenManifest.manifest_sha256 ||

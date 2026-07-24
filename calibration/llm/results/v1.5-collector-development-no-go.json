@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.5",
+  "record_type": "collector_development_no_go",
+  "recorded_at": "2026-07-24T01:40:00.000Z",
+  "detector_executed": false,
+  "detector_results_seen": false,
+  "golden_source_accessed": true,
+  "untouched_source_accessed": false,
+  "collector_output_created": false,
+  "reason": "The locked detector-independent collector failed closed before emitting a collection record because the frozen golden checkout contained a non-regular Git symlink outside the declared eligible source-file class. Correct handling requires a collector implementation change after golden source access.",
+  "disposition": {
+    "golden": "development_only_retired_before_any_detector_execution",
+    "untouched": "withdrawn_unexecuted_unspent_due_to_shared_discovery_methodology",
+    "next_cycle": "A fresh cycle must use an updated pre-source collector contract, a complete historical exclusion union, fresh metadata-only selection, and new immutable manifests before source access."
+  },
+  "public_claim_boundary": "This record makes no precision, recall, detector, or release-performance claim."
+}

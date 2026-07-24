@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
@@ -86,6 +86,7 @@ function fixtureRoot() {
   writeFileSync(resolve(root, 'src', 'b.ts'), 'execute(value)\nrun(value)\n', 'utf8');
   writeFileSync(resolve(root, 'src', 'a.py'), 'run(value)\n', 'utf8');
   writeFileSync(resolve(root, 'node_modules', 'ignored.ts'), 'execute(value)\n', 'utf8');
+  symlinkSync('src/b.ts', resolve(root, 'linked-source.ts'));
   return root;
 }
 

@@ -491,7 +491,7 @@ test('fails closed when any resource ceiling is reached', () => {
 
 test('the locked public contract validates and discovery tooling has no LLM detector dependency', () => {
   const publicContract = JSON.parse(
-    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.5.json'), 'utf8'),
+    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.6.json'), 'utf8'),
   );
   assert.equal(
     validateDiscoveryAnchorContract(publicContract).methodology_id,
