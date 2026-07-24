@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>pydantic</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/pydantic/pydantic @ f59e929c999e8b2efc7b12fd0bc1685c1a186be3</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
       <div class="score">3.2<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
       <p class="subscores">Code 2.9 · Process 3.5</p>
+      <p class="coverage-note">code 3/5 · process 3/6 measured</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,11 +79,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.8</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>290/125 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>5/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>213/225 ratio</span></li></ul>
-          <ul><li>Detected test file <code>pydantic-core/tests/__init__.py</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/__init__.py</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/complete_schema.py:1 · sha256:67fbb9f86ee1</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/nested_schema.py:1 · sha256:5dd7f39830db</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_complete_benchmark.py:1 · sha256:93af73fdd79c</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_micro_benchmarks.py:1 · sha256:4a88116cb64c</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_nested_benchmark.py:1 · sha256:b257d008f043</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_serialization_micro.py:1 · sha256:52fce052ee06</code></li><li>Configured test runner <code>Makefile:1 · sha256:0e9d9400ee80</code></li><li>Configured test runner <code>pydantic-core/Cargo.toml:1 · sha256:e0dfda4bea74</code></li><li>Configured test runner <code>pydantic-core/Makefile:1 · sha256:4ac502de0f82</code></li><li>Coverage configuration <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></li><li>Coverage configuration <code>pydantic-core/pyproject.toml:1 · sha256:99dd772c656a</code></li><li>Coverage configuration <code>pyproject.toml:1 · sha256:8375abce73bf</code></li><li>Coverage configuration <code>tests/plugin/pyproject.toml:1 · sha256:0e61aa9ab890</code></li><li>CI workflow runs the test suite <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li></ul>
+          <ul><li><strong>Test-to-source file ratio</strong><span>125 ratio (capped; 292 raw)</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>4 ratio (capped; 6 raw)</span></li><li><strong>Non-hollow test share</strong><span>213/225 ratio</span></li></ul>
+          <ul><li>Detected test file <code>pydantic-core/tests/__init__.py</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/__init__.py</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/complete_schema.py:1 · sha256:67fbb9f86ee1</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/nested_schema.py:1 · sha256:5dd7f39830db</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_complete_benchmark.py:1 · sha256:93af73fdd79c</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_micro_benchmarks.py:1 · sha256:4a88116cb64c</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_nested_benchmark.py:1 · sha256:b257d008f043</code></li><li>Detected test file <code>pydantic-core/tests/benchmarks/test_serialization_micro.py:1 · sha256:52fce052ee06</code></li><li>Configured test runner <code>Makefile:1 · sha256:0e9d9400ee80</code></li><li>Configured test runner <code>pydantic-core/Makefile:1 · sha256:4ac502de0f82</code></li><li>Configured test runner <code>pydantic-core/pyproject.toml:1 · sha256:99dd772c656a</code></li><li>Configured test runner <code>pyproject.toml:1 · sha256:8375abce73bf</code></li><li>Coverage configuration <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></li><li>Coverage configuration <code>pydantic-core/pyproject.toml:1 · sha256:99dd772c656a</code></li><li>Coverage configuration <code>pyproject.toml:1 · sha256:8375abce73bf</code></li><li>CI workflow runs the test suite <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
@@ -96,12 +98,12 @@ code { color: var(--warn); overflow-wrap: anywhere; }
             <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">2.4</div>
-          <ul><li><strong>Claim match rate</strong><span>12/20 ratio</span></li><li><strong>Claim source depth</strong><span>9/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
+          <ul><li><strong>Claim match rate</strong><span>12/20 ratio</span></li><li><strong>Claim source depth</strong><span>4 docs (capped; 9 raw)</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
           <ul><li>Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code></li><li>Code presence for claim reconciliation <code>pydantic-core/src/argument_markers.rs:1 · sha256:71fe74ddc7fe</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>
@@ -109,23 +111,23 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">4.0</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>11/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li><li>Pull-request CI workflow <code>.github/workflows/codspeed.yml:1 · sha256:b2580cad48fe</code></li><li>Pull-request CI workflow <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></li><li>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:1fd33fa8826b</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 11 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li><li>Pull-request CI workflow <code>.github/workflows/codspeed.yml:1 · sha256:b2580cad48fe</code></li><li>Pull-request CI workflow <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></li><li>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:1fd33fa8826b</code></li><li>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
             <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.6</div>
-          <ul><li><strong>CI verification depth</strong><span>3/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>6/4 workflows</span></li></ul>
+          <ul><li><strong>CI verification depth</strong><span>3/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>4 workflows (capped; 6 raw)</span></li></ul>
           <ul><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.9</div>
           <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>2/2 ratio</span></li></ul>
@@ -140,11 +142,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>pydantic-core/Cargo.toml:1 · sha256:e0dfda4bea74</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>pydantic-core/Cargo.lock:1 · sha256:79e859286a1b</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/dependabot.yml:1 · sha256:62040a26dfec</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/codspeed.yml:1 · sha256:b2580cad48fe</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:1fd33fa8826b</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/__init__.py</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/__init__.py</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/complete_schema.py:1 · sha256:67fbb9f86ee1</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/nested_schema.py:1 · sha256:5dd7f39830db</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/test_complete_benchmark.py:1 · sha256:93af73fdd79c</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/test_micro_benchmarks.py:1 · sha256:4a88116cb64c</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/test_nested_benchmark.py:1 · sha256:b257d008f043</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>pydantic-core/tests/benchmarks/test_serialization_micro.py:1 · sha256:52fce052ee06</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>Makefile:1 · sha256:0e9d9400ee80</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>pydantic-core/Makefile:1 · sha256:4ac502de0f82</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>pydantic-core/pyproject.toml:1 · sha256:99dd772c656a</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>pyproject.toml:1 · sha256:8375abce73bf</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Coverage configuration <code>.github/workflows/coverage.yml:1 · sha256:778ab27e94bf</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Coverage configuration <code>pydantic-core/pyproject.toml:1 · sha256:99dd772c656a</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Coverage configuration <code>pyproject.toml:1 · sha256:8375abce73bf</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>CI workflow runs the test suite <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>pydantic-core/Cargo.toml:1 · sha256:e0dfda4bea74</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>pydantic-core/Cargo.lock:1 · sha256:79e859286a1b</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/dependabot.yml:1 · sha256:62040a26dfec</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>CITATION.cff:1 · sha256:943d40f1504a</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>HISTORY.md:1 · sha256:4ac933062dfd</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code>)</span></li></ul>
+        <ul><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:b5e7970366d9</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:b84e54ec0671</code>)</span></li></ul>
       </article>
     </section>
   </main>

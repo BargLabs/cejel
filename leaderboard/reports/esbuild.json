@@ -5,15 +5,15 @@
     "url": "https://github.com/evanw/esbuild",
     "headSha": "6ff1d8b0d8c134e867a397eef39702a223ebef9e"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2.5,
-      "status": "info",
+      "score": 2.2,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -80,13 +80,6 @@
         },
         {
           "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "go.mod",
-          "line": 1,
-          "contentHash": "2d48dbed6151e653adc9ab5d8869cba012d167f13352e45880e59104e1e02b9b"
-        },
-        {
-          "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/ci.yml",
           "line": 1,
@@ -129,7 +122,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 4,
+          "value": 3,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -168,14 +161,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 3.1,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -192,7 +185,19 @@
           "contentHash": "b9b3bf165f6df09de1f0afc6416114470f50565fc4ad06082fc37fdcd1153c8c"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "npm/esbuild/package.json",
+            "line": 1,
+            "contentHash": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -315,7 +320,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -339,7 +344,19 @@
           "contentHash": "8475659bb5fbeb1c7090201ecd28d4650a81aad698eaff3a268b21530ceb6a57"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "a028444642bb25a2e0c4d00979f2dac83e7fe80acdd6551d238f778cdd5c4547"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -367,7 +384,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -377,19 +394,7 @@
           "contentHash": "a028444642bb25a2e0c4d00979f2dac83e7fe80acdd6551d238f778cdd5c4547"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B3 metric-derived score is 2.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "CI workflow",
-            "path": ".github/workflows/ci.yml",
-            "line": 1,
-            "contentHash": "a028444642bb25a2e0c4d00979f2dac83e7fe80acdd6551d238f778cdd5c4547"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "ci_script_depth",
@@ -488,7 +493,7 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.7,
+  "codeTrustScore": 2.6,
   "processTrustScore": 2.4,
-  "overallScore": 2.6
+  "overallScore": 2.5
 }

@@ -5,15 +5,15 @@
     "url": "https://github.com/pallets/flask",
     "headSha": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.3,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -35,6 +35,13 @@
           "path": "examples/tutorial/tests/conftest.py",
           "line": 1,
           "contentHash": "2778b7c035d917bb0909ec6ee2f9d61ccba030ff8ae635ff65a52c133ec5afca"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "examples/tutorial/tests/data.sql",
+          "line": 1,
+          "contentHash": "244a542220a64bdbf9bd3340f8280551b95e6d3248ead974fdd0a07a7dd06a0c"
         },
         {
           "kind": "test_run",
@@ -66,38 +73,10 @@
         },
         {
           "kind": "test_run",
-          "label": "Detected test file",
-          "path": "tests/conftest.py",
-          "line": 1,
-          "contentHash": "f8b008561723896a3bf1fdacd935bc5997af6f08095437501ae739616cdd9d63"
-        },
-        {
-          "kind": "test_run",
           "label": "Configured test runner",
-          "path": "docs/Makefile",
+          "path": "pyproject.toml",
           "line": 1,
-          "contentHash": "8b6587b859607f200f116e2cb043fc358e1c3a26c326b563bf348453cfc68307"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "examples/celery/pyproject.toml",
-          "line": 1,
-          "contentHash": "00d27458e466294e03bd3be48bfb8c436be5f9bd49cee885e2fb2d88f2b684b5"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "examples/javascript/pyproject.toml",
-          "line": 1,
-          "contentHash": "2efeb4bc2175dd05aa6452dd11ed761cbeb278bb3ce1de6aca2ed0caf29ce12a"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "examples/tutorial/pyproject.toml",
-          "line": 1,
-          "contentHash": "8ea666f85481f44bc7a5cef54e39ab939f92f5f2cb576f9a6b959866a3fac0aa"
+          "contentHash": "b006962b5906885658cc3f600a906d76a659a77b11cadda4c6ab6e9a0b950c2d"
         },
         {
           "kind": "coverage",
@@ -107,24 +86,12 @@
           "contentHash": "b006962b5906885658cc3f600a906d76a659a77b11cadda4c6ab6e9a0b950c2d"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "A1 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "test_run",
-            "label": "Detected test file",
-            "path": "examples/javascript/tests/conftest.py",
-            "line": 1,
-            "contentHash": "aff1ac8ea5b7c6e4d7adf67a0eae5c13cbb9adf38e1a2434e6cc7e6824c56b11"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 48,
+          "value": 59,
           "max": 27,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -166,7 +133,7 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 2.4,
+      "score": 3.2,
       "status": "warning",
       "evidence": [
         {
@@ -179,13 +146,25 @@
       ],
       "findings": [
         {
-          "severity": "warning",
-          "summary": "A non-template .env file was tracked in git history; no secret-shaped value was detected.",
+          "severity": "info",
+          "summary": "A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.",
           "evidence": {
             "kind": "secret_scan",
-            "label": ".env file (not a template) tracked in git history; no confirmed secret value found",
+            "label": "Committed .env file (no confirmed secret value found)",
             "path": "tests/test_apps/.env",
-            "contentHash": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81"
+            "line": 1,
+            "contentHash": "3739562018bb8d8aeddbb540fb4c53e61af5385fb4d3b613e784057c3129ccc0"
+          }
+        },
+        {
+          "severity": "warning",
+          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "secret_scan",
+            "label": "Committed .env file in repository tree",
+            "path": "tests/test_apps/.env",
+            "line": 1,
+            "contentHash": "3739562018bb8d8aeddbb540fb4c53e61af5385fb4d3b613e784057c3129ccc0"
           }
         }
       ],
@@ -220,14 +199,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.9,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -244,7 +223,19 @@
           "contentHash": "2c98e34b7d9219e3c3bfa19dece73405f6809703244e99076271437f68ade565"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 2.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "examples/celery/requirements.txt",
+            "line": 1,
+            "contentHash": "96eaefbbd532b79f687e17d0418807257cddf6f9c1d15aad0b11683ebf23a382"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -302,9 +293,9 @@
         {
           "kind": "artifact",
           "label": "Code presence for claim reconciliation",
-          "path": "examples/celery/src/task_app/__init__.py",
+          "path": "src/flask/__init__.py",
           "line": 1,
-          "contentHash": "172de995eb076d7ea1911f20bf4c2fcb72dbc3d7eee3e5796c4cdfa2dfd486ab"
+          "contentHash": "2daebda4dc29fed5cb36c912a6115a234e9a4b5f9c33fd795e4bfeffd0cc9386"
         }
       ],
       "findings": [
@@ -367,7 +358,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -398,7 +389,19 @@
           "contentHash": "f92d7fa6366d19dfed8f7b49e753c506c39bb17e23f0908da9dea408f0f07800"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/lock.yaml",
+            "line": 1,
+            "contentHash": "a1beaa8eb3926abfa930d944a1316e6c4b3f60de4f305e05258693f6d95e7b9a"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -549,7 +552,7 @@
   ],
   "archetype": "source",
   "verdict": "conditional",
-  "codeTrustScore": 2.5,
+  "codeTrustScore": 2.7,
   "processTrustScore": 3,
-  "overallScore": 2.8
+  "overallScore": 2.9
 }

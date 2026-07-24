@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>biomejs</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/biomejs/biome @ 01bba129afefced1c04aa69592b1b7f337a7b609</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
-      <div class="score">2.9<span>/4.0 overall</span></div>
+      <div class="score">3.0<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
-      <p class="subscores">Code 2.8 · Process 3.0</p>
+      <p class="subscores">Code 2.9 · Process 3.0</p>
+      <p class="coverage-note">code 3/5 · process 4/6 measured</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,39 +79,31 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
-          <div class="criterion-score">2.7</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>4877/4100 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>7/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>239/265 ratio</span></li></ul>
-          <ul><li>Detected test file <code>crates/biome_cli/tests/cases/assist.rs:1 · sha256:573b5be1cc14</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/biome_json_support.rs:1 · sha256:d50764af1869</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/config_extends.rs:1 · sha256:47327dbcb347</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/config_path.rs:1 · sha256:7b1c3cab9926</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/configuration.rs:1 · sha256:f4593b405a90</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/css_parsing.rs:1 · sha256:22f310515e03</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/cts_files.rs:1 · sha256:118b92335981</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/diagnostics.rs:1 · sha256:6c6865b26143</code></li><li>Configured test runner <code>Cargo.toml:1 · sha256:747223eee56f</code></li><li>Configured test runner <code>crates/biome_analyze/Cargo.toml:1 · sha256:0a40e4bb203e</code></li><li>Configured test runner <code>crates/biome_analyze_macros/Cargo.toml:1 · sha256:5e22e66c97ee</code></li><li>Configured test runner <code>crates/biome_aria/Cargo.toml:1 · sha256:4b745e00c023</code></li><li>Configured test runner <code>crates/biome_aria_metadata/Cargo.toml:1 · sha256:1c1e39b1ac92</code></li><li>Configured test runner <code>crates/biome_cli/Cargo.toml:1 · sha256:62a93dc18cc2</code></li><li>Coverage configuration <code>packages/@biomejs/js-api/vitest.config.ts:1 · sha256:f828699f2e60</code></li><li>CI workflow runs the test suite <code>.github/workflows/main.yml:1 · sha256:bba10c59142a</code></li></ul>
+          <div class="criterion-score">2.2</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>4100 ratio (capped; 7389 raw)</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>242/268 ratio</span></li></ul>
+          <ul><li>Detected test file <code>crates/biome_cli/tests/cases/assist.rs:1 · sha256:573b5be1cc14</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/biome_json_support.rs:1 · sha256:d50764af1869</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/config_extends.rs:1 · sha256:47327dbcb347</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/config_path.rs:1 · sha256:7b1c3cab9926</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/configuration.rs:1 · sha256:f4593b405a90</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/css_parsing.rs:1 · sha256:22f310515e03</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/cts_files.rs:1 · sha256:118b92335981</code></li><li>Detected test file <code>crates/biome_cli/tests/cases/diagnostics.rs:1 · sha256:6c6865b26143</code></li><li>Configured test runner <code>packages/@biomejs/js-api/vitest.config.ts:1 · sha256:f828699f2e60</code></li><li>CI workflow runs the test suite <code>.github/workflows/main.yml:1 · sha256:bba10c59142a</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>crates/biome_cli/tests/cases/assist.rs:1 · sha256:573b5be1cc14</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A2</div><h3>Data-layer isolation and secrets posture</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">3.2</div>
           <ul><li><strong>Secret cleanliness</strong><span>1/1 clean</span></li><li><strong>Environment handling depth</strong><span>1/3 practices</span></li></ul>
-          <ul><li>Data layer migration <code>crates/biome_migrate/tests/specs/migrations/all/group_level.json:1 · sha256:ebc9a6301ba7</code></li><li>info: Secret-shaped value in a test/fixture file (crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js) — likely fixture data, not a production leak; verify. (Committed secret-shaped value <code>crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js:1 · sha256:42ddda9e8f62</code>)</li></ul>
+          <ul><li>Data layer migration <code>crates/biome_migrate/tests/specs/migrations/all/group_level.json:1 · sha256:ebc9a6301ba7</code></li><li>warning: A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Data layer migration <code>crates/biome_migrate/tests/specs/migrations/all/group_level.json:1 · sha256:ebc9a6301ba7</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.2</div>
           <ul><li><strong>Declared version range ratio</strong><span>145/173 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>0.78/1 sane</span></li></ul>
           <ul><li>Dependency manifest <code>packages/@biomejs/backend-jsonrpc/package.json:1 · sha256:b39f81f670f2</code></li><li>Dependency lockfile <code>Cargo.lock:1 · sha256:125c812c4ab9</code></li><li>Dependency update config <code>.github/renovate.json5:1 · sha256:a2ac41dcfccc</code></li></ul>
-        </article><article class="criterion">
-          <div class="criterion-top">
-            <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
-            <span class="status" data-status="warning">warning</span>
-          </div>
-          <div class="criterion-score">2.0</div>
-          <ul><li><strong>Claim match rate</strong><span>12/12 ratio</span></li><li><strong>Claim source depth</strong><span>0/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
-          <ul><li>Repository claim source <code>.claude/skills/README.md:1 · sha256:925ba2986d47</code></li><li>Code presence for claim reconciliation <code>crates/biome_analyze/src/analyzer_plugin.rs:1 · sha256:5592b04fc66d</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>.claude/skills/README.md:1 · sha256:925ba2986d47</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li><li><span class="na-id">A5</span> Claim-vs-reality reconciliation — <span class="na-reason">No README or docs found — nothing is claimed about this repo, so there is nothing for A5 to reconcile against.</span></li></ul>
         </div>
       </section>
       <section>
@@ -117,26 +111,26 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">4.0</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>27/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code></li><li>Pull-request CI workflow <code>.github/workflows/agent_scan.yml:1 · sha256:a56db26d82be</code></li><li>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:60a60574b234</code></li><li>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:543aeb946a86</code></li><li>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:a56979cfb10c</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 27 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code></li><li>Pull-request CI workflow <code>.github/workflows/agent_scan.yml:1 · sha256:a56db26d82be</code></li><li>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:60a60574b234</code></li><li>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:543aeb946a86</code></li><li>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:a56979cfb10c</code></li><li>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.1</div>
-          <ul><li><strong>CI verification depth</strong><span>2/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>13/4 workflows</span></li></ul>
+          <ul><li><strong>CI verification depth</strong><span>2/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>4 workflows (capped; 13 raw)</span></li></ul>
           <ul><li>CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.3</div>
-          <ul><li><strong>Audit artifact depth</strong><span>15/3 files</span></li><li><strong>Audit freshness depth</strong><span>1/15 ratio</span></li></ul>
+          <ul><li><strong>Audit artifact depth</strong><span>3 files (capped; 15 raw)</span></li><li><strong>Audit freshness depth</strong><span>1/15 ratio</span></li></ul>
           <ul><li>Audit or changelog artifact <code>RELEASES.md:1 · sha256:866544ca7756</code></li><li>Audit or changelog artifact <code>crates/biome_deserialize/CHANGELOG.md:1 · sha256:5601252ef960</code></li><li>Audit or changelog artifact <code>packages/@biomejs/backend-jsonrpc/CHANGELOG.md:1 · sha256:9f04dd92dcb3</code></li><li>Audit or changelog artifact <code>packages/@biomejs/cli-darwin-arm64/CHANGELOG.md:1 · sha256:86d0667e6a39</code></li><li>Audit or changelog artifact <code>packages/@biomejs/cli-darwin-x64/CHANGELOG.md:1 · sha256:551e91efcac5</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
@@ -156,11 +150,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/agent_scan.yml:1 · sha256:a56db26d82be</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:60a60574b234</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull request template <code>.github/PULL_REQUEST_TEMPLATE.md:1 · sha256:543aeb946a86</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Review gate configuration <code>.github/CODEOWNERS:1 · sha256:a56979cfb10c</code></span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/assist.rs:1 · sha256:573b5be1cc14</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/biome_json_support.rs:1 · sha256:d50764af1869</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/config_extends.rs:1 · sha256:47327dbcb347</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/config_path.rs:1 · sha256:7b1c3cab9926</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/configuration.rs:1 · sha256:f4593b405a90</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/css_parsing.rs:1 · sha256:22f310515e03</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/cts_files.rs:1 · sha256:118b92335981</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>crates/biome_cli/tests/cases/diagnostics.rs:1 · sha256:6c6865b26143</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>packages/@biomejs/js-api/vitest.config.ts:1 · sha256:f828699f2e60</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>CI workflow runs the test suite <code>.github/workflows/main.yml:1 · sha256:bba10c59142a</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>packages/@biomejs/backend-jsonrpc/package.json:1 · sha256:b39f81f670f2</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>Cargo.lock:1 · sha256:125c812c4ab9</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/renovate.json5:1 · sha256:a2ac41dcfccc</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>RELEASES.md:1 · sha256:866544ca7756</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>crates/biome_deserialize/CHANGELOG.md:1 · sha256:5601252ef960</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>packages/@biomejs/backend-jsonrpc/CHANGELOG.md:1 · sha256:9f04dd92dcb3</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>packages/@biomejs/cli-darwin-arm64/CHANGELOG.md:1 · sha256:86d0667e6a39</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>packages/@biomejs/cli-darwin-x64/CHANGELOG.md:1 · sha256:551e91efcac5</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>info: Secret-shaped value in a test/fixture file (crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js) — likely fixture data, not a production leak; verify. (Committed secret-shaped value <code>crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js:1 · sha256:42ddda9e8f62</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>.claude/skills/README.md:1 · sha256:925ba2986d47</code>)</span></li><li><strong>B6 - Privileged-operation human gating</strong><span>warning: B6 metric-derived score is 1.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:a56979cfb10c</code>)</span></li></ul>
+        <ul><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>warning: A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Data layer migration <code>crates/biome_migrate/tests/specs/migrations/all/group_level.json:1 · sha256:ebc9a6301ba7</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/actions_linter.yml:1 · sha256:517c943a21f6</code>)</span></li><li><strong>B6 - Privileged-operation human gating</strong><span>warning: B6 metric-derived score is 1.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CODEOWNERS/required-review gate on protected paths <code>.github/CODEOWNERS:1 · sha256:a56979cfb10c</code>)</span></li></ul>
       </article>
     </section>
   </main>

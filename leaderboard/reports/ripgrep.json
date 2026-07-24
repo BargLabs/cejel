@@ -5,14 +5,14 @@
     "url": "https://github.com/BurntSushi/ripgrep",
     "headSha": "d5b85d44057ff729a89be9c6549958c45d95aa99"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 1.9,
+      "score": 0.9,
       "status": "warning",
       "evidence": [
         {
@@ -70,54 +70,12 @@
           "path": "tests/hay.rs",
           "line": 1,
           "contentHash": "ee8d21ddd6f053f2f5427847e2a7bdc80913570cc410ced9508465ff66549684"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "Cargo.toml",
-          "line": 1,
-          "contentHash": "90d447c5a8566cbfeeaad06f756c1e2a5fa51db996c617a30c2b2b676c77d674"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/cli/Cargo.toml",
-          "line": 1,
-          "contentHash": "b24e072950632ed43ab628602a8e4202a1e6dde4d62b3da4321692028c05cb16"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/globset/Cargo.toml",
-          "line": 1,
-          "contentHash": "f547f7255d0c852dd7589b73e48b071e730a7df911630abb4db70f60ac6a0ff1"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/grep/Cargo.toml",
-          "line": 1,
-          "contentHash": "6c23af13f11a36bf47d5ff3173d9ac61b91cd189466ac42305cd79d35c2156da"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/ignore/Cargo.toml",
-          "line": 1,
-          "contentHash": "41f63736841affabe0e46ba931e45fc12616b14b62bf559a262a980ba93bf2bb"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/matcher/Cargo.toml",
-          "line": 1,
-          "contentHash": "366590fa825704243df0a6a4f85da6b84efb76ba5758bb26406c493520c8c564"
         }
       ],
       "findings": [
         {
-          "severity": "info",
-          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "severity": "warning",
+          "summary": "A1 metric-derived score is 0.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "test_run",
             "label": "Detected test file",
@@ -150,7 +108,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 6,
+          "value": 0,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -189,14 +147,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 3.1,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -213,7 +171,19 @@
           "contentHash": "7d0fc6b674662a91a640e1ba17027873ea109e63bdc192beb8413d7d4a8879cf"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "Cargo.toml",
+            "line": 1,
+            "contentHash": "90d447c5a8566cbfeeaad06f756c1e2a5fa51db996c617a30c2b2b676c77d674"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -336,7 +306,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "critical",
       "evidence": [
         {
           "kind": "ci_run",
@@ -353,7 +323,19 @@
           "contentHash": "190aea818537f3677d78d619fdda1ead53fbb6006b7b2799e4f4388057e722b7"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "critical",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "1c75224e8d94f8b92576c54fa130ce97dd7b9ffe2bafd850c24595836ed025dc"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -381,7 +363,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 1,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -393,8 +375,8 @@
       ],
       "findings": [
         {
-          "severity": "critical",
-          "summary": "B3 metric-derived score is 1.0/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 1.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "ci_run",
             "label": "CI workflow",
@@ -502,7 +484,7 @@
   ],
   "archetype": "source",
   "verdict": "at_risk",
-  "codeTrustScore": 2.4,
+  "codeTrustScore": 2.1,
   "processTrustScore": 2,
-  "overallScore": 2.2
+  "overallScore": 2.1
 }

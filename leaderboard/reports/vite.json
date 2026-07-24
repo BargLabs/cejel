@@ -5,15 +5,15 @@
     "url": "https://github.com/vitejs/vite",
     "headSha": "5d95f1631bfde08ee2613a53517dd5ea5d388cda"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -86,13 +86,6 @@
           "contentHash": "65b15bd911afce460924600b6c2ce3e2ae6a22e809a11a693b27ed1f057374ad"
         },
         {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "vitest.config.ts",
-          "line": 1,
-          "contentHash": "ca84ddb6a6ea2c8e4a4d39dbad7d8a698805b08263f5aacd682bb0c93abab9a8"
-        },
-        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/ci.yml",
@@ -100,12 +93,24 @@
           "contentHash": "48ba7a33148b56d3862af07e21877c2acbe7a257e1aa74dd6ecae5a33a3083ad"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "packages/create-vite/__tests__/cli.spec.ts",
+            "line": 1,
+            "contentHash": "32713f162d0d6863800ff16aec4cf70ea12a2179d140b060d52c4cbbd8509af3"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 367,
+          "value": 381,
           "max": 317,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -135,7 +140,7 @@
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
           "value": 168,
-          "max": 366,
+          "max": 380,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -147,7 +152,7 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 2.4,
+      "score": 3.2,
       "status": "warning",
       "evidence": [
         {
@@ -160,13 +165,25 @@
       ],
       "findings": [
         {
-          "severity": "warning",
-          "summary": "A non-template .env file was tracked in git history; no secret-shaped value was detected.",
+          "severity": "info",
+          "summary": "A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.",
           "evidence": {
             "kind": "secret_scan",
-            "label": ".env file (not a template) tracked in git history; no confirmed secret value found",
+            "label": "Committed .env file (no confirmed secret value found)",
             "path": "packages/vite/src/node/__tests__/env/.env",
-            "contentHash": "5d95f1631bfde08ee2613a53517dd5ea5d388cda"
+            "line": 1,
+            "contentHash": "54001638a31b8a44699703e82a891515c8791f8c236283e92b53858d151cb03e"
+          }
+        },
+        {
+          "severity": "warning",
+          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "secret_scan",
+            "label": "Committed .env file in repository tree",
+            "path": "packages/vite/src/node/__tests__/env/.env",
+            "line": 1,
+            "contentHash": "54001638a31b8a44699703e82a891515c8791f8c236283e92b53858d151cb03e"
           }
         }
       ],
@@ -197,7 +214,7 @@
       "title": "Production readiness",
       "category": "code_trust",
       "score": 2.8,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "prod_check",
@@ -215,7 +232,7 @@
         },
         {
           "kind": "prod_check",
-          "label": "Deploy configuration",
+          "label": "Release deploy configuration",
           "path": "netlify.toml",
           "line": 1,
           "contentHash": "03ae0d2229575cd7cf037a3dbc36111d24adfeca5c6c92e81cc286c8217f00fd"
@@ -228,7 +245,19 @@
           "contentHash": "659f1a1980f9dcf918aac8e7cdd6dfb4c1438cd72e3507bb71f8ceee6d195e24"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A3 metric-derived score is 2.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "prod_check",
+            "label": "Build or typecheck script",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "65b15bd911afce460924600b6c2ce3e2ae6a22e809a11a693b27ed1f057374ad"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "prod_readiness_primitives",
@@ -252,7 +281,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 72,
+          "value": 57,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -276,7 +305,7 @@
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.8,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -349,9 +378,9 @@
         {
           "kind": "artifact",
           "label": "Code presence for claim reconciliation",
-          "path": "packages/create-vite/__tests__/cli.spec.ts",
+          "path": "packages/create-vite/index.js",
           "line": 1,
-          "contentHash": "32713f162d0d6863800ff16aec4cf70ea12a2179d140b060d52c4cbbd8509af3"
+          "contentHash": "69362351fdf4a07c10cc7caf6c5cd3c2b337401e4fac066b0542fb09810b46c3"
         },
         {
           "kind": "claim_reconciliation",
@@ -421,7 +450,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -452,7 +481,19 @@
           "contentHash": "8de7596292ebaf1f02673535c23bb79edee5af11a0de249ec6a412f8b79642e0"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "48ba7a33148b56d3862af07e21877c2acbe7a257e1aa74dd6ecae5a33a3083ad"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -619,7 +660,7 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.6,
+  "codeTrustScore": 2.8,
   "processTrustScore": 4,
-  "overallScore": 3.3
+  "overallScore": 3.4
 }

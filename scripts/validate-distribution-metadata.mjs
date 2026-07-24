@@ -10,12 +10,25 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
   '../.github/workflows/publish-distribution.yml',
   import.meta.url,
 );
+const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml', import.meta.url);
+const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
+const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
+const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
+const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
+const ACTION_PATH = new URL('../action/action.yml', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
 const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf8');
 const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
 const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
+const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
+const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
+const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
+const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
+const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
+const action = readFileSync(ACTION_PATH, 'utf8');
+const ACTION_USE_PATTERN = /^\s*(?:-\s*)?uses:\s*([^#\s]+)(?:\s+#.*)?$/gm;
 
 function requireEqual(actual, expected, field) {
   if (actual !== expected) {
@@ -73,7 +86,7 @@ requireIncludes(
 );
 requireIncludes(
   distributionWorkflow,
-  'uses: actions/attest@v4',
+  'uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6',
   'distribution workflow signed provenance',
 );
 requireIncludes(
@@ -94,6 +107,67 @@ requireIncludes(
 );
 if (mcpPublishJob.includes('ref: ${{ github.sha }}')) {
   throw new Error('MCP registry publish checkout must not use the dispatch commit.');
+}
+requireIncludes(
+  mcpPublishJob,
+  'MCP_PUBLISHER_VERSION: v1.8.0',
+  'pinned MCP publisher version',
+);
+requireIncludes(
+  mcpPublishJob,
+  'MCP_PUBLISHER_LINUX_AMD64_SHA256: 1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf',
+  'pinned MCP publisher amd64 checksum',
+);
+requireIncludes(
+  mcpPublishJob,
+  'MCP_PUBLISHER_LINUX_ARM64_SHA256: c978982c60e1b4903a976de090f04dc4fac4a320daa50704fcad2dbc93433d62',
+  'pinned MCP publisher arm64 checksum',
+);
+if (mcpPublishJob.includes('/releases/latest/')) {
+  throw new Error('MCP publisher download must use a pinned release, not releases/latest.');
+}
+
+requireEqual(
+  leaderboardIndex,
+  leaderboard,
+  'deployed leaderboard index/leaderboard artifact',
+);
+
+requireIncludes(ciWorkflow, 'uses: ./action', 'CI candidate Action smoke');
+requireIncludes(ciWorkflow, 'test -s .cejel-action/report.json', 'CI candidate report assertion');
+requireIncludes(
+  ciWorkflow,
+  'test -s .cejel-action/certificate.html',
+  'CI candidate certificate assertion',
+);
+requireIncludes(ciWorkflow, 'test -s .cejel-action/summary.json', 'CI candidate summary assertion');
+requireIncludes(ciWorkflow, 'path: .cejel-action/', 'CI candidate artifact upload');
+requireIncludes(ciWorkflow, 'include-hidden-files: true', 'CI hidden artifact upload');
+requireIncludes(ciWorkflow, 'if-no-files-found: error', 'CI missing-artifact failure');
+
+const listFormActionReference = 'owner/action@0123456789abcdef0123456789abcdef01234567';
+requireEqual(
+  [...`- uses: ${listFormActionReference}`.matchAll(ACTION_USE_PATTERN)][0]?.[1],
+  listFormActionReference,
+  'list-form action dependency matcher',
+);
+
+for (const [name, workflow] of [
+  ['release workflow', releaseWorkflow],
+  ['distribution workflow', distributionWorkflow],
+  ['CLA workflow', claWorkflow],
+  ['CI workflow', ciWorkflow],
+  ['advertised composite action', action],
+]) {
+  for (const match of workflow.matchAll(ACTION_USE_PATTERN)) {
+    const reference = match[1];
+    if (!reference || reference.startsWith('./')) continue;
+    const separator = reference.lastIndexOf('@');
+    const revision = separator >= 0 ? reference.slice(separator + 1) : '';
+    if (!/^[0-9a-f]{40}$/.test(revision)) {
+      throw new Error(`${name} action dependency is not commit-pinned: ${reference}`);
+    }
+  }
 }
 
 process.stdout.write(

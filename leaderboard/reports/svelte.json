@@ -5,15 +5,15 @@
     "url": "https://github.com/sveltejs/svelte",
     "headSha": "b4d1583ae20f3869a88a731d9a265c546c099f66"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.6,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -86,6 +86,13 @@
           "contentHash": "cc47e94e6601c5246c5766eb74deef8cdb1f3b2cb26e34d97a67becd3102013f"
         },
         {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "vitest.config.js",
+          "line": 1,
+          "contentHash": "301bf5f184b8e8f3210b21a13bae0bc9c8635f59fddd925f7008b01fd093f4d6"
+        },
+        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/ci.yml",
@@ -93,24 +100,12 @@
           "contentHash": "1bccd24d65cbf16811e16532e5a51ae8cabcca3340b3f7fa64df467213480025"
         }
       ],
-      "findings": [
-        {
-          "severity": "info",
-          "summary": "Test suite files are present, but no coverage configuration was detected.",
-          "evidence": {
-            "kind": "test_run",
-            "label": "Detected test file",
-            "path": "benchmarking/benchmarks/reactivity/tests/clean_effects.bench.js",
-            "line": 1,
-            "contentHash": "1937606d3d19f1c87b8d43879d77abdb37f353734de13352abf80209af05033c"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 3011,
+          "value": 7886,
           "max": 422,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -139,8 +134,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 1949,
-          "max": 1949,
+          "value": 1951,
+          "max": 1951,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -195,14 +190,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 3.1,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -219,7 +214,19 @@
           "contentHash": "18d46c38bd3f9067094c9d7cb676ee717ad65ea9932854524f480a706e4bf372"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "packages/svelte/package.json",
+            "line": 1,
+            "contentHash": "1b17c4f21e7591c55d3c73035c8857076418785dd246173c0626b1eb46f0624f"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -270,9 +277,9 @@
         {
           "kind": "claim_reconciliation",
           "label": "Repository claim source",
-          "path": ".changeset/README.md",
+          "path": "README.md",
           "line": 1,
-          "contentHash": "bf33c79d7e0477dcad0e0b98c8d364db6fdb794d62ef68b6153d61e868b3bdf0"
+          "contentHash": "f58cdd71cf9dfac9397cc683e5116cd100e685c329db534cca6781ff16894b73"
         },
         {
           "kind": "artifact",
@@ -289,9 +296,9 @@
           "evidence": {
             "kind": "claim_reconciliation",
             "label": "Repository claim source",
-            "path": ".changeset/README.md",
+            "path": "README.md",
             "line": 1,
-            "contentHash": "bf33c79d7e0477dcad0e0b98c8d364db6fdb794d62ef68b6153d61e868b3bdf0"
+            "contentHash": "f58cdd71cf9dfac9397cc683e5116cd100e685c329db534cca6781ff16894b73"
           }
         }
       ],
@@ -342,7 +349,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -373,7 +380,19 @@
           "contentHash": "5637321f410f49df2f80c71f80d8f567c918a5b226cdf64c7c15565bf58a3f1a"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/autofix.yml",
+            "line": 1,
+            "contentHash": "02f5a1442676afa2334eb1a70674875de9966e7871680fb1fcc4f316d7b501e7"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",

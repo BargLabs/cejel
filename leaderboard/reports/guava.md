@@ -1,22 +1,22 @@
 # Cejel Trust Report - guava
 
 - Product: guava
-- Rubric: witan-rubric-v6-2026-07-21
-- Generated: 2026-07-21T15:56:38.161Z
+- Rubric: witan-rubric-v9-2026-07-22
+- Generated: 2026-07-22T20:52:22.603Z
 - Repository: https://github.com/google/guava @ 486837d756e6d48864620e91b0761467e2abe744
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 1.3 | critical | Test-to-source file ratio: 1242 ratio (cap 1805); Static coverage percentage: 0/100 percent; Verification script ratio: 0 ratio (cap 4); Non-hollow test share: 842/1112 ratio |
+| A1 | Test integrity and regression signal | Code trust | 1.3 | warning | Test-to-source file ratio: 1242/1805 ratio; Static coverage percentage: 0/100 percent; Verification script ratio: 0/4 ratio; Non-hollow test share: 842/1112 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | N/A | not_applicable | N/A |
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
-| A4 | Dependency hygiene | Code trust | 1.1 | critical | Declared version range ratio: 0/1 ratio; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
-| A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
+| A4 | Dependency hygiene | Code trust | 1.1 | warning | Declared version range ratio: 0/1 ratio; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
+| A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 3.2 | info | PR trace primitive coverage: 3 signals (cap 2); Recent PR merge ratio: 0/1 ratio |
-| B3 | CI and QA discipline | Process trust | 1.1 | critical | CI verification depth: 0 signals (cap 4); PR-gate CI workflow count: 2 workflows (cap 4) |
+| B2 | PR outcome traceability | Process trust | 3.2 | warning | PR trace primitive coverage: 2 signals (capped; 3 raw); Recent PR merge ratio: 0/1 ratio |
+| B3 | CI and QA discipline | Process trust | 1.1 | warning | CI verification depth: 0/4 signals; PR-gate CI workflow count: 2/4 workflows |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
@@ -40,12 +40,12 @@
 - A1: Detected test file (android/guava-testlib/test/com/google/common/collect/testing/AndroidIncompatible.java:1, sha256:821fc20d378d)
 - A1: Detected test file (android/guava-testlib/test/com/google/common/collect/testing/FeatureSpecificTestSuiteBuilderTest.java:1, sha256:182905e8d6a9)
 - A1: Detected test file (android/guava-testlib/test/com/google/common/collect/testing/HelpersTest.java:1, sha256:81efd950abb2)
-- A1: Detected test file (android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1, sha256:d5d43f647dc0) (info)
+- A1: Detected test file (android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1, sha256:d5d43f647dc0) (warning)
 - A2: N/A — No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.
-- A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.
+- A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.
 - A4: Dependency manifest (android/guava-bom/pom.xml:1, sha256:e636a4e3c748)
 - A4: Dependency update config (.github/dependabot.yml:1, sha256:3a90b5dfd045)
-- A4: Dependency manifest (android/guava-bom/pom.xml:1, sha256:e636a4e3c748) (critical)
+- A4: Dependency manifest (android/guava-bom/pom.xml:1, sha256:e636a4e3c748) (warning)
 - A5: Repository claim source (README.md:1, sha256:20dc329487f3)
 - A5: Code presence for claim reconciliation (android/guava-testlib/src/com/google/common/collect/testing/AbstractCollectionTestSuiteBuilder.java:1, sha256:2e783096169f)
 - A5: Repository claim source (README.md:1, sha256:20dc329487f3) (warning)
@@ -53,15 +53,17 @@
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda)
 - B2: Pull-request CI workflow (.github/workflows/scorecard.yml:1, sha256:265a949adbc0)
 - B2: Pull request template (.github/pull_request_template.md:1, sha256:def6a98ca1c6)
+- B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda) (warning)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda)
-- B3: CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda) (critical)
+- B3: CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda) (warning)
 - B4: N/A — No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo.
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1, sha256:d5d43f647dc0))
-- A4 critical: A4 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (android/guava-bom/pom.xml:1, sha256:e636a4e3c748))
+- A1 warning: A1 metric-derived score is 1.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file (android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1, sha256:d5d43f647dc0))
+- A4 warning: A4 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (android/guava-bom/pom.xml:1, sha256:e636a4e3c748))
 - A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:20dc329487f3))
-- B3 critical: B3 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda))
+- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda))
+- B3 warning: B3 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda))

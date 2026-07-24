@@ -5,15 +5,15 @@
     "url": "https://github.com/django/django",
     "headSha": "65a9f14196c338d70889bd54753370606b3fb4eb"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.8,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -86,20 +86,6 @@
           "contentHash": "47d70986367bd27c611f42ae78c7326728a6838545ca9d6734d052e8d727815c"
         },
         {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "pyproject.toml",
-          "line": 1,
-          "contentHash": "9442fea5438e1078049605455d3b489ec8dc5a8d4dc333e2849c330706dc8258"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "tests/.coveragerc",
-          "line": 1,
-          "contentHash": "7cf47b14a2b7c98951de7ec8ef363809187c5229aaa344a70c4333f92fbb9737"
-        },
-        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/schedule_tests.yml",
@@ -107,12 +93,24 @@
           "contentHash": "f2ab5bab19a11d7cdbfa65610ce4841a198427e449c765a04bc424cd67c7521b"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "django/test/__init__.py",
+            "line": 1,
+            "contentHash": "5f5d82f7c94a379256d7ec26b3b07a39a313a3e2e2f74c1a4298df244d55dc01"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 2036,
+          "value": 2266,
           "max": 1,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -155,7 +153,7 @@
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
       "score": 2.8,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -163,7 +161,17 @@
           "path": "django/conf/app_template/migrations/__init__.py-tpl"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A2 metric-derived score is 2.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "Data layer migration",
+            "path": "django/conf/app_template/migrations/__init__.py-tpl"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "secret_cleanliness",
@@ -195,7 +203,7 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
@@ -261,10 +269,11 @@
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
       "score": 0,
-      "status": "insufficient_data",
+      "status": "not_applicable",
       "evidence": [],
       "findings": [],
-      "metrics": []
+      "metrics": [],
+      "notes": "No README or docs found — nothing is claimed about this repo, so there is nothing for A5 to reconcile against."
     },
     {
       "id": "B1",
@@ -282,7 +291,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -313,7 +322,19 @@
           "contentHash": "3c3cc0e20540e18a4dd59776eccc575136f0f0f173324f5d5552e553e091dffe"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/benchmark.yml",
+            "line": 1,
+            "contentHash": "0458e12b829d6b455f5bf2e62dc7fa8f87313174d73086201f275831ffd3c16c"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",

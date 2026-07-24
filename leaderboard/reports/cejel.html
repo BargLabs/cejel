@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>cejel</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/BargLabs/cejel @ 0be03171c810023c65806d87f25ee4873a377cea</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
       <div class="score">2.8<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
       <p class="subscores">Code 2.3 · Process 3.2</p>
+      <p class="coverage-note">code 5/5 · process 3/6 measured</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,7 +79,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.0</div>
           <ul><li><strong>Test-to-source file ratio</strong><span>20/27 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>20/20 ratio</span></li></ul>
@@ -85,19 +87,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A2</div><h3>Data-layer isolation and secrets posture</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">3.3</div>
           <ul><li><strong>Secret cleanliness</strong><span>1/1 clean</span></li><li><strong>Environment handling depth</strong><span>1/3 practices</span></li><li><strong>Crypto comparison hygiene</strong><span>1/1 clean</span></li></ul>
-          <ul><li>DB client import <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code></li><li>Constant-time secret/HMAC comparison <code>src/witan/repo-signals.ts:1 · sha256:383f202763dd</code></li><li>info: Secret-shaped value in a test/fixture file (src/witan/__tests__/repo-signals.test.ts) — likely fixture data, not a production leak; verify. (Committed secret-shaped value <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code>)</li><li>info: A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify. (Non-constant-time secret comparison <code>src/witan/__tests__/lua-rubric-refinements.test.ts:272 · sha256:c5ab7388c834</code>)</li></ul>
+          <ul><li>DB client import <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code></li><li>Constant-time secret/HMAC comparison <code>src/witan/repo-signals.ts:1 · sha256:383f202763dd</code></li><li>info: A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify. (Non-constant-time secret comparison <code>src/witan/__tests__/lua-rubric-refinements.test.ts:272 · sha256:c5ab7388c834</code>)</li><li>warning: A2 metric-derived score is 3.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (DB client import <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A3</div><h3>Production readiness</h3></div>
             <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">2.3</div>
-          <ul><li><strong>Production-readiness primitive coverage</strong><span>3/6 primitives</span></li><li><strong>Production workflow depth</strong><span>6/6 signals</span></li><li><strong>Observability depth</strong><span>13/4 signals</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
-          <ul><li>Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>Deploy configuration <code>Dockerfile:1 · sha256:219ff891874d</code></li><li>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code>)</li></ul>
+          <ul><li><strong>Production-readiness primitive coverage</strong><span>3/6 primitives</span></li><li><strong>Production workflow depth</strong><span>6/6 signals</span></li><li><strong>Observability depth</strong><span>4 signals (capped; 7 raw)</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
+          <ul><li>Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>Release deploy configuration <code>vercel.json:1 · sha256:1a7f3230d16c</code></li><li>Container build configuration <code>Dockerfile:1 · sha256:219ff891874d</code></li><li>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
@@ -113,32 +115,31 @@ code { color: var(--warn); overflow-wrap: anywhere; }
           </div>
           <div class="criterion-score">2.2</div>
           <ul><li><strong>Claim match rate</strong><span>12/13 ratio</span></li><li><strong>Claim source depth</strong><span>1/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
-          <ul><li>Repository claim source <code>README.md:1 · sha256:56ddeb464198</code></li><li>Code presence for claim reconciliation <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:56ddeb464198</code>)</li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:56ddeb464198</code></li><li>Code presence for claim reconciliation <code>src/http/server.ts:1 · sha256:f68a25887561</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:56ddeb464198</code>)</li></ul>
         </article></div>
-
       </section>
       <section>
         <h2>Process trust</h2>
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">4.0</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>4/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>Pull-request CI workflow <code>.github/workflows/cla.yml:1 · sha256:3501cf464dbc</code></li><li>Pull-request CI workflow <code>.github/workflows/publish-distribution.yml:1 · sha256:b16f13592b84</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 4 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>Pull-request CI workflow <code>.github/workflows/cla.yml:1 · sha256:3501cf464dbc</code></li><li>Pull-request CI workflow <code>.github/workflows/publish-distribution.yml:1 · sha256:b16f13592b84</code></li><li>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.4</div>
           <ul><li><strong>CI verification depth</strong><span>4/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
-          <ul><li>Test script <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li><li>warning: B3 metric-derived score is 2.4/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Test script <code>package.json:1 · sha256:c1c359ec5669</code>)</li></ul>
+          <ul><li>Test script <code>package.json:1 · sha256:c1c359ec5669</code></li><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.3</div>
           <ul><li><strong>Human gate documented</strong><span>1/1 present</span></li><li><strong>Fail-closed privilege check present</strong><span>1/1 present</span></li><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>0/1 present</span></li></ul>
@@ -153,11 +154,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/cla.yml:1 · sha256:3501cf464dbc</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/publish-distribution.yml:1 · sha256:b16f13592b84</code></span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/mcp-scan-parity.test.ts:1 · sha256:34b3efdfe7b2</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/offline-guarantee.test.ts:1 · sha256:803f3b84f346</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/product-identity.test.ts:1 · sha256:8a8ce5c1aada</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/publish-installable.test.ts:1 · sha256:8379557a0d39</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/summary.test.ts:1 · sha256:de47e2cae9da</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/__tests__/terminal.test.ts:1 · sha256:d16d09ff7e09</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>src/witan/__tests__/attestation.test.ts:1 · sha256:4e18dabfae27</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>package.json:1 · sha256:c1c359ec5669</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>CI workflow runs the test suite <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>Test script <code>package.json:1 · sha256:c1c359ec5669</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>Documents privileged operations as human-executed/gated <code>leaderboard/reports/alfred.md:1 · sha256:4f6e2d964969</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>Fail-closed privilege-membership check before role elevation <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>src/__tests__/index.test.ts:1 · sha256:32fc957d514d</code>)</span></li><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>info: Secret-shaped value in a test/fixture file (src/witan/__tests__/repo-signals.test.ts) — likely fixture data, not a production leak; verify. (Committed secret-shaped value <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code>)</span></li><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>info: A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify. (Non-constant-time secret comparison <code>src/witan/__tests__/lua-rubric-refinements.test.ts:272 · sha256:c5ab7388c834</code>)</span></li><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:56ddeb464198</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 2.4/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Test script <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li></ul>
+        <ul><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>info: A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify. (Non-constant-time secret comparison <code>src/witan/__tests__/lua-rubric-refinements.test.ts:272 · sha256:c5ab7388c834</code>)</span></li><li><strong>A2 - Data-layer isolation and secrets posture</strong><span>warning: A2 metric-derived score is 3.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (DB client import <code>src/witan/__tests__/repo-signals.test.ts:1 · sha256:213989426f8b</code>)</span></li><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>package.json:1 · sha256:c1c359ec5669</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:56ddeb464198</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:f9d89e4c65a1</code>)</span></li></ul>
       </article>
     </section>
   </main>

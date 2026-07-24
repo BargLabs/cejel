@@ -5,15 +5,15 @@
     "url": "https://github.com/fastapi/fastapi",
     "headSha": "7cb06f360dd44efac059848df1a9beee7643b018"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2,
-      "status": "warning",
+      "score": 2.3,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -72,6 +72,13 @@
           "contentHash": "94ffac1f3a8a63f0305572ff0ff9d8809d4a140268c329cd2f3c02c90d1728ab"
         },
         {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "pyproject.toml",
+          "line": 1,
+          "contentHash": "b4181f59f23ff843bd9a284a3fdcf710850a928331ad8b0f91f0d7f00c98e964"
+        },
+        {
           "kind": "coverage",
           "label": "Coverage configuration",
           "path": "pyproject.toml",
@@ -86,19 +93,7 @@
           "contentHash": "5e24f8017646f4a0e8defb39b6b22367ca47dfed8f1190aff4584151f0e87152"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "A1 metric-derived score is 2.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "test_run",
-            "label": "Detected test file",
-            "path": "docs_src/app_testing/app_a_py310/test_main.py",
-            "line": 1,
-            "contentHash": "e7206e066c05dfff12979153ccefe474986f5fc8ca2a55c3e2738ad6ef788af2"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "test_to_source_ratio",
@@ -122,7 +117,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 1,
+          "value": 2,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -161,7 +156,7 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
@@ -237,65 +232,11 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 2,
-      "status": "warning",
-      "evidence": [
-        {
-          "kind": "claim_reconciliation",
-          "label": "Repository claim source",
-          "path": "README.md",
-          "line": 1,
-          "contentHash": "6ed06ac06d4fbde636ed60d0b115e5fba581910a3e2c4b420c3db7f25dd33658"
-        },
-        {
-          "kind": "artifact",
-          "label": "Code presence for claim reconciliation",
-          "path": "tests/test_modules_same_name_body/app/__init__.py"
-        }
-      ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
-          "evidence": {
-            "kind": "claim_reconciliation",
-            "label": "Repository claim source",
-            "path": "README.md",
-            "line": 1,
-            "contentHash": "6ed06ac06d4fbde636ed60d0b115e5fba581910a3e2c4b420c3db7f25dd33658"
-          }
-        }
-      ],
-      "metrics": [
-        {
-          "name": "claim_match_rate",
-          "label": "Claim match rate",
-          "value": 4,
-          "max": 6,
-          "weight": 0.5,
-          "unit": "ratio",
-          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
-        },
-        {
-          "name": "claim_source_depth",
-          "label": "Claim source depth",
-          "value": 2,
-          "max": 4,
-          "kind": "saturating_count",
-          "weight": 0.35,
-          "unit": "docs",
-          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
-        },
-        {
-          "name": "reconciliation_artifact_depth",
-          "label": "Reconciliation artifact depth",
-          "value": 0,
-          "max": 3,
-          "weight": 0.15,
-          "unit": "artifacts",
-          "description": "Requires a specific claim-reality artifact to reach full depth."
-        }
-      ]
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
     },
     {
       "id": "B1",
@@ -313,7 +254,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -337,7 +278,19 @@
           "contentHash": "7d91c15909bf6a2063c05859e07b25c94ea771f0221ae605896d7629d220f8f0"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/add-to-project.yml",
+            "line": 1,
+            "contentHash": "74f130b855a5aad1b33855f5a3408cd37e0012624f85f2e99195495d69a93515"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -365,7 +318,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.7,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -375,7 +328,19 @@
           "contentHash": "74f130b855a5aad1b33855f5a3408cd37e0012624f85f2e99195495d69a93515"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/add-to-project.yml",
+            "line": 1,
+            "contentHash": "74f130b855a5aad1b33855f5a3408cd37e0012624f85f2e99195495d69a93515"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "ci_script_depth",
@@ -490,7 +455,7 @@
   ],
   "archetype": "source",
   "verdict": "conditional",
-  "codeTrustScore": 2.5,
+  "codeTrustScore": 3,
   "processTrustScore": 3.2,
-  "overallScore": 2.9
+  "overallScore": 3.1
 }

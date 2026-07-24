@@ -5,15 +5,15 @@
     "url": "https://github.com/fmtlib/fmt",
     "headSha": "a79df4504cd4e42ed004b1113fb82171e62ed822"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2.8,
-      "status": "info",
+      "score": 2.3,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -46,6 +46,13 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
+          "path": "test/c-test.c",
+          "line": 1,
+          "contentHash": "1da68512e63d1e1cb7ac48d8bcc34862ebf6e51cb9d9f29ac798210cc4ea21eb"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
           "path": "test/chrono-test.cc",
           "line": 1,
           "contentHash": "64b8408d67a547863c98f249ed1486d46cf7cc677fc5b012b2efc334e6f02ae2"
@@ -66,52 +73,10 @@
         },
         {
           "kind": "test_run",
-          "label": "Detected test file",
-          "path": "test/cuda-test/cpp14.cc",
-          "line": 1,
-          "contentHash": "48b894a0066425e00911d72850bf3dfc10a6a278a15e44d74b24743ad489a954"
-        },
-        {
-          "kind": "test_run",
           "label": "Configured test runner",
           "path": "CMakeLists.txt",
           "line": 1,
           "contentHash": "a5f0dc122b68a7092bba46c206152c26344eca12dd510f1df8b2f31a496fecd7"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "test/CMakeLists.txt",
-          "line": 1,
-          "contentHash": "7098eea5c6431e007a1b06cb3c26fa0f165b209a2b3e630a18d8b5bf104a34f2"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "test/add-subdirectory-test/CMakeLists.txt",
-          "line": 1,
-          "contentHash": "724f3726afe9b4897eaf8c4412e1dfc4e670145be135afe6ce343a8f73e40bc4"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "test/compile-error-test/CMakeLists.txt",
-          "line": 1,
-          "contentHash": "df704a35fb89bbc6419f974d5505ab33d3c33a5bbe4f42c7ab599a9d2737723b"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "test/cuda-test/CMakeLists.txt",
-          "line": 1,
-          "contentHash": "ab9624b5a25e3a3bf2f5d3f432531dab204490dff26bc7a9a35597bb291a1aa6"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "test/find-package-test/CMakeLists.txt",
-          "line": 1,
-          "contentHash": "8ba32aa78684d9f173b0b2f404cbb2261c64e108e628d2fc63fe0e25c6b8d103"
         },
         {
           "kind": "test_run",
@@ -138,7 +103,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 42,
+          "value": 55,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -157,7 +122,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 7,
+          "value": 2,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -167,8 +132,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 23,
-          "max": 23,
+          "value": 29,
+          "max": 29,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -196,14 +161,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 1.6,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -220,19 +185,7 @@
           "contentHash": "496e2016d5fca9249992ab8a3ffa9457e4f07e73e8cc698988bdf97e68ba4e14"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "A4 metric-derived score is 1.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "dependency_report",
-            "label": "Dependency manifest",
-            "path": "test/cuda-test/CMakeLists.txt",
-            "line": 1,
-            "contentHash": "ab9624b5a25e3a3bf2f5d3f432531dab204490dff26bc7a9a35597bb291a1aa6"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -346,7 +299,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -384,7 +337,19 @@
           "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/codeql.yml",
+            "line": 1,
+            "contentHash": "252ba92b5c3eec25e7b12d77717918309268f0b78d742c97daf69a1c8f03be5c"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -412,7 +377,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 3.1,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -451,7 +416,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -507,7 +472,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -517,7 +482,19 @@
           "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "CODEOWNERS/required-review gate on protected paths",
+            "path": ".github/CODEOWNERS",
+            "line": 1,
+            "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",
@@ -526,7 +503,7 @@
           "max": 1,
           "weight": 0.4,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",
@@ -543,7 +520,7 @@
   ],
   "archetype": "source",
   "verdict": "conditional",
-  "codeTrustScore": 2.2,
+  "codeTrustScore": 2,
   "processTrustScore": 3.2,
-  "overallScore": 2.7
+  "overallScore": 2.6
 }

@@ -12,6 +12,194 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## witan-rubric-v9-2026-07-22
+
+**What changed.** V9 is the failure-derived remediation from the immutable free-core v32
+NO-GO. A1 now requires the same configured-runner premise its no-coverage proposition claims,
+and it never infers a missing-test finding from a coverage artifact alone. Scheduled-health
+recognition covers common non-npm test commands, while claim packets carry a bounded excerpt for
+each conjunct from the finding's own file. A2 excludes generated, vendored, test, fixture, and
+example paths from current and historical production-secret claims; qualified environment
+templates such as `.env.production.example` are templates; and non-secret environment-file
+hygiene remains visible without forcing the whole criterion into warning.
+
+Headline scoring now requires at least 80% of source-shaped files to belong to a published Cejel
+source family when a competing unread language exists. Native web component/template formats and
+non-source translations, certificates, snapshots, and data artifacts are classified explicitly so
+the stricter boundary does not turn mature public projects into false abstentions. Blind abstention
+packets sample authored production source across extension families and start excerpts at
+substantive code rather than repeated license headers. Criterion states use evidence-derived
+materiality floors for non-hollow tests, production readiness, PR outcomes, CI depth, audit depth,
+dependency sanity, and explicit human/fail-closed privilege gates.
+
+**Why.** The sealed v32 result passed recall but failed precision, FPR, criterion state-exactness,
+and inappropriate-scoring gates. All 17 false positives for `CORE-A1-NO-COVERAGE-CONFIG` had zero
+configured runner surfaces, while all 25 supported candidates had at least one. Five of six
+committed-secret candidates were generated or fixture evidence. The criterion errors clustered at
+repeatable materiality boundaries, and 16 repositories were scored when the blind packet did not
+materially represent their source—principally because excerpts stopped in license headers or an
+unread source family was substantial. These corrections are prospective; they do not reinterpret
+v32 or claim calibration GO. V33 still requires fresh seeds, a fresh untouched cohort, blind
+review, sealing, and the frozen GO estimator.
+
+All 24 pinned corpus rows rescored with zero scan errors. No verdict band or rank changed.
+CardDemo remains scoreless `insufficient_source`. React, Flask, Express, Vite, and Alfred gain small
+score corrections from the evidence/state changes; every other headline score is unchanged.
+
+**Full v8 to v9 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | Verdict | Rank |
+|---|---:|---:|---:|---|---:|
+| react | 3.1 to 3.2 | 2.3 to 2.5 | 3.9 to 3.9 | Conditional to Conditional | 5 to 5 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 11 to 11 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | Conditional to Conditional | 6 to 6 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.8 to 2.9 | 2.5 to 2.7 | 3.0 to 3.0 | Conditional to Conditional | 13 to 13 |
+| fastapi | 3.1 to 3.1 | 3.0 to 3.0 | 3.2 to 3.2 | Conditional to Conditional | unranked to unranked |
+| express | 2.9 to 3.0 | 2.8 to 2.8 | 3.0 to 3.2 | Conditional to Conditional | unranked to unranked |
+| vite | 3.3 to 3.4 | 2.6 to 2.8 | 4.0 to 4.0 | Conditional to Conditional | 1 to 1 |
+| esbuild | 2.5 to 2.5 | 2.6 to 2.6 | 2.4 to 2.4 | Conditional to Conditional | 15 to 15 |
+| biomejs | 3.0 to 3.0 | 2.9 to 2.9 | 3.0 to 3.0 | Conditional to Conditional | 8 to 8 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 9 to 9 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | Conditional to Conditional | 4 to 4 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | Conditional to Conditional | 3 to 3 |
+| zod | 3.2 to 3.2 | 3.1 to 3.1 | 3.2 to 3.2 | Conditional to Conditional | 7 to 7 |
+| scorecard | 2.9 to 2.9 | 2.2 to 2.2 | 3.6 to 3.6 | Conditional to Conditional | 10 to 10 |
+| ripgrep | 2.1 to 2.1 | 2.1 to 2.1 | 2.0 to 2.0 | At risk to At risk | 16 to 16 |
+| guava | 1.9 to 1.9 | 1.5 to 1.5 | 2.2 to 2.2 | At risk to At risk | unranked to unranked |
+| cobra | 2.5 to 2.5 | 2.6 to 2.6 | 2.3 to 2.3 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | At risk to At risk | unranked to unranked |
+| automapper | 2.2 to 2.2 | 2.0 to 2.0 | 2.3 to 2.3 | At risk to At risk | unranked to unranked |
+| fmt | 2.6 to 2.6 | 2.0 to 2.0 | 3.2 to 3.2 | Conditional to Conditional | 14 to 14 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | Insufficient source to Insufficient source | insufficient to insufficient |
+| alfred | 3.2 to 3.2 | 2.4 to 2.4 | 3.9 to 4.0 | Conditional to Conditional | 2 to 2 |
+| cejel | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | Conditional to Conditional | 12 to 12 |
+
+## witan-rubric-v8-2026-07-21
+
+**What changed.** V8 activates the failure-derived detector and evidence-boundary corrections
+staged after the immutable free-core v26 NO-GO. A1 recognizes lean tests in nested workspaces while
+excluding generated, vendored, fixture, and example manifests from the production toolchain. A2
+reports current and historical credential evidence independently, including a current-tree hygiene
+warning for a committed non-template `.env` without a confirmed secret. A3 evaluates each multi-stage
+Dockerfile's effective final stage, recognizes bounded Rack services, and requires a runtime command
+rather than a generic entrypoint name. A4 applies app-runtime expectations only to strongly evidenced
+packaged Electron/Tauri software. A5 accepts only content-authenticated reconciliation artifacts and
+rejects generated-source claims. The same authored-production boundary governs the V8 control and
+applicability premises used by blind calibration packets.
+
+**Why.** Free-core v26 failed because decisive controls and criterion labels showed that the prior
+detectors conflated workspace metadata with production evidence, collapsed current and historical
+credential states, treated container build stages as deployed services, under-modeled packaged apps,
+and accepted generic reconciliation filenames without authenticating their content. V8 corrects
+those observed failure families before any v27 cohort is selected or scanned. It does not reinterpret
+v26, weaken any GO gate, or claim calibration GO.
+
+All 24 pinned corpus rows rescored with zero scan errors. No verdict band changed, and CardDemo
+remains scoreless `insufficient_source`. FastAPI gains corrected A1 evidence but becomes unranked
+because A5 now abstains instead of scoring an unauthenticated claim artifact, leaving only five of
+eleven dimensions measured. The remaining rank movement follows the score corrections, FastAPI
+leaving the ranked table, and Alfred's refreshed private transparency snapshot. That Alfred
+snapshot advances from `b608b99` to the main-reachable V8 activation commit `fecc4d3`; its source
+remains explicitly non-public. The published row was corrected from the activation branch's
+pre-squash source commit to that merge commit. The table below therefore reports V7 directly to
+the current V8 board. Alfred's headline Overall (3.2), Code trust (2.4), Process trust (3.9), and
+verdict are unchanged by the correction; its common-dimension ranked score rises from 3.1 to 3.2
+and B2 rises from 3.5 to 3.7 as the recent-PR merge ratio moves from 5/12 to 8/12 at the reachable
+merge snapshot.
+
+**Full v7 to v8 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | Verdict | Rank |
+|---|---:|---:|---:|---|---:|
+| react | 3.2 to 3.1 | 2.4 to 2.3 | 3.9 to 3.9 | Conditional to Conditional | 4 to 5 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 12 to 11 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | Conditional to Conditional | 6 to 6 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.8 to 2.8 | 2.6 to 2.5 | 3.0 to 3.0 | Conditional to Conditional | 14 to 13 |
+| fastapi | 2.9 to 3.1 | 2.6 to 3.0 | 3.2 to 3.2 | Conditional to Conditional | 9 to unranked |
+| express | 2.9 to 2.9 | 2.8 to 2.8 | 3.0 to 3.0 | Conditional to Conditional | unranked to unranked |
+| vite | 3.3 to 3.3 | 2.6 to 2.6 | 4.0 to 4.0 | Conditional to Conditional | 2 to 1 |
+| esbuild | 2.5 to 2.5 | 2.6 to 2.6 | 2.4 to 2.4 | Conditional to Conditional | 16 to 15 |
+| biomejs | 3.0 to 3.0 | 2.9 to 2.9 | 3.0 to 3.0 | Conditional to Conditional | 8 to 8 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 10 to 9 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | Conditional to Conditional | 3 to 4 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | Conditional to Conditional | 1 to 3 |
+| zod | 3.2 to 3.2 | 3.1 to 3.1 | 3.2 to 3.2 | Conditional to Conditional | 7 to 7 |
+| scorecard | 2.9 to 2.9 | 2.2 to 2.2 | 3.6 to 3.6 | Conditional to Conditional | 11 to 10 |
+| ripgrep | 2.1 to 2.1 | 2.1 to 2.1 | 2.0 to 2.0 | At risk to At risk | 17 to 16 |
+| guava | 1.9 to 1.9 | 1.5 to 1.5 | 2.2 to 2.2 | At risk to At risk | unranked to unranked |
+| cobra | 2.5 to 2.5 | 2.6 to 2.6 | 2.3 to 2.3 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | At risk to At risk | unranked to unranked |
+| automapper | 2.2 to 2.2 | 2.0 to 2.0 | 2.3 to 2.3 | At risk to At risk | unranked to unranked |
+| fmt | 2.7 to 2.6 | 2.1 to 2.0 | 3.2 to 3.2 | Conditional to Conditional | 15 to 14 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | Insufficient source to Insufficient source | insufficient to insufficient |
+| alfred | 3.1 to 3.2 | 2.3 to 2.4 | 3.9 to 3.9 | Conditional to Conditional | 5 to 2 |
+| cejel | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | Conditional to Conditional | 13 to 12 |
+
+## witan-rubric-v7-2026-07-21
+
+**What changed.** V7 is the failure-derived free-core v26 implementation. Secret findings now
+point to the exact matched line and expose only redacted value shape. Finding and control packets
+for no-tests, no-coverage, no-CI/release-deploy, and no-lockfile propositions carry the same exact
+tracked-inventory proof and applicability premises. Criterion packets publish unweighted raw
+metric facts plus frozen label definitions without exposing scores, states, score thresholds, or
+weights.
+
+Repository evidence discovery also changes. Coverage files must contain coverage configuration;
+Makefiles and CMake files must contain actual test targets before counting as runner configuration;
+recognized source files under ecosystem-specific test directories count as tests. Nested deploy
+targets count only outside tests, fixtures, examples, samples, and demos; a Dockerfile remains a
+container-build signal, not release automation. B6 excludes test/fixture SQL rather than emitting a
+logging-only finding, and A5 limits claims to root/product documentation or dedicated
+claim-reconciliation artifacts. Cohesive Fortran, CUDA/HIP, and web-template/style trees are
+recognized at explicitly unmodeled depth, while prospectively frozen size/ratio/remainder rules
+abstain from generated/vendor-dominated and independent solution-catalog trees. CardDemo remains
+scoreless and `insufficient_source`.
+
+**Why.** Free-core v25 closed NO-GO. Its decisive error families and packet missingness showed that
+reviewers could not verify absence propositions from positive excerpts, criterion labels lacked
+the measured denominators, secret evidence could point at the wrong line, test and fixture paths
+crossed production applicability boundaries, and structural source eligibility was incomplete.
+These are detector and review-protocol corrections, not a retroactive v25 reinterpretation. Both
+v25 waves are excluded from the future v26 cohort; v25 Wave 2 remains unreviewed and unlabeled.
+
+All 24 sealed corpus rows rescored with zero scan errors. No verdict band changed. CardDemo remains
+scoreless and unranked. Express becomes unranked because the corrected A5 scope removes an
+unsupported measured dimension, leaving five of eleven dimensions measured; this is a coverage
+classification change, not a score penalty. The other rank changes below follow the published
+score/evidence corrections and Express leaving the ranked table. The Alfred transparency row also
+advances from self snapshot `707b7b5` to the reachable v7 implementation snapshot `b608b99`.
+
+**Full v6 to v7 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | Verdict | Rank |
+|---|---:|---:|---:|---|---:|
+| react | 3.2 to 3.2 | 2.5 to 2.4 | 3.9 to 3.9 | Conditional to Conditional | 4 to 4 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 11 to 12 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | Conditional to Conditional | 5 to 6 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.8 to 2.8 | 2.5 to 2.6 | 3.0 to 3.0 | Conditional to Conditional | 15 to 14 |
+| fastapi | 2.9 to 2.9 | 2.5 to 2.6 | 3.2 to 3.2 | Conditional to Conditional | 14 to 9 |
+| express | 2.8 to 2.9 | 2.6 to 2.8 | 3.0 to 3.0 | Conditional to Conditional | 13 to unranked |
+| vite | 3.3 to 3.3 | 2.6 to 2.6 | 4.0 to 4.0 | Conditional to Conditional | 2 to 2 |
+| esbuild | 2.6 to 2.5 | 2.7 to 2.6 | 2.4 to 2.4 | Conditional to Conditional | 17 to 16 |
+| biomejs | 2.9 to 3.0 | 2.8 to 2.9 | 3.0 to 3.0 | Conditional to Conditional | 8 to 8 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 9 to 10 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | Conditional to Conditional | 3 to 3 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | Conditional to Conditional | 1 to 1 |
+| zod | 3.0 to 3.2 | 2.8 to 3.1 | 3.2 to 3.2 | Conditional to Conditional | 7 to 7 |
+| scorecard | 3.0 to 2.9 | 2.3 to 2.2 | 3.6 to 3.6 | Conditional to Conditional | 10 to 11 |
+| ripgrep | 2.2 to 2.1 | 2.4 to 2.1 | 2.0 to 2.0 | At risk to At risk | 18 to 17 |
+| guava | 1.9 to 1.9 | 1.5 to 1.5 | 2.2 to 2.2 | At risk to At risk | unranked to unranked |
+| cobra | 2.6 to 2.5 | 2.8 to 2.6 | 2.3 to 2.3 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | At risk to At risk | unranked to unranked |
+| automapper | 1.9 to 2.2 | 1.5 to 2.0 | 2.3 to 2.3 | At risk to At risk | unranked to unranked |
+| fmt | 2.7 to 2.7 | 2.2 to 2.1 | 3.2 to 3.2 | Conditional to Conditional | 16 to 15 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | Insufficient source to Insufficient source | insufficient to insufficient |
+| alfred | 3.0 to 3.1 | 2.2 to 2.3 | 3.8 to 3.9 | Conditional to Conditional | 6 to 5 |
+| cejel | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | Conditional to Conditional | 12 to 13 |
+
 ## witan-rubric-v6-2026-07-21
 
 **What changed.** Cejel now recognizes AVA's root-level `test.js` and `test-*.js`

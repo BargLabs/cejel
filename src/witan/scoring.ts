@@ -5,6 +5,8 @@ import {
   WITAN_RUBRIC_VERSION_V4,
   WITAN_RUBRIC_VERSION_V5,
   WITAN_RUBRIC_VERSION_V6,
+  WITAN_RUBRIC_VERSION_V7,
+  WITAN_RUBRIC_VERSION_V8,
   WITAN_TRADING_RUBRIC_VERSION_V0,
   type WitanConsumedSignalSummary,
   type WitanCriterionId,
@@ -22,6 +24,15 @@ import {
   witanVerdictForScore,
 } from './schemas.js';
 
+import {
+  WITAN_RUBRIC_VERSION_V9,
+  WITAN_RUBRIC_VERSION_V10,
+  WITAN_RUBRIC_VERSION_V11,
+  WITAN_RUBRIC_VERSION_V12,
+  WITAN_RUBRIC_VERSION_V13,
+  WITAN_RUBRIC_VERSION_V14,
+  WITAN_RUBRIC_VERSION_V15,
+} from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
 // ---- Signal bounding cap (documented for operator review) --------------------
@@ -95,7 +106,12 @@ export function createWitanReport(
     consumedSignals.push(...summaries);
 
     const finalScore = adjustment === 0 ? scored.score : adjustedScore;
-    const finalStatus = adjustment === 0 ? scored.status : statusForScore(finalScore);
+    const finalStatus = statusAfterInputAdjustment(
+      scored.status,
+      scored.score,
+      adjustment,
+      parsedInput.rubricVersion,
+    );
 
     return {
       id,
@@ -232,6 +248,50 @@ function statusForScore(score: number): WitanCriterionStatus {
   return 'critical';
 }
 
+function statusAfterInputAdjustment(
+  nativeStatus: WitanCriterionStatus,
+  nativeScore: number,
+  adjustment: number,
+  rubricVersion: string,
+): WitanCriterionStatus {
+  if (adjustment === 0) return nativeStatus;
+  if (
+    rubricVersion !== WITAN_RUBRIC_VERSION_V8 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V9 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V10 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V11 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V12 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V13 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V14 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V15
+  ) {
+    return statusForScore(roundScore(Math.max(0, nativeScore - adjustment)));
+  }
+
+  const statusFloor: Partial<Record<WitanCriterionStatus, number>> = {
+    verified: 3.5,
+    info: 2.5,
+    warning: 1.5,
+    critical: 0,
+  };
+  const severity: Partial<Record<WitanCriterionStatus, number>> = {
+    verified: 0,
+    info: 1,
+    warning: 2,
+    critical: 3,
+  };
+  const floor = statusFloor[nativeStatus];
+  const nativeSeverity = severity[nativeStatus];
+  if (floor === undefined || nativeSeverity === undefined) return nativeStatus;
+
+  const adjustedSemanticStatus = statusForScore(
+    roundScore(Math.max(0, Math.max(nativeScore, floor) - adjustment)),
+  );
+  return (severity[adjustedSemanticStatus] ?? nativeSeverity) > nativeSeverity
+    ? adjustedSemanticStatus
+    : nativeStatus;
+}
+
 function mergeSignalsByCriterion(
   signals: readonly WitanCriterionSignal[],
 ): Map<WitanCriterionSignal['criterionId'], WitanCriterionSignal> {
@@ -269,7 +329,8 @@ function mergeSignalsByCriterion(
 // stays on the same metric-based path too. v4 changes only repository evidence discovery's
 // symlink boundary, not the scoring algorithm, and therefore uses the same metric path. v5
 // bounds history evidence to HEAD ancestry and likewise does not change the metric formula. v6
-// broadens concrete JavaScript test-file discovery to AVA's test.js/test-*.js convention.
+// broadens concrete JavaScript test-file discovery to AVA's test.js/test-*.js convention. v7
+// changes evidence/applicability/archetype discovery but retains the metric formula.
 function usesMetricScoring(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V1 ||
@@ -278,6 +339,15 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V4 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V5 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V6 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V7 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V8 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }
@@ -353,12 +423,25 @@ function scoreCriterion(
     const measuredMetrics =
       metrics.length > 0 ? metrics : fallbackMetricsForEvidence(evidence, findings);
     const score = capScoreForFindings(scoreMetrics(measuredMetrics), findings);
-    const status = statusForScoreAndFindings(score, findings);
+    const status = statusForScoreAndFindings(
+      signal.criterionId,
+      score,
+      findings,
+      measuredMetrics,
+      rubricVersion,
+    );
     return {
       score,
       status,
       evidence,
-      findings: ensureFindingsExplainStatus(signal.criterionId, score, status, findings, evidence),
+      findings: ensureFindingsExplainStatus(
+        signal.criterionId,
+        score,
+        status,
+        findings,
+        evidence,
+        rubricVersion,
+      ),
       metrics: measuredMetrics,
     };
   }
@@ -444,15 +527,314 @@ function capScoreForFindings(score: number, findings: readonly WitanFinding[]): 
 }
 
 function statusForScoreAndFindings(
+  criterionId: WitanCriterionId,
   score: number,
   findings: readonly WitanFinding[],
+  metrics: readonly WitanCriterionMetric[],
+  rubricVersion: string,
 ): WitanCriterionStatus {
   if (findings.some((finding) => finding.severity === 'critical')) return 'critical';
+  if (
+    rubricVersion === WITAN_RUBRIC_VERSION_V8 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15
+  ) {
+    const calibrated =
+      rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V15
+        ? calibratedCriterionStateV11(criterionId, metrics)
+        : rubricVersion === WITAN_RUBRIC_VERSION_V9 || rubricVersion === WITAN_RUBRIC_VERSION_V10
+          ? calibratedCriterionStateV9(criterionId, metrics)
+          : calibratedCriterionStateV8(criterionId, metrics);
+    if (calibrated && calibrated !== 'verified') return calibrated;
+    if (calibrated === 'verified' && !findings.some((finding) => finding.severity === 'warning')) {
+      return 'verified';
+    }
+  }
   if (findings.some((finding) => finding.severity === 'warning')) return 'warning';
   if (score >= 3.5 && findings.length === 0) return 'verified';
   if (score >= 2.5) return 'info';
   if (score >= 1.5) return 'warning';
   return 'critical';
+}
+
+export function calibratedCriterionStateV8(
+  criterionId: WitanCriterionId,
+  metrics: readonly Pick<WitanCriterionMetric, 'name' | 'value'>[],
+): WitanCriterionStatus | undefined {
+  const values = new Map(metrics.map(({ name, value }) => [name, value]));
+  if (values.size !== metrics.length) return undefined;
+  const value = (name: string): number | undefined => values.get(name);
+  const positive = (name: string): boolean => (value(name) ?? 0) > 0;
+
+  if (criterionId === 'A1') {
+    if (!values.has('non_hollow_test_share') || !values.has('verification_script_ratio')) {
+      return undefined;
+    }
+    if (!positive('non_hollow_test_share')) return 'critical';
+    return positive('verification_script_ratio') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'A2') {
+    if (!values.has('secret_cleanliness') || !values.has('env_handling_depth')) return undefined;
+    if (!positive('secret_cleanliness')) return 'critical';
+    return (value('env_handling_depth') ?? 0) >= 2 ? 'verified' : 'warning';
+  }
+  if (criterionId === 'A3') {
+    if (!values.has('observability_depth') || !values.has('rollback_safety_depth')) {
+      return undefined;
+    }
+    const coveredSurfaces =
+      Number(positive('observability_depth')) + Number(positive('rollback_safety_depth'));
+    return coveredSurfaces === 2 ? 'verified' : coveredSurfaces === 1 ? 'warning' : 'critical';
+  }
+  if (criterionId === 'A4') {
+    if (
+      !values.has('dependency_automation_ratio') ||
+      (!values.has('declared_version_range_ratio') && !values.has('pinned_dependency_ratio'))
+    ) {
+      return undefined;
+    }
+    const dependencyCountSanity = value('dependency_count_sanity');
+    if (dependencyCountSanity !== undefined) {
+      if (dependencyCountSanity <= 0) return 'critical';
+      if (dependencyCountSanity < 0.9) return 'warning';
+    }
+    const hasVersionControl =
+      positive('declared_version_range_ratio') || positive('pinned_dependency_ratio');
+    const hasLockfile = positive('lockfile_coverage');
+    const hasAutomation = positive('dependency_automation_ratio');
+    if (!hasVersionControl && !hasLockfile && !hasAutomation) return 'critical';
+    return hasAutomation && (hasVersionControl || hasLockfile) ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B2') {
+    if (!values.has('pr_trace_primitives') || !values.has('pr_merge_ratio')) return undefined;
+    return positive('pr_trace_primitives') && positive('pr_merge_ratio') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B3') {
+    if (!values.has('ci_script_depth') || !values.has('default_branch_ci_depth')) return undefined;
+    const coveredSurfaces =
+      Number(positive('ci_script_depth')) + Number(positive('default_branch_ci_depth'));
+    return coveredSurfaces === 2 ? 'verified' : coveredSurfaces === 1 ? 'warning' : 'critical';
+  }
+  if (criterionId === 'B4') {
+    if (!values.has('audit_artifact_depth') || !values.has('audit_freshness_depth')) {
+      return undefined;
+    }
+    if (!positive('audit_artifact_depth')) return 'critical';
+    return positive('audit_freshness_depth') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B6') {
+    if (!values.has('human_gate_documented') || !values.has('fail_closed_privilege_check')) {
+      return undefined;
+    }
+    return positive('human_gate_documented') || positive('fail_closed_privilege_check')
+      ? 'verified'
+      : 'critical';
+  }
+  return undefined;
+}
+
+export function calibratedCriterionStateV9(
+  criterionId: WitanCriterionId,
+  metrics: readonly Pick<WitanCriterionMetric, 'name' | 'value'>[],
+): WitanCriterionStatus | undefined {
+  const values = new Map(metrics.map(({ name, value }) => [name, value]));
+  if (values.size !== metrics.length) return undefined;
+  const value = (name: string): number | undefined => values.get(name);
+  const positive = (name: string): boolean => (value(name) ?? 0) > 0;
+
+  if (criterionId === 'A1') {
+    if (!values.has('non_hollow_test_share') || !values.has('verification_script_ratio')) {
+      return undefined;
+    }
+    const nonHollowTests = value('non_hollow_test_share') ?? 0;
+    if (nonHollowTests === 0) return 'critical';
+    return positive('verification_script_ratio') && nonHollowTests >= 3 ? 'verified' : 'warning';
+  }
+  if (criterionId === 'A2') {
+    if (!values.has('secret_cleanliness') || !values.has('env_handling_depth')) return undefined;
+    if (!positive('secret_cleanliness')) return 'critical';
+    return (value('env_handling_depth') ?? 0) >= 2 ? 'verified' : 'warning';
+  }
+  if (criterionId === 'A3') {
+    if (
+      !values.has('prod_readiness_primitives') ||
+      !values.has('prod_workflow_depth') ||
+      !values.has('observability_depth') ||
+      !values.has('rollback_safety_depth')
+    ) {
+      return undefined;
+    }
+    const observability = value('observability_depth') ?? 0;
+    const rollback = value('rollback_safety_depth') ?? 0;
+    if (observability > 0 && rollback > 0) {
+      return (value('prod_readiness_primitives') ?? 0) >= 4 && observability >= 2 && rollback >= 2
+        ? 'verified'
+        : 'warning';
+    }
+    if (observability > 0 || rollback > 0) return 'warning';
+    return (value('prod_readiness_primitives') ?? 0) >= 2 &&
+      (value('prod_workflow_depth') ?? 0) >= 8
+      ? 'warning'
+      : 'critical';
+  }
+  if (criterionId === 'A4') {
+    if (
+      !values.has('dependency_automation_ratio') ||
+      (!values.has('declared_version_range_ratio') && !values.has('pinned_dependency_ratio'))
+    ) {
+      return undefined;
+    }
+    const dependencyCountSanity = value('dependency_count_sanity');
+    if (dependencyCountSanity !== undefined) {
+      if (dependencyCountSanity <= 0.25) return 'critical';
+      if (dependencyCountSanity < 0.5) return 'warning';
+    }
+    const hasVersionControl =
+      positive('declared_version_range_ratio') || positive('pinned_dependency_ratio');
+    const hasLockfile = positive('lockfile_coverage');
+    const hasAutomation = positive('dependency_automation_ratio');
+    if (!hasVersionControl && !hasLockfile && !hasAutomation) return 'warning';
+    return hasAutomation && (hasVersionControl || hasLockfile) ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B2') {
+    if (!values.has('pr_trace_primitives') || !values.has('pr_merge_ratio')) return undefined;
+    const primitives = value('pr_trace_primitives') ?? 0;
+    const mergedOutcomes = value('pr_merge_ratio') ?? 0;
+    if (mergedOutcomes === 0) return primitives <= 2 ? 'critical' : 'warning';
+    return mergedOutcomes >= 4 ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B3') {
+    if (!values.has('ci_script_depth') || !values.has('default_branch_ci_depth')) return undefined;
+    const scriptDepth = value('ci_script_depth') ?? 0;
+    const branchDepth = value('default_branch_ci_depth') ?? 0;
+    if (scriptDepth === 0 && branchDepth === 0) return 'critical';
+    return scriptDepth >= 2 && branchDepth > 0 ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B4') {
+    if (!values.has('audit_artifact_depth') || !values.has('audit_freshness_depth')) {
+      return undefined;
+    }
+    const artifacts = value('audit_artifact_depth') ?? 0;
+    const freshness = value('audit_freshness_depth') ?? 0;
+    if (artifacts === 0) return 'critical';
+    return artifacts >= 2 || freshness >= 2 ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B6') {
+    const humanGate = value('human_gate_documented') ?? 0;
+    const failClosed = value('fail_closed_privilege_check') ?? 0;
+    if (humanGate > 0 || failClosed > 0) return 'verified';
+    if (positive('privilege_escalation_cleanliness') || positive('protected_path_review_gate')) {
+      return 'warning';
+    }
+    if (
+      values.has('human_gate_documented') ||
+      values.has('fail_closed_privilege_check') ||
+      values.has('privilege_escalation_cleanliness') ||
+      values.has('protected_path_review_gate')
+    ) {
+      return 'critical';
+    }
+  }
+  return undefined;
+}
+
+export function calibratedCriterionStateV11(
+  criterionId: WitanCriterionId,
+  metrics: readonly Pick<WitanCriterionMetric, 'name' | 'value'>[],
+): WitanCriterionStatus | undefined {
+  const values = new Map(metrics.map(({ name, value }) => [name, value]));
+  if (values.size !== metrics.length) return undefined;
+  const value = (name: string): number | undefined => values.get(name);
+  const positive = (name: string): boolean => (value(name) ?? 0) > 0;
+
+  if (criterionId === 'A1') {
+    if (!values.has('non_hollow_test_share') || !values.has('verification_script_ratio')) {
+      return undefined;
+    }
+    if (!positive('non_hollow_test_share')) return 'critical';
+    return positive('verification_script_ratio') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'A2') {
+    if (!values.has('secret_cleanliness') || !values.has('env_handling_depth')) return undefined;
+    if (!positive('secret_cleanliness')) return 'critical';
+    return positive('env_handling_depth') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'A3') {
+    if (
+      !values.has('prod_readiness_primitives') ||
+      !values.has('prod_workflow_depth') ||
+      !values.has('observability_depth') ||
+      !values.has('rollback_safety_depth')
+    ) {
+      return undefined;
+    }
+    const primitives = value('prod_readiness_primitives') ?? 0;
+    const workflow = value('prod_workflow_depth') ?? 0;
+    const observability = value('observability_depth') ?? 0;
+    const rollback = value('rollback_safety_depth') ?? 0;
+    if (observability > 0 && rollback > 0) return primitives >= 3 ? 'verified' : 'warning';
+    return primitives > 0 && workflow > 0 ? 'warning' : 'critical';
+  }
+  if (criterionId === 'A4') {
+    if (
+      !values.has('dependency_automation_ratio') ||
+      (!values.has('declared_version_range_ratio') && !values.has('pinned_dependency_ratio'))
+    ) {
+      return undefined;
+    }
+    const hasVersionControl =
+      positive('declared_version_range_ratio') || positive('pinned_dependency_ratio');
+    const hasLockfile = positive('lockfile_coverage');
+    const hasAutomation = positive('dependency_automation_ratio');
+    if (!hasVersionControl && !hasLockfile && !hasAutomation) return 'critical';
+    return hasAutomation && (hasVersionControl || hasLockfile) ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B2') {
+    if (!values.has('pr_trace_primitives') || !values.has('pr_merge_ratio')) return undefined;
+    if (!positive('pr_trace_primitives')) return 'critical';
+    return positive('pr_merge_ratio') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B3') {
+    if (!values.has('ci_script_depth') || !values.has('default_branch_ci_depth')) return undefined;
+    const covered =
+      Number(positive('ci_script_depth')) + Number(positive('default_branch_ci_depth'));
+    return covered === 2 ? 'verified' : covered === 1 ? 'warning' : 'critical';
+  }
+  if (criterionId === 'B4') {
+    if (!values.has('audit_artifact_depth') || !values.has('audit_freshness_depth')) {
+      return undefined;
+    }
+    if (!positive('audit_artifact_depth')) return 'critical';
+    return positive('audit_freshness_depth') ? 'verified' : 'warning';
+  }
+  if (criterionId === 'B6') {
+    const humanGate = positive('human_gate_documented');
+    const failClosed = positive('fail_closed_privilege_check');
+    const cleanAndReviewed =
+      positive('privilege_escalation_cleanliness') && positive('protected_path_review_gate');
+    if (humanGate || failClosed || cleanAndReviewed) return 'verified';
+    if (positive('privilege_escalation_cleanliness') || positive('protected_path_review_gate')) {
+      return 'warning';
+    }
+    if (
+      values.has('human_gate_documented') ||
+      values.has('fail_closed_privilege_check') ||
+      values.has('privilege_escalation_cleanliness') ||
+      values.has('protected_path_review_gate')
+    ) {
+      return 'critical';
+    }
+  }
+  return undefined;
 }
 
 // A critical/warning status derived purely from a low metric score (rather than from an
@@ -466,9 +848,29 @@ function ensureFindingsExplainStatus(
   status: WitanCriterionStatus,
   findings: readonly WitanFinding[],
   evidence: readonly WitanEvidencePointer[],
+  rubricVersion: string,
 ): WitanFinding[] {
-  if (findings.length > 0) return [...findings];
+  if (
+    rubricVersion !== WITAN_RUBRIC_VERSION_V8 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V9 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V10 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V11 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V12 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V13 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V14 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
+    findings.length > 0
+  ) {
+    return [...findings];
+  }
   if (status !== 'critical' && status !== 'warning') return [...findings];
+  if (
+    findings.some(
+      ({ severity }) => severity === 'critical' || (status === 'warning' && severity === 'warning'),
+    )
+  ) {
+    return [...findings];
+  }
 
   const anchor: WitanEvidencePointer = evidence[0] ?? {
     kind: 'repository',
@@ -476,6 +878,7 @@ function ensureFindingsExplainStatus(
     path: '.',
   };
   return [
+    ...findings,
     {
       severity: status,
       summary: `${criterionId} metric-derived score is ${score.toFixed(1)}/4.0, in the ${status} band — no single finding drove this; it reflects the combined metric weighting below.`,

@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { buildWitanInputFromRepo } from '../repo-signals.js';
+import { buildWitanInputFromRepo, containsRealSecret } from '../repo-signals.js';
 
 function makeTmpRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'witan-signals-'));
@@ -31,6 +31,40 @@ function signalFor(dir: string, id: string) {
   });
   return (input.signals ?? []).find((s) => s.criterionId === id) ?? null;
 }
+
+describe('committed-secret scanner grammar', () => {
+  const realSecret = 'm9Qx7Lp2Zr8Tv5Nc3Bq6Hn4Jk1Sd0Fg9We8Rt7Yu6Io5Pa';
+
+  it.each([
+    [`TOKEN=${realSecret}`, true],
+    [`const stripe_secret_key = "${realSecret}";`, true],
+    [`myApiKey\n:\n'${realSecret}'`, true],
+    [`access-key = ${realSecret})`, true],
+    [`password_value: ${realSecret},`, true],
+    ['TOKEN=qd_agent_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', false],
+    [`TOKEN=${'a'.repeat(64)}`, false],
+    // The historical grammar deliberately over-matches keyword-bearing identifiers; value
+    // shape and entropy, not identifier specificity, are its false-positive backstop.
+    [`const tokenizerConfig = '${realSecret}';`, true],
+    ['const token = process.env.TOKEN;', false],
+    [`api_key = ""`, false],
+    [`TOKEN=prefix_api_key=${realSecret}`, false],
+    [`TOKEN="" API_KEY=${realSecret}`, true],
+    [`unrelated = ${realSecret}`, false],
+  ])('classifies %j without changing the public secret grammar', (contents, expected) => {
+    expect(containsRealSecret(contents)).toBe(expected);
+  });
+
+  it('scans a long keyword-free generated line without identifier-suffix backtracking', () => {
+    expect(containsRealSecret('a'.repeat(2_000_000))).toBe(false);
+  });
+
+  it('scans a keyword-dense generated identifier in linear time', () => {
+    const startedAt = performance.now();
+    expect(containsRealSecret('token'.repeat(40_000))).toBe(false);
+    expect(performance.now() - startedAt).toBeLessThan(2_000);
+  });
+});
 
 // ─── A4: Python (requirements.txt + pyproject.toml) ────────────────────────
 // These parser-focused fixtures carry an explicit deploy marker (Procfile /
@@ -612,8 +646,8 @@ describe('A2 — prefixed filler-run token (qd_agent_xxxx…) is a placeholder',
 // leak — cejel cried wolf on its own test data. Same secret shape must downgrade to
 // info in a test/fixture path but stay critical in a production src path.
 
-describe('A2 — test-path downgrade: same secret, test/fixture path vs src path', () => {
-  it('secret-shaped value inside a __tests__/fixtures file → downgraded to info, not critical', () => {
+describe('A2 — authored-production boundary: same secret, test/fixture path vs src path', () => {
+  it('secret-shaped value inside a __tests__/fixtures file → excluded from the claim-bearing scan', () => {
     const dir = makeTmpRepo();
     writeFile(dir, 'src/index.js', 'const x = process.env.API_KEY;\n');
     writeFile(
@@ -625,9 +659,9 @@ describe('A2 — test-path downgrade: same secret, test/fixture path vs src path
     const a2 = signalFor(dir, 'A2');
     expect(a2).not.toBeNull();
     const secretFinding = (a2?.findings ?? []).find((f) => f.summary.includes('Secret-shaped'));
-    expect(secretFinding?.severity).toBe('info');
-    expect(secretFinding?.summary).toContain('test/fixture file');
-    expect(a2?.metrics?.find((m) => m.name === 'secret_cleanliness')?.value).toBe(1);
+    expect(secretFinding).toBeUndefined();
+    expect(a2?.notApplicable).toBe(true);
+    expect(a2?.metrics?.find((m) => m.name === 'secret_cleanliness')).toBeUndefined();
   });
 
   it('same secret-shaped value committed in a production src file → stays critical', () => {
@@ -825,12 +859,12 @@ describe('B6 — privileged-operation human gating', () => {
 // ─── B6: test-path downgrade (goal_cejel_test_path_downgrade_2026-07-06) ──────
 // Dogfooding cejel on its own repo flagged a GRANT/role-membership statement inside a
 // `.test.ts` (a test asserting that B6's detector fires) as a critical ungated
-// privilege escalation — cejel cried wolf on its own test suite. Same GRANT statement
-// must downgrade to info in a test/fixture path but stay critical in a production src
-// file with no documented human gate.
+// privilege escalation — cejel cried wolf on its own test suite. A test-only SQL fixture is
+// not a privileged-operation surface and must be excluded; the same statement stays critical
+// in a production source file with no documented human gate.
 
 describe('B6 — test-path downgrade: same GRANT, test/fixture path vs src path', () => {
-  it('GRANT statement inside a .test.ts file → downgraded to info, not critical', () => {
+  it('GRANT statement inside a .test.ts file → excluded from production findings', () => {
     const dir = makeTmpRepo();
     writeFile(
       dir,
@@ -845,10 +879,8 @@ describe('B6 — test-path downgrade: same GRANT, test/fixture path vs src path'
 
     const b6 = signalFor(dir, 'B6');
     expect(b6).not.toBeNull();
-    expect(b6?.findings).toHaveLength(1);
-    expect(b6?.findings?.[0]?.severity).toBe('info');
-    expect(b6?.findings?.[0]?.summary).toContain('test/fixture file');
-    expect(b6?.metrics?.find((m) => m.name === 'privilege_escalation_cleanliness')?.value).toBe(1);
+    expect(b6?.notApplicable).toBe(true);
+    expect(b6?.findings).toHaveLength(0);
   });
 
   it('same GRANT statement in a production src file with no human gate → stays critical', () => {

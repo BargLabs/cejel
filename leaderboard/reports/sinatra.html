@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>sinatra</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/sinatra/sinatra @ 946812bdec8faf6598fed154a8d611ead612b6fd</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
       <div class="score">2.4<span>/4.0 overall</span></div>
       <p class="verdict">At risk</p>
       <p class="subscores">Code 2.0 · Process 2.8</p>
+      <p class="coverage-note">code 2/5 · process 4/6 measured · low confidence</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -80,8 +82,8 @@ code { color: var(--warn); overflow-wrap: anywhere; }
             <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">1.8</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>91/53 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>0/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>77/78 ratio</span></li></ul>
-          <ul><li>Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/base_spec.rb:1 · sha256:0f86f660571f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/content_security_policy_spec.rb:1 · sha256:a6836f158b55</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/cookie_tossing_spec.rb:1 · sha256:27c39fd3a46f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/escaped_params_spec.rb:1 · sha256:ee75320b93ad</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/form_token_spec.rb:1 · sha256:b89f75a7d0c1</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/frame_options_spec.rb:1 · sha256:55698f06865a</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/host_authorization_spec.rb:1 · sha256:3aea586a6342</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</li></ul>
+          <ul><li><strong>Test-to-source file ratio</strong><span>53 ratio (capped; 163 raw)</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>0/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>77/78 ratio</span></li></ul>
+          <ul><li>Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/base_spec.rb:1 · sha256:0f86f660571f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/content_security_policy_spec.rb:1 · sha256:a6836f158b55</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/cookie_tossing_spec.rb:1 · sha256:27c39fd3a46f</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/escaped_params_spec.rb:1 · sha256:ee75320b93ad</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/form_token_spec.rb:1 · sha256:b89f75a7d0c1</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/frame_options_spec.rb:1 · sha256:55698f06865a</code></li><li>Detected test file <code>rack-protection/spec/lib/rack/protection/host_authorization_spec.rb:1 · sha256:3aea586a6342</code></li><li>warning: A1 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
@@ -101,7 +103,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>
@@ -109,23 +111,23 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">4.0</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>3/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></li><li>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 3 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></li><li>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li><li>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">0.6</div>
           <ul><li><strong>CI verification depth</strong><span>0/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
-          <ul><li>CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</li></ul>
+          <ul><li>CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></li><li>warning: B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.5</div>
           <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>1/2 ratio</span></li></ul>
@@ -133,11 +135,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B6</div><h3>Privileged-operation human gating</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">4.0</div>
           <ul><li><strong>Privilege-escalation cleanliness</strong><span>1/1 clean</span></li><li><strong>Protected-path review gate</strong><span>1/1 present</span></li></ul>
-          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li></ul>
+          <ul><li>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></li><li>warning: B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
@@ -148,11 +150,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:99756d90f358</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Review gate configuration <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></span></li><li><strong>B6 - Privileged-operation human gating</strong><span>CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code></span></li></ul>
+        <ul><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>CHANGELOG.md:1 · sha256:21e2a2928d51</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>SECURITY.md:1 · sha256:0a317e90d1c1</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>warning: A1 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1 · sha256:eee1d74a3ff0</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:7c8cdf9819db</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/release.yml:1 · sha256:cc493a1c4dc2</code>)</span></li><li><strong>B6 - Privileged-operation human gating</strong><span>warning: B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CODEOWNERS/required-review gate on protected paths <code>.github/workflows/CODEOWNERS:1 · sha256:682a996b6856</code>)</span></li></ul>
       </article>
     </section>
   </main>

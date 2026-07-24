@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>fastapi</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/fastapi/fastapi @ 7cb06f360dd44efac059848df1a9beee7643b018</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
-      <div class="score">2.9<span>/4.0 overall</span></div>
+      <div class="score">3.1<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
-      <p class="subscores">Code 2.5 · Process 3.2</p>
+      <p class="subscores">Code 3.0 · Process 3.2</p>
+      <p class="coverage-note">code 2/5 · process 3/6 measured · low confidence</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,11 +79,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
-          <div class="criterion-score">2.0</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>601/1 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>1/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>491/501 ratio</span></li></ul>
-          <ul><li>Detected test file <code>docs_src/app_testing/app_a_py310/test_main.py:1 · sha256:e7206e066c05</code></li><li>Detected test file <code>docs_src/app_testing/app_b_an_py310/test_main.py:1 · sha256:0983f6ade01f</code></li><li>Detected test file <code>docs_src/app_testing/app_b_py310/test_main.py:1 · sha256:0983f6ade01f</code></li><li>Detected test file <code>docs_src/async_tests/app_a_py310/test_main.py:1 · sha256:a129755184f1</code></li><li>Detected test file <code>docs_src/settings/app02_an_py310/test_main.py:1 · sha256:cc6f4b806f7f</code></li><li>Detected test file <code>docs_src/settings/app02_py310/test_main.py:1 · sha256:cc6f4b806f7f</code></li><li>Detected test file <code>scripts/tests/test_translation_fixer/conftest.py:1 · sha256:0a8707cb9d97</code></li><li>Detected test file <code>scripts/tests/test_translation_fixer/test_code_blocks/test_code_blocks_lines_number_mismatch.py:1 · sha256:94ffac1f3a8a</code></li><li>Coverage configuration <code>pyproject.toml:1 · sha256:b4181f59f23f</code></li><li>CI workflow runs the test suite <code>.github/workflows/test.yml:1 · sha256:5e24f8017646</code></li><li>warning: A1 metric-derived score is 2.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>docs_src/app_testing/app_a_py310/test_main.py:1 · sha256:e7206e066c05</code>)</li></ul>
+          <div class="criterion-score">2.3</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>1 ratio (capped; 601 raw)</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>491/501 ratio</span></li></ul>
+          <ul><li>Detected test file <code>docs_src/app_testing/app_a_py310/test_main.py:1 · sha256:e7206e066c05</code></li><li>Detected test file <code>docs_src/app_testing/app_b_an_py310/test_main.py:1 · sha256:0983f6ade01f</code></li><li>Detected test file <code>docs_src/app_testing/app_b_py310/test_main.py:1 · sha256:0983f6ade01f</code></li><li>Detected test file <code>docs_src/async_tests/app_a_py310/test_main.py:1 · sha256:a129755184f1</code></li><li>Detected test file <code>docs_src/settings/app02_an_py310/test_main.py:1 · sha256:cc6f4b806f7f</code></li><li>Detected test file <code>docs_src/settings/app02_py310/test_main.py:1 · sha256:cc6f4b806f7f</code></li><li>Detected test file <code>scripts/tests/test_translation_fixer/conftest.py:1 · sha256:0a8707cb9d97</code></li><li>Detected test file <code>scripts/tests/test_translation_fixer/test_code_blocks/test_code_blocks_lines_number_mismatch.py:1 · sha256:94ffac1f3a8a</code></li><li>Configured test runner <code>pyproject.toml:1 · sha256:b4181f59f23f</code></li><li>Coverage configuration <code>pyproject.toml:1 · sha256:b4181f59f23f</code></li><li>CI workflow runs the test suite <code>.github/workflows/test.yml:1 · sha256:5e24f8017646</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
@@ -93,15 +95,15 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="insufficient_data">insufficient_data</span>
           </div>
-          <div class="criterion-score">2.0</div>
-          <ul><li><strong>Claim match rate</strong><span>4/6 ratio</span></li><li><strong>Claim source depth</strong><span>2/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
-          <ul><li>Repository claim source <code>README.md:1 · sha256:6ed06ac06d4f</code></li><li>Code presence for claim reconciliation <code>tests/test_modules_same_name_body/app/__init__.py</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:6ed06ac06d4f</code>)</li></ul>
+          <div class="criterion-score">No data</div>
+          <ul><li>No measured depth metrics supplied.</li></ul>
+          <ul><li>No concrete evidence supplied.</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>
@@ -109,26 +111,26 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">3.2</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>23/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code></li><li>Pull-request CI workflow <code>.github/workflows/build-docs.yml:1 · sha256:388a7d1eb471</code></li><li>Pull-request CI workflow <code>.github/workflows/contributors.yml:1 · sha256:7d91c15909bf</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 23 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code></li><li>Pull-request CI workflow <code>.github/workflows/build-docs.yml:1 · sha256:388a7d1eb471</code></li><li>Pull-request CI workflow <code>.github/workflows/contributors.yml:1 · sha256:7d91c15909bf</code></li><li>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">2.7</div>
-          <ul><li><strong>CI verification depth</strong><span>1/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>9/4 workflows</span></li></ul>
-          <ul><li>CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code></li></ul>
+          <ul><li><strong>CI verification depth</strong><span>1/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>4 workflows (capped; 9 raw)</span></li></ul>
+          <ul><li>CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code></li><li>warning: B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
             <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.6</div>
-          <ul><li><strong>Audit artifact depth</strong><span>99/3 files</span></li><li><strong>Audit freshness depth</strong><span>48/99 ratio</span></li></ul>
+          <ul><li><strong>Audit artifact depth</strong><span>3 files (capped; 99 raw)</span></li><li><strong>Audit freshness depth</strong><span>48/99 ratio</span></li></ul>
           <ul><li>Audit or changelog artifact <code>CITATION.cff:1 · sha256:8feb5e554875</code></li><li>Audit or changelog artifact <code>docs/de/docs/advanced/security/http-basic-auth.md:1 · sha256:a1c453720a1d</code></li><li>Audit or changelog artifact <code>docs/de/docs/advanced/security/index.md:1 · sha256:f86483015af3</code></li><li>Audit or changelog artifact <code>docs/de/docs/advanced/security/oauth2-scopes.md:1 · sha256:304c2794044f</code></li><li>Audit or changelog artifact <code>docs/de/docs/tutorial/security/first-steps.md:1 · sha256:d88a5eb95f14</code></li></ul>
         </article></div>
         <div class="na-group">
@@ -140,11 +142,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>pyproject.toml:1 · sha256:b4181f59f23f</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>uv.lock:1 · sha256:04e02a427144</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/dependabot.yml:1 · sha256:92725ac5b657</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>CITATION.cff:1 · sha256:8feb5e554875</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/advanced/security/http-basic-auth.md:1 · sha256:a1c453720a1d</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/advanced/security/index.md:1 · sha256:f86483015af3</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/advanced/security/oauth2-scopes.md:1 · sha256:304c2794044f</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/tutorial/security/first-steps.md:1 · sha256:d88a5eb95f14</code></span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>docs_src/app_testing/app_a_py310/test_main.py:1 · sha256:e7206e066c05</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>docs_src/app_testing/app_b_an_py310/test_main.py:1 · sha256:0983f6ade01f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>docs_src/app_testing/app_b_py310/test_main.py:1 · sha256:0983f6ade01f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>docs_src/async_tests/app_a_py310/test_main.py:1 · sha256:a129755184f1</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>docs_src/settings/app02_an_py310/test_main.py:1 · sha256:cc6f4b806f7f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>docs_src/settings/app02_py310/test_main.py:1 · sha256:cc6f4b806f7f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>scripts/tests/test_translation_fixer/conftest.py:1 · sha256:0a8707cb9d97</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>scripts/tests/test_translation_fixer/test_code_blocks/test_code_blocks_lines_number_mismatch.py:1 · sha256:94ffac1f3a8a</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>pyproject.toml:1 · sha256:b4181f59f23f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Coverage configuration <code>pyproject.toml:1 · sha256:b4181f59f23f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>CI workflow runs the test suite <code>.github/workflows/test.yml:1 · sha256:5e24f8017646</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>pyproject.toml:1 · sha256:b4181f59f23f</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>uv.lock:1 · sha256:04e02a427144</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/dependabot.yml:1 · sha256:92725ac5b657</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>CITATION.cff:1 · sha256:8feb5e554875</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/advanced/security/http-basic-auth.md:1 · sha256:a1c453720a1d</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/advanced/security/index.md:1 · sha256:f86483015af3</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/advanced/security/oauth2-scopes.md:1 · sha256:304c2794044f</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>docs/de/docs/tutorial/security/first-steps.md:1 · sha256:d88a5eb95f14</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>warning: A1 metric-derived score is 2.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>docs_src/app_testing/app_a_py310/test_main.py:1 · sha256:e7206e066c05</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:6ed06ac06d4f</code>)</span></li></ul>
+        <ul><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/add-to-project.yml:1 · sha256:74f130b855a5</code>)</span></li></ul>
       </article>
     </section>
   </main>

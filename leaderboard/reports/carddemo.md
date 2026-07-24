@@ -1,10 +1,10 @@
 # Cejel Trust Report - carddemo
 
 - Product: carddemo
-- Rubric: witan-rubric-v6-2026-07-21
-- Generated: 2026-07-21T15:56:38.161Z
+- Rubric: witan-rubric-v9-2026-07-22
+- Generated: 2026-07-22T20:52:22.603Z
 - Repository: https://github.com/aws-samples/aws-mainframe-modernization-carddemo @ 59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e
-- Verdict: Insufficient source to certify — Cejel does not yet read this repository's dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 20% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.
+- Verdict: Insufficient source to certify — Cejel does not yet read this repository's dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 80% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.
 
 ## Criterion Profile
 
@@ -36,7 +36,7 @@ _This repo has insufficient source to certify. Per-criterion measurements below 
 
 - A1: Insufficient data — no measurable signal supplied or collected; excluded from composite (unmeasured, not inapplicable).
 - A2: N/A — No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.
-- A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.
+- A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.
 - A4: Insufficient data — no measurable signal supplied or collected; excluded from composite (unmeasured, not inapplicable).
 - A5: Insufficient data — no measurable signal supplied or collected; excluded from composite (unmeasured, not inapplicable).
 - B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.

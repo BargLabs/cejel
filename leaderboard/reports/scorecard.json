@@ -5,15 +5,15 @@
     "url": "https://github.com/ossf/scorecard",
     "headSha": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2.4,
-      "status": "warning",
+      "score": 1.9,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -77,20 +77,6 @@
           "path": "Makefile",
           "line": 1,
           "contentHash": "de7ddc3cf5c3c6eba91bb3a8c5bb41a0d3b73603ca93ecae9cecae4cde5398be"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "go.mod",
-          "line": 1,
-          "contentHash": "dad254a07471a78a3738143e8b9f6ada3017120126d9e4b11e3b869fa7eecfb3"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "tools/go.mod",
-          "line": 1,
-          "contentHash": "64cc61a2ee0804f71023f62914100ad2158af2835ba885b92021381ebf43727e"
         }
       ],
       "findings": [
@@ -129,7 +115,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 3,
+          "value": 1,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -175,7 +161,14 @@
         },
         {
           "kind": "prod_check",
-          "label": "Deploy configuration",
+          "label": "Release deploy configuration",
+          "path": "cron/k8s/auth.yaml",
+          "line": 1,
+          "contentHash": "17c8371d0cd0f4ce9359d9eeafeff3690d220fd3cdb0c2416f7ea418d6914cb1"
+        },
+        {
+          "kind": "prod_check",
+          "label": "Container build configuration",
           "path": "Dockerfile",
           "line": 1,
           "contentHash": "e12b8b4c85f4cc3b95dea23ea93c9efca1b865ae61d0a607ada976d74dc354d0"
@@ -207,7 +200,7 @@
         {
           "name": "prod_workflow_depth",
           "label": "Production workflow depth",
-          "value": 15,
+          "value": 34,
           "max": 6,
           "kind": "saturating_count",
           "weight": 0.2,
@@ -241,7 +234,7 @@
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.3,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -265,19 +258,7 @@
           "contentHash": "6dedf4004d9a14c9e6dced4c2a2c1aaf8a51850ce263ad3b89c6f36f02a27ff1"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "A4 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "dependency_report",
-            "label": "Dependency manifest",
-            "path": "tools/go.mod",
-            "line": 1,
-            "contentHash": "64cc61a2ee0804f71023f62914100ad2158af2835ba885b92021381ebf43727e"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pinned_dependency_ratio",
@@ -398,7 +379,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -436,7 +417,19 @@
           "contentHash": "32bebdd1634103c767136963125d6f31b048c93724092032c7841a856d938f7b"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/codeql-analysis.yml",
+            "line": 1,
+            "contentHash": "491d592bcf1e36f61a0001c9e1fb141807eed1b04f318db3fef1e7c47b7b0105"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -464,7 +457,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.7,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -474,7 +467,19 @@
           "contentHash": "491d592bcf1e36f61a0001c9e1fb141807eed1b04f318db3fef1e7c47b7b0105"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/codeql-analysis.yml",
+            "line": 1,
+            "contentHash": "491d592bcf1e36f61a0001c9e1fb141807eed1b04f318db3fef1e7c47b7b0105"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "ci_script_depth",
@@ -525,7 +530,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -535,7 +540,19 @@
           "contentHash": "32bebdd1634103c767136963125d6f31b048c93724092032c7841a856d938f7b"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "CODEOWNERS/required-review gate on protected paths",
+            "path": ".github/CODEOWNERS",
+            "line": 1,
+            "contentHash": "32bebdd1634103c767136963125d6f31b048c93724092032c7841a856d938f7b"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",
@@ -544,7 +561,7 @@
           "max": 1,
           "weight": 0.4,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",
@@ -561,7 +578,7 @@
   ],
   "archetype": "source",
   "verdict": "conditional",
-  "codeTrustScore": 2.3,
+  "codeTrustScore": 2.2,
   "processTrustScore": 3.6,
-  "overallScore": 3
+  "overallScore": 2.9
 }

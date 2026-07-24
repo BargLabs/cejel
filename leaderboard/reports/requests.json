@@ -5,15 +5,15 @@
     "url": "https://github.com/psf/requests",
     "headSha": "f361ead047be5cb873174218582f7d8b9fcd9f49"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -81,37 +81,16 @@
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "docs/Makefile",
+          "path": "pyproject.toml",
           "line": 1,
-          "contentHash": "b7a917ab8a0f196950a8df8037672e5bed1b1b9f0618c82405f46fb5c1a1a591"
+          "contentHash": "345f26b9f691435e39d0eb6f7f4150a390f43175b22f8d61ac95e7f2827f0a77"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "tests/certs/expired/Makefile",
+          "path": "tox.ini",
           "line": 1,
-          "contentHash": "a33636d6474f1e94a1de61c4e1fbd2efb5c55aa86061ab3ce2d2ad9fb5aeb457"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "tests/certs/expired/ca/Makefile",
-          "line": 1,
-          "contentHash": "09ab0ff83129203660d5ad489618764524f6af7fa4d9586ca5bdb0f68d1ca822"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "tests/certs/expired/server/Makefile",
-          "line": 1,
-          "contentHash": "1c8cf9d72554a803d3b267d9df9c5e54db2e05d2fbd6b16d745f140bfcf74a24"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "tests/certs/mtls/Makefile",
-          "line": 1,
-          "contentHash": "aa1f5be6bde49113304ba145736bc3a3d23d45dfaa81e0d977fd52378f30b314"
+          "contentHash": "65aeb46c94fc5723a9764bb029fdb448539658fe47d3a39550a829b2383804fd"
         },
         {
           "kind": "coverage",
@@ -119,13 +98,6 @@
           "path": ".coveragerc",
           "line": 1,
           "contentHash": "8ac66b93028230c815ef67e0b38e74c65cc965a87ca3a49c16a8b8d7f641186d"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "pyproject.toml",
-          "line": 1,
-          "contentHash": "345f26b9f691435e39d0eb6f7f4150a390f43175b22f8d61ac95e7f2827f0a77"
         }
       ],
       "findings": [],
@@ -152,7 +124,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 7,
+          "value": 4,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -191,14 +163,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.6,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -329,7 +301,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -360,7 +332,19 @@
           "contentHash": "1231f289a3ee8071f98af61151a3164ae4a3b50f9608791c6b786650deb66de2"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/close-issues.yml",
+            "line": 1,
+            "contentHash": "3f9ea1ad83af25e895e749a3864b850c70cfc37ece203ee898cb548596a937dc"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -388,7 +372,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.7,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -398,7 +382,19 @@
           "contentHash": "3f9ea1ad83af25e895e749a3864b850c70cfc37ece203ee898cb548596a937dc"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/close-issues.yml",
+            "line": 1,
+            "contentHash": "3f9ea1ad83af25e895e749a3864b850c70cfc37ece203ee898cb548596a937dc"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "ci_script_depth",
@@ -427,7 +423,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 2.9,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -483,7 +479,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -493,7 +489,19 @@
           "contentHash": "1231f289a3ee8071f98af61151a3164ae4a3b50f9608791c6b786650deb66de2"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "CODEOWNERS/required-review gate on protected paths",
+            "path": ".github/CODEOWNERS",
+            "line": 1,
+            "contentHash": "1231f289a3ee8071f98af61151a3164ae4a3b50f9608791c6b786650deb66de2"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",
@@ -502,7 +510,7 @@
           "max": 1,
           "weight": 0.4,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",

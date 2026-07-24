@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cejel OSS trust leaderboard</title>
-<meta property="og:image" content="https://cejel.dev/brand-icon.png">
-<link rel="icon" type="image/png" href="/brand-icon.png">
-<link rel="apple-touch-icon" href="/brand-icon.png">
 <style>
 :root { --ink: #23252b; --muted: #6b6f7a; --line: #e3e5ea; --accent: #5b6abf; --error: #b23a3a; --bg: #fbfbfc; }
 * { box-sizing: border-box; }
@@ -39,14 +36,14 @@ a { color: var(--accent); }
 </head>
 <body>
 <h1>Cejel OSS trust leaderboard</h1>
-<p class="meta">Run date: 2026-07-20T13:12:56.894Z</p>
-<p class="meta">Cejel version: @cejel/cejel@0.1.7 (7722553e1146) · Rubric version: witan-rubric-v5-2026-07-18</p>
-
+<p class="meta">Run date: 2026-07-24T06:45:20.555Z</p>
+<p class="meta">Cejel version: @cejel/cejel@0.1.9 (2a6077355dea) · Rubric version: witan-rubric-v9-2026-07-22</p>
+<p class="env-note">Run environment: Regenerated from the v0.1.9 release candidate; public repository pins reused, Alfred rescored from candidate commit.</p>
 
 <h2>How to read this board</h2>
 <ul>
 <li>Scores run 0.0-4.0 and come from a deterministic rubric over observable repository signals: tests and CI discipline, secret handling, dependency hygiene, audit trail, and governance.</li>
-<li>Every score on this board is produced by the sealed public scorer used by <code>npx @cejel/cejel .</code>; no private domain collector contributes. Public-repository rows pin an immutable public commit and are independently reproducible from it. The two explicitly labeled private transparency snapshots are not independently reproducible because their source commits and evidence locations are not public; they are not public-repository self-scores.</li>
+<li>Every score on this board is produced by the sealed public scorer used by `npx @cejel/cejel .`; no private domain collector contributes. Public-repository rows pin an immutable public commit and are independently reproducible from it. The explicitly labeled private Alfred transparency snapshot is not independently reproducible because its source commit and evidence locations are not public; it is not presented as a public-repository self-score.</li>
 <li>Verdict bands: Verified (3.5 and above), Conditional (2.5-3.4), At risk (1.5-2.4), Unverified (below 1.5). Conditional is not bad — many healthy, actively developed repositories land there.</li>
 <li>A score reflects observable engineering signals only. It is not a security guarantee, not an audit, and not a judgment of a project's value or its maintainers.</li>
 <li>A score reflects only its MEASURED dimensions. The Coverage column shows how many dimensions were actually measured per category (e.g. &quot;code 4/5 · process 1/6&quot;): a dimension that is not applicable to the repository, or that had insufficient data to measure, produced no score and is excluded from the composite rather than counted against the repository. Unmeasured is not good — it is unknown. Coverage counts every rubric dimension, including the two dimensions the repository scanner marks not applicable for every repository.</li>
@@ -55,7 +52,7 @@ a { color: var(--accent); }
 <li>A repository that scores low on a dimension shows its specific findings in the linked evidence report — the findings are the substance, not the verdict.</li>
 <li>Overall, Code trust, and Process trust are each repository's own figures — the exact numbers on its linked certificate, .md report, badge, and JSON. They never change to make ranking fair; nothing here is ever recomputed on a second basis and shown under the same name.</li>
 <li>Ranked score (common dimensions) is a SEPARATE figure used only to order this table. It excludes two repository-inapplicable process dimensions for every report. Under rubric v3 the repository scanner marks both dimensions not applicable for every repository, including ours; the explicit exclusion remains as a fail-closed safeguard for legacy or structured-input reports. This table is sorted by Ranked score, not Overall.</li>
-<li>The whole corpus membership is published and sorted by score. It includes two labeled private transparency snapshots, not a score of this public repository. A repository that fails to clone or score appears as a loud ERROR row with the reason — it is never silently dropped, and it is retried on the next run.</li>
+<li>The whole corpus membership is published and sorted by score. It includes the public Cejel repository and one labeled private Alfred transparency snapshot. A repository that fails to clone or score appears as a loud ERROR row with the reason — it is never silently dropped, and it is retried on the next run.</li>
 <li>The generator is incremental: a repository with an up-to-date committed evidence report is not re-cloned, so the corpus can grow while every run stays synchronous. Re-scoring everything is a --force flag away.</li>
 <li>External repositories are fetched read-only at the immutable commits pinned in corpus.json; none of their code is executed. Re-scoring the same pins is a rubric change. Moving a pin is a separate corpus change.</li>
 </ul>
@@ -64,7 +61,47 @@ a { color: var(--accent); }
 <table>
 <thead><tr><th>Rank</th><th>Repository</th><th>Category</th><th>License</th><th>Overall</th><th>Ranked score (common dimensions)</th><th>Code trust</th><th>Process trust</th><th>Coverage</th><th>Findings</th><th>Verdict</th><th>Badge</th><th>Evidence</th></tr></thead>
 <tbody>
-<tr><td>1</td><td><a href="https://github.com/axios/axios">axios</a></td><td>library-js</td><td>MIT</td><td class="score">3.3</td><td class="ranked-score">3.3</td><td>2.6</td><td>3.9</td><td class="coverage-cell">code 5/5 · process 4/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.3/4.0 conditional">
+<tr><td>1</td><td><a href="https://github.com/vitejs/vite">vite</a></td><td>tooling-build</td><td>MIT</td><td class="score">3.4</td><td class="ranked-score">3.4</td><td>2.8</td><td>4.0</td><td class="coverage-cell">code 5/5 · process 3/6</td><td>6</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.4/4.0 conditional">
+  <title>cejel trust: 3.4/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">3.4/4.0 conditional</text>
+  </g>
+</svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/vite.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/vite.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/vite.json" title="Machine-readable JSON">json</a></span></td></tr>
+<tr><td>2</td><td>alfred</td><td>internal-substrate</td><td>AGPL-3.0-only</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.4</td><td>4.0</td><td class="coverage-cell">code 5/5 · process 4/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
+  <title>cejel trust: 3.2/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">3.2/4.0 conditional</text>
+  </g>
+</svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/alfred.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/alfred.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/alfred.json" title="Machine-readable JSON">json</a></span></td></tr>
+<tr><td>3</td><td><a href="https://github.com/axios/axios">axios</a></td><td>library-js</td><td>MIT</td><td class="score">3.3</td><td class="ranked-score">3.2</td><td>2.6</td><td>3.9</td><td class="coverage-cell">code 5/5 · process 4/6</td><td>6</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.3/4.0 conditional">
   <title>cejel trust: 3.3/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -84,27 +121,7 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/axios.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/axios.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/axios.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>2</td><td><a href="https://github.com/vitejs/vite">vite</a></td><td>tooling-build</td><td>MIT</td><td class="score">3.3</td><td class="ranked-score">3.3</td><td>2.6</td><td>4.0</td><td class="coverage-cell">code 5/5 · process 3/6</td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.3/4.0 conditional">
-  <title>cejel trust: 3.3/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">3.3/4.0 conditional</text>
-  </g>
-</svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/vite.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/vite.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/vite.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>3</td><td><a href="https://github.com/pydantic/pydantic">pydantic</a></td><td>library-python</td><td>MIT</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.9</td><td>3.5</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>1</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
+<tr><td>4</td><td><a href="https://github.com/pydantic/pydantic">pydantic</a></td><td>library-python</td><td>MIT</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.9</td><td>3.5</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
   <title>cejel trust: 3.2/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -124,7 +141,7 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/pydantic.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/pydantic.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/pydantic.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>4</td><td><a href="https://github.com/facebook/react">react</a></td><td>framework-web</td><td>MIT</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.5</td><td>3.9</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
+<tr><td>5</td><td><a href="https://github.com/facebook/react">react</a></td><td>framework-web</td><td>MIT</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.5</td><td>3.9</td><td class="coverage-cell">code 5/5 · process 3/6</td><td>7</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
   <title>cejel trust: 3.2/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -144,27 +161,7 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/react.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/react.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/react.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>5</td><td>alfred</td><td>internal-substrate</td><td>AGPL-3.0-only</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>2.4</td><td>3.8</td><td class="coverage-cell">code 5/5 · process 4/6</td><td>5</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
-  <title>cejel trust: 3.1/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">3.1/4.0 conditional</text>
-  </g>
-</svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/alfred.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/alfred.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/alfred.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>6</td><td><a href="https://github.com/sveltejs/svelte">svelte</a></td><td>framework-web</td><td>MIT</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>2.9</td><td>3.3</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
+<tr><td>6</td><td><a href="https://github.com/sveltejs/svelte">svelte</a></td><td>framework-web</td><td>MIT</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>2.9</td><td>3.3</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
   <title>cejel trust: 3.1/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -184,7 +181,27 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/svelte.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/svelte.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/svelte.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>7</td><td><a href="https://github.com/colinhacks/zod">zod</a></td><td>library-js</td><td>MIT</td><td class="score">3.0</td><td class="ranked-score">3.0</td><td>2.8</td><td>3.2</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>1</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.0/4.0 conditional">
+<tr><td>7</td><td><a href="https://github.com/colinhacks/zod">zod</a></td><td>library-js</td><td>MIT</td><td class="score">3.2</td><td class="ranked-score">3.1</td><td>3.1</td><td>3.2</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
+  <title>cejel trust: 3.2/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">3.2/4.0 conditional</text>
+  </g>
+</svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/zod.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/zod.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/zod.json" title="Machine-readable JSON">json</a></span></td></tr>
+<tr><td>8</td><td><a href="https://github.com/biomejs/biome">biomejs</a></td><td>tooling-build</td><td>MIT OR Apache-2.0</td><td class="score">3.0</td><td class="ranked-score">2.9</td><td>2.9</td><td>3.0</td><td class="coverage-cell">code 3/5 · process 4/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.0/4.0 conditional">
   <title>cejel trust: 3.0/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -203,28 +220,8 @@ a { color: var(--accent); }
     <text x="149" y="14">3.0/4.0 conditional</text>
   </g>
 </svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/zod.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/zod.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/zod.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>8</td><td><a href="https://github.com/biomejs/biome">biomejs</a></td><td>tooling-build</td><td>MIT OR Apache-2.0</td><td class="score">2.9</td><td class="ranked-score">2.9</td><td>2.8</td><td>3.0</td><td class="coverage-cell">code 4/5 · process 4/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
-  <title>cejel trust: 2.9/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">2.9/4.0 conditional</text>
-  </g>
-</svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/biomejs.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/biomejs.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/biomejs.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>9</td><td><a href="https://github.com/psf/requests">requests</a></td><td>library-python</td><td>Apache-2.0</td><td class="score">2.9</td><td class="ranked-score">2.9</td><td>2.4</td><td>3.4</td><td class="coverage-cell">code 3/5 · process 4/6</td><td>1</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
+<tr><td>9</td><td><a href="https://github.com/psf/requests">requests</a></td><td>library-python</td><td>Apache-2.0</td><td class="score">2.9</td><td class="ranked-score">2.9</td><td>2.4</td><td>3.4</td><td class="coverage-cell">code 3/5 · process 4/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
   <title>cejel trust: 2.9/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -244,8 +241,8 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/requests.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/requests.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/requests.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>10</td><td><a href="https://github.com/ossf/scorecard">scorecard</a></td><td>supply-chain-governance</td><td>Apache-2.0</td><td class="score">3.0</td><td class="ranked-score">2.9</td><td>2.3</td><td>3.6</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.0/4.0 conditional">
-  <title>cejel trust: 3.0/4.0 conditional</title>
+<tr><td>10</td><td><a href="https://github.com/ossf/scorecard">scorecard</a></td><td>supply-chain-governance</td><td>Apache-2.0</td><td class="score">2.9</td><td class="ranked-score">2.9</td><td>2.2</td><td>3.6</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>6</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
+  <title>cejel trust: 2.9/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
     <stop offset="1" stop-opacity=".1"/>
@@ -260,11 +257,11 @@ a { color: var(--accent); }
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
     <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">3.0/4.0 conditional</text>
+    <text x="149" y="14">2.9/4.0 conditional</text>
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/scorecard.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/scorecard.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/scorecard.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>11</td><td><a href="https://github.com/vuejs/core">vue</a></td><td>framework-web</td><td>MIT</td><td class="score">2.9</td><td class="ranked-score">2.9</td><td>2.4</td><td>3.4</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
+<tr><td>11</td><td><a href="https://github.com/vuejs/core">vue</a></td><td>framework-web</td><td>MIT</td><td class="score">2.9</td><td class="ranked-score">2.9</td><td>2.4</td><td>3.4</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
   <title>cejel trust: 2.9/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -284,7 +281,7 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/vue.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/vue.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/vue.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>12</td><td><a href="https://github.com/expressjs/express">express</a></td><td>framework-node</td><td>MIT</td><td class="score">2.8</td><td class="ranked-score">2.8</td><td>2.6</td><td>3.0</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.8/4.0 conditional">
+<tr><td>12</td><td><a href="https://github.com/BargLabs/cejel">cejel</a></td><td>internal-tool</td><td>AGPL-3.0-only</td><td class="score">2.8</td><td class="ranked-score">2.8</td><td>2.3</td><td>3.2</td><td class="coverage-cell">code 5/5 · process 3/6</td><td>7</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.8/4.0 conditional">
   <title>cejel trust: 2.8/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -303,8 +300,8 @@ a { color: var(--accent); }
     <text x="149" y="14">2.8/4.0 conditional</text>
   </g>
 </svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/express.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/express.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/express.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>13</td><td><a href="https://github.com/fastapi/fastapi">fastapi</a></td><td>framework-python</td><td>MIT</td><td class="score">2.9</td><td class="ranked-score">2.8</td><td>2.5</td><td>3.2</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/cejel.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/cejel.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/cejel.json" title="Machine-readable JSON">json</a></span></td></tr>
+<tr><td>13</td><td><a href="https://github.com/pallets/flask">flask</a></td><td>framework-python</td><td>BSD-3-Clause</td><td class="score">2.9</td><td class="ranked-score">2.8</td><td>2.7</td><td>3.0</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>6</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.9/4.0 conditional">
   <title>cejel trust: 2.9/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -323,48 +320,8 @@ a { color: var(--accent); }
     <text x="149" y="14">2.9/4.0 conditional</text>
   </g>
 </svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/fastapi.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/fastapi.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/fastapi.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>14</td><td><a href="https://github.com/pallets/flask">flask</a></td><td>framework-python</td><td>BSD-3-Clause</td><td class="score">2.8</td><td class="ranked-score">2.7</td><td>2.5</td><td>3.0</td><td class="coverage-cell">code 4/5 · process 3/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.8/4.0 conditional">
-  <title>cejel trust: 2.8/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">2.8/4.0 conditional</text>
-  </g>
-</svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/flask.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/flask.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/flask.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>15</td><td><a href="https://github.com/fmtlib/fmt">fmt</a></td><td>library-cpp</td><td>MIT</td><td class="score">2.7</td><td class="ranked-score">2.7</td><td>2.2</td><td>3.2</td><td class="coverage-cell">code 3/5 · process 4/6</td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.7/4.0 conditional">
-  <title>cejel trust: 2.7/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">2.7/4.0 conditional</text>
-  </g>
-</svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/fmt.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/fmt.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/fmt.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>16</td><td><a href="https://github.com/evanw/esbuild">esbuild</a></td><td>tooling-build</td><td>MIT</td><td class="score">2.6</td><td class="ranked-score">2.5</td><td>2.7</td><td>2.4</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.6/4.0 conditional">
+<tr><td>14</td><td><a href="https://github.com/fmtlib/fmt">fmt</a></td><td>library-cpp</td><td>MIT</td><td class="score">2.6</td><td class="ranked-score">2.6</td><td>2.0</td><td>3.2</td><td class="coverage-cell">code 3/5 · process 4/6</td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.6/4.0 conditional">
   <title>cejel trust: 2.6/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -383,9 +340,29 @@ a { color: var(--accent); }
     <text x="149" y="14">2.6/4.0 conditional</text>
   </g>
 </svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/fmt.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/fmt.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/fmt.json" title="Machine-readable JSON">json</a></span></td></tr>
+<tr><td>15</td><td><a href="https://github.com/evanw/esbuild">esbuild</a></td><td>tooling-build</td><td>MIT</td><td class="score">2.5</td><td class="ranked-score">2.5</td><td>2.6</td><td>2.4</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>5</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.5/4.0 conditional">
+  <title>cejel trust: 2.5/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">2.5/4.0 conditional</text>
+  </g>
+</svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/esbuild.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/esbuild.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/esbuild.json" title="Machine-readable JSON">json</a></span></td></tr>
-<tr><td>17</td><td><a href="https://github.com/BurntSushi/ripgrep">ripgrep</a></td><td>library-rust</td><td>MIT</td><td class="score">2.2</td><td class="ranked-score">2.2</td><td>2.4</td><td>2.0</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>4</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 2.2/4.0 at risk">
-  <title>cejel trust: 2.2/4.0 at risk</title>
+<tr><td>16</td><td><a href="https://github.com/BurntSushi/ripgrep">ripgrep</a></td><td>library-rust</td><td>MIT</td><td class="score">2.1</td><td class="ranked-score">2.1</td><td>2.1</td><td>2.0</td><td class="coverage-cell">code 3/5 · process 3/6</td><td>6</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 2.1/4.0 at risk">
+  <title>cejel trust: 2.1/4.0 at risk</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
     <stop offset="1" stop-opacity=".1"/>
@@ -400,7 +377,7 @@ a { color: var(--accent); }
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
     <text x="41" y="14">cejel trust</text>
-    <text x="136" y="14">2.2/4.0 at risk</text>
+    <text x="136" y="14">2.1/4.0 at risk</text>
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/ripgrep.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/ripgrep.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/ripgrep.json" title="Machine-readable JSON">json</a></span></td></tr>
@@ -430,7 +407,7 @@ a { color: var(--accent); }
     <text x="145.5" y="14">unrated: no source</text>
   </g>
 </svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/carddemo.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/carddemo.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/carddemo.json" title="Machine-readable JSON">json</a></span></td><td>Cejel does not yet read this repository's dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 20% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest &lt;sarif|scorecard&gt;.</td></tr>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/carddemo.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/carddemo.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/carddemo.json" title="Machine-readable JSON">json</a></span></td><td>Cejel does not yet read this repository's dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 80% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest &lt;sarif|scorecard&gt;.</td></tr>
 </tbody>
 </table>
 <h2>Unranked — insufficient coverage</h2>
@@ -438,27 +415,7 @@ a { color: var(--accent); }
 <table>
 <thead><tr><th>Repository</th><th>Category</th><th>License</th><th>Overall</th><th>Ranked score (common dimensions)</th><th>Code trust</th><th>Process trust</th><th>Coverage</th><th>Findings</th><th>Verdict</th><th>Badge</th><th>Evidence</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td>cejel source sub-package (private snapshot)</td><td>internal-tool</td><td>AGPL-3.0-only</td><td class="score">3.4</td><td class="ranked-score">3.4</td><td>2.7</td><td>4.0</td><td class="coverage-cell">code 4/5 · process 1/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.4/4.0 conditional">
-  <title>cejel trust: 3.4/4.0 conditional</title>
-  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="witan-badge-round">
-    <rect width="216" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#witan-badge-round)">
-    <rect width="82" height="20" fill="#555"/>
-    <rect x="82" width="134" height="20" fill="#dfb92f"/>
-    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-    <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">3.4/4.0 conditional</text>
-  </g>
-</svg>
-</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/cejel.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/cejel.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/cejel.json" title="Machine-readable JSON">json</a></span></td><td>private source commit unavailable publicly; scored on 5 of 11 dimensions — too few to rank</td></tr>
-<tr><td><a href="https://github.com/django/django">django</a></td><td>framework-python</td><td>BSD-3-Clause</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.6</td><td>3.8</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>1</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
+<tr><td><a href="https://github.com/django/django">django</a></td><td>framework-python</td><td>BSD-3-Clause</td><td class="score">3.2</td><td class="ranked-score">3.2</td><td>2.6</td><td>3.8</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>4</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.2/4.0 conditional">
   <title>cejel trust: 3.2/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -478,8 +435,8 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/django.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/django.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/django.json" title="Machine-readable JSON">json</a></span></td><td>scored on 5 of 11 dimensions — too few to rank</td></tr>
-<tr><td><a href="https://github.com/spf13/cobra">cobra</a></td><td>library-go</td><td>Apache-2.0</td><td class="score">2.6</td><td class="ranked-score">2.5</td><td>2.8</td><td>2.3</td><td class="coverage-cell">code 2/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.6/4.0 conditional">
-  <title>cejel trust: 2.6/4.0 conditional</title>
+<tr><td><a href="https://github.com/fastapi/fastapi">fastapi</a></td><td>framework-python</td><td>MIT</td><td class="score">3.1</td><td class="ranked-score">3.1</td><td>3.0</td><td>3.2</td><td class="coverage-cell">code 2/5 · process 3/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>2</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.1/4.0 conditional">
+  <title>cejel trust: 3.1/4.0 conditional</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
     <stop offset="1" stop-opacity=".1"/>
@@ -494,11 +451,51 @@ a { color: var(--accent); }
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
     <text x="41" y="14">cejel trust</text>
-    <text x="149" y="14">2.6/4.0 conditional</text>
+    <text x="149" y="14">3.1/4.0 conditional</text>
+  </g>
+</svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/fastapi.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/fastapi.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/fastapi.json" title="Machine-readable JSON">json</a></span></td><td>scored on 5 of 11 dimensions — too few to rank</td></tr>
+<tr><td><a href="https://github.com/expressjs/express">express</a></td><td>framework-node</td><td>MIT</td><td class="score">3.0</td><td class="ranked-score">3.0</td><td>2.8</td><td>3.2</td><td class="coverage-cell">code 2/5 · process 3/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 3.0/4.0 conditional">
+  <title>cejel trust: 3.0/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">3.0/4.0 conditional</text>
+  </g>
+</svg>
+</td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/express.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/express.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/express.json" title="Machine-readable JSON">json</a></span></td><td>scored on 5 of 11 dimensions — too few to rank</td></tr>
+<tr><td><a href="https://github.com/spf13/cobra">cobra</a></td><td>library-go</td><td>Apache-2.0</td><td class="score">2.5</td><td class="ranked-score">2.5</td><td>2.6</td><td>2.3</td><td class="coverage-cell">code 2/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>3</td><td>Conditional</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="216" height="20" role="img" aria-label="cejel trust: 2.5/4.0 conditional">
+  <title>cejel trust: 2.5/4.0 conditional</title>
+  <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="witan-badge-round">
+    <rect width="216" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#witan-badge-round)">
+    <rect width="82" height="20" fill="#555"/>
+    <rect x="82" width="134" height="20" fill="#dfb92f"/>
+    <rect width="216" height="20" fill="url(#witan-badge-smooth)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="41" y="14">cejel trust</text>
+    <text x="149" y="14">2.5/4.0 conditional</text>
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/cobra.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/cobra.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/cobra.json" title="Machine-readable JSON">json</a></span></td><td>scored on 4 of 11 dimensions — too few to rank</td></tr>
-<tr><td><a href="https://github.com/sinatra/sinatra">sinatra</a></td><td>framework-ruby</td><td>MIT</td><td class="score">2.4</td><td class="ranked-score">2.4</td><td>2.0</td><td>2.8</td><td class="coverage-cell">code 2/5 · process 4/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>3</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 2.4/4.0 at risk">
+<tr><td><a href="https://github.com/sinatra/sinatra">sinatra</a></td><td>framework-ruby</td><td>MIT</td><td class="score">2.4</td><td class="ranked-score">2.4</td><td>2.0</td><td>2.8</td><td class="coverage-cell">code 2/5 · process 4/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>5</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 2.4/4.0 at risk">
   <title>cejel trust: 2.4/4.0 at risk</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -518,8 +515,8 @@ a { color: var(--accent); }
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/sinatra.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/sinatra.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/sinatra.json" title="Machine-readable JSON">json</a></span></td><td>scored on 6 of 11 dimensions — too few to rank</td></tr>
-<tr><td><a href="https://github.com/AutoMapper/AutoMapper">automapper</a></td><td>library-csharp</td><td>MIT</td><td class="score">1.9</td><td class="ranked-score">1.9</td><td>1.5</td><td>2.3</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>3</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 1.9/4.0 at risk">
-  <title>cejel trust: 1.9/4.0 at risk</title>
+<tr><td><a href="https://github.com/AutoMapper/AutoMapper">automapper</a></td><td>library-csharp</td><td>MIT</td><td class="score">2.2</td><td class="ranked-score">2.2</td><td>2.0</td><td>2.3</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>5</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 2.2/4.0 at risk">
+  <title>cejel trust: 2.2/4.0 at risk</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
     <stop offset="1" stop-opacity=".1"/>
@@ -534,11 +531,11 @@ a { color: var(--accent); }
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
     <text x="41" y="14">cejel trust</text>
-    <text x="136" y="14">1.9/4.0 at risk</text>
+    <text x="136" y="14">2.2/4.0 at risk</text>
   </g>
 </svg>
 </td><td><span class="evidence-pills"><a class="evidence-pill" href="reports/automapper.html" title="Branded, self-contained certificate">certificate</a><a class="evidence-pill" href="reports/automapper.md" title="Full evidence report (markdown)">report</a><a class="evidence-pill" href="reports/automapper.json" title="Machine-readable JSON">json</a></span></td><td>scored on 5 of 11 dimensions — too few to rank</td></tr>
-<tr><td><a href="https://github.com/google/guava">guava</a></td><td>library-java</td><td>Apache-2.0</td><td class="score">1.9</td><td class="ranked-score">1.8</td><td>1.5</td><td>2.2</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>4</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 1.9/4.0 at risk">
+<tr><td><a href="https://github.com/google/guava">guava</a></td><td>library-java</td><td>Apache-2.0</td><td class="score">1.9</td><td class="ranked-score">1.8</td><td>1.5</td><td>2.2</td><td class="coverage-cell">code 3/5 · process 2/6 <span class="low-confidence" title="Low coverage — scored on few signals, less certain.">low confidence</span></td><td>5</td><td>At risk</td><td class="badge-cell"><svg xmlns="http://www.w3.org/2000/svg" width="190" height="20" role="img" aria-label="cejel trust: 1.9/4.0 at risk">
   <title>cejel trust: 1.9/4.0 at risk</title>
   <linearGradient id="witan-badge-smooth" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
@@ -562,12 +559,12 @@ a { color: var(--accent); }
 </table>
 <h2>By category</h2>
 <section class="category"><h3>framework-node</h3><ul>
-<li>express — 2.8 (Conditional)</li>
+<li>express — 3.0 (Conditional) <span class="low-confidence">low confidence</span></li>
 </ul></section>
 <section class="category"><h3>framework-python</h3><ul>
 <li>django — 3.2 (Conditional) <span class="low-confidence">low confidence</span></li>
-<li>fastapi — 2.9 (Conditional)</li>
-<li>flask — 2.8 (Conditional)</li>
+<li>fastapi — 3.1 (Conditional) <span class="low-confidence">low confidence</span></li>
+<li>flask — 2.9 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>framework-ruby</h3><ul>
 <li>sinatra — 2.4 (At risk) <span class="low-confidence">low confidence</span></li>
@@ -578,44 +575,44 @@ a { color: var(--accent); }
 <li>vue — 2.9 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>internal-substrate</h3><ul>
-<li>alfred — 3.1 (Conditional)</li>
+<li>alfred — 3.2 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>internal-tool</h3><ul>
-<li>cejel — 3.4 (Conditional) <span class="low-confidence">low confidence</span></li>
+<li>cejel — 2.8 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>library-cpp</h3><ul>
-<li>fmt — 2.7 (Conditional)</li>
+<li>fmt — 2.6 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>library-csharp</h3><ul>
-<li>automapper — 1.9 (At risk) <span class="low-confidence">low confidence</span></li>
+<li>automapper — 2.2 (At risk) <span class="low-confidence">low confidence</span></li>
 </ul></section>
 <section class="category"><h3>library-go</h3><ul>
-<li>cobra — 2.6 (Conditional) <span class="low-confidence">low confidence</span></li>
+<li>cobra — 2.5 (Conditional) <span class="low-confidence">low confidence</span></li>
 </ul></section>
 <section class="category"><h3>library-java</h3><ul>
 <li>guava — 1.9 (At risk) <span class="low-confidence">low confidence</span></li>
 </ul></section>
 <section class="category"><h3>library-js</h3><ul>
 <li>axios — 3.3 (Conditional)</li>
-<li>zod — 3.0 (Conditional)</li>
+<li>zod — 3.2 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>library-python</h3><ul>
 <li>pydantic — 3.2 (Conditional)</li>
 <li>requests — 2.9 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>library-rust</h3><ul>
-<li>ripgrep — 2.2 (At risk)</li>
+<li>ripgrep — 2.1 (At risk)</li>
 </ul></section>
 <section class="category"><h3>mainframe-cobol</h3><ul>
 <li>carddemo — — (Insufficient source) <span class="low-confidence">low confidence</span></li>
 </ul></section>
 <section class="category"><h3>supply-chain-governance</h3><ul>
-<li>scorecard — 3.0 (Conditional)</li>
+<li>scorecard — 2.9 (Conditional)</li>
 </ul></section>
 <section class="category"><h3>tooling-build</h3><ul>
-<li>vite — 3.3 (Conditional)</li>
-<li>biomejs — 2.9 (Conditional)</li>
-<li>esbuild — 2.6 (Conditional)</li>
+<li>vite — 3.4 (Conditional)</li>
+<li>biomejs — 3.0 (Conditional)</li>
+<li>esbuild — 2.5 (Conditional)</li>
 </ul></section>
 <footer>
 <p>Every score links to its committed evidence report. Repositories are shallow-cloned read-only to be scored; none of their code is executed. Licenses are listed per repository above.</p>

@@ -5,15 +5,15 @@
     "url": "https://github.com/spf13/cobra",
     "headSha": "adbc8813901bba65827259daa8e22ff94ec1f30e"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2.3,
-      "status": "warning",
+      "score": 2,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -77,13 +77,6 @@
           "path": "Makefile",
           "line": 1,
           "contentHash": "880eb1cbfbfda597ca3433cd731a0d2d6d9e7adeb55c0fd911bfdc6894fd4f79"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "go.mod",
-          "line": 1,
-          "contentHash": "cc6098fd1118fb3bb349c72bcd6e9c665d3a1b2a516ea9807ee24521ad2ddf8c"
         }
       ],
       "findings": [
@@ -122,7 +115,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 2,
+          "value": 1,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -161,14 +154,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -259,7 +252,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -276,7 +269,19 @@
           "contentHash": "22b2338c231ccebfbbde901d6b6bcd4c9f00c376e3e03d6767e329f71864348d"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/labeler.yml",
+            "line": 1,
+            "contentHash": "c2ec854c684df77b57c1f9d37e966133af2a8521f77710ae86ee8941b7fbec01"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -304,7 +309,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 0.6,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -316,8 +321,8 @@
       ],
       "findings": [
         {
-          "severity": "critical",
-          "summary": "B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "ci_run",
             "label": "CI workflow",
@@ -386,7 +391,7 @@
   ],
   "archetype": "source",
   "verdict": "conditional",
-  "codeTrustScore": 2.8,
+  "codeTrustScore": 2.6,
   "processTrustScore": 2.3,
-  "overallScore": 2.6
+  "overallScore": 2.5
 }

@@ -5,15 +5,15 @@
     "url": "https://github.com/axios/axios",
     "headSha": "7a6615e421578081743161eab032d009dc6583a4"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2.8,
-      "status": "info",
+      "score": 2.5,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -74,20 +74,6 @@
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "tests/module/esm/vitest.config.js",
-          "line": 1,
-          "contentHash": "9afd1ffd5a610bf9ff6d1111ddde516fa8f85d14026c0203cc60c258e8282658"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "tests/smoke/esm/vitest.config.js",
-          "line": 1,
-          "contentHash": "08427802701ac6bdb6909e4025a87454f0b28384364d93fda3c1cce7140a5dd7"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
           "path": "vitest.config.js",
           "line": 1,
           "contentHash": "80edd21efbbbb2ddec80e6a448da21e4565ff1d25eccbd1cd35ea141c2f22661"
@@ -143,7 +129,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 5,
+          "value": 3,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -282,7 +268,7 @@
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -378,6 +364,17 @@
             "line": 1,
             "contentHash": "383efd90571f40463493a4815372bbc8d417424faea3cf0c9b54cb97fd10a03c"
           }
+        },
+        {
+          "severity": "warning",
+          "summary": "A5 metric-derived score is 2.4/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "path": "README.md",
+            "line": 1,
+            "contentHash": "383efd90571f40463493a4815372bbc8d417424faea3cf0c9b54cb97fd10a03c"
+          }
         }
       ],
       "metrics": [
@@ -427,7 +424,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -465,7 +462,19 @@
           "contentHash": "c899dce56703eb4293d811b588fccc0748b6e0c4a2c5049cf5441024e71c0b37"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/bundle-size.yml",
+            "line": 1,
+            "contentHash": "80cf311e8c1fdb65edde5a5fe60685d9f7ddbcb2dad6d55e8f87e15df36d73fd"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -623,7 +632,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -633,7 +642,19 @@
           "contentHash": "c899dce56703eb4293d811b588fccc0748b6e0c4a2c5049cf5441024e71c0b37"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "CODEOWNERS/required-review gate on protected paths",
+            "path": ".github/CODEOWNERS",
+            "line": 1,
+            "contentHash": "c899dce56703eb4293d811b588fccc0748b6e0c4a2c5049cf5441024e71c0b37"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",
@@ -642,7 +663,7 @@
           "max": 1,
           "weight": 0.4,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",

@@ -1,8 +1,19 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { type Dirent, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
-import { basename, join, relative, resolve, sep } from 'node:path';
+import {
+  type Dirent,
+  closeSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path';
 
+import { WITAN_RUBRIC_VERSION, WITAN_RUBRIC_VERSION_V8 } from './schemas.js';
 import type {
   WitanCriterionMetric,
   WitanCriterionSignal,
@@ -14,6 +25,15 @@ import type {
 } from './schemas.js';
 
 import { stripBom } from './json-safe.js';
+import {
+  WITAN_RUBRIC_VERSION_V9,
+  WITAN_RUBRIC_VERSION_V10,
+  WITAN_RUBRIC_VERSION_V11,
+  WITAN_RUBRIC_VERSION_V12,
+  WITAN_RUBRIC_VERSION_V13,
+  WITAN_RUBRIC_VERSION_V14,
+  WITAN_RUBRIC_VERSION_V15,
+} from './rubric-version.js';
 
 // Additive domain-signal extension point (goal_cejel_public_extraction_ip_scrub_2026-07-10):
 // a collector appends one extra criterion signal computed from the same repo file inventory.
@@ -41,9 +61,63 @@ export interface BuildWitanInputOptions {
 export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanReportInputPayload {
   assertRepoPathExists(options.repoPath);
   const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const rubricVersion = options.rubricVersion ?? WITAN_RUBRIC_VERSION;
   const headSha = readGitHead(options.repoPath);
   const repoFiles = listRepoFiles(options.repoPath);
-  const archetype = classifyRepoArchetype(repoFiles);
+  const inventoryFiles = listRepoInventory(options.repoPath, repoFiles);
+  const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
+  const readableArchetype =
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15
+      ? applyReadableSourceRepresentationGate(
+          options.repoPath,
+          inventoryFiles,
+          structuralArchetype,
+          headSha,
+          rubricVersion,
+        )
+      : structuralArchetype;
+  const archetype =
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 || rubricVersion === WITAN_RUBRIC_VERSION_V15
+      ? applySemanticSourceRepresentationGate(
+          options.repoPath,
+          inventoryFiles,
+          readableArchetype,
+          rubricVersion,
+        )
+      : readableArchetype;
+  const usesV8Detectors =
+    rubricVersion === WITAN_RUBRIC_VERSION_V8 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+  const usesV33Detectors =
+    rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+  const usesV36Detectors =
+    rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+  const usesV39Detectors =
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+  const usesV47Detectors = rubricVersion === WITAN_RUBRIC_VERSION_V15;
 
   return {
     productSlug: options.productSlug,
@@ -59,7 +133,16 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       ? { insufficientSourceReason: archetype.insufficientSourceReason }
       : {}),
     signals: [
-      ...collectRepoSignals(options.repoPath, generatedAt, repoFiles),
+      ...collectRepoSignals(
+        options.repoPath,
+        generatedAt,
+        repoFiles,
+        usesV8Detectors,
+        usesV33Detectors,
+        usesV36Detectors,
+        usesV39Detectors,
+        usesV47Detectors,
+      ),
       ...(options.domainCollectors ?? []).map((collect) => collect(options.repoPath, repoFiles)),
       ...(options.additionalSignals ?? []),
     ],
@@ -70,13 +153,12 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
 //
 // A deterministic, offline read of the file inventory that decides whether a repo has a
 // ratable source tree at all. This is intentionally conservative: it only flags a repo as
-// insufficient-source ('docs_only' | 'binary_only' | 'unrecognised_ecosystem' | 'empty') when
-// there is POSITIVE evidence of a docs/media, bundled-binary, or unrecognised-language
-// distribution tree with insufficient recognised source — never merely "few source files
-// detected". Many legitimate scan targets (a bare requirements.txt, a lockfile-only monorepo
-// sub-package) have zero source-extension files of their own and must keep scoring exactly as
-// before via the individual collectors' own archetype-aware N/A gates (see A2/A3 above) — this
-// classifier must never gate those away.
+// insufficient-source ('docs_only' | 'binary_only' | 'generated_only' |
+// 'non_cohesive_source' | 'unrecognised_ecosystem' | 'empty') only from positive structural
+// evidence — never merely "few source files detected". Many legitimate scan targets (a bare
+// requirements.txt, a lockfile-only monorepo sub-package) have zero source-extension files of
+// their own and must keep scoring exactly as before via the individual collectors' own
+// archetype-aware N/A gates (see A2/A3 above) — this classifier must never gate those away.
 //
 // DOMINANCE, NOT PRESENCE (goal_cejel_archetype_dominance_not_presence_2026-07-15): a repo with
 // ANY recognised-source file used to short-circuit straight to 'source' regardless of how small
@@ -96,10 +178,10 @@ export interface RepoArchetypeClassification {
 
 // goal_cejel_language_calibration_2026-07-12: widened to add the ecosystems that were cheap
 // to recognise (shell, R, Lua, Julia, Haskell, Terraform, SQL, Perl, OCaml, Clojure, Erlang,
-// Nim, Zig, F#, Groovy) on top of the original nineteen. Deliberately still does NOT include
-// COBOL/Fortran/MATLAB or any other language not listed here — the list is infinite, so the
-// structural fix is honest abstention (see classifyRepoArchetype's 'unrecognised_ecosystem'
-// branch below), not chasing every remaining language into this pattern.
+// Nim, Zig, F#, Groovy) on top of the original nineteen. V7 distinguishes recognition from
+// modeling depth: cohesive source in a language whose collectors are not deep is still source;
+// unsupported dimensions become insufficient_data rather than forcing a repository-wide
+// abstention solely from its extension.
 //
 // goal_cejel_derive_dont_enumerate_2026-07-13 (Guard 3): this array is now the ONE canonical
 // source for "which languages does cejel recognise as source, and how deeply is each
@@ -134,7 +216,7 @@ export const SOURCE_LANGUAGES: readonly SourceLanguageEntry[] = [
   { name: 'Dart', tier: 'partial', extensions: ['dart'] },
   { name: 'Elixir', tier: 'partial', extensions: ['ex', 'exs'] },
   { name: 'Scala', tier: 'partial', extensions: ['scala'] },
-  { name: 'shell', tier: 'unmodelled', extensions: ['sh', 'bash', 'zsh'] },
+  { name: 'shell', tier: 'unmodelled', extensions: ['sh', 'bash', 'zsh', 'bat', 'cmd'] },
   { name: 'R', tier: 'unmodelled', extensions: ['r'] },
   { name: 'Lua', tier: 'unmodelled', extensions: ['lua'] },
   { name: 'Julia', tier: 'unmodelled', extensions: ['jl'] },
@@ -149,6 +231,38 @@ export const SOURCE_LANGUAGES: readonly SourceLanguageEntry[] = [
   { name: 'Zig', tier: 'unmodelled', extensions: ['zig'] },
   { name: 'F#', tier: 'unmodelled', extensions: ['fs', 'fsx'] },
   { name: 'Groovy', tier: 'unmodelled', extensions: ['groovy', 'gvy'] },
+  { name: 'Fortran', tier: 'unmodelled', extensions: ['f', 'for', 'f77', 'f90', 'f95', 'f03'] },
+  { name: 'CUDA/HIP', tier: 'unmodelled', extensions: ['cu', 'cuh', 'hip'] },
+  {
+    name: 'Web templates/styles',
+    tier: 'unmodelled',
+    extensions: [
+      'html',
+      'htm',
+      'css',
+      'scss',
+      'sass',
+      'less',
+      'hbs',
+      'handlebars',
+      'variables',
+      'overrides',
+      'vue',
+      'svelte',
+      'astro',
+      'erb',
+      'haml',
+      'slim',
+      'erubis',
+      'hamlit',
+    ],
+  },
+] as const;
+
+export const SOURCE_LANGUAGES_V10: readonly SourceLanguageEntry[] = [
+  ...SOURCE_LANGUAGES,
+  { name: 'COBOL', tier: 'unmodelled', extensions: ['cob', 'cbl', 'cpy'] },
+  { name: 'MATLAB/Objective-C', tier: 'unmodelled', extensions: ['m'] },
 ] as const;
 
 const SOURCE_EXTENSION_PATTERN = new RegExp(
@@ -156,12 +270,40 @@ const SOURCE_EXTENSION_PATTERN = new RegExp(
   'i',
 );
 
+const SOURCE_EXTENSION_PATTERN_V10 = new RegExp(
+  `\\.(${SOURCE_LANGUAGES_V10.flatMap((language) => language.extensions).join('|')})$`,
+  'i',
+);
+
+export function isRecognizedSourcePath(
+  path: string,
+  rubricVersion = WITAN_RUBRIC_VERSION,
+): boolean {
+  return (
+    rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15
+      ? SOURCE_EXTENSION_PATTERN_V10
+      : SOURCE_EXTENSION_PATTERN
+  ).test(path);
+}
 // Packaged/bundled binary artifacts a closed or docs-only distribution repo ships instead of
 // source — e.g. a VS Code extension .vsix, an npm tarball, a compiled binary/installer.
 const BUNDLED_BINARY_EXTENSION_PATTERN =
-  /\.(vsix|zip|tgz|whl|exe|dmg|pkg|msi|jar|war|apk|ipa|dll|dylib)$/i;
+  /\.(vsix|zip|tgz|whl|exe|dmg|pkg|msi|jar|war|apk|ipa|dll|dylib|ttf|otf|woff2?|eot|eps)$/i;
 
 const DOCS_OR_MEDIA_EXTENSION_PATTERN = /\.(md|mdx|rst|png|jpe?g|gif|svg|webp|ico|pdf)$/i;
+const ARTIFACT_DOMINANCE_EXTENSION_PATTERN =
+  /\.(vsix|zip|tgz|whl|exe|dmg|pkg|msi|jar|war|apk|ipa|dll|dylib|ttf|otf|woff2?|eot|eps|png|jpe?g|gif|svg|webp|ico|pdf)$/i;
+const DOC_DISTRIBUTION_COMPANION_PATTERN =
+  /(^|\/)(LICENSE|LICENCE|NOTICE|COPYING|AUTHORS|CONTRIBUTORS|CODE_OF_CONDUCT)(\.[A-Za-z0-9]+)?$/i;
+const GENERATED_OR_VENDOR_PATH_PATTERN =
+  /(^|\/)(vendor|vendors|dist|build|generated|gen|coverage|node_modules|site-packages|\.venv|venv|\.next|__pycache__|\.terraform|public\/assets|static\/assets)(\/|$)|(^|\/)[^/]+\.min\.(?:js|css)$/i;
+const INDEPENDENT_CATALOG_PATH_PATTERN =
+  /(^|\/)(solutions?|exercises?|challenges?|algorithms?)(\/|$)/i;
 
 // Non-source, non-docs, non-binary files cejel already reads meaning from without needing to
 // recognise a programming language: manifests, lockfiles, structured config, and dotfiles that
@@ -171,7 +313,15 @@ const DOCS_OR_MEDIA_EXTENSION_PATTERN = /\.(md|mdx|rst|png|jpe?g|gif|svg|webp|ic
 // 'source' default rather than being misread as an unrecognised-language repo — the class of
 // false-positive this pattern exists to prevent (goal_cejel_language_calibration_2026-07-12).
 const KNOWN_NON_SOURCE_EXTENSION_PATTERN =
-  /\.(json|jsonc|json5|ya?ml|toml|txt|lock|xml|csv|tsv|ini|cfg|conf|properties|env|sum|mod|graphql|gql|proto|editorconfig|gitignore|gitattributes|npmrc|nvmrc|dockerignore|log|txt\.license)$/i;
+  /\.(json|jsonc|json5|ya?ml|toml|txt|lock|xml|csv|tsv|ini|cfg|conf|cnf|properties|env|sum|mod|graphql|gql|proto|sarif|editorconfig|gitignore|gitattributes|npmrc|nvmrc|dockerignore|prettierignore|prettierrc|log|stderr|snap|grit|po|mo|dbf|shp|shx|egg|pem|key|csr|ai|txt\.license|pf|in|case|common|fortls)$/i;
+
+// V42 review exposed that the broad unknown-extension fallback was also treating compiled,
+// compressed, certificate, patch, project-metadata, resource, and domain-data artifacts as
+// source. V13 narrows only those positive non-source families. Readable uncommon code stays
+// source-shaped through either the canonical language table (COBOL/MATLAB) or the conservative
+// unknown-extension fallback (for example JCL, TeX, and template languages).
+const V13_NON_SOURCE_EXTENSION_PATTERN =
+  /\.(?:\d+|class|py[co]|gz|bz2|xz|7z|rar|mat|npy|npz|h5|hdf5|onnx|pt|pth|ckpt|safetensors|crt|cer|der|p12|pfx|diff|patch|plist|pbxproj|xcworkspacedata|xcbuild|xcplayground|xcscheme|xcsettings|xcconfig|xcprivacy|xcstrings|csproj|fsproj|vbproj|sln|slnf|props|targets|projitems|shproj|pubxml|resw|resources|storyboard|xib|entitlements|modulemap|podspec|nuspec|appxmanifest|webmanifest|manifest|map|fls|aux|bbl|bib|ocm|tdb|db|sqlite|sqlcipher\d*|bin|dat|pdb|prj|resolved|sim|input|list|fig|drawio|puml|sketch|icns|flac|wav|mp3|mp4|mov|avi|mkv|nv21|xls[xb]?|mex[a-z0-9_]*|gitconfig|profile|yapf|config|desktop|typed|example|bak|_|test(?:_[a-z0-9]+)*_location_override|xamltest|tld(?:_[a-z0-9]+)?|xsd|cmake|gradle|mk|am|pro|upri|dockerfile|dockergen|makefile|alpine|android|debian|ubuntu\d+|cuda\d+_ubuntu\d+|manylinux[a-z0-9_]*)$/i;
 
 const INGEST_POINTER =
   'To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.';
@@ -185,11 +335,29 @@ const INGEST_POINTER =
 // set's motivating case (carddemo, ~2.7-3.6% recognised depending on denominator) must abstain.
 // Any number in a wide middle band satisfies both, which is the point: this was not reverse-
 // engineered from carddemo's file count.
-const SOURCE_DOMINANCE_RATIO_THRESHOLD = 0.2;
+const SOURCE_DOMINANCE_RATIO_THRESHOLD_V8 = 0.2;
+const SOURCE_DOMINANCE_RATIO_THRESHOLD_V9 = 0.8;
+const SOURCE_DOMINANCE_RATIO_THRESHOLD_V10 = 0.5;
+const SOURCE_DOMINANCE_RATIO_THRESHOLD_V11 = 0.2;
 
-export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchetypeClassification {
+// V26 structural-abstention thresholds are frozen prospectively against the synthetic boundary
+// matrix in free-core-v26-detector-regressions.test.ts and documented in the v26 remediation
+// specification. They are deliberately count + ratio + remainder rules: no one small directory
+// or ordinary generated client is enough to suppress a headline score.
+const GENERATED_SOURCE_MINIMUM = 8;
+const GENERATED_SOURCE_RATIO_THRESHOLD = 0.8;
+const GENERATED_AUTHORED_MAXIMUM = 3;
+const CATALOG_SOURCE_MINIMUM = 12;
+const CATALOG_SOURCE_RATIO_THRESHOLD = 0.9;
+const CATALOG_OUTSIDE_MAXIMUM = 2;
+
+export function classifyRepoArchetype(
+  repoFiles: readonly string[],
+  rubricVersion = WITAN_RUBRIC_VERSION,
+): RepoArchetypeClassification {
   const totalFileCount = repoFiles.length;
-  const sourceFileCount = repoFiles.filter((file) => SOURCE_EXTENSION_PATTERN.test(file)).length;
+  const sourceFiles = repoFiles.filter((path) => isRecognizedSourcePath(path, rubricVersion));
+  const sourceFileCount = sourceFiles.length;
 
   if (totalFileCount === 0) {
     return {
@@ -200,13 +368,97 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     };
   }
 
+  const generatedSourceFiles = sourceFiles.filter((file) =>
+    GENERATED_OR_VENDOR_PATH_PATTERN.test(file),
+  );
+  if (
+    sourceFileCount >= GENERATED_SOURCE_MINIMUM &&
+    generatedSourceFiles.length / sourceFileCount >= GENERATED_SOURCE_RATIO_THRESHOLD &&
+    sourceFileCount - generatedSourceFiles.length <= GENERATED_AUTHORED_MAXIMUM
+  ) {
+    return {
+      archetype: 'generated_only',
+      sourceFileCount,
+      totalFileCount,
+      insufficientSourceReason:
+        `${generatedSourceFiles.length} of ${sourceFileCount} source-shaped file(s) are under generated, vendor, build, distribution, coverage, or bundled-asset paths; only ${sourceFileCount - generatedSourceFiles.length} authored source-shaped file(s) remain. ` +
+        `Cejel abstains because generated/vendor output is not a reviewable implementation surface. ${INGEST_POINTER}`,
+    };
+  }
+
+  const catalogSourceFiles = sourceFiles.filter((file) =>
+    INDEPENDENT_CATALOG_PATH_PATTERN.test(file),
+  );
+  if (
+    sourceFileCount >= CATALOG_SOURCE_MINIMUM &&
+    catalogSourceFiles.length / sourceFileCount >= CATALOG_SOURCE_RATIO_THRESHOLD &&
+    sourceFileCount - catalogSourceFiles.length <= CATALOG_OUTSIDE_MAXIMUM
+  ) {
+    return {
+      archetype: 'non_cohesive_source',
+      sourceFileCount,
+      totalFileCount,
+      insufficientSourceReason:
+        `${catalogSourceFiles.length} of ${sourceFileCount} source-shaped file(s) are under independent solution, exercise, challenge, or algorithm catalog paths; only ${sourceFileCount - catalogSourceFiles.length} source-shaped file(s) remain outside that catalog. ` +
+        `Cejel abstains because the repository does not expose one cohesive product implementation to score. ${INGEST_POINTER}`,
+    };
+  }
+
+  // Generated trees and independent source catalogs have stronger, already-frozen structural
+  // meanings than the v11 docs/artifact refinements. Evaluate them first so incidental media in
+  // either archetype cannot relabel the repository and silently change the reason for abstention.
+  if (
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15
+  ) {
+    const authoredSourceFiles = sourceFiles.filter(isAuthoredProductionPath);
+    const documentationFiles = repoFiles.filter((file) =>
+      DOCS_OR_MEDIA_EXTENSION_PATTERN.test(file),
+    );
+    if (sourceFileCount > 0 && authoredSourceFiles.length === 0 && documentationFiles.length > 0) {
+      return {
+        archetype: 'docs_only',
+        sourceFileCount,
+        totalFileCount,
+        insufficientSourceReason:
+          `${sourceFileCount} source-shaped file(s) are tests/fixtures around a documentation tree; no authored product source remains. ` +
+          `Cejel abstains because documentation tests do not support a product-source headline score. ${INGEST_POINTER}`,
+      };
+    }
+
+    const artifactFiles = repoFiles.filter((file) =>
+      ARTIFACT_DOMINANCE_EXTENSION_PATTERN.test(file),
+    );
+    const materialFiles = authoredSourceFiles.length + artifactFiles.length;
+    if (
+      artifactFiles.length >= 10 &&
+      (authoredSourceFiles.length <= 10 ||
+        rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+        rubricVersion === WITAN_RUBRIC_VERSION_V15) &&
+      materialFiles > 0 &&
+      authoredSourceFiles.length / materialFiles <= 0.1
+    ) {
+      return {
+        archetype: 'binary_only',
+        sourceFileCount,
+        totalFileCount,
+        insufficientSourceReason:
+          `${authoredSourceFiles.length} authored source-shaped file(s) accompany ${artifactFiles.length} packaged, font, image, or media artifact(s); the source is sparse tooling rather than a representative product implementation. ` +
+          `Cejel abstains because incidental tooling cannot support a product-source headline score. ${INGEST_POINTER}`,
+      };
+    }
+  }
+
   // Files with an extension that is not recognised source, not docs/media, not a bundled
   // binary, and not one of the manifest/lockfile/config extensions common to every ecosystem —
   // i.e. files that LOOK like implementation in some language, just not one cejel reads.
   // Computed unconditionally (goal_cejel_archetype_dominance_not_presence_2026-07-15): this
   // used to be reachable only when sourceFileCount === 0; it is now also the competing signal
   // the dominance ratio below weighs recognised source against.
-  const unrecognisedSourceFiles = collectUnrecognisedSourceFiles(repoFiles);
+  const unrecognisedSourceFiles = collectUnrecognisedSourceFiles(repoFiles, rubricVersion);
 
   if (sourceFileCount === 0) {
     // Only classify as insufficient-source when there is positive evidence of a docs or
@@ -226,11 +478,22 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     }
 
     const docsFiles = repoFiles.filter((file) => DOCS_OR_MEDIA_EXTENSION_PATTERN.test(file));
-    // Require every tracked file to be docs/media — a repo with zero source AND some unrelated
-    // file cejel doesn't recognize (a LICENSE, a data file) is ambiguous, not confidently
-    // docs-only; default to normal ('source') scoring rather than risk a false insufficient-
-    // source call.
-    if (docsFiles.length > 0 && docsFiles.length === totalFileCount) {
+    const docsDistributionFiles = repoFiles.filter(
+      (file) =>
+        DOCS_OR_MEDIA_EXTENSION_PATTERN.test(file) || DOC_DISTRIBUTION_COMPANION_PATTERN.test(file),
+    );
+    if (
+      docsFiles.length > 0 &&
+      (docsDistributionFiles.length === totalFileCount ||
+        ((rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V15) &&
+          unrecognisedSourceFiles.length === 0))
+    ) {
       return {
         archetype: 'docs_only',
         sourceFileCount,
@@ -247,7 +510,12 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     // the existing ambiguous 'source' default — see the two regression cases in
     // repo-archetype.test.ts this branch must not disturb.
     if (unrecognisedSourceFiles.length > 0) {
-      return unrecognisedEcosystemResult(sourceFileCount, totalFileCount, unrecognisedSourceFiles);
+      return unrecognisedEcosystemResult(
+        sourceFileCount,
+        totalFileCount,
+        unrecognisedSourceFiles,
+        sourceDominanceThreshold(rubricVersion),
+      );
     }
 
     return { archetype: 'source', sourceFileCount, totalFileCount };
@@ -268,7 +536,8 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
   // incidental (carddemo's nine deploy scripts among 329 mostly-COBOL files)? Golden set:
   // docs/calibration/archetype-ratio-golden-set.md.
   const dominanceRatio = sourceFileCount / (sourceFileCount + unrecognisedSourceFiles.length);
-  if (dominanceRatio >= SOURCE_DOMINANCE_RATIO_THRESHOLD) {
+  const dominanceThreshold = sourceDominanceThreshold(rubricVersion);
+  if (dominanceRatio >= dominanceThreshold) {
     return {
       archetype: isLikelyMonorepo(repoFiles) ? 'monorepo' : 'source',
       sourceFileCount,
@@ -276,19 +545,355 @@ export function classifyRepoArchetype(repoFiles: readonly string[]): RepoArchety
     };
   }
 
-  return unrecognisedEcosystemResult(sourceFileCount, totalFileCount, unrecognisedSourceFiles);
+  return unrecognisedEcosystemResult(
+    sourceFileCount,
+    totalFileCount,
+    unrecognisedSourceFiles,
+    dominanceThreshold,
+  );
 }
 
-function collectUnrecognisedSourceFiles(repoFiles: readonly string[]): string[] {
-  return repoFiles.filter((file) => {
-    const base = basename(file);
-    if (!/\.([a-zA-Z0-9_]+)$/.test(base)) return false;
-    if (KNOWN_NON_SOURCE_EXTENSION_PATTERN.test(base)) return false;
-    if (DOCS_OR_MEDIA_EXTENSION_PATTERN.test(base)) return false;
-    if (BUNDLED_BINARY_EXTENSION_PATTERN.test(base)) return false;
-    if (SOURCE_EXTENSION_PATTERN.test(base)) return false;
-    return true;
-  });
+const READABLE_SOURCE_REPRESENTATION_THRESHOLD_V13 = 0.8;
+const READABLE_SOURCE_REPRESENTATION_SAMPLE_LIMIT_V13 = 32;
+const READABLE_SOURCE_REPRESENTATION_FILE_BYTES_V13 = 256 * 1024;
+const SEMANTIC_AUXILIARY_SOURCE_MINIMUM_V14 = 20;
+const SEMANTIC_AUXILIARY_SOURCE_RATIO_V14 = 0.8;
+const SEMANTIC_METADATA_PREFIX_BYTES_V14 = 16 * 1024;
+const SEMANTIC_AUXILIARY_PATH_PATTERN_V14 =
+  /(^|\/)(?:locales?|i18n|l10n|translations?|styles?|themes?)(\/|$)|\.(?:css|scss|sass|less|styl)$/i;
+const HTML_SOURCE_EXTENSION_PATTERN = /\.(?:html?|xhtml)$/i;
+const HTML_META_REFRESH_PATTERN =
+  /<meta\b(?=[^>]*\bhttp-equiv\s*=\s*["']?\s*refresh\b)(?=[^>]*\bcontent\s*=\s*["'][^"']*\burl\s*=)[^>]*>/i;
+const RUBY_PACKAGE_RECIPE_CLASS_PATTERN = /\bclass\s+[A-Za-z0-9_:]+\s*<\s*(?:Formula|Cask)\b/;
+const RUBY_PACKAGE_RECIPE_URL_PATTERN = /^\s*url\s+["'][^"']+["']/m;
+const RUBY_PACKAGE_RECIPE_PATH_PATTERN = /(^|\/)(?:Formula|Casks?)(\/|$)/;
+
+interface RepresentativeSourceGroup {
+  extension: string;
+  files: string[];
+  allocation: number;
+  remainder: number;
+}
+
+/**
+ * Deterministically apportions a bounded sample across source-extension families using Hamilton
+ * (largest-remainder) allocation. Unlike extension round-robin, the returned sample preserves
+ * the corpus mix: a dominant family receives a dominant share while material minorities remain
+ * visible. The caller supplies a sealed rank key; repository paths never enter the decision.
+ */
+export function selectProportionalRepresentativeSourceFiles(
+  files: readonly string[],
+  rankKey: string,
+  limit: number,
+): string[] {
+  const eligibleFiles = [...new Set(files)];
+  const slotCount = Math.min(Math.max(Math.floor(limit), 0), eligibleFiles.length);
+  if (slotCount === 0) return [];
+
+  const grouped = new Map<string, string[]>();
+  for (const file of eligibleFiles) {
+    const extension = extname(file).toLowerCase() || '(none)';
+    const bucket = grouped.get(extension) ?? [];
+    bucket.push(file);
+    grouped.set(extension, bucket);
+  }
+
+  const groups: RepresentativeSourceGroup[] = [...grouped.entries()]
+    .map(([extension, groupFiles]) => {
+      const quota = (groupFiles.length / eligibleFiles.length) * slotCount;
+      return {
+        extension,
+        files: [...groupFiles].sort((left, right) =>
+          representativeSourceRank(rankKey, left).localeCompare(
+            representativeSourceRank(rankKey, right),
+          ),
+        ),
+        allocation: Math.floor(quota),
+        remainder: quota - Math.floor(quota),
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.files.length - left.files.length || left.extension.localeCompare(right.extension),
+    );
+
+  let remaining = slotCount - groups.reduce((sum, group) => sum + group.allocation, 0);
+  const remainderOrder = [...groups].sort(
+    (left, right) =>
+      right.remainder - left.remainder ||
+      right.files.length - left.files.length ||
+      left.extension.localeCompare(right.extension),
+  );
+  for (const group of remainderOrder) {
+    if (remaining === 0) break;
+    if (group.allocation >= group.files.length) continue;
+    group.allocation += 1;
+    remaining -= 1;
+  }
+
+  const selected: string[] = [];
+  for (let offset = 0; selected.length < slotCount; offset += 1) {
+    let added = false;
+    for (const group of groups) {
+      if (offset >= group.allocation) continue;
+      const file = group.files[offset];
+      if (!file) continue;
+      selected.push(file);
+      added = true;
+    }
+    if (!added) break;
+  }
+  return selected;
+}
+
+export function isRepresentativeSourceText(contents: string): boolean {
+  if (contents.trim().length === 0) return false;
+  if (contents.includes('\u0000') || contents.includes('\uFFFD')) return false;
+  let disallowedControls = 0;
+  for (const character of contents) {
+    const code = character.charCodeAt(0);
+    if (code < 32 && character !== '\n' && character !== '\r' && character !== '\t') {
+      disallowedControls += 1;
+    }
+  }
+  return disallowedControls / contents.length <= 0.01;
+}
+
+function representativeSourceRank(rankKey: string, file: string): string {
+  return createHash('sha256').update(`${rankKey}:${file}`).digest('hex');
+}
+
+function applyReadableSourceRepresentationGate(
+  repoPath: string,
+  repoFiles: readonly string[],
+  classification: RepoArchetypeClassification,
+  headSha: string | null,
+  rubricVersion: string,
+): RepoArchetypeClassification {
+  if (classification.archetype !== 'source' && classification.archetype !== 'monorepo') {
+    return classification;
+  }
+
+  const authoredSourceFiles = repoFiles.filter(
+    (path) =>
+      isAuthoredProductionPath(path) &&
+      (isRecognizedSourcePath(path, rubricVersion) ||
+        isUnrecognisedSourcePath(path, rubricVersion) ||
+        /\.ipynb$/i.test(path)),
+  );
+  if (authoredSourceFiles.length === 0) return classification;
+
+  const sample = selectProportionalRepresentativeSourceFiles(
+    authoredSourceFiles,
+    `witan-v13-readable-source:${headSha ?? 'unversioned'}`,
+    READABLE_SOURCE_REPRESENTATION_SAMPLE_LIMIT_V13,
+  );
+  const sampledByExtension = new Map<string, { sampled: number; readable: number }>();
+  for (const file of sample) {
+    const extension = extname(file).toLowerCase() || '(none)';
+    const counts = sampledByExtension.get(extension) ?? { sampled: 0, readable: 0 };
+    counts.sampled += 1;
+    const contents = readRepresentativeSourceText(repoPath, file);
+    if (contents !== null && isRepresentativeSourceText(contents)) {
+      counts.readable += 1;
+    }
+    sampledByExtension.set(extension, counts);
+  }
+
+  const sourceCountByExtension = new Map<string, number>();
+  for (const file of authoredSourceFiles) {
+    const extension = extname(file).toLowerCase() || '(none)';
+    sourceCountByExtension.set(extension, (sourceCountByExtension.get(extension) ?? 0) + 1);
+  }
+  const readableSourceFileCount = [...sourceCountByExtension.entries()].reduce(
+    (total, [extension, sourceCount]) => {
+      const sampled = sampledByExtension.get(extension);
+      if (!sampled || sampled.sampled === 0) return total;
+      return total + sourceCount * (sampled.readable / sampled.sampled);
+    },
+    0,
+  );
+  const readableRatio = readableSourceFileCount / authoredSourceFiles.length;
+  if (readableRatio >= READABLE_SOURCE_REPRESENTATION_THRESHOLD_V13) return classification;
+
+  const readableCountLabel = Number.isInteger(readableSourceFileCount)
+    ? String(readableSourceFileCount)
+    : readableSourceFileCount.toFixed(2);
+  const readablePct = (readableRatio * 100).toFixed(1);
+  const thresholdPct = (READABLE_SOURCE_REPRESENTATION_THRESHOLD_V13 * 100).toFixed(0);
+  return {
+    archetype: 'non_cohesive_source',
+    sourceFileCount: classification.sourceFileCount,
+    totalFileCount: classification.totalFileCount,
+    insufficientSourceReason:
+      `Readable source representation covers ${readableCountLabel} of ${authoredSourceFiles.length} authored source-shaped file(s) (${readablePct}%); this is below the ${thresholdPct}% representation threshold. ` +
+      `Cejel abstains because unreadable, compressed, binary-shaped, or opaque source families cannot support a representative headline score. ${INGEST_POINTER}`,
+  };
+}
+
+function applySemanticSourceRepresentationGate(
+  repoPath: string,
+  repoFiles: readonly string[],
+  classification: RepoArchetypeClassification,
+  rubricVersion: string,
+): RepoArchetypeClassification {
+  if (classification.archetype !== 'source' && classification.archetype !== 'monorepo') {
+    return classification;
+  }
+
+  const authoredSourceFiles = repoFiles.filter(
+    (path) =>
+      isAuthoredProductionPath(path) &&
+      (isRecognizedSourcePath(path, rubricVersion) ||
+        isUnrecognisedSourcePath(path, rubricVersion) ||
+        /\.ipynb$/i.test(path)),
+  );
+  if (authoredSourceFiles.length === 0) return classification;
+
+  const auxiliaryFiles = authoredSourceFiles.filter((path) =>
+    SEMANTIC_AUXILIARY_PATH_PATTERN_V14.test(path),
+  );
+  const packageMetadataFiles = authoredSourceFiles.filter((path) =>
+    isRubyPackageRecipeMetadataSource(repoPath, path),
+  );
+  const redirectMetadataFiles = authoredSourceFiles.filter((path) =>
+    isHtmlRedirectMetadataSource(repoPath, path),
+  );
+  const auxiliarySet = new Set([
+    ...auxiliaryFiles,
+    ...packageMetadataFiles,
+    ...redirectMetadataFiles,
+  ]);
+  const representativeImplementationCount = authoredSourceFiles.filter(
+    (path) => !auxiliarySet.has(path),
+  ).length;
+
+  if (representativeImplementationCount === 0) {
+    const detail =
+      redirectMetadataFiles.length > 0
+        ? `${redirectMetadataFiles.length} redirect metadata file(s)`
+        : packageMetadataFiles.length > 0
+          ? `${packageMetadataFiles.length} package metadata file(s)`
+          : `${auxiliaryFiles.length} localization or style metadata file(s)`;
+    return {
+      archetype: 'non_cohesive_source',
+      sourceFileCount: classification.sourceFileCount,
+      totalFileCount: classification.totalFileCount,
+      insufficientSourceReason:
+        `${detail} provide no representative product implementation. ` +
+        `Cejel abstains because auxiliary metadata or payload files cannot support a product-source headline score. ${INGEST_POINTER}`,
+    };
+  }
+
+  const auxiliaryCount = auxiliarySet.size;
+  const auxiliaryRatio = auxiliaryCount / authoredSourceFiles.length;
+  if (
+    authoredSourceFiles.length >= SEMANTIC_AUXILIARY_SOURCE_MINIMUM_V14 &&
+    auxiliaryRatio >= SEMANTIC_AUXILIARY_SOURCE_RATIO_V14
+  ) {
+    return {
+      archetype: 'non_cohesive_source',
+      sourceFileCount: classification.sourceFileCount,
+      totalFileCount: classification.totalFileCount,
+      insufficientSourceReason:
+        `${auxiliaryCount} of ${authoredSourceFiles.length} authored source-shaped file(s) are localization, style, package, or redirect auxiliary material. ` +
+        `Cejel abstains because an auxiliary-dominated tree does not expose representative product implementation for a headline score. ${INGEST_POINTER}`,
+    };
+  }
+
+  return classification;
+}
+
+function isHtmlRedirectMetadataSource(repoPath: string, file: string): boolean {
+  if (!HTML_SOURCE_EXTENSION_PATTERN.test(file)) return false;
+  const contents = readSemanticMetadataPrefix(repoPath, file);
+  if (contents === null) return false;
+  const operativeContents = contents.replace(/<!--[\s\S]*?-->/g, '');
+  if (!HTML_META_REFRESH_PATTERN.test(operativeContents)) return false;
+  return !/<(?:script|form|main|article|section|canvas|template)\b/i.test(operativeContents);
+}
+
+function isRubyPackageRecipeMetadataSource(repoPath: string, file: string): boolean {
+  if (!/\.rb$/i.test(file) || !RUBY_PACKAGE_RECIPE_PATH_PATTERN.test(file)) return false;
+  const contents = readSemanticMetadataPrefix(repoPath, file);
+  const operativeContents = contents?.replace(/^\s*#.*$/gm, '');
+  return (
+    operativeContents !== undefined &&
+    RUBY_PACKAGE_RECIPE_CLASS_PATTERN.test(operativeContents) &&
+    RUBY_PACKAGE_RECIPE_URL_PATTERN.test(operativeContents)
+  );
+}
+
+function readSemanticMetadataPrefix(repoPath: string, file: string): string | null {
+  const absolutePath = join(repoPath, file);
+  if (!isRegularFile(absolutePath)) return null;
+
+  let descriptor: number | null = null;
+  try {
+    descriptor = openSync(absolutePath, 'r');
+    const buffer = Buffer.allocUnsafe(SEMANTIC_METADATA_PREFIX_BYTES_V14);
+    const bytesRead = readSync(descriptor, buffer, 0, SEMANTIC_METADATA_PREFIX_BYTES_V14, 0);
+    return buffer.subarray(0, bytesRead).toString('utf8');
+  } catch {
+    return null;
+  } finally {
+    if (descriptor !== null) closeSync(descriptor);
+  }
+}
+
+function readRepresentativeSourceText(repoPath: string, file: string): string | null {
+  const absolutePath = join(repoPath, file);
+  try {
+    if (!isRegularFile(absolutePath)) return null;
+    const size = statSync(absolutePath).size;
+    if (size === 0 || size > READABLE_SOURCE_REPRESENTATION_FILE_BYTES_V13) return null;
+    return readFileSync(absolutePath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+function sourceDominanceThreshold(rubricVersion: string): number {
+  if (
+    rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15
+  ) {
+    return SOURCE_DOMINANCE_RATIO_THRESHOLD_V11;
+  }
+  if (rubricVersion === WITAN_RUBRIC_VERSION_V10) return SOURCE_DOMINANCE_RATIO_THRESHOLD_V10;
+  if (rubricVersion === WITAN_RUBRIC_VERSION_V9) return SOURCE_DOMINANCE_RATIO_THRESHOLD_V9;
+  return SOURCE_DOMINANCE_RATIO_THRESHOLD_V8;
+}
+
+function collectUnrecognisedSourceFiles(
+  repoFiles: readonly string[],
+  rubricVersion: string,
+): string[] {
+  return repoFiles.filter((path) => isUnrecognisedSourcePath(path, rubricVersion));
+}
+
+export function isUnrecognisedSourcePath(
+  file: string,
+  rubricVersion = WITAN_RUBRIC_VERSION,
+): boolean {
+  const base = basename(file);
+  if (!/\.([a-zA-Z0-9_]+)$/.test(base)) return false;
+  if (KNOWN_NON_SOURCE_EXTENSION_PATTERN.test(base)) return false;
+  if (
+    (rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V15) &&
+    V13_NON_SOURCE_EXTENSION_PATTERN.test(base)
+  ) {
+    return false;
+  }
+  if (DOCS_OR_MEDIA_EXTENSION_PATTERN.test(base)) return false;
+  if (BUNDLED_BINARY_EXTENSION_PATTERN.test(base)) return false;
+  if (isRecognizedSourcePath(base, rubricVersion)) return false;
+  return true;
 }
 
 // Ranked by how many files carry each extension, most-common first (ties broken
@@ -313,6 +918,7 @@ function unrecognisedEcosystemResult(
   sourceFileCount: number,
   totalFileCount: number,
   unrecognisedSourceFiles: readonly string[],
+  dominanceThreshold = SOURCE_DOMINANCE_RATIO_THRESHOLD_V9,
 ): RepoArchetypeClassification {
   const sample = extensionsByFileCountDescending(unrecognisedSourceFiles).slice(0, 6).join(', ');
   // The reason must name the real numbers (Guard 6) — never a bare verdict — whether recognised
@@ -332,7 +938,7 @@ function unrecognisedEcosystemResult(
   const candidateCount = sourceFileCount + unrecognisedSourceFiles.length;
   const dominancePct =
     candidateCount > 0 ? ((sourceFileCount / candidateCount) * 100).toFixed(1) : '0.0';
-  const thresholdPct = (SOURCE_DOMINANCE_RATIO_THRESHOLD * 100).toFixed(0);
+  const thresholdPct = (dominanceThreshold * 100).toFixed(0);
   const measuredClause =
     sourceFileCount > 0
       ? `${sourceFileCount} of ${candidateCount} source-shaped file(s) (${dominancePct}%) are in a language Cejel reads — below the ${thresholdPct}% dominance threshold a score would need to be meaningful (${totalFileCount} tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio)`
@@ -389,16 +995,41 @@ function collectRepoSignals(
   repoPath: string,
   generatedAt: string,
   repoFiles: readonly string[],
+  useV27Detectors: boolean,
+  useV33Detectors: boolean,
+  useV36Detectors: boolean,
+  useV39Detectors: boolean,
+  useV47Detectors: boolean,
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
   // scan; null when scanning a standalone repo or the git root (byte-identical there).
   const mono = resolveMonorepoContext(repoPath);
-  const a1Signal = collectA1TestIntegrityEvidence(repoPath, repoFiles);
-  const a2Signal = collectA2IsolationEvidence(repoPath, repoFiles);
-  const a3Signal = collectA3ProdReadinessEvidence(repoPath, repoFiles);
-  const a4Signal = collectA4DependencyEvidence(repoPath, repoFiles, mono);
-  const a5Signal = collectA5ClaimRealityEvidence(repoPath, repoFiles);
+  const a1Signal = collectA1TestIntegrityEvidence(
+    repoPath,
+    repoFiles,
+    useV27Detectors,
+    useV33Detectors,
+    useV36Detectors,
+  );
+  const a2Signal = collectA2IsolationEvidence(
+    repoPath,
+    repoFiles,
+    useV27Detectors,
+    useV33Detectors,
+    useV36Detectors,
+    useV39Detectors,
+    useV47Detectors,
+  );
+  const a3Signal = collectA3ProdReadinessEvidence(repoPath, repoFiles, useV27Detectors);
+  const a4Signal = collectA4DependencyEvidence(
+    repoPath,
+    repoFiles,
+    mono,
+    useV27Detectors,
+    useV47Detectors,
+  );
+  const a5Signal = collectA5ClaimRealityEvidence(repoPath, repoFiles, useV27Detectors);
   const b1Signal = buildNotApplicableSignal(
     'B1',
     'Repository scans do not evaluate the dispatch-trace process dimension.',
@@ -427,7 +1058,7 @@ function collectRepoSignals(
     'Repository scans do not evaluate the learning-trace process dimension.',
   );
   // B6 is a generic governance signal (not Alfred-specific) — runs on every repo archetype.
-  const b6Signal = collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles);
+  const b6Signal = collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles, useV39Detectors);
 
   for (const signal of [
     a1Signal,
@@ -451,20 +1082,35 @@ function collectRepoSignals(
 function collectA1TestIntegrityEvidence(
   repoPath: string,
   repoFiles: readonly string[],
+  useV27Detectors: boolean,
+  useV33Detectors: boolean,
+  useV36Detectors: boolean,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
-  const contentCppTests = collectContentBasedCppTestFiles(repoPath, repoFiles);
-  const allTestFiles = [
-    ...repoFiles.filter(isTestFile),
-    ...contentCppTests.filter((file) => !isTestFile(file)),
-  ];
+  const allTestFiles = findConcreteTestFiles(repoPath, repoFiles);
   const testFiles = allTestFiles.slice(0, 8);
   const sourceFiles = repoFiles.filter(isSourceFile);
-  const runnerFiles = repoFiles.filter(isTestRunnerConfig).slice(0, 6);
-  const coverageFiles = repoFiles.filter(isCoverageConfig).slice(0, 4);
+  const runnerFiles = repoFiles
+    .filter(
+      (file) =>
+        (!useV27Detectors || isAuthoredProductionPath(file)) && isTestRunnerConfig(repoPath, file),
+    )
+    .slice(0, 6);
+  const configuredRunnerFiles = useV33Detectors
+    ? findConfiguredTestRunnerFiles(repoPath, repoFiles)
+    : runnerFiles;
+  const allCoverageFiles = findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors);
+  const coverageFiles = allCoverageFiles.slice(0, 4);
   const packageJson = findRootPackageJson(repoFiles);
   const packageScripts = packageJson ? readPackageScripts(join(repoPath, packageJson)) : new Map();
+  const packageJsonFiles = useV27Detectors
+    ? repoFiles.filter(
+        (file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file),
+      )
+    : packageJson
+      ? [packageJson]
+      : [];
   const coveragePercent = readCoveragePercent(repoPath, coverageFiles);
   // Ecosystems without a package.json (Python, Go, Rust, Java...) have no npm "test"/"lint"/
   // "typecheck" script key to credit — their real verification signal is a CI workflow that
@@ -474,7 +1120,9 @@ function collectA1TestIntegrityEvidence(
   // (goal_cejel_code_trust_external_ecosystem_calibration_2026-07-06). Each category below is
   // satisfied by EITHER an npm script OR the language-agnostic CI command equivalent, so a
   // Python/Go repo can reach the same verification-depth credit as a Node repo with npm scripts.
-  const ciWorkflows = repoFiles.filter(isCiWorkflow);
+  const ciWorkflows = repoFiles.filter(
+    (file) => (!useV27Detectors || isAuthoredProductionPath(file)) && isCiWorkflow(file),
+  );
   const ciTestWorkflow = ciWorkflows.find((file) =>
     fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN),
   );
@@ -499,8 +1147,12 @@ function collectA1TestIntegrityEvidence(
         LEAN_TEST_RUNNER_SCRIPT_PATTERN.test(script),
       )) ||
     testFiles.some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
-  const hasHeavyTestDependency =
-    packageJson != null && packageJsonHasHeavyTestDependency(repoPath, packageJson);
+  // A root node:test script does not make a monorepo lean when any workspace still carries a
+  // heavyweight runner. v26 missed Meteor because it inspected only the root package.json and
+  // therefore suppressed a real no-coverage finding despite nested Jest dependencies.
+  const hasHeavyTestDependency = packageJsonFiles.some((manifest) =>
+    packageJsonHasHeavyTestDependency(repoPath, manifest),
+  );
   const isLeanTestToolchain = usesLeanBuiltInTestRunner && !hasHeavyTestDependency;
 
   for (const file of testFiles) {
@@ -532,7 +1184,10 @@ function collectA1TestIntegrityEvidence(
   const scheduledHealthWorkflow = ciWorkflows.find(
     (file) =>
       fileContains(repoPath, file, SCHEDULE_TRIGGER_PATTERN) &&
-      fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN),
+      fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN) &&
+      (!useV36Detectors ||
+        SCHEDULED_HEALTH_PATH_PATTERN.test(file) ||
+        fileContains(repoPath, file, SCHEDULED_HEALTH_INTENT_PATTERN)),
   );
   if (scheduledHealthWorkflow) {
     const isPublished = fileContains(
@@ -572,7 +1227,16 @@ function collectA1TestIntegrityEvidence(
   if (evidence.length === 0 && findings.length === 0) return null;
 
   if (testFiles.length === 0) {
-    const fallback = evidence[0] ?? findings[0]?.evidence;
+    const fallback = configuredRunnerFiles[0]
+      ? evidenceForRelative(
+          repoPath,
+          configuredRunnerFiles[0],
+          'test_run',
+          'Configured test runner',
+        )
+      : useV33Detectors
+        ? undefined
+        : (evidence[0] ?? findings[0]?.evidence);
     if (fallback) {
       findings.push({
         severity: 'warning',
@@ -580,7 +1244,7 @@ function collectA1TestIntegrityEvidence(
         evidence: fallback,
       });
     }
-  } else if (coverageFiles.length === 0) {
+  } else if (coverageFiles.length === 0 && (!useV33Detectors || configuredRunnerFiles.length > 0)) {
     if (isLeanTestToolchain) {
       const leanEvidenceFile = packageJson ?? testFiles[0];
       if (leanEvidenceFile) {
@@ -658,11 +1322,16 @@ function collectA1TestIntegrityEvidence(
 function collectA2IsolationEvidence(
   repoPath: string,
   repoFiles: readonly string[],
+  useV27Detectors: boolean,
+  useV33Detectors: boolean,
+  useV36Detectors: boolean,
+  useV39Detectors: boolean,
+  useV47Detectors: boolean,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
   const gitignore = repoFiles.find((file) => basename(file) === '.gitignore');
-  const envExamples = repoFiles.filter((file) => isEnvTemplatePath(file));
+  const envExamples = repoFiles.filter((file) => isEnvTemplatePath(file, useV47Detectors));
   const migrationFiles = repoFiles.filter((file) =>
     /(^|\/)(migrations?|drizzle|prisma)\//.test(file),
   );
@@ -672,10 +1341,60 @@ function collectA2IsolationEvidence(
   // must fire critical even in an archetype the gate would otherwise call N/A; the prior
   // ordering made a real committed secret invisible whenever there was no "data layer" or
   // "secrets surface" (goal_cejel_launch_hardening_combined_2026-07-06, Phase 2 FN #2).
-  const committedSecret = repoFiles.find(
-    (file) => !isIgnoredScanFile(file) && fileContainsCommittedSecret(repoPath, file),
-  );
-  const historySecretScan = committedSecret ? null : collectHistorySecretEvidence(repoPath);
+  let committedSecret: { path: string; match: RealSecretAssignmentMatch } | undefined;
+  for (const path of repoFiles) {
+    const authoredProductionPath = useV47Detectors
+      ? isV47AuthoredProductionPath(path)
+      : useV39Detectors
+        ? isV39AuthoredProductionPath(path)
+        : isAuthoredProductionPath(path);
+    if (isIgnoredScanFile(path, useV47Detectors) || (useV33Detectors && !authoredProductionPath)) {
+      continue;
+    }
+    const match = findCommittedSecretInFile(
+      repoPath,
+      path,
+      useV36Detectors,
+      useV39Detectors,
+      useV47Detectors,
+    );
+    if (!match) continue;
+    committedSecret = { path, match };
+    break;
+  }
+  const currentSecretFingerprintsByPath = new Map<string, ReadonlySet<string>>();
+  if (useV27Detectors) {
+    for (const path of repoFiles.filter((candidate) => isCredentialHistoryPath(candidate))) {
+      currentSecretFingerprintsByPath.set(
+        path,
+        new Set(
+          findSecretFingerprintsInFile(
+            repoPath,
+            path,
+            useV36Detectors,
+            useV39Detectors,
+            useV47Detectors,
+          ),
+        ),
+      );
+    }
+  }
+  // Current-tree and ancestor-history evidence are independent propositions. A current secret
+  // must not suppress a distinct deleted/rotated credential finding from history. V8 excludes
+  // HEAD and any still-current value fingerprints from the history pass, so unchanged credentials
+  // are not emitted twice while a distinct historical value remains reviewable.
+  const historySecretScan =
+    committedSecret && !useV27Detectors
+      ? null
+      : collectHistorySecretEvidence(
+          repoPath,
+          useV27Detectors,
+          currentSecretFingerprintsByPath,
+          useV33Detectors,
+          useV36Detectors,
+          useV39Detectors,
+          useV47Detectors,
+        );
   const hasConfirmedSecretFinding = committedSecret != null || historySecretScan?.evidence != null;
 
   // Crypto hygiene nudge (goal_cejel_rubric_refinement_from_lua_2026-07-06): computed
@@ -686,6 +1405,7 @@ function collectA2IsolationEvidence(
   const cryptoHygiene = collectCryptoHygieneEvidence(
     repoPath,
     repoFiles.filter(isImplementationFile).slice(0, 60),
+    useV39Detectors,
   );
 
   // Archetype-aware N/A gate. A ratable secrets surface requires at least one of:
@@ -704,7 +1424,11 @@ function collectA2IsolationEvidence(
   // .env* in current tree, excluding templates (.env.example/.sample/.template are in envExamples).
   // Catches .env, .env.production, .env.staging, .env.local, etc.
   const committedEnvFilePath = repoFiles.find(
-    (f) => /(?:^|\/)\.env(?:\.|$)/i.test(f) && !isEnvTemplatePath(f),
+    (f) =>
+      /(?:^|\/)\.env(?:\.|$)/i.test(f) &&
+      !isEnvTemplatePath(f, useV47Detectors) &&
+      (!useV47Detectors || isV47AuthoredProductionPath(f)) &&
+      (!useV39Detectors || !hasTemplateOnlyEnvContent(repoPath, f)),
   );
   // Only scan history when the current tree has no .env* to avoid redundant scanning.
   const hasEnvInHistory = committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath);
@@ -762,20 +1486,31 @@ function collectA2IsolationEvidence(
   }
   // hasSecretsSurface via gitignoreHasEnvRule or envExamples: pushed in main loop below.
 
-  const rlsMigration = migrationFiles.find((file) => fileContains(repoPath, file, RLS_PATTERN));
-  const tenantScopedFile = migrationFiles.find((file) =>
-    fileContains(repoPath, file, TENANT_SCOPE_PATTERN),
-  );
-  const rlsPolicyCount = countPatternMatches(
-    repoPath,
-    migrationFiles,
-    /create policy|enable row level security|force row level security/gi,
-  );
-  const tenantScopedMigrationFileCount = countFilesContaining(
-    repoPath,
-    migrationFiles,
-    TENANT_SCOPE_PATTERN,
-  );
+  const v47RlsPolicyFiles = useV47Detectors ? findRlsPolicyFiles(repoPath, repoFiles) : [];
+  const v47TenantStorageFiles = useV47Detectors
+    ? findTenantStoragePremiseFiles(repoPath, repoFiles)
+    : [];
+  const rlsMigration = useV47Detectors
+    ? v47RlsPolicyFiles[0]
+    : migrationFiles.find((file) => fileContains(repoPath, file, RLS_PATTERN));
+  const tenantScopePattern = useV39Detectors
+    ? TENANT_SCOPE_PATTERN_V11
+    : useV36Detectors
+      ? TENANT_SCOPE_PATTERN_V10
+      : TENANT_SCOPE_PATTERN;
+  const tenantScopedFile = useV47Detectors
+    ? v47TenantStorageFiles[0]
+    : migrationFiles.find((file) => fileContains(repoPath, file, tenantScopePattern));
+  const rlsPolicyCount = useV47Detectors
+    ? v47RlsPolicyFiles.length
+    : countPatternMatches(
+        repoPath,
+        migrationFiles,
+        /create policy|enable row level security|force row level security/gi,
+      );
+  const tenantScopedMigrationFileCount = useV47Detectors
+    ? v47TenantStorageFiles.length
+    : countFilesContaining(repoPath, migrationFiles, tenantScopePattern);
   // gitignoreEnvFile is non-null only when the gitignore actually contains an .env rule.
   const gitignoreEnvFile =
     gitignore && fileContains(repoPath, gitignore, /^\.env(\*|\b)|\.env\./m) ? gitignore : null;
@@ -810,17 +1545,40 @@ function collectA2IsolationEvidence(
   }
 
   if (committedSecret) {
-    const isTestPath = isTestOrFixturePath(committedSecret);
+    const isTestPath = isTestOrFixturePath(committedSecret.path);
+    const isDefaultAdmin = committedSecret.match.kind === 'default_admin';
     findings.push({
       severity: isTestPath ? 'info' : 'critical',
-      summary: isTestPath
-        ? `Secret-shaped value in a test/fixture file (${committedSecret}) — likely fixture data, not a production leak; verify.`
-        : 'Secret-shaped value appears committed in the scanned repository.',
+      summary: isDefaultAdmin
+        ? isTestPath
+          ? `Default administrative credential in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production deployment default; verify.`
+          : 'An explicit default administrative credential appears committed in production configuration.'
+        : isTestPath
+          ? `Secret-shaped value in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production leak; verify.`
+          : 'Secret-shaped value appears committed in the scanned repository.',
+      evidence: evidenceForRelativeAtLine(
+        repoPath,
+        committedSecret.path,
+        'secret_scan',
+        secretEvidenceLabel(
+          isDefaultAdmin
+            ? 'Committed default administrative credential'
+            : 'Committed secret-shaped value',
+          committedSecret.match,
+        ),
+        committedSecret.match.line,
+      ),
+    });
+  } else if (committedEnvFilePath) {
+    findings.push({
+      severity: useV33Detectors ? 'info' : 'warning',
+      summary:
+        'A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.',
       evidence: evidenceForRelative(
         repoPath,
-        committedSecret,
+        committedEnvFilePath,
         'secret_scan',
-        'Committed secret-shaped value',
+        'Committed .env file (no confirmed secret value found)',
       ),
     });
   }
@@ -836,7 +1594,7 @@ function collectA2IsolationEvidence(
     });
   } else if (historySecretScan?.truncated) {
     findings.push({
-      severity: 'warning',
+      severity: useV33Detectors ? 'info' : 'warning',
       summary:
         'History secret scan reached the credential-path safety valve before scanning every matching blob.',
       evidence: {
@@ -850,7 +1608,7 @@ function collectA2IsolationEvidence(
     // A bare .env PATH in history (not a template, value unknown/undetected) is a
     // hygiene warning, never a critical secret leak — see goal_cejel_calibration_findings_precision_2026-07-06.
     findings.push({
-      severity: 'warning',
+      severity: useV33Detectors ? 'info' : 'warning',
       summary:
         'A non-template .env file was tracked in git history; no secret-shaped value was detected.',
       evidence: historySecretScan.envPathEvidence,
@@ -923,7 +1681,7 @@ function collectA2IsolationEvidence(
         metric(
           'tenant_scope_ratio',
           'Tenant-scoped schema ratio',
-          countFilesContaining(repoPath, migrationFiles, TENANT_SCOPE_PATTERN),
+          countFilesContaining(repoPath, migrationFiles, tenantScopePattern),
           Math.max(migrationFiles.length, 1),
           0.25,
           'ratio',
@@ -974,6 +1732,7 @@ interface CryptoHygieneSignal {
 function collectCryptoHygieneEvidence(
   repoPath: string,
   implFiles: readonly string[],
+  useV39Detectors = false,
 ): CryptoHygieneSignal {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanFinding[] = [];
@@ -984,7 +1743,9 @@ function collectCryptoHygieneEvidence(
   // merely demonstrates `timingSafeEqual`/canonical-serialization text is not itself evidence
   // of production crypto hygiene, the same "one notion of production code" the timing/unsorted-
   // sign findings below apply on the penalty side.
-  const productionImplFiles = implFiles.filter(isProductionSourcePath);
+  const productionImplFiles = implFiles.filter((file) =>
+    useV39Detectors ? isV39AuthoredProductionPath(file) : isProductionSourcePath(file),
+  );
 
   const timingSafeFile = productionImplFiles.find((file) =>
     fileContains(repoPath, file, TIMING_SAFE_COMPARE_PATTERN),
@@ -1023,8 +1784,9 @@ function collectCryptoHygieneEvidence(
   // real line instead of a whole-file boolean.
   let insecureCompareFile: string | null = null;
   let insecureCompareLine: number | null = null;
-  for (const file of implFiles) {
-    const line = findInsecureSecretCompareLine(repoPath, file);
+  const compareFiles = useV39Detectors ? productionImplFiles : implFiles;
+  for (const file of compareFiles) {
+    const line = findInsecureSecretCompareLine(repoPath, file, useV39Detectors);
     if (line != null) {
       insecureCompareFile = file;
       insecureCompareLine = line;
@@ -1032,9 +1794,18 @@ function collectCryptoHygieneEvidence(
     }
   }
   if (insecureCompareFile) {
+    const insecureCompareSourceLine = lineAt(
+      repoPath,
+      insecureCompareFile,
+      insecureCompareLine ?? 0,
+    );
+    const comparesDefaultSentinel =
+      useV39Detectors &&
+      insecureCompareSourceLine !== null &&
+      DEFAULT_SECRET_SENTINEL_COMPARE_LINE_PATTERN.test(insecureCompareSourceLine);
     // ONE notion of production code, reused from the shared classifier (not a private
-    // heuristic): a match inside a test/fixture path is downgraded to info, exactly like the
-    // sibling committed-secret and GRANT-escalation detectors, and does not affect the
+    // heuristic): a match inside a test/fixture path is downgraded to info, as the sibling
+    // committed-secret detector does, and does not affect the
     // crypto_comparison_hygiene metric — a test fixture demonstrating the bad pattern is not
     // itself a production timing leak.
     const isTestPath = isTestOrFixturePath(insecureCompareFile);
@@ -1046,7 +1817,9 @@ function collectCryptoHygieneEvidence(
       severity: isTestPath ? 'info' : 'warning',
       summary: isTestPath
         ? `A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (${insecureCompareFile}) — likely a test assertion, not a production timing leak; verify.`
-        : 'A secret/HMAC/signature value appears compared with a plain equality operator instead of a constant-time comparison — potential timing side-channel.',
+        : comparesDefaultSentinel
+          ? 'A supplied secret is compared with a configured default-secret sentinel using ordinary equality; verify whether this comparison belongs on a constant-time authentication path.'
+          : 'A secret/HMAC/signature value appears compared with a plain equality operator instead of a constant-time comparison — potential timing side-channel.',
       evidence: evidenceForRelativeAtLine(
         repoPath,
         insecureCompareFile,
@@ -1057,9 +1830,12 @@ function collectCryptoHygieneEvidence(
     });
   }
 
-  const unsortedSignFile = implFiles.find(
+  const unsortedFiles = useV39Detectors ? productionImplFiles : implFiles;
+  const unsortedSignFile = unsortedFiles.find(
     (file) =>
-      fileContains(repoPath, file, UNSORTED_JSON_SIGN_PATTERN) &&
+      (useV39Detectors
+        ? fileHasVariableUnsortedJsonHmac(repoPath, file)
+        : fileContains(repoPath, file, UNSORTED_JSON_SIGN_PATTERN)) &&
       !fileContains(repoPath, file, CANONICAL_SERIALIZE_PATTERN),
   );
   if (unsortedSignFile) {
@@ -1068,11 +1844,9 @@ function collectCryptoHygieneEvidence(
       hasSurface = true;
       insecureFound = true;
     }
-    const unsortedSignLine = findFirstMatchingLine(
-      repoPath,
-      unsortedSignFile,
-      UNSORTED_JSON_SIGN_PATTERN,
-    );
+    const unsortedSignLine = useV39Detectors
+      ? findUnsortedJsonHmacLine(repoPath, unsortedSignFile)
+      : findFirstMatchingLine(repoPath, unsortedSignFile, UNSORTED_JSON_SIGN_PATTERN);
     findings.push({
       severity: isTestPath ? 'info' : 'warning',
       summary: isTestPath
@@ -1094,6 +1868,7 @@ function collectCryptoHygieneEvidence(
 function collectA3ProdReadinessEvidence(
   repoPath: string,
   repoFiles: readonly string[],
+  useV27Detectors: boolean,
 ): WitanCriterionSignalPayload | null {
   // Archetype-aware N/A gate (mirrors A2 mechanism from #224).
   // A3 only applies to repos operated as deployable services.
@@ -1102,15 +1877,13 @@ function collectA3ProdReadinessEvidence(
   // Dockerfile alone is ambiguous — it does not qualify.
   // ANTI-OVERFIT: a service WITH a deploy surface but missing
   //   health-checks / observability / rollback still scores LOW.
-  if (!isDeployableService(repoPath, repoFiles)) {
+  if (!isDeployableService(repoPath, repoFiles, useV27Detectors)) {
+    const dockerApplicabilityNote = useV27Detectors
+      ? 'A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.'
+      : 'Dockerfile alone is ambiguous and does not qualify.';
     return buildNotApplicableSignal(
       'A3',
-      'No deployable-service surface detected — production-readiness not applicable to this' +
-        ' library/CLI archetype. Signals checked: production server entrypoint' +
-        ' (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs),' +
-        ' deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml,' +
-        ' docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply,' +
-        ' helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.',
+      `No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). ${dockerApplicabilityNote}`,
     );
   }
 
@@ -1118,25 +1891,51 @@ function collectA3ProdReadinessEvidence(
   const findings: WitanCriterionSignalPayload['findings'] = [];
   const packageJson = findRootPackageJson(repoFiles);
   const scripts = packageJson ? readPackageScripts(join(repoPath, packageJson)) : new Map();
-  const workflows = repoFiles.filter(isCiWorkflow);
+  const workflows = repoFiles.filter(
+    (file) => (!useV27Detectors || isAuthoredProductionPath(file)) && isCiWorkflow(file),
+  );
   const workflow = workflows[0];
-  const deployConfigs = repoFiles.filter(isDeployConfig);
-  const deployConfig = deployConfigs[0];
-  const envTemplate = repoFiles.find((file) => isEnvTemplatePath(file));
-  const healthChecks = repoFiles.filter((file) => isHealthCheckSignalFile(repoPath, file));
+  const deployConfigs = repoFiles.filter(
+    (file) =>
+      (useV27Detectors ? isAuthoredProductionPath(file) : isProductionSourcePath(file)) &&
+      isDeployConfig(file),
+  );
+  const releaseDeployConfigs = repoFiles.filter(
+    (file) =>
+      (useV27Detectors ? isAuthoredProductionPath(file) : isProductionSourcePath(file)) &&
+      isExplicitDeployTarget(file),
+  );
+  const releaseDeployConfig = releaseDeployConfigs[0];
+  const containerBuildConfig = deployConfigs.find((file) => /(^|\/)Dockerfile$/.test(file));
+  const envTemplate = repoFiles.find(
+    (file) => (!useV27Detectors || isAuthoredProductionPath(file)) && isEnvTemplatePath(file),
+  );
+  const healthChecks = repoFiles.filter(
+    (file) =>
+      (!useV27Detectors || isAuthoredProductionPath(file)) &&
+      isHealthCheckSignalFile(repoPath, file),
+  );
   const healthCheck = healthChecks[0];
-  const errorBoundaries = repoFiles.filter((file) =>
-    /error-boundary|error\.(tsx|jsx|ts|js)$/.test(file),
+  const errorBoundaries = repoFiles.filter(
+    (file) =>
+      (!useV27Detectors || isAuthoredProductionPath(file)) &&
+      /error-boundary|error\.(tsx|jsx|ts|js)$/.test(file),
   );
   const errorBoundary = errorBoundaries[0];
   const observabilityCount = countFilesContaining(
     repoPath,
-    repoFiles.filter(isImplementationFile),
+    repoFiles.filter(
+      (file) => (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file),
+    ),
     /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail/i,
   );
   const rollbackSafetyCount = countFilesContaining(
     repoPath,
-    repoFiles.filter((file) => /(^|\/)(docs|migrations?|drizzle|prisma|scripts)\//.test(file)),
+    repoFiles.filter(
+      (file) =>
+        (!useV27Detectors || isAuthoredProductionPath(file)) &&
+        /(^|\/)(docs|migrations?|drizzle|prisma|scripts)\//.test(file),
+    ),
     /rollback|roll back|migration safety|down migration|reversible|undo migration/i,
   );
 
@@ -1146,9 +1945,23 @@ function collectA3ProdReadinessEvidence(
     );
   }
   if (workflow) evidence.push(evidenceForRelative(repoPath, workflow, 'ci_run', 'CI workflow'));
-  if (deployConfig)
+  if (releaseDeployConfig)
     evidence.push(
-      evidenceForRelative(repoPath, deployConfig, 'prod_check', 'Deploy configuration'),
+      evidenceForRelative(
+        repoPath,
+        releaseDeployConfig,
+        'prod_check',
+        'Release deploy configuration',
+      ),
+    );
+  if (containerBuildConfig)
+    evidence.push(
+      evidenceForRelative(
+        repoPath,
+        containerBuildConfig,
+        'prod_check',
+        'Container build configuration',
+      ),
     );
   if (envTemplate)
     evidence.push(evidenceForRelative(repoPath, envTemplate, 'prod_check', 'Environment template'));
@@ -1163,7 +1976,10 @@ function collectA3ProdReadinessEvidence(
   // gate passed but no other A3 signal produced evidence. Without this anchor
   // the scorer would short-circuit to null despite having identified a service.
   if (evidence.length === 0) {
-    const serverEntrypoint = findServerEntrypointFile(repoPath, repoFiles);
+    const serverEntrypoint = findServerEntrypointFile(repoPath, repoFiles, useV27Detectors);
+    const runtimeContainer = useV27Detectors
+      ? findRuntimeContainerEntrypointFile(repoPath, repoFiles)
+      : null;
     if (serverEntrypoint) {
       evidence.push(
         evidenceForRelative(
@@ -1173,16 +1989,26 @@ function collectA3ProdReadinessEvidence(
           'Production server entrypoint',
         ),
       );
+    } else if (runtimeContainer) {
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          runtimeContainer,
+          'prod_check',
+          'Runtime container entrypoint',
+        ),
+      );
     }
   }
 
   if (evidence.length === 0) return null;
-  if (!workflow && !deployConfig) {
+  if (!workflow && releaseDeployConfigs.length === 0) {
     const firstEvidence = evidence[0];
     if (!firstEvidence) return null;
     findings.push({
       severity: 'info',
-      summary: 'Production readiness signals exist, but no CI/deploy configuration was detected.',
+      summary:
+        'A deployable service surface exists, but no CI or release-deployment automation was detected.',
       evidence: firstEvidence,
     });
   }
@@ -1244,7 +2070,9 @@ function collectA3ProdReadinessEvidence(
 function collectA4DependencyEvidence(
   repoPath: string,
   repoFiles: readonly string[],
-  mono?: MonorepoContext | null,
+  mono: MonorepoContext | null | undefined,
+  useV27Detectors: boolean,
+  useV47Detectors: boolean,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -1310,7 +2138,17 @@ function collectA4DependencyEvidence(
   // VERSION RANGES and typically does NOT commit a lockfile — consumers resolve their own
   // trees. Scoring library manifests against app expectations flagged correct library
   // behavior as CRITICAL (Django A4 1.4: "1/13 pinned, no lockfile").
-  const isAppOrService = isDeployableService(repoPath, repoFiles);
+  const packagedApplicationFiles = useV27Detectors
+    ? findPackagedApplicationPremiseFiles(repoPath, repoFiles)
+    : [];
+  const deployableServiceFiles = useV47Detectors
+    ? findDeployableServicePremiseFiles(repoPath, repoFiles, true)
+    : [];
+  const isAppOrService =
+    (useV47Detectors
+      ? deployableServiceFiles.length > 0
+      : isDeployableService(repoPath, repoFiles, useV27Detectors)) ||
+    packagedApplicationFiles.length > 0;
 
   if (isAppOrService && !hasLockfile && manifest) {
     // No lockfile means installs are non-reproducible — a genuine supply-chain risk for a
@@ -1323,7 +2161,7 @@ function collectA4DependencyEvidence(
       evidence: evidenceForRelative(repoPath, manifest, 'dependency_report', 'Dependency manifest'),
     });
   }
-  if (manifest && hasSuspiciousDependencies(repoPath, manifest)) {
+  if (manifest && hasSuspiciousDependencies(repoPath, manifest, useV47Detectors)) {
     // Suspicious/hallucinated package names are a supply-chain risk.
     findings.push({
       severity: 'critical',
@@ -1420,7 +2258,7 @@ function collectA4DependencyEvidence(
     findings,
     metrics: isAppOrService ? appMetrics : libraryMetrics,
     notes: isAppOrService
-      ? 'A4 scored against app/service norms (deploy surface detected): pinned dependencies and a lockfile are required for reproducible installs.'
+      ? `A4 scored against app/service norms (${packagedApplicationFiles.length > 0 ? 'packaged application' : 'deploy surface'} detected): pinned dependencies and a lockfile are required for reproducible installs.`
       : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
 }
@@ -1456,10 +2294,21 @@ function hasDeclaredVersionConstraint(dependency: DependencySpec): boolean {
 function collectA5ClaimRealityEvidence(
   repoPath: string,
   repoFiles: readonly string[],
+  useV27Detectors: boolean,
 ): WitanCriterionSignalPayload | null {
-  const claimDoc =
-    repoFiles.find((file) => /(^|\/)(README|readme)\.md$/.test(file)) ??
-    repoFiles.find((file) => /(^|\/)docs\/.*\.(md|mdx)$/.test(file));
+  const reconciliationArtifacts = useV27Detectors
+    ? findClaimRealityReconciliationArtifacts(repoPath, repoFiles)
+    : [];
+  const claimSourceFiles = useV27Detectors
+    ? findClaimSourceFiles(repoFiles)
+    : repoFiles.filter(
+        (file) => /^(?:README|readme)\.md$/.test(file) || /^docs\/[^/]+\.(?:md|mdx)$/.test(file),
+      );
+  const claimDoc = useV27Detectors
+    ? (claimSourceFiles[0] ?? reconciliationArtifacts[0])
+    : (repoFiles.find((file) => /^(?:README|readme)\.md$/.test(file)) ??
+      repoFiles.find((file) => /^docs\/[^/]+\.(?:md|mdx)$/.test(file)) ??
+      repoFiles.find((file) => /(^|\/)claim[_-]reality[_-]reconciliation\.md$/i.test(file)));
   // A repo with no README/docs has nothing to claim, so nothing to contradict — N/A (like
   // B1/B5), not a scored 0 (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3 H2).
   // (Historical: the prior `return null` fell through to scoreCriterion's `!signal` branch,
@@ -1473,7 +2322,7 @@ function collectA5ClaimRealityEvidence(
     );
   }
 
-  const implementationFiles = repoFiles.filter(isImplementationFile);
+  const implementationFiles = findClaimImplementationFiles(repoFiles, useV27Detectors);
   if (implementationFiles.length === 0) return null;
   const implementationFile = implementationFiles[0];
   if (!implementationFile) return null;
@@ -1486,15 +2335,28 @@ function collectA5ClaimRealityEvidence(
       'Code presence for claim reconciliation',
     ),
   ];
+  for (const artifact of reconciliationArtifacts.slice(0, 3)) {
+    if (artifact === claimDoc) continue;
+    evidence.push(
+      evidenceForRelative(
+        repoPath,
+        artifact,
+        'claim_reconciliation',
+        'Dedicated claim-reality reconciliation artifact',
+      ),
+    );
+  }
   const firstEvidence = evidence[0];
   if (!firstEvidence) return null;
 
   // Bound the proxy denominator to prevent manufactured inflated ratios.
   // We cap both sides so the metric never displays hundreds of "claims".
   // Restrict to headline-level documents only (README + top-level docs/, not nested subdirs).
-  const allDocFiles = repoFiles.filter(
-    (file) => /^README\.md$/.test(file) || /^docs\/[^/]+\.(md|mdx)$/.test(file),
-  );
+  const allDocFiles = useV27Detectors
+    ? claimSourceFiles
+    : repoFiles.filter(
+        (file) => /^README\.md$/.test(file) || /^docs\/[^/]+\.(?:md|mdx)$/.test(file),
+      );
   const boundedImplCount = Math.min(implementationFiles.length, 12);
   const boundedDocCount = Math.min(allDocFiles.length, 8);
 
@@ -1526,26 +2388,28 @@ function collectA5ClaimRealityEvidence(
   return {
     criterionId: 'A5',
     positiveEvidence: evidence,
-    findings: [
-      {
-        // Proxy-only A5: cap at warning (never critical) — a static proxy is lower-confidence
-        // than a curated registry or reconciliation artifact. Downgraded to info when the repo
-        // documents honest negative space: that scoping IS a form of claim-reality discipline,
-        // not an additional gap on top of the missing dedicated artifact.
-        severity: negativeSpaceDoc ? 'info' : 'warning',
-        summary: negativeSpaceDoc
-          ? 'Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming.'
-          : 'Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.',
-        evidence: firstEvidence,
-      },
-    ],
+    findings:
+      reconciliationArtifacts.length > 0
+        ? []
+        : [
+            {
+              // Proxy-only A5: cap at warning (never critical) — a static proxy is lower-confidence
+              // than a curated registry or reconciliation artifact. Downgraded to info when the repo
+              // documents honest negative space: that scoping IS a form of claim-reality discipline,
+              // not an additional gap on top of the missing dedicated artifact.
+              severity: negativeSpaceDoc ? 'info' : 'warning',
+              summary: negativeSpaceDoc
+                ? 'Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming.'
+                : 'Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.',
+              evidence: firstEvidence,
+            },
+          ],
     // Recalibrated (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3 H1):
-    // reconciliation_artifact_depth is structurally 0 for every repo on this generic-proxy
-    // path (only Alfred itself has the dedicated claim-reality artifact), so its prior 0.3
-    // weight was a permanent floor drag on every external repo regardless of how well the
-    // repo otherwise documents and backs its claims. Weight lowered to 0.15 (still a real
-    // ding for lacking the artifact) and redistributed to the two metrics that measure
-    // something a well-run external repo can actually earn; claim_source_depth's
+    // reconciliation_artifact_depth is usually 0 on the generic-proxy path, so its prior 0.3
+    // weight was a floor drag on external repos regardless of how well they otherwise document
+    // and back claims. Weight remains 0.15 (still a real ding when a content-authenticated,
+    // generically named reconciliation artifact is absent) and is redistributed to the two
+    // metrics that every well-run external repo can earn; claim_source_depth's
     // denominator lowered from 8 to 4 (README + a couple of top-level docs is already a
     // reasonably documented repo, not a fraction of an inflated 8-file bar).
     metrics: [
@@ -1571,7 +2435,7 @@ function collectA5ClaimRealityEvidence(
       metric(
         'reconciliation_artifact_depth',
         'Reconciliation artifact depth',
-        0,
+        reconciliationArtifacts.length,
         3,
         0.15,
         'artifacts',
@@ -1830,6 +2694,7 @@ function collectB4AuditEvidence(
 function collectB6PrivilegedOpsGatingEvidence(
   repoPath: string,
   repoFiles: readonly string[],
+  useV39Detectors = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -1874,6 +2739,7 @@ function collectB6PrivilegedOpsGatingEvidence(
     fileContains(repoPath, file, SQL_EXEC_PATTERN),
   );
   const ungatedEscalationFiles = executableFiles.filter((file) => {
+    if (useV39Detectors && !fileHasExecutedPrivilegeEscalation(repoPath, file)) return false;
     const hasEscalation =
       fileContains(repoPath, file, ROLE_MEMBERSHIP_GRANT_PATTERN) ||
       fileContains(repoPath, file, SUPERUSER_ESCALATION_PATTERN);
@@ -1881,10 +2747,10 @@ function collectB6PrivilegedOpsGatingEvidence(
     return !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN);
   });
   // A GRANT statement asserted inside a test file exercises the detector itself, not a
-  // production self-execution path — exclude it from the production cleanliness metric
-  // below (it still surfaces as a downgraded finding, never silenced).
-  const productionUngatedEscalationFiles = ungatedEscalationFiles.filter(
-    (file) => !isTestOrFixturePath(file),
+  // production self-execution path — exclude it from both the finding set and the
+  // production cleanliness metric.
+  const productionUngatedEscalationFiles = ungatedEscalationFiles.filter((file) =>
+    useV39Detectors ? isV39AuthoredProductionPath(file) : !isTestOrFixturePath(file),
   );
 
   if (humanGateDoc) {
@@ -1927,13 +2793,11 @@ function collectB6PrivilegedOpsGatingEvidence(
       ),
     );
   }
-  for (const file of ungatedEscalationFiles.slice(0, 5)) {
-    const isTestPath = isTestOrFixturePath(file);
+  for (const file of productionUngatedEscalationFiles.slice(0, 5)) {
     findings.push({
-      severity: isTestPath ? 'info' : 'critical',
-      summary: isTestPath
-        ? `Role-membership GRANT or SUPERUSER escalation statement in a test/fixture file (${file}) — likely a test assertion, not a production escalation; verify.`
-        : 'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
+      severity: 'critical',
+      summary:
+        'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
       evidence: evidenceForRelative(
         repoPath,
         file,
@@ -2013,7 +2877,7 @@ function collectB6PrivilegedOpsGatingEvidence(
         1,
         hasPrivilegedOpsSurface ? 0.3 : 0.4,
         'clean',
-        'Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here).',
+        'Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement).',
       ),
       metric(
         'protected_path_review_gate',
@@ -2058,9 +2922,10 @@ const CPP_CONTENT_SCAN_LIMIT = 150;
 // one-notion-of-production-code.test.ts.
 const NON_PRODUCTION_DIR_PATTERN =
   /(^|\/)(__tests__|__mocks__|__fixtures__|tests?|fixtures?|testdata|e2e|cypress|examples?|samples?|demos?)(\/|$)/i;
-const NON_PRODUCTION_FILE_SUFFIX_PATTERN = /\.(test|spec|stories)\.[^/]+$/i;
+const NON_PRODUCTION_FILE_SUFFIX_PATTERN =
+  /\.(test|spec|stories)\.[^/]+$|_test\.go$|(^|\/)test_.*\.py$/i;
 
-function isTestOrFixturePath(path: string): boolean {
+export function isTestOrFixturePath(path: string): boolean {
   return NON_PRODUCTION_DIR_PATTERN.test(path) || NON_PRODUCTION_FILE_SUFFIX_PATTERN.test(path);
 }
 
@@ -2068,15 +2933,42 @@ function isProductionSourcePath(path: string): boolean {
   return !isTestOrFixturePath(path);
 }
 
+export function isAuthoredProductionPath(path: string): boolean {
+  return isProductionSourcePath(path) && !GENERATED_OR_VENDOR_PATH_PATTERN.test(path);
+}
+
+const V39_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN =
+  /(^|\/)(?:docs?|documentation|e2e[-_]?tests?)(\/|$)|(^|\/)(?:test|tests)[._-][^/]+$|(^|\/)[^/]*(?:appium|e2e[-_]?tests?)[^/]*$/i;
+
+function isV39AuthoredProductionPath(path: string): boolean {
+  return isAuthoredProductionPath(path) && !V39_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN.test(path);
+}
+
+// V47's failure-derived credential boundary covers semantic registries and instructional trees
+// that are source-shaped but do not execute as the product. A value that resembles a credential
+// inside generated bindings, localization/reference payloads, cookbook lessons, or markdown is
+// review material, not evidence of a live production credential. This is deliberately versioned:
+// v14 and the public default remain byte-stable.
+const V47_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN =
+  /(^|\/)(?:auto[-_]?gen(?:erated)?|generated|i18n|locales?|cookbooks?|lessons?)(\/|$)|\.(?:md|mdx|rst|adoc)$/i;
+
+function isV47AuthoredProductionPath(path: string): boolean {
+  return (
+    isV39AuthoredProductionPath(path) && !V47_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN.test(path)
+  );
+}
+
 // A1 asks two narrower questions than content-scan detectors do: whether a file belongs in
 // the test-to-source ratio, and whether its NAME declares a test rather than support
 // scaffolding. Their language-specific conventions live here too, so this remains the only
 // block that owns a notion of test/fixture/example paths even though the answers differ.
+const TEST_DIRECTORY_SOURCE_PATTERN = new RegExp(
+  `(^|/)(?:__tests__|tests?|specs?|[^/]+(?:Tests|Specs))/(?:.*\\.)?(?:${SOURCE_LANGUAGES.flatMap((language) => language.extensions).join('|')})$`,
+);
+
 function isTestFile(file: string): boolean {
   return (
-    /(^|\/)(__tests__|test|tests|spec)\/.*\.(?:[cm]?[jt]sx?|py|go|rs|java|rb|cpp|cc|cxx)$/.test(
-      file,
-    ) ||
+    TEST_DIRECTORY_SOURCE_PATTERN.test(file) ||
     // AVA's default discovery includes test.js and test-*.js at the scanned package root.
     // Keep this root-anchored: nested files need an existing test-directory/suffix convention.
     /^test(?:-[^/]+)?\.[cm]?[jt]sx?$/.test(file) ||
@@ -2101,14 +2993,14 @@ const NAME_SHAPED_TEST_FILE_PATTERN =
 // ---- END canonical production-source classifier -------------------------------------------
 
 const TEST_RUNNER_PATTERN =
-  /\b(vitest|jest|mocha|ava|tap|pytest|go test|cargo test|rspec|phpunit|gradle test|mvn test)\b/i;
+  /\b(vitest|jest|mocha|ava|tap|pytest|go test|cargo test|rspec|phpunit|gradle test|mvn test|node\s+--test|node:test)\b/i;
 // Language-agnostic "CI actually runs the test suite" signal — shared by A1 (test integrity)
 // and B3 (CI discipline) so a repo whose tests only run inside a CI workflow (the normal
 // shape for Python/Go/Rust/Java, which have no package.json to hold an npm "test" script)
 // gets credited the same as a repo with an npm test script (goal_cejel_code_trust_external_
 // ecosystem_calibration_2026-07-06).
 const CI_TEST_COMMAND_PATTERN =
-  /\b(pytest|go\s+test|cargo\s+test|mvn\s+test|gradle\s+test|ctest|make\s+test|jest|vitest|mocha|rspec|phpunit|pnpm\s+test|npm\s+test|yarn\s+test|node\s+--test|node:test)\b/i;
+  /\b(pytest|go\s+test|cargo\s+test|mvn\s+test|gradle\s+test|dotnet\s+test|ctest|make\s+test|jest|vitest|mocha|rspec|phpunit|pnpm\s+(?:run\s+)?test|npm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|node\s+--test|node:test)\b|--target[=\s]+test\b/i;
 // Same rationale as CI_TEST_COMMAND_PATTERN above — shared by A1 and B3 so a Python/Go/Rust
 // repo whose lint/typecheck discipline only shows up as a CI command (no package.json script
 // key to credit) is recognized the same as a Node repo with npm "lint"/"typecheck" scripts.
@@ -2134,6 +3026,9 @@ const SCHEDULE_TRIGGER_PATTERN = /(^|\n)\s*schedule:\s*\r?\n\s*-\s*cron:/;
 const PUBLISHED_RESULT_MARKER_PATTERN =
   /actions\/deploy-pages|actions\/upload-pages-artifact|peaceiris\/actions-gh-pages|git\s+push\b|create-or-update-comment/i;
 const EPHEMERAL_ARTIFACT_ONLY_PATTERN = /actions\/upload-artifact/i;
+const SCHEDULED_HEALTH_PATH_PATTERN = /(?:health|smoke|monitor|status|uptime|canary)/i;
+const SCHEDULED_HEALTH_INTENT_PATTERN =
+  /\b(?:product[- ]?health|health check|smoke test|monitor(?:ing)?|uptime|canary|fault detection)\b/i;
 
 const RLS_PATTERN = /row level security|enable rls|create policy|tenant[_-]?id|studio[_-]?id/i;
 // DB client imports across JS/TS, Python, Go, Rust, Ruby, Java, PHP.
@@ -2145,6 +3040,9 @@ const DB_CLIENT_PATTERN =
 const ENV_READ_PATTERN = /process\.env\b|Deno\.env\b|os\.environ\b|getenv\s*\(|std::env::|ENV\[/;
 const TENANT_SCOPE_PATTERN =
   /tenantId|tenant_id|studioId|studio_id|organizationId|org_id|workspaceId/i;
+const TENANT_SCOPE_PATTERN_V10 =
+  /tenantId|tenant_id|studioId|studio_id|organizationId|organization_id|org_id|accountTenantId|account_tenant_id/i;
+const TENANT_SCOPE_PATTERN_V11 = /tenantId|tenant_id|accountTenantId|account_tenant_id/i;
 // B6 — privileged-operation human gating (goal_privileged_op_human_gate_learn_2026-07-04).
 // Doc-level: privileged ops are documented as human-executed/gated, not agent-run.
 const HUMAN_GATE_MARKER_PATTERN =
@@ -2156,6 +3054,12 @@ const ROLE_MEMBERSHIP_GRANT_PATTERN =
 const SUPERUSER_ESCALATION_PATTERN = /\b(ALTER|CREATE)\s+(ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b/i;
 // Marks a file that actually executes SQL (vs. one that only documents or references it).
 const SQL_EXEC_PATTERN = /\.execute\s*\(|sql\.raw\s*\(/;
+const EXECUTED_ESCALATION_LITERAL_PATTERN =
+  /(?:\.execute|sql\.raw)\s*\(\s*(?:[rubf]+)?["'`][^"'`]{0,500}(?:GRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b|(?:ALTER|CREATE)\s+(?:ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b)/i;
+
+function fileHasExecutedPrivilegeEscalation(repoPath: string, file: string): boolean {
+  return fileContains(repoPath, file, EXECUTED_ESCALATION_LITERAL_PATTERN);
+}
 // Fail-closed privilege-membership check ahead of a role elevation (see verifyAsAppRole).
 const GATED_PRIVILEGE_CHECK_PATTERN = /pg_has_role\s*\(|has_role\s*\(|is not a member of/i;
 const SET_ROLE_PATTERN = /\bset\s+(local\s+)?role\b/i;
@@ -2170,8 +3074,8 @@ const HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT = 5_000;
 // #3). This deliberately over-matches identifiers like `tokenizerConfig` — that's fine,
 // because looksLikeSecretValue below still requires the assigned VALUE to look
 // secret-shaped before anything fires.
-const SECRET_ASSIGNMENT_PATTERN =
-  /[A-Za-z0-9_]*(?:secret|token|api[_-]?key|password|access[_-]?key)[A-Za-z0-9_]*\s*[:=]\s*['"]?([^'"\s]+)/gi;
+const SECRET_IDENTIFIER_KEYWORD_PATTERN = /secret|token|api[_-]?key|password|access[_-]?key/gi;
+const SINGLE_WHITESPACE_PATTERN = /\s/u;
 // Unambiguous branded secret formats — the prefix alone is enough evidence (real API keys
 // use these exact vendor-specific shapes; nothing benign collides with them).
 const SECRET_VALUE_BRANDED_PATTERN =
@@ -2205,7 +3109,8 @@ const NEGATIVE_SPACE_PHRASE_PATTERN =
 const LEAN_TEST_RUNNER_SCRIPT_PATTERN = /\bnode\s+(?:--test\b|--experimental-test-coverage\b)/;
 const LEAN_TEST_RUNNER_IMPORT_PATTERN =
   /from\s+['"]node:test['"]|require\(\s*['"]node:test['"]\s*\)/;
-const HEAVY_TEST_DEPENDENCY_NAME_PATTERN = /^(?:jest|mocha|ava|tape|jasmine|karma)(?:$|-|\/)/i;
+const HEAVY_TEST_DEPENDENCY_NAME_PATTERN =
+  /^(?:(?:jest|mocha|ava|tape|jasmine|karma|vitest|cypress|playwright)(?:$|-|\/)|@(?:vitest|playwright)\/)/i;
 
 // A2 — bounded, conservative crypto-hygiene nudge. Only ever scored when a signing/HMAC/
 // secret-comparison surface is actually detected in source; repos with no such surface are
@@ -2223,6 +3128,8 @@ const SIGN_OR_HMAC_CALL_PATTERN = /\bcreateHmac\s*\(|\bcreateSign\s*\(|\.sign\s*
 // one — see findInsecureSecretCompareLine below.
 const INSECURE_SECRET_COMPARE_LINE_PATTERN =
   /\b\w*(?:hmac|signature|\bmac|digest)\w*\s*(===|!==)\s*(?!['"`]|undefined\b|null\b)([\w.]+(?:\s*[-+]\s*\d+)?)/i;
+const DEFAULT_SECRET_SENTINEL_COMPARE_LINE_PATTERN =
+  /\b(?:secret|token|password|apiKey)\w*\s*(?:===|!==|==|!=)\s*[\w.]*default(?:Secret|Token|Password|ApiKey)\b/i;
 // The rule must establish a plausible secret VALUE, never merely a secret-shaped NAME: a
 // numeric-shaped right-hand operand — a bare number, a `.length`/`.size`/`.count` read, or an
 // index/offset-named identifier — can never itself be a timing-leak-relevant secret value (it
@@ -2232,7 +3139,8 @@ const INSECURE_SECRET_COMPARE_LINE_PATTERN =
 const NUMERIC_SHAPED_OPERAND_PATTERN =
   /^-?\d+$|\.(?:length|len|size|count)\b|(?:length|index|idx|offset|count|size|len)$/i;
 
-function lineHasInsecureSecretCompare(line: string): boolean {
+function lineHasInsecureSecretCompare(line: string, useV39Detectors = false): boolean {
+  if (useV39Detectors && DEFAULT_SECRET_SENTINEL_COMPARE_LINE_PATTERN.test(line)) return true;
   const match = INSECURE_SECRET_COMPARE_LINE_PATTERN.exec(line);
   const operand = match?.[2];
   if (!operand) return false;
@@ -2242,11 +3150,15 @@ function lineHasInsecureSecretCompare(line: string): boolean {
 // Returns the real 1-based line of the first insecure comparison in the file, or null when
 // none is found — never a fabricated position (D4: a position rendered where none was
 // measured).
-function findInsecureSecretCompareLine(repoPath: string, file: string): number | null {
+function findInsecureSecretCompareLine(
+  repoPath: string,
+  file: string,
+  useV39Detectors = false,
+): number | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
   const lines = readFileSync(fullPath, 'utf8').split('\n');
-  const index = lines.findIndex((line) => lineHasInsecureSecretCompare(line));
+  const index = lines.findIndex((line) => lineHasInsecureSecretCompare(line, useV39Detectors));
   return index === -1 ? null : index + 1;
 }
 
@@ -2260,10 +3172,59 @@ function findFirstMatchingLine(repoPath: string, file: string, pattern: RegExp):
   const index = lines.findIndex((line) => pattern.test(line));
   return index === -1 ? null : index + 1;
 }
+
+function lineAt(repoPath: string, file: string, line: number): string | null {
+  if (line < 1) return null;
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return null;
+  return readFileSync(fullPath, 'utf8').split('\n')[line - 1] ?? null;
+}
 // Signing/HMAC-ing a bare JSON.stringify(...) call with no canonicalization step in the same
 // file — the "sign-over-unsorted-JSON" gap named in the goal.
 const UNSORTED_JSON_SIGN_PATTERN =
   /\.update\s*\(\s*JSON\.stringify\s*\(|\.sign\s*\([^)]*JSON\.stringify\s*\(/;
+const UNSORTED_JSON_DIRECT_SIGN_PATTERN = /\.sign\s*\([^)]*JSON\.stringify\s*\(/;
+const UNSORTED_JSON_CONSTRUCTOR_UPDATE_PATTERN =
+  /\bcreate(?:Hmac|Sign)\s*\([^;\n]{0,256}\)\s*\.update\s*\(\s*JSON\.stringify\s*\(/;
+const JSON_STRINGIFY_ASSIGNMENT_PATTERN =
+  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*JSON\.stringify\s*\(/g;
+
+function findUnsortedJsonHmacLine(repoPath: string, file: string): number | null {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return null;
+  const contents = readFileSync(fullPath, 'utf8');
+  const directSign = findFirstMatchingLine(repoPath, file, UNSORTED_JSON_DIRECT_SIGN_PATTERN);
+  if (directSign !== null) return directSign;
+  const directConstructorUpdate = findFirstMatchingLine(
+    repoPath,
+    file,
+    UNSORTED_JSON_CONSTRUCTOR_UPDATE_PATTERN,
+  );
+  if (directConstructorUpdate !== null) return directConstructorUpdate;
+  JSON_STRINGIFY_ASSIGNMENT_PATTERN.lastIndex = 0;
+  let match = JSON_STRINGIFY_ASSIGNMENT_PATTERN.exec(contents);
+  while (match !== null) {
+    const identifier = match[1];
+    if (identifier) {
+      const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const constructorUpdate = new RegExp(
+        `\\bcreate(?:Hmac|Sign)\\s*\\([^;\\n]{0,256}\\)\\s*\\.update\\s*\\(\\s*${escaped}\\b`,
+      );
+      // Search only the bounded forward-use window for each assignment. Testing the complete
+      // file once per JSON.stringify assignment would become quadratic on generated input.
+      const usageWindow = contents.slice(match.index, match.index + 2_048);
+      if (constructorUpdate.test(usageWindow)) {
+        return contents.slice(0, match.index).split('\n').length;
+      }
+    }
+    match = JSON_STRINGIFY_ASSIGNMENT_PATTERN.exec(contents);
+  }
+  return null;
+}
+
+function fileHasVariableUnsortedJsonHmac(repoPath: string, file: string): boolean {
+  return findUnsortedJsonHmacLine(repoPath, file) !== null;
+}
 
 // B6 — an un-overridable kill-switch / fail-safe governance toggle: a named safety toggle
 // whose absence/false state triggers an immediate guard-clause return/throw, so no
@@ -2319,7 +3280,7 @@ function isGenericSecretValue(value: string): boolean {
   return shannonEntropyPerChar(value) >= 3.5;
 }
 
-function looksLikeSecretValue(value: string): boolean {
+export function looksLikeSecretValue(value: string): boolean {
   return SECRET_VALUE_BRANDED_PATTERN.test(value) || isGenericSecretValue(value);
 }
 const PLACEHOLDER_SECRET_PATTERN =
@@ -2328,10 +3289,12 @@ const PLACEHOLDER_SECRET_PATTERN =
 // for documenting expected env vars, never a secret leak. Any placeholder value it carries is
 // by definition not a real credential, so template paths must never be scanned as a secret
 // source (current tree OR git history) — see goal_cejel_calibration_findings_precision_2026-07-06.
-const ENV_TEMPLATE_PATTERN = /(^|\/)\.env\.(example|sample|template|dist)$/;
+const ENV_TEMPLATE_PATTERN = /(^|\/)\.env(?:\.[^/]+)*\.(?:example|sample|template|dist)$/i;
+const ENV_TEMPLATE_PATTERN_V47 =
+  /(^|\/)\.env(?:\.[^/]+)*\.(?:example|sample|template|dist|exemplo|ejemplo|exemple|esempio|beispiel|voorbeeld)$/i;
 
-function isEnvTemplatePath(path: string): boolean {
-  return ENV_TEMPLATE_PATTERN.test(path);
+function isEnvTemplatePath(path: string, useV47Detectors = false): boolean {
+  return (useV47Detectors ? ENV_TEMPLATE_PATTERN_V47 : ENV_TEMPLATE_PATTERN).test(path);
 }
 const HARD_EXCLUDED_PATH_PATTERN =
   /(^|\/)(?:\.git|\.venv|venv|site-packages|node_modules|dist|build|\.next|__pycache__|vendor|\.terraform|coverage)(?:\/|$)/;
@@ -2339,12 +3302,16 @@ const COVERAGE_PERCENT_PATTERN =
   /(?:statements|branches|lines|functions|fail_under)\s*[:=]\s*["']?(\d+(?:\.\d+)?)/gi;
 
 function listRepoFiles(repoPath: string): string[] {
-  const gitFiles = listGitTrackedFiles(repoPath);
+  const gitFiles = listGitTrackedFiles(repoPath, false);
   if (gitFiles) return gitFiles;
 
   const files: string[] = [];
   visitRepoDir(repoPath, repoPath, files);
   return files.filter((file) => !isHardExcludedPath(file)).sort();
+}
+
+function listRepoInventory(repoPath: string, fallbackFiles: readonly string[]): string[] {
+  return listGitTrackedFiles(repoPath, true) ?? [...fallbackFiles];
 }
 
 // Monorepo-root shared config that legitimately governs a sub-package but lives at
@@ -2406,7 +3373,7 @@ function resolveMonorepoContext(repoPath: string): MonorepoContext | null {
   return { root: rootResolved, sharedFiles };
 }
 
-function listGitTrackedFiles(repoPath: string): string[] | null {
+function listGitTrackedFiles(repoPath: string, includeHardExcluded = false): string[] | null {
   try {
     execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
       cwd: repoPath,
@@ -2423,7 +3390,9 @@ function listGitTrackedFiles(repoPath: string): string[] | null {
       .split('\n')
       .filter(
         (file) =>
-          file.length > 0 && !isHardExcludedPath(file) && isRegularFile(join(repoPath, file)),
+          file.length > 0 &&
+          (includeHardExcluded || !isHardExcludedPath(file)) &&
+          isRegularFile(join(repoPath, file)),
       )
       .sort();
   } catch {
@@ -2970,28 +3939,272 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isTestRunnerConfig(file: string): boolean {
+function isTestRunnerConfig(repoPath: string, file: string): boolean {
   return (
     /(^|\/)(vitest|jest|pytest|playwright|cypress|mocha)\.config\.[cm]?[jt]s$/.test(file) ||
-    /(^|\/)(pytest\.ini|tox\.ini|go\.mod|Cargo\.toml)$/.test(file) ||
-    /(^|\/)CMakeLists\.txt$/.test(file) ||
-    /(^|\/)Makefile$/.test(file) ||
-    /(^|\/)phpunit\.xml(\.dist)?$/.test(file)
+    /(^|\/)(pytest\.ini|tox\.ini)$/.test(file) ||
+    /(^|\/)phpunit\.xml(\.dist)?$/.test(file) ||
+    (/(^|\/)pyproject\.toml$/.test(file) &&
+      fileContains(repoPath, file, /^\[tool\.pytest(?:\.|\])/m)) ||
+    (/(^|\/)CMakeLists\.txt$/.test(file) &&
+      fileContains(repoPath, file, /\b(?:enable_testing|add_test|ctest_add_tests)\s*\(/i)) ||
+    (/(^|\/)Makefile$/.test(file) && fileContains(repoPath, file, /^\s*(?:test|tests|check)\s*:/m))
   );
 }
 
-function isCoverageConfig(file: string): boolean {
+export function findCoverageConfigFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+  authoredOnly = false,
+): string[] {
+  return repoFiles.filter(
+    (file) => (!authoredOnly || isAuthoredProductionPath(file)) && isCoverageConfig(repoPath, file),
+  );
+}
+
+export function findConcreteTestFiles(repoPath: string, repoFiles: readonly string[]): string[] {
+  const contentCppTests = collectContentBasedCppTestFiles(repoPath, repoFiles);
+  return [...repoFiles.filter(isTestFile), ...contentCppTests.filter((file) => !isTestFile(file))];
+}
+
+export function findConfiguredTestRunnerFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string[] {
+  const configured = repoFiles.filter(
+    (file) => isAuthoredProductionPath(file) && isTestRunnerConfig(repoPath, file),
+  );
+  for (const packageJson of repoFiles.filter(
+    (file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file),
+  )) {
+    if (
+      [...readPackageScripts(join(repoPath, packageJson)).values()].some((script) =>
+        TEST_RUNNER_PATTERN.test(script),
+      )
+    ) {
+      configured.push(packageJson);
+    }
+  }
+  configured.push(
+    ...repoFiles
+      .filter((file) => isAuthoredProductionPath(file) && isCiWorkflow(file))
+      .filter((file) => fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN)),
+  );
+  return [...new Set(configured)].sort();
+}
+
+export function findNonLeanTestToolchainPremiseFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string[] {
+  const testFiles = findConcreteTestFiles(repoPath, repoFiles);
+  if (testFiles.length === 0) return [];
+  const packageJsonFiles = repoFiles.filter(
+    (file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file),
+  );
+  const configured = findConfiguredTestRunnerFiles(repoPath, repoFiles);
+  const usesLeanBuiltInTestRunner =
+    packageJsonFiles.some((manifest) =>
+      [...readPackageScripts(join(repoPath, manifest)).values()].some((script) =>
+        LEAN_TEST_RUNNER_SCRIPT_PATTERN.test(script),
+      ),
+    ) || testFiles.some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
+  const heavyManifests = packageJsonFiles.filter((manifest) =>
+    packageJsonHasHeavyTestDependency(repoPath, manifest),
+  );
+  if (usesLeanBuiltInTestRunner && heavyManifests.length === 0) return [];
+  return [...new Set([...heavyManifests, ...configured])].sort();
+}
+
+export function findTenantStoragePremiseFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string[] {
+  return repoFiles
+    .filter((file) => /(^|\/)(?:migrations?|drizzle|prisma)\/|\.(?:sql|prisma)$/i.test(file))
+    .filter((file) => fileContains(repoPath, file, TENANT_SCOPE_PATTERN_V11));
+}
+
+export function findRlsPolicyFiles(repoPath: string, repoFiles: readonly string[]): string[] {
+  return repoFiles
+    .filter((file) => /(^|\/)(?:migrations?|drizzle|prisma)\/|\.(?:sql|prisma)$/i.test(file))
+    .filter((file) =>
+      fileContains(
+        repoPath,
+        file,
+        /\b(?:create\s+policy|enable\s+row\s+level\s+security|force\s+row\s+level\s+security)\b/i,
+      ),
+    );
+}
+
+export function findCiOrReleaseDeployFiles(
+  _repoPath: string,
+  repoFiles: readonly string[],
+): string[] {
+  return repoFiles.filter(
+    (file) =>
+      isAuthoredProductionPath(file) && (isCiWorkflow(file) || isExplicitDeployTarget(file)),
+  );
+}
+
+export function findDependencyLockfiles(repoFiles: readonly string[]): string[] {
+  return repoFiles.filter(isLockfile);
+}
+
+export function findDependencyManifests(repoFiles: readonly string[]): string[] {
+  return repoFiles.filter(isDependencyManifest);
+}
+
+export function findDeployableServicePremiseFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+  strictOperationalBoundary = false,
+): string[] {
+  const explicitTargets = repoFiles.filter(
+    (file) =>
+      isAuthoredProductionPath(file) &&
+      isExplicitDeployTarget(file) &&
+      (!strictOperationalBoundary || isV47OperationalApplicationPath(file)),
+  );
+  const deployWorkflows = repoFiles
+    .filter((file) => isAuthoredProductionPath(file) && isCiWorkflow(file))
+    .filter((file) => fileContains(repoPath, file, CI_DEPLOY_JOB_PATTERN))
+    .filter(
+      (file) => !strictOperationalBoundary || !isDocumentationOnlyDeployWorkflow(repoPath, file),
+    );
+  const serverEntrypoint = findServerEntrypointFile(repoPath, repoFiles, true);
+  const runtimeContainer = findRuntimeContainerEntrypointFile(repoPath, repoFiles);
+  if (strictOperationalBoundary) {
+    const runtimeFiles = [serverEntrypoint, runtimeContainer].filter(
+      (file): file is string => file != null && isV47OperationalApplicationPath(file),
+    );
+    const directApplicationTargets = explicitTargets.filter(
+      (file) => !isInfrastructureOnlyDeployTarget(file),
+    );
+    const infrastructureTargets =
+      runtimeFiles.length > 0
+        ? [...explicitTargets.filter(isInfrastructureOnlyDeployTarget), ...deployWorkflows]
+        : [];
+    return [...directApplicationTargets, ...runtimeFiles, ...infrastructureTargets];
+  }
+  return [
+    ...explicitTargets,
+    ...deployWorkflows,
+    ...(serverEntrypoint &&
+    (!strictOperationalBoundary || isV47OperationalApplicationPath(serverEntrypoint))
+      ? [serverEntrypoint]
+      : []),
+    ...(runtimeContainer &&
+    (!strictOperationalBoundary || isV47OperationalApplicationPath(runtimeContainer))
+      ? [runtimeContainer]
+      : []),
+  ];
+}
+
+function isInfrastructureOnlyDeployTarget(file: string): boolean {
   return (
+    /(^|\/)docker-compose\.ya?ml$/i.test(file) ||
+    /(^|\/)(?:k8s|kubernetes|manifests?)\/.+\.ya?ml$/i.test(file) ||
+    /(^|\/)(?:charts?|helm)\/.+\.ya?ml$/i.test(file)
+  );
+}
+
+const V47_NON_OPERATIONAL_APPLICATION_PATH_PATTERN =
+  /(^|\/)(?:cookbooks?|lessons?|tutorials?|docs?|documentation|examples?|samples?|demos?)(\/|$)/i;
+
+function isV47OperationalApplicationPath(path: string): boolean {
+  return !V47_NON_OPERATIONAL_APPLICATION_PATH_PATTERN.test(path);
+}
+
+function isDocumentationOnlyDeployWorkflow(repoPath: string, file: string): boolean {
+  if (/(?:docs?|pages?)/i.test(basename(file))) return true;
+  return fileContains(
+    repoPath,
+    file,
+    /\b(?:deploy[-_ ]?docs?|mkdocs|docusaurus|vitepress|gh-pages|github pages)\b/i,
+  );
+}
+
+export function findPackagedApplicationPremiseFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string[] {
+  return repoFiles
+    .filter((file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file))
+    .filter((file) => packageJsonDescribesPackagedApplication(repoPath, file, repoFiles));
+}
+
+export function findClaimSourceFiles(repoFiles: readonly string[]): string[] {
+  return repoFiles
+    .filter(
+      (file) => /^(?:README|readme)\.md$/.test(file) || /^docs\/[^/]+\.(?:md|mdx)$/.test(file),
+    )
+    .sort((left, right) => {
+      const leftRootReadme = /^(?:README|readme)\.md$/.test(left);
+      const rightRootReadme = /^(?:README|readme)\.md$/.test(right);
+      return Number(rightRootReadme) - Number(leftRootReadme) || left.localeCompare(right);
+    });
+}
+
+export function findClaimImplementationFiles(
+  repoFiles: readonly string[],
+  authoredOnly = false,
+): string[] {
+  return repoFiles.filter(
+    (file) => isImplementationFile(file) && (!authoredOnly || isAuthoredProductionPath(file)),
+  );
+}
+
+export function findClaimRealityReconciliationArtifacts(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string[] {
+  return repoFiles
+    .filter((file) => /(^|\/)claim[-_]reality[-_]reconciliation\.(?:md|mdx|json)$/i.test(file))
+    .filter((file) => isAuthenticatedClaimRealityArtifact(repoPath, file));
+}
+
+function isAuthenticatedClaimRealityArtifact(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const contents = readFileSync(fullPath, 'utf8');
+  if (/\.json$/i.test(file)) {
+    return parseJsonObject(contents)?.artifactKind === 'claim_reality_reconciliation';
+  }
+  let inFence = false;
+  for (const line of contents.split(/\r?\n/)) {
+    if (/^\s*(?:```|~~~)/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^#\s+Claim Reality Reconciliation\s*$/i.test(line)) return true;
+  }
+  return false;
+}
+
+function isCoverageConfig(repoPath: string, file: string): boolean {
+  if (
     /(^|\/)(nyc|c8|coverage|codecov)\.(json|yml|yaml)$/.test(file) ||
     /(^|\/)\.coveragerc$/.test(file) ||
     /(^|\/)lcov\.info$/.test(file) ||
-    /(^|\/)\.coveralls\.yml$/.test(file) ||
-    fileContainsExtension(file, ['vitest.config.ts', 'jest.config.js', 'pyproject.toml'])
-  );
-}
-
-function fileContainsExtension(file: string, names: readonly string[]): boolean {
-  return names.some((name) => file.endsWith(name));
+    /(^|\/)\.coveralls\.yml$/.test(file)
+  ) {
+    return true;
+  }
+  if (/(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
+    return fileContains(repoPath, file, /\bcoverage\s*:/i);
+  }
+  if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
+    return fileContains(
+      repoPath,
+      file,
+      /\b(?:collectCoverage|coverageThreshold|coverageProvider|coverageDirectory)\s*:/,
+    );
+  }
+  if (/(^|\/)pyproject\.toml$/.test(file)) {
+    return fileContains(repoPath, file, /^\[tool\.coverage(?:\.|\])/m);
+  }
+  return false;
 }
 
 function isCiWorkflow(file: string): boolean {
@@ -3006,10 +4219,10 @@ function isCiWorkflow(file: string): boolean {
 
 function isDeployConfig(file: string): boolean {
   return (
-    /^(vercel|netlify|fly|render|railway)\.(json|toml|ya?ml)$/.test(file) ||
-    /^Dockerfile$/.test(file) ||
-    /^docker-compose\.ya?ml$/.test(file) ||
-    /^k8s\//.test(file)
+    /(^|\/)(vercel|netlify|fly|render|railway)\.(json|toml|ya?ml)$/.test(file) ||
+    /(^|\/)Dockerfile$/.test(file) ||
+    /(^|\/)docker-compose\.ya?ml$/.test(file) ||
+    /(^|\/)k8s\//.test(file)
   );
 }
 
@@ -3018,13 +4231,13 @@ function isDeployConfig(file: string): boolean {
 // a platform-specific deploy config to treat a repo as a deployable service.
 function isExplicitDeployTarget(file: string): boolean {
   return (
-    /^(vercel|netlify|fly|render|railway)\.(json|toml|ya?ml)$/.test(file) ||
-    /^docker-compose\.ya?ml$/.test(file) ||
-    /^Procfile$/.test(file) ||
-    /^app\.ya?ml$/.test(file) ||
-    /^serverless\.ya?ml$/.test(file) ||
-    /^(k8s|kubernetes|manifests?)\/.+\.ya?ml$/i.test(file) ||
-    /^(charts?|helm)\/.+\.ya?ml$/i.test(file)
+    /(^|\/)(vercel|netlify|fly|render|railway)\.(json|toml|ya?ml)$/.test(file) ||
+    /(^|\/)docker-compose\.ya?ml$/.test(file) ||
+    /(^|\/)Procfile$/.test(file) ||
+    /(^|\/)app\.ya?ml$/.test(file) ||
+    /(^|\/)serverless\.ya?ml$/.test(file) ||
+    /(^|\/)(k8s|kubernetes|manifests?)\/.+\.ya?ml$/i.test(file) ||
+    /(^|\/)(charts?|helm)\/.+\.ya?ml$/i.test(file)
   );
 }
 
@@ -3033,6 +4246,7 @@ function isExplicitDeployTarget(file: string): boolean {
 // on framework source files that define (but do not call) listen/serve methods.
 const MAIN_ENTRYPOINT_FILE_PATTERN =
   /(^|\/)(main|server|app|wsgi|asgi|index|entry|start|run)\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs)$/i;
+const RACK_ENTRYPOINT_FILE_PATTERN = /(^|\/)(?:config\.ru|(?:main|server|app|start|run)\.rb)$/i;
 
 // app.listen / app.run under a test/example/fixture dir does NOT make the repo a deployable
 // service — uses the shared isTestOrFixturePath classifier (see canonical block above), not a
@@ -3043,38 +4257,116 @@ const MAIN_ENTRYPOINT_FILE_PATTERN =
 // than method definitions in framework source (Application.prototype.listen = ...).
 const SERVER_ENTRYPOINT_PATTERN =
   /\bapp\.listen\s*\(|\bserver\.listen\s*\(\s*(?:PORT|port|\d+)|http\.ListenAndServe\s*\(|http\.ListenAndServeTLS\s*\(|axum::Server(?:::|\.)|actix_web::HttpServer(?:::|\.)|uvicorn\.run\s*\(/;
+const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
+const RACK_CONFIG_RUN_PATTERN = /^\s*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
+const RUNTIME_CONTAINER_COMMAND_PATTERN =
+  /^\s*(?:CMD|ENTRYPOINT)\s+.*(?:\b(?:start|serve|server|qgis|nginx|apache|gunicorn|uvicorn)\b|manage\.py\s+runserver).*$/im;
+const NON_RUNTIME_CONTAINER_COMMAND_PATTERN = /\b(?:test|lint|build|compile|package|check)\b/i;
 
 // CI workflow job/step patterns that indicate a real deployment step.
 // Covers named deploy jobs in YAML and common deploy CLI commands.
 const CI_DEPLOY_JOB_PATTERN =
   /(?:^\s{2,4}deploy\s*:|\b(?:fly|heroku|vercel|netlify|railway|render)\s+deploy\b|kubectl\s+apply\b|helm\s+(?:install|upgrade|deploy)\b|docker\s+push\b)/im;
 
-function isDeployableService(repoPath: string, repoFiles: readonly string[]): boolean {
+function isDeployableService(
+  repoPath: string,
+  repoFiles: readonly string[],
+  useV27Detectors: boolean,
+): boolean {
   // Explicit platform deploy target (Procfile, vercel.json, docker-compose, k8s, etc.)
-  if (repoFiles.some(isExplicitDeployTarget)) return true;
+  if (
+    repoFiles.some(
+      (file) =>
+        (useV27Detectors ? isAuthoredProductionPath(file) : isProductionSourcePath(file)) &&
+        isExplicitDeployTarget(file),
+    )
+  ) {
+    return true;
+  }
   // CI workflow with a real deploy job/step
-  if (detectCiDeployJob(repoPath, repoFiles)) return true;
+  if (detectCiDeployJob(repoPath, repoFiles, useV27Detectors)) return true;
   // Production server entrypoint in a main/server/app file (not in examples/tests)
-  if (detectServerEntrypoint(repoPath, repoFiles)) return true;
+  if (detectServerEntrypoint(repoPath, repoFiles, useV27Detectors)) return true;
+  // A production Dockerfile is a runtime surface only when it declares an actual start
+  // command. Build/test-only Dockerfiles remain non-deployable.
+  if (useV27Detectors && findRuntimeContainerEntrypointFile(repoPath, repoFiles)) return true;
   return false;
 }
 
-function detectCiDeployJob(repoPath: string, repoFiles: readonly string[]): boolean {
-  const workflows = repoFiles.filter(isCiWorkflow);
+function detectCiDeployJob(
+  repoPath: string,
+  repoFiles: readonly string[],
+  authoredOnly = false,
+): boolean {
+  const workflows = repoFiles.filter(
+    (file) => (!authoredOnly || isAuthoredProductionPath(file)) && isCiWorkflow(file),
+  );
   return workflows.some((file) => fileContains(repoPath, file, CI_DEPLOY_JOB_PATTERN));
 }
 
-function detectServerEntrypoint(repoPath: string, repoFiles: readonly string[]): boolean {
-  return findServerEntrypointFile(repoPath, repoFiles) !== null;
+function detectServerEntrypoint(
+  repoPath: string,
+  repoFiles: readonly string[],
+  useV27Detectors: boolean,
+): boolean {
+  return findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) !== null;
 }
 
-function findServerEntrypointFile(repoPath: string, repoFiles: readonly string[]): string | null {
+function findServerEntrypointFile(
+  repoPath: string,
+  repoFiles: readonly string[],
+  useV27Detectors: boolean,
+): string | null {
   // Restrict to entry-point-shaped files to avoid matching framework source files
   // (e.g. gin's gin.go, express's lib/application.js) that define but never call serve.
   const candidates = repoFiles
-    .filter((file) => MAIN_ENTRYPOINT_FILE_PATTERN.test(file) && isProductionSourcePath(file))
+    .filter(
+      (file) =>
+        (MAIN_ENTRYPOINT_FILE_PATTERN.test(file) ||
+          (useV27Detectors && RACK_ENTRYPOINT_FILE_PATTERN.test(file))) &&
+        (useV27Detectors ? isAuthoredProductionPath(file) : isProductionSourcePath(file)),
+    )
     .slice(0, 30);
-  return candidates.find((file) => fileContains(repoPath, file, SERVER_ENTRYPOINT_PATTERN)) ?? null;
+  return (
+    candidates.find(
+      (file) =>
+        fileContains(repoPath, file, SERVER_ENTRYPOINT_PATTERN) ||
+        (useV27Detectors && fileContains(repoPath, file, RACK_SERVER_ENTRYPOINT_PATTERN)) ||
+        (useV27Detectors &&
+          /\.ru$/i.test(file) &&
+          fileContains(repoPath, file, RACK_CONFIG_RUN_PATTERN)),
+    ) ?? null
+  );
+}
+
+function findRuntimeContainerEntrypointFile(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string | null {
+  return (
+    repoFiles
+      .filter((file) => /(^|\/)Dockerfile$/i.test(file) && isAuthoredProductionPath(file))
+      .find((file) => {
+        const fullPath = join(repoPath, file);
+        if (!isRegularFile(fullPath)) return false;
+        const lines = readFileSync(fullPath, 'utf8').split(/\r?\n/);
+        const finalStageStart = lines.reduce(
+          (last, line, index) => (/^\s*FROM\b/i.test(line) ? index : last),
+          0,
+        );
+        const finalStageLines = lines.slice(finalStageStart);
+        const entrypoint = [...finalStageLines]
+          .reverse()
+          .find((line) => /^\s*ENTRYPOINT\b/i.test(line));
+        const command = [...finalStageLines].reverse().find((line) => /^\s*CMD\b/i.test(line));
+        const effectiveCommand = [entrypoint, command].filter(Boolean).join(' ');
+        return (
+          effectiveCommand.length > 0 &&
+          RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand) &&
+          !NON_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand)
+        );
+      }) ?? null
+  );
 }
 
 function isHealthCheckSignalFile(repoPath: string, file: string): boolean {
@@ -3131,6 +4423,63 @@ function packageJsonHasHeavyTestDependency(repoPath: string, manifest: string): 
   return names.some((name) => HEAVY_TEST_DEPENDENCY_NAME_PATTERN.test(name));
 }
 
+function packageJsonDescribesPackagedApplication(
+  repoPath: string,
+  manifest: string,
+  repoFiles: readonly string[],
+): boolean {
+  const fullPath = join(repoPath, manifest);
+  if (!isRegularFile(fullPath)) return false;
+  const parsed = parseJsonObject(readFileSync(fullPath, 'utf8'));
+  if (!parsed) return false;
+  const scripts = isRecord(parsed.scripts) ? Object.values(parsed.scripts) : [];
+  const dependencies = {
+    ...(isRecord(parsed.dependencies) ? parsed.dependencies : {}),
+    ...(isRecord(parsed.devDependencies) ? parsed.devDependencies : {}),
+  };
+  const build = isRecord(parsed.build) ? parsed.build : null;
+  const hasDesktopRuntime = Object.keys(dependencies).some(
+    (name) => name.toLowerCase() === 'electron' || /^@tauri-apps\/(?:api|plugin-)/i.test(name),
+  );
+  const hasPackagingCommand = scripts.some(
+    (script) =>
+      typeof script === 'string' &&
+      /\b(?:electron-builder|electron-packager|tauri\s+build)\b/i.test(script),
+  );
+  const hasApplicationMetadata =
+    isNonEmptyString(parsed.productName) ||
+    isNonEmptyString(parsed.main) ||
+    (build != null && isNonEmptyString(build.appId)) ||
+    findTauriApplicationMetadata(repoPath, manifest, repoFiles);
+  return hasDesktopRuntime && hasPackagingCommand && hasApplicationMetadata;
+}
+
+function findTauriApplicationMetadata(
+  repoPath: string,
+  manifest: string,
+  repoFiles: readonly string[],
+): boolean {
+  const manifestDirectory = dirname(manifest);
+  const prefix = manifestDirectory === '.' ? '' : `${manifestDirectory}/`;
+  const candidates = [`${prefix}src-tauri/tauri.conf.json`, `${prefix}tauri.conf.json`];
+  return candidates.some((file) => {
+    if (!repoFiles.includes(file)) return false;
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) return false;
+    const config = parseJsonObject(readFileSync(fullPath, 'utf8'));
+    const packageMetadata = isRecord(config?.package) ? config.package : null;
+    return (
+      isNonEmptyString(config?.productName) ||
+      isNonEmptyString(config?.identifier) ||
+      (packageMetadata != null && isNonEmptyString(packageMetadata.productName))
+    );
+  });
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 function isImplementationFile(file: string): boolean {
   return (
     /(^|\/)(src|app|lib|packages|cmd|include|source|Sources)\//.test(file) &&
@@ -3172,10 +4521,10 @@ function isFreshnessRatableAuditFile(file: string): boolean {
   return isAuditFile(file) && !isSecurityPolicyOnlyAuditFile(file);
 }
 
-function isIgnoredScanFile(file: string): boolean {
+function isIgnoredScanFile(file: string, useV47Detectors = false): boolean {
   return (
     /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|README\.md|CHANGELOG\.md)$/.test(file) ||
-    isEnvTemplatePath(file)
+    isEnvTemplatePath(file, useV47Detectors)
   );
 }
 
@@ -3199,22 +4548,386 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   return pattern.test(readFileSync(fullPath, 'utf8'));
 }
 
-function fileContainsCommittedSecret(repoPath: string, file: string): boolean {
+function findCommittedSecretInFile(
+  repoPath: string,
+  file: string,
+  useV36Detectors = false,
+  useV39Detectors = false,
+  useV47Detectors = false,
+): RealSecretAssignmentMatch | null {
   const fullPath = join(repoPath, file);
-  if (!isRegularFile(fullPath)) return false;
-  return containsRealSecret(readFileSync(fullPath, 'utf8'));
+  if (!isRegularFile(fullPath)) return null;
+  const contents = readFileSync(fullPath, 'utf8');
+  const isTestCredentialConfiguration =
+    useV39Detectors && isLikelyTestCredentialConfiguration(file, contents);
+  const secretScanContents = prepareCredentialScanContents(
+    contents,
+    file,
+    useV36Detectors,
+    useV39Detectors,
+    useV47Detectors,
+  );
+  const secret = findRealSecretAssignment(secretScanContents, new Set(), {
+    allowCredentialNamedDigest: useV36Detectors,
+  });
+  if (secret) return secret;
+  if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
+    const weakCredential = findWeakExplicitEnvCredential(secretScanContents);
+    if (weakCredential) return weakCredential;
+  }
+  return useV36Detectors && !isTestCredentialConfiguration
+    ? findDefaultAdministrativeCredential(secretScanContents)
+    : null;
 }
 
-function containsRealSecret(contents: string): boolean {
-  SECRET_ASSIGNMENT_PATTERN.lastIndex = 0;
-  for (const match of contents.matchAll(SECRET_ASSIGNMENT_PATTERN)) {
-    const rawValue = match[1];
-    if (!rawValue) continue;
-    const value = rawValue.replace(/[,;)]$/, '');
-    if (isPlaceholderSecretValue(value)) continue;
-    if (looksLikeSecretValue(value)) return true;
+function prepareCredentialScanContents(
+  contents: string,
+  file: string,
+  useV36Detectors: boolean,
+  useV39Detectors: boolean,
+  useV47Detectors = false,
+): string {
+  const withoutXamlEventNames =
+    useV36Detectors && /\.xaml$/i.test(file)
+      ? contents.replace(/\bTokenItem(?:Added|Removed)(?=\s*=)/gi, 'EventHandler')
+      : contents;
+  const withoutDocumentationExamples = useV39Detectors
+    ? stripCommentAndDocumentationExamples(withoutXamlEventNames)
+    : withoutXamlEventNames;
+  return useV47Detectors
+    ? stripV47PublicIdentifiersAndNonCredentialValues(withoutDocumentationExamples, file)
+    : withoutDocumentationExamples;
+}
+
+function stripV47PublicIdentifiersAndNonCredentialValues(contents: string, file: string): string {
+  const lines = contents.split(/\r?\n/);
+  return lines
+    .map((line, index) => {
+      let sanitized = line.replace(
+        /^(\s*(?:export\s+)?(?:PUBLIC_)?ALGOLIA_(?:PUBLIC_)?API_KEY\s*[:=]\s*)[^\s#]+/i,
+        '$1""',
+      );
+      if (isPublicDocumentationSearchKeyContext(lines, index, file)) {
+        sanitized = sanitized.replace(/(\bapiKey\s*[:=]\s*)(['"])[^'"]+\2/gi, '$1$2$2');
+      }
+      sanitized = sanitized.replace(
+        /(\b[A-Za-z_][A-Za-z0-9_]*(?:token|api[_-]?key|access[_-]?key)[A-Za-z0-9_]*\s*[:=]\s*)(['"]?)0x[0-9a-f]{40}\2/gi,
+        '$1""',
+      );
+      sanitized = sanitized.replace(
+        /(\b[A-Za-z_][A-Za-z0-9_]*(?:token|api[_-]?key|access[_-]?key)[A-Za-z0-9_]*\s*[:=]\s*)(['"])([a-z][a-z0-9]*(?:_[a-z0-9]+){2,})\2/gi,
+        (assignment, prefix: string, quote: string, value: string) =>
+          /\b(?:cost|input|output|context|model|limit|price|usage|audio)\b/i.test(
+            value.replaceAll('_', ' '),
+          )
+            ? `${prefix}${quote}${quote}`
+            : assignment,
+      );
+      return sanitized;
+    })
+    .join('\n');
+}
+
+function isPublicDocumentationSearchKeyContext(
+  lines: readonly string[],
+  lineIndex: number,
+  file: string,
+): boolean {
+  const windowStart = Math.max(0, lineIndex - 6);
+  const preceding = lines.slice(windowStart, lineIndex + 1);
+  for (let index = preceding.length - 1; index >= 0; index -= 1) {
+    const candidate = preceding[index] ?? '';
+    if (/}/.test(candidate) && index < preceding.length - 1) return false;
+    if (/\bdocsearch(?:Options)?\b/i.test(candidate)) return true;
+    if (
+      /\balgolia\b/i.test(candidate) &&
+      /(?:^|\/)(?:website|docs?)(?:\/|$)|(?:site[-_]?config|\.dumirc|docusaurus)/i.test(file)
+    ) {
+      return true;
+    }
   }
   return false;
+}
+
+function stripCommentAndDocumentationExamples(contents: string): string {
+  let blockCommentEnd: '*/' | '-->' | null = null;
+  return contents
+    .split(/\r?\n/)
+    .map((line) => {
+      const trimmed = line.trimStart();
+      if (blockCommentEnd) {
+        if (trimmed.includes(blockCommentEnd)) blockCommentEnd = null;
+        return '';
+      }
+      if (trimmed.startsWith('/*')) {
+        if (!trimmed.includes('*/')) blockCommentEnd = '*/';
+        return '';
+      }
+      if (trimmed.startsWith('<!--')) {
+        if (!trimmed.includes('-->')) blockCommentEnd = '-->';
+        return '';
+      }
+      if (/^(?:\/\/|#|\*)/.test(trimmed)) return '';
+      if (/\.description\s*\(/i.test(line) && /api[_-]?key|token|password|secret/i.test(line)) {
+        return '';
+      }
+      return line;
+    })
+    .join('\n');
+}
+
+function isLikelyTestCredentialConfiguration(file: string, contents: string): boolean {
+  if (!/\.(?:ya?ml|json|toml|ini|conf)$/i.test(file) && !/(?:^|\/)docker-compose/i.test(file)) {
+    return false;
+  }
+  const testMarkers =
+    contents.match(/(?:^|[^A-Za-z])(?:tests?|testing|e2e|appium|fixture)(?:[^A-Za-z]|$)/gi)
+      ?.length ?? 0;
+  return testMarkers >= 2;
+}
+
+function hasTemplateOnlyEnvContent(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const substantiveLines = readFileSync(fullPath, 'utf8')
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0 && !/^\s*#/.test(line));
+  if (substantiveLines.length === 0) return true;
+  const assignments = substantiveLines.map(
+    (line) => /^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*(.*?)\s*$/.exec(line)?.[1] ?? null,
+  );
+  if (assignments.some((value) => value === null)) return false;
+  return assignments.every((raw) => {
+    if (raw === null) return false;
+    const value = raw.replace(/^['"]|['"]$/g, '').trim();
+    return value.length === 0 || isPlaceholderSecretValue(value);
+  });
+}
+
+function findSecretFingerprintsInFile(
+  repoPath: string,
+  file: string,
+  useV36Detectors = false,
+  useV39Detectors = false,
+  useV47Detectors = false,
+): string[] {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return [];
+  const contents = readFileSync(fullPath, 'utf8');
+  const scanContents = prepareCredentialScanContents(
+    contents,
+    file,
+    useV36Detectors,
+    useV39Detectors,
+    useV47Detectors,
+  );
+  const fingerprints = findRealSecretAssignments(
+    scanContents,
+    new Set(),
+    Number.POSITIVE_INFINITY,
+    { allowCredentialNamedDigest: useV36Detectors },
+  ).map(({ valueFingerprint }) => valueFingerprint);
+  if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
+    const weakCredential = findWeakExplicitEnvCredential(scanContents);
+    if (weakCredential) fingerprints.push(weakCredential.valueFingerprint);
+  }
+  return [...new Set(fingerprints)];
+}
+
+export function containsRealSecret(contents: string): boolean {
+  return findRealSecretAssignment(contents) !== null;
+}
+
+interface RealSecretAssignmentMatch {
+  identifier: string;
+  line: number;
+  valueLength: number;
+  characterClasses: string;
+  valueFingerprint: string;
+  kind?: 'secret' | 'default_admin';
+}
+
+interface SecretAssignmentOptions {
+  allowCredentialNamedDigest?: boolean;
+}
+
+function findRealSecretAssignment(
+  contents: string,
+  excludedValueFingerprints: ReadonlySet<string> = new Set(),
+  options: SecretAssignmentOptions = {},
+): RealSecretAssignmentMatch | null {
+  return findRealSecretAssignments(contents, excludedValueFingerprints, 1, options)[0] ?? null;
+}
+
+function findRealSecretAssignments(
+  contents: string,
+  excludedValueFingerprints: ReadonlySet<string> = new Set(),
+  maximumMatches = Number.POSITIVE_INFINITY,
+  options: SecretAssignmentOptions = {},
+): RealSecretAssignmentMatch[] {
+  const matches: RealSecretAssignmentMatch[] = [];
+  // The former all-in-one expression started its greedy identifier scan at every character.
+  // On large generated or minified files with no assignment, that can revisit the same suffix
+  // quadratically. Search for the required keyword first, then parse only its identifier suffix,
+  // assignment delimiter, and value. This accepts the same assignment grammar as the former
+  // expression while keeping the scan linear in file size.
+  SECRET_IDENTIFIER_KEYWORD_PATTERN.lastIndex = 0;
+  let match = SECRET_IDENTIFIER_KEYWORD_PATTERN.exec(contents);
+  let line = 1;
+  let lineCursor = 0;
+  while (match !== null) {
+    const keyword = match[0];
+    const keywordStart = match.index;
+    while (lineCursor < keywordStart) {
+      if (contents.charCodeAt(lineCursor) === 10) line += 1;
+      lineCursor += 1;
+    }
+
+    let cursor = keywordStart + keyword.length;
+    while (cursor < contents.length && isSecretIdentifierCharacter(contents.charCodeAt(cursor))) {
+      cursor += 1;
+    }
+    const identifierEnd = cursor;
+    let identifierStart = keywordStart;
+    while (
+      identifierStart > 0 &&
+      isSecretIdentifierCharacter(contents.charCodeAt(identifierStart - 1))
+    ) {
+      identifierStart -= 1;
+    }
+    const identifier = contents.slice(identifierStart, identifierEnd);
+    let nextSearchIndex = identifierEnd;
+    while (cursor < contents.length && SINGLE_WHITESPACE_PATTERN.test(contents[cursor] ?? '')) {
+      cursor += 1;
+    }
+    const delimiter = contents[cursor];
+    if (delimiter === ':' || delimiter === '=') {
+      cursor += 1;
+      while (cursor < contents.length && SINGLE_WHITESPACE_PATTERN.test(contents[cursor] ?? '')) {
+        cursor += 1;
+      }
+      if (contents[cursor] === "'" || contents[cursor] === '"') cursor += 1;
+
+      const valueStart = cursor;
+      while (cursor < contents.length) {
+        const character = contents[cursor] ?? '';
+        if (character === "'" || character === '"' || SINGLE_WHITESPACE_PATTERN.test(character)) {
+          break;
+        }
+        cursor += 1;
+      }
+      if (cursor > valueStart) {
+        const value = contents.slice(valueStart, cursor).replace(/[,;)]$/, '');
+        // The former global assignment expression consumed the complete raw value before looking
+        // for another assignment. Preserve that behavior and avoid rescans inside the value.
+        nextSearchIndex = cursor;
+        if (
+          !isPlaceholderSecretValue(value) &&
+          (looksLikeSecretValue(value) ||
+            (options.allowCredentialNamedDigest === true &&
+              isLikelyDigestOrHash(value) &&
+              isExplicitCredentialIdentifier(identifier)))
+        ) {
+          const valueFingerprint = createHash('sha256').update(value).digest('hex');
+          const characterClasses = [
+            /[a-z]/.test(value) ? 'lower' : '',
+            /[A-Z]/.test(value) ? 'upper' : '',
+            /\d/.test(value) ? 'digit' : '',
+            /[^A-Za-z0-9]/.test(value) ? 'symbol' : '',
+          ]
+            .filter(Boolean)
+            .join('+');
+          if (!excludedValueFingerprints.has(valueFingerprint)) {
+            matches.push({
+              identifier,
+              line,
+              valueLength: value.length,
+              characterClasses: characterClasses || 'other',
+              valueFingerprint,
+            });
+            if (matches.length >= maximumMatches) return matches;
+          }
+        }
+      }
+    }
+    // Every later keyword before identifierEnd belongs to the same identifier and would inspect
+    // the same suffix. Skip it so keyword-dense generated identifiers remain a single pass. When
+    // a value matched, nextSearchIndex also skips the raw value consumed by the former expression.
+    SECRET_IDENTIFIER_KEYWORD_PATTERN.lastIndex = nextSearchIndex;
+    match = SECRET_IDENTIFIER_KEYWORD_PATTERN.exec(contents);
+  }
+  return matches;
+}
+
+function isExplicitCredentialIdentifier(identifier: string): boolean {
+  return /^(?:github|gitlab|api|access)[_-]?(?:token|key)$/i.test(identifier);
+}
+
+function findWeakExplicitEnvCredential(contents: string): RealSecretAssignmentMatch | null {
+  const lines = contents.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
+    if (/^\s*#/.test(line)) continue;
+    const match =
+      /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*(?:PASSWORD|PASSWD|PWD|SECRET(?:_KEY)?|API_KEY|TOKEN))\s*=\s*['"]?([^\s#'"]+)['"]?/i.exec(
+        line,
+      );
+    const identifier = match?.[1];
+    const value = match?.[2];
+    if (!identifier || !value || isPlaceholderSecretValue(value)) continue;
+    const minimumLength = /(?:API_KEY|TOKEN)$/i.test(identifier) ? 12 : 6;
+    if (value.length < minimumLength) continue;
+    const characterClasses = [
+      /[a-z]/.test(value) ? 'lower' : '',
+      /[A-Z]/.test(value) ? 'upper' : '',
+      /\d/.test(value) ? 'digit' : '',
+      /[^A-Za-z0-9]/.test(value) ? 'symbol' : '',
+    ]
+      .filter(Boolean)
+      .join('+');
+    return {
+      identifier,
+      line: index + 1,
+      valueLength: value.length,
+      characterClasses: characterClasses || 'other',
+      valueFingerprint: createHash('sha256').update(value).digest('hex'),
+    };
+  }
+  return null;
+}
+
+function findDefaultAdministrativeCredential(contents: string): RealSecretAssignmentMatch | null {
+  const lines = contents.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
+    const match =
+      /\b([A-Za-z0-9_]*(?:ADMIN|ROOT)[A-Za-z0-9_]*(?:PASSWORD|PASSWD|PWD))\s*[:=]\s*["']?(admin|root|password)["']?(?:\s|$)/i.exec(
+        line,
+      );
+    const identifier = match?.[1];
+    const value = match?.[2];
+    if (!identifier || !value) continue;
+    return {
+      identifier,
+      line: index + 1,
+      valueLength: value.length,
+      characterClasses: 'lower',
+      valueFingerprint: createHash('sha256').update(value).digest('hex'),
+      kind: 'default_admin',
+    };
+  }
+  return null;
+}
+
+function secretEvidenceLabel(prefix: string, match: RealSecretAssignmentMatch): string {
+  return `${prefix} (value redacted; length ${match.valueLength}; classes ${match.characterClasses})`;
+}
+
+function isSecretIdentifierCharacter(characterCode: number): boolean {
+  return (
+    (characterCode >= 48 && characterCode <= 57) ||
+    (characterCode >= 65 && characterCode <= 90) ||
+    characterCode === 95 ||
+    (characterCode >= 97 && characterCode <= 122)
+  );
 }
 
 interface HistorySecretScanResult {
@@ -3228,30 +4941,72 @@ interface HistorySecretScanResult {
   truncated: boolean;
 }
 
-function collectHistorySecretEvidence(repoPath: string): HistorySecretScanResult {
-  const historyEntries = readCredentialHistoryEntries(repoPath);
+function collectHistorySecretEvidence(
+  repoPath: string,
+  excludeHead: boolean,
+  currentSecretFingerprintsByPath: ReadonlyMap<string, ReadonlySet<string>>,
+  authoredProductionOnly = false,
+  useV36Detectors = false,
+  useV39Detectors = false,
+  useV47Detectors = false,
+): HistorySecretScanResult {
+  const historyEntries = readCredentialHistoryEntries(repoPath, useV36Detectors);
+  const head = excludeHead ? readGitHead(repoPath) : null;
   let scannedFiles = 0;
   let envPathEvidence: WitanEvidencePointer | null = null;
   for (const entry of historyEntries) {
+    if (head && entry.commit === head) continue;
+    if (
+      authoredProductionOnly &&
+      !(useV47Detectors
+        ? isV47AuthoredProductionPath(entry.path)
+        : useV39Detectors
+          ? isV39AuthoredProductionPath(entry.path)
+          : isAuthoredProductionPath(entry.path))
+    ) {
+      continue;
+    }
     if (scannedFiles >= HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT) {
       return { evidence: null, envPathEvidence, truncated: true };
     }
     scannedFiles += 1;
     const contents = readGitBlob(repoPath, entry.commit, entry.path);
     if (!contents) continue;
-    if (containsRealSecret(contents)) {
+    const scanContents = prepareCredentialScanContents(
+      contents,
+      entry.path,
+      useV36Detectors,
+      useV39Detectors,
+      useV47Detectors,
+    );
+    const currentFingerprints = currentSecretFingerprintsByPath.get(entry.path) ?? new Set();
+    let secretMatch = findRealSecretAssignment(scanContents, currentFingerprints, {
+      allowCredentialNamedDigest: useV36Detectors,
+    });
+    if (
+      !secretMatch &&
+      useV39Detectors &&
+      isEnvHistoryPath(entry.path, useV36Detectors, useV47Detectors)
+    ) {
+      const weakCredential = findWeakExplicitEnvCredential(scanContents);
+      if (weakCredential && !currentFingerprints.has(weakCredential.valueFingerprint)) {
+        secretMatch = weakCredential;
+      }
+    }
+    if (secretMatch) {
       return {
         evidence: {
           kind: 'secret_scan',
-          label: 'Committed secret in recent git history',
+          label: secretEvidenceLabel('Committed secret in recent git history', secretMatch),
           path: entry.path,
+          line: secretMatch.line,
           contentHash: entry.commit,
         },
         envPathEvidence,
         truncated: false,
       };
     }
-    if (!envPathEvidence && isEnvHistoryPath(entry.path)) {
+    if (!envPathEvidence && isEnvHistoryPath(entry.path, useV36Detectors, useV47Detectors)) {
       envPathEvidence = {
         kind: 'secret_scan',
         label: '.env file (not a template) tracked in git history; no confirmed secret value found',
@@ -3268,7 +5023,10 @@ interface GitHistoryEntry {
   path: string;
 }
 
-function readCredentialHistoryEntries(repoPath: string): GitHistoryEntry[] {
+function readCredentialHistoryEntries(
+  repoPath: string,
+  useV36Detectors = false,
+): GitHistoryEntry[] {
   const entries: GitHistoryEntry[] = [];
   const seen = new Set<string>();
 
@@ -3313,7 +5071,7 @@ function readCredentialHistoryEntries(repoPath: string): GitHistoryEntry[] {
       }
       const path = line.trim();
       if (!currentCommit || !path) continue;
-      if (!isCredentialHistoryPath(path)) continue;
+      if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
       appendEntry({ commit: currentCommit, path });
     }
   } catch {
@@ -3321,15 +5079,18 @@ function readCredentialHistoryEntries(repoPath: string): GitHistoryEntry[] {
     // case for history-only secrets even if the bulk diff-tree scan is unavailable.
   }
 
-  for (const entry of readDeletedCredentialHistoryEntries(repoPath)) {
+  for (const entry of readDeletedCredentialHistoryEntries(repoPath, useV36Detectors)) {
     appendEntry(entry);
   }
 
   return entries;
 }
 
-function readDeletedCredentialHistoryEntries(repoPath: string): GitHistoryEntry[] {
-  const deletedPaths = readDeletedCredentialHistoryPaths(repoPath);
+function readDeletedCredentialHistoryEntries(
+  repoPath: string,
+  useV36Detectors = false,
+): GitHistoryEntry[] {
+  const deletedPaths = readDeletedCredentialHistoryPaths(repoPath, useV36Detectors);
   const entries: GitHistoryEntry[] = [];
   const seen = new Set<string>();
   for (const path of deletedPaths) {
@@ -3343,7 +5104,7 @@ function readDeletedCredentialHistoryEntries(repoPath: string): GitHistoryEntry[
   return entries;
 }
 
-function readDeletedCredentialHistoryPaths(repoPath: string): string[] {
+function readDeletedCredentialHistoryPaths(repoPath: string, useV36Detectors = false): string[] {
   try {
     const output = execFileSync(
       'git',
@@ -3360,7 +5121,7 @@ function readDeletedCredentialHistoryPaths(repoPath: string): string[] {
       if (!line.startsWith('D\t')) continue;
       const path = line.slice(2).trim();
       if (!path || seen.has(path)) continue;
-      if (!isCredentialHistoryPath(path)) continue;
+      if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
       seen.add(path);
       paths.push(path);
     }
@@ -3390,7 +5151,7 @@ function readHistoryCommitsForPath(repoPath: string, path: string): string[] {
   }
 }
 
-function isCredentialHistoryPath(path: string): boolean {
+function isCredentialHistoryPath(path: string, _useV36Detectors = false): boolean {
   if (isHardExcludedPath(path)) return false;
   // Note: template paths (.env.example etc.) are intentionally NOT excluded here —
   // a real secret can still leak through a template path (e.g. committed, then later
@@ -3419,10 +5180,11 @@ function isCredentialHistoryPath(path: string): boolean {
 // the canonical safe pattern (goal_cejel_calibration_findings_precision_2026-07-06). Used to
 // distinguish "a real, non-template .env file was tracked, value unknown" (warning) from
 // "a real high-entropy secret value was found" (critical, handled separately via containsRealSecret).
-function isEnvHistoryPath(path: string): boolean {
-  if (isEnvTemplatePath(path)) return false;
+function isEnvHistoryPath(path: string, useV36Detectors = false, useV47Detectors = false): boolean {
+  if (isEnvTemplatePath(path, useV47Detectors)) return false;
+  if (useV47Detectors && !isV47AuthoredProductionPath(path)) return false;
   const basename = path.toLowerCase().split('/').at(-1) ?? path.toLowerCase();
-  return /\.env(?:\.|$)/.test(basename);
+  return (useV36Detectors ? /^\.env(?:\.|$)/ : /\.env(?:\.|$)/).test(basename);
 }
 
 function readGitBlob(repoPath: string, commit: string, path: string): string | null {
@@ -3447,7 +5209,7 @@ function readGitBlob(repoPath: string, commit: string, path: string): string | n
 // site-machine's .env.example (goal_cejel_calibration_findings_precision_2026-07-06).
 const ALL_CAPS_SNAKE_PLACEHOLDER_PATTERN = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/;
 
-function isPlaceholderSecretValue(value: string): boolean {
+export function isPlaceholderSecretValue(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return (
     PLACEHOLDER_SECRET_PATTERN.test(normalized) ||
@@ -3494,7 +5256,11 @@ function isSyntheticFixtureSecretValue(value: string): boolean {
   );
 }
 
-function hasSuspiciousDependencies(repoPath: string, manifest: string): boolean {
+function hasSuspiciousDependencies(
+  repoPath: string,
+  manifest: string,
+  useV47Detectors = false,
+): boolean {
   if (!manifest.endsWith('package.json')) return false;
   const fullPath = join(repoPath, manifest);
   if (!isRegularFile(fullPath)) return false;
@@ -3504,9 +5270,21 @@ function hasSuspiciousDependencies(repoPath: string, manifest: string): boolean 
   const dependencies = isRecord(parsed.dependencies) ? parsed.dependencies : {};
   const devDependencies = isRecord(parsed.devDependencies) ? parsed.devDependencies : {};
   const names = [...Object.keys(dependencies), ...Object.keys(devDependencies)];
-  return names.some((name) =>
-    /^(todo|fake|placeholder|example)-|does-not-exist| hallucinated/i.test(name),
-  );
+  if (
+    names.some((name) =>
+      /^(todo|fake|placeholder|example)-|does-not-exist| hallucinated/i.test(name),
+    )
+  ) {
+    return true;
+  }
+  if (!useV47Detectors || typeof parsed.name !== 'string') return false;
+  const placeholderIdentity = /^(?:example|sample|placeholder|todo|fake)(?:-|$)/i.test(parsed.name);
+  const placeholderMetadata =
+    (typeof parsed.author === 'string' &&
+      /^(?:your name|example|placeholder)$/i.test(parsed.author)) ||
+    (typeof parsed.description === 'string' &&
+      /^(?:package description|example|placeholder|todo)$/i.test(parsed.description));
+  return placeholderIdentity && placeholderMetadata;
 }
 
 interface GitCommitSummary {
