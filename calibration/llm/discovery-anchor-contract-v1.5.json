@@ -1,0 +1,163 @@
+{
+  "$schema": "./schemas/discovery-anchor-contract.schema.json",
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "methodology_id": "llm-opportunity-discovery-v1.5",
+  "status": "locked_before_source_access",
+  "locked_at": "2026-07-24T00:00:00Z",
+  "detector_results_seen_before_lock": false,
+  "source_accessed_before_lock": false,
+  "hash_contract": "rfc8785-sha256-v1; contract excludes only contract_sha256",
+  "search_families": [
+    "dependency_and_imports",
+    "direct_calls_and_configuration",
+    "aliases_wrappers_and_helpers",
+    "registrations_decorators_and_schemas",
+    "dataflow_sinks_persistence_and_logs",
+    "negative_boundaries_and_abstention"
+  ],
+  "allowed_exclusion_codes": [
+    "out_of_rule_scope",
+    "ineligible_source_path",
+    "duplicate_candidate"
+  ],
+  "resource_ceilings": {
+    "maximum_eligible_files_per_repository": 20000,
+    "maximum_hits_per_query": 20000,
+    "maximum_candidates_per_repository_rule": 20000
+  },
+  "discovery_tool": {
+    "path": "calibration/llm/scripts/assemble-discovery-integrity.mjs",
+    "source_sha256": "763224ccc985526a173e96ca9ebd166b8ac6c2357b11726f0de879c870f5a34c",
+    "dependency_paths": [
+      "node:crypto",
+      "node:fs",
+      "node:path",
+      "node:url",
+      "calibration/llm/scripts/freeze-cohorts.mjs"
+    ]
+  },
+  "rules": [
+    {
+      "rule_id": "LLM-IOH-001",
+      "anchor_kinds": ["executable_or_rendering_sink"],
+      "canonical_locus": "Anchor the opportunity at the executable or rendering sink receiving observable model output.",
+      "negative_boundary_policy": "A validated, escaped, or non-model-controlled sink remains a negative opportunity and must not be excluded.",
+      "candidate_normalization": "Group producer, alias, helper, and sink signals into one candidate at the final side-effecting sink line.",
+      "query_recipes": [
+        {"query_id": "ioh-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK imports paired with execution, HTML, process, or evaluation APIs"]},
+        {"query_id": "ioh-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["model response creation and direct dynamic or rendering sinks"]},
+        {"query_id": "ioh-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["model-output aliases and local helpers forwarding values to sinks"]},
+        {"query_id": "ioh-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["registered tools or handlers whose parameters reach executable sinks"]},
+        {"query_id": "ioh-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["dynamic evaluation, process execution, raw HTML, or equivalent side effects"]},
+        {"query_id": "ioh-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["escaping, strict validation, constant values, tests, examples, and unsupported lineage"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-VAL-001",
+      "anchor_kinds": ["action_dispatch_sink"],
+      "canonical_locus": "Anchor the opportunity at the action dispatch or side-effect call consuming model-derived structured data.",
+      "negative_boundary_policy": "A closed-schema or literal-constrained dispatch remains a negative opportunity and must not be excluded.",
+      "candidate_normalization": "Group parsing, schema, alias, helper, and dispatcher signals into one candidate at the final action sink.",
+      "query_recipes": [
+        {"query_id": "val-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK, schema library, tool framework, and action API imports"]},
+        {"query_id": "val-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["model output parsing followed by action or dispatch calls"]},
+        {"query_id": "val-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["parsed model fields propagated through local aliases or helpers"]},
+        {"query_id": "val-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["tool schemas, decorators, argument models, and registered callbacks"]},
+        {"query_id": "val-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["deployment, mutation, process, file, network, or equivalent action sinks"]},
+        {"query_id": "val-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["closed enums, strict schemas, literal constraints, and unsupported dispatchers"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-AGY-001",
+      "anchor_kinds": ["privileged_side_effect"],
+      "canonical_locus": "Anchor the opportunity at each privileged side effect reachable from one model-facing registered tool.",
+      "negative_boundary_policy": "A preceding fail-closed human approval or policy gate remains a negative opportunity and must not be excluded.",
+      "candidate_normalization": "Create one candidate per privileged side effect, retaining registration and approval signals as supporting hits.",
+      "query_recipes": [
+        {"query_id": "agy1-dependencies", "family": "dependency_and_imports", "semantic_cues": ["agent or tool SDK imports paired with privileged capability imports"]},
+        {"query_id": "agy1-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["model-facing tools that directly perform privileged side effects"]},
+        {"query_id": "agy1-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["tool parameters forwarded through local helpers into privileged operations"]},
+        {"query_id": "agy1-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["tool registration, decorators, callbacks, and exposed tool collections"]},
+        {"query_id": "agy1-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["file mutation, shell execution, network mutation, database writes, and equivalent effects"]},
+        {"query_id": "agy1-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["human approval, policy denial, dry-run, read-only tools, tests, and examples"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-AGY-002",
+      "anchor_kinds": ["model_call_in_control_loop"],
+      "canonical_locus": "Anchor the opportunity at the model call executed within the controlling iterative loop.",
+      "negative_boundary_policy": "A statically bounded loop, deadline, cancellation, or finite iteration guard remains a negative opportunity.",
+      "candidate_normalization": "Group loop, model-call, retry, deadline, and termination signals at the model-call line inside the loop.",
+      "query_recipes": [
+        {"query_id": "agy2-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK and agent-loop framework imports"]},
+        {"query_id": "agy2-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["model calls lexically contained in loops or recursive controllers"]},
+        {"query_id": "agy2-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["model-call wrappers invoked from loops and recursive helpers"]},
+        {"query_id": "agy2-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["agent runners, retry policies, graph cycles, and loop configuration"]},
+        {"query_id": "agy2-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["iteration state, continuation decisions, and repeated model invocation sites"]},
+        {"query_id": "agy2-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["finite ranges, counters, deadlines, cancellation, breaks, and unsupported dynamic bounds"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-DAT-001",
+      "anchor_kinds": ["model_request_secret_argument"],
+      "canonical_locus": "Anchor the opportunity at the model request argument containing sensitive environment or credential material.",
+      "negative_boundary_policy": "Credentials used only for provider authentication remain negative opportunities and must not be excluded.",
+      "candidate_normalization": "Group secret sources, aliases, templates, and model calls at the request argument that carries the sensitive value.",
+      "query_recipes": [
+        {"query_id": "dat-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK and environment, secret-manager, or credential imports"]},
+        {"query_id": "dat-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["sensitive environment reads embedded in model request arguments"]},
+        {"query_id": "dat-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["secret aliases and templates propagated into model requests"]},
+        {"query_id": "dat-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["prompt templates, request schemas, tool parameters, and configuration bindings"]},
+        {"query_id": "dat-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["model request payloads and prompt or message construction"]},
+        {"query_id": "dat-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["provider API-key constructors, redaction, allowlists, tests, examples, and unsupported secret names"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-PRV-001",
+      "anchor_kinds": ["evaluation_result_emission"],
+      "canonical_locus": "Anchor the opportunity at the persisted or emitted evaluation result whose lineage should be reproducible.",
+      "negative_boundary_policy": "A result carrying complete model, dataset, prompt, configuration, and run lineage remains a negative opportunity.",
+      "candidate_normalization": "Group evaluation inputs, scoring, lineage fields, and persistence into one candidate at result emission.",
+      "query_recipes": [
+        {"query_id": "prv-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK, evaluation framework, dataset, and result-storage imports"]},
+        {"query_id": "prv-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["evaluation execution followed by local metric or report construction"]},
+        {"query_id": "prv-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["model, prompt, dataset, and configuration lineage propagated through helpers"]},
+        {"query_id": "prv-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["evaluation cases, experiment configuration, and result schemas"]},
+        {"query_id": "prv-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["evaluation result persistence, export, logging, or publication"]},
+        {"query_id": "prv-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["complete lineage keys, externally governed provenance, tests, and unsupported result formats"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-EVL-001",
+      "anchor_kinds": ["evaluation_metric_emission"],
+      "canonical_locus": "Anchor the opportunity at the emitted aggregate evaluation metric whose denominator should be explicit.",
+      "negative_boundary_policy": "A metric with an explicit eligible-case denominator and exclusions remains a negative opportunity.",
+      "candidate_normalization": "Group case iteration, eligibility, numerator, denominator, and emission at the aggregate metric output.",
+      "query_recipes": [
+        {"query_id": "evl1-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK, evaluation, metric, and dataset imports"]},
+        {"query_id": "evl1-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["case iteration and locally computed aggregate metrics"]},
+        {"query_id": "evl1-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["eligible-case and denominator aliases propagated into metric calculation"]},
+        {"query_id": "evl1-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["evaluation case definitions, filters, scorers, and metric schemas"]},
+        {"query_id": "evl1-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["accuracy, rate, or score persistence, logging, and export"]},
+        {"query_id": "evl1-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["explicit eligible denominators, exclusion counts, tests, and unsupported aggregation"]}
+      ]
+    },
+    {
+      "rule_id": "LLM-EVL-002",
+      "anchor_kinds": ["evaluation_judge_configuration"],
+      "canonical_locus": "Anchor the opportunity at the judge configuration used to score outputs from the evaluated model.",
+      "negative_boundary_policy": "A distinct judge, independent human rubric, or deterministic oracle remains a negative opportunity.",
+      "candidate_normalization": "Group producer model, judge model, rubric, and result emission at the effective judge configuration.",
+      "query_recipes": [
+        {"query_id": "evl2-dependencies", "family": "dependency_and_imports", "semantic_cues": ["model SDK, evaluation, judge, and scoring framework imports"]},
+        {"query_id": "evl2-direct", "family": "direct_calls_and_configuration", "semantic_cues": ["producer and judge model calls within one evaluation flow"]},
+        {"query_id": "evl2-aliases", "family": "aliases_wrappers_and_helpers", "semantic_cues": ["model identifiers propagated to producer and judge helpers"]},
+        {"query_id": "evl2-registration", "family": "registrations_decorators_and_schemas", "semantic_cues": ["judge registration, scorer configuration, rubrics, and evaluator schemas"]},
+        {"query_id": "evl2-sinks", "family": "dataflow_sinks_persistence_and_logs", "semantic_cues": ["judge scores, verdicts, and evaluation result emission"]},
+        {"query_id": "evl2-boundaries", "family": "negative_boundaries_and_abstention", "semantic_cues": ["distinct judges, human review, deterministic oracles, tests, and unresolved dynamic model IDs"]}
+      ]
+    }
+  ],
+  "contract_sha256": "35d4aaffc933f22b0f8f8d88fa0444c4b142e246d406f6f7933ff74b467c7d2a"
+}

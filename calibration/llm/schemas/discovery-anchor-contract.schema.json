@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/discovery-anchor-contract-v1.5.json",
+  "title": "Cejel Free LLM detector-independent discovery anchor contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol_id",
+    "methodology_id",
+    "status",
+    "locked_at",
+    "detector_results_seen_before_lock",
+    "source_accessed_before_lock",
+    "hash_contract",
+    "search_families",
+    "allowed_exclusion_codes",
+    "resource_ceilings",
+    "discovery_tool",
+    "rules",
+    "contract_sha256"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "methodology_id": {"const": "llm-opportunity-discovery-v1.5"},
+    "status": {"const": "locked_before_source_access"},
+    "locked_at": {"type": "string", "format": "date-time"},
+    "detector_results_seen_before_lock": {"const": false},
+    "source_accessed_before_lock": {"const": false},
+    "hash_contract": {"const": "rfc8785-sha256-v1; contract excludes only contract_sha256"},
+    "search_families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 3}
+    },
+    "allowed_exclusion_codes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["out_of_rule_scope", "ineligible_source_path", "duplicate_candidate"]}
+    },
+    "resource_ceilings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_eligible_files_per_repository",
+        "maximum_hits_per_query",
+        "maximum_candidates_per_repository_rule"
+      ],
+      "properties": {
+        "maximum_eligible_files_per_repository": {"type": "integer", "minimum": 1},
+        "maximum_hits_per_query": {"type": "integer", "minimum": 1},
+        "maximum_candidates_per_repository_rule": {"type": "integer", "minimum": 1}
+      }
+    },
+    "discovery_tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "source_sha256", "dependency_paths"],
+      "properties": {
+        "path": {"const": "calibration/llm/scripts/assemble-discovery-integrity.mjs"},
+        "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "dependency_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "not": {"pattern": "(^|/)src/packs/llm(/|$)"}
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "anchor_kinds",
+          "canonical_locus",
+          "negative_boundary_policy",
+          "candidate_normalization",
+          "query_recipes"
+        ],
+        "properties": {
+          "rule_id": {
+            "enum": [
+              "LLM-IOH-001",
+              "LLM-VAL-001",
+              "LLM-AGY-001",
+              "LLM-AGY-002",
+              "LLM-DAT-001",
+              "LLM-PRV-001",
+              "LLM-EVL-001",
+              "LLM-EVL-002"
+            ]
+          },
+          "anchor_kinds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 3}
+          },
+          "canonical_locus": {"type": "string", "minLength": 20},
+          "negative_boundary_policy": {"type": "string", "minLength": 20},
+          "candidate_normalization": {"type": "string", "minLength": 20},
+          "query_recipes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["query_id", "family", "semantic_cues"],
+              "properties": {
+                "query_id": {"type": "string", "minLength": 3},
+                "family": {"type": "string", "minLength": 3},
+                "semantic_cues": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {"type": "string", "minLength": 10}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "contract_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

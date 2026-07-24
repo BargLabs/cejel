@@ -11,15 +11,18 @@ const read = (relative) => JSON.parse(readFileSync(resolve(root, relative), 'utf
 const sha256File = (relative) =>
   createHash('sha256').update(readFileSync(resolve(root, relative))).digest('hex');
 const policy = read('selection-policy.json');
-const cycle = policy.policy_id?.replace(/^llm-selection-/, '');
+const policyMatch = /^llm-selection-v1\.([2-9]|[1-9][0-9]+)$/.exec(policy.policy_id || '');
+if (!policyMatch) throw new Error('selection policy id must match llm-selection-v1.N for N >= 2');
+const cycle = `v1.${policyMatch[1]}`;
+const modernCycle = Number.parseInt(policyMatch[1], 10) >= 4;
 const thresholds = read('release-thresholds.json');
 const golden = read(`cohorts/golden-candidates-${cycle}.json`);
 const untouched = read(`cohorts/untouched-candidates-${cycle}.json`);
 const amendments = read('cohorts/selection-amendments.json');
 const replacementSelection = read(`cohorts/selection-${cycle}.json`);
-const goldenSelection = cycle === 'v1.4' ? read('cohorts/selection-golden-v1.4.json') : null;
-const untouchedSelection = cycle === 'v1.4' ? read('cohorts/selection-untouched-v1.4.json') : null;
-const cycleReset = cycle === 'v1.4' ? read('results/v1.4-cycle-reset.json') : null;
+const goldenSelection = modernCycle ? read(`cohorts/selection-golden-${cycle}.json`) : null;
+const untouchedSelection = modernCycle ? read(`cohorts/selection-untouched-${cycle}.json`) : null;
+const cycleReset = modernCycle ? read(`results/${cycle}-cycle-reset.json`) : null;
 const priorReplacementSelection = read('cohorts/replacement-selection-v1.2.json');
 const priorGolden = read('cohorts/golden-candidates.json');
 const priorUntouchedV12 = read('cohorts/untouched-candidates-v1.2.json');
@@ -59,10 +62,14 @@ if (!amendments.amendments.some((entry) =>
   entry.kind === 'policy_relock_before_results' && entry.to === policy.policy_id
 )) errors.push('selection amendment log does not record the pre-result policy re-lock');
 const { record_sha256: replacementRecordHash, ...replacementWithoutHash } = replacementSelection;
-if (cycle === 'v1.4') {
+if (modernCycle) {
+  const expectedSelectorSourceSha256 = cycle === 'v1.4'
+    ? replacementSelection.selector_source_sha256
+    : sha256File('scripts/select-replacement-cohort.mjs');
   const validateSelectionRecord = (record, cohort, candidates) => {
     const { record_sha256: recordHash, ...recordWithoutHash } = record;
     if (
+      record.schema_version !== '1.0.0' ||
       record.protocol_id !== 'cejel-llm-calibration-v1' ||
       record.policy_id !== policy.policy_id ||
       record.cohort !== cohort ||
@@ -74,10 +81,12 @@ if (cycle === 'v1.4') {
       canonicalize(record.selected.map((entry) => entry.repository_id)) !==
         canonicalize(candidates.repositories.map((entry) => entry.repository_id)) ||
       record.selector_source_sha256 !==
-        sha256File('scripts/select-replacement-cohort.mjs') ||
+        expectedSelectorSourceSha256 ||
+      record.selection_evidence_record_sha256 !==
+        sha256File(`results/${cycle}-cycle-reset.json`) ||
       record.historical_exclusion_ledger_sha256 !==
-        sha256File('results/v1.4-cycle-reset.json')
-    ) errors.push(`${cohort}: v1.4 selection record is absent, malformed, or unbound`);
+        sha256File(`results/${cycle}-cycle-reset.json`)
+    ) errors.push(`${cohort}: ${cycle} selection record is absent, malformed, or unbound`);
   };
   validateSelectionRecord(goldenSelection, 'golden', golden);
   validateSelectionRecord(untouchedSelection, 'untouched', untouched);
@@ -91,41 +100,51 @@ if (cycle === 'v1.4') {
     goldenSelection.excluded_repository_ids_sha256 !== sha256Canonical(historicalIds) ||
     untouchedSelection.excluded_repository_count !== untouchedExclusions.length ||
     untouchedSelection.excluded_repository_ids_sha256 !== sha256Canonical(untouchedExclusions)
-  ) errors.push('v1.4 selection records do not bind the complete historical and sibling exclusion sets');
+  ) errors.push(`${cycle} selection records do not bind the complete historical and sibling exclusion sets`);
   if (
     untouchedSelection.golden_sibling_candidate_sha256 !==
-      sha256File('cohorts/golden-candidates-v1.4.json') ||
+      sha256File(`cohorts/golden-candidates-${cycle}.json`) ||
     untouchedSelection.golden_sibling_selection_record_sha256 !==
-      sha256File('cohorts/selection-golden-v1.4.json')
+      sha256File(`cohorts/selection-golden-${cycle}.json`)
   ) errors.push('untouched: golden sibling bindings are absent or invalid');
+  const canonicalHistoricalIds = historicalIds.map((identity) => String(identity).toLowerCase());
   if (
+    cycleReset?.schema_version !== '1.0.0' ||
+    cycleReset?.protocol_id !== 'cejel-llm-calibration-v1' ||
+    cycleReset?.cycle !== cycle ||
     cycleReset?.record_type !== 'pre_result_cycle_reset' ||
     cycleReset?.detector_results_seen_for_new_cohorts !== false ||
     cycleReset?.repository_source_or_labels_used_for_new_cohort_selection !== false ||
-    cycleReset?.historical_exclusions?.repository_count !== 197 ||
+    cycleReset?.historical_exclusions?.repository_count !== historicalIds.length ||
+    new Set(canonicalHistoricalIds).size !== canonicalHistoricalIds.length ||
+    canonicalHistoricalIds.some((identity, index) => identity !== historicalIds[index]) ||
+    [...canonicalHistoricalIds].sort().some((identity, index) => identity !== canonicalHistoricalIds[index]) ||
     cycleReset?.historical_exclusions?.repository_ids_sha256 !==
-      sha256Canonical(cycleReset?.historical_exclusions?.repository_ids || [])
-  ) errors.push('v1.4 cycle reset or historical exclusion ledger is invalid');
+      sha256Canonical(canonicalHistoricalIds)
+  ) errors.push(`${cycle} cycle reset or historical exclusion ledger is invalid`);
   if (
+    replacementSelection.schema_version !== '1.0.0' ||
     replacementSelection.protocol_id !== 'cejel-llm-calibration-v1' ||
     replacementSelection.policy_id !== policy.policy_id ||
     replacementSelection.record_type !== 'dual_cohort_metadata_selection' ||
     replacementSelection.detector_results_seen !== false ||
     replacementSelection.source_or_labels_used_for_selection !== false ||
     replacementRecordHash !== sha256Canonical(replacementWithoutHash) ||
-    replacementSelection.selector_source_sha256 !==
-      sha256File('scripts/select-replacement-cohort.mjs') ||
+    replacementSelection.selector_source_sha256 !== expectedSelectorSourceSha256 ||
     replacementSelection.cycle_reset_sha256 !==
-      sha256File('results/v1.4-cycle-reset.json') ||
+      sha256File(`results/${cycle}-cycle-reset.json`) ||
+    replacementSelection.historical_repository_count !== historicalIds.length ||
+    replacementSelection.historical_repository_ids_sha256 !==
+      sha256Canonical(canonicalHistoricalIds) ||
     replacementSelection.cohorts?.golden?.candidate_byte_sha256 !==
-      sha256File('cohorts/golden-candidates-v1.4.json') ||
+      sha256File(`cohorts/golden-candidates-${cycle}.json`) ||
     replacementSelection.cohorts?.golden?.selection_record_byte_sha256 !==
-      sha256File('cohorts/selection-golden-v1.4.json') ||
+      sha256File(`cohorts/selection-golden-${cycle}.json`) ||
     replacementSelection.cohorts?.untouched?.candidate_byte_sha256 !==
-      sha256File('cohorts/untouched-candidates-v1.4.json') ||
+      sha256File(`cohorts/untouched-candidates-${cycle}.json`) ||
     replacementSelection.cohorts?.untouched?.selection_record_byte_sha256 !==
-      sha256File('cohorts/selection-untouched-v1.4.json')
-  ) errors.push('v1.4 dual-cohort selection envelope is absent, malformed, or unbound');
+      sha256File(`cohorts/selection-untouched-${cycle}.json`)
+  ) errors.push(`${cycle} dual-cohort selection envelope is absent, malformed, or unbound`);
 } else if (
   replacementSelection.protocol_id !== 'cejel-llm-calibration-v1' ||
   replacementSelection.policy_id !== policy.policy_id ||
@@ -207,7 +226,7 @@ const goldenIds = new Set(golden.repositories.map((repo) => repo.repository_id.t
 for (const repo of untouched.repositories) {
   if (goldenIds.has(repo.repository_id.toLowerCase())) errors.push(`cohort overlap: ${repo.repository_id}`);
 }
-if (cycle === 'v1.4') {
+if (modernCycle) {
   const historicalIds = new Set(cycleReset.historical_exclusions.repository_ids);
   for (const repository of [...golden.repositories, ...untouched.repositories]) {
     if (historicalIds.has(repository.repository_id.toLowerCase())) {

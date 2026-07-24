@@ -32,6 +32,16 @@ const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const sha256Canonical = (document) => sha256(Buffer.from(canonicalize(document), 'utf8'));
 const codePointCompare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
+export function selectionCycle(policyId) {
+  const match = /^llm-selection-(v1\.([2-9]|[1-9][0-9]+))$/.exec(policyId || '');
+  if (!match) throw new Error('selection policy id must match llm-selection-v1.N for N >= 2');
+  return {
+    cycle: match[1],
+    minor: Number.parseInt(match[2], 10),
+    modern: Number.parseInt(match[2], 10) >= 4,
+  };
+}
+
 function hasExactKeys(value, keys) {
   return (
     value && typeof value === 'object' && !Array.isArray(value) &&
@@ -114,12 +124,12 @@ function selectionHash(policyId, surface, repositoryId) {
   return sha256(Buffer.from(`${policyId}|${surface}|${repositoryId.toLowerCase()}`, 'utf8'));
 }
 
-function validateHistoricalExclusionLedger(ledger) {
+function validateHistoricalExclusionLedger(ledger, expectedCycle) {
   const exclusions = ledger?.historical_exclusions;
   if (
     ledger?.schema_version !== '1.0.0' ||
     ledger?.protocol_id !== 'cejel-llm-calibration-v1' ||
-    ledger?.cycle !== 'v1.4' ||
+    ledger?.cycle !== expectedCycle ||
     ledger?.record_type !== 'pre_result_cycle_reset' ||
     ledger?.detector_results_seen_for_new_cohorts !== false ||
     ledger?.repository_source_or_labels_used_for_new_cohort_selection !== false ||
@@ -127,7 +137,7 @@ function validateHistoricalExclusionLedger(ledger) {
     !Array.isArray(exclusions.repository_ids) ||
     !Number.isInteger(exclusions.repository_count) ||
     !/^[a-f0-9]{64}$/.test(exclusions.repository_ids_sha256 || '')
-  ) throw new Error('v1.4 selection requires a valid pre-result historical exclusion ledger');
+  ) throw new Error(`${expectedCycle} selection requires a valid pre-result historical exclusion ledger`);
   const normalized = exclusions.repository_ids.map((identity) => String(identity).toLowerCase());
   if (
     normalized.length !== exclusions.repository_count ||
@@ -135,7 +145,7 @@ function validateHistoricalExclusionLedger(ledger) {
     normalized.some((identity, index) => identity !== exclusions.repository_ids[index]) ||
     [...normalized].sort(codePointCompare).some((identity, index) => identity !== normalized[index]) ||
     sha256Canonical(normalized) !== exclusions.repository_ids_sha256
-  ) throw new Error('v1.4 historical exclusion identities are incomplete or non-canonical');
+  ) throw new Error(`${expectedCycle} historical exclusion identities are incomplete or non-canonical`);
   return new Set(normalized);
 }
 
@@ -149,13 +159,13 @@ function validateSiblingCandidate(document, policyId) {
     document?.selected_before_detector_results !== true ||
     !Array.isArray(document?.repositories) ||
     document.repositories.length !== 24
-  ) throw new Error('v1.4 untouched selection requires the exact fresh golden candidate document');
+  ) throw new Error('modern untouched selection requires the exact fresh golden candidate document');
   const identities = document.repositories.map((repository) =>
     String(repository?.repository_id || '').toLowerCase());
   if (
     identities.some((identity) => !/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(identity)) ||
     new Set(identities).size !== identities.length
-  ) throw new Error('v1.4 golden sibling candidate identities are invalid');
+  ) throw new Error('modern golden sibling candidate identities are invalid');
   return new Set(identities);
 }
 
@@ -169,10 +179,11 @@ function validateSiblingSelectionRecord(record, candidateDocument, historicalLed
     record?.cohort !== 'golden' ||
     record?.detector_results_seen !== false ||
     record?.source_or_labels_used_for_selection !== false ||
+    record?.selection_evidence_record_sha256 !== historicalLedgerSha256 ||
     record?.historical_exclusion_ledger_sha256 !== historicalLedgerSha256 ||
     record?.candidate_document_sha256 !== sha256Canonical(candidateDocument) ||
     record?.record_sha256 !== sha256Canonical(recordWithoutHash)
-  ) throw new Error('v1.4 untouched selection requires the valid golden sibling selection record');
+  ) throw new Error('modern untouched selection requires the valid golden sibling selection record');
 }
 
 function constrainedSelection(pool, compare) {
@@ -293,6 +304,7 @@ export function selectReplacementCohort({
   if (!['golden', 'untouched'].includes(cohort)) {
     throw new Error('replacement cohort must be golden or untouched');
   }
+  const policyCycle = selectionCycle(policyId);
   const left = validateProposal(proposalA, 'proposal A');
   const right = validateProposal(proposalB, 'proposal B');
   if (left.reviewerId.toLowerCase() === right.reviewerId.toLowerCase()) {
@@ -308,18 +320,24 @@ export function selectReplacementCohort({
     throw new Error('replacement selection time is invalid');
   }
   const exclusions = new Set([...excludedIds].map((id) => String(id).toLowerCase()));
-  if (policyId === 'llm-selection-v1.4') {
+  if (policyCycle.modern) {
     if (!/^[a-f0-9]{64}$/.test(historicalExclusionLedgerSha256 || '')) {
-      throw new Error('v1.4 selection requires the byte hash of its historical exclusion ledger');
+      throw new Error(`${policyCycle.cycle} selection requires the byte hash of its historical exclusion ledger`);
     }
-    const historical = validateHistoricalExclusionLedger(historicalExclusionLedger);
+    if (incidentRecordSha256 !== historicalExclusionLedgerSha256) {
+      throw new Error(`${policyCycle.cycle} selection evidence must be the exact historical exclusion ledger`);
+    }
+    const historical = validateHistoricalExclusionLedger(
+      historicalExclusionLedger,
+      policyCycle.cycle,
+    );
     const expected = new Set(historical);
     if (cohort === 'untouched') {
       if (
         !/^[a-f0-9]{64}$/.test(siblingCandidateDocumentSha256 || '') ||
         !/^[a-f0-9]{64}$/.test(siblingSelectionRecordSha256 || '')
       ) {
-        throw new Error('v1.4 untouched selection requires byte hashes for its golden sibling artifacts');
+        throw new Error('modern untouched selection requires byte hashes for its golden sibling artifacts');
       }
       validateSiblingSelectionRecord(
         siblingSelectionRecord,
@@ -336,12 +354,12 @@ export function selectReplacementCohort({
       siblingSelectionRecord ||
       siblingSelectionRecordSha256
     ) {
-      throw new Error('v1.4 golden selection cannot bind a sibling candidate');
+      throw new Error('modern golden selection cannot bind a sibling candidate');
     }
     if (
       exclusions.size !== expected.size ||
       [...expected].some((identity) => !exclusions.has(identity))
-    ) throw new Error('v1.4 exclusions must exactly match the historical ledger and golden sibling');
+    ) throw new Error('modern exclusions must exactly match the historical ledger and golden sibling');
   }
   const identities = new Set([...left.repositories.keys(), ...right.repositories.keys()]);
   const pool = [];
@@ -402,7 +420,7 @@ export function selectReplacementCohort({
       : { selection_evidence_record_sha256: incidentRecordSha256 }),
     surface_targets: SURFACE_TARGETS,
     required_provider_surfaces: REQUIRED_PROVIDERS,
-    ...(policyId === 'llm-selection-v1.4'
+    ...(policyCycle.modern
       ? {
         historical_exclusion_ledger_sha256: historicalExclusionLedgerSha256,
         ...(cohort === 'untouched'
@@ -500,7 +518,7 @@ export function writeSelectionPair(candidatePath, candidateDocument, recordPath,
 export function main(argv) {
   const options = parseArgs(argv);
   for (const key of [
-    'proposal_a', 'proposal_b', 'incident_record', 'selected_at',
+    'proposal_a', 'proposal_b', 'selected_at',
     'candidate_output', 'record_output',
   ]) {
     if (!options[key]) throw new Error(`--${key.replaceAll('_', '-')} is required`);
@@ -509,6 +527,7 @@ export function main(argv) {
   const proposalA = read(options.proposal_a);
   const proposalB = read(options.proposal_b);
   const policyId = options.policy_id || POLICY_ID;
+  const policyCycle = selectionCycle(policyId);
   const cohort = options.cohort || 'untouched';
   const excludedIds = new Set();
   let historicalExclusionLedger;
@@ -517,8 +536,10 @@ export function main(argv) {
   let siblingCandidateDocumentSha256;
   let siblingSelectionRecord;
   let siblingSelectionRecordSha256;
-  if (policyId === 'llm-selection-v1.4') {
-    if (!options.exclusion_ledger) throw new Error('--exclusion-ledger is required for v1.4');
+  if (policyCycle.modern) {
+    if (!options.exclusion_ledger) {
+      throw new Error(`--exclusion-ledger is required for ${policyCycle.cycle}`);
+    }
     const ledgerPath = resolve(options.exclusion_ledger);
     const ledgerBytes = readFileSync(ledgerPath);
     historicalExclusionLedger = JSON.parse(ledgerBytes);
@@ -528,10 +549,10 @@ export function main(argv) {
     }
     if (cohort === 'untouched') {
       if (!options.sibling_candidate) {
-        throw new Error('--sibling-candidate is required for v1.4 untouched selection');
+        throw new Error('--sibling-candidate is required for modern untouched selection');
       }
       if (!options.sibling_selection_record) {
-        throw new Error('--sibling-selection-record is required for v1.4 untouched selection');
+        throw new Error('--sibling-selection-record is required for modern untouched selection');
       }
       const siblingBytes = readFileSync(resolve(options.sibling_candidate));
       siblingCandidateDocument = JSON.parse(siblingBytes);
@@ -544,6 +565,7 @@ export function main(argv) {
       }
     }
   } else {
+    if (!options.incident_record) throw new Error('--incident-record is required');
     if (!options.exclude_files) throw new Error('--exclude-files is required');
     for (const path of options.exclude_files.split(',')) {
       for (const repository of read(path).repositories || []) excludedIds.add(repository.repository_id);
@@ -555,9 +577,14 @@ export function main(argv) {
     excludedIds,
     selectedAt: options.selected_at,
     selectorSourceSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
-    incidentRecordSha256: sha256(readFileSync(resolve(options.incident_record))),
+    incidentRecordSha256: policyCycle.modern
+      ? historicalExclusionLedgerSha256
+      : sha256(readFileSync(resolve(options.incident_record))),
     policyId,
-    selectionEventId: options.selection_event_id || 'untouched-blinding-incident-2026-07-22',
+    selectionEventId: options.selection_event_id ||
+      (policyCycle.modern
+        ? `${policyCycle.cycle}-pre-result-cycle-reset`
+        : 'untouched-blinding-incident-2026-07-22'),
     cohort,
     historicalExclusionLedger,
     historicalExclusionLedgerSha256,

@@ -1,0 +1,44 @@
+{
+  "$schema": "../schemas/discovery-anchor-contract.schema.json",
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "methodology_id": "llm-opportunity-discovery-v1.5",
+  "status": "locked_before_source_access",
+  "locked_at": "replace-with-pre-source-UTC",
+  "detector_results_seen_before_lock": false,
+  "source_accessed_before_lock": false,
+  "hash_contract": "rfc8785-sha256-v1; contract excludes only contract_sha256",
+  "search_families": ["replace-with-complete-locked-family-set"],
+  "allowed_exclusion_codes": [
+    "out_of_rule_scope",
+    "ineligible_source_path",
+    "duplicate_candidate"
+  ],
+  "resource_ceilings": {
+    "maximum_eligible_files_per_repository": 1,
+    "maximum_hits_per_query": 1,
+    "maximum_candidates_per_repository_rule": 1
+  },
+  "discovery_tool": {
+    "path": "calibration/llm/scripts/assemble-discovery-integrity.mjs",
+    "source_sha256": "replace-with-byte-sha256",
+    "dependency_paths": ["calibration/llm/scripts/freeze-cohorts.mjs"]
+  },
+  "rules": [
+    {
+      "rule_id": "LLM-IOH-001",
+      "anchor_kinds": ["replace-with-canonical-anchor-kind"],
+      "canonical_locus": "Replace with the exact canonical defect locus used for discovery and matching.",
+      "negative_boundary_policy": "Safe and controlled cases are negative opportunities and can never be excluded.",
+      "candidate_normalization": "Replace with the deterministic grouping and canonical-anchor tie-breaking rule.",
+      "query_recipes": [
+        {
+          "query_id": "replace-with-globally-unique-query-id",
+          "family": "replace-with-locked-family",
+          "semantic_cues": ["replace with detector-independent semantic cues"]
+        }
+      ]
+    }
+  ],
+  "contract_sha256": "replace-with-rfc8785-sha256-excluding-only-contract-sha256"
+}

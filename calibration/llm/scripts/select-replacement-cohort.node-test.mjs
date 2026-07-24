@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import {
   selectReplacementCohort,
+  selectionCycle,
   writeSelectionPair,
 } from './select-replacement-cohort.mjs';
 
@@ -61,12 +62,12 @@ function proposal(reviewerId, suffix) {
   };
 }
 
-function historicalLedger(repositoryIds = []) {
+function historicalLedger(repositoryIds = [], cycle = 'v1.4') {
   const normalized = [...repositoryIds].map((identity) => identity.toLowerCase()).sort();
   return {
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
-    cycle: 'v1.4',
+    cycle,
     record_type: 'pre_result_cycle_reset',
     detector_results_seen_for_new_cohorts: false,
     repository_source_or_labels_used_for_new_cohort_selection: false,
@@ -77,6 +78,37 @@ function historicalLedger(repositoryIds = []) {
     },
   };
 }
+
+test('classifies v1.4 and later policies as modern selection cycles', () => {
+  assert.deepEqual(selectionCycle('llm-selection-v1.3'), {
+    cycle: 'v1.3',
+    minor: 3,
+    modern: false,
+  });
+  assert.deepEqual(selectionCycle('llm-selection-v1.5'), {
+    cycle: 'v1.5',
+    minor: 5,
+    modern: true,
+  });
+  assert.throws(() => selectionCycle('llm-selection-next'), /must match/);
+  assert.throws(() => selectionCycle('llm-selection-v1.04'), /must match/);
+});
+
+test('candidate and immutable-manifest schemas accept canonical v1.5 policy ids', () => {
+  for (const schemaName of ['cohort-candidates', 'immutable-manifest']) {
+    const schema = JSON.parse(readFileSync(
+      new URL(`../schemas/${schemaName}.schema.json`, import.meta.url),
+      'utf8',
+    ));
+    const pattern = new RegExp(schema.properties.policy_id.pattern);
+    assert.equal(pattern.test('llm-selection-v1.2'), true);
+    assert.equal(pattern.test('llm-selection-v1.5'), true);
+    assert.equal(pattern.test('llm-selection-v1.10'), true);
+    assert.equal(pattern.test('llm-selection-v1.1'), false);
+    assert.equal(pattern.test('llm-selection-v1.04'), false);
+    assert.equal(pattern.test('llm-selection-v2.5'), false);
+  }
+});
 
 function fixtureHash(policyId, surface, repositoryId) {
   return createHash('sha256')
@@ -208,7 +240,7 @@ test('selects fresh golden and untouched cohorts from one pre-result pool withou
     proposalB,
     selectedAt: '2026-07-23T04:30:00.000Z',
     selectorSourceSha256: 'a'.repeat(64),
-    incidentRecordSha256: 'b'.repeat(64),
+    incidentRecordSha256: 'c'.repeat(64),
     policyId: 'llm-selection-v1.4',
     historicalExclusionLedger: historicalLedger(),
     historicalExclusionLedgerSha256: 'c'.repeat(64),
@@ -260,7 +292,7 @@ test('v1.4 rejects incomplete historical exclusions and a missing golden sibling
     proposalB: proposal('codex-metadata-review-b', 'b'),
     selectedAt: '2026-07-23T04:30:00.000Z',
     selectorSourceSha256: 'a'.repeat(64),
-    incidentRecordSha256: 'b'.repeat(64),
+    incidentRecordSha256: 'c'.repeat(64),
     policyId: 'llm-selection-v1.4',
     historicalExclusionLedger: historicalLedger(['prior/repository']),
     historicalExclusionLedgerSha256: 'c'.repeat(64),
@@ -272,9 +304,86 @@ test('v1.4 rejects incomplete historical exclusions and a missing golden sibling
   }), /exactly match/);
   assert.throws(() => selectReplacementCohort({
     ...common,
+    incidentRecordSha256: 'b'.repeat(64),
+    excludedIds: new Set(['prior/repository']),
+    cohort: 'golden',
+  }), /selection evidence must be the exact historical exclusion ledger/);
+  assert.throws(() => selectReplacementCohort({
+    ...common,
     excludedIds: new Set(['prior/repository']),
     cohort: 'untouched',
   }), /golden sibling/);
+});
+
+test('v1.5 requires the exact cycle ledger and hash-bound golden sibling', () => {
+  const proposalA = proposal('codex-metadata-review-a', 'a');
+  const proposalB = proposal('codex-metadata-review-b', 'b');
+  const ledger = historicalLedger(['prior/repository'], 'v1.5');
+  const common = {
+    proposalA,
+    proposalB,
+    selectedAt: '2026-07-23T04:30:00.000Z',
+    selectorSourceSha256: 'a'.repeat(64),
+    incidentRecordSha256: 'c'.repeat(64),
+    policyId: 'llm-selection-v1.5',
+    historicalExclusionLedger: ledger,
+    historicalExclusionLedgerSha256: 'c'.repeat(64),
+  };
+  assert.throws(() => selectReplacementCohort({
+    ...common,
+    excludedIds: new Set(),
+    cohort: 'golden',
+  }), /exactly match/);
+  assert.throws(() => selectReplacementCohort({
+    ...common,
+    historicalExclusionLedger: historicalLedger(['prior/repository'], 'v1.4'),
+    excludedIds: new Set(['prior/repository']),
+    cohort: 'golden',
+  }), /v1\.5 selection requires/);
+
+  const golden = selectReplacementCohort({
+    ...common,
+    excludedIds: new Set(['prior/repository']),
+    cohort: 'golden',
+  });
+  const goldenIds = golden.candidateDocument.repositories.map((repository) =>
+    repository.repository_id.toLowerCase());
+  const untouchedInput = {
+    ...common,
+    excludedIds: new Set(['prior/repository', ...goldenIds]),
+    cohort: 'untouched',
+    siblingCandidateDocument: golden.candidateDocument,
+    siblingCandidateDocumentSha256: 'd'.repeat(64),
+    siblingSelectionRecord: golden.selectionRecord,
+    siblingSelectionRecordSha256: 'e'.repeat(64),
+  };
+  const untouched = selectReplacementCohort(untouchedInput);
+  assert.equal(untouched.candidateDocument.policy_id, 'llm-selection-v1.5');
+  assert.equal(
+    untouched.candidateDocument.repositories.some((repository) =>
+      untouchedInput.excludedIds.has(repository.repository_id.toLowerCase())),
+    false,
+  );
+  assert.throws(() => selectReplacementCohort({
+    ...untouchedInput,
+    siblingSelectionRecord: {
+      ...golden.selectionRecord,
+      record_sha256: 'f'.repeat(64),
+    },
+  }), /valid golden sibling selection record/);
+});
+
+test('v1.5 cannot fall back to legacy exclude-file semantics', () => {
+  assert.throws(() => selectReplacementCohort({
+    proposalA: proposal('codex-metadata-review-a', 'a'),
+    proposalB: proposal('codex-metadata-review-b', 'b'),
+    excludedIds: new Set(),
+    selectedAt: '2026-07-23T04:30:00.000Z',
+    selectorSourceSha256: 'a'.repeat(64),
+    incidentRecordSha256: 'b'.repeat(64),
+    policyId: 'llm-selection-v1.5',
+    cohort: 'golden',
+  }), /requires the byte hash of its historical exclusion ledger/);
 });
 
 test('constraint selection finds feasible provider placement that provider-first greedy misses', () => {

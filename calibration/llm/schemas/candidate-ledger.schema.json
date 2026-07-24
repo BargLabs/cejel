@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/candidate-ledger-v1.5.json",
+  "title": "Cejel Free LLM detector-independent candidate ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol_id",
+    "methodology_id",
+    "status",
+    "frozen_at",
+    "detector_results_seen_before_freeze",
+    "hash_contract",
+    "blind_reviewers",
+    "auditor_id",
+    "bindings",
+    "repository_matrix",
+    "eligible_file_inventories",
+    "raw_hit_rows",
+    "raw_hits",
+    "candidates",
+    "opportunity_bindings",
+    "resource_usage",
+    "unresolved_candidate_ids",
+    "ledger_sha256"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+    "cohort": {"enum": ["golden", "untouched"]},
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "start_line", "end_line", "content_sha256"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 3},
+        "path": {"type": "string", "minLength": 1},
+        "start_line": {"type": "integer", "minimum": 1},
+        "end_line": {"type": "integer", "minimum": 1},
+        "content_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "methodology_id": {"const": "llm-opportunity-discovery-v1.5"},
+    "status": {"const": "frozen_before_detector_results"},
+    "frozen_at": {"type": "string", "format": "date-time"},
+    "detector_results_seen_before_freeze": {"const": false},
+    "hash_contract": {"const": "rfc8785-sha256-v1; ledger excludes only ledger_sha256"},
+    "blind_reviewers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 3}
+    },
+    "auditor_id": {"type": "string", "minLength": 3},
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "golden_manifest_sha256",
+        "untouched_manifest_sha256",
+        "anchor_contract_sha256"
+      ],
+      "properties": {
+        "golden_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "untouched_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "anchor_contract_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "repository_matrix": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["cohort", "repository_id", "commit_sha"],
+        "properties": {
+          "cohort": {"$ref": "#/$defs/cohort"},
+          "repository_id": {"$ref": "#/$defs/repository"},
+          "commit_sha": {"$ref": "#/$defs/commit"}
+        }
+      }
+    },
+    "eligible_file_inventories": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cohort",
+          "repository_id",
+          "commit_sha",
+          "eligible_file_count",
+          "eligible_file_manifest_sha256",
+          "ceiling_reached"
+        ],
+        "properties": {
+          "cohort": {"$ref": "#/$defs/cohort"},
+          "repository_id": {"$ref": "#/$defs/repository"},
+          "commit_sha": {"$ref": "#/$defs/commit"},
+          "eligible_file_count": {"type": "integer", "minimum": 0},
+          "eligible_file_manifest_sha256": {"$ref": "#/$defs/sha256"},
+          "ceiling_reached": {"const": false}
+        }
+      }
+    },
+    "raw_hit_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cohort",
+          "repository_id",
+          "commit_sha",
+          "rule_id",
+          "query_id",
+          "hit_ids",
+          "observed_hit_count",
+          "ceiling_reached"
+        ],
+        "properties": {
+          "cohort": {"$ref": "#/$defs/cohort"},
+          "repository_id": {"$ref": "#/$defs/repository"},
+          "commit_sha": {"$ref": "#/$defs/commit"},
+          "rule_id": {"type": "string", "minLength": 3},
+          "query_id": {"type": "string", "minLength": 3},
+          "hit_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 6}
+          },
+          "observed_hit_count": {"type": "integer", "minimum": 0},
+          "ceiling_reached": {"const": false}
+        }
+      }
+    },
+    "raw_hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hit_id",
+          "cohort",
+          "repository_id",
+          "commit_sha",
+          "rule_id",
+          "query_id",
+          "anchor"
+        ],
+        "properties": {
+          "hit_id": {"type": "string", "minLength": 6},
+          "cohort": {"$ref": "#/$defs/cohort"},
+          "repository_id": {"$ref": "#/$defs/repository"},
+          "commit_sha": {"$ref": "#/$defs/commit"},
+          "rule_id": {"type": "string", "minLength": 3},
+          "query_id": {"type": "string", "minLength": 3},
+          "anchor": {"$ref": "#/$defs/anchor"}
+        }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "candidate_id",
+          "cohort",
+          "repository_id",
+          "commit_sha",
+          "rule_id",
+          "origin",
+          "semantic_class",
+          "anchor",
+          "supporting_hit_ids",
+          "disposition",
+          "opportunity_id",
+          "exclusion",
+          "reviews"
+        ],
+        "properties": {
+          "candidate_id": {"type": "string", "minLength": 6},
+          "cohort": {"$ref": "#/$defs/cohort"},
+          "repository_id": {"$ref": "#/$defs/repository"},
+          "commit_sha": {"$ref": "#/$defs/commit"},
+          "rule_id": {"type": "string", "minLength": 3},
+          "origin": {"enum": ["locked_search", "reviewer_manual", "auditor_added"]},
+          "semantic_class": {
+            "enum": [
+              "defect_candidate",
+              "safe_or_controlled",
+              "out_of_scope",
+              "ineligible_source",
+              "duplicate"
+            ]
+          },
+          "anchor": {"$ref": "#/$defs/anchor"},
+          "supporting_hit_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 6}
+          },
+          "disposition": {"enum": ["opportunity", "excluded"]},
+          "opportunity_id": {"type": ["string", "null"]},
+          "exclusion": {
+            "type": ["object", "null"],
+            "properties": {
+              "code": {
+                "enum": ["out_of_rule_scope", "ineligible_source_path", "duplicate_candidate"]
+              },
+              "rationale_sha256": {"$ref": "#/$defs/sha256"},
+              "duplicate_of_candidate_id": {"type": ["string", "null"]}
+            }
+          },
+          "reviews": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["reviewer_id", "role", "decision", "rationale_sha256"],
+              "properties": {
+                "reviewer_id": {"type": "string", "minLength": 3},
+                "role": {
+                  "enum": ["primary_labeler", "independent_reviewer", "discovery_auditor"]
+                },
+                "decision": {"enum": ["opportunity", "excluded"]},
+                "rationale_sha256": {"$ref": "#/$defs/sha256"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "opportunity_bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["opportunity_id", "candidate_id"],
+        "properties": {
+          "opportunity_id": {"type": "string", "minLength": 6},
+          "candidate_id": {"type": "string", "minLength": 6}
+        }
+      }
+    },
+    "resource_usage": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cohort",
+          "repository_id",
+          "eligible_files",
+          "raw_hits",
+          "candidates",
+          "ceiling_reached"
+        ],
+        "properties": {
+          "cohort": {"$ref": "#/$defs/cohort"},
+          "repository_id": {"$ref": "#/$defs/repository"},
+          "eligible_files": {"type": "integer", "minimum": 0},
+          "raw_hits": {"type": "integer", "minimum": 0},
+          "candidates": {"type": "integer", "minimum": 0},
+          "ceiling_reached": {"const": false}
+        }
+      }
+    },
+    "unresolved_candidate_ids": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "ledger_sha256": {"$ref": "#/$defs/sha256"}
+  }
+}
