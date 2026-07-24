@@ -455,6 +455,7 @@ function fixture() {
     untouched_manifest_sha256: untouched.manifest_sha256,
     opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
     opportunity_discovery_coverage_sha256: opportunityDiscoveryCoverage.record_sha256,
+    discovery_integrity_sha256: rawSha('discovery-integrity'),
     release_thresholds: {
       byte_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.byte_sha256,
       canonical_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.canonical_sha256,

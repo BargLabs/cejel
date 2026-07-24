@@ -9,6 +9,7 @@ import { relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { canonicalize } from './freeze-cohorts.mjs';
+import { assembleDiscoveryIntegrity } from './assemble-discovery-integrity.mjs';
 import { validatePreResultCommitment } from './pre-result-commitment.mjs';
 import { verifyPublicSurfaces } from './verify-public-surfaces.mjs';
 
@@ -38,7 +39,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function validatePrivateEvidence(privateRoot, opportunityManifest, discoveryCoverage) {
+function validatePrivateEvidence(privateRoot, opportunityManifest, discoveryCoverage, discoveryIntegrity) {
   const sourceIndex = readDocument(resolve(privateRoot, 'source-evidence-index.json')).document;
   const labelBindings = new Map(
     opportunityManifest.blind_label_bindings.map((binding) => [binding.label_id, binding]),
@@ -62,6 +63,11 @@ function validatePrivateEvidence(privateRoot, opportunityManifest, discoveryCove
     discoveryCoverage.bindings?.source_evidence_index_sha256 !== sourceIndex.index_sha256 ||
     discoveryCoverage.bindings?.opportunity_manifest_sha256 !== opportunityManifest.manifest_sha256
   ) throw new Error('private evidence is incomplete or its discovery bindings do not match');
+  if (
+    discoveryIntegrity?.status !== 'discovery_integrity_validated' ||
+    discoveryIntegrity?.bindings?.opportunity_manifest_sha256 !== opportunityManifest.manifest_sha256 ||
+    !/^[a-f0-9]{64}$/.test(discoveryIntegrity.record_sha256 || '')
+  ) throw new Error('private discovery integrity record does not bind the frozen opportunity manifest');
 }
 
 export async function createPreResultCommitment(input) {
@@ -108,13 +114,30 @@ export async function createPreResultCommitment(input) {
   const opportunityManifest = readDocument(resolve(privateRoot, 'opportunity-manifest.json')).document;
   const discoveryCoverage =
     readDocument(resolve(privateRoot, 'opportunity-discovery-coverage.json')).document;
+  const candidateLedger = readDocument(resolve(privateRoot, 'candidate-ledger.json')).document;
+  const discoveryAudit = readDocument(resolve(privateRoot, 'discovery-audit.json')).document;
+  const discoveryIntegrity =
+    readDocument(resolve(privateRoot, 'discovery-integrity.json')).document;
+  const discoveryContract = readDocument(
+    resolve(repositoryRoot, 'calibration/llm/discovery-anchor-contract-v1.5.json'),
+  ).document;
   if (
     opportunityManifest.cohort_bindings?.golden_manifest_sha256 !== goldenManifest.manifest_sha256 ||
     opportunityManifest.cohort_bindings?.untouched_manifest_sha256 !== untouchedManifest.manifest_sha256 ||
     discoveryCoverage.bindings?.golden_manifest_sha256 !== goldenManifest.manifest_sha256 ||
     discoveryCoverage.bindings?.untouched_manifest_sha256 !== untouchedManifest.manifest_sha256
   ) throw new Error('private evidence does not bind the current frozen cohort manifests');
-  validatePrivateEvidence(privateRoot, opportunityManifest, discoveryCoverage);
+  const recomputedIntegrity = assembleDiscoveryIntegrity({
+    contract: discoveryContract,
+    candidateLedger,
+    discoveryAudit,
+    opportunityManifest,
+  });
+  if (
+    sha256Canonical(recomputedIntegrity) !== sha256Canonical(discoveryIntegrity) ||
+    recomputedIntegrity.record_sha256 !== discoveryIntegrity.record_sha256
+  ) throw new Error('private discovery integrity record does not rederive from the locked inputs');
+  validatePrivateEvidence(privateRoot, opportunityManifest, discoveryCoverage, discoveryIntegrity);
 
   const thresholds = readDocument(resolve(repositoryRoot, 'calibration/llm/release-thresholds.json'));
   const publicPolicy =
@@ -142,6 +165,7 @@ export async function createPreResultCommitment(input) {
     untouched_manifest_sha256: untouchedManifest.manifest_sha256,
     opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
     opportunity_discovery_coverage_sha256: discoveryCoverage.record_sha256,
+    discovery_integrity_sha256: discoveryIntegrity.record_sha256,
     release_thresholds: {
       byte_sha256: sha256(thresholds.bytes),
       canonical_sha256: sha256Canonical(thresholds.document),
@@ -186,6 +210,7 @@ export async function main(argv) {
     status: 'created_pre_result_commitment',
     opportunity_manifest_sha256: document.opportunity_manifest_sha256,
     opportunity_discovery_coverage_sha256: document.opportunity_discovery_coverage_sha256,
+    discovery_integrity_sha256: document.discovery_integrity_sha256,
     blind_label_bindings: document.blind_label_bindings.length,
     public_document_inventory: document.public_document_inventory.length,
   }, null, 2));

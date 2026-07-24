@@ -553,6 +553,7 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
     untouched_manifest_sha256: immutableManifest('untouched').manifest_sha256,
     opportunity_manifest_sha256: '6'.repeat(64),
     opportunity_discovery_coverage_sha256: '9'.repeat(64),
+    discovery_integrity_sha256: 'a'.repeat(64),
     release_thresholds: {
       byte_sha256: 'b'.repeat(64),
       canonical_sha256: 'c'.repeat(64),
@@ -568,6 +569,9 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
     ],
     public_document_inventory: [{ path: 'README.md', content_sha256: 'a'.repeat(64) }],
   };
+  const incomplete = { ...document };
+  delete incomplete.discovery_integrity_sha256;
+  assert.throws(() => validatePreResultCommitment(incomplete), /pre-result commitment is invalid/);
   const bytes = `${JSON.stringify(document)}\n`;
   writeFileSync(path, bytes, 'utf8');
   assert.equal(validatePreResultCommitment(document), document);

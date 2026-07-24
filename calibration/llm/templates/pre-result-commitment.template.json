@@ -8,6 +8,7 @@
   "untouched_manifest_sha256": "replace-with-untouched-manifest-sha256",
   "opportunity_manifest_sha256": "replace-with-opportunity-manifest-sha256",
   "opportunity_discovery_coverage_sha256": "replace-with-opportunity-discovery-coverage-sha256",
+  "discovery_integrity_sha256": "replace-with-discovery-integrity-record-sha256",
   "release_thresholds": {
     "byte_sha256": "replace-with-release-thresholds-byte-sha256",
     "canonical_sha256": "replace-with-release-thresholds-canonical-sha256"
