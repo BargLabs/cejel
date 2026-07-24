@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.7",
+  "record_type": "metadata_selection_boundary_no_go",
+  "recorded_at": "2026-07-24T03:20:00.000Z",
+  "detector_executed": false,
+  "detector_results_seen": false,
+  "golden_source_accessed": false,
+  "untouched_source_accessed": false,
+  "reason": "The deterministic selector failed before publishing candidates because the complete pre-locked proposal union did not satisfy the gateway stratum. A later metadata-only addition would change the proposal bytes after the v1.7 reset had already bound them, so it cannot be used in v1.7.",
+  "disposition": {
+    "golden": "unselected_unexecuted_unspent",
+    "untouched": "unselected_unexecuted_unspent",
+    "next_cycle": "A fresh reset must include the complete amended metadata proposals before deterministic selection."
+  },
+  "public_claim_boundary": "This record makes no source, calibration, detector, precision, recall, or release-performance claim."
+}
