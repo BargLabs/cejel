@@ -5,34 +5,83 @@
     "url": "https://github.com/AutoMapper/AutoMapper",
     "headSha": "dfa6dd587c5854b4beee5934beb39ba6e9569b84"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 0.3,
+      "score": 1.8,
       "status": "warning",
       "evidence": [
         {
           "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "docs/Makefile",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/AppDomainResolutionTests.cs",
           "line": 1,
-          "contentHash": "0e940bd68779c1431a11f35063671cfeb7da0724ae1aebbaa42148b4659acfa2"
+          "contentHash": "12807653e9cc3cdbc1e440b717d826ac4ded6b1dffbe2746b0361623391d9bdd"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/AssemblyResolutionTests.cs",
+          "line": 1,
+          "contentHash": "3e663e84481c2022793ff586d5c80a3e6259e3ee71954c288a4e0f906fd33022"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/AttributeTests.cs",
+          "line": 1,
+          "contentHash": "e57b467dc1ffe9854b1ac4d9dab6e684601967a92c4e7fa13e7270bf07ee282b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/DependencyTests.cs",
+          "line": 1,
+          "contentHash": "f2bec804f03e57ba84e86149e397a89235d49518eb30175052017e01370284bf"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/Integrations/ServiceLifetimeTests.cs",
+          "line": 1,
+          "contentHash": "4256a89b3a2a13e0818656302a72c62caa4e907631b186476ca933020af89bda"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/MultipleRegistrationTests.cs",
+          "line": 1,
+          "contentHash": "b9426a4d9d1e58582e209aafa55ddfb27c220e14821dec8fea9134adfe9ad8b7"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/Profiles.cs",
+          "line": 1,
+          "contentHash": "9580307a2f495fa019ee72dd07ffa9985ecc3600280e13d4f64b1116ec4a838b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/AutoMapper.DI.Tests/Properties/AssemblyInfo.cs",
+          "line": 1,
+          "contentHash": "ed76d76f0cc0c2a933906e47a45dc7b9fdcff1ec8a9d607038c9d5920836e26c"
         }
       ],
       "findings": [
         {
           "severity": "warning",
-          "summary": "A test runner is configured, but no concrete test files were detected.",
+          "summary": "A1 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "test_run",
-            "label": "Configured test runner",
-            "path": "docs/Makefile",
+            "label": "Detected test file",
+            "path": "src/AutoMapper.DI.Tests/AppDomainResolutionTests.cs",
             "line": 1,
-            "contentHash": "0e940bd68779c1431a11f35063671cfeb7da0724ae1aebbaa42148b4659acfa2"
+            "contentHash": "12807653e9cc3cdbc1e440b717d826ac4ded6b1dffbe2746b0361623391d9bdd"
           }
         }
       ],
@@ -40,7 +89,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 0,
+          "value": 420,
           "max": 1,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -59,7 +108,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 1,
+          "value": 0,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -69,8 +118,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 0,
-          "max": 1,
+          "value": 8,
+          "max": 8,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -98,14 +147,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.8,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -115,7 +164,19 @@
           "contentHash": "ad06f98eae2cfee681da256c76313c6b273e3d3383bc03b082cc2b13fba2f340"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 2.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "docs/requirements.txt",
+            "line": 1,
+            "contentHash": "ad06f98eae2cfee681da256c76313c6b273e3d3383bc03b082cc2b13fba2f340"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -229,7 +290,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -253,7 +314,19 @@
           "contentHash": "527f44911edd7a7c7eee364adeac4c77d524d125b2ab2a1c6d8f6d84ef573559"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "2da4ee81ab4d81623dc020ba3d6c14594f2dc07b45542ea5ef68db6969744aa7"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -281,7 +354,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 0.6,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -293,8 +366,8 @@
       ],
       "findings": [
         {
-          "severity": "critical",
-          "summary": "B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "ci_run",
             "label": "CI workflow",
@@ -363,7 +436,7 @@
   ],
   "archetype": "source",
   "verdict": "at_risk",
-  "codeTrustScore": 1.5,
+  "codeTrustScore": 2,
   "processTrustScore": 2.3,
-  "overallScore": 1.9
+  "overallScore": 2.2
 }

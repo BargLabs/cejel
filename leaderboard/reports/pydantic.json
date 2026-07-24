@@ -5,15 +5,15 @@
     "url": "https://github.com/pydantic/pydantic",
     "headSha": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.8,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -77,16 +77,23 @@
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "pydantic-core/Cargo.toml",
+          "path": "pydantic-core/Makefile",
           "line": 1,
-          "contentHash": "e0dfda4bea748179e04d089b767064d26c9a2696f48c32daf41442d172f597fe"
+          "contentHash": "4ac502de0f82b2a56fb9496504417004f18568ac01c2f804355a38447e57e9fa"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "pydantic-core/Makefile",
+          "path": "pydantic-core/pyproject.toml",
           "line": 1,
-          "contentHash": "4ac502de0f82b2a56fb9496504417004f18568ac01c2f804355a38447e57e9fa"
+          "contentHash": "99dd772c656a64b39902ded5f1977f951a4ce8a0cc599aa0a68cf02e167153ab"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "pyproject.toml",
+          "line": 1,
+          "contentHash": "8375abce73bfeab0ffd54df6934079380acab1fe0aac515b211c8f307cb53782"
         },
         {
           "kind": "coverage",
@@ -110,13 +117,6 @@
           "contentHash": "8375abce73bfeab0ffd54df6934079380acab1fe0aac515b211c8f307cb53782"
         },
         {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "tests/plugin/pyproject.toml",
-          "line": 1,
-          "contentHash": "0e61aa9ab890f20a716a2f460fe58732911d4fdaa849e50bbc33c5f1a8b72f37"
-        },
-        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/ci.yml",
@@ -129,7 +129,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 290,
+          "value": 292,
           "max": 125,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -148,7 +148,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 5,
+          "value": 6,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -187,7 +187,7 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
@@ -341,7 +341,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -372,7 +372,19 @@
           "contentHash": "1fd33fa8826bc1c97dd8c56105e3cf2511486de22d45fb8890a738a5f5197d82"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "b84e54ec0671538f0b03ba7abef91397863c968f0523fb91f16cf491971b1936"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -439,7 +451,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 2.9,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",

@@ -5,15 +5,15 @@
     "url": "https://github.com/vuejs/core",
     "headSha": "c0606e91798c8dca4f33d101e1dd836d672592c1"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -91,6 +91,13 @@
           "path": "vitest.config.ts",
           "line": 1,
           "contentHash": "53a16c86c51584ac1f03180e20967ad1abd80ae5c2afa581de3012923263709c"
+        },
+        {
+          "kind": "test_run",
+          "label": "CI workflow runs the test suite",
+          "path": ".github/workflows/test.yml",
+          "line": 1,
+          "contentHash": "3510205184c97dd8c829971803e19a3a1232f98391a962ed6a95d3933ea6df44"
         }
       ],
       "findings": [],
@@ -98,7 +105,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 205,
+          "value": 212,
           "max": 272,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -128,7 +135,7 @@
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
           "value": 198,
-          "max": 205,
+          "max": 212,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -151,7 +158,7 @@
       "id": "A3",
       "title": "Production readiness",
       "category": "code_trust",
-      "score": 2.3,
+      "score": 2.2,
       "status": "warning",
       "evidence": [
         {
@@ -170,7 +177,7 @@
         },
         {
           "kind": "prod_check",
-          "label": "Deploy configuration",
+          "label": "Release deploy configuration",
           "path": "netlify.toml",
           "line": 1,
           "contentHash": "dcb6042928c943b29df61d69690b65113f45b944bfaea31ce1952e26e05c0b78"
@@ -179,7 +186,7 @@
       "findings": [
         {
           "severity": "warning",
-          "summary": "A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "summary": "A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "prod_check",
             "label": "Build or typecheck script",
@@ -202,7 +209,7 @@
         {
           "name": "prod_workflow_depth",
           "label": "Production workflow depth",
-          "value": 10,
+          "value": 11,
           "max": 6,
           "kind": "saturating_count",
           "weight": 0.2,
@@ -212,7 +219,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 4,
+          "value": 3,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -236,7 +243,7 @@
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 2.7,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -374,7 +381,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -398,7 +405,19 @@
           "contentHash": "8f37190a64d82c62c753a56b0ac6e3b58096afe45ebb3dae0e6e22fe31f6b527"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/autofix.yml",
+            "line": 1,
+            "contentHash": "b07d8725134351f32b87168c3bf4f4ed022d33c6fe1a906f97fc3a798bcecb90"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -455,7 +474,7 @@
         {
           "name": "ci_script_depth",
           "label": "CI verification depth",
-          "value": 5,
+          "value": 6,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.45,
@@ -479,7 +498,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 2.9,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",

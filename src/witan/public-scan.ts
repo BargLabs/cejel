@@ -16,6 +16,8 @@ export interface PublicCejelScoreOptions {
   productSlug: string;
   productDisplayName: string;
   generatedAt?: string;
+  /** Explicit experimental rubric pin. Omitted public calls retain the current shared default. */
+  rubricVersion?: string;
   /** Public `--ingest` inputs. Auto-discovered .cejel/inputs are always included. */
   ingestPatterns?: readonly string[];
   warnOnEmptyIngestMatch?: boolean;
@@ -27,6 +29,7 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     productDisplayName: options.productDisplayName,
     repoPath: options.repoPath,
     ...(options.generatedAt ? { generatedAt: options.generatedAt } : {}),
+    ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
   const inputSignals = resolvePublicIngestSignals(options);
   return createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);

@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>guava</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/google/guava @ 486837d756e6d48864620e91b0761467e2abe744</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
       <div class="score">1.9<span>/4.0 overall</span></div>
       <p class="verdict">At risk</p>
       <p class="subscores">Code 1.5 · Process 2.2</p>
+      <p class="coverage-note">code 3/5 · process 2/6 measured · low confidence</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,19 +79,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">1.3</div>
           <ul><li><strong>Test-to-source file ratio</strong><span>1242/1805 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>0/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>842/1112 ratio</span></li></ul>
-          <ul><li>Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1 · sha256:d5d43f647dc0</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/SortedMapInterfaceTest.java:1 · sha256:cfa013c51b72</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/google/UnmodifiableCollectionTests.java:1 · sha256:2b63c408d81c</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/testing/AbstractPackageSanityTests.java:1 · sha256:ffcf88f95a11</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/util/concurrent/testing/AbstractListenableFutureTest.java:1 · sha256:ca10571a864d</code></li><li>Detected test file <code>android/guava-testlib/test/com/google/common/collect/testing/AndroidIncompatible.java:1 · sha256:821fc20d378d</code></li><li>Detected test file <code>android/guava-testlib/test/com/google/common/collect/testing/FeatureSpecificTestSuiteBuilderTest.java:1 · sha256:182905e8d6a9</code></li><li>Detected test file <code>android/guava-testlib/test/com/google/common/collect/testing/HelpersTest.java:1 · sha256:81efd950abb2</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1 · sha256:d5d43f647dc0</code>)</li></ul>
+          <ul><li>Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1 · sha256:d5d43f647dc0</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/SortedMapInterfaceTest.java:1 · sha256:cfa013c51b72</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/google/UnmodifiableCollectionTests.java:1 · sha256:2b63c408d81c</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/testing/AbstractPackageSanityTests.java:1 · sha256:ffcf88f95a11</code></li><li>Detected test file <code>android/guava-testlib/src/com/google/common/util/concurrent/testing/AbstractListenableFutureTest.java:1 · sha256:ca10571a864d</code></li><li>Detected test file <code>android/guava-testlib/test/com/google/common/collect/testing/AndroidIncompatible.java:1 · sha256:821fc20d378d</code></li><li>Detected test file <code>android/guava-testlib/test/com/google/common/collect/testing/FeatureSpecificTestSuiteBuilderTest.java:1 · sha256:182905e8d6a9</code></li><li>Detected test file <code>android/guava-testlib/test/com/google/common/collect/testing/HelpersTest.java:1 · sha256:81efd950abb2</code></li><li>warning: A1 metric-derived score is 1.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1 · sha256:d5d43f647dc0</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">1.1</div>
           <ul><li><strong>Declared version range ratio</strong><span>0/1 ratio</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
-          <ul><li>Dependency manifest <code>android/guava-bom/pom.xml:1 · sha256:e636a4e3c748</code></li><li>Dependency update config <code>.github/dependabot.yml:1 · sha256:3a90b5dfd045</code></li><li>critical: A4 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>android/guava-bom/pom.xml:1 · sha256:e636a4e3c748</code>)</li></ul>
+          <ul><li>Dependency manifest <code>android/guava-bom/pom.xml:1 · sha256:e636a4e3c748</code></li><li>Dependency update config <code>.github/dependabot.yml:1 · sha256:3a90b5dfd045</code></li><li>warning: A4 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>android/guava-bom/pom.xml:1 · sha256:e636a4e3c748</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
@@ -101,7 +103,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>
@@ -109,19 +111,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">3.2</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>3/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code></li><li>Pull-request CI workflow <code>.github/workflows/scorecard.yml:1 · sha256:265a949adbc0</code></li><li>Pull request template <code>.github/pull_request_template.md:1 · sha256:def6a98ca1c6</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 3 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code></li><li>Pull-request CI workflow <code>.github/workflows/scorecard.yml:1 · sha256:265a949adbc0</code></li><li>Pull request template <code>.github/pull_request_template.md:1 · sha256:def6a98ca1c6</code></li><li>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">1.1</div>
           <ul><li><strong>CI verification depth</strong><span>0/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>2/4 workflows</span></li></ul>
-          <ul><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code></li><li>critical: B3 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code>)</li></ul>
+          <ul><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code></li><li>warning: B3 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
@@ -136,7 +138,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1 · sha256:d5d43f647dc0</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>critical: A4 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>android/guava-bom/pom.xml:1 · sha256:e636a4e3c748</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:20dc329487f3</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>critical: B3 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code>)</span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>warning: A1 metric-derived score is 1.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1 · sha256:d5d43f647dc0</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>android/guava-bom/pom.xml:1 · sha256:e636a4e3c748</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:20dc329487f3</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:0f74c7922fda</code>)</span></li></ul>
       </article>
     </section>
   </main>

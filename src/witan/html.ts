@@ -11,6 +11,11 @@ import type {
 import { witanVerdictForScore } from './schemas.js';
 
 import {
+  type MeasuredCoverage,
+  computeMeasuredCoverage,
+  formatCoverageCounts,
+} from './coverage.js';
+import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
   collectExternalFindings,
@@ -30,6 +35,7 @@ export function renderWitanHtmlReport(report: WitanReport): string {
   const contributingSources = renderContributingSources(report.consumedSignals ?? []);
   const externalSourceSummaries = summarizeExternalSources(report.consumedSignals ?? []);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
+  const coverage = computeMeasuredCoverage(report);
 
   return `<!doctype html>
 <html lang="en">
@@ -73,9 +79,10 @@ export function renderWitanHtmlReport(report: WitanReport): string {
           <div class="score-unit">/ 4.0 overall</div>
           <div class="verdict">${escapeHtml(renderVerdict(report.overallScore))}</div>
           <div class="subscores">
-            <span>Code ${formatScore(report.codeTrustScore)}</span>
-            <span>Process ${formatScore(report.processTrustScore)}</span>
-          </div>`
+            <span>Code ${renderCategoryScore(report.codeTrustScore, coverage, 'code_trust')}</span>
+            <span>Process ${renderCategoryScore(report.processTrustScore, coverage, 'process_trust')}</span>
+          </div>
+          <div class="coverage-note">${escapeHtml(formatCoverageCounts(coverage))} measured${coverage.lowConfidence ? ' · low confidence' : ''}</div>`
           }
         </aside>
       </div>
@@ -201,9 +208,23 @@ function renderCriterionCard(criterion: WitanCriterionScore): string {
 }
 
 function renderMetric(metric: WitanCriterionScore['metrics'][number]): string {
-  const max = metric.max ? `/${formatMetricValue(metric.max)}` : '';
   const unit = metric.unit ? ` ${escapeHtml(metric.unit)}` : '';
+  if (metric.kind === 'saturating_count' && metric.max !== undefined && metric.value > metric.max) {
+    return `<strong>${escapeHtml(metric.label)}</strong><span>${formatMetricValue(metric.max)}${unit} (capped; ${formatMetricValue(metric.value)} raw)</span>`;
+  }
+  const max = metric.max ? `/${formatMetricValue(metric.max)}` : '';
   return `<strong>${escapeHtml(metric.label)}</strong><span>${formatMetricValue(metric.value)}${max}${unit}</span>`;
+}
+
+function renderCategoryScore(
+  score: number | null,
+  coverage: MeasuredCoverage,
+  category: WitanCriterionCategory,
+): string {
+  const categoryCoverage = coverage.byCategory.find((entry) => entry.category === category);
+  return (categoryCoverage !== undefined && categoryCoverage.measured === 0) || score === null
+    ? 'not measured'
+    : formatScore(score);
 }
 
 function renderStatusChip(status: WitanCriterionStatus): string {
@@ -281,8 +302,7 @@ export function renderVerdict(score: number): string {
 }
 
 // Headline verdict for a full report — distinct from renderVerdict(score) because a repo with
-// an insufficient-source archetype ('docs_only' | 'binary_only' | 'unrecognised_ecosystem' |
-// 'empty') must never present a confident numeric-derived verdict (see
+// an insufficient-source archetype must never present a confident numeric-derived verdict (see
 // goal_cejel_repo_archetype_detection_2026-07-06, goal_cejel_language_calibration_2026-07-12).
 // Every presentation surface (badge, terminal certificate, HTML certificate) should call this
 // instead of renderVerdict(report.overallScore) directly.
@@ -394,6 +414,7 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .verdict { margin-top: 12px; font-family: var(--serif); font-size: 30px; color: var(--periwinkle); }
 .insufficient-note { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .subscores { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.coverage-note { margin-top: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
 .source-counts { margin: 8px 0 0; padding-left: 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .trust-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
 .external-findings-section { margin-top: 18px; }

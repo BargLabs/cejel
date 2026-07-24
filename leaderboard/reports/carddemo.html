@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,11 +64,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>carddemo</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/aws-samples/aws-mainframe-modernization-carddemo @ 59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
-      <p class="verdict">Insufficient source</p><p>Cejel does not yet read this repository&#39;s dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 20% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest &lt;sarif|scorecard&gt;.</p>
+      <p class="verdict">Insufficient source</p><p>Cejel does not yet read this repository&#39;s dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 80% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest &lt;sarif|scorecard&gt;.</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -99,7 +100,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>

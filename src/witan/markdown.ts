@@ -224,9 +224,13 @@ function renderMetric(metric: WitanCriterionScore['metrics'][number]): string {
   const valueStr = formatMetricValue(metric.value);
   if (!metric.max) return `${metric.label}: ${valueStr}${unit}`;
   // Saturating-count metrics: value legitimately exceeds max (more-is-better, capped for scoring).
-  // Display as "N (cap M)" so the output never implies a bare fraction numerator > denominator.
+  // Lead with the capped value and preserve the raw count explicitly, so the display never
+  // implies a broken numerator/denominator pair.
   if (metric.kind === 'saturating_count') {
-    return `${metric.label}: ${valueStr}${unit} (cap ${formatMetricValue(metric.max)})`;
+    if (metric.value > metric.max) {
+      return `${metric.label}: ${formatMetricValue(metric.max)}${unit} (capped; ${valueStr} raw)`;
+    }
+    return `${metric.label}: ${valueStr}/${formatMetricValue(metric.max)}${unit}`;
   }
   return `${metric.label}: ${valueStr}/${formatMetricValue(metric.max)}${unit}`;
 }

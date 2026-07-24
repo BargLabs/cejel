@@ -5,8 +5,8 @@
     "url": "https://github.com/facebook/react",
     "headSha": "c0c39a6b3907eaab35f43074949e2957a2a734c1"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
@@ -74,13 +74,6 @@
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "compiler/Cargo.toml",
-          "line": 1,
-          "contentHash": "ad2b6ee54ee21f74626411fdb387ea1571968d526f8047a04323a491817643ee"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
           "path": "compiler/apps/playground/playwright.config.js",
           "line": 1,
           "contentHash": "d47c8779631f54c196b80315be27e691d30bb07a3e11978f15f1eccc8a3fe443"
@@ -88,30 +81,30 @@
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "compiler/crates/react_compiler/Cargo.toml",
+          "path": "compiler/packages/babel-plugin-react-compiler/jest.config.js",
           "line": 1,
-          "contentHash": "a89fb6ea54c8742de63fe4c634f9acb01a684b6c2b16565a19920bde1d52a170"
+          "contentHash": "ce0807228781d663f1e67fd791410f43ee798196e234032fe20bdf4faf443421"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "compiler/crates/react_compiler_ast/Cargo.toml",
+          "path": "compiler/packages/make-read-only-util/jest.config.js",
           "line": 1,
-          "contentHash": "711da725f649c0bf414462856237ca3dae741a4986812e0e91e37758e7bafbd6"
+          "contentHash": "3127744e0ed26e9b7f0819cae893718d00bdea1a885049bfb5bb9d712615a4df"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "compiler/crates/react_compiler_diagnostics/Cargo.toml",
+          "path": "packages/eslint-plugin-react-hooks/jest.config.js",
           "line": 1,
-          "contentHash": "1aad315e4a63b49712084f459b507dd9ce8900b9e7ec0e493ee4f69a0cb16d3b"
+          "contentHash": "a1152dcd39bea3d6b1d038bcd937bc8d05c0f045a8a8d8eb38a338c415305590"
         },
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "compiler/crates/react_compiler_hir/Cargo.toml",
+          "path": "packages/react-devtools-inline/playwright.config.js",
           "line": 1,
-          "contentHash": "768d8f8c239816724dba1775c764934653d3dff03ecb3430c5a36a8e49f2033a"
+          "contentHash": "f3f77d7ff100ebcfa410126277913693058141b07716fd78a8dd0c620f3030be"
         },
         {
           "kind": "test_run",
@@ -119,27 +112,6 @@
           "path": "package.json",
           "line": 1,
           "contentHash": "5cc1364afcac5a7198bbf5bf3e7f974c0b7158bc596c125e880c6d7d88260224"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "compiler/packages/babel-plugin-react-compiler/jest.config.js",
-          "line": 1,
-          "contentHash": "ce0807228781d663f1e67fd791410f43ee798196e234032fe20bdf4faf443421"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "compiler/packages/make-read-only-util/jest.config.js",
-          "line": 1,
-          "contentHash": "3127744e0ed26e9b7f0819cae893718d00bdea1a885049bfb5bb9d712615a4df"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "packages/eslint-plugin-react-hooks/jest.config.js",
-          "line": 1,
-          "contentHash": "a1152dcd39bea3d6b1d038bcd937bc8d05c0f045a8a8d8eb38a338c415305590"
         },
         {
           "kind": "test_run",
@@ -159,6 +131,17 @@
             "path": ".github/workflows/devtools_regression_tests.yml",
             "line": 1,
             "contentHash": "e81037c21b41343489805f05634e7e701bf2306a1e76c61f57b71a61506eb070"
+          }
+        },
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "compiler/apps/playground/__tests__/e2e/page.spec.ts",
+            "line": 1,
+            "contentHash": "fd6799d3b88df6014a838652c5e5abdeaddd7b9e3512f3eeab95a1bb96c56a8c"
           }
         }
       ],
@@ -185,7 +168,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 8,
+          "value": 7,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -208,7 +191,7 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 2.4,
+      "score": 3.2,
       "status": "warning",
       "evidence": [
         {
@@ -221,13 +204,25 @@
       ],
       "findings": [
         {
-          "severity": "warning",
-          "summary": "A non-template .env file was tracked in git history; no secret-shaped value was detected.",
+          "severity": "info",
+          "summary": "A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.",
           "evidence": {
             "kind": "secret_scan",
-            "label": ".env file (not a template) tracked in git history; no confirmed secret value found",
+            "label": "Committed .env file (no confirmed secret value found)",
             "path": "fixtures/fiber-debugger/.env",
-            "contentHash": "c0c39a6b3907eaab35f43074949e2957a2a734c1"
+            "line": 1,
+            "contentHash": "5da7ad963fe4490f8539d9fb156447e75390f96f23fadb81982f9f3170932443"
+          }
+        },
+        {
+          "severity": "warning",
+          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "secret_scan",
+            "label": "Committed .env file in repository tree",
+            "path": "fixtures/fiber-debugger/.env",
+            "line": 1,
+            "contentHash": "5da7ad963fe4490f8539d9fb156447e75390f96f23fadb81982f9f3170932443"
           }
         }
       ],
@@ -257,19 +252,92 @@
       "id": "A3",
       "title": "Production readiness",
       "category": "code_trust",
-      "score": 0,
-      "status": "not_applicable",
-      "evidence": [],
-      "findings": [],
-      "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "score": 2.3,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "prod_check",
+          "label": "Build or typecheck script",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "5cc1364afcac5a7198bbf5bf3e7f974c0b7158bc596c125e880c6d7d88260224"
+        },
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/compiler_discord_notify.yml",
+          "line": 1,
+          "contentHash": "e934619a5e08dd392022f003811db1aaca25236e9a14f6d23b6204f59bcfd6be"
+        },
+        {
+          "kind": "prod_check",
+          "label": "Release deploy configuration",
+          "path": "compiler/apps/playground/vercel.json",
+          "line": 1,
+          "contentHash": "e22d332ab69c0b0702cd842b511aace74ed9ef52be1115ee83c214304512c49a"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "prod_check",
+            "label": "Build or typecheck script",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "5cc1364afcac5a7198bbf5bf3e7f974c0b7158bc596c125e880c6d7d88260224"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "prod_readiness_primitives",
+          "label": "Production-readiness primitive coverage",
+          "value": 3,
+          "max": 6,
+          "weight": 0.55,
+          "unit": "primitives",
+          "description": "Counts distinct static production-readiness primitives instead of treating presence as enough."
+        },
+        {
+          "name": "prod_workflow_depth",
+          "label": "Production workflow depth",
+          "value": 23,
+          "max": 6,
+          "kind": "saturating_count",
+          "weight": 0.2,
+          "unit": "signals",
+          "description": "Measures CI/deploy configuration depth instead of a single CI-present bit."
+        },
+        {
+          "name": "observability_depth",
+          "label": "Observability depth",
+          "value": 68,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.1,
+          "unit": "signals",
+          "description": "Counts static observability/logging/metrics implementation signals."
+        },
+        {
+          "name": "rollback_safety_depth",
+          "label": "Rollback and migration-safety depth",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.15,
+          "unit": "signals",
+          "description": "Counts static rollback or migration-safety artifacts."
+        }
+      ]
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
-      "score": 3.2,
-      "status": "info",
+      "score": 2.4,
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -296,22 +364,22 @@
       "findings": [],
       "metrics": [
         {
-          "name": "declared_version_range_ratio",
-          "label": "Declared version range ratio",
-          "value": 862,
+          "name": "pinned_dependency_ratio",
+          "label": "Pinned dependency ratio",
+          "value": 77,
           "max": 883,
-          "weight": 0.5,
+          "weight": 0.3,
           "unit": "ratio",
-          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+          "description": "Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee."
         },
         {
           "name": "lockfile_coverage",
           "label": "Lockfile coverage",
           "value": 1,
           "max": 1,
-          "weight": 0.3,
+          "weight": 0.45,
           "unit": "present",
-          "description": "Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees."
+          "description": "Credits presence of at least one lockfile; one root lockfile covering a monorepo is sufficient."
         },
         {
           "name": "dependency_automation_ratio",
@@ -321,18 +389,9 @@
           "weight": 0.25,
           "unit": "ratio",
           "description": "Credits automated dependency updates and package-manager audit hooks."
-        },
-        {
-          "name": "dependency_count_sanity",
-          "label": "Dependency count sanity",
-          "value": 0,
-          "max": 1,
-          "weight": 0.1,
-          "unit": "sane",
-          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
         }
       ],
-      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+      "notes": "A4 scored against app/service norms (deploy surface detected): pinned dependencies and a lockfile are required for reproducible installs."
     },
     {
       "id": "A5",
@@ -416,7 +475,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -447,7 +506,19 @@
           "contentHash": "3b66d9d79de509e7c232362d2edcd1fe1a8e4c04e0f8b6da6478b081bd03419c"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/compiler_discord_notify.yml",
+            "line": 1,
+            "contentHash": "e934619a5e08dd392022f003811db1aaca25236e9a14f6d23b6204f59bcfd6be"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",

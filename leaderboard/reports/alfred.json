@@ -3,10 +3,10 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "707b7b5f322464081836f7aff7aa8da069913281"
+    "headSha": "2a6077355dea45ead65033007474ab77770347d1"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-24T06:45:20.555Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
@@ -70,15 +70,9 @@
           "locationWithheld": "path withheld — private repository"
         },
         {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "contentHash": "bb3758e12fb93aafbe9147d907591b2f4d5385fd68213df5ed117228e71b1fb6",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
-          "contentHash": "d94131fc2de3afd9710c67d45e59b736d43ffe9eba408ceb01b6687a21cbff2f",
+          "contentHash": "8d3281f0ca90a39ef7ca2b8ec6c15be923ee4c6c34365c61aea4d823b557070d",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -89,7 +83,17 @@
           "evidence": {
             "kind": "scheduled_health_summary",
             "label": "Scheduled product-health workflow",
-            "contentHash": "d94131fc2de3afd9710c67d45e59b736d43ffe9eba408ceb01b6687a21cbff2f",
+            "contentHash": "8d3281f0ca90a39ef7ca2b8ec6c15be923ee4c6c34365c61aea4d823b557070d",
+            "locationWithheld": "path withheld — private repository"
+          }
+        },
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "contentHash": "4089241dc743a3d9f345ed6302c33e04813459d0fb464bf76f522fbed07c2c39",
             "locationWithheld": "path withheld — private repository"
           }
         }
@@ -98,8 +102,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 363,
-          "max": 628,
+          "value": 397,
+          "max": 652,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -127,8 +131,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 360,
-          "max": 363,
+          "value": 394,
+          "max": 397,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -144,15 +148,15 @@
       "status": "critical",
       "evidence": [
         {
-          "kind": "secret_scan",
-          "label": ".env path detected in git history",
-          "contentHash": "707b7b5f322464081836f7aff7aa8da069913281",
+          "kind": "artifact",
+          "label": "Data layer migration",
+          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
           "locationWithheld": "path withheld — private repository"
         },
         {
           "kind": "secret_scan",
           "label": ".env files are gitignored",
-          "contentHash": "d4879d8a5ea4e846c746b40ac398eedd411bd7a61a8388a6c6f2cc9e1a6d6c94",
+          "contentHash": "8e464ca67fbf18bb57383c0f415ad100624e0af0bea48ad2faf6b5bd55de7df2",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -186,7 +190,7 @@
           "summary": "Secret-shaped value appears committed in the scanned repository.",
           "evidence": {
             "kind": "secret_scan",
-            "label": "Committed secret-shaped value",
+            "label": "Committed secret-shaped value (value redacted; length 44; classes lower+upper+digit)",
             "contentHash": "d226179486334579c3f8183ebf9b8e37fc005345eb38cb4cf3d8191661bc9990",
             "locationWithheld": "path withheld — private repository"
           }
@@ -214,8 +218,8 @@
         {
           "name": "rls_policy_count",
           "label": "RLS policy count",
-          "value": 12,
-          "max": 111,
+          "value": 18,
+          "max": 114,
           "kind": "saturating_count",
           "weight": 0.4,
           "unit": "policies",
@@ -224,8 +228,8 @@
         {
           "name": "tenant_scope_ratio",
           "label": "Tenant-scoped schema ratio",
-          "value": 37,
-          "max": 48,
+          "value": 38,
+          "max": 49,
           "weight": 0.25,
           "unit": "ratio",
           "description": "Measures tenant/studio/workspace scoping evidence across data-layer files."
@@ -237,8 +241,8 @@
       "id": "A3",
       "title": "Production readiness",
       "category": "code_trust",
-      "score": 2.9,
-      "status": "info",
+      "score": 3.3,
+      "status": "verified",
       "evidence": [
         {
           "kind": "prod_check",
@@ -254,6 +258,18 @@
         },
         {
           "kind": "prod_check",
+          "label": "Release deploy configuration",
+          "contentHash": "eb4a783616859a1892cc47ffd5a1f4c09c626eb89a82e52a6ccb20fe99ca1346",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "prod_check",
+          "label": "Container build configuration",
+          "contentHash": "69daf8e18330d775d91902b7eb99072684595b834f009d3c0fffcc53992dbf63",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "prod_check",
           "label": "Environment template",
           "contentHash": "17b9221cd6f9820d521a81e88e629821c3ad2567799f5d7c22a8faf1ce3b6dc6",
           "locationWithheld": "path withheld — private repository"
@@ -264,7 +280,7 @@
         {
           "name": "prod_readiness_primitives",
           "label": "Production-readiness primitive coverage",
-          "value": 3,
+          "value": 4,
           "max": 6,
           "weight": 0.55,
           "unit": "primitives",
@@ -273,7 +289,7 @@
         {
           "name": "prod_workflow_depth",
           "label": "Production workflow depth",
-          "value": 26,
+          "value": 30,
           "max": 6,
           "kind": "saturating_count",
           "weight": 0.2,
@@ -283,7 +299,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 97,
+          "value": 56,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -293,7 +309,7 @@
         {
           "name": "rollback_safety_depth",
           "label": "Rollback and migration-safety depth",
-          "value": 143,
+          "value": 665,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.15,
@@ -318,7 +334,7 @@
         {
           "kind": "dependency_report",
           "label": "Dependency lockfile",
-          "contentHash": "94fe1c37ae24dfdba250b11f115f2bae72e8e640a8ea3c1c6c72714a9f5b27ed",
+          "contentHash": "9e8acd0f78b3386bb00c85fd2b1d9e9c966516e65ba9a6e36b4c799d7a531606",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -338,8 +354,8 @@
         {
           "name": "pinned_dependency_ratio",
           "label": "Pinned dependency ratio",
-          "value": 61,
-          "max": 209,
+          "value": 62,
+          "max": 210,
           "weight": 0.3,
           "unit": "ratio",
           "description": "Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee."
@@ -369,8 +385,8 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 2.4,
-      "status": "warning",
+      "score": 3,
+      "status": "info",
       "evidence": [
         {
           "kind": "claim_reconciliation",
@@ -381,22 +397,23 @@
         {
           "kind": "artifact",
           "label": "Code presence for claim reconciliation",
-          "contentHash": "c69ab62efd1c11758edbb44d42d156bb4c445bba40f3e2dad4bba446e9d2648c",
+          "contentHash": "62f086165db38cc3fe59c74cfed803d3f1d73b5a406a37904f7888682c7a46e3",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "claim_reconciliation",
+          "label": "Dedicated claim-reality reconciliation artifact",
+          "contentHash": "f28bdbe5970d92d1d12582ec2e7ebf7dd62601e4c18b7969a53e49458f92b3fc",
+          "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "claim_reconciliation",
+          "label": "Dedicated claim-reality reconciliation artifact",
+          "contentHash": "e23d16fb7574bb11b853f79e437040cfe9c89843678e7eb1fa3f87e240744350",
           "locationWithheld": "path withheld — private repository"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
-          "evidence": {
-            "kind": "claim_reconciliation",
-            "label": "Repository claim source",
-            "contentHash": "e2bf98bc4697575ad62e3ce5831c216cc21011542fcd81db46c2655499ffcb3c",
-            "locationWithheld": "path withheld — private repository"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "claim_match_rate",
@@ -420,7 +437,7 @@
         {
           "name": "reconciliation_artifact_depth",
           "label": "Reconciliation artifact depth",
-          "value": 0,
+          "value": 2,
           "max": 3,
           "weight": 0.15,
           "unit": "artifacts",
@@ -486,7 +503,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 11,
+          "value": 10,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -560,7 +577,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "404aff8bc4755d16a98d8eb9973f27c4ed041f29cdb860da691ee786533c9968",
+          "contentHash": "97a204dbf27779fc208c53ee1cba4619fca869ac68accf9eb745b1469d289f5b",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -587,7 +604,7 @@
         {
           "name": "audit_artifact_depth",
           "label": "Audit artifact depth",
-          "value": 71,
+          "value": 73,
           "max": 3,
           "kind": "saturating_count",
           "weight": 0.8,
@@ -597,8 +614,8 @@
         {
           "name": "audit_freshness_depth",
           "label": "Audit freshness depth",
-          "value": 63,
-          "max": 71,
+          "value": 65,
+          "max": 73,
           "weight": 0.2,
           "unit": "ratio",
           "description": "Credits audit artifacts that carry freshness/current-state markers."
@@ -620,8 +637,8 @@
       "id": "B6",
       "title": "Privileged-operation human gating",
       "category": "process_trust",
-      "score": 3.4,
-      "status": "info",
+      "score": 4,
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -644,22 +661,11 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "404aff8bc4755d16a98d8eb9973f27c4ed041f29cdb860da691ee786533c9968",
+          "contentHash": "97a204dbf27779fc208c53ee1cba4619fca869ac68accf9eb745b1469d289f5b",
           "locationWithheld": "path withheld — private repository"
         }
       ],
-      "findings": [
-        {
-          "severity": "info",
-          "summary": "Role-membership GRANT or SUPERUSER escalation statement in a test/fixture file (path withheld — private repository) — likely a test assertion, not a production escalation; verify.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "Ungated privilege-escalation statement",
-            "contentHash": "cd87a11058cc3763c70d5b497124d772767030af1dafa01cf6d19f19be425a8f",
-            "locationWithheld": "path withheld — private repository"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "human_gate_documented",
@@ -686,7 +692,7 @@
           "max": 1,
           "weight": 0.3,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",
@@ -712,8 +718,8 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.2,
-  "processTrustScore": 3.8,
-  "overallScore": 3,
+  "codeTrustScore": 2.4,
+  "processTrustScore": 4,
+  "overallScore": 3.2,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

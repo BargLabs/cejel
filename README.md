@@ -70,7 +70,7 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
-- uses: BargLabs/cejel/action@v0.1.8
+- uses: BargLabs/cejel/action@v0.1.9
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
@@ -99,21 +99,21 @@ Microsoft Authenticode code-signing.
 **Docker / OCI.** The same MCP server is published as a non-root, multi-platform image:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.8
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.9
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.8 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.9 .
 ```
 
 Beginning with v0.1.7, the standard CLI identity flags are also available directly, while an
 invocation without arguments continues to start the MCP server:
 
 ```bash
-docker run --rm ghcr.io/barglabs/cejel:0.1.8 --version
-docker run --rm ghcr.io/barglabs/cejel:0.1.8 --help
+docker run --rm ghcr.io/barglabs/cejel:0.1.9 --version
+docker run --rm ghcr.io/barglabs/cejel:0.1.9 --help
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
@@ -361,7 +361,7 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
-- uses: BargLabs/cejel/action@v0.1.8
+- uses: BargLabs/cejel/action@v0.1.9
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```
@@ -522,6 +522,13 @@ scoring tool that has not been checked:
   detected even though `test.js` was present at the repository root. That was a detection gap
   in Cejel, not evidence about the repository. Rubric v6 recognizes AVA's `test.js` and
   `test-*.js` conventions; a regression fixture preserves the correction.
+- **A category with no measured dimensions looked like a real failing `0.0`.** Version 0.1.9
+  labels that state `not measured` in the HTML certificate and prints the measured-coverage
+  context. A genuine measured zero remains `0.0`; JSON report, summary, and badge contracts are
+  unchanged.
+- **A saturated metric rendered a broken-looking numerator larger than its denominator.**
+  Version 0.1.9 leads with the scoring cap and keeps the observation explicit — for example,
+  `2 signals (capped; 4 raw)` — instead of printing `4/2 signals`.
 
 Every one was a trust failure produced by *us* — false alarms about other people's code,
 silent omissions, inconsistent presentation, or a home-only scoring path — and we would

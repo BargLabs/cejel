@@ -5,15 +5,15 @@
     "url": "https://github.com/biomejs/biome",
     "headSha": "01bba129afefced1c04aa69592b1b7f337a7b609"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
-      "score": 2.7,
-      "status": "info",
+      "score": 2.2,
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -74,48 +74,6 @@
         {
           "kind": "test_run",
           "label": "Configured test runner",
-          "path": "Cargo.toml",
-          "line": 1,
-          "contentHash": "747223eee56f7180960476d6809a38d66293c34155e701866ed8a128baba4e23"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/biome_analyze/Cargo.toml",
-          "line": 1,
-          "contentHash": "0a40e4bb203ed0aa0613600f14ee0705156e3bbd5da907d792ab25f667841926"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/biome_analyze_macros/Cargo.toml",
-          "line": 1,
-          "contentHash": "5e22e66c97eebb94c15d909357df106dcacf44c57e043ee5ac318161f320f0f5"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/biome_aria/Cargo.toml",
-          "line": 1,
-          "contentHash": "4b745e00c02368cdf155394ab4232b2092d724e141da90618fe092f8d7b3f05b"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/biome_aria_metadata/Cargo.toml",
-          "line": 1,
-          "contentHash": "1c1e39b1ac92776589be1d9fba1f1614dbb2cf5aebbb2d39d0fab40a6df80872"
-        },
-        {
-          "kind": "test_run",
-          "label": "Configured test runner",
-          "path": "crates/biome_cli/Cargo.toml",
-          "line": 1,
-          "contentHash": "62a93dc18cc2db41070908d555aa26aa6d97a39ac29d378ce43bad155fb06247"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
           "path": "packages/@biomejs/js-api/vitest.config.ts",
           "line": 1,
           "contentHash": "f828699f2e6087ffcde922428f6e30643e4b0b287c70ec7cacd7d6b95c4eef50"
@@ -128,12 +86,24 @@
           "contentHash": "bba10c59142a501cc1543bb03e00e9e5387979fb8e7ddb294b21562f7cf58e72"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "crates/biome_cli/tests/cases/assist.rs",
+            "line": 1,
+            "contentHash": "573b5be1cc14b0f28b2a5787c95fed60f615759d24dfb4dc2b54ba7c31f69909"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 4877,
+          "value": 7389,
           "max": 4100,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -152,7 +122,7 @@
         {
           "name": "verification_script_ratio",
           "label": "Verification script ratio",
-          "value": 7,
+          "value": 2,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.25,
@@ -162,8 +132,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 239,
-          "max": 265,
+          "value": 242,
+          "max": 268,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -176,7 +146,7 @@
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -188,14 +158,14 @@
       ],
       "findings": [
         {
-          "severity": "info",
-          "summary": "Secret-shaped value in a test/fixture file (crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js) — likely fixture data, not a production leak; verify.",
+          "severity": "warning",
+          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
-            "kind": "secret_scan",
-            "label": "Committed secret-shaped value",
-            "path": "crates/biome_js_analyze/tests/specs/security/noSecrets/invalid.js",
+            "kind": "artifact",
+            "label": "Data layer migration",
+            "path": "crates/biome_migrate/tests/specs/migrations/all/group_level.json",
             "line": 1,
-            "contentHash": "42ddda9e8f628e8c466b7c6afc63e928e4a93742e91bc387672032659b1ca73b"
+            "contentHash": "ebc9a6301ba7087f8902f37c72972f476799d77bebcb01bf2073b1c8cfc02383"
           }
         }
       ],
@@ -230,14 +200,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -306,67 +276,12 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 2,
-      "status": "warning",
-      "evidence": [
-        {
-          "kind": "claim_reconciliation",
-          "label": "Repository claim source",
-          "path": ".claude/skills/README.md",
-          "line": 1,
-          "contentHash": "925ba2986d478c48a82c6f4753a53161926604905584506d425cafd6ea923dab"
-        },
-        {
-          "kind": "artifact",
-          "label": "Code presence for claim reconciliation",
-          "path": "crates/biome_analyze/src/analyzer_plugin.rs",
-          "line": 1,
-          "contentHash": "5592b04fc66d3feda2205a554742caa1735f3513fc4b4983027fead7aa8a648b"
-        }
-      ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
-          "evidence": {
-            "kind": "claim_reconciliation",
-            "label": "Repository claim source",
-            "path": ".claude/skills/README.md",
-            "line": 1,
-            "contentHash": "925ba2986d478c48a82c6f4753a53161926604905584506d425cafd6ea923dab"
-          }
-        }
-      ],
-      "metrics": [
-        {
-          "name": "claim_match_rate",
-          "label": "Claim match rate",
-          "value": 12,
-          "max": 12,
-          "weight": 0.5,
-          "unit": "ratio",
-          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
-        },
-        {
-          "name": "claim_source_depth",
-          "label": "Claim source depth",
-          "value": 0,
-          "max": 4,
-          "kind": "saturating_count",
-          "weight": 0.35,
-          "unit": "docs",
-          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
-        },
-        {
-          "name": "reconciliation_artifact_depth",
-          "label": "Reconciliation artifact depth",
-          "value": 0,
-          "max": 3,
-          "weight": 0.15,
-          "unit": "artifacts",
-          "description": "Requires a specific claim-reality artifact to reach full depth."
-        }
-      ]
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No README or docs found — nothing is claimed about this repo, so there is nothing for A5 to reconcile against."
     },
     {
       "id": "B1",
@@ -384,7 +299,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -422,7 +337,19 @@
           "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/actions_linter.yml",
+            "line": 1,
+            "contentHash": "517c943a21f684af0667253fc7161bcf0e825775a956c933c03e7008265a06bf"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -450,7 +377,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 3.1,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -489,7 +416,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 3.3,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -615,7 +542,7 @@
           "max": 1,
           "weight": 0.3,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",
@@ -632,7 +559,7 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.8,
+  "codeTrustScore": 2.9,
   "processTrustScore": 3,
-  "overallScore": 2.9
+  "overallScore": 3
 }

@@ -5,15 +5,15 @@
     "url": "https://github.com/colinhacks/zod",
     "headSha": "912f0f51b0ced654d0069741e7160834dca742ee"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -107,34 +107,6 @@
           "contentHash": "8b65378dc0f70153a336049b3427feb5cd2fa1c5c0082c148ead93ce74e58700"
         },
         {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "packages/docs/vitest.config.ts",
-          "line": 1,
-          "contentHash": "8fc5dec98e5eb40e6090cfff0bb621b08cf0bea5c7555c5bc1f34cc3317dc9e1"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "packages/resolution/vitest.config.ts",
-          "line": 1,
-          "contentHash": "6469722039db4cca732e06bb82b9151fb3e0437ff64ae12c2ddd181b23bd8fa4"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "packages/zod/vitest.config.ts",
-          "line": 1,
-          "contentHash": "49c9e26afb17070d77b674403513523739f11eb6cdb2fc60ea9a0a2a05963420"
-        },
-        {
-          "kind": "coverage",
-          "label": "Coverage configuration",
-          "path": "vitest.config.ts",
-          "line": 1,
-          "contentHash": "04a55003ffaa3fe760fc652388e112af0f96938581422d109e4605791c0ffe8d"
-        },
-        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/release.yml",
@@ -142,7 +114,19 @@
           "contentHash": "f2da754e222ec78f98f3e345b86ece65d318732f4c84e5748f606d6ad26ce64b"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "packages/docs/content/api.test.ts",
+            "line": 1,
+            "contentHash": "e8a097b1503aebd72521069a8d4da6c3e40fe92839793ce96d968a8ca024b186"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "test_to_source_ratio",
@@ -232,14 +216,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 3.1,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -256,7 +240,19 @@
           "contentHash": "819481715eef9a633d9773e3d308779b689558cba2e0475dd7f133ae3143afe7"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "8b65378dc0f70153a336049b3427feb5cd2fa1c5c0082c148ead93ce74e58700"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "declared_version_range_ratio",
@@ -301,67 +297,12 @@
       "id": "A5",
       "title": "Claim-vs-reality reconciliation",
       "category": "code_trust",
-      "score": 2,
-      "status": "warning",
-      "evidence": [
-        {
-          "kind": "claim_reconciliation",
-          "label": "Repository claim source",
-          "path": "packages/docs/README.md",
-          "line": 1,
-          "contentHash": "7f0502b803e70774369c8c996480f3a8d101556abcc11395564b7091d0595561"
-        },
-        {
-          "kind": "artifact",
-          "label": "Code presence for claim reconciliation",
-          "path": "packages/bench/array.ts",
-          "line": 1,
-          "contentHash": "e888a6783db46b1aae4dcda3bb04cf8f06e58635c8c1d5297b61db934d57965e"
-        }
-      ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
-          "evidence": {
-            "kind": "claim_reconciliation",
-            "label": "Repository claim source",
-            "path": "packages/docs/README.md",
-            "line": 1,
-            "contentHash": "7f0502b803e70774369c8c996480f3a8d101556abcc11395564b7091d0595561"
-          }
-        }
-      ],
-      "metrics": [
-        {
-          "name": "claim_match_rate",
-          "label": "Claim match rate",
-          "value": 12,
-          "max": 12,
-          "weight": 0.5,
-          "unit": "ratio",
-          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
-        },
-        {
-          "name": "claim_source_depth",
-          "label": "Claim source depth",
-          "value": 0,
-          "max": 4,
-          "kind": "saturating_count",
-          "weight": 0.35,
-          "unit": "docs",
-          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
-        },
-        {
-          "name": "reconciliation_artifact_depth",
-          "label": "Reconciliation artifact depth",
-          "value": 0,
-          "max": 3,
-          "weight": 0.15,
-          "unit": "artifacts",
-          "description": "Requires a specific claim-reality artifact to reach full depth."
-        }
-      ]
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No README or docs found — nothing is claimed about this repo, so there is nothing for A5 to reconcile against."
     },
     {
       "id": "B1",
@@ -379,7 +320,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -403,7 +344,19 @@
           "contentHash": "238dd53690eabc7912655a75c6f50bf34cf21f39775493fb38242511eb200ee0"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/claude-code-review.yml",
+            "line": 1,
+            "contentHash": "4c568b40f09bcbe85c6985c7333959067dd99bc4a80ef6fda179617d029eeed8"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -484,7 +437,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 2.9,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -549,7 +502,7 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.8,
+  "codeTrustScore": 3.1,
   "processTrustScore": 3.2,
-  "overallScore": 3
+  "overallScore": 3.2
 }

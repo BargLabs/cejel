@@ -5,8 +5,8 @@
     "url": "https://github.com/sinatra/sinatra",
     "headSha": "946812bdec8faf6598fed154a8d611ead612b6fd"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
@@ -74,8 +74,8 @@
       ],
       "findings": [
         {
-          "severity": "info",
-          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "severity": "warning",
+          "summary": "A1 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "test_run",
             "label": "Detected test file",
@@ -89,7 +89,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 91,
+          "value": 163,
           "max": 53,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -147,7 +147,7 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
@@ -241,7 +241,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -265,7 +265,19 @@
           "contentHash": "682a996b685690fc448b9ea0679430c665ebe5d8915e0ec04818a2d465522a69"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/release.yml",
+            "line": 1,
+            "contentHash": "cc493a1c4dc20834065212fdfda1e86d136917f0e9b6bd3637c23bdc26d09400"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -293,7 +305,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 0.6,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -305,8 +317,8 @@
       ],
       "findings": [
         {
-          "severity": "critical",
-          "summary": "B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "ci_run",
             "label": "CI workflow",
@@ -344,7 +356,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 2.5,
-      "status": "info",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -400,7 +412,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "verified",
+      "status": "warning",
       "evidence": [
         {
           "kind": "artifact",
@@ -410,7 +422,19 @@
           "contentHash": "682a996b685690fc448b9ea0679430c665ebe5d8915e0ec04818a2d465522a69"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "CODEOWNERS/required-review gate on protected paths",
+            "path": ".github/workflows/CODEOWNERS",
+            "line": 1,
+            "contentHash": "682a996b685690fc448b9ea0679430c665ebe5d8915e0ec04818a2d465522a69"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",
@@ -419,7 +443,7 @@
           "max": 1,
           "weight": 0.4,
           "unit": "clean",
-          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture files are downgraded findings, not penalized here)."
+          "description": "Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement)."
         },
         {
           "name": "protected_path_review_gate",

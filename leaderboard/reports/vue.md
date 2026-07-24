@@ -1,23 +1,23 @@
 # Cejel Trust Report - vue
 
 - Product: vue
-- Rubric: witan-rubric-v6-2026-07-21
-- Generated: 2026-07-21T15:56:38.161Z
+- Rubric: witan-rubric-v9-2026-07-22
+- Generated: 2026-07-22T20:52:22.603Z
 - Repository: https://github.com/vuejs/core @ c0606e91798c8dca4f33d101e1dd836d672592c1
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 2.5 | info | Test-to-source file ratio: 205 ratio (cap 272); Static coverage percentage: 0/100 percent; Verification script ratio: 4 ratio (cap 4); Non-hollow test share: 198/205 ratio |
+| A1 | Test integrity and regression signal | Code trust | 2.5 | verified | Test-to-source file ratio: 212/272 ratio; Static coverage percentage: 0/100 percent; Verification script ratio: 4/4 ratio; Non-hollow test share: 198/212 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | N/A | not_applicable | N/A |
-| A3 | Production readiness | Code trust | 2.3 | warning | Production-readiness primitive coverage: 3/6 primitives; Production workflow depth: 10 signals (cap 6); Observability depth: 4 signals (cap 4); Rollback and migration-safety depth: 0 signals (cap 4) |
-| A4 | Dependency hygiene | Code trust | 2.7 | info | Pinned dependency ratio: 38/123 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
-| A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1 docs (cap 4); Reconciliation artifact depth: 0/3 artifacts |
+| A3 | Production readiness | Code trust | 2.2 | warning | Production-readiness primitive coverage: 3/6 primitives; Production workflow depth: 6 signals (capped; 11 raw); Observability depth: 3/4 signals; Rollback and migration-safety depth: 0/4 signals |
+| A4 | Dependency hygiene | Code trust | 2.7 | verified | Pinned dependency ratio: 38/123 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
+| A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 3.2 | info | PR trace primitive coverage: 9 signals (cap 2); Recent PR merge ratio: 0/1 ratio |
-| B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 5 signals (cap 4); PR-gate CI workflow count: 5 workflows (cap 4) |
-| B4 | Audit trail and report-up completeness | Process trust | 2.9 | info | Audit artifact depth: 2 files (cap 3); Audit freshness depth: 2/2 ratio |
+| B2 | PR outcome traceability | Process trust | 3.2 | warning | PR trace primitive coverage: 2 signals (capped; 9 raw); Recent PR merge ratio: 0/1 ratio |
+| B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 4 signals (capped; 6 raw); PR-gate CI workflow count: 4 workflows (capped; 5 raw) |
+| B4 | Audit trail and report-up completeness | Process trust | 2.9 | verified | Audit artifact depth: 2/3 files; Audit freshness depth: 2/2 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
@@ -42,10 +42,11 @@
 - A1: Configured test runner (vitest.config.ts:1, sha256:53a16c86c515)
 - A1: Configured test runner (package.json:1, sha256:0e9687aefbca)
 - A1: Coverage configuration (vitest.config.ts:1, sha256:53a16c86c515)
+- A1: CI workflow runs the test suite (.github/workflows/test.yml:1, sha256:3510205184c9)
 - A2: N/A — No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.
 - A3: Build or typecheck script (package.json:1, sha256:0e9687aefbca)
 - A3: CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343)
-- A3: Deploy configuration (netlify.toml:1, sha256:dcb6042928c9)
+- A3: Release deploy configuration (netlify.toml:1, sha256:dcb6042928c9)
 - A3: Build or typecheck script (package.json:1, sha256:0e9687aefbca) (warning)
 - A4: Dependency manifest (package.json:1, sha256:0e9687aefbca)
 - A4: Dependency lockfile (pnpm-lock.yaml:1, sha256:a9947be31928)
@@ -57,6 +58,7 @@
 - B2: Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343)
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:ede571131c6d)
 - B2: Pull-request CI workflow (.github/workflows/close-cant-reproduce-issues.yml:1, sha256:8f37190a64d8)
+- B2: Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343) (warning)
 - B3: Test script (package.json:1, sha256:0e9687aefbca)
 - B3: Lint script (package.json:1, sha256:0e9687aefbca)
 - B3: CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343)
@@ -67,5 +69,6 @@
 
 ## Findings
 
-- A3 warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script (package.json:1, sha256:0e9687aefbca))
+- A3 warning: A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script (package.json:1, sha256:0e9687aefbca))
 - A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:1d5ea6d8b418))
+- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343))

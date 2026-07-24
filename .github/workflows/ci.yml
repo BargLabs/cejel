@@ -9,13 +9,13 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
         with:
           version: 9.0.0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -30,12 +30,12 @@ jobs:
         run: node dist/index.js .
 
       - name: Smoke-test the advertised released Action
-        uses: BargLabs/cejel/action@v0.1.7
+        uses: BargLabs/cejel/action@v0.1.8
         with:
           out-dir: .cejel-action
 
       - name: Upload trust certificate
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cejel-certificate
           path: .cejel/

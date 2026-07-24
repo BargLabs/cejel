@@ -74,7 +74,7 @@ describe('Template-vs-real-secret distinction (unit)', () => {
     expect((a2?.findings ?? []).some((f) => f.severity === 'critical')).toBe(true);
   });
 
-  it('(b) a non-template .env tracked in history with no confirmed secret value is a warning, not critical', () => {
+  it('(b) a committed non-template .env with no confirmed secret value is informational, not a claim-bearing finding', () => {
     const dir = makeTmpGitRepo();
     writeTrackedFile(dir, '.env', 'FEATURE_FLAG_MODE=beta\nLOG_LEVEL=debug');
     commitAll(dir, 'add env file with no secret-shaped values');
@@ -84,7 +84,10 @@ describe('Template-vs-real-secret distinction (unit)', () => {
     expect((a2?.findings ?? []).some((f) => f.severity === 'critical')).toBe(false);
     expect(
       (a2?.findings ?? []).some(
-        (f) => f.severity === 'warning' && /tracked in git history/.test(f.summary),
+        (f) =>
+          f.severity === 'info' &&
+          f.summary ===
+            'A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.',
       ),
     ).toBe(true);
   });

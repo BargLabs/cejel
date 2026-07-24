@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>vue</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/vuejs/core @ c0606e91798c8dca4f33d101e1dd836d672592c1</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
       <div class="score">2.9<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
       <p class="subscores">Code 2.4 · Process 3.4</p>
+      <p class="coverage-note">code 4/5 · process 3/6 measured</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,23 +79,23 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.5</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>205/272 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>4/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>198/205 ratio</span></li></ul>
-          <ul><li>Detected test file <code>packages/compiler-core/__tests__/codegen.spec.ts:1 · sha256:63ba48da7ac9</code></li><li>Detected test file <code>packages/compiler-core/__tests__/compile.spec.ts:1 · sha256:be962453bd41</code></li><li>Detected test file <code>packages/compiler-core/__tests__/parse.spec.ts:1 · sha256:937d3edeeae4</code></li><li>Detected test file <code>packages/compiler-core/__tests__/scopeId.spec.ts:1 · sha256:5bc4e857bccb</code></li><li>Detected test file <code>packages/compiler-core/__tests__/testUtils.ts:1 · sha256:201483f1165d</code></li><li>Detected test file <code>packages/compiler-core/__tests__/transform.spec.ts:1 · sha256:f47ac739de25</code></li><li>Detected test file <code>packages/compiler-core/__tests__/transforms/cacheStatic.spec.ts:1 · sha256:e636d1021703</code></li><li>Detected test file <code>packages/compiler-core/__tests__/transforms/noopDirectiveTransform.spec.ts:1 · sha256:0257911e5bfb</code></li><li>Configured test runner <code>vitest.config.ts:1 · sha256:53a16c86c515</code></li><li>Configured test runner <code>package.json:1 · sha256:0e9687aefbca</code></li><li>Coverage configuration <code>vitest.config.ts:1 · sha256:53a16c86c515</code></li></ul>
+          <ul><li><strong>Test-to-source file ratio</strong><span>212/272 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>4/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>198/212 ratio</span></li></ul>
+          <ul><li>Detected test file <code>packages/compiler-core/__tests__/codegen.spec.ts:1 · sha256:63ba48da7ac9</code></li><li>Detected test file <code>packages/compiler-core/__tests__/compile.spec.ts:1 · sha256:be962453bd41</code></li><li>Detected test file <code>packages/compiler-core/__tests__/parse.spec.ts:1 · sha256:937d3edeeae4</code></li><li>Detected test file <code>packages/compiler-core/__tests__/scopeId.spec.ts:1 · sha256:5bc4e857bccb</code></li><li>Detected test file <code>packages/compiler-core/__tests__/testUtils.ts:1 · sha256:201483f1165d</code></li><li>Detected test file <code>packages/compiler-core/__tests__/transform.spec.ts:1 · sha256:f47ac739de25</code></li><li>Detected test file <code>packages/compiler-core/__tests__/transforms/cacheStatic.spec.ts:1 · sha256:e636d1021703</code></li><li>Detected test file <code>packages/compiler-core/__tests__/transforms/noopDirectiveTransform.spec.ts:1 · sha256:0257911e5bfb</code></li><li>Configured test runner <code>vitest.config.ts:1 · sha256:53a16c86c515</code></li><li>Configured test runner <code>package.json:1 · sha256:0e9687aefbca</code></li><li>Coverage configuration <code>vitest.config.ts:1 · sha256:53a16c86c515</code></li><li>CI workflow runs the test suite <code>.github/workflows/test.yml:1 · sha256:3510205184c9</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A3</div><h3>Production readiness</h3></div>
             <span class="status" data-status="warning">warning</span>
           </div>
-          <div class="criterion-score">2.3</div>
-          <ul><li><strong>Production-readiness primitive coverage</strong><span>3/6 primitives</span></li><li><strong>Production workflow depth</strong><span>10/6 signals</span></li><li><strong>Observability depth</strong><span>4/4 signals</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
-          <ul><li>Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code></li><li>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Deploy configuration <code>netlify.toml:1 · sha256:dcb6042928c9</code></li><li>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</li></ul>
+          <div class="criterion-score">2.2</div>
+          <ul><li><strong>Production-readiness primitive coverage</strong><span>3/6 primitives</span></li><li><strong>Production workflow depth</strong><span>6 signals (capped; 11 raw)</span></li><li><strong>Observability depth</strong><span>3/4 signals</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
+          <ul><li>Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code></li><li>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Release deploy configuration <code>netlify.toml:1 · sha256:dcb6042928c9</code></li><li>warning: A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.7</div>
           <ul><li><strong>Pinned dependency ratio</strong><span>38/123 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li></ul>
@@ -117,23 +119,23 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">3.2</div>
-          <ul><li><strong>PR trace primitive coverage</strong><span>9/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:ede571131c6d</code></li><li>Pull-request CI workflow <code>.github/workflows/close-cant-reproduce-issues.yml:1 · sha256:8f37190a64d8</code></li></ul>
+          <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 9 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:ede571131c6d</code></li><li>Pull-request CI workflow <code>.github/workflows/close-cant-reproduce-issues.yml:1 · sha256:8f37190a64d8</code></li><li>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
             <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">4.0</div>
-          <ul><li><strong>CI verification depth</strong><span>5/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>5/4 workflows</span></li></ul>
+          <ul><li><strong>CI verification depth</strong><span>4 signals (capped; 6 raw)</span></li><li><strong>PR-gate CI workflow count</strong><span>4 workflows (capped; 5 raw)</span></li></ul>
           <ul><li>Test script <code>package.json:1 · sha256:0e9687aefbca</code></li><li>Lint script <code>package.json:1 · sha256:0e9687aefbca</code></li><li>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">2.9</div>
           <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>2/2 ratio</span></li></ul>
@@ -148,11 +150,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B3 - CI and QA discipline</strong><span>Test script <code>package.json:1 · sha256:0e9687aefbca</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>Lint script <code>package.json:1 · sha256:0e9687aefbca</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/codegen.spec.ts:1 · sha256:63ba48da7ac9</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/compile.spec.ts:1 · sha256:be962453bd41</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/parse.spec.ts:1 · sha256:937d3edeeae4</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/scopeId.spec.ts:1 · sha256:5bc4e857bccb</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/testUtils.ts:1 · sha256:201483f1165d</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/transform.spec.ts:1 · sha256:f47ac739de25</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/transforms/cacheStatic.spec.ts:1 · sha256:e636d1021703</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>packages/compiler-core/__tests__/transforms/noopDirectiveTransform.spec.ts:1 · sha256:0257911e5bfb</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>vitest.config.ts:1 · sha256:53a16c86c515</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>package.json:1 · sha256:0e9687aefbca</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Coverage configuration <code>vitest.config.ts:1 · sha256:53a16c86c515</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>CI workflow runs the test suite <code>.github/workflows/test.yml:1 · sha256:3510205184c9</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>package.json:1 · sha256:0e9687aefbca</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>pnpm-lock.yaml:1 · sha256:a9947be31928</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/renovate.json5:1 · sha256:4f3867861c7f</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>Test script <code>package.json:1 · sha256:0e9687aefbca</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>Lint script <code>package.json:1 · sha256:0e9687aefbca</code></span></li><li><strong>B3 - CI and QA discipline</strong><span>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>CHANGELOG.md:1 · sha256:4f9499f794a5</code></span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>Audit or changelog artifact <code>SECURITY.md:1 · sha256:f744b4da60a2</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code>)</span></li></ul>
+        <ul><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code>)</span></li></ul>
       </article>
     </section>
   </main>

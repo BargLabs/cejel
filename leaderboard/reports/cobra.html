@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>cobra</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/spf13/cobra @ adbc8813901bba65827259daa8e22ff94ec1f30e</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
-      <div class="score">2.6<span>/4.0 overall</span></div>
+      <div class="score">2.5<span>/4.0 overall</span></div>
       <p class="verdict">Conditional</p>
-      <p class="subscores">Code 2.8 · Process 2.3</p>
+      <p class="subscores">Code 2.6 · Process 2.3</p>
+      <p class="coverage-note">code 2/5 · process 2/6 measured · low confidence</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -77,15 +79,15 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
-          <div class="criterion-score">2.3</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>17/1 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>2/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>16/17 ratio</span></li></ul>
-          <ul><li>Detected test file <code>active_help_test.go:1 · sha256:7ae9d42bd41c</code></li><li>Detected test file <code>args_test.go:1 · sha256:37058f718eb5</code></li><li>Detected test file <code>bash_completionsV2_test.go:1 · sha256:3cf7c192417f</code></li><li>Detected test file <code>bash_completions_test.go:1 · sha256:7bb8b9de6c45</code></li><li>Detected test file <code>cobra_test.go:1 · sha256:bb9a5a989701</code></li><li>Detected test file <code>command_test.go:1 · sha256:710a689a1512</code></li><li>Detected test file <code>completions_test.go:1 · sha256:3f8a8aabe2d2</code></li><li>Detected test file <code>doc/cmd_test.go:1 · sha256:c016acceee91</code></li><li>Configured test runner <code>Makefile:1 · sha256:880eb1cbfbfd</code></li><li>Configured test runner <code>go.mod:1 · sha256:cc6098fd1118</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>active_help_test.go:1 · sha256:7ae9d42bd41c</code>)</li></ul>
+          <div class="criterion-score">2.0</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>1 ratio (capped; 17 raw)</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>1/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>16/17 ratio</span></li></ul>
+          <ul><li>Detected test file <code>active_help_test.go:1 · sha256:7ae9d42bd41c</code></li><li>Detected test file <code>args_test.go:1 · sha256:37058f718eb5</code></li><li>Detected test file <code>bash_completionsV2_test.go:1 · sha256:3cf7c192417f</code></li><li>Detected test file <code>bash_completions_test.go:1 · sha256:7bb8b9de6c45</code></li><li>Detected test file <code>cobra_test.go:1 · sha256:bb9a5a989701</code></li><li>Detected test file <code>command_test.go:1 · sha256:710a689a1512</code></li><li>Detected test file <code>completions_test.go:1 · sha256:3f8a8aabe2d2</code></li><li>Detected test file <code>doc/cmd_test.go:1 · sha256:c016acceee91</code></li><li>Configured test runner <code>Makefile:1 · sha256:880eb1cbfbfd</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>active_help_test.go:1 · sha256:7ae9d42bd41c</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="verified">verified</span>
           </div>
           <div class="criterion-score">3.2</div>
           <ul><li><strong>Declared version range ratio</strong><span>4/5 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
@@ -101,7 +103,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>
@@ -109,19 +111,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">4.0</div>
           <ul><li><strong>PR trace primitive coverage</strong><span>2/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code></li><li>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:22b2338c231c</code></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code></li><li>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:22b2338c231c</code></li><li>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">0.6</div>
           <ul><li><strong>CI verification depth</strong><span>0/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
-          <ul><li>CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code></li><li>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code>)</li></ul>
+          <ul><li>CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code></li><li>warning: B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
@@ -132,11 +134,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/test.yml:1 · sha256:22b2338c231c</code></span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>active_help_test.go:1 · sha256:7ae9d42bd41c</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>args_test.go:1 · sha256:37058f718eb5</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>bash_completionsV2_test.go:1 · sha256:3cf7c192417f</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>bash_completions_test.go:1 · sha256:7bb8b9de6c45</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>cobra_test.go:1 · sha256:bb9a5a989701</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>command_test.go:1 · sha256:710a689a1512</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>completions_test.go:1 · sha256:3f8a8aabe2d2</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Detected test file <code>doc/cmd_test.go:1 · sha256:c016acceee91</code></span></li><li><strong>A1 - Test integrity and regression signal</strong><span>Configured test runner <code>Makefile:1 · sha256:880eb1cbfbfd</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency manifest <code>go.mod:1 · sha256:cc6098fd1118</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency lockfile <code>go.sum:1 · sha256:e557d41a00d6</code></span></li><li><strong>A4 - Dependency hygiene</strong><span>Dependency update config <code>.github/dependabot.yml:1 · sha256:fce71f1c82f8</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>active_help_test.go:1 · sha256:7ae9d42bd41c</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>B3 - CI and QA discipline</strong><span>critical: B3 metric-derived score is 0.6/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code>)</span></li></ul>
+        <ul><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>Insufficient data — no measurable signal; excluded from composite.</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/labeler.yml:1 · sha256:c2ec854c684d</code>)</span></li></ul>
       </article>
     </section>
   </main>

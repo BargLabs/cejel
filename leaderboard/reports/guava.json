@@ -5,15 +5,15 @@
     "url": "https://github.com/google/guava",
     "headSha": "486837d756e6d48864620e91b0761467e2abe744"
   },
-  "generatedAt": "2026-07-21T15:56:38.161Z",
-  "rubricVersion": "witan-rubric-v6-2026-07-21",
+  "generatedAt": "2026-07-22T20:52:22.603Z",
+  "rubricVersion": "witan-rubric-v9-2026-07-22",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 1.3,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "test_run",
@@ -74,8 +74,8 @@
       ],
       "findings": [
         {
-          "severity": "info",
-          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "severity": "warning",
+          "summary": "A1 metric-derived score is 1.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "test_run",
             "label": "Detected test file",
@@ -147,14 +147,14 @@
       "evidence": [],
       "findings": [],
       "metrics": [],
-      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify."
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
     },
     {
       "id": "A4",
       "title": "Dependency hygiene",
       "category": "code_trust",
       "score": 1.1,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "dependency_report",
@@ -173,8 +173,8 @@
       ],
       "findings": [
         {
-          "severity": "critical",
-          "summary": "A4 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "dependency_report",
             "label": "Dependency manifest",
@@ -297,7 +297,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 3.2,
-      "status": "info",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -321,7 +321,19 @@
           "contentHash": "def6a98ca1c67c2c28a683ff002ed808f17d9acefe6201920b1baf46cbfafc06"
         }
       ],
-      "findings": [],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "Pull-request CI workflow",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "0f74c7922fdadc55c106213c981e95aa95e68c35ee9272693331e9458c846566"
+          }
+        }
+      ],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -349,7 +361,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 1.1,
-      "status": "critical",
+      "status": "warning",
       "evidence": [
         {
           "kind": "ci_run",
@@ -361,8 +373,8 @@
       ],
       "findings": [
         {
-          "severity": "critical",
-          "summary": "B3 metric-derived score is 1.1/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below.",
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
           "evidence": {
             "kind": "ci_run",
             "label": "CI workflow",

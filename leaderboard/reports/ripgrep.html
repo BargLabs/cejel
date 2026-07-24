@@ -34,6 +34,7 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .score span { color: var(--muted); font-size: 18px; margin-left: 8px; }
 .verdict { color: var(--teal); font-size: 22px; font-weight: 700; }
 .subscores { color: var(--muted); }
+.coverage-note { color: var(--muted); font-size: 12px; }
 .criteria-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .criteria-list { display: grid; gap: 14px; }
 .na-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
@@ -63,13 +64,14 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>ripgrep</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-21</dd></div>
+        <div><dt>Date</dt><dd>2026-07-22</dd></div>
         <div><dt>Run</dt><dd>https://github.com/BurntSushi/ripgrep @ d5b85d44057ff729a89be9c6549958c45d95aa99</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v6-2026-07-21</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
       </dl>
-      <div class="score">2.2<span>/4.0 overall</span></div>
+      <div class="score">2.1<span>/4.0 overall</span></div>
       <p class="verdict">At risk</p>
-      <p class="subscores">Code 2.4 · Process 2.0</p>
+      <p class="subscores">Code 2.1 · Process 2.0</p>
+      <p class="coverage-note">code 3/5 · process 3/6 measured</p>
     </header>
     <section class="criteria-grid">
       <section>
@@ -79,17 +81,17 @@ code { color: var(--warn); overflow-wrap: anywhere; }
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
             <span class="status" data-status="warning">warning</span>
           </div>
-          <div class="criterion-score">1.9</div>
-          <ul><li><strong>Test-to-source file ratio</strong><span>15/59 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>6/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>10/10 ratio</span></li></ul>
-          <ul><li>Detected test file <code>crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1 · sha256:1a38fdb4ba4b</code></li><li>Detected test file <code>crates/ignore/tests/gitignore_skip_bom.rs:1 · sha256:93b70f641a87</code></li><li>Detected test file <code>crates/matcher/tests/test_matcher.rs:1 · sha256:daaff26c1359</code></li><li>Detected test file <code>crates/matcher/tests/tests.rs:1 · sha256:a6a20ad15557</code></li><li>Detected test file <code>crates/matcher/tests/util.rs:1 · sha256:a7dcad0b540d</code></li><li>Detected test file <code>tests/binary.rs:1 · sha256:683714aaf5bb</code></li><li>Detected test file <code>tests/feature.rs:1 · sha256:fbc6455c5d2c</code></li><li>Detected test file <code>tests/hay.rs:1 · sha256:ee8d21ddd6f0</code></li><li>Configured test runner <code>Cargo.toml:1 · sha256:90d447c5a856</code></li><li>Configured test runner <code>crates/cli/Cargo.toml:1 · sha256:b24e07295063</code></li><li>Configured test runner <code>crates/globset/Cargo.toml:1 · sha256:f547f7255d0c</code></li><li>Configured test runner <code>crates/grep/Cargo.toml:1 · sha256:6c23af13f11a</code></li><li>Configured test runner <code>crates/ignore/Cargo.toml:1 · sha256:41f63736841a</code></li><li>Configured test runner <code>crates/matcher/Cargo.toml:1 · sha256:366590fa8257</code></li><li>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1 · sha256:1a38fdb4ba4b</code>)</li></ul>
+          <div class="criterion-score">0.9</div>
+          <ul><li><strong>Test-to-source file ratio</strong><span>15/59 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>0/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>10/10 ratio</span></li></ul>
+          <ul><li>Detected test file <code>crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1 · sha256:1a38fdb4ba4b</code></li><li>Detected test file <code>crates/ignore/tests/gitignore_skip_bom.rs:1 · sha256:93b70f641a87</code></li><li>Detected test file <code>crates/matcher/tests/test_matcher.rs:1 · sha256:daaff26c1359</code></li><li>Detected test file <code>crates/matcher/tests/tests.rs:1 · sha256:a6a20ad15557</code></li><li>Detected test file <code>crates/matcher/tests/util.rs:1 · sha256:a7dcad0b540d</code></li><li>Detected test file <code>tests/binary.rs:1 · sha256:683714aaf5bb</code></li><li>Detected test file <code>tests/feature.rs:1 · sha256:fbc6455c5d2c</code></li><li>Detected test file <code>tests/hay.rs:1 · sha256:ee8d21ddd6f0</code></li><li>warning: A1 metric-derived score is 0.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1 · sha256:1a38fdb4ba4b</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">3.1</div>
           <ul><li><strong>Declared version range ratio</strong><span>67/67 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>0/2 ratio</span></li><li><strong>Dependency count sanity</strong><span>1/1 sane</span></li></ul>
-          <ul><li>Dependency manifest <code>Cargo.toml:1 · sha256:90d447c5a856</code></li><li>Dependency lockfile <code>Cargo.lock:1 · sha256:7d0fc6b67466</code></li></ul>
+          <ul><li>Dependency manifest <code>Cargo.toml:1 · sha256:90d447c5a856</code></li><li>Dependency lockfile <code>Cargo.lock:1 · sha256:7d0fc6b67466</code></li><li>warning: A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>Cargo.toml:1 · sha256:90d447c5a856</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
@@ -101,7 +103,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
-          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). Dockerfile alone is ambiguous and does not qualify.</span></li></ul>
+          <ul class="na-list"><li><span class="na-id">A2</span> Data-layer isolation and secrets posture — <span class="na-reason">No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.</span></li><li><span class="na-id">A3</span> Production readiness — <span class="na-reason">No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.</span></li></ul>
         </div>
       </section>
       <section>
@@ -109,19 +111,19 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="info">info</span>
+            <span class="status" data-status="critical">critical</span>
           </div>
           <div class="criterion-score">3.2</div>
           <ul><li><strong>PR trace primitive coverage</strong><span>2/2 signals</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code></li><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:190aea818537</code></li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code></li><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:190aea818537</code></li><li>critical: B2 metric-derived score is 3.2/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="critical">critical</span>
+            <span class="status" data-status="warning">warning</span>
           </div>
           <div class="criterion-score">1.0</div>
           <ul><li><strong>CI verification depth</strong><span>1/4 signals</span></li><li><strong>PR-gate CI workflow count</strong><span>1/4 workflows</span></li></ul>
-          <ul><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code></li><li>critical: B3 metric-derived score is 1.0/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code>)</li></ul>
+          <ul><li>CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code></li><li>warning: B3 metric-derived score is 1.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
@@ -144,7 +146,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>info: Test suite files are present, but no coverage configuration was detected. (Detected test file <code>crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1 · sha256:1a38fdb4ba4b</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:a69c389a49ae</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>critical: B3 metric-derived score is 1.0/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code>)</span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>warning: B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Audit or changelog artifact <code>CHANGELOG.md:1 · sha256:ec63f4787167</code>)</span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>warning: A1 metric-derived score is 0.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Detected test file <code>crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1 · sha256:1a38fdb4ba4b</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>warning: A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest <code>Cargo.toml:1 · sha256:90d447c5a856</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:a69c389a49ae</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>critical: B2 metric-derived score is 3.2/4.0, in the critical band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>warning: B3 metric-derived score is 1.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:1c75224e8d94</code>)</span></li><li><strong>B4 - Audit trail and report-up completeness</strong><span>warning: B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Audit or changelog artifact <code>CHANGELOG.md:1 · sha256:ec63f4787167</code>)</span></li></ul>
       </article>
     </section>
   </main>
