@@ -11,6 +11,9 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
   import.meta.url,
 );
 const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml', import.meta.url);
+const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
+const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
+const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
@@ -18,6 +21,9 @@ const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf8');
 const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
 const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
 const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
+const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
+const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
+const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
 
 function requireEqual(actual, expected, field) {
   if (actual !== expected) {
@@ -116,9 +122,16 @@ if (mcpPublishJob.includes('/releases/latest/')) {
   throw new Error('MCP publisher download must use a pinned release, not releases/latest.');
 }
 
+requireEqual(
+  leaderboardIndex,
+  leaderboard,
+  'deployed leaderboard index/leaderboard artifact',
+);
+
 for (const [name, workflow] of [
   ['release workflow', releaseWorkflow],
   ['distribution workflow', distributionWorkflow],
+  ['CLA workflow', claWorkflow],
 ]) {
   for (const match of workflow.matchAll(/^\s*uses:\s*([^#\s]+)(?:\s+#.*)?$/gm)) {
     const reference = match[1];
