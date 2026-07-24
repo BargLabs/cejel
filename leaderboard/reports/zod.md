@@ -67,6 +67,6 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (packages/docs/content/api.test.ts:1, sha256:e8a097b1503a))
-- A4 warning: A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (package.json:1, sha256:8b65378dc0f7))
-- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/claude-code-review.yml:1, sha256:4c568b40f09b))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (packages/docs/content/api.test.ts:1, sha256:e8a097b1503a))
+- A4 finding severity warning (dimension band warning): A4 dimension band is warning at 3.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 94/96 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (package.json:1, sha256:8b65378dc0f7))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (6 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/claude-code-review.yml:1, sha256:4c568b40f09b))

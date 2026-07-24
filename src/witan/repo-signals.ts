@@ -24,6 +24,7 @@ import type {
   WitanReportInputPayload,
 } from './schemas.js';
 
+import { WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY } from './abstention.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -33,6 +34,8 @@ import {
   WITAN_RUBRIC_VERSION_V13,
   WITAN_RUBRIC_VERSION_V14,
   WITAN_RUBRIC_VERSION_V15,
+  WITAN_RUBRIC_VERSION_V16,
+  WITAN_RUBRIC_VERSION_V17,
 } from './rubric-version.js';
 
 // Additive domain-signal extension point (goal_cejel_public_extraction_ip_scrub_2026-07-10):
@@ -65,11 +68,16 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   const headSha = readGitHead(options.repoPath);
   const repoFiles = listRepoFiles(options.repoPath);
   const inventoryFiles = listRepoInventory(options.repoPath, repoFiles);
+  const ignoredTargetReason =
+    repoFiles.length === 0 ? explainIgnoredScanTarget(options.repoPath) : undefined;
+  const usesV17Detectors = rubricVersion === WITAN_RUBRIC_VERSION_V17;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17
       ? applyReadableSourceRepresentationGate(
           options.repoPath,
           inventoryFiles,
@@ -78,8 +86,11 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
           rubricVersion,
         )
       : structuralArchetype;
-  const archetype =
-    rubricVersion === WITAN_RUBRIC_VERSION_V14 || rubricVersion === WITAN_RUBRIC_VERSION_V15
+  const gatedArchetype =
+    rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17
       ? applySemanticSourceRepresentationGate(
           options.repoPath,
           inventoryFiles,
@@ -95,7 +106,9 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17;
   const usesV33Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
@@ -103,21 +116,55 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17;
   const usesV36Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15;
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17;
   const usesV39Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15;
-  const usesV47Detectors = rubricVersion === WITAN_RUBRIC_VERSION_V15;
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+  const usesV47Detectors =
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+  const reviewableSourceProof = usesV17Detectors
+    ? buildReviewableSourceProof(options.repoPath, inventoryFiles, headSha, rubricVersion)
+    : undefined;
+  const coreSignals = collectRepoSignals(
+    options.repoPath,
+    generatedAt,
+    repoFiles,
+    usesV8Detectors,
+    usesV33Detectors,
+    usesV36Detectors,
+    usesV39Detectors,
+    usesV47Detectors,
+    reviewableSourceProof,
+  );
+  const archetype =
+    usesV17Detectors &&
+    reviewableSourceProof?.passes === true &&
+    isV17RescuableAbstention(gatedArchetype.abstentionKind) &&
+    coreSignals.some(isMeasuredCriterionSignal)
+      ? {
+          archetype: isLikelyMonorepo(inventoryFiles) ? ('monorepo' as const) : ('source' as const),
+          sourceFileCount: gatedArchetype.sourceFileCount,
+          totalFileCount: gatedArchetype.totalFileCount,
+        }
+      : gatedArchetype;
 
   return {
     productSlug: options.productSlug,
@@ -129,20 +176,11 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     generatedAt,
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
     archetype: archetype.archetype,
-    ...(archetype.insufficientSourceReason
-      ? { insufficientSourceReason: archetype.insufficientSourceReason }
+    ...((ignoredTargetReason ?? archetype.insufficientSourceReason)
+      ? { insufficientSourceReason: ignoredTargetReason ?? archetype.insufficientSourceReason }
       : {}),
     signals: [
-      ...collectRepoSignals(
-        options.repoPath,
-        generatedAt,
-        repoFiles,
-        usesV8Detectors,
-        usesV33Detectors,
-        usesV36Detectors,
-        usesV39Detectors,
-        usesV47Detectors,
-      ),
+      ...coreSignals,
       ...(options.domainCollectors ?? []).map((collect) => collect(options.repoPath, repoFiles)),
       ...(options.additionalSignals ?? []),
     ],
@@ -174,6 +212,38 @@ export interface RepoArchetypeClassification {
   totalFileCount: number;
   /** Present only for the non-source archetypes; explains why and points to --ingest. */
   insufficientSourceReason?: string;
+  /** Internal closed reason identity used by prospective, versioned rescue policy. */
+  abstentionKind?: RepoAbstentionKind;
+}
+
+type RepoAbstentionKind =
+  | 'empty'
+  | 'generated_only'
+  | 'independent_catalog'
+  | 'docs_source_role'
+  | 'artifact_dominance'
+  | 'binary_distribution'
+  | 'docs_distribution'
+  | 'unrecognised_ecosystem'
+  | 'readable_representation'
+  | 'semantic_auxiliary';
+
+function isV17RescuableAbstention(kind: RepoAbstentionKind | undefined): boolean {
+  return (
+    kind === 'artifact_dominance' ||
+    kind === 'docs_source_role' ||
+    kind === 'readable_representation' ||
+    kind === 'semantic_auxiliary'
+  );
+}
+
+function isMeasuredCriterionSignal(signal: WitanCriterionSignalPayload): boolean {
+  if (signal.notApplicable === true) return false;
+  return (
+    (signal.metrics?.length ?? 0) > 0 ||
+    (signal.positiveEvidence?.length ?? 0) > 0 ||
+    (signal.findings?.length ?? 0) > 0
+  );
 }
 
 // goal_cejel_language_calibration_2026-07-12: widened to add the ecosystems that were cheap
@@ -285,7 +355,9 @@ export function isRecognizedSourcePath(
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17
       ? SOURCE_EXTENSION_PATTERN_V10
       : SOURCE_EXTENSION_PATTERN
   ).test(path);
@@ -302,6 +374,8 @@ const DOC_DISTRIBUTION_COMPANION_PATTERN =
   /(^|\/)(LICENSE|LICENCE|NOTICE|COPYING|AUTHORS|CONTRIBUTORS|CODE_OF_CONDUCT)(\.[A-Za-z0-9]+)?$/i;
 const GENERATED_OR_VENDOR_PATH_PATTERN =
   /(^|\/)(vendor|vendors|dist|build|generated|gen|coverage|node_modules|site-packages|\.venv|venv|\.next|__pycache__|\.terraform|public\/assets|static\/assets)(\/|$)|(^|\/)[^/]+\.min\.(?:js|css)$/i;
+const V17_BUILD_OR_DEPENDENCY_CACHE_PATH_PATTERN =
+  /(^|\/)(?:target|_build|\.build|DerivedData|Pods|Carthage\/Build|\.cache|\.gradle|\.m2|\.yarn\/cache|\.pnpm-store|\.dart_tool|\.tox|\.pytest_cache|\.ruff_cache|\.mypy_cache|\.turbo|\.parcel-cache|\.angular\/cache|\.svelte-kit|\.nuxt|bazel-(?:bin|out|testlogs)|buck-out)(\/|$)/i;
 const INDEPENDENT_CATALOG_PATH_PATTERN =
   /(^|\/)(solutions?|exercises?|challenges?|algorithms?)(\/|$)/i;
 
@@ -364,6 +438,7 @@ export function classifyRepoArchetype(
       archetype: 'empty',
       sourceFileCount: 0,
       totalFileCount: 0,
+      abstentionKind: 'empty',
       insufficientSourceReason: 'Repository has no tracked files — there is nothing to certify.',
     };
   }
@@ -380,6 +455,7 @@ export function classifyRepoArchetype(
       archetype: 'generated_only',
       sourceFileCount,
       totalFileCount,
+      abstentionKind: 'generated_only',
       insufficientSourceReason:
         `${generatedSourceFiles.length} of ${sourceFileCount} source-shaped file(s) are under generated, vendor, build, distribution, coverage, or bundled-asset paths; only ${sourceFileCount - generatedSourceFiles.length} authored source-shaped file(s) remain. ` +
         `Cejel abstains because generated/vendor output is not a reviewable implementation surface. ${INGEST_POINTER}`,
@@ -398,6 +474,7 @@ export function classifyRepoArchetype(
       archetype: 'non_cohesive_source',
       sourceFileCount,
       totalFileCount,
+      abstentionKind: 'independent_catalog',
       insufficientSourceReason:
         `${catalogSourceFiles.length} of ${sourceFileCount} source-shaped file(s) are under independent solution, exercise, challenge, or algorithm catalog paths; only ${sourceFileCount - catalogSourceFiles.length} source-shaped file(s) remain outside that catalog. ` +
         `Cejel abstains because the repository does not expose one cohesive product implementation to score. ${INGEST_POINTER}`,
@@ -412,7 +489,9 @@ export function classifyRepoArchetype(
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17
   ) {
     const authoredSourceFiles = sourceFiles.filter(isAuthoredProductionPath);
     const documentationFiles = repoFiles.filter((file) =>
@@ -423,6 +502,7 @@ export function classifyRepoArchetype(
         archetype: 'docs_only',
         sourceFileCount,
         totalFileCount,
+        abstentionKind: 'docs_source_role',
         insufficientSourceReason:
           `${sourceFileCount} source-shaped file(s) are tests/fixtures around a documentation tree; no authored product source remains. ` +
           `Cejel abstains because documentation tests do not support a product-source headline score. ${INGEST_POINTER}`,
@@ -437,7 +517,9 @@ export function classifyRepoArchetype(
       artifactFiles.length >= 10 &&
       (authoredSourceFiles.length <= 10 ||
         rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-        rubricVersion === WITAN_RUBRIC_VERSION_V15) &&
+        rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+        rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+        rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
       materialFiles > 0 &&
       authoredSourceFiles.length / materialFiles <= 0.1
     ) {
@@ -445,6 +527,7 @@ export function classifyRepoArchetype(
         archetype: 'binary_only',
         sourceFileCount,
         totalFileCount,
+        abstentionKind: 'artifact_dominance',
         insufficientSourceReason:
           `${authoredSourceFiles.length} authored source-shaped file(s) accompany ${artifactFiles.length} packaged, font, image, or media artifact(s); the source is sparse tooling rather than a representative product implementation. ` +
           `Cejel abstains because incidental tooling cannot support a product-source headline score. ${INGEST_POINTER}`,
@@ -470,6 +553,7 @@ export function classifyRepoArchetype(
         archetype: 'binary_only',
         sourceFileCount,
         totalFileCount,
+        abstentionKind: 'binary_distribution',
         insufficientSourceReason:
           `${sourceFileCount} source file(s) found among ${totalFileCount} tracked file(s); repo` +
           ` appears to be a binary/bundled-distribution tree (e.g. ${sample ? basename(sample) : 'a packaged artifact'})` +
@@ -491,13 +575,16 @@ export function classifyRepoArchetype(
           rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
           rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
           rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-          rubricVersion === WITAN_RUBRIC_VERSION_V15) &&
+          rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+          rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
           unrecognisedSourceFiles.length === 0))
     ) {
       return {
         archetype: 'docs_only',
         sourceFileCount,
         totalFileCount,
+        abstentionKind: 'docs_distribution',
         insufficientSourceReason: `${sourceFileCount} source file(s) found among ${totalFileCount} tracked file(s); repo appears to be a docs/distribution tree (README/markdown/media), not a source tree — cejel rates source, not docs. ${INGEST_POINTER}`,
       };
     }
@@ -663,6 +750,72 @@ function representativeSourceRank(rankKey: string, file: string): string {
   return createHash('sha256').update(`${rankKey}:${file}`).digest('hex');
 }
 
+export interface ReviewableSourceProof {
+  sourceShapedFileCount: number;
+  eligibleSourceFileCount: number;
+  sampledFileCount: number;
+  readableSampledFileCount: number;
+  firstReadablePath?: string;
+  passes: boolean;
+}
+
+export function buildV17ReviewableSourceProof(
+  repoPath: string,
+  repoFiles: readonly string[],
+): ReviewableSourceProof {
+  return buildReviewableSourceProof(
+    repoPath,
+    listRepoInventory(repoPath, repoFiles),
+    readGitHead(repoPath),
+    WITAN_RUBRIC_VERSION_V17,
+  );
+}
+
+function buildReviewableSourceProof(
+  repoPath: string,
+  repoFiles: readonly string[],
+  headSha: string | null,
+  rubricVersion: string,
+): ReviewableSourceProof {
+  const sourceShapedFiles = repoFiles.filter(
+    (path) =>
+      isRecognizedSourcePath(path, rubricVersion) ||
+      isUnrecognisedSourcePath(path, rubricVersion) ||
+      /\.ipynb$/i.test(path),
+  );
+  const eligibleSourceFiles = sourceShapedFiles.filter(
+    (path) =>
+      !GENERATED_OR_VENDOR_PATH_PATTERN.test(path) &&
+      !V17_BUILD_OR_DEPENDENCY_CACHE_PATH_PATTERN.test(path) &&
+      (SOURCE_EXTENSION_PATTERN.test(path) || /\.m$/i.test(path)),
+  );
+  const sample = selectProportionalRepresentativeSourceFiles(
+    eligibleSourceFiles,
+    `witan-v17-reviewable-source:${headSha ?? 'unversioned'}`,
+    READABLE_SOURCE_REPRESENTATION_SAMPLE_LIMIT_V13,
+  );
+  const readablePaths = sample.filter((file) => {
+    const contents = readRepresentativeSourceText(repoPath, file);
+    return contents !== null && isRepresentativeSourceText(contents);
+  });
+  const ratableShare =
+    sourceShapedFiles.length === 0 ? 0 : eligibleSourceFiles.length / sourceShapedFiles.length;
+  const readableShare = sample.length === 0 ? 0 : readablePaths.length / sample.length;
+
+  return {
+    sourceShapedFileCount: sourceShapedFiles.length,
+    eligibleSourceFileCount: eligibleSourceFiles.length,
+    sampledFileCount: sample.length,
+    readableSampledFileCount: readablePaths.length,
+    ...(readablePaths[0] ? { firstReadablePath: readablePaths[0] } : {}),
+    passes:
+      eligibleSourceFiles.length > 0 &&
+      ratableShare >= 0.2 &&
+      readablePaths.length > 0 &&
+      (readableShare >= 0.75 || readablePaths.length >= 8),
+  };
+}
+
 function applyReadableSourceRepresentationGate(
   repoPath: string,
   repoFiles: readonly string[],
@@ -725,6 +878,7 @@ function applyReadableSourceRepresentationGate(
     archetype: 'non_cohesive_source',
     sourceFileCount: classification.sourceFileCount,
     totalFileCount: classification.totalFileCount,
+    abstentionKind: 'readable_representation',
     insufficientSourceReason:
       `Readable source representation covers ${readableCountLabel} of ${authoredSourceFiles.length} authored source-shaped file(s) (${readablePct}%); this is below the ${thresholdPct}% representation threshold. ` +
       `Cejel abstains because unreadable, compressed, binary-shaped, or opaque source families cannot support a representative headline score. ${INGEST_POINTER}`,
@@ -779,6 +933,7 @@ function applySemanticSourceRepresentationGate(
       archetype: 'non_cohesive_source',
       sourceFileCount: classification.sourceFileCount,
       totalFileCount: classification.totalFileCount,
+      abstentionKind: 'semantic_auxiliary',
       insufficientSourceReason:
         `${detail} provide no representative product implementation. ` +
         `Cejel abstains because auxiliary metadata or payload files cannot support a product-source headline score. ${INGEST_POINTER}`,
@@ -795,6 +950,7 @@ function applySemanticSourceRepresentationGate(
       archetype: 'non_cohesive_source',
       sourceFileCount: classification.sourceFileCount,
       totalFileCount: classification.totalFileCount,
+      abstentionKind: 'semantic_auxiliary',
       insufficientSourceReason:
         `${auxiliaryCount} of ${authoredSourceFiles.length} authored source-shaped file(s) are localization, style, package, or redirect auxiliary material. ` +
         `Cejel abstains because an auxiliary-dominated tree does not expose representative product implementation for a headline score. ${INGEST_POINTER}`,
@@ -859,7 +1015,9 @@ function sourceDominanceThreshold(rubricVersion: string): number {
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17
   ) {
     return SOURCE_DOMINANCE_RATIO_THRESHOLD_V11;
   }
@@ -885,7 +1043,9 @@ export function isUnrecognisedSourcePath(
   if (
     (rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-      rubricVersion === WITAN_RUBRIC_VERSION_V15) &&
+      rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
     V13_NON_SOURCE_EXTENSION_PATTERN.test(base)
   ) {
     return false;
@@ -947,6 +1107,7 @@ function unrecognisedEcosystemResult(
     archetype: 'unrecognised_ecosystem',
     sourceFileCount,
     totalFileCount,
+    abstentionKind: 'unrecognised_ecosystem',
     insufficientSourceReason: `Cejel does not yet read this repository's dominant source language(s) (${sample}) — ${measuredClause}. Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. ${INGEST_POINTER}`,
   };
 }
@@ -975,6 +1136,34 @@ function assertRepoPathExists(repoPath: string): void {
   }
 }
 
+function explainIgnoredScanTarget(repoPath: string): string | undefined {
+  let top: string;
+  try {
+    top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: repoPath,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+  if (!top) return undefined;
+
+  const topResolved = realpathSync(top);
+  const targetResolved = realpathSync(repoPath);
+  const target = relative(topResolved, targetResolved).split(sep).join('/');
+  if (!target || target.startsWith('../')) return undefined;
+  try {
+    execFileSync('git', ['check-ignore', '--quiet', '--', `${target}/`], {
+      cwd: topResolved,
+      stdio: 'ignore',
+    });
+  } catch {
+    return undefined;
+  }
+  return `The requested scan path (${target}) is excluded by this repository's Git ignore rules, so Cejel found no tracked source to evaluate. Scan a tracked project or intentionally add the path to version control; Cejel abstains rather than score an ignored or vendored working tree.`;
+}
+
 // Exported (along with isRegularFile/fileContains/evidenceForRelative below) as the small
 // generic toolkit a WitanDomainSignalCollector implementation builds on.
 export function buildNotApplicableSignal(
@@ -1000,6 +1189,7 @@ function collectRepoSignals(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors: boolean,
+  reviewableSourceProof?: ReviewableSourceProof,
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
@@ -1011,6 +1201,7 @@ function collectRepoSignals(
     useV27Detectors,
     useV33Detectors,
     useV36Detectors,
+    reviewableSourceProof,
   );
   const a2Signal = collectA2IsolationEvidence(
     repoPath,
@@ -1085,10 +1276,15 @@ function collectA1TestIntegrityEvidence(
   useV27Detectors: boolean,
   useV33Detectors: boolean,
   useV36Detectors: boolean,
+  reviewableSourceProof?: ReviewableSourceProof,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
-  const allTestFiles = findConcreteTestFiles(repoPath, repoFiles);
+  const allTestFiles = findConcreteTestFiles(
+    repoPath,
+    repoFiles,
+    reviewableSourceProof ? WITAN_RUBRIC_VERSION_V17 : undefined,
+  );
   const testFiles = allTestFiles.slice(0, 8);
   const sourceFiles = repoFiles.filter(isSourceFile);
   const runnerFiles = repoFiles
@@ -1224,7 +1420,11 @@ function collectA1TestIntegrityEvidence(
     // insufficient_data for this sub-signal, contributing neither evidence nor a finding.
   }
 
-  if (evidence.length === 0 && findings.length === 0) return null;
+  if (evidence.length === 0 && findings.length === 0 && configuredRunnerFiles.length === 0) {
+    return reviewableSourceProof?.passes === true && reviewableSourceProof.firstReadablePath
+      ? buildA1AuthenticatedAbsenceSignal(repoPath, reviewableSourceProof)
+      : null;
+  }
 
   if (testFiles.length === 0) {
     const fallback = configuredRunnerFiles[0]
@@ -1268,7 +1468,11 @@ function collectA1TestIntegrityEvidence(
     }
   }
 
-  const nonHollowShare = measureNonHollowTestShare(repoPath, allTestFiles);
+  const nonHollowShare = measureNonHollowTestShare(
+    repoPath,
+    allTestFiles,
+    reviewableSourceProof !== undefined,
+  );
 
   return {
     criterionId: 'A1',
@@ -1316,6 +1520,77 @@ function collectA1TestIntegrityEvidence(
     ],
     notes:
       'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+  };
+}
+
+function buildA1AuthenticatedAbsenceSignal(
+  repoPath: string,
+  proof: ReviewableSourceProof,
+): WitanCriterionSignalPayload {
+  const sourcePath = proof.firstReadablePath;
+  if (!sourcePath) {
+    throw new Error('Cejel invariant: a passing reviewable-source proof must have a readable path');
+  }
+  const anchor = evidenceForRelative(
+    repoPath,
+    sourcePath,
+    'artifact',
+    `Reviewable source anchor (${proof.readableSampledFileCount}/${proof.sampledFileCount} sampled files readable; ${proof.eligibleSourceFileCount}/${proof.sourceShapedFileCount} source-shaped files criterion-ratable)`,
+  );
+  return {
+    criterionId: 'A1',
+    positiveEvidence: [anchor],
+    findings: [
+      {
+        severity: 'critical',
+        summary: WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+        evidence: anchor,
+      },
+    ],
+    metrics: [
+      metric(
+        'test_to_source_ratio',
+        'Test-to-source file ratio',
+        0,
+        proof.eligibleSourceFileCount,
+        0.3,
+        'ratio',
+        'Measures how much concrete test surface exists relative to criterion-ratable implementation source.',
+        'saturating_count',
+      ),
+      metric(
+        'coverage_percent',
+        'Static coverage percentage',
+        0,
+        100,
+        0.3,
+        'percent',
+        'Uses a static coverage report value or configured threshold when present, without running tests.',
+      ),
+      metric(
+        'verification_script_ratio',
+        'Verification script ratio',
+        0,
+        4,
+        0.25,
+        'ratio',
+        'Measures explicit test/lint/typecheck verification commands plus test runner configuration.',
+        'saturating_count',
+      ),
+      metric(
+        'non_hollow_test_share',
+        'Non-hollow test share',
+        0,
+        1,
+        0.15,
+        'ratio',
+        'No concrete test files were present to establish non-hollow test behavior.',
+      ),
+    ],
+    notes:
+      `V17 authenticated absence: ${proof.eligibleSourceFileCount} criterion-ratable of ` +
+      `${proof.sourceShapedFileCount} source-shaped files; sampled ${proof.sampledFileCount}; ` +
+      `${proof.readableSampledFileCount} representative-text files.`,
   };
 }
 
@@ -2965,9 +3240,22 @@ function isV47AuthoredProductionPath(path: string): boolean {
 const TEST_DIRECTORY_SOURCE_PATTERN = new RegExp(
   `(^|/)(?:__tests__|tests?|specs?|[^/]+(?:Tests|Specs))/(?:.*\\.)?(?:${SOURCE_LANGUAGES.flatMap((language) => language.extensions).join('|')})$`,
 );
+const TEST_DIRECTORY_SOURCE_PATTERN_V17 = new RegExp(
+  `(^|/)(?:__tests__|tests?|specs?|[^/]+(?:Tests|Specs))/(?:.*\\.)?(?:${[
+    ...SOURCE_LANGUAGES_V10.flatMap((language) => language.extensions),
+    'bats',
+  ].join('|')})$`,
+  'i',
+);
 
-function isTestFile(file: string): boolean {
+function isTestFile(file: string, rubricVersion = WITAN_RUBRIC_VERSION): boolean {
   return (
+    (rubricVersion === WITAN_RUBRIC_VERSION_V17 &&
+      (TEST_DIRECTORY_SOURCE_PATTERN_V17.test(file) ||
+        /\.tftest\.hcl$/i.test(file) ||
+        /\.bats$/i.test(file) ||
+        /(^|\/)test[^/]*\.m$/i.test(file) ||
+        /_test\.m$/i.test(file))) ||
     TEST_DIRECTORY_SOURCE_PATTERN.test(file) ||
     // AVA's default discovery includes test.js and test-*.js at the scanned package root.
     // Keep this root-anchored: nested files need an existing test-directory/suffix convention.
@@ -2990,6 +3278,7 @@ function isTestFile(file: string): boolean {
 // are scaffolding with no test in them).
 const NAME_SHAPED_TEST_FILE_PATTERN =
   /^test(?:-[^/]+)?\.[cm]?[jt]sx?$|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
+const NAME_SHAPED_TEST_FILE_PATTERN_V17 = /\.tftest\.hcl$|\.bats$|(^|\/)test[^/]*\.m$|_test\.m$/i;
 // ---- END canonical production-source classifier -------------------------------------------
 
 const TEST_RUNNER_PATTERN =
@@ -3510,7 +3799,11 @@ interface NonHollowTestShare {
   ratedCount: number;
 }
 
-function measureNonHollowTestShare(repoPath: string, files: readonly string[]): NonHollowTestShare {
+function measureNonHollowTestShare(
+  repoPath: string,
+  files: readonly string[],
+  useV17Detectors = false,
+): NonHollowTestShare {
   let nonHollowCount = 0;
   let ratedCount = 0;
   for (const file of files) {
@@ -3525,7 +3818,10 @@ function measureNonHollowTestShare(repoPath: string, files: readonly string[]): 
     if (nonHollow) {
       nonHollowCount += 1;
       ratedCount += 1;
-    } else if (NAME_SHAPED_TEST_FILE_PATTERN.test(file)) {
+    } else if (
+      NAME_SHAPED_TEST_FILE_PATTERN.test(file) ||
+      (useV17Detectors && NAME_SHAPED_TEST_FILE_PATTERN_V17.test(file))
+    ) {
       ratedCount += 1;
     }
   }
@@ -3962,9 +4258,16 @@ export function findCoverageConfigFiles(
   );
 }
 
-export function findConcreteTestFiles(repoPath: string, repoFiles: readonly string[]): string[] {
+export function findConcreteTestFiles(
+  repoPath: string,
+  repoFiles: readonly string[],
+  rubricVersion = WITAN_RUBRIC_VERSION,
+): string[] {
   const contentCppTests = collectContentBasedCppTestFiles(repoPath, repoFiles);
-  return [...repoFiles.filter(isTestFile), ...contentCppTests.filter((file) => !isTestFile(file))];
+  return [
+    ...repoFiles.filter((file) => isTestFile(file, rubricVersion)),
+    ...contentCppTests.filter((file) => !isTestFile(file, rubricVersion)),
+  ];
 }
 
 export function findConfiguredTestRunnerFiles(
@@ -3996,8 +4299,9 @@ export function findConfiguredTestRunnerFiles(
 export function findNonLeanTestToolchainPremiseFiles(
   repoPath: string,
   repoFiles: readonly string[],
+  rubricVersion = WITAN_RUBRIC_VERSION,
 ): string[] {
-  const testFiles = findConcreteTestFiles(repoPath, repoFiles);
+  const testFiles = findConcreteTestFiles(repoPath, repoFiles, rubricVersion);
   if (testFiles.length === 0) return [];
   const packageJsonFiles = repoFiles.filter(
     (file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file),
@@ -4204,7 +4508,546 @@ function isCoverageConfig(repoPath: string, file: string): boolean {
   if (/(^|\/)pyproject\.toml$/.test(file)) {
     return fileContains(repoPath, file, /^\[tool\.coverage(?:\.|\])/m);
   }
+  if (/(^|\/)package\.json$/.test(file)) {
+    return packageJsonHasCoverageTooling(repoPath, file);
+  }
   return false;
+}
+
+function packageJsonHasCoverageTooling(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const parsed = parseJsonObject(readFileSync(fullPath, 'utf8'));
+  if (!parsed) return false;
+
+  const scripts = parsed.scripts;
+  if (typeof scripts === 'object' && scripts !== null && !Array.isArray(scripts)) {
+    for (const command of Object.values(scripts)) {
+      if (typeof command === 'string' && commandInvokesCoverageTool(command)) {
+        return true;
+      }
+    }
+  }
+
+  for (const key of ['nyc', 'c8', 'istanbul'] as const) {
+    const config = parsed[key];
+    if (typeof config === 'object' && config !== null && !Array.isArray(config)) return true;
+  }
+  return false;
+}
+
+function commandInvokesCoverageTool(command: string): boolean {
+  return normalizedCommandInvokesCoverageTool(normalizeCoverageCommandPrefixes(command), 0);
+}
+
+function normalizedCommandInvokesCoverageTool(
+  normalized: { segment: string; splitShellOperators: boolean },
+  depth: number,
+): boolean {
+  const segments = normalized.splitShellOperators
+    ? splitShellCommandSegments(normalized.segment)
+    : [normalized.segment];
+  return segments.some((rawSegment) => {
+    const candidate = normalizeCoverageCommandPrefixes(rawSegment);
+    if (/^(?:nyc|c8|istanbul)(?:\s|$)/iu.test(candidate.segment)) return true;
+    return (
+      depth < 4 &&
+      candidate.splitShellOperators &&
+      candidate.segment !== rawSegment.trim() &&
+      normalizedCommandInvokesCoverageTool(candidate, depth + 1)
+    );
+  });
+}
+
+function splitShellCommandSegments(command: string): string[] {
+  const segments: string[] = [];
+  let start = 0;
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === '#' && (index === 0 || /[\s;|&()]/u.test(command[index - 1] ?? ''))) {
+      segments.push(command.slice(start, index));
+      const newline = command.indexOf('\n', index + 1);
+      if (newline < 0) return segments;
+      index = newline;
+      start = newline + 1;
+      continue;
+    }
+
+    const isBoundary =
+      character === ';' || character === '|' || character === '&' || character === '\n';
+    if (!isBoundary) continue;
+    segments.push(command.slice(start, index));
+    if ((character === '|' || character === '&') && command[index + 1] === character) index += 1;
+    start = index + 1;
+  }
+  segments.push(command.slice(start));
+  return segments;
+}
+
+function normalizeCoverageCommandPrefixes(rawSegment: string): {
+  segment: string;
+  splitShellOperators: boolean;
+} {
+  let segment = rawSegment.trim();
+  let unwrapQuotedShellCommand = false;
+  let splitShellOperators = true;
+  for (let index = 0; index < 8; index += 1) {
+    const before = segment;
+    segment = stripOuterShellGroup(segment);
+    segment = segment.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)\s+)*/u, '');
+    segment = segment.replace(
+      /^(?:npx|npm\s+exec|pnpm\s+(?:exec|dlx)|yarn\s+(?:exec|dlx))(?:\s+--(?:no-install|yes))*(?:\s+--)?\s+/iu,
+      '',
+    );
+    segment = segment.replace(/^(?:command(?:\s+-p)?(?:\s+--)?|time(?:\s+-p)?)\s+/iu, '');
+    const explicitShellCommand = extractExplicitShellCommand(segment);
+    if (explicitShellCommand !== null) {
+      segment = explicitShellCommand;
+      unwrapQuotedShellCommand = false;
+      splitShellOperators = true;
+    }
+    const environmentPrefix = stripEnvironmentCommandPrefix(segment);
+    segment = environmentPrefix.segment;
+    unwrapQuotedShellCommand ||= environmentPrefix.unwrapQuotedShellCommand;
+    if (environmentPrefix.splitShellOperators !== null) {
+      splitShellOperators = environmentPrefix.splitShellOperators;
+    }
+    if (segment === before) break;
+  }
+  return {
+    segment: unwrapQuotedShellCommand ? segment.replace(/^(["'])(.*)\1$/u, '$2').trim() : segment,
+    splitShellOperators,
+  };
+}
+
+function extractExplicitShellCommand(segment: string): string | null {
+  const shellExecutable = /^(?:(?:\/(?:usr\/)?bin\/)?(?<shell>(?:ba|da|k|z)?sh))(?=\s|$)/iu.exec(
+    segment,
+  );
+  if (!shellExecutable) return null;
+  const shell = shellExecutable.groups?.shell?.toLowerCase();
+  if (!shell) return null;
+
+  let offset = shellExecutable[0].length;
+  let noExecute = false;
+  let dumpStrings = false;
+  for (let optionCount = 0; optionCount < 32; optionCount += 1) {
+    const option = scanShellWord(segment, offset);
+    if (!option || (!option.word.startsWith('-') && !option.word.startsWith('+'))) return null;
+    offset = option.end;
+
+    if (option.word === '--') return null;
+
+    const zshLongOption =
+      shell === 'zsh' ? /^(?<sign>--|\+-)(?<name>[A-Za-z][A-Za-z_-]*)$/u.exec(option.word) : null;
+    if (zshLongOption) {
+      const optionName = zshLongOption.groups?.name?.replaceAll('-', '');
+      if (!optionName) return null;
+      const resolvedSetOption = resolveSupportedShellSetOption(shell, optionName);
+      if (!resolvedSetOption && !isSupportedZshLongInvocationOption(optionName)) return null;
+      if (resolvedSetOption?.name === 'noexec') {
+        noExecute = (zshLongOption.groups?.sign === '--') !== resolvedSetOption.inverted;
+      }
+      continue;
+    }
+
+    if (option.word === '--rcfile' || option.word === '--init-file') {
+      const operand = scanShellWord(segment, offset);
+      if (shell !== 'bash' || !operand) return null;
+      offset = operand.end;
+      continue;
+    }
+    if (
+      shell === 'bash' &&
+      /^--(?:debug|debugger|login|noediting|noprofile|norc|posix|protected|restricted|verbose)$/u.test(
+        option.word,
+      )
+    ) {
+      continue;
+    }
+
+    const cluster = parseSupportedShellOptionCluster(shell, option.word);
+    if (!cluster) return null;
+    if (cluster.changesNoExecute) noExecute = cluster.sign === '-';
+    if (cluster.enablesDumpStrings) dumpStrings = true;
+
+    if (cluster.operandKind) {
+      const operand = scanShellWord(segment, offset);
+      const resolvedSetOperand =
+        operand && cluster.operandKind === 'set'
+          ? resolveSupportedShellSetOption(shell, operand.word)
+          : null;
+      const operandIsZshInvocationOption =
+        shell === 'zsh' &&
+        operand !== null &&
+        cluster.operandKind === 'set' &&
+        isSupportedZshLongInvocationOption(operand.word);
+      const operandIsSupported =
+        cluster.operandKind === 'set'
+          ? resolvedSetOperand !== null || operandIsZshInvocationOption
+          : shell === 'bash' && operand && BASH_SHOPT_OPTIONS.has(operand.word);
+      if (!operand || !operandIsSupported) return null;
+      if (resolvedSetOperand?.name === 'noexec') {
+        noExecute = (cluster.sign === '-') !== resolvedSetOperand.inverted;
+      }
+      offset = operand.end;
+    }
+
+    if (cluster.hasCommand) {
+      return noExecute || dumpStrings ? null : readShellWord(segment, offset);
+    }
+  }
+  return null;
+}
+
+const BASH_SET_OPTIONS = new Set([
+  'allexport',
+  'braceexpand',
+  'emacs',
+  'errexit',
+  'errtrace',
+  'functrace',
+  'hashall',
+  'histexpand',
+  'history',
+  'ignoreeof',
+  'keyword',
+  'monitor',
+  'noclobber',
+  'noexec',
+  'noglob',
+  'nolog',
+  'notify',
+  'nounset',
+  'onecmd',
+  'physical',
+  'pipefail',
+  'posix',
+  'privileged',
+  'verbose',
+  'vi',
+  'xtrace',
+]);
+
+const BASH_SHOPT_OPTIONS = new Set([
+  'autocd',
+  'cdable_vars',
+  'cdspell',
+  'checkhash',
+  'checkjobs',
+  'checkwinsize',
+  'cmdhist',
+  'complete_fullquote',
+  'direxpand',
+  'dirspell',
+  'dotglob',
+  'execfail',
+  'expand_aliases',
+  'extdebug',
+  'extglob',
+  'extquote',
+  'failglob',
+  'force_fignore',
+  'globasciiranges',
+  'globskipdots',
+  'globstar',
+  'gnu_errfmt',
+  'histappend',
+  'histreedit',
+  'histverify',
+  'hostcomplete',
+  'huponexit',
+  'inherit_errexit',
+  'interactive_comments',
+  'lastpipe',
+  'lithist',
+  'localvar_inherit',
+  'localvar_unset',
+  'login_shell',
+  'mailwarn',
+  'nocaseglob',
+  'nocasematch',
+  'no_empty_cmd_completion',
+  'nullglob',
+  'progcomp',
+  'progcomp_alias',
+  'promptvars',
+  'restricted_shell',
+  'shift_verbose',
+  'sourcepath',
+  'varredir_close',
+  'xpg_echo',
+]);
+
+const POSIX_SET_OPTIONS = new Set([
+  'allexport',
+  'errexit',
+  'ignoreeof',
+  'noclobber',
+  'noexec',
+  'noglob',
+  'nounset',
+  'verbose',
+  'vi',
+  'xtrace',
+]);
+
+const ZSH_LONG_INVOCATION_OPTIONS = new Set([
+  'interactive',
+  'login',
+  'privileged',
+  'shinstdin',
+  'stdin',
+]);
+
+function isSupportedShellSetOption(shell: string, option: string): boolean {
+  if (shell === 'bash') return BASH_SET_OPTIONS.has(option);
+  if (shell === 'sh' || shell === 'dash') return POSIX_SET_OPTIONS.has(option);
+  if (shell === 'ksh' || shell === 'zsh') {
+    return POSIX_SET_OPTIONS.has(option) || option === 'pipefail';
+  }
+  return false;
+}
+
+function normalizeShellSetOption(shell: string, option: string): string {
+  if (shell === 'zsh') return option.toLowerCase().replaceAll('_', '');
+  return option;
+}
+
+function isSupportedZshLongInvocationOption(option: string): boolean {
+  const normalized = normalizeShellSetOption('zsh', option);
+  if (ZSH_LONG_INVOCATION_OPTIONS.has(normalized)) return true;
+  return (
+    normalized.startsWith('no') &&
+    !normalized.startsWith('nono') &&
+    ZSH_LONG_INVOCATION_OPTIONS.has(normalized.slice(2))
+  );
+}
+
+function resolveSupportedShellSetOption(
+  shell: string,
+  option: string,
+): { name: string; inverted: boolean } | null {
+  const normalized = normalizeShellSetOption(shell, option);
+  if (shell === 'zsh' && normalized === 'exec') {
+    return { name: 'noexec', inverted: true };
+  }
+  if (isSupportedShellSetOption(shell, normalized)) {
+    return { name: normalized, inverted: false };
+  }
+  if (
+    shell === 'zsh' &&
+    normalized.startsWith('no') &&
+    !normalized.startsWith('nono') &&
+    isSupportedShellSetOption(shell, normalized.slice(2))
+  ) {
+    return { name: normalized.slice(2), inverted: true };
+  }
+  return null;
+}
+
+function parseSupportedShellOptionCluster(
+  shell: string,
+  option: string,
+): {
+  sign: '-' | '+';
+  hasCommand: boolean;
+  changesNoExecute: boolean;
+  enablesDumpStrings: boolean;
+  operandKind: 'set' | 'shopt' | null;
+} | null {
+  if (!/^[+-][A-Za-z]+$/u.test(option)) return null;
+  const sign = option[0] as '-' | '+';
+  let letters = option.slice(1);
+  let operandKind: 'set' | 'shopt' | null = null;
+  const operandLetter = letters.at(-1);
+  if (operandLetter === 'o' || operandLetter === 'O') {
+    if (operandLetter === 'O' && shell !== 'bash') return null;
+    letters = letters.slice(0, -1);
+    if (letters.includes('c')) return null;
+    operandKind = operandLetter === 'o' ? 'set' : 'shopt';
+  }
+
+  const supportedLetters =
+    shell === 'bash'
+      ? 'abcefhkmnptuvxBCEHPTilrsD'
+      : shell === 'sh'
+        ? 'abCcefimnsuvx'
+        : shell === 'dash'
+          ? 'abCcefilmnsuvx'
+          : 'acefilmnpsuvx';
+  if (![...letters].every((letter) => supportedLetters.includes(letter))) return null;
+
+  return {
+    sign,
+    hasCommand: letters.includes('c'),
+    changesNoExecute: letters.includes('n'),
+    enablesDumpStrings: shell === 'bash' && letters.includes('D'),
+    operandKind,
+  };
+}
+
+function scanShellWord(value: string, start: number): { word: string; end: number } | null {
+  let result = '';
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  let index = start;
+
+  while (index < value.length && /\s/u.test(value[index] ?? '')) index += 1;
+  const wordStart = index;
+
+  for (; index < value.length; index += 1) {
+    const character = value[index];
+    if (escaped) {
+      if (character !== '\n') result += character;
+      escaped = false;
+      continue;
+    }
+    if (character === '\\' && quote !== "'") {
+      const nextCharacter = value[index + 1];
+      const escapesNext =
+        quote !== '"' ||
+        nextCharacter === '$' ||
+        nextCharacter === '`' ||
+        nextCharacter === '"' ||
+        nextCharacter === '\\' ||
+        nextCharacter === '\n';
+      if (escapesNext) {
+        escaped = true;
+      } else {
+        result += character;
+      }
+      continue;
+    }
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      } else {
+        result += character;
+      }
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (/\s/u.test(character ?? '')) break;
+    result += character;
+  }
+
+  if (escaped || quote || index === wordStart) return null;
+  return { word: result, end: index };
+}
+
+function readShellWord(value: string, start: number): string | null {
+  return scanShellWord(value, start)?.word ?? null;
+}
+
+function stripOuterShellGroup(segment: string): string {
+  if (!segment.startsWith('(') || segment.startsWith('((')) return segment;
+
+  let depth = 0;
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  for (let index = 0; index < segment.length; index += 1) {
+    const character = segment[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === '(') {
+      depth += 1;
+      continue;
+    }
+    if (character !== ')') continue;
+    depth -= 1;
+    if (depth < 0) return segment;
+    if (depth === 0) {
+      if (segment.slice(index + 1).trim().length > 0) return segment;
+      return segment.slice(1, index).trim();
+    }
+  }
+  return segment;
+}
+
+function stripEnvironmentCommandPrefix(segment: string): {
+  segment: string;
+  unwrapQuotedShellCommand: boolean;
+  splitShellOperators: boolean | null;
+} {
+  const wrapper = /^(cross-env(?:-shell)?|env)(?:\s|$)/iu.exec(segment);
+  if (!wrapper) {
+    return { segment, unwrapQuotedShellCommand: false, splitShellOperators: null };
+  }
+
+  let remainder = segment.slice(wrapper[0].length).trimStart();
+  let unwrapQuotedShellCommand = wrapper[1]?.toLowerCase() === 'cross-env-shell';
+  let splitShellOperators = true;
+  while (remainder.length > 0) {
+    const splitString =
+      /^(?:-S|--split-string)(?:=|\s+)(?:"([^"]*)"|'([^']*)'|([^\s]+))(?:\s+|$)/u.exec(remainder);
+    if (splitString) {
+      const splitCommand = splitString[1] ?? splitString[2] ?? splitString[3] ?? '';
+      remainder = `${splitCommand} ${remainder.slice(splitString[0].length)}`.trim();
+      unwrapQuotedShellCommand = false;
+      splitShellOperators = false;
+      continue;
+    }
+
+    const assignment = /^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/u.exec(
+      remainder,
+    );
+    if (assignment) {
+      remainder = remainder.slice(assignment[0].length).trimStart();
+      continue;
+    }
+
+    const optionWithValue =
+      /^(?:-u|--unset|-C|--chdir)(?:=|\s+)(?:"[^"]*"|'[^']*'|[^\s]+)(?:\s+|$)/u.exec(remainder);
+    if (optionWithValue) {
+      remainder = remainder.slice(optionWithValue[0].length).trimStart();
+      continue;
+    }
+
+    const flag = /^(?:--ignore-environment|-i|--)(?:\s+|$)/u.exec(remainder);
+    if (flag) {
+      remainder = remainder.slice(flag[0].length).trimStart();
+      continue;
+    }
+    break;
+  }
+  return { segment: remainder, unwrapQuotedShellCommand, splitShellOperators };
 }
 
 function isCiWorkflow(file: string): boolean {

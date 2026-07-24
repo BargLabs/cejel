@@ -64,7 +64,7 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (django/test/__init__.py:1, sha256:5f5d82f7c94a))
-- A2 warning: A2 metric-derived score is 2.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Data layer migration (django/conf/app_template/migrations/__init__.py-tpl))
-- A4 warning: A4 metric-derived score is 2.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (docs/requirements.txt:1, sha256:aa58469ea781))
-- B2 warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/benchmark.yml:1, sha256:0458e12b829d))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (django/test/__init__.py:1, sha256:5f5d82f7c94a))
+- A2 finding severity warning (dimension band warning): A2 dimension band is warning at 2.8/4.0. Lowest contributing measurements: Environment handling depth 0/3 practices; Secret cleanliness 1/1 clean. To improve: document and enforce safe environment-secret handling; remove committed secrets and rotate any exposed credentials. (Data layer migration (django/conf/app_template/migrations/__init__.py-tpl))
+- A4 finding severity warning (dimension band warning): A4 dimension band is warning at 2.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 9/13 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (docs/requirements.txt:1, sha256:aa58469ea781))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (20 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/benchmark.yml:1, sha256:0458e12b829d))

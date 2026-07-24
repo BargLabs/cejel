@@ -20,10 +20,6 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 > monorepo — the ten-product studio it was built inside — which it currently scores
 > 3.1/4.0 ("Conditional"). We score ourselves before asking you to score yourself.
 
-The reusable Barg Labs listing mark is kept at [`brand/barg-icon.png`](./brand/barg-icon.png)
-for directories and registries that accept a custom image. GitHub Actions Marketplace uses
-GitHub's predefined `action.yml` branding icons instead.
-
 ## Install
 
 No account, no key, no signup.
@@ -65,12 +61,19 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel .
 ```
 
+If a root `package.json` still carries a template name, override only the certificate display
+name while keeping the repository-derived stable slug:
+
+```bash
+npx @cejel/cejel . --name "Customer Portal"
+```
+
 The npm package is scoped as `@cejel/cejel`; its executable remains the short command `cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
-- uses: BargLabs/cejel/action@v0.1.9
+- uses: BargLabs/cejel/action@v1
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
@@ -99,26 +102,17 @@ Microsoft Authenticode code-signing.
 **Docker / OCI.** The same MCP server is published as a non-root, multi-platform image:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.9
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.10
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.9 .
-```
-
-Beginning with v0.1.7, the standard CLI identity flags are also available directly, while an
-invocation without arguments continues to start the MCP server:
-
-```bash
-docker run --rm ghcr.io/barglabs/cejel:0.1.9 --version
-docker run --rm ghcr.io/barglabs/cejel:0.1.9 --help
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.10 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
-attestation. It is also the package referenced by [`server.json`](./server.json) for the
-Official MCP Registry.
+attestation.
 
 ## Leaderboard
 
@@ -199,40 +193,6 @@ This verifies the report schema and the report-to-attestation digest, repository
 timestamp, and outcome binding. It does not verify a signature or signer identity; the command
 prints that boundary on every successful verification.
 
-### Experimental Free LLM Pack
-
-The Free LLM Pack is an opt-in, pre-release static check for observable application-integrity
-and evaluation-hygiene weaknesses in supported LLM application code. It is still being calibrated;
-its results are experimental until the frozen untouched-cohort release gate reaches GO.
-
-```bash
-./cejel scan . --pack llm
-```
-
-The command writes the ordinary Cejel artifacts unchanged and adds `llm-report.json`,
-`llm-attestation.json`, and `llm-certificate.html`. The pack runs locally and offline: it does
-not call a model, execute the target application, or send source, prompts, or findings over the
-network. Its findings and status never alter the base Cejel score or verdict.
-
-The alpha recognizes fixture-backed JavaScript/TypeScript patterns around OpenAI, Anthropic,
-Vercel AI SDK, and named model-call shapes. It records LangChain imports as integration metadata,
-but a LangChain import alone does not establish v1 applicability or framework-specific coverage.
-Python coverage is narrower: it recognizes official OpenAI and Anthropic SDK call/response shapes
-for direct unsafe sinks, narrowly fixture-backed action validation and configured self-judge
-checks, unconditional model loops, and secret-like environment values in model requests. See
-[Free LLM Pack usage and limitations](./docs/packs/free-llm-usage.md) for the eight rule IDs,
-artifact verification, exact boundaries, and current limitations.
-
-The pack does **not** measure a model's hallucination rate, prove that an application is safe, or
-provide runtime enforcement. Its attestation is self-generated and unsigned unless an external
-signer binds an identity to it.
-
-The first frozen 24+24-repository calibration cycle ended in an
-[evidence-integrity NO-GO](./calibration/llm/reviews/v1.2-integrity-no-go-2026-07-23.md). The
-required actual-run compatibility record was not retained, so precision, recall, and
-false-positive rate are not estimable and Cejel makes no measured performance claim from that
-cycle.
-
 ### Flags
 
 - `<path>` — repo to score (default: current directory)
@@ -244,9 +204,6 @@ cycle.
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
-- `--pack llm` — run the opt-in experimental Free LLM Pack and write its separate evidence,
-  attestation, and HTML certificate artifacts. Repeatable pack syntax is supported; selecting the
-  same pack more than once still runs it once.
 - `--quiet` — suppress the terminal certificate (files are still written)
 - `-h`, `--help` — print usage and exit successfully
 - `-v`, `--version` — print the version derived from the package manifest and exit successfully
@@ -264,9 +221,10 @@ honestly rather than guessing:
   dependency hygiene, audit trail, secrets), but without ecosystem-specific test-framework
   tuning.
 - **Recognised but unmodelled** — shell, R, Lua, Julia, Haskell, Terraform, SQL, Perl, OCaml,
-  Clojure, Erlang, Nim, Zig, F#, Groovy: counted as source so a repo isn't misread as empty,
-  but with the least ecosystem-specific tuning of the three tiers.
-- **Not yet recognised** — other ecosystems, including COBOL, Fortran, and MATLAB. Cejel does
+  Clojure, Erlang, Nim, Zig, F#, Groovy, Fortran, CUDA/HIP, Web templates/styles: counted as
+  source so a repo isn't misread as empty, but with the least ecosystem-specific tuning of the
+  three tiers.
+- **Not yet recognised** — other ecosystems, including COBOL and MATLAB. Cejel does
   not score these as "source" at all: a repository with zero
   recognised-extension files gets the `unrecognised_ecosystem` archetype, an explicit
   `insufficient_data` criterion status, `null` headline scores, and an explicit machine verdict
@@ -361,7 +319,7 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
-- uses: BargLabs/cejel/action@v0.1.9
+- uses: BargLabs/cejel/action@v1
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```
@@ -372,10 +330,6 @@ The same package ships a second bin, `cejel-mcp` — a thin MCP (Model Context P
 server over stdio, so any MCP client (Claude Code, Cowork, Cursor, Codex) can request a
 trust certificate as a tool call. It wraps the exact same scan the CLI runs — same scores,
 same verdict — and is listed on Smithery via the repo's `smithery.yaml`.
-
-The canonical discovery manifest is [`server.json`](./server.json), published under
-`io.github.BargLabs/cejel` in the Official MCP Registry. Its npm ownership metadata,
-OCI ownership label, image version, and registry version are checked together before release.
 
 Add it to an MCP client config:
 
@@ -440,7 +394,7 @@ enforced structurally — the public artifacts are built from filtered data rath
 rendered and then scrubbed — and a build that would emit a private path fails rather than
 publishes.
 
-**What we exclude from ranking.** The v6 repository scanner does not evaluate B1 (dispatch
+**What we exclude from ranking.** The v5 repository scanner does not evaluate B1 (dispatch
 trace completeness) or B5 (verified learning trace) for repository inputs, including ours:
 both are always *not applicable* in a repository certificate. They remain defined in the
 rubric for structured substrate evidence, but that evidence is not accepted by this scanner.
@@ -522,13 +476,18 @@ scoring tool that has not been checked:
   detected even though `test.js` was present at the repository root. That was a detection gap
   in Cejel, not evidence about the repository. Rubric v6 recognizes AVA's `test.js` and
   `test-*.js` conventions; a regression fixture preserves the correction.
-- **A category with no measured dimensions looked like a real failing `0.0`.** Version 0.1.9
-  labels that state `not measured` in the HTML certificate and prints the measured-coverage
-  context. A genuine measured zero remains `0.0`; JSON report, summary, and badge contracts are
-  unchanged.
-- **A saturated metric rendered a broken-looking numerator larger than its denominator.**
-  Version 0.1.9 leads with the scoring cap and keeps the observation explicit — for example,
-  `2 signals (capped; 4 raw)` — instead of printing `4/2 signals`.
+- **Version 0.1.9 claimed Express had no coverage configuration while its package scripts used
+  `nyc`.** The detector looked only for standalone coverage files and framework configuration.
+  Version 0.1.10 also recognizes actual `nyc`, `c8`, and Istanbul commands or configuration in
+  `package.json`. An unused dependency is not treated as coverage evidence. This removes a false
+  finding without changing the measured coverage score.
+- **Metric-only dimension bands told users that “combined metric weighting” was responsible,
+  then stopped.** The underlying metrics were present in the full certificate but absent from
+  the terminal finding, and `info` finding severity could appear beside a `critical` dimension
+  band without naming the two different concepts. Version 0.1.10 prints the two lowest
+  contributing measurements, concrete next actions, `finding severity`, and `dimension band`
+  explicitly. It also explains when a requested scan target is gitignored instead of presenting
+  the target as a generic empty repository.
 
 Every one was a trust failure produced by *us* — false alarms about other people's code,
 silent omissions, inconsistent presentation, or a home-only scoring path — and we would

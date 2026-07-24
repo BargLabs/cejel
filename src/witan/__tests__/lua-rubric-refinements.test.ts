@@ -215,6 +215,620 @@ describe('A1 — a lean built-in test toolchain (node:test) with no heavy test d
     const a1 = signalFor(dir, 'A1');
     expect(a1?.findings?.some((f) => /no coverage configuration/i.test(f.summary))).toBe(true);
   });
+
+  it.each([
+    {
+      label: 'nyc script',
+      scripts: { test: 'nyc mocha' },
+      devDependencies: { mocha: '10.8.2', nyc: '17.1.0' },
+      config: undefined,
+    },
+    {
+      label: 'c8 package.json config',
+      scripts: { test: 'mocha' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+      config: { c8: { all: true } },
+    },
+    {
+      label: 'istanbul script',
+      scripts: { test: 'istanbul cover node_modules/mocha/bin/_mocha' },
+      devDependencies: { mocha: '10.8.2', istanbul: '0.4.5' },
+      config: undefined,
+    },
+    {
+      label: 'cross-env wrapped c8 script',
+      scripts: { test: 'cross-env NODE_ENV=test c8 node --test' },
+      devDependencies: { c8: '10.1.3', 'cross-env': '7.0.3' },
+      config: undefined,
+    },
+    {
+      label: 'env wrapped nyc script with options',
+      scripts: { test: 'env -i -u DEBUG NODE_ENV=test npm exec --yes -- nyc mocha' },
+      devDependencies: { mocha: '10.8.2', nyc: '17.1.0' },
+      config: undefined,
+    },
+    {
+      label: 'cross-env-shell quoted c8 pipeline',
+      scripts: {
+        test: 'cross-env-shell NODE_ENV=test "c8 node --test && echo covered | tee coverage.log"',
+      },
+      devDependencies: { c8: '10.1.3', 'cross-env': '7.0.3' },
+      config: undefined,
+    },
+    {
+      label: 'env split-string with pnpm dlx',
+      scripts: { test: 'env -S "NODE_ENV=test pnpm dlx c8 node --test"' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'env split-string with an explicit shell command',
+      scripts: { test: `env -S "sh -c 'echo setup && c8 node --test'"` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'env split-string with an unquoted one-word shell command',
+      scripts: { test: 'env -S "sh -c c8"' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'direct unquoted one-word shell command',
+      scripts: { test: 'sh -c c8' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'login shell with an escaped-quote command string',
+      scripts: { test: String.raw`bash -lc "echo \"setup\" && c8 node --test"` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'separate login and command option tokens',
+      scripts: { test: `bash -l -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'bash pipefail option before the command string',
+      scripts: { test: `bash -o pipefail -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'bash shopt option before the command string',
+      scripts: { test: `bash -O extglob -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'bash long option before the command string',
+      scripts: { test: `bash --noprofile -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'bash login long option before the command string',
+      scripts: { test: `bash --login -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'POSIX sh set-option before the command string',
+      scripts: { test: `sh -o errexit -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'dash set-option before the command string',
+      scripts: { test: `dash -o errexit -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'compact Bash option with a trailing set-option operand',
+      scripts: { test: `bash -eo pipefail -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh login option before the command string',
+      scripts: { test: `zsh -l -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'dash stdin option before the command string',
+      scripts: { test: `dash -s -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'POSIX sh monitor option before the command string',
+      scripts: { test: `sh -m -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'dash interactive option before the command string',
+      scripts: { test: `dash -i -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'dash login option before the command string',
+      scripts: { test: `dash -l -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'POSIX sh interactive option before the command string',
+      scripts: { test: `sh -i -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh interactive option before the command string',
+      scripts: { test: `zsh -i -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh privileged option before the command string',
+      scripts: { test: `zsh -p -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh stdin option before the command string',
+      scripts: { test: `zsh -s -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh uppercase named option before the command string',
+      scripts: { test: `zsh -o ERREXIT -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh inverted uppercase named option before the command string',
+      scripts: { test: `zsh -o NO_ERREXIT -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh plus-inverted uppercase named option before the command string',
+      scripts: { test: `zsh +o NO_ERREXIT -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh named interactive invocation option before the command string',
+      scripts: { test: `zsh -o INTERACTIVE -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh inverted named interactive invocation option before the command string',
+      scripts: { test: `zsh +o NO_INTERACTIVE -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh named login invocation option before the command string',
+      scripts: { test: `zsh -o LOGIN -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh named privileged invocation option before the command string',
+      scripts: { test: `zsh -o PRIVILEGED -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh named shinstdin invocation option before the command string',
+      scripts: { test: `zsh -o SHIN_STDIN -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh named stdin invocation option before the command string',
+      scripts: { test: `zsh -o STDIN -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh canonical exec option before the command string',
+      scripts: { test: `zsh -o EXEC -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh canonical exec option reverses noexec',
+      scripts: { test: `zsh -o NO_EXEC -o EXEC -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh disabling noexec reverses disabled exec',
+      scripts: { test: `zsh +o EXEC +o NO_EXEC -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long exec option before the command string',
+      scripts: { test: `zsh --exec -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long inverted option before the command string',
+      scripts: { test: `zsh --no-errexit -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long stdin option before the command string',
+      scripts: { test: `zsh --stdin -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long shinstdin option before the command string',
+      scripts: { test: `zsh --shinstdin -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long interactive option before the command string',
+      scripts: { test: `zsh --interactive -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long login option before the command string',
+      scripts: { test: `zsh --login -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long privileged option before the command string',
+      scripts: { test: `zsh --privileged -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh long inverted invocation option before the command string',
+      scripts: { test: `zsh --nointeractive -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh plus-long inverted option before the command string',
+      scripts: { test: `zsh +-no-errexit -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh plus-long noexec option restores execution',
+      scripts: { test: `zsh +-no-exec -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'zsh underscored noexec option is reversible',
+      scripts: { test: `zsh -o NO_EXEC +o NO_EXEC -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'Bash noexec disabled before the command string',
+      scripts: { test: `bash -n +n -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'Bash named noexec disabled before the command string',
+      scripts: { test: `bash -o noexec +o noexec -c 'c8 node --test'` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'double-quoted literal hash before a real command',
+      scripts: { test: String.raw`sh -c "echo \# && c8 node --test"` },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'double-quoted line continuation before a real command',
+      scripts: {
+        test: String.raw`sh -c "echo setup \
+&& c8 node --test"`,
+      },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'single-quoted backslash before a real coverage command',
+      scripts: { test: "echo 'foo\\' && c8 node --test" },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'background boundary before a real coverage command',
+      scripts: { test: 'echo setup & yarn exec c8 node --test' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'real coverage command after a comment newline',
+      scripts: { test: 'echo disabled # c8 is commented out\nc8 node --test' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'grouped command with the command builtin',
+      scripts: { test: '(command -- c8 node --test)' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+    {
+      label: 'timed coverage command',
+      scripts: { test: 'time -p c8 node --test' },
+      devDependencies: { c8: '10.1.3' },
+      config: undefined,
+    },
+  ])('recognizes package.json coverage tooling: $label', ({ scripts, devDependencies, config }) => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'package-coverage-library',
+        version: '1.0.0',
+        scripts,
+        devDependencies,
+        ...config,
+      }),
+    );
+    writeFile(dir, 'src/index.ts', 'export const value = 1;\n');
+    writeFile(dir, 'test/index.test.ts', "it('works', () => { expect(1).toBe(1); });\n");
+
+    const a1 = signalFor(dir, 'A1');
+    expect(
+      a1?.findings?.some((finding) => /no coverage configuration/i.test(finding.summary)),
+    ).toBe(false);
+    expect(
+      a1?.positiveEvidence?.some(
+        (evidence) =>
+          evidence.kind === 'coverage' &&
+          evidence.path === 'package.json' &&
+          evidence.label === 'Coverage configuration',
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    {
+      label: 'unused c8 dependency',
+      scripts: { test: 'mocha' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'non-command c8 mention',
+      scripts: { test: 'mocha', note: 'echo "hello | c8 node --test"' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'quoted nyc mention after a pipeline character',
+      scripts: { test: 'mocha', note: 'printf "message | nyc mocha"' },
+      devDependencies: { mocha: '10.8.2', nyc: '17.1.0' },
+    },
+    {
+      label: 'whole-command quoted executable name',
+      scripts: { test: 'mocha', note: '"echo setup && c8 node --test"' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'coverage command after an unquoted comment marker',
+      scripts: { test: 'mocha', note: 'echo disabled # && c8 node --test' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'builtin cannot execute an external coverage tool',
+      scripts: { test: 'mocha', note: 'builtin c8 node --test' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'unclosed shell group',
+      scripts: { test: 'mocha', note: '(c8 node --test' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'env split-string inert coverage argument',
+      scripts: { test: 'mocha', note: 'env -S "echo disabled && c8 node --test"' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'shell positional argument is not a command',
+      scripts: { test: 'mocha', note: 'sh -c echo c8' },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'bash arithmetic evaluation is not a subshell command',
+      scripts: { test: 'mocha', note: `bash -c '(( c8 ))'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'double-quoted escaped semicolon is not a command boundary',
+      scripts: { test: 'mocha', note: String.raw`sh -c "echo setup \; c8 node --test"` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'invalid Bash short option',
+      scripts: { test: 'mocha', note: `bash -Q -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'invalid Bash set-option operand',
+      scripts: {
+        test: 'mocha',
+        note: `bash -o definitely_not_a_shell_option -c 'c8 node --test'`,
+      },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash-only long option passed to sh',
+      scripts: { test: 'mocha', note: `sh --noprofile -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash-only shopt option passed to dash',
+      scripts: { test: 'mocha', note: `dash -O extglob -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash noexec before the command string',
+      scripts: { test: 'mocha', note: `bash -n -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'compact Bash noexec before the command string',
+      scripts: { test: 'mocha', note: `bash -nc 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash named noexec before the command string',
+      scripts: { test: 'mocha', note: `bash -o noexec -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'POSIX sh noexec before the command string',
+      scripts: { test: 'mocha', note: `sh -n -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'dash noexec before the command string',
+      scripts: { test: 'mocha', note: `dash -n -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash debug-strings mode implies noexec',
+      scripts: { test: 'mocha', note: `bash -D -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash debug-strings mode survives disabling noexec',
+      scripts: { test: 'mocha', note: `bash -D +n -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash plus-D mode is also dump-only',
+      scripts: { test: 'mocha', note: `bash +D -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash plus-D mode survives disabling noexec',
+      scripts: { test: 'mocha', note: `bash +D +n -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash debug-strings mode is not reversed by plus-D',
+      scripts: { test: 'mocha', note: `bash -D +D -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'Bash debug-strings mode survives disabling named noexec',
+      scripts: { test: 'mocha', note: `bash -D +o noexec -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'version-dependent dash privileged option',
+      scripts: { test: 'mocha', note: `dash -p -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'zsh underscored noexec remains enabled',
+      scripts: { test: 'mocha', note: `zsh -o NO_EXEC -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'zsh canonical exec option remains disabled',
+      scripts: { test: 'mocha', note: `zsh +o EXEC -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'zsh long noexec option remains enabled',
+      scripts: { test: 'mocha', note: `zsh --noexec -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'zsh plus-long exec option remains disabled',
+      scripts: { test: 'mocha', note: `zsh +-exec -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'zsh double-inverted named option fails closed',
+      scripts: { test: 'mocha', note: `zsh -o NO_NO_ERREXIT -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'zsh double-inverted named invocation option fails closed',
+      scripts: { test: 'mocha', note: `zsh -o NO_NO_INTERACTIVE -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'uppercase Bash named option',
+      scripts: { test: 'mocha', note: `bash -o ERREXIT -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'uppercase dash named option',
+      scripts: { test: 'mocha', note: `dash -o ERREXIT -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'uppercase POSIX sh named option',
+      scripts: { test: 'mocha', note: `sh -o ERREXIT -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+    {
+      label: 'uppercase ksh named option fails closed',
+      scripts: { test: 'mocha', note: `ksh -o ERREXIT -c 'c8 node --test'` },
+      devDependencies: { mocha: '10.8.2', c8: '10.1.3' },
+    },
+  ])('does not invent coverage configuration from $label', ({ scripts, devDependencies }) => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({
+        name: 'package-without-coverage',
+        version: '1.0.0',
+        scripts,
+        devDependencies,
+      }),
+    );
+    writeFile(dir, 'src/index.ts', 'export const value = 1;\n');
+    writeFile(dir, 'test/index.test.ts', "it('works', () => { expect(1).toBe(1); });\n");
+
+    const a1 = signalFor(dir, 'A1');
+    expect(
+      a1?.findings?.some((finding) => /no coverage configuration/i.test(finding.summary)),
+    ).toBe(true);
+    expect(
+      a1?.positiveEvidence?.some(
+        (evidence) =>
+          evidence.kind === 'coverage' &&
+          evidence.path === 'package.json' &&
+          evidence.label === 'Coverage configuration',
+      ),
+    ).toBe(false);
+  });
 });
 
 // ─── 4. A2 — bounded crypto-comparison hygiene nudge ────────────────────────

@@ -67,5 +67,5 @@
 
 ## Findings
 
-- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5))
-- B3 warning: B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (23 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5))
+- B3 finding severity warning (dimension band warning): B3 dimension band is warning at 2.7/4.0. Lowest contributing measurements: CI verification depth 1/4 signals; PR-gate CI workflow count 4 workflows capped (9 raw). To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5))

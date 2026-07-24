@@ -2,10 +2,21 @@ import { formatExternalSourceLine } from './witan/index.js';
 
 import type { WitanCliSummary } from './summary.js';
 
+export function renderMinScoreAbstentionFailure(
+  summary: WitanCliSummary,
+  minScore: number,
+): string {
+  if (summary.verdict !== 'Insufficient source' && summary.verdict !== 'Insufficient evidence') {
+    throw new Error('A minimum-score abstention message requires an abstained Cejel summary.');
+  }
+  return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because this repository has ${summary.verdict.toLowerCase()}.\n`;
+}
+
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
 export function renderTerminalCertificate(summary: WitanCliSummary): string {
-  const abstained = summary.verdict === 'Insufficient source';
+  const abstained =
+    summary.verdict === 'Insufficient source' || summary.verdict === 'Insufficient evidence';
   if (
     !abstained &&
     (summary.overallScore === null ||
@@ -19,8 +30,8 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
     ? [
         `Cejel Trust Certificate — ${summary.productDisplayName}`,
         '',
-        'Insufficient source to certify.',
-        `  ${summary.insufficientSourceReason ?? 'No ratable source was found.'}`,
+        `${summary.verdict} to certify.`,
+        `  ${summary.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.'}`,
         '',
       ]
     : [
@@ -50,9 +61,13 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
   } else if (summary.topFindings.length === 0) {
     lines.push('No evidence-backed findings.');
   } else {
-    lines.push(`Top findings (${summary.findingCount} total):`);
+    lines.push(
+      `Top findings (${summary.findingCount} total; labels distinguish finding severity from dimension band):`,
+    );
     for (const finding of summary.topFindings) {
-      lines.push(`  [${finding.severity}] ${finding.criterionId}: ${finding.summary}`);
+      lines.push(
+        `  [finding severity: ${finding.severity}] ${finding.criterionId} [dimension band: ${finding.dimensionBand}]: ${finding.displaySummary ?? finding.summary}`,
+      );
     }
     const remaining = summary.findingCount - summary.topFindings.length;
     if (remaining > 0) {

@@ -1,9 +1,9 @@
 # Cejel OSS trust leaderboard
 
 - Run date: 2026-07-24T06:45:20.555Z
-- Cejel version: @cejel/cejel@0.1.9 (2a6077355dea)
+- Cejel version: @cejel/cejel@0.1.10 (9a65675)
 - Rubric version: witan-rubric-v9-2026-07-22
-- Run environment: Regenerated from the v0.1.9 release candidate; public repository pins reused, Alfred rescored from candidate commit.
+- Run environment: 0.1.10 presentation artifacts regenerated from the committed v9 reports; scores, verdicts, pins, and rubric are unchanged.
 
 ## How to read this board
 

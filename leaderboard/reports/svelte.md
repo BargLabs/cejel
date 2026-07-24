@@ -67,7 +67,7 @@
 
 ## Findings
 
-- A4 warning: A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (packages/svelte/package.json:1, sha256:1b17c4f21e75))
-- A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:f58cdd71cf9d))
-- B2 warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676))
-- B4 warning: B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916))
+- A4 finding severity warning (dimension band warning): A4 dimension band is warning at 3.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 60/60 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (packages/svelte/package.json:1, sha256:1b17c4f21e75))
+- A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:f58cdd71cf9d))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (6 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676))
+- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916))

@@ -63,8 +63,8 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (internal/bundler_tests/bundler_css_test.go:1, sha256:4ca59971537d))
-- A4 warning: A4 metric-derived score is 3.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (npm/esbuild/package.json:1, sha256:d55d1d19fcc5))
-- A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:d9233b2fb0eb))
-- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:a028444642bb))
-- B4 warning: B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Audit or changelog artifact (CHANGELOG.md:1, sha256:994fc1638806))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (internal/bundler_tests/bundler_css_test.go:1, sha256:4ca59971537d))
+- A4 finding severity warning (dimension band warning): A4 dimension band is warning at 3.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 59/59 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (npm/esbuild/package.json:1, sha256:d55d1d19fcc5))
+- A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:d9233b2fb0eb))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (4 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:a028444642bb))
+- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (CHANGELOG.md:1, sha256:994fc1638806))

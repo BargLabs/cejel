@@ -83,7 +83,7 @@
 
 ## Findings
 
-- A1 warning: A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record. (Scheduled product-health workflow (path withheld — private repository, sha256:8d3281f0ca90))
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (path withheld — private repository, sha256:4089241dc743))
-- A2 critical: Secret-shaped value appears committed in the scanned repository. (Committed secret-shaped value (value redacted; length 44; classes lower+upper+digit) (path withheld — private repository, sha256:d22617948633))
-- A4 warning: A4 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Dependency manifest (path withheld — private repository, sha256:a927e01eac32))
+- A1 finding severity warning (dimension band warning): A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record. (Scheduled product-health workflow (path withheld — private repository, sha256:8d3281f0ca90))
+- A1 finding severity info (dimension band warning): Test suite files are present, but no coverage configuration was detected. (Detected test file (path withheld — private repository, sha256:4089241dc743))
+- A2 finding severity critical (dimension band critical): Secret-shaped value appears committed in the scanned repository. (Committed secret-shaped value (value redacted; length 44; classes lower+upper+digit) (path withheld — private repository, sha256:d22617948633))
+- A4 finding severity warning (dimension band warning): A4 dimension band is warning at 2.2/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Pinned dependency ratio 62/210 ratio. To improve: enable automated dependency updates and an audit command; pin application dependencies that determine the deployed artifact. (Dependency manifest (path withheld — private repository, sha256:a927e01eac32))

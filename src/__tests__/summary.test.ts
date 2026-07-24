@@ -51,7 +51,50 @@ describe('buildWitanCliSummary', () => {
     const summary = buildWitanCliSummary(report);
 
     expect(summary.topFindings.map((f) => f.severity)).toEqual(['critical', 'warning', 'info']);
+    expect(summary.topFindings.map((f) => f.dimensionBand)).toEqual([
+      'warning',
+      'warning',
+      'warning',
+    ]);
     expect(summary.findingCount).toBe(3);
+  });
+
+  it('turns a metric-only band into actionable copy while preserving both labels', () => {
+    const rawSummary =
+      'B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.';
+    const criterion = findingCriterion('B4', [
+      {
+        severity: 'warning',
+        summary: rawSummary,
+      },
+    ]);
+    criterion.metrics = [
+      {
+        name: 'audit_artifact_depth',
+        label: 'Audit artifact depth',
+        value: 0,
+        max: 4,
+        weight: 0.6,
+      },
+      {
+        name: 'audit_freshness_depth',
+        label: 'Audit freshness depth',
+        value: 1,
+        max: 4,
+        weight: 0.4,
+      },
+    ];
+
+    const finding = buildWitanCliSummary(fixtureReport([criterion])).topFindings[0];
+    expect(finding).toMatchObject({ severity: 'warning', dimensionBand: 'warning' });
+    expect(finding?.summary).toBe(rawSummary);
+    expect(finding?.displaySummary).toContain(
+      'Lowest contributing measurements: Audit artifact depth 0/4; Audit freshness depth 1/4.',
+    );
+    expect(finding?.displaySummary).toContain(
+      'To improve: publish changelog, incident, security, or audit records',
+    );
+    expect(finding?.displaySummary).not.toContain('combined metric weighting');
   });
 
   it('caps topFindings at 5 while findingCount reflects the true total', () => {
@@ -82,6 +125,36 @@ describe('buildWitanCliSummary', () => {
     const summary = buildWitanCliSummary(report);
     expect(summary.topFindings).toEqual([]);
     expect(summary.findingCount).toBe(0);
+  });
+
+  it('distinguishes an all-unmeasured source tree from structural source absence', () => {
+    const report: WitanReport = {
+      productSlug: 'unmeasured-source',
+      productDisplayName: 'Unmeasured source',
+      repo: { path: '/tmp/unmeasured-source' },
+      generatedAt: '2026-07-24T00:00:00.000Z',
+      rubricVersion: 'witan-rubric-v16-2026-07-24',
+      verdict: 'insufficient_source',
+      codeTrustScore: null,
+      processTrustScore: null,
+      overallScore: null,
+      insufficientSourceReason:
+        'No free-core rubric criterion produced a measurable signal. Cejel abstains rather than publish a numeric zero for an entirely unmeasured repository.',
+      criteria: [
+        {
+          id: 'A1',
+          title: 'Test integrity',
+          category: 'code_trust',
+          score: 0,
+          status: 'insufficient_data',
+          evidence: [],
+          findings: [],
+          metrics: [],
+        },
+      ],
+    };
+
+    expect(buildWitanCliSummary(report).verdict).toBe('Insufficient evidence');
   });
 
   it('dedupes and sorts contributing sources from consumedSignals', () => {

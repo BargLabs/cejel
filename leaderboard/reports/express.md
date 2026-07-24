@@ -41,8 +41,8 @@
 - A1: Detected test file (test/acceptance/downloads.js:2, sha256:404320d52882)
 - A1: Detected test file (test/acceptance/ejs.js:2, sha256:3babd4b53917)
 - A1: Configured test runner (package.json:1, sha256:01f5d42cf38c)
+- A1: Coverage configuration (package.json:1, sha256:01f5d42cf38c)
 - A1: CI workflow runs the test suite (.github/workflows/ci.yml:1, sha256:f50b3232db78)
-- A1: Detected test file (test/Route.js:1, sha256:4607c2b70f5b) (info)
 - A2: N/A — No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.
 - A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.
 - A4: Dependency manifest (package.json:1, sha256:01f5d42cf38c)
@@ -63,6 +63,5 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (test/Route.js:1, sha256:4607c2b70f5b))
-- B2 warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:f50b3232db78))
-- B4 warning: B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Audit or changelog artifact (History.md:1, sha256:bd9f9bf85316))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (4 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:f50b3232db78))
+- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (History.md:1, sha256:bd9f9bf85316))
