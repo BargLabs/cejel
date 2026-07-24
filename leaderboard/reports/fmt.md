@@ -65,7 +65,7 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (test/add-subdirectory-test/main.cc:1, sha256:400f01bbe88c))
-- A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:26b23c0cda15))
-- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/codeql.yml:1, sha256:252ba92b5c3e))
-- B6 warning: B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:524103c7d5ec))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (test/add-subdirectory-test/main.cc:1, sha256:400f01bbe88c))
+- A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:26b23c0cda15))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (11 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/codeql.yml:1, sha256:252ba92b5c3e))
+- B6 finding severity warning (dimension band warning): B6 dimension band is warning at 4.0/4.0. Lowest contributing measurements: Protected-path review gate 1/1 present; Privilege-escalation cleanliness 1/1 clean. To improve: require review for changes to protected paths; remove unsafe privilege-escalation patterns. (CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:524103c7d5ec))

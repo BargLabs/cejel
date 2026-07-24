@@ -79,6 +79,13 @@
           "contentHash": "01f5d42cf38cc1118cd9c1259b0d246f5414ae883f8e1c7c3ee55f984fb31a4f"
         },
         {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "01f5d42cf38cc1118cd9c1259b0d246f5414ae883f8e1c7c3ee55f984fb31a4f"
+        },
+        {
           "kind": "test_run",
           "label": "CI workflow runs the test suite",
           "path": ".github/workflows/ci.yml",
@@ -86,19 +93,7 @@
           "contentHash": "f50b3232db78b8c01823594acca31686d49f56f4db955b68c656803101886a11"
         }
       ],
-      "findings": [
-        {
-          "severity": "info",
-          "summary": "Test suite files are present, but no coverage configuration was detected.",
-          "evidence": {
-            "kind": "test_run",
-            "label": "Detected test file",
-            "path": "test/Route.js",
-            "line": 1,
-            "contentHash": "4607c2b70f5b897c1cb85f8a2bc1067944c4b36828bc73d140732851acc9782e"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "test_to_source_ratio",

@@ -31,3 +31,14 @@ export const WITAN_RUBRIC_VERSION_V14 = 'witan-rubric-v14-2026-07-23';
 // The public default remains unchanged until an authenticated untouched holdout clears every
 // preregistered gate.
 export const WITAN_RUBRIC_VERSION_V15 = 'witan-rubric-v15-2026-07-24';
+
+// Prospective free-core v48 rubric. V16 inherits the complete v15 detector and classifier
+// closure, then adds only the failure-derived zero-measurement abstention. The public default
+// remains unchanged until a fresh authenticated untouched holdout clears every gate.
+export const WITAN_RUBRIC_VERSION_V16 = 'witan-rubric-v16-2026-07-24';
+
+// Prospective free-core v50 rubric. V17 inherits the complete v16 detector/scoring closure,
+// then adds only the failure-derived reviewable-source proof, authenticated A1 absence
+// measurement, and narrowly bounded post-signal structural rescue. The public default remains
+// unchanged until a fresh authenticated untouched holdout clears every gate.
+export const WITAN_RUBRIC_VERSION_V17 = 'witan-rubric-v17-2026-07-24';

@@ -178,6 +178,10 @@ describe('cejel install-from-tarball (published artifact)', () => {
           args = [flag, '0', targetRepo, '--quiet'];
           expectedOutDir = '.cejel';
           break;
+        case 'name':
+          args = [flag, 'Customer Portal', targetRepo, '--quiet'];
+          expectedOutDir = '.cejel';
+          break;
         case 'ingest':
           args = [flag, sarifPath, targetRepo, '--quiet'];
           expectedOutDir = '.cejel';

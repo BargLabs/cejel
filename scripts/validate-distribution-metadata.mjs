@@ -15,7 +15,8 @@ const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.ur
 const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
 const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
 const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
-const ACTION_PATH = new URL('../action/action.yml', import.meta.url);
+const ROOT_ACTION_PATH = new URL('../action.yml', import.meta.url);
+const NESTED_ACTION_PATH = new URL('../action/action.yml', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
@@ -27,12 +28,15 @@ const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
 const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
 const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
 const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
-const action = readFileSync(ACTION_PATH, 'utf8');
+const rootAction = readFileSync(ROOT_ACTION_PATH, 'utf8');
+const nestedAction = readFileSync(NESTED_ACTION_PATH, 'utf8');
 const ACTION_USE_PATTERN = /^\s*(?:-\s*)?uses:\s*([^#\s]+)(?:\s+#.*)?$/gm;
 
 function requireEqual(actual, expected, field) {
   if (actual !== expected) {
-    throw new Error(`${field} mismatch: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}.`);
+    throw new Error(
+      `${field} mismatch: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}.`,
+    );
   }
 }
 
@@ -51,7 +55,9 @@ requireEqual(serverManifest.icons?.[0]?.src, 'https://cejel.dev/brand-icon.png',
 const ociPackage = serverManifest.packages?.find((entry) => entry.registryType === 'oci');
 if (!ociPackage) throw new Error('server.json must declare an OCI package.');
 if ('version' in ociPackage) {
-  throw new Error('OCI package must encode its version in identifier, not a separate version field.');
+  throw new Error(
+    'OCI package must encode its version in identifier, not a separate version field.',
+  );
 }
 requireEqual(
   ociPackage.identifier,
@@ -60,11 +66,7 @@ requireEqual(
 );
 requireEqual(ociPackage.transport?.type, 'stdio', 'OCI transport');
 
-requireIncludes(
-  dockerfile,
-  `ARG VERSION=${packageManifest.version}`,
-  'Dockerfile default version',
-);
+requireIncludes(dockerfile, `ARG VERSION=${packageManifest.version}`, 'Dockerfile default version');
 requireIncludes(
   dockerfile,
   `io.modelcontextprotocol.server.name="${packageManifest.mcpName}"`,
@@ -100,19 +102,11 @@ if (mcpPublishJobStart < 0) {
   throw new Error('distribution workflow must define the MCP registry publish job.');
 }
 const mcpPublishJob = distributionWorkflow.slice(mcpPublishJobStart);
-requireIncludes(
-  mcpPublishJob,
-  'ref: ${{ inputs.release_tag }}',
-  'MCP registry publish checkout',
-);
+requireIncludes(mcpPublishJob, 'ref: ${{ inputs.release_tag }}', 'MCP registry publish checkout');
 if (mcpPublishJob.includes('ref: ${{ github.sha }}')) {
   throw new Error('MCP registry publish checkout must not use the dispatch commit.');
 }
-requireIncludes(
-  mcpPublishJob,
-  'MCP_PUBLISHER_VERSION: v1.8.0',
-  'pinned MCP publisher version',
-);
+requireIncludes(mcpPublishJob, 'MCP_PUBLISHER_VERSION: v1.8.0', 'pinned MCP publisher version');
 requireIncludes(
   mcpPublishJob,
   'MCP_PUBLISHER_LINUX_AMD64_SHA256: 1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf',
@@ -127,13 +121,10 @@ if (mcpPublishJob.includes('/releases/latest/')) {
   throw new Error('MCP publisher download must use a pinned release, not releases/latest.');
 }
 
-requireEqual(
-  leaderboardIndex,
-  leaderboard,
-  'deployed leaderboard index/leaderboard artifact',
-);
+requireEqual(leaderboardIndex, leaderboard, 'deployed leaderboard index/leaderboard artifact');
 
-requireIncludes(ciWorkflow, 'uses: ./action', 'CI candidate Action smoke');
+requireIncludes(ciWorkflow, '\n        uses: ./\n', 'CI root candidate Action smoke');
+requireIncludes(ciWorkflow, '\n        uses: ./action\n', 'CI nested candidate Action smoke');
 requireIncludes(ciWorkflow, 'test -s .cejel-action/report.json', 'CI candidate report assertion');
 requireIncludes(
   ciWorkflow,
@@ -141,9 +132,49 @@ requireIncludes(
   'CI candidate certificate assertion',
 );
 requireIncludes(ciWorkflow, 'test -s .cejel-action/summary.json', 'CI candidate summary assertion');
-requireIncludes(ciWorkflow, 'path: .cejel-action/', 'CI candidate artifact upload');
+requireIncludes(
+  ciWorkflow,
+  'test -s .cejel-action-nested/report.json',
+  'CI nested candidate report assertion',
+);
+requireIncludes(
+  ciWorkflow,
+  'test -s .cejel-action-nested/certificate.html',
+  'CI nested candidate certificate assertion',
+);
+requireIncludes(
+  ciWorkflow,
+  'test -s .cejel-action-nested/summary.json',
+  'CI nested candidate summary assertion',
+);
+requireIncludes(ciWorkflow, '.cejel-action/', 'CI root candidate artifact upload');
+requireIncludes(ciWorkflow, '.cejel-action-nested/', 'CI nested candidate artifact upload');
 requireIncludes(ciWorkflow, 'include-hidden-files: true', 'CI hidden artifact upload');
 requireIncludes(ciWorkflow, 'if-no-files-found: error', 'CI missing-artifact failure');
+
+requireIncludes(
+  rootAction,
+  'cd "${{ github.action_path }}"',
+  'root Action repository working directory',
+);
+requireIncludes(
+  rootAction,
+  'node "${{ github.action_path }}/action/run.mjs"',
+  'root Action runner path',
+);
+requireIncludes(
+  nestedAction,
+  'cd "$(dirname "${{ github.action_path }}")"',
+  'nested Action repository working directory',
+);
+requireIncludes(
+  nestedAction,
+  'node "${{ github.action_path }}/run.mjs"',
+  'nested Action runner path',
+);
+if (rootAction === nestedAction) {
+  throw new Error('Root and nested Action manifests must use distinct relative paths.');
+}
 
 const listFormActionReference = 'owner/action@0123456789abcdef0123456789abcdef01234567';
 requireEqual(
@@ -157,7 +188,8 @@ for (const [name, workflow] of [
   ['distribution workflow', distributionWorkflow],
   ['CLA workflow', claWorkflow],
   ['CI workflow', ciWorkflow],
-  ['advertised composite action', action],
+  ['root advertised composite action', rootAction],
+  ['nested compatibility composite action', nestedAction],
 ]) {
   for (const match of workflow.matchAll(ACTION_USE_PATTERN)) {
     const reference = match[1];

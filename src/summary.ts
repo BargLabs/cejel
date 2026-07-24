@@ -9,12 +9,16 @@ import {
   summarizeExternalSources,
 } from './witan/index.js';
 
+import { renderFindingSummary } from './finding-presentation.js';
+
 type WitanFindingSeverity = WitanReport['criteria'][number]['findings'][number]['severity'];
 
 export interface WitanCliFinding {
   criterionId: string;
   severity: WitanFindingSeverity;
+  dimensionBand: WitanReport['criteria'][number]['status'];
   summary: string;
+  displaySummary?: string;
 }
 
 export interface WitanCliSummary {
@@ -24,7 +28,13 @@ export interface WitanCliSummary {
   overallScore: number | null;
   codeTrustScore: number | null;
   processTrustScore: number | null;
-  verdict: 'Verified' | 'Conditional' | 'At risk' | 'Unverified' | 'Insufficient source';
+  verdict:
+    | 'Verified'
+    | 'Conditional'
+    | 'At risk'
+    | 'Unverified'
+    | 'Insufficient source'
+    | 'Insufficient evidence';
   findingCount: number;
   topFindings: WitanCliFinding[];
   /** Distinct external-tool sources folded into the score, e.g. ["sarif:codex-security",
@@ -59,11 +69,16 @@ const TOP_FINDINGS_LIMIT = 5;
  * terminal certificate and the GitHub Action's step summary render from. */
 export function buildWitanCliSummary(report: WitanReport): WitanCliSummary {
   const allFindings: WitanCliFinding[] = report.criteria.flatMap((criterion) =>
-    criterion.findings.map((finding) => ({
-      criterionId: criterion.id,
-      severity: finding.severity,
-      summary: finding.summary,
-    })),
+    criterion.findings.map((finding) => {
+      const displaySummary = renderFindingSummary(criterion, finding);
+      return {
+        criterionId: criterion.id,
+        severity: finding.severity,
+        dimensionBand: criterion.status,
+        summary: finding.summary,
+        ...(displaySummary !== finding.summary ? { displaySummary } : {}),
+      };
+    }),
   );
   const sorted = [...allFindings].sort(
     (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
@@ -92,7 +107,7 @@ export function buildWitanCliSummary(report: WitanReport): WitanCliSummary {
       overallScore: null,
       codeTrustScore: null,
       processTrustScore: null,
-      verdict: 'Insufficient source',
+      verdict: renderReportVerdict(report) as WitanCliSummary['verdict'],
       insufficientSourceReason: report.insufficientSourceReason,
     };
   }

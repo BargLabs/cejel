@@ -1,5 +1,6 @@
 import type { WitanReport } from './schemas.js';
 
+import { isWitanNoMeasurementAbstention } from './abstention.js';
 import { renderReportVerdict } from './html.js';
 
 // The free-CLI / GitHub Action growth-loop artifact (goal: witan_free_cli_badge). Both
@@ -21,6 +22,7 @@ const VERDICT_COLOR: Record<string, string> = {
   'At risk': 'orange',
   Unverified: 'red',
   'Insufficient source': 'lightgrey',
+  'Insufficient evidence': 'lightgrey',
 };
 
 // Hex fills for the static SVG, keyed the same way as VERDICT_COLOR's named shields.io colors.
@@ -30,6 +32,7 @@ const VERDICT_SVG_FILL: Record<string, string> = {
   'At risk': '#e08a3c',
   Unverified: '#d64545',
   'Insufficient source': '#8c8c8c',
+  'Insufficient evidence': '#8c8c8c',
 };
 
 // Insufficient-source repos (docs, binary, generated, non-cohesive, unrecognised-language, or
@@ -38,6 +41,7 @@ const VERDICT_SVG_FILL: Record<string, string> = {
 // a bare low number reads as a judgment even when it's really "there was nothing to rate"
 // (goal_cejel_repo_archetype_detection_2026-07-06).
 function badgeMessage(report: WitanReport, verdict: string): string {
+  if (isWitanNoMeasurementAbstention(report)) return 'unrated: no measurable evidence';
   if (report.verdict === 'insufficient_source') return 'unrated: no source';
   return `${formatScore(report.overallScore)}/4.0 ${verdict.toLowerCase()}`;
 }

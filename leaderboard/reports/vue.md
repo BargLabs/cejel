@@ -69,6 +69,6 @@
 
 ## Findings
 
-- A3 warning: A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script (package.json:1, sha256:0e9687aefbca))
-- A5 warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:1d5ea6d8b418))
-- B2 warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343))
+- A3 finding severity warning (dimension band warning): A3 dimension band is warning at 2.2/4.0. Lowest contributing measurements: Rollback and migration-safety depth 0/4 signals; Production-readiness primitive coverage 3/6 primitives. To improve: document and test rollback or recovery procedures; add the missing deployment-readiness controls. (Build or typecheck script (package.json:1, sha256:0e9687aefbca))
+- A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:1d5ea6d8b418))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (9 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:b07d87251343))

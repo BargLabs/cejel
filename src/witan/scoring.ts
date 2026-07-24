@@ -25,6 +25,10 @@ import {
 } from './schemas.js';
 
 import {
+  WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+  WITAN_NO_MEASUREMENT_REASON,
+} from './abstention.js';
+import {
   WITAN_RUBRIC_VERSION_V9,
   WITAN_RUBRIC_VERSION_V10,
   WITAN_RUBRIC_VERSION_V11,
@@ -32,6 +36,8 @@ import {
   WITAN_RUBRIC_VERSION_V13,
   WITAN_RUBRIC_VERSION_V14,
   WITAN_RUBRIC_VERSION_V15,
+  WITAN_RUBRIC_VERSION_V16,
+  WITAN_RUBRIC_VERSION_V17,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
@@ -168,7 +174,27 @@ export function createWitanReport(
       Math.max(categoryOrder.length, 1),
   );
 
-  const abstained = parsedInput.insufficientSourceReason != null;
+  // V48 release-blocker closure: an average over zero measured free-core criteria is undefined,
+  // not a measured zero. Older versions stay byte-compatible, and the caller-supplied trading
+  // rubric keeps its deliberate fail-closed missing-dimension semantics.
+  const hasMeasuredCriterion = criteria.some(
+    ({ status }) => status !== 'not_applicable' && status !== 'insufficient_data',
+  );
+  const isFreeCoreRubric =
+    rubric.length === WITAN_RUBRIC.length &&
+    rubric.every(
+      ({ id, category }, index) =>
+        id === WITAN_RUBRIC[index]?.id && category === WITAN_RUBRIC[index]?.category,
+    );
+  const noMeasurementAbstention =
+    (parsedInput.rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+      parsedInput.rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
+    isFreeCoreRubric &&
+    !hasMeasuredCriterion;
+  const insufficientSourceReason =
+    parsedInput.insufficientSourceReason ??
+    (noMeasurementAbstention ? WITAN_NO_MEASUREMENT_REASON : undefined);
+  const abstained = insufficientSourceReason != null;
 
   return WitanReportSchema.parse({
     productSlug: parsedInput.productSlug,
@@ -189,9 +215,7 @@ export function createWitanReport(
     // alter it (see classifyRepoArchetype in repo-signals.ts); per-criterion scoring above is
     // unaffected by archetype, only presentation layers (badge/terminal/verdict) key off it.
     ...(parsedInput.archetype ? { archetype: parsedInput.archetype } : {}),
-    ...(parsedInput.insufficientSourceReason
-      ? { insufficientSourceReason: parsedInput.insufficientSourceReason }
-      : {}),
+    ...(insufficientSourceReason ? { insufficientSourceReason } : {}),
   });
 }
 
@@ -263,7 +287,9 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V12 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V13 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V14 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V15
+    rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V17
   ) {
     return statusForScore(roundScore(Math.max(0, nativeScore - adjustment)));
   }
@@ -348,6 +374,8 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }
@@ -422,7 +450,12 @@ function scoreCriterion(
   if (usesMetricScoring(rubricVersion)) {
     const measuredMetrics =
       metrics.length > 0 ? metrics : fallbackMetricsForEvidence(evidence, findings);
-    const score = capScoreForFindings(scoreMetrics(measuredMetrics), findings);
+    const score = capScoreForFindings(
+      scoreMetrics(measuredMetrics),
+      findings,
+      rubricVersion,
+      signal.criterionId,
+    );
     const status = statusForScoreAndFindings(
       signal.criterionId,
       score,
@@ -519,8 +552,24 @@ function scoreMetrics(metrics: readonly WitanCriterionMetric[]): number {
   return roundScore((weightedTotal / totalWeight) * 4);
 }
 
-function capScoreForFindings(score: number, findings: readonly WitanFinding[]): number {
-  if (findings.some((finding) => finding.severity === 'critical')) return 1.4;
+function capScoreForFindings(
+  score: number,
+  findings: readonly WitanFinding[],
+  rubricVersion: string,
+  criterionId: WitanCriterionId,
+): number {
+  if (findings.some((finding) => finding.severity === 'critical')) {
+    // V17's new authenticated A1 absence is an explicit measured zero. Preserve every other
+    // v16 scoring behavior: only that failure-derived proposition may prevent the historical
+    // critical "cap" from inflating 0.0 to 1.4.
+    const criticalFindings = findings.filter(({ severity }) => severity === 'critical');
+    const authenticatedA1Absence =
+      rubricVersion === WITAN_RUBRIC_VERSION_V17 &&
+      criterionId === 'A1' &&
+      criticalFindings.length === 1 &&
+      criticalFindings[0]?.summary === WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY;
+    return authenticatedA1Absence ? Math.min(score, 1.4) : 1.4;
+  }
   if (findings.some((finding) => finding.severity === 'warning')) return Math.min(score, 2.4);
   if (findings.some((finding) => finding.severity === 'info')) return Math.min(score, 3.4);
   return score;
@@ -542,14 +591,18 @@ function statusForScoreAndFindings(
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V15
+    rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V17
   ) {
     const calibrated =
       rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
-      rubricVersion === WITAN_RUBRIC_VERSION_V15
+      rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
+      rubricVersion === WITAN_RUBRIC_VERSION_V17
         ? calibratedCriterionStateV11(criterionId, metrics)
         : rubricVersion === WITAN_RUBRIC_VERSION_V9 || rubricVersion === WITAN_RUBRIC_VERSION_V10
           ? calibratedCriterionStateV9(criterionId, metrics)
@@ -859,6 +912,8 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V13 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V14 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
     findings.length > 0
   ) {
     return [...findings];

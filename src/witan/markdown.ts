@@ -6,6 +6,7 @@ import type {
   WitanReport,
 } from './schemas.js';
 
+import { isWitanNoMeasurementAbstention, renderWitanAbstentionLabel } from './abstention.js';
 import { computeMeasuredCoverage, formatCoverageSummary } from './coverage.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
@@ -14,6 +15,7 @@ import {
   formatExternalSourceLine,
   summarizeExternalSources,
 } from './external-findings.js';
+import { renderFindingSummary } from './finding-presentation.js';
 
 export function renderWitanMarkdownReport(report: WitanReport): string {
   const notApplicableCriteria = report.criteria.filter((c) => c.status === 'not_applicable');
@@ -49,10 +51,11 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   const contributingSources = renderContributingSources(report.consumedSignals ?? []);
   const externalSourceSummaries = summarizeExternalSources(report.consumedSignals ?? []);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
+  const noMeasurementAbstention = isWitanNoMeasurementAbstention(report);
   const summaryScoreLines =
     report.verdict === 'insufficient_source'
       ? [
-          '- Headline scores: not issued (insufficient source).',
+          `- Headline scores: not issued (${noMeasurementAbstention ? 'insufficient evidence' : 'insufficient source'}).`,
           ...coverageLines,
           ...naSummaryLines,
           ...insufficientDataSummaryLines,
@@ -80,7 +83,9 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
         ]
       : []),
     ...(report.verdict === 'insufficient_source'
-      ? [`- Verdict: Insufficient source to certify — ${report.insufficientSourceReason}`]
+      ? [
+          `- Verdict: ${renderWitanAbstentionLabel(report)} to certify — ${report.insufficientSourceReason}`,
+        ]
       : []),
     '',
     '## Criterion Profile',
@@ -103,9 +108,9 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
     ...(report.verdict === 'insufficient_source'
       ? [
           '',
-          '_This repo has insufficient source to certify. Per-criterion measurements below' +
-            ' describe only the surface Cejel could read; they are not a headline score or' +
-            ' verdict on the product._',
+          noMeasurementAbstention
+            ? '_This repo has insufficient measurable evidence to certify. Per-criterion gaps below are not a headline score or verdict on the product._'
+            : '_This repo has insufficient source to certify. Per-criterion measurements below describe only the surface Cejel could read; they are not a headline score or verdict on the product._',
         ]
       : []),
     '',
@@ -267,9 +272,7 @@ function renderFindings(criteria: readonly WitanCriterionScore[]): string[] {
 }
 
 function renderFinding(criterion: WitanCriterionScore, finding: WitanFinding): string {
-  return `- ${criterion.id} ${finding.severity}: ${finding.summary} (${renderEvidence(
-    finding.evidence,
-  )})`;
+  return `- ${criterion.id} finding severity ${finding.severity} (dimension band ${criterion.status}): ${renderFindingSummary(criterion, finding)} (${renderEvidence(finding.evidence)})`;
 }
 
 function renderEvidence(evidence: WitanEvidencePointer): string {

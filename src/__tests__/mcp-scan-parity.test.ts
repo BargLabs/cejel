@@ -113,6 +113,10 @@ describe('cejel MCP scan tool parity with the CLI', () => {
     const scanTool = tools[0];
     expect(scanTool?.inputSchema).toMatchObject({ type: 'object' });
     expect(Object.keys(scanTool?.inputSchema.properties ?? {}).sort()).toEqual(['format', 'path']);
+    expect(scanTool?.description).toContain(
+      'structural source absence or zero measurable free-core criteria',
+    );
+    expect(scanTool?.description).not.toContain('when Cejel cannot read it');
   });
 
   it('returns the SAME trust cert as `cejel <fixture>` (summary format)', async () => {

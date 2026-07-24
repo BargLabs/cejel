@@ -10,6 +10,7 @@ import type {
 } from './schemas.js';
 import { witanVerdictForScore } from './schemas.js';
 
+import { renderWitanAbstentionLabel } from './abstention.js';
 import {
   type MeasuredCoverage,
   computeMeasuredCoverage,
@@ -22,6 +23,7 @@ import {
   formatExternalSourceLine,
   summarizeExternalSources,
 } from './external-findings.js';
+import { renderFindingSummary } from './finding-presentation.js';
 
 export function renderWitanHtmlReport(report: WitanReport): string {
   const codeCriteria = criteriaByCategory(report, 'code_trust');
@@ -73,7 +75,7 @@ export function renderWitanHtmlReport(report: WitanReport): string {
           <div class="score-badge">Summary</div>
           ${
             report.verdict === 'insufficient_source'
-              ? `<div class="verdict">Insufficient source</div>
+              ? `<div class="verdict">${escapeHtml(renderWitanAbstentionLabel(report))}</div>
           <p class="insufficient-note">${escapeHtml(report.insufficientSourceReason)}</p>`
               : `<div class="score">${formatScore(report.overallScore)}</div>
           <div class="score-unit">/ 4.0 overall</div>
@@ -185,7 +187,7 @@ function renderNotApplicableItem(criterion: WitanCriterionScore): string {
 function renderCriterionCard(criterion: WitanCriterionScore): string {
   const evidence = [
     ...criterion.evidence.map(renderEvidencePointer),
-    ...criterion.findings.map((finding) => renderFindingEvidence(finding)),
+    ...criterion.findings.map((finding) => renderFindingEvidence(criterion, finding)),
   ];
   const metrics = criterion.metrics.map(renderMetric);
 
@@ -228,7 +230,7 @@ function renderCategoryScore(
 }
 
 function renderStatusChip(status: WitanCriterionStatus): string {
-  return `<span class="status" data-status="${status}">${status}</span>`;
+  return `<span class="status" data-status="${status}">dimension band: ${status}</span>`;
 }
 
 function renderEvidenceListItem(
@@ -241,7 +243,7 @@ function renderEvidenceListItem(
 function renderOpenItems(criterion: WitanCriterionScore): string[] {
   const findingItems = criterion.findings.map(
     (finding) =>
-      `<li><strong>${escapeHtml(criterion.id)} - ${escapeHtml(criterion.title)}</strong><span>${escapeHtml(finding.severity)}: ${escapeHtml(finding.summary)} (${renderEvidencePointer(finding.evidence)})</span></li>`,
+      `<li><strong>${escapeHtml(criterion.id)} - ${escapeHtml(criterion.title)}</strong><span>finding severity ${escapeHtml(finding.severity)}: ${escapeHtml(renderFindingSummary(criterion, finding))} (${renderEvidencePointer(finding.evidence)})</span></li>`,
   );
 
   if (
@@ -263,10 +265,8 @@ function renderOpenItems(criterion: WitanCriterionScore): string[] {
   return findingItems;
 }
 
-function renderFindingEvidence(finding: WitanFinding): string {
-  return `${escapeHtml(finding.severity)}: ${escapeHtml(finding.summary)} (${renderEvidencePointer(
-    finding.evidence,
-  )})`;
+function renderFindingEvidence(criterion: WitanCriterionScore, finding: WitanFinding): string {
+  return `finding severity ${escapeHtml(finding.severity)}: ${escapeHtml(renderFindingSummary(criterion, finding))} (${renderEvidencePointer(finding.evidence)})`;
 }
 
 function renderEvidencePointer(evidence: WitanEvidencePointer): string {
@@ -307,6 +307,9 @@ export function renderVerdict(score: number): string {
 // Every presentation surface (badge, terminal certificate, HTML certificate) should call this
 // instead of renderVerdict(report.overallScore) directly.
 export function renderReportVerdict(report: WitanReport): string {
+  if (report.verdict === 'insufficient_source') {
+    return renderWitanAbstentionLabel(report);
+  }
   return renderMachineVerdict(report.verdict);
 }
 

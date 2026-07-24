@@ -79,7 +79,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A1</div><h3>Test integrity and regression signal</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="verified">dimension band: verified</span>
           </div>
           <div class="criterion-score">2.5</div>
           <ul><li><strong>Test-to-source file ratio</strong><span>212/272 ratio</span></li><li><strong>Static coverage percentage</strong><span>0/100 percent</span></li><li><strong>Verification script ratio</strong><span>4/4 ratio</span></li><li><strong>Non-hollow test share</strong><span>198/212 ratio</span></li></ul>
@@ -87,15 +87,15 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A3</div><h3>Production readiness</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="warning">dimension band: warning</span>
           </div>
           <div class="criterion-score">2.2</div>
           <ul><li><strong>Production-readiness primitive coverage</strong><span>3/6 primitives</span></li><li><strong>Production workflow depth</strong><span>6 signals (capped; 11 raw)</span></li><li><strong>Observability depth</strong><span>3/4 signals</span></li><li><strong>Rollback and migration-safety depth</strong><span>0/4 signals</span></li></ul>
-          <ul><li>Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code></li><li>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Release deploy configuration <code>netlify.toml:1 · sha256:dcb6042928c9</code></li><li>warning: A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</li></ul>
+          <ul><li>Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code></li><li>CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Release deploy configuration <code>netlify.toml:1 · sha256:dcb6042928c9</code></li><li>finding severity warning: A3 dimension band is warning at 2.2/4.0. Lowest contributing measurements: Rollback and migration-safety depth 0/4 signals; Production-readiness primitive coverage 3/6 primitives. To improve: document and test rollback or recovery procedures; add the missing deployment-readiness controls. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A4</div><h3>Dependency hygiene</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="verified">dimension band: verified</span>
           </div>
           <div class="criterion-score">2.7</div>
           <ul><li><strong>Pinned dependency ratio</strong><span>38/123 ratio</span></li><li><strong>Lockfile coverage</strong><span>1/1 present</span></li><li><strong>Dependency automation ratio</strong><span>1/2 ratio</span></li></ul>
@@ -103,11 +103,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">A5</div><h3>Claim-vs-reality reconciliation</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="warning">dimension band: warning</span>
           </div>
           <div class="criterion-score">2.2</div>
           <ul><li><strong>Claim match rate</strong><span>12/13 ratio</span></li><li><strong>Claim source depth</strong><span>1/4 docs</span></li><li><strong>Reconciliation artifact depth</strong><span>0/3 artifacts</span></li></ul>
-          <ul><li>Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code></li><li>Code presence for claim reconciliation <code>packages-private/dts-built-test/src/index.ts:1 · sha256:5d44f16d7982</code></li><li>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code>)</li></ul>
+          <ul><li>Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code></li><li>Code presence for claim reconciliation <code>packages-private/dts-built-test/src/index.ts:1 · sha256:5d44f16d7982</code></li><li>finding severity warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code>)</li></ul>
         </article></div>
         <div class="na-group">
           <h3 class="na-heading">Not applicable to this repository</h3>
@@ -119,15 +119,15 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="warning">warning</span>
+            <span class="status" data-status="warning">dimension band: warning</span>
           </div>
           <div class="criterion-score">3.2</div>
           <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 9 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>0/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:ede571131c6d</code></li><li>Pull-request CI workflow <code>.github/workflows/close-cant-reproduce-issues.yml:1 · sha256:8f37190a64d8</code></li><li>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code>)</li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code></li><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:ede571131c6d</code></li><li>Pull-request CI workflow <code>.github/workflows/close-cant-reproduce-issues.yml:1 · sha256:8f37190a64d8</code></li><li>finding severity warning: B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (9 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code>)</li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="verified">dimension band: verified</span>
           </div>
           <div class="criterion-score">4.0</div>
           <ul><li><strong>CI verification depth</strong><span>4 signals (capped; 6 raw)</span></li><li><strong>PR-gate CI workflow count</strong><span>4 workflows (capped; 5 raw)</span></li></ul>
@@ -135,7 +135,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B4</div><h3>Audit trail and report-up completeness</h3></div>
-            <span class="status" data-status="verified">verified</span>
+            <span class="status" data-status="verified">dimension band: verified</span>
           </div>
           <div class="criterion-score">2.9</div>
           <ul><li><strong>Audit artifact depth</strong><span>2/3 files</span></li><li><strong>Audit freshness depth</strong><span>2/2 ratio</span></li></ul>
@@ -154,7 +154,7 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A3 - Production readiness</strong><span>warning: A3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>warning: B2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code>)</span></li></ul>
+        <ul><li><strong>A3 - Production readiness</strong><span>finding severity warning: A3 dimension band is warning at 2.2/4.0. Lowest contributing measurements: Rollback and migration-safety depth 0/4 signals; Production-readiness primitive coverage 3/6 primitives. To improve: document and test rollback or recovery procedures; add the missing deployment-readiness controls. (Build or typecheck script <code>package.json:1 · sha256:0e9687aefbca</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>finding severity warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:1d5ea6d8b418</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>finding severity warning: B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (9 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow <code>.github/workflows/autofix.yml:1 · sha256:b07d87251343</code>)</span></li></ul>
       </article>
     </section>
   </main>

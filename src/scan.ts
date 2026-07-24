@@ -7,6 +7,8 @@ import { type WitanCliSummary, buildWitanCliSummary } from './summary.js';
 export interface CejelScanOptions {
   /** Repository to score. Callers resolve relative paths before passing it in. */
   repoPath: string;
+  /** Optional certificate display-name override; the stable repository slug is unchanged. */
+  productDisplayName?: string;
   /** Raw ingest values (file paths or single-level globs), in the order given. */
   ingestPatterns?: readonly string[];
   /** Warn on stderr when an explicit ingest pattern matches no files. */
@@ -29,7 +31,7 @@ export function runCejelScan(options: CejelScanOptions): CejelScanResult {
   const identity = deriveProductIdentity(options.repoPath);
   const report = scoreRepoWithPublicCejel({
     productSlug: identity.productSlug,
-    productDisplayName: identity.productDisplayName,
+    productDisplayName: options.productDisplayName ?? identity.productDisplayName,
     repoPath: options.repoPath,
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: options.warnOnEmptyIngestMatch,

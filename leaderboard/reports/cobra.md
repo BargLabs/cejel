@@ -61,6 +61,6 @@
 
 ## Findings
 
-- A1 info: Test suite files are present, but no coverage configuration was detected. (Detected test file (active_help_test.go:1, sha256:7ae9d42bd41c))
-- B2 warning: B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (Pull-request CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d))
-- B3 warning: B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below. (CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (active_help_test.go:1, sha256:7ae9d42bd41c))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2/2 signals; Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d))
+- B3 finding severity warning (dimension band warning): B3 dimension band is warning at 0.6/4.0. Lowest contributing measurements: CI verification depth 0/4 signals; PR-gate CI workflow count 1/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d))

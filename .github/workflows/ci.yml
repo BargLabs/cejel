@@ -29,22 +29,32 @@ jobs:
       - name: Self-certify (dogfood)
         run: node dist/index.js .
 
-      - name: Smoke-test the candidate Action
-        uses: ./action
+      - name: Smoke-test the root candidate Action
+        uses: ./
         with:
           out-dir: .cejel-action
+
+      - name: Smoke-test the nested compatibility Action
+        uses: ./action
+        with:
+          out-dir: .cejel-action-nested
 
       - name: Verify candidate Action artifacts
         run: |
           test -s .cejel-action/report.json
           test -s .cejel-action/certificate.html
           test -s .cejel-action/summary.json
+          test -s .cejel-action-nested/report.json
+          test -s .cejel-action-nested/certificate.html
+          test -s .cejel-action-nested/summary.json
 
       - name: Upload candidate Action certificate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cejel-action-certificate
-          path: .cejel-action/
+          path: |
+            .cejel-action/
+            .cejel-action-nested/
           include-hidden-files: true
           if-no-files-found: error
 

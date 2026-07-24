@@ -32,6 +32,32 @@ function signalFor(dir: string, id: string) {
   return (input.signals ?? []).find((s) => s.criterionId === id) ?? null;
 }
 
+describe('scan-target scope explanations', () => {
+  it('explains when the requested subfolder is gitignored instead of reporting a generic empty tree', () => {
+    const root = makeTmpRepo();
+    writeFile(root, '.gitignore', 'generated-site/\n');
+    const ignoredTarget = join(root, 'generated-site');
+    mkdirSync(ignoredTarget, { recursive: true });
+    writeFileSync(join(ignoredTarget, 'index.js'), 'export const generated = true;\n', 'utf8');
+
+    const input = buildWitanInputFromRepo({
+      productSlug: 'ignored-site',
+      productDisplayName: 'Ignored site',
+      repoPath: ignoredTarget,
+      generatedAt: '2026-07-24T00:00:00.000Z',
+    });
+
+    expect(input.archetype).toBe('empty');
+    expect(input.insufficientSourceReason).toContain(
+      "excluded by this repository's Git ignore rules",
+    );
+    expect(input.insufficientSourceReason).toContain('generated-site');
+    expect(input.insufficientSourceReason).toContain(
+      'Cejel abstains rather than score an ignored or vendored working tree',
+    );
+  });
+});
+
 describe('committed-secret scanner grammar', () => {
   const realSecret = 'm9Qx7Lp2Zr8Tv5Nc3Bq6Hn4Jk1Sd0Fg9We8Rt7Yu6Io5Pa';
 
