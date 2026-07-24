@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.9",
+  "record_type": "golden_review_capacity_commitment",
+  "recorded_at": "2026-07-24T23:22:40.000Z",
+  "detector_results_seen": false,
+  "source_accessed_for_this_record": false,
+  "bindings": {
+    "golden_discovery_collection_measurement_path": "calibration/llm/results/v1.9-golden-discovery-collection-measurement.json",
+    "golden_discovery_collection_measurement_byte_sha256": "7bfc59cd7d1d355e23fb0b528141f47376cab53bc18055b8c65a6fb9c7be8f52",
+    "collection_sha256": "9157d36da2a0f5aa8e009d84cef70419bc11098560ef4a02a102b54baf2b77b7",
+    "golden_manifest_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2"
+  },
+  "candidate_denominator": {
+    "locked_corroboration_threshold": 3,
+    "total_candidate_loci": 4516,
+    "coverage_requirement": "all_4516_no_sampling"
+  },
+  "review_roles": {
+    "first_pass_reviewers": [
+      {
+        "reviewer_id": "v1.9-golden-review-pass-alpha",
+        "kind": "independent_ai_session",
+        "isolation": "runs in a separately isolated agent context that does not share reasoning, notes, intermediate labels, or output with pass-beta until both passes have independently completed all 4,516 candidates"
+      },
+      {
+        "reviewer_id": "v1.9-golden-review-pass-beta",
+        "kind": "independent_ai_session",
+        "isolation": "runs in a separately isolated agent context that does not share reasoning, notes, intermediate labels, or output with pass-alpha until both passes have independently completed all 4,516 candidates"
+      }
+    ],
+    "adjudicator": {
+      "reviewer_id": "v1.9-golden-review-adjudicator",
+      "kind": "independent_ai_session",
+      "role": "resolves every disagreement between pass-alpha and pass-beta with a recorded rationale and final label; does not itself produce a first-pass label; remains blind to any detector output because none exists at labeling time"
+    },
+    "independence_disclosure": "All three roles are AI sessions, not human reviewers. This satisfies the protocol's requirement for two independent first-pass labels plus a distinct adjudicator; it is not represented as human review. Sequential passes by one AI task are explicitly insufficient under this protocol and are not what this record authorizes."
+  },
+  "labeling_rules": {
+    "taxonomy": ["present", "absent", "ambiguous", "not_applicable", "insufficient_source"],
+    "no_silent_conversion": "ambiguous and insufficient_source labels are never silently converted to a pass or a fail",
+    "no_sampling": "every one of the 4,516 corroborated candidate loci receives a first-pass label from both pass-alpha and pass-beta; no subset, stratum, or top-N cutoff is substituted for the full denominator",
+    "blind_to_detector": "no detector has been executed and none of the three roles may consult detector output; this record itself is written before any labeling begins"
+  },
+  "deadline": {
+    "target_completion_at": "2026-07-29T23:59:00.000Z",
+    "basis": "approximately five calendar days from this commitment, consistent with the owner's stated days-scale target; adjustable only by a superseding, equally pre-registered capacity commitment recorded before labeling completes"
+  },
+  "public_claim_boundary": "This record commits review capacity and a deadline; it makes no detector-quality, precision, recall, calibration, or release claim, and does not itself authorize detector freeze or untouched execution."
+}
