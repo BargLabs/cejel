@@ -203,7 +203,7 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
       ruleId: 'LLM-AGY-001',
       severity: 'critical',
       confidence: 'high',
-      evidence: { path: 'src/desktop-extension.ts', line: 9 },
+      evidence: { path: 'src/desktop-extension.ts', line: 13 },
     });
   });
 
@@ -231,9 +231,36 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
     ).toEqual([
       expect.objectContaining({
         ruleId: 'LLM-AGY-001',
-        evidence: expect.objectContaining({ line: 4 }),
+        evidence: expect.objectContaining({ line: 9 }),
       }),
     ]);
+  });
+
+  it('anchors every multi-side-effect registered-tool finding at its resolved side effect', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { writeFileSync } from 'node:fs';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'save_pair',",
+      '    parameters: Type.Object({ first: Type.String(), second: Type.String() }),',
+      '    execute(_callId, params) {',
+      "      writeFileSync('/workspace/first.txt', params.first);",
+      "      writeFileSync('/workspace/second.txt', params.second);",
+      "      return 'saved';",
+      '    },',
+      '  });',
+      '}',
+    ].join('\n');
+
+    const findings = detectSideEffectingToolWithoutAuthorityBoundary({
+      path: 'src/save-pair.ts',
+      contents,
+    });
+
+    expect(findings).toHaveLength(2);
+    expect(findings.map((finding) => finding.evidence.line)).toEqual([8, 9]);
+    expect(findings.every((finding) => finding.ruleId === 'LLM-AGY-001')).toBe(true);
   });
 
   it('finds registered-tool input passed to an imported filesystem mutation', () => {

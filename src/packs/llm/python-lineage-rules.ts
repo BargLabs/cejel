@@ -131,7 +131,7 @@ function pythonFunctions(masked: string): readonly PythonFunction[] {
             classEndLine: containingClass.endLine,
           }
         : {}),
-      modelFacing: /@(?:[A-Za-z_][A-Za-z0-9_.]*\.)?(?:command|tool)\b/.test(preceding),
+      modelFacing: /@(?:[A-Za-z_][A-Za-z0-9_.]*\.)?tool\b/.test(preceding),
     });
     lineIndex = headerEnd;
   }

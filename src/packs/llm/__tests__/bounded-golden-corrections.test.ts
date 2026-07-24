@@ -600,7 +600,7 @@ describe('bounded golden corrections', () => {
 
     expect(detectSideEffectingToolWithoutAuthorityBoundary(file)).toEqual([
       expect.objectContaining({
-        evidence: expect.objectContaining({ line: 12 }),
+        evidence: expect.objectContaining({ line: 15 }),
       }),
     ]);
   });

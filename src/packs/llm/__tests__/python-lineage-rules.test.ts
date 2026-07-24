@@ -47,13 +47,51 @@ class Tools(Toolkit):
     def run_shell(self, command: str):
         subprocess.run(command, shell=True)
 
-    @command()
+    @tool()
     def execute(self, code: str):
         exec(code)
 `,
     });
 
     expect(findings.filter((finding) => finding.ruleId === 'LLM-IOH-001')).toHaveLength(2);
+  });
+
+  it('does not treat a generic CLI command decorator as model-facing', () => {
+    const findings = detectPythonInterproceduralModelOutput({
+      path: 'cli.py',
+      contents: `
+import subprocess
+import typer
+
+app = typer.Typer()
+
+@app.command()
+def scaffold(name: str):
+    subprocess.run(["cargo", "init", "--name", name], check=True)
+`,
+    });
+
+    expect(findings).toEqual([]);
+  });
+
+  it('still treats a supported model-facing tool decorator as model-controlled', () => {
+    const findings = detectPythonInterproceduralModelOutput({
+      path: 'tools.py',
+      contents: `
+import subprocess
+
+@mcp.tool()
+def run_command(command: str):
+    subprocess.run(command, shell=True)
+`,
+    });
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        ruleId: 'LLM-IOH-001',
+        evidence: expect.objectContaining({ line: 6 }),
+      }),
+    ]);
   });
 
   it('does not carry provenance through an observable closed validator', () => {

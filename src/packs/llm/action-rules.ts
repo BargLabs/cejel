@@ -576,7 +576,6 @@ export interface RegisteredToolParameterSideEffect {
   readonly sideEffectIndex: number;
   readonly kind: RegisteredToolSideEffectKind;
   readonly executesModelInput: boolean;
-  readonly primaryForRegistration: boolean;
 }
 
 interface ObservableSideEffectBindings {
@@ -1385,7 +1384,7 @@ export function registeredToolParameterSideEffects(
         ? sideEffects.slice(1).filter((sideEffect) => sideEffect.kind === 'filesystem').slice(0, 1)
         : []),
     ];
-    selectedSideEffects.forEach((sideEffect, sideEffectIndex) => {
+    selectedSideEffects.forEach((sideEffect) => {
       findings.push({
         registrationIndex: registration.index,
         sideEffectIndex: registration.index + handler.bodyOffset + sideEffect.index,
@@ -1395,7 +1394,6 @@ export function registeredToolParameterSideEffects(
           (sideEffect.kind === 'process' &&
             sideEffect.depth <= 0 &&
             containsAnyIdentifier(sideEffect.argumentsText, executableTaint)),
-        primaryForRegistration: sideEffectIndex === 0,
       });
     });
   }
@@ -1476,9 +1474,7 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
       finding(
         'LLM-AGY-001',
         file,
-        sideEffect.primaryForRegistration
-          ? sideEffect.registrationIndex
-          : sideEffect.sideEffectIndex,
+        sideEffect.sideEffectIndex,
         'critical',
         `A locally registered model-facing tool passes handler input to an import-resolved side effect without an observable fail-closed allowlist or human approval gate.`,
         'Registered tool input reaches an import-resolved side-effecting operation',
