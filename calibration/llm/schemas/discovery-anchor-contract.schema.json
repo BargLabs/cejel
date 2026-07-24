@@ -16,6 +16,7 @@
     "search_families",
     "allowed_exclusion_codes",
     "resource_ceilings",
+    "file_eligibility",
     "discovery_tool",
     "rules",
     "contract_sha256"
@@ -56,12 +57,31 @@
         "maximum_candidates_per_repository_rule": {"type": "integer", "minimum": 1}
       }
     },
+    "file_eligibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extensions", "excluded_path_segments"],
+      "properties": {
+        "extensions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^\\.[A-Za-z0-9]+$"}
+        },
+        "excluded_path_segments": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "not": {"pattern": "[\\\\/]"}}
+        }
+      }
+    },
     "discovery_tool": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "source_sha256", "dependency_paths"],
       "properties": {
-        "path": {"const": "calibration/llm/scripts/assemble-discovery-integrity.mjs"},
+        "path": {"const": "calibration/llm/scripts/collect-discovery-hits.mjs"},
         "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "dependency_paths": {
           "type": "array",
@@ -116,7 +136,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["query_id", "family", "semantic_cues"],
+              "required": ["query_id", "family", "semantic_cues", "query_patterns"],
               "properties": {
                 "query_id": {"type": "string", "minLength": 3},
                 "family": {"type": "string", "minLength": 3},
@@ -125,6 +145,21 @@
                   "minItems": 1,
                   "uniqueItems": true,
                   "items": {"type": "string", "minLength": 10}
+                },
+                "query_patterns": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["pattern_id", "regex", "flags", "anchor_kind"],
+                    "properties": {
+                      "pattern_id": {"type": "string", "minLength": 3},
+                      "regex": {"type": "string", "minLength": 1},
+                      "flags": {"type": "string", "pattern": "^[gimsuy]*$"},
+                      "anchor_kind": {"type": "string", "minLength": 3}
+                    }
+                  }
                 }
               }
             }

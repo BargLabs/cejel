@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   assembleDiscoveryIntegrity,
   deterministicCandidateId,
+  deterministicQueryOutputManifestHash,
   deterministicRawHitId,
   validateDiscoveryAnchorContract,
 } from './assemble-discovery-integrity.mjs';
@@ -15,7 +16,7 @@ import { canonicalize } from './freeze-cohorts.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
-const scriptPath = resolve(here, 'assemble-discovery-integrity.mjs');
+const scriptPath = resolve(here, 'collect-discovery-hits.mjs');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const hash = (document, omitted) => {
   const value = structuredClone(document);
@@ -60,8 +61,12 @@ function contract() {
       maximum_hits_per_query: 10,
       maximum_candidates_per_repository_rule: 10,
     },
+    file_eligibility: {
+      extensions: ['.ts'],
+      excluded_path_segments: ['.git'],
+    },
     discovery_tool: {
-      path: 'calibration/llm/scripts/assemble-discovery-integrity.mjs',
+      path: 'calibration/llm/scripts/collect-discovery-hits.mjs',
       source_sha256: sha256(readFileSync(scriptPath)),
       dependency_paths: [
         'node:crypto',
@@ -81,6 +86,12 @@ function contract() {
         query_id: 'ioh-semantic',
         family: 'semantic_search',
         semantic_cues: ['model output and executable sink dataflow'],
+        query_patterns: [{
+          pattern_id: 'ioh-sink-call',
+          regex: 'execute',
+          flags: 'i',
+          anchor_kind: 'executable_sink',
+        }],
       }],
     }],
   });
@@ -148,6 +159,7 @@ function fixture() {
   };
   candidate.candidate_id = deterministicCandidateId(candidate);
   rawHit.hit_id = deterministicRawHitId(rawHit);
+  rawHit.matched_pattern_ids = ['ioh-sink-call'];
   const ledger = sealLedger({
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',
@@ -185,6 +197,7 @@ function fixture() {
         query_id: 'ioh-semantic',
         hit_ids: [rawHit.hit_id],
         observed_hit_count: 1,
+        output_manifest_sha256: '',
         ceiling_reached: false,
       },
       {
@@ -195,6 +208,7 @@ function fixture() {
         query_id: 'ioh-semantic',
         hit_ids: [],
         observed_hit_count: 0,
+        output_manifest_sha256: '',
         ceiling_reached: false,
       },
     ],
@@ -224,6 +238,15 @@ function fixture() {
     ],
     unresolved_candidate_ids: [],
   });
+  ledger.raw_hit_rows[0].output_manifest_sha256 = deterministicQueryOutputManifestHash(
+    ledger.raw_hit_rows[0],
+    [rawHit],
+  );
+  ledger.raw_hit_rows[1].output_manifest_sha256 = deterministicQueryOutputManifestHash(
+    ledger.raw_hit_rows[1],
+    [],
+  );
+  sealLedger(ledger);
   const discoveryAudit = sealAudit({
     schema_version: '1.0.0',
     protocol_id: 'cejel-llm-calibration-v1',

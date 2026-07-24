@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { canonicalize } from './freeze-cohorts.mjs';
 
 const SHA256 = /^[a-f0-9]{64}$/;
+const codePointCompare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 const COMMIT = /^[a-f0-9]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const COHORTS = ['golden', 'untouched'];
@@ -44,6 +45,24 @@ export function deterministicCandidateId(candidate) {
     commit_sha: candidate.commit_sha,
     rule_id: candidate.rule_id,
     anchor: candidate.anchor,
+  });
+}
+
+export function deterministicQueryOutputManifestHash(row, hits) {
+  return canonicalHash({
+    schema_version: '1.0.0',
+    cohort: row.cohort,
+    repository_id: row.repository_id,
+    commit_sha: row.commit_sha,
+    rule_id: row.rule_id,
+    query_id: row.query_id,
+    raw_hits: [...hits]
+      .map((hit) => ({
+        hit_id: hit.hit_id,
+        anchor: hit.anchor,
+        matched_pattern_ids: hit.matched_pattern_ids,
+      }))
+      .sort((left, right) => codePointCompare(left.hit_id, right.hit_id)),
   });
 }
 
@@ -92,7 +111,7 @@ function validateContract(contract) {
   rejectUnknownKeys(contract, [
     '$schema', 'schema_version', 'protocol_id', 'methodology_id', 'status', 'locked_at',
     'detector_results_seen_before_lock', 'source_accessed_before_lock', 'hash_contract',
-    'search_families', 'allowed_exclusion_codes', 'resource_ceilings', 'discovery_tool',
+    'search_families', 'allowed_exclusion_codes', 'resource_ceilings', 'file_eligibility', 'discovery_tool',
     'rules', 'contract_sha256',
   ], 'discovery anchor contract');
   if (
@@ -123,14 +142,28 @@ function validateContract(contract) {
     if (!Number.isInteger(value) || value < 1) throw new Error('contract resource ceilings must be positive integers');
   }
   rejectUnknownKeys(
+    contract.file_eligibility,
+    ['extensions', 'excluded_path_segments'],
+    'contract file eligibility',
+  );
+  if (
+    !exactUniqueStrings(contract.file_eligibility.extensions, 'eligible source extensions', 1)
+      .every((extension) => /^\.[a-z0-9]+$/i.test(extension)) ||
+    !exactUniqueStrings(
+      contract.file_eligibility.excluded_path_segments,
+      'excluded source path segments',
+      1,
+    ).every((segment) => !/[\\/]/.test(segment))
+  ) throw new Error('contract file eligibility is invalid');
+  rejectUnknownKeys(
     contract.discovery_tool,
     ['path', 'source_sha256', 'dependency_paths'],
     'contract discovery tool',
   );
   if (
-    contract.discovery_tool.path !== 'calibration/llm/scripts/assemble-discovery-integrity.mjs' ||
+    contract.discovery_tool.path !== 'calibration/llm/scripts/collect-discovery-hits.mjs' ||
     contract.discovery_tool.source_sha256 !==
-      sha256(readFileSync(fileURLToPath(import.meta.url))) ||
+      sha256(readFileSync(fileURLToPath(new URL('./collect-discovery-hits.mjs', import.meta.url)))) ||
     contract.discovery_tool.path.includes('src/packs/llm') ||
     exactUniqueStrings(contract.discovery_tool.dependency_paths, 'discovery tool dependencies')
       .some((path) => path.includes('src/packs/llm'))
@@ -164,7 +197,7 @@ function validateContract(contract) {
     const recipes = new Map();
     for (const [recipeIndex, recipe] of rule.query_recipes.entries()) {
       const recipeScope = `${scope} query recipe ${recipeIndex}`;
-      rejectUnknownKeys(recipe, ['query_id', 'family', 'semantic_cues'], recipeScope);
+      rejectUnknownKeys(recipe, ['query_id', 'family', 'semantic_cues', 'query_patterns'], recipeScope);
       if (
         typeof recipe.query_id !== 'string' ||
         queryIds.has(recipe.query_id) ||
@@ -172,6 +205,34 @@ function validateContract(contract) {
         seenFamilies.has(recipe.family)
       ) throw new Error(`${recipeScope} is duplicated or outside the locked methodology`);
       exactUniqueStrings(recipe.semantic_cues, `${recipeScope} semantic cues`, 1);
+      if (!Array.isArray(recipe.query_patterns) || recipe.query_patterns.length < 1) {
+        throw new Error(`${recipeScope} must lock at least one machine-readable query pattern`);
+      }
+      const patternIds = new Set();
+      const patternAnchorKinds = new Set();
+      for (const [patternIndex, pattern] of recipe.query_patterns.entries()) {
+        rejectUnknownKeys(
+          pattern,
+          ['pattern_id', 'regex', 'flags', 'anchor_kind'],
+          `${recipeScope} pattern ${patternIndex}`,
+        );
+        if (
+          typeof pattern.pattern_id !== 'string' || pattern.pattern_id.length < 3 ||
+          patternIds.has(pattern.pattern_id) || typeof pattern.regex !== 'string' ||
+          pattern.regex.length < 1 || !/^[gimsuy]*$/.test(pattern.flags || '') ||
+          !anchorKinds.includes(pattern.anchor_kind)
+        ) throw new Error(`${recipeScope} has an invalid query pattern`);
+        try {
+          new RegExp(pattern.regex, pattern.flags.replaceAll('g', ''));
+        } catch {
+          throw new Error(`${recipeScope} has an invalid query pattern`);
+        }
+        patternIds.add(pattern.pattern_id);
+        patternAnchorKinds.add(pattern.anchor_kind);
+      }
+      if (patternAnchorKinds.size !== 1) {
+        throw new Error(`${recipeScope} patterns must share one canonical anchor kind`);
+      }
       queryIds.add(recipe.query_id);
       seenFamilies.add(recipe.family);
       recipes.set(recipe.query_id, recipe);
@@ -278,6 +339,7 @@ function validateLedger(ledger, contractState) {
     const scope = `raw hit ${index}`;
     rejectUnknownKeys(hit, [
       'hit_id', 'cohort', 'repository_id', 'commit_sha', 'rule_id', 'query_id', 'anchor',
+      'matched_pattern_ids',
     ], scope);
     const repository = repositories.get(`${hit.cohort}:${hit.repository_id}`);
     const rule = contractState.rules.get(hit.rule_id);
@@ -292,6 +354,13 @@ function validateLedger(ledger, contractState) {
       !recipe ||
       !rule.anchorKinds.has(hit.anchor.kind)
     ) throw new Error(`${scope} is invalid, duplicated, or outside the locked contract`);
+    const expectedPatternIds = new Set(recipe.query_patterns.map((pattern) => pattern.pattern_id));
+    if (
+      !Array.isArray(hit.matched_pattern_ids) || hit.matched_pattern_ids.length < 1 ||
+      !hit.matched_pattern_ids.every((patternId) => expectedPatternIds.has(patternId)) ||
+      [...hit.matched_pattern_ids].sort().join('\u0000') !== hit.matched_pattern_ids.join('\u0000') ||
+      new Set(hit.matched_pattern_ids).size !== hit.matched_pattern_ids.length
+    ) throw new Error(`${scope} has invalid machine-readable pattern bindings`);
     hits.set(hit.hit_id, hit);
   }
 
@@ -301,7 +370,7 @@ function validateLedger(ledger, contractState) {
     const scope = `raw hit row ${index}`;
     rejectUnknownKeys(row, [
       'cohort', 'repository_id', 'commit_sha', 'rule_id', 'query_id', 'hit_ids',
-      'observed_hit_count', 'ceiling_reached',
+      'observed_hit_count', 'output_manifest_sha256', 'ceiling_reached',
     ], scope);
     const repository = repositories.get(`${row.cohort}:${row.repository_id}`);
     const recipe = contractState.rules.get(row.rule_id)?.recipes.get(row.query_id);
@@ -313,6 +382,7 @@ function validateLedger(ledger, contractState) {
       !recipe ||
       rows.has(key) ||
       row.observed_hit_count !== rowIds.length ||
+      !SHA256.test(row.output_manifest_sha256 || '') ||
       row.observed_hit_count >
         contractState.contract.resource_ceilings.maximum_hits_per_query ||
       row.ceiling_reached !== false
@@ -329,6 +399,12 @@ function validateLedger(ledger, contractState) {
       ) throw new Error(`${scope} does not bind each raw hit exactly once`);
       rowHitIds.add(hitId);
     }
+    if (
+      row.output_manifest_sha256 !== deterministicQueryOutputManifestHash(
+        row,
+        rowIds.map((hitId) => hits.get(hitId)),
+      )
+    ) throw new Error(`${scope} output manifest does not bind its exact raw-hit set`);
     rows.set(key, row);
   }
   for (const repository of repositories.values()) {

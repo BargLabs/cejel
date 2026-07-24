@@ -125,6 +125,7 @@
           "query_id",
           "hit_ids",
           "observed_hit_count",
+          "output_manifest_sha256",
           "ceiling_reached"
         ],
         "properties": {
@@ -139,6 +140,7 @@
             "items": {"type": "string", "minLength": 6}
           },
           "observed_hit_count": {"type": "integer", "minimum": 0},
+          "output_manifest_sha256": {"$ref": "#/$defs/sha256"},
           "ceiling_reached": {"const": false}
         }
       }
@@ -155,7 +157,8 @@
           "commit_sha",
           "rule_id",
           "query_id",
-          "anchor"
+          "anchor",
+          "matched_pattern_ids"
         ],
         "properties": {
           "hit_id": {"type": "string", "minLength": 6},
@@ -164,7 +167,13 @@
           "commit_sha": {"$ref": "#/$defs/commit"},
           "rule_id": {"type": "string", "minLength": 3},
           "query_id": {"type": "string", "minLength": 3},
-          "anchor": {"$ref": "#/$defs/anchor"}
+          "anchor": {"$ref": "#/$defs/anchor"},
+          "matched_pattern_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 3}
+          }
         }
       }
     },

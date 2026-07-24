@@ -19,8 +19,12 @@
     "maximum_hits_per_query": 1,
     "maximum_candidates_per_repository_rule": 1
   },
+  "file_eligibility": {
+    "extensions": [".ts"],
+    "excluded_path_segments": [".git"]
+  },
   "discovery_tool": {
-    "path": "calibration/llm/scripts/assemble-discovery-integrity.mjs",
+    "path": "calibration/llm/scripts/collect-discovery-hits.mjs",
     "source_sha256": "replace-with-byte-sha256",
     "dependency_paths": ["calibration/llm/scripts/freeze-cohorts.mjs"]
   },
@@ -35,7 +39,13 @@
         {
           "query_id": "replace-with-globally-unique-query-id",
           "family": "replace-with-locked-family",
-          "semantic_cues": ["replace with detector-independent semantic cues"]
+          "semantic_cues": ["replace with detector-independent semantic cues"],
+          "query_patterns": [{
+            "pattern_id": "replace-with-machine-readable-pattern-id",
+            "regex": "replace-with-regex",
+            "flags": "i",
+            "anchor_kind": "replace-with-canonical-anchor-kind"
+          }]
         }
       ]
     }
