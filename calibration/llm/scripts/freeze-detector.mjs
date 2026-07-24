@@ -158,6 +158,16 @@ function goldenFindingMatchesOpportunity(finding, opportunity) {
         finding.finding.evidence?.line <= scope.end_line));
 }
 
+function goldenFindingReviewBindsExactFinding(label, finding) {
+  return Array.isArray(label.evidence) && label.evidence.some((item) =>
+    item.kind === 'external_result' &&
+    item.path_or_reference === `llm-report:${label.detector_finding_id}` &&
+    item.sha256 === sha256Canonical(finding.finding) &&
+    item.start_line === undefined &&
+    item.end_line === undefined
+  );
+}
+
 export function validateGoldenLabelEvidence(
   wrappers,
   goldenManifest,
@@ -177,6 +187,7 @@ export function validateGoldenLabelEvidence(
   const labelsByOpportunity = new Map();
   const blindBindings = [];
   const findingReviewBindings = [];
+  const unmatchedFindingIds = new Set();
   const labelIds = new Set();
   for (const [index, wrapper] of wrappers.entries()) {
     const label = unwrapBoundDocument(wrapper, `golden label evidence ${index}`);
@@ -188,24 +199,55 @@ export function validateGoldenLabelEvidence(
       !['present', 'absent', 'ambiguous', 'not_applicable', 'insufficient_source'].includes(label.label)
     ) throw new Error(`golden label evidence ${index} is invalid or duplicated`);
     labelIds.add(label.label_id);
-    const opportunity = goldenOpportunityEvidence.opportunities.get(label.opportunity_id);
     const repository = repositories.get(label.repository?.repository_id);
     if (
-      !opportunity || !repository || repository.commit_sha !== label.repository?.commit_sha ||
+      !repository || repository.commit_sha !== label.repository?.commit_sha
+    ) throw new Error(`golden label evidence ${index} does not match a frozen repository`);
+    const opportunity = label.opportunity_id === null
+      ? null
+      : goldenOpportunityEvidence.opportunities.get(label.opportunity_id);
+    if (label.opportunity_id !== null && (
+      !opportunity ||
       opportunity.repository_id !== label.repository.repository_id ||
       opportunity.commit_sha !== label.repository.commit_sha ||
       opportunity.rule_id !== label.rule?.rule_id ||
       !labelEvidenceExactlyMatchesOpportunity(label, opportunity)
-    ) throw new Error(`golden label evidence ${index} does not match its frozen opportunity`);
-    const group = labelsByOpportunity.get(label.opportunity_id) || [];
-    group.push(label);
-    labelsByOpportunity.set(label.opportunity_id, group);
+    )) throw new Error(`golden label evidence ${index} does not match its frozen opportunity`);
+    if (label.opportunity_id === null && label.review.role !== 'finding_reviewer') {
+      throw new Error(`golden blind label ${label.label_id} cannot omit its frozen opportunity`);
+    }
+    if (opportunity) {
+      const group = labelsByOpportunity.get(label.opportunity_id) || [];
+      group.push(label);
+      labelsByOpportunity.set(label.opportunity_id, group);
+    }
     if (label.review.role === 'finding_reviewer') {
       const finding = goldenExecutionEvidence.findings.get(label.detector_finding_id);
       if (
-        !finding || !goldenFindingMatchesOpportunity(finding, opportunity) ||
-        label.review.detector_output_visible !== true
+        !finding || label.review.detector_output_visible !== true ||
+        label.review.independent_of_rule_author !== true
       ) throw new Error(`golden finding review ${label.label_id} does not match an actual finding`);
+      if (opportunity && !goldenFindingMatchesOpportunity(finding, opportunity)) {
+        throw new Error(`golden finding review ${label.label_id} does not match an actual finding`);
+      }
+      if (label.opportunity_id === null) {
+        if (
+          label.label !== 'absent' ||
+          typeof label.created_at !== 'string' ||
+          Number.isNaN(Date.parse(label.created_at)) ||
+          Date.parse(label.created_at) <= Date.parse(finding.execution_completed_at) ||
+          finding.repository_id !== label.repository.repository_id ||
+          finding.finding.ruleId !== label.rule?.rule_id ||
+          !goldenFindingReviewBindsExactFinding(label, finding) ||
+          [...goldenOpportunityEvidence.opportunities.values()].some((candidate) =>
+            goldenFindingMatchesOpportunity(finding, candidate)
+          ) ||
+          unmatchedFindingIds.has(label.detector_finding_id)
+        ) {
+          throw new Error(`golden unmatched finding review ${label.label_id} is invalid`);
+        }
+        unmatchedFindingIds.add(label.detector_finding_id);
+      }
       findingReviewBindings.push({
         label_id: label.label_id,
         document_sha256: wrapper.document_sha256,
@@ -229,7 +271,7 @@ export function validateGoldenLabelEvidence(
 
   const finalLabels = new Map();
   const matchedOpportunities = new Set();
-  const matchedFindingIds = new Set();
+  const matchedFindingIds = new Set(unmatchedFindingIds);
   for (const opportunity of goldenOpportunityEvidence.opportunities.values()) {
     const labels = labelsByOpportunity.get(opportunity.opportunity_id) || [];
     const primary = labels.filter((label) => label.review.role === 'primary_labeler');
@@ -514,6 +556,7 @@ export function validateGoldenExecutionEvidence(document, goldenManifest, expect
       receipt.manifest_sha256 !== goldenManifest.manifest_sha256 ||
       receipt.detector_build_sha256 !== expectedBuildSha256 ||
       receipt.llm_report_canonical_sha256 !== sha256Canonical(report) ||
+      typeof receipt.completed_at !== 'string' || Number.isNaN(Date.parse(receipt.completed_at)) ||
       !Array.isArray(receipt.finding_ids) || !Array.isArray(report?.result?.findings)
     ) throw new Error(`golden execution ${index} receipt/report does not match frozen evidence`);
     const findingIds = report.result.findings.map((finding, findingIndex) =>
@@ -529,6 +572,7 @@ export function validateGoldenExecutionEvidence(document, goldenManifest, expect
         repository_id: execution.repository_id,
         finding,
         finding_sha256: sha256Canonical(finding),
+        execution_completed_at: receipt.completed_at,
       });
     });
   }

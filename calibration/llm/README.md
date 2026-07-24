@@ -167,6 +167,13 @@ it is not a substitute for the recorded adjudication and owner release decision.
 Every matched detector finding must have a binary `present` or `absent` finding review. Matched
 `not_applicable` or `insufficient_source` reviews are published under
 `gate_blocking_matched_findings` and force automatic NO-GO.
+If an actual finding overlaps no frozen opportunity, use
+`templates/unmatched-finding-review.template.json`: `opportunity_id` must be null, the independent
+detector-visible reviewer must label it `absent`, and `external_result` evidence must bind
+`llm-report:<finding-id>` to the canonical digest of the exact finding. The gate counts it as an FP
+for precision and false-positive-rate calculations without creating an opportunity or changing the
+recall and adjudicated-opportunity denominators. A null-opportunity review that overlaps a frozen
+opportunity fails closed.
 
 Automatic NO-GO inputs are content-addressed records conforming to
 `schemas/automatic-no-go-evidence.schema.json`, not operator-entered booleans. Network isolation,
@@ -185,7 +192,9 @@ Disagreements set both originals to `pending`; the distinct adjudicator also rem
 `adjudicated`, and supersedes exactly the two originals. Agreement and single-label records use
 `not_required`. After execution, a separate `finding_reviewer` may see detector output and links
 exactly one finding to the frozen opportunity without changing its final ground-truth label. A
-same-rule finding from another path or line span is not interchangeable.
+same-rule finding from another path or line span is not interchangeable. The only permitted
+null-opportunity record is an exact independently reviewed binary-absent finding as described
+above; it never retroactively expands the frozen inventory.
 Double-label coverage and the minimum of two double-labeled opportunities per enabled rule are
 required for both public and limited-experimental GO.
 

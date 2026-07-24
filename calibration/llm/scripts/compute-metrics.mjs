@@ -1008,6 +1008,10 @@ function validateLabelRecord(label, scope) {
       `${scope} evidence ${index}`,
     );
   }
+  const findingReviewer = label.review?.role === 'finding_reviewer';
+  const validOpportunityId = typeof label.opportunity_id === 'string'
+    ? label.opportunity_id.length >= 6
+    : label.opportunity_id === null && findingReviewer;
   if (
     label?.schema_version !== '1.0.0' || label?.protocol_id !== 'cejel-llm-calibration-v1' ||
     !/^llm-label-[a-z0-9-]{8,80}$/.test(label.label_id || '') ||
@@ -1016,7 +1020,7 @@ function validateLabelRecord(label, scope) {
     label.rule?.catalogue_id !== 'llm-rules-v1' || label.rule?.rule_version !== '1.0.0' ||
     !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(label.repository?.repository_id || '') ||
     !/^[a-f0-9]{40}$/.test(label.repository?.commit_sha || '') ||
-    typeof label.opportunity_id !== 'string' || label.opportunity_id.length < 6 ||
+    !validOpportunityId ||
     !['present', 'absent', 'ambiguous', 'not_applicable', 'insufficient_source'].includes(label.label) ||
     !Array.isArray(label.evidence) || label.evidence.length < 1 || label.evidence.some((item) =>
       !item || !['source_span', 'manifest_key', 'configuration', 'external_result'].includes(item.kind) ||
@@ -1044,12 +1048,15 @@ function validateLabelRecord(label, scope) {
       label.review.detector_output_visible !== false || label.review.adjudication_status !== 'adjudicated')
   ) throw new Error(`${scope} has an invalid adjudication record`);
   if (
-    label.review.role === 'finding_reviewer' &&
+    findingReviewer &&
     (label.review.detector_output_visible !== true || label.review.adjudication_status !== 'not_required' ||
       !/^llm-finding-[a-f0-9]{64}$/.test(label.detector_finding_id || ''))
   ) throw new Error(`${scope} has an invalid post-run finding-review record`);
-  if (label.review.role !== 'finding_reviewer' && label.detector_finding_id != null) {
+  if (!findingReviewer && label.detector_finding_id != null) {
     throw new Error(`${scope} blind ground-truth labels cannot carry detector finding IDs`);
+  }
+  if (label.opportunity_id === null && label.label !== 'absent') {
+    throw new Error(`${scope} unmatched finding review must use the binary absent label`);
   }
   return label;
 }
@@ -1067,6 +1074,19 @@ function findingEvidenceMatchesOpportunity(finding, opportunity) {
   if (finding.evidence.path !== scope.path_or_reference) return false;
   if (scope.start_line === undefined) return true;
   return finding.evidence.line >= scope.start_line && finding.evidence.line <= scope.end_line;
+}
+
+function findingReviewEvidenceMatchesFinding(label, finding) {
+  const { cohort: _cohort, repository_id: _repositoryId, ...findingDocument } = finding;
+  const expectedReference = `llm-report:${label.detector_finding_id}`;
+  const expectedSha256 = sha256Canonical(findingDocument);
+  return label.evidence.some((item) =>
+    item.kind === 'external_result' &&
+    item.path_or_reference === expectedReference &&
+    item.sha256 === expectedSha256 &&
+    item.start_line === undefined &&
+    item.end_line === undefined
+  );
 }
 
 function deriveCheckSpecificAssertion(checkId, payload, context) {
@@ -1586,7 +1606,11 @@ export function deriveCountsFromEvidence(
     }
     report.result.findings.forEach((finding, findingIndex) => {
       if (findings.has(findingIds[findingIndex])) throw new Error(`duplicate finding ID across reports: ${findingIds[findingIndex]}`);
-      findings.set(findingIds[findingIndex], { ...finding, cohort: wrapper.cohort, repository_id: wrapper.repository_id });
+      findings.set(findingIds[findingIndex], {
+        ...finding,
+        cohort: wrapper.cohort,
+        repository_id: wrapper.repository_id,
+      });
     });
     reports.set(key, report);
   }
@@ -1597,6 +1621,7 @@ export function deriveCountsFromEvidence(
     throw new Error('at least one bound label record is required');
   }
   const labelsByOpportunity = new Map();
+  const unmatchedFindingReviews = [];
   const labelIds = new Set();
   for (const [index, wrapper] of evidence.label_records.entries()) {
     const label = validateLabelRecord(unwrapBoundDocument(wrapper, `label record ${index}`), `label record ${index}`);
@@ -1624,6 +1649,34 @@ export function deriveCountsFromEvidence(
         throw new Error(`finding-review record must postdate its matching execution receipt: ${label.label_id}`);
       }
     }
+    let finding = null;
+    if (label.detector_finding_id) {
+      finding = findings.get(label.detector_finding_id);
+      if (!finding) throw new Error(`label references an unknown detector finding: ${label.label_id}`);
+      if (
+        finding.cohort !== label.cohort || finding.repository_id !== label.repository.repository_id ||
+        finding.ruleId !== label.rule.rule_id
+      ) throw new Error(`label finding binding does not match repository, cohort, and rule: ${label.label_id}`);
+    }
+    if (label.opportunity_id === null) {
+      if (
+        label.review.role !== 'finding_reviewer' || label.label !== 'absent' || !finding ||
+        !findingReviewEvidenceMatchesFinding(label, finding)
+      ) {
+        throw new Error(`unmatched finding review does not bind the exact actual finding: ${label.label_id}`);
+      }
+      const matchingFrozenOpportunity = [...opportunities.values()].some((opportunity) =>
+        opportunity.cohort === label.cohort &&
+        opportunity.repository_id === label.repository.repository_id &&
+        opportunity.rule_id === label.rule.rule_id &&
+        findingEvidenceMatchesOpportunity(finding, opportunity)
+      );
+      if (matchingFrozenOpportunity) {
+        throw new Error(`unmatched finding review overlaps a frozen opportunity: ${label.label_id}`);
+      }
+      unmatchedFindingReviews.push(label);
+      continue;
+    }
     const predefined = opportunities.get(label.opportunity_id);
     if (predefined) {
       if (
@@ -1639,13 +1692,7 @@ export function deriveCountsFromEvidence(
     } else {
       throw new Error(`label references an opportunity absent from the frozen inventory: ${label.label_id}`);
     }
-    if (label.detector_finding_id) {
-      const finding = findings.get(label.detector_finding_id);
-      if (!finding) throw new Error(`label references an unknown detector finding: ${label.label_id}`);
-      if (
-        finding.cohort !== label.cohort || finding.repository_id !== label.repository.repository_id ||
-        finding.ruleId !== label.rule.rule_id
-      ) throw new Error(`label finding binding does not match repository, cohort, and rule: ${label.label_id}`);
+    if (finding) {
       if (!findingEvidenceMatchesOpportunity(finding, predefined)) {
         throw new Error(`detector finding evidence does not overlap its frozen opportunity: ${label.label_id}`);
       }
@@ -1723,11 +1770,22 @@ export function deriveCountsFromEvidence(
     finalItems.push({
       final,
       detectorFindingId: findingReviews[0]?.detector_finding_id ?? null,
+      predefinedOpportunity: true,
       doubleLabeled,
       agreement,
       reviewerPair: doubleLabeled
         ? [primaryLabels[0].label, independentLabels[0].label]
         : null,
+    });
+  }
+  for (const review of unmatchedFindingReviews) {
+    finalItems.push({
+      final: review,
+      detectorFindingId: review.detector_finding_id,
+      predefinedOpportunity: false,
+      doubleLabeled: false,
+      agreement: false,
+      reviewerPair: null,
     });
   }
 
@@ -1789,7 +1847,8 @@ export function deriveCountsFromEvidence(
     const counts = byRule.get(item.final.rule.rule_id);
     const targets = [counts, aggregate];
     for (const target of targets) {
-      const eligibleAdjudicated = item.final.label !== 'not_applicable';
+      const eligibleAdjudicated =
+        item.predefinedOpportunity && item.final.label !== 'not_applicable';
       if (eligibleAdjudicated) target.adjudicated_items += 1;
       if (eligibleAdjudicated && item.doubleLabeled) target.double_labeled_items += 1;
       if (eligibleAdjudicated && item.agreement) target.reviewer_agreements += 1;
