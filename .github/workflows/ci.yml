@@ -34,11 +34,19 @@ jobs:
         with:
           out-dir: .cejel-action
 
-      - name: Upload trust certificate
+      - name: Verify candidate Action artifacts
+        run: |
+          test -s .cejel-action/report.json
+          test -s .cejel-action/certificate.html
+          test -s .cejel-action/summary.json
+
+      - name: Upload candidate Action certificate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cejel-certificate
-          path: .cejel/
+          name: cejel-action-certificate
+          path: .cejel-action/
+          include-hidden-files: true
+          if-no-files-found: error
 
       - name: Build Docker image
         run: docker build --tag cejel:ci .

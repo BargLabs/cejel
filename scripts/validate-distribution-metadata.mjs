@@ -12,6 +12,7 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
 );
 const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml', import.meta.url);
 const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
+const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
 const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
 const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
 const ACTION_PATH = new URL('../action/action.yml', import.meta.url);
@@ -23,6 +24,7 @@ const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
 const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
 const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
 const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
+const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
 const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
 const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
 const action = readFileSync(ACTION_PATH, 'utf8');
@@ -130,10 +132,22 @@ requireEqual(
   'deployed leaderboard index/leaderboard artifact',
 );
 
+requireIncludes(ciWorkflow, 'uses: ./action', 'CI candidate Action smoke');
+requireIncludes(ciWorkflow, 'test -s .cejel-action/report.json', 'CI candidate report assertion');
+requireIncludes(
+  ciWorkflow,
+  'test -s .cejel-action/certificate.html',
+  'CI candidate certificate assertion',
+);
+requireIncludes(ciWorkflow, 'path: .cejel-action/', 'CI candidate artifact upload');
+requireIncludes(ciWorkflow, 'include-hidden-files: true', 'CI hidden artifact upload');
+requireIncludes(ciWorkflow, 'if-no-files-found: error', 'CI missing-artifact failure');
+
 for (const [name, workflow] of [
   ['release workflow', releaseWorkflow],
   ['distribution workflow', distributionWorkflow],
   ['CLA workflow', claWorkflow],
+  ['CI workflow', ciWorkflow],
   ['advertised composite action', action],
 ]) {
   for (const match of workflow.matchAll(/^\s*uses:\s*([^#\s]+)(?:\s+#.*)?$/gm)) {
