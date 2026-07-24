@@ -11,6 +11,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const SUPPORTED_DISCOVERY_METHODOLOGIES = new Set([
   'llm-opportunity-discovery-v1.5',
   'llm-opportunity-discovery-v1.7',
+  'llm-opportunity-discovery-v1.9',
 ]);
 const codePointCompare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 const COMMIT = /^[a-f0-9]{40}$/;
@@ -115,7 +116,7 @@ function validateContract(contract) {
   rejectUnknownKeys(contract, [
     '$schema', 'schema_version', 'protocol_id', 'methodology_id', 'status', 'locked_at',
     'detector_results_seen_before_lock', 'source_accessed_before_lock', 'hash_contract',
-    'search_families', 'allowed_exclusion_codes', 'resource_ceilings', 'file_eligibility', 'discovery_tool',
+    'search_families', 'allowed_exclusion_codes', 'resource_ceilings', 'file_eligibility', 'candidate_grouping', 'discovery_tool',
     'rules', 'contract_sha256',
   ], 'discovery anchor contract');
   if (
@@ -145,6 +146,15 @@ function validateContract(contract) {
   for (const value of Object.values(contract.resource_ceilings)) {
     if (!Number.isInteger(value) || value < 1) throw new Error('contract resource ceilings must be positive integers');
   }
+  if (contract.candidate_grouping !== undefined && (
+    !contract.candidate_grouping || typeof contract.candidate_grouping !== 'object' ||
+    Array.isArray(contract.candidate_grouping) ||
+    Object.keys(contract.candidate_grouping).sort(codePointCompare).join('\0') !==
+      ['grouping_key', 'minimum_distinct_query_recipes'].join('\0') ||
+    contract.candidate_grouping.grouping_key !== 'cohort_repository_commit_rule_anchor' ||
+    !Number.isInteger(contract.candidate_grouping.minimum_distinct_query_recipes) ||
+    contract.candidate_grouping.minimum_distinct_query_recipes < 1
+  )) throw new Error('candidate grouping configuration is invalid');
   rejectUnknownKeys(
     contract.file_eligibility,
     ['extensions', 'excluded_path_segments'],

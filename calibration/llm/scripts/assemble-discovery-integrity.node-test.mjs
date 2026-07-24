@@ -491,11 +491,11 @@ test('fails closed when any resource ceiling is reached', () => {
 
 test('the locked public contract validates and discovery tooling has no LLM detector dependency', () => {
   const publicContract = JSON.parse(
-    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.6.json'), 'utf8'),
+    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.9.json'), 'utf8'),
   );
   assert.equal(
     validateDiscoveryAnchorContract(publicContract).methodology_id,
-    'llm-opportunity-discovery-v1.5',
+    'llm-opportunity-discovery-v1.9',
   );
   const source = readFileSync(scriptPath, 'utf8');
   assert.doesNotMatch(source, /from\s+['"][^'"]*src\/packs\/llm|import\([^)]*src\/packs\/llm/);
@@ -509,7 +509,7 @@ test('the locked public contract validates and discovery tooling has no LLM dete
 
 test('accepts only explicitly supported discovery methodology versions', () => {
   const contract = JSON.parse(
-    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.6.json'), 'utf8'),
+    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.9.json'), 'utf8'),
   );
   contract.methodology_id = 'llm-opportunity-discovery-v1.7';
   sealContract(contract);
