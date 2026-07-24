@@ -29,8 +29,8 @@ jobs:
       - name: Self-certify (dogfood)
         run: node dist/index.js .
 
-      - name: Smoke-test the advertised released Action
-        uses: BargLabs/cejel/action@v0.1.8
+      - name: Smoke-test the candidate Action
+        uses: ./action
         with:
           out-dir: .cejel-action
 

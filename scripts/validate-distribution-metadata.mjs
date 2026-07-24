@@ -14,6 +14,7 @@ const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml
 const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
 const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
 const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
+const ACTION_PATH = new URL('../action/action.yml', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
@@ -24,6 +25,7 @@ const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
 const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
 const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
 const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
+const action = readFileSync(ACTION_PATH, 'utf8');
 
 function requireEqual(actual, expected, field) {
   if (actual !== expected) {
@@ -132,6 +134,7 @@ for (const [name, workflow] of [
   ['release workflow', releaseWorkflow],
   ['distribution workflow', distributionWorkflow],
   ['CLA workflow', claWorkflow],
+  ['advertised composite action', action],
 ]) {
   for (const match of workflow.matchAll(/^\s*uses:\s*([^#\s]+)(?:\s+#.*)?$/gm)) {
     const reference = match[1];
