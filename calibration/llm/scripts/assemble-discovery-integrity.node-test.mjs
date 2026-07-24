@@ -506,3 +506,16 @@ test('the locked public contract validates and discovery tooling has no LLM dete
   );
   assert.equal(publicContract.discovery_tool.source_sha256, sha256(Buffer.from(source)));
 });
+
+test('accepts only explicitly supported discovery methodology versions', () => {
+  const contract = JSON.parse(
+    readFileSync(resolve(calibrationRoot, 'discovery-anchor-contract-v1.6.json'), 'utf8'),
+  );
+  contract.methodology_id = 'llm-opportunity-discovery-v1.7';
+  sealContract(contract);
+  assert.equal(validateDiscoveryAnchorContract(contract).methodology_id, 'llm-opportunity-discovery-v1.7');
+
+  contract.methodology_id = 'llm-opportunity-discovery-v9.9';
+  sealContract(contract);
+  assert.throws(() => validateDiscoveryAnchorContract(contract), /valid pre-source lock/);
+});

@@ -8,6 +8,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { canonicalize } from './freeze-cohorts.mjs';
 
 const SHA256 = /^[a-f0-9]{64}$/;
+const SUPPORTED_DISCOVERY_METHODOLOGIES = new Set([
+  'llm-opportunity-discovery-v1.5',
+  'llm-opportunity-discovery-v1.7',
+]);
 const codePointCompare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 const COMMIT = /^[a-f0-9]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -117,7 +121,7 @@ function validateContract(contract) {
   if (
     contract.schema_version !== '1.0.0' ||
     contract.protocol_id !== 'cejel-llm-calibration-v1' ||
-    contract.methodology_id !== 'llm-opportunity-discovery-v1.5' ||
+    !SUPPORTED_DISCOVERY_METHODOLOGIES.has(contract.methodology_id) ||
     contract.status !== 'locked_before_source_access' ||
     contract.detector_results_seen_before_lock !== false ||
     contract.source_accessed_before_lock !== false ||
