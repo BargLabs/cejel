@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.8",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "hristo2612/jinn",
+      "url": "https://github.com/hristo2612/jinn",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "gateway",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub repository metadata matched the gateway stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "DarkNoah/aime-chat",
+      "url": "https://github.com/DarkNoah/aime-chat",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata returned by an independent chat app query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "virattt/chat_app",
+      "url": "https://github.com/virattt/chat_app",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata returned by an independent chat app query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "run-llama/chat-ui",
+      "url": "https://github.com/run-llama/chat-ui",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata returned by an independent chat app query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "sgInnora/sentinel-reverse",
+      "url": "https://github.com/sgInnora/sentinel-reverse",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub repository metadata returned by an independent local model query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "itsnamgyu/block-transformer",
+      "url": "https://github.com/itsnamgyu/block-transformer",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub repository metadata returned by an independent local model query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "Anil-matcha/awesome-openclaw",
+      "url": "https://github.com/Anil-matcha/awesome-openclaw",
+      "primary_language": "mixed",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public GitHub repository metadata matched the local model stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "Azure-Samples/azure-search-openai-demo-csharp",
+      "url": "https://github.com/Azure-Samples/azure-search-openai-demo-csharp",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub repository metadata matched the rag stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "ConardLi/garden-skills",
+      "url": "https://github.com/ConardLi/garden-skills",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub repository metadata matched the rag stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "DataScienceUIBK/Rankify",
+      "url": "https://github.com/DataScienceUIBK/Rankify",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata returned by an independent rag query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "NirDiamant/RAG_Techniques",
+      "url": "https://github.com/NirDiamant/RAG_Techniques",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public GitHub repository metadata matched the rag stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "shure-dev/Awesome-LLM-Papers-Comprehensive-Topics",
+      "url": "https://github.com/shure-dev/Awesome-LLM-Papers-Comprehensive-Topics",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub repository metadata matched the agent tools stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "shenmintao/marginalia",
+      "url": "https://github.com/shenmintao/marginalia",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public GitHub repository metadata matched the agent tools stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "antoinezambelli/forge",
+      "url": "https://github.com/antoinezambelli/forge",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub repository metadata returned by an independent agent tools query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "e2b-dev/awesome-ai-agents",
+      "url": "https://github.com/e2b-dev/awesome-ai-agents",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub repository metadata matched the agent tools stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "eracle/OpenOutreach",
+      "url": "https://github.com/eracle/OpenOutreach",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata returned by an independent agent tools query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "0xSteph/pentest-ai-agents",
+      "url": "https://github.com/0xSteph/pentest-ai-agents",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub repository metadata matched the agent tools stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "ayulockin/llm-eval-sweep",
+      "url": "https://github.com/ayulockin/llm-eval-sweep",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata matched the evaluation or framework stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "azminewasi/Awesome-LLMs-ICLR-24",
+      "url": "https://github.com/azminewasi/Awesome-LLMs-ICLR-24",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata matched the evaluation or framework stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "aiverify-foundation/LLM-Evals-Catalogue",
+      "url": "https://github.com/aiverify-foundation/LLM-Evals-Catalogue",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata matched the evaluation or framework stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "ahammadmejbah/Awesome-Datasets-Hub",
+      "url": "https://github.com/ahammadmejbah/Awesome-Datasets-Hub",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata matched the evaluation or framework stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "alibaba-damo-academy/MedEvalKit",
+      "url": "https://github.com/alibaba-damo-academy/MedEvalKit",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata returned by an independent evaluation or framework query describes an eligible public LLM product surface."
+    },
+    {
+      "repository_id": "awslabs/llm-evaluation-system",
+      "url": "https://github.com/awslabs/llm-evaluation-system",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub repository metadata matched the evaluation or framework stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "rungalileo/hallucination-index",
+      "url": "https://github.com/rungalileo/hallucination-index",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub repository metadata matched the evaluation or framework stratum; no repository source content was accessed."
+    }
+  ]
+}

@@ -7,14 +7,24 @@ remain outside Git.
 
 ## State
 
-- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.2` before
-  detector results. It truthfully records both the earlier reserve extension and the disclosed
-  untouched-cohort blinding incident and recovery.
+- Current decision: v1.4 is **NO-GO** after trusted golden run
+  [30053703135](https://github.com/BargLabs/cejel/actions/runs/30053703135). All eight detector
+  findings lacked an exact frozen opportunity match. Six were substantively correct findings
+  omitted by the shared discovery method, one exposed a generic false positive, and one exposed a
+  generic evidence-pointer defect. The v1.4 untouched cohort was never executed and is withdrawn
+  unspent. `results/v1.4-golden-gate-no-go.json` binds the public chronology and private audits.
+  A fresh, fully disjoint v1.5 cycle is required; thresholds remain unchanged.
+- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.4` before
+  v1.4 source access or detector results. The v1.2 and v1.3 policies remain at
+  `selection-policy-v1.2.json` and `selection-policy-v1.3.json`.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
-- Candidate cohorts: `cohorts/golden-candidates.json` and
-  `cohorts/untouched-candidates-v1.2.json` are the current disjoint, pre-result candidate lists.
-  The unversioned untouched candidate and manifest files are retained v1.1 audit evidence and are
-  never accepted as fallback measurement inputs.
+- Candidate cohorts: `cohorts/golden-candidates-v1.4.json` and
+  `cohorts/untouched-candidates-v1.4.json` are the current fresh, disjoint, pre-result candidate
+  lists. `results/v1.4-cycle-reset.json` binds the complete 197-identity historical exclusion
+  ledger. `cohorts/selection-v1.4.json` binds both context-isolated metadata proposals, the exact
+  selector, both per-cohort selection records, and both candidate documents.
+  Earlier candidate and manifest files remain audit evidence and are never accepted as fallback
+  measurement inputs.
 - Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
   pre-result policy re-lock are recorded in `cohorts/selection-amendments.json`.
 - Immutable manifests: the original v1.1 manifests were frozen at `2026-07-23T04:08:14Z`, but the
@@ -22,7 +32,13 @@ remain outside Git.
   the rule-authoring orchestrator. Neither cohort had been passed to the detector. Current
   `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` were frozen before execution and
   reviewed in two sequential passes by the same AI task under the solo-owner exception. Those
-  passes are not independent or human. No v1.1 manifest can satisfy the v1.2 gate.
+  passes are not independent or human. The v1.3 manifests use the same disclosed sequential-review
+  mode. The v1.3 golden set was then used for detector development, and its unexecuted untouched
+  set was conservatively withdrawn because the shared opportunity-discovery process was materially
+  incomplete. The fresh v1.4 golden and untouched manifests were frozen at
+  `2026-07-23T22:45:38Z` after two disclosed sequential owner review passes. All 48 repositories
+  resolve to immutable commit and root-tree identities, and no earlier manifest can satisfy the
+  v1.4 gate.
 - Opportunity inventory: after both cohort manifests are frozen and before any detector result,
   create the internal source-evidence index from the exact blobs used by every `source_span` using
   `templates/source-evidence-index.template.json`. Each entry embeds whole-file bytes plus the raw
@@ -51,8 +67,8 @@ node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-onl
 # After two blind labelers have independently reviewed every repository/rule cell and reconciled
 # the opportunity union, assemble private pre-result evidence outside every Git working tree:
 node calibration/llm/scripts/assemble-blind-evidence.mjs \
-  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
-  --untouched-manifest calibration/llm/cohorts/untouched-manifest-v1.2.json \
+  --golden-manifest calibration/llm/cohorts/golden-manifest-v1.4.json \
+  --untouched-manifest calibration/llm/cohorts/untouched-manifest-v1.4.json \
   --golden-root /absolute/path/to/golden-checkouts \
   --untouched-root /absolute/path/to/untouched-checkouts \
   --primary-golden /absolute/path/to/golden-primary.json \
@@ -62,6 +78,14 @@ node calibration/llm/scripts/assemble-blind-evidence.mjs \
   --frozen-at <actual-pre-result-evidence-freeze-UTC> \
   --attestation-reference internal-witness:<record-id> \
   --private-output-root /absolute/private/path/llm-pre-result
+# Before assembly, compare the two independently produced fragment identities without exposing
+# either reviewer's labels or rationale. The output root must be outside every Git working tree.
+node calibration/llm/scripts/reconcile-blind-fragments.mjs \
+  --reviewer-a-golden /absolute/private/path/a-golden.json \
+  --reviewer-a-untouched /absolute/private/path/a-untouched.json \
+  --reviewer-b-golden /absolute/private/path/b-golden.json \
+  --reviewer-b-untouched /absolute/private/path/b-untouched.json \
+  --output-root /absolute/private/path/identity-reconciliation
 # Assemble content-addressed evidence from the actual artifact paths, then evaluate it:
 node calibration/llm/scripts/assemble-measurement-input.mjs \
   /absolute/path/to/measurement-evidence-paths.json /absolute/path/to/measurement-input.json
@@ -143,6 +167,13 @@ it is not a substitute for the recorded adjudication and owner release decision.
 Every matched detector finding must have a binary `present` or `absent` finding review. Matched
 `not_applicable` or `insufficient_source` reviews are published under
 `gate_blocking_matched_findings` and force automatic NO-GO.
+If an actual finding overlaps no frozen opportunity, use
+`templates/unmatched-finding-review.template.json`: `opportunity_id` must be null, the independent
+detector-visible reviewer must label it `absent`, and `external_result` evidence must bind
+`llm-report:<finding-id>` to the canonical digest of the exact finding. The gate counts it as an FP
+for precision and false-positive-rate calculations without creating an opportunity or changing the
+recall and adjudicated-opportunity denominators. A null-opportunity review that overlaps a frozen
+opportunity fails closed.
 
 Automatic NO-GO inputs are content-addressed records conforming to
 `schemas/automatic-no-go-evidence.schema.json`, not operator-entered booleans. Network isolation,
@@ -161,7 +192,9 @@ Disagreements set both originals to `pending`; the distinct adjudicator also rem
 `adjudicated`, and supersedes exactly the two originals. Agreement and single-label records use
 `not_required`. After execution, a separate `finding_reviewer` may see detector output and links
 exactly one finding to the frozen opportunity without changing its final ground-truth label. A
-same-rule finding from another path or line span is not interchangeable.
+same-rule finding from another path or line span is not interchangeable. The only permitted
+null-opportunity record is an exact independently reviewed binary-absent finding as described
+above; it never retroactively expands the frozen inventory.
 Double-label coverage and the minimum of two double-labeled opportunities per enabled rule are
 required for both public and limited-experimental GO.
 
@@ -232,3 +265,10 @@ The v1.2 golden and untouched runs completed as GitHub Actions runs `29992864057
 retain the exact free-core compatibility record. Performance metrics are therefore not estimable,
 and no measured detector claim may be made from this cycle. See
 [`reviews/v1.2-integrity-no-go-2026-07-23.md`](./reviews/v1.2-integrity-no-go-2026-07-23.md).
+
+The v1.3 trusted golden gate also ended in an honest NO-GO because its opportunity inventory was
+materially incomplete. Subsequent 65/65 matching is development evidence only and did not reverse
+that decision. Version 1.4 now has fresh, disjoint, immutable golden and untouched cohorts. Release
+status remains **NO-GO**: blind opportunity enumeration, source evidence, discovery coverage, the
+new public pre-result commitment, trusted golden execution, a closed correction ledger, detector
+freeze, and the one-time untouched run are still pending.

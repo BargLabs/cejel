@@ -18,6 +18,7 @@ import {
   CEJEL_LLM_PYTHON_RULES,
   hasSupportedPythonLlmIntegration,
 } from './python-rules.js';
+import { detectPythonInterproceduralModelOutput } from './python-lineage-rules.js';
 import { CEJEL_LLM_V1_RULES, type LlmSourceFile } from './rules.js';
 import {
   CEJEL_LLM_PACK_ID,
@@ -156,21 +157,39 @@ export function collectCejelLlmPack(
   const actionSurfaceFiles = sourceFiles.filter((file) =>
     CEJEL_LLM_ACTION_RULES.some((rule) => rule.applies(file)),
   );
+  const javascriptUnsafeSinkFiles = [
+    ...new Map(
+      [...javascriptLlmFiles, ...actionSurfaceFiles.filter((file) => !isPythonSource(file))]
+        .map((file) => [file.path, file] as const),
+    ).values(),
+  ];
   const evaluationSurfaceFiles = sourceFiles.filter((file) =>
     CEJEL_LLM_EVALUATION_RULES.some((rule) => rule.applies([file])),
   );
   const hasEvaluationSurface = CEJEL_LLM_EVALUATION_RULES.some((rule) =>
     rule.applies(sourceFiles),
   );
+  const pythonLineageFindings = sourceFiles.flatMap((file) =>
+    detectPythonInterproceduralModelOutput(file),
+  );
+  const pythonRuleFindings = CEJEL_LLM_PYTHON_RULES.flatMap((rule) =>
+    (rule.id === 'LLM-AGY-002'
+      ? sourceFiles.filter((file) => isPythonSource(file))
+      : pythonLlmFiles
+    ).flatMap((file) => rule.detect(file)),
+  );
   const applicable =
     javascriptLlmFiles.length > 0 ||
     pythonLlmFiles.length > 0 ||
     actionSurfaceFiles.length > 0 ||
-    hasEvaluationSurface;
+    hasEvaluationSurface ||
+    pythonLineageFindings.length > 0 ||
+    pythonRuleFindings.length > 0;
   const findings = applicable
     ? [
-        ...javascriptLlmFiles.flatMap((file) =>
-          CEJEL_LLM_V1_RULES.flatMap((rule) => rule.detect(file)),
+        ...CEJEL_LLM_V1_RULES.flatMap((rule) =>
+          (rule.id === 'LLM-IOH-001' ? javascriptUnsafeSinkFiles : javascriptLlmFiles)
+            .flatMap((file) => rule.detect(file)),
         ),
         // A model-facing tool registration is itself a frozen-contract activator. Action rules
         // therefore inspect every supported source file rather than depending on an unrelated
@@ -178,9 +197,8 @@ export function collectCejelLlmPack(
         ...sourceFiles.flatMap((file) =>
           CEJEL_LLM_ACTION_RULES.flatMap((rule) => rule.detect(file)),
         ),
-        ...pythonLlmFiles.flatMap((file) =>
-          CEJEL_LLM_PYTHON_RULES.flatMap((rule) => rule.detect(file)),
-        ),
+        ...pythonRuleFindings,
+        ...pythonLineageFindings,
         // Evaluation rules inspect all supported sources and enforce their own bounded,
         // language-specific evidence contracts. Repository-level applicability alone is never
         // evidence that an unrelated metrics writer is an LLM evaluation.
@@ -244,10 +262,14 @@ export function collectCejelLlmPack(
     ...pythonLlmFiles.map((file) => file.path),
     ...actionSurfaceFiles.map((file) => file.path),
     ...evaluationSurfaceFiles.map((file) => file.path),
+    ...findings.map((finding) => finding.evidence.path),
   ]);
   const integrationSet = new Set(integrations);
   if (actionSurfaceFiles.length > 0) integrationSet.add('Model-facing tool registration');
   if (hasEvaluationSurface) integrationSet.add('Declared LLM evaluation surface');
+  if (pythonLineageFindings.length > 0 || pythonRuleFindings.length > 0) {
+    integrationSet.add('Python model or tool action surface');
+  }
 
   return CejelLlmPackResultSchema.parse({
     packId: CEJEL_LLM_PACK_ID,

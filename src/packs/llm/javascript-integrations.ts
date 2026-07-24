@@ -24,6 +24,41 @@ function matchingBrace(masked: string, start: number): number {
   return masked.length;
 }
 
+function matchingParenthesis(masked: string, start: number): number {
+  let depth = 0;
+  for (let index = start; index < masked.length; index += 1) {
+    if (masked[index] === '(') depth += 1;
+    if (masked[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return masked.length;
+}
+
+function supportedRestModelCallIndices(contents: string): ReadonlySet<number> {
+  const indices = new Set<number>();
+  const masked = maskJavaScriptNonCode(contents);
+  for (const match of masked.matchAll(/\bfetch\s*\(/g)) {
+    const open = masked.indexOf('(', match.index);
+    const close = matchingParenthesis(masked, open);
+    if (close >= masked.length) continue;
+    const call = contents.slice(match.index, close + 1);
+    const hasModelEndpoint =
+      /\/(?:v1\/)?(?:chat\/completions|responses|messages)(?:["'`/?#}]|$)/i.test(call);
+    const postsJson =
+      /\bmethod\s*:\s*(['"])POST\1/i.test(call) &&
+      /\bbody\s*:\s*JSON\.stringify\s*\(\s*\{[\s\S]*?\bmodel\s*[,}:][\s\S]*?\b(?:messages|input|prompt)\s*[,}:]/i.test(
+        call,
+      );
+    const authenticates =
+      /\bAuthorization\s*:\s*`Bearer\s+\$\{[^}]+\}`/i.test(call) ||
+      /\bAuthorization\s*:\s*(['"])Bearer\s+[^'"]+\1/i.test(call);
+    if (hasModelEndpoint && postsJson && authenticates) indices.add(match.index);
+  }
+  return indices;
+}
+
 function splitTopLevel(value: string, delimiter: string): readonly string[] {
   const parts: string[] = [];
   let start = 0;
@@ -220,6 +255,7 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
   const imports = importedBindings(contents);
   const masked = maskJavaScriptNonCode(contents);
   const indices = new Set<number>();
+  for (const index of supportedRestModelCallIndices(contents)) indices.add(index);
   const scopes = functionScopes(masked);
 
   const innermostScopeAt = (index: number): FunctionScope | undefined =>

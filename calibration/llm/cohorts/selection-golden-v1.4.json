@@ -1,0 +1,253 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.4",
+  "selection_event_id": "v1.4-fresh-golden-cohort",
+  "cohort": "golden",
+  "selected_at": "2026-07-23T22:38:20Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "6337399f4689206d77b8b74f036aac60ea3b89106f49b7f768063f3ff24bcead",
+  "selection_evidence_record_sha256": "8181a4014b46237d5a772206155f1d973e699a8bf9a8bb0bb0123a0e877a67ba",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "8181a4014b46237d5a772206155f1d973e699a8bf9a8bb0bb0123a0e877a67ba",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "v14-metadata-search-a",
+      "document_sha256": "154266a29ce875e55ae4331cc8a27cc99a07a27308c644d0b32ecc5e9d5458e2"
+    },
+    {
+      "reviewer_id": "v14-metadata-search-b",
+      "document_sha256": "82fcc76ab2945c5a59e694584ab38fe094016798a80b07fdbbd902854510a9bb"
+    }
+  ],
+  "excluded_repository_count": 197,
+  "excluded_repository_ids_sha256": "343b115a75161ff48d6a1fa652348e6ff4f49c3fddbbbec4a9f5c76d5948c50a",
+  "classification_conflicts_excluded": [
+    "apify/crawlee",
+    "dataelement/bisheng",
+    "fosowl/agenticseek",
+    "headroomlabs-ai/headroom",
+    "pathwaycom/llm-app",
+    "tencent/weknora"
+  ],
+  "selected": [
+    {
+      "repository_id": "jina-ai/reader",
+      "tier": 1,
+      "selection_hash": "236fa84c6269deaec780ab4b94a2a4a9f900779915956916b1973626ae529dc3",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "onyx-dot-app/onyx",
+      "tier": 0,
+      "selection_hash": "72a2ab0c4e43b8a809bb1a5d889157d32b21fa4468b4cb0b8499ef4e51292694",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "agentscope-ai/agentscope",
+      "tier": 1,
+      "selection_hash": "04ef3c45d6de2890d15e45c2f20fc83350142dd43699a2ffdea5d54d0c92bca2",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "shaxiu/XianyuAutoAgent",
+      "tier": 1,
+      "selection_hash": "066ea94e01c6fb9e75044b284cb36f06eeba5b69f78e2dc307f05cc2c432aee8",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "Andyyyy64/whichllm",
+      "tier": 0,
+      "selection_hash": "cfe6e3af04dbd515000b43808c40f64e50ae791120d0c178d835d4935642af68",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "jamesob/local-llm",
+      "tier": 1,
+      "selection_hash": "0052bef678fa7b4ffed79262c5c36c7acbacbe5280a3bbaa0545d7ccb7c5ec2e",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "screenpipe/screenpipe",
+      "tier": 1,
+      "selection_hash": "0301efdb820a2059cb82d9aeb8b67c1f233742d5ea334d5897ef2d931d4aa853",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "infiniflow/ragflow",
+      "tier": 0,
+      "selection_hash": "418140b91c0607778e5184be91d6202fac20d248a238aa6fb1a9cdfadc38b6bd",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "bojieli/ai-agent-book",
+      "tier": 1,
+      "selection_hash": "0d8cbb986f92356ae5f91b3b4c69824244e2f57d0f5207f4244adb9f0ee24d87",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "PacktPublishing/LLM-Engineers-Handbook",
+      "tier": 1,
+      "selection_hash": "1ff4f9548187349300897f78dacac579c3db5c2a0057ec42ed401a35292be0b3",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "ScrapeGraphAI/Scrapegraph-ai",
+      "tier": 1,
+      "selection_hash": "22cab47c85983b3c05ad690a2b5bc088ff9b0864f3a72998fa54d73319a235c6",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "aaif-goose/goose",
+      "tier": 0,
+      "selection_hash": "08ce40f3c0fcf614e5515df1bada90f14a5a4d69ce03fe39c17a7166e9188d68",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "wshobson/agents",
+      "tier": 0,
+      "selection_hash": "6e2acc8f2a3e8a37530d0c22e3b642b72774d17f9a544ad989698a6e6182ec96",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "ruvnet/ruflo",
+      "tier": 0,
+      "selection_hash": "7aaa7647ae3c5a865436cdf3146469ecca01ea0cc901264d0bfbfa0c5152406b",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "BloopAI/vibe-kanban",
+      "tier": 0,
+      "selection_hash": "9859320ff1dc201ec2dcdeb300936432e9bb63066a56f7dd55ad6f009bce5add",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "code-yeongyu/oh-my-openagent",
+      "tier": 0,
+      "selection_hash": "a18b2b15551afc31788c477d7592acf230a81030b6e531cbfa62b1b6b03fbf22",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "DietrichGebert/ponytail",
+      "tier": 0,
+      "selection_hash": "ab98f29481230a6dcb999da1fdd117e083b37ba9f1d2d7282d4da57154a09ef6",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "evidentlyai/evidently",
+      "tier": 0,
+      "selection_hash": "1dc103055bf71958e4f77972eaecf4839b06312745acf232ef66e6ae83e2b011",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "Sahir619/fable-method",
+      "tier": 1,
+      "selection_hash": "068f58652ba85d541ecb5300d40bd7ca67e21dae596bc319db8f6105503fd7ee",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "openobserve/openobserve",
+      "tier": 1,
+      "selection_hash": "0a8b861ac9b25ab5fbd1011b05c1d4dc31b181bd5ce6b4e0833a3c54976d1bd0",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "THUDM/AgentBench",
+      "tier": 1,
+      "selection_hash": "0dbdaedd5415ffdcae450494b27d3fff8bf1375a39e732d00647cf327405209b",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "Tencent/AI-Infra-Guard",
+      "tier": 1,
+      "selection_hash": "13956a8cedfc6a07af0592896305abacad6028b1f4ab4d43b831fa9bb7e6476b",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "meistrari/cursive-py",
+      "tier": 1,
+      "selection_hash": "1f2f70d94b869d420aaf3dc54f1975a805827f588ee02139147ec68a16e0acc5",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "DataDog/llm-observability",
+      "tier": 1,
+      "selection_hash": "2d0af9b2c15b1158f38f6e3a92756a655b909605ac3e974ab8bbda6c644090e5",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "66cfb1b6618b99ab280c6b9b0b5e0314fba21f30c04b3b45f90056396c6b9444",
+  "record_sha256": "b5f3f692669af1de6d8e815ca5f95d896e2d8876c2d56f377689d2339dc5af4f"
+}

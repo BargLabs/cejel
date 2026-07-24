@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.8",
+  "record_type": "collector_development_no_go",
+  "recorded_at": "2026-07-24T03:31:00.000Z",
+  "detector_executed": false,
+  "detector_results_seen": false,
+  "golden_source_accessed": true,
+  "untouched_source_accessed": false,
+  "collector_output_created": true,
+  "reason": "The locked detector-independent collector completed without a resource-ceiling failure but emitted a raw-hit volume that cannot be independently labelled and audited under the protocol. Correct handling requires deterministic candidate-level grouping and a pre-locked reviewable evidence budget, not sampling, relaxed review, or retrospective filtering.",
+  "disposition": {
+    "golden": "development_only_retired_before_any_detector_execution",
+    "untouched": "withdrawn_unexecuted_unspent_due_to_shared_discovery_methodology",
+    "next_cycle": "A fresh cycle must lock deterministic candidate-level grouping, exact raw-hit-to-candidate provenance, and a reviewable candidate budget before source access."
+  },
+  "public_claim_boundary": "This record makes no precision, recall, detector, or release-performance claim."
+}

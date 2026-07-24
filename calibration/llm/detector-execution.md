@@ -88,7 +88,11 @@ complete path offline. The prohibited-claims audit must embed exactly the public
 frozen in that record, with matching paths and content hashes and no omissions or extras. The measurement gate verifies these receipts against the embedded
 reports, the manifest-rooted source evidence, and final label/adjudication records before deriving
 any count. A finding-review binding is accepted only when the finding path and line overlap the
-assigned frozen source span; non-source references use exact reference matching.
+assigned frozen source span; non-source references use exact reference matching. A finding that
+overlaps no frozen opportunity may receive an independent binary-absent review with
+`opportunity_id: null`; that review must bind `llm-report:<finding-id>` and the exact canonical
+finding digest. It counts as an FP without adding a post-result opportunity or recall-denominator
+item, and is rejected if any frozen opportunity overlaps it.
 
 ## Golden correction ledger
 
@@ -97,7 +101,8 @@ Start from `templates/golden-correction-ledger.template.json`. Before changing i
 
 - the SHA-256 of the final built executable used for the final golden run;
 - the frozen golden manifest SHA-256;
-- the canonical digest of every committed golden blind label and finding review;
+- the canonical digest of every committed golden blind label and finding review, including exact
+  null-opportunity false-positive reviews where a finding has no frozen match;
 - the exact derived set of `present` opportunities with no matching golden finding;
 - the UTC freeze time;
 - exactly two distinct reviewers;

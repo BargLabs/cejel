@@ -159,7 +159,7 @@ jobs:
       - name: Retain exact golden free-core compatibility evidence
         if: inputs.cohort == 'golden'
         run: |
-          install -m 600 \
+          node calibration/llm/scripts/retain-golden-compatibility.mjs \
             "$RUNNER_TEMP/free-core-parity.json" \
             "$RUNNER_TEMP/llm-output/free-core-compatibility.json"
       - name: Upload hash-bound evidence bundle

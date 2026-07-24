@@ -8,6 +8,7 @@ import {
   CEJEL_LLM_ACTION_RULES,
   detectSideEffectingToolWithoutAuthorityBoundary,
   detectUnvalidatedConsequentialAction,
+  registeredToolParameterSideEffects,
 } from '../action-rules.js';
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -202,8 +203,238 @@ await generateText({ model, tools: { publishTool }, prompt: 'help' });`;
       ruleId: 'LLM-AGY-001',
       severity: 'critical',
       confidence: 'high',
-      evidence: { path: 'src/desktop-extension.ts', line: 9 },
+      evidence: { path: 'src/desktop-extension.ts', line: 13 },
     });
+  });
+
+  it('finds fixed registered-tool input passed to a direct imported process sink', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'open_target',",
+      '    parameters: Type.Object({ target: Type.String() }),',
+      '    execute(_callId, input) {',
+      "      const processArgs = ['--target', input.target];",
+      "      return execFileSync('/usr/bin/open-target', processArgs);",
+      '    },',
+      '  });',
+      '}',
+    ].join('\n');
+
+    expect(
+      detectSideEffectingToolWithoutAuthorityBoundary({
+        path: 'src/open-target.ts',
+        contents,
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        ruleId: 'LLM-AGY-001',
+        evidence: expect.objectContaining({ line: 9 }),
+      }),
+    ]);
+  });
+
+  it('anchors every multi-side-effect registered-tool finding at its resolved side effect', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { writeFileSync } from 'node:fs';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'save_pair',",
+      '    parameters: Type.Object({ first: Type.String(), second: Type.String() }),',
+      '    execute(_callId, params) {',
+      "      writeFileSync('/workspace/first.txt', params.first);",
+      "      writeFileSync('/workspace/second.txt', params.second);",
+      "      return 'saved';",
+      '    },',
+      '  });',
+      '}',
+    ].join('\n');
+
+    const findings = detectSideEffectingToolWithoutAuthorityBoundary({
+      path: 'src/save-pair.ts',
+      contents,
+    });
+
+    expect(findings).toHaveLength(2);
+    expect(findings.map((finding) => finding.evidence.line)).toEqual([8, 9]);
+    expect(findings.every((finding) => finding.ruleId === 'LLM-AGY-001')).toBe(true);
+  });
+
+  it('finds registered-tool input passed to an imported filesystem mutation', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { writeFileSync } from 'node:fs';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'save_deliverable',",
+      '    parameters: Type.Object({ contents: Type.String() }),',
+      '    execute(_callId, params) {',
+      '      const { contents } = params;',
+      "      writeFileSync('/workspace/deliverable.md', contents);",
+      "      return 'saved';",
+      '    },',
+      '  });',
+      '}',
+    ].join('\n');
+
+    expect(
+      detectSideEffectingToolWithoutAuthorityBoundary({
+        path: 'src/save-deliverable.ts',
+        contents,
+      }),
+    ).toHaveLength(1);
+  });
+
+  it('resolves a fixed browser mutation through exactly two local helper layers', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      "const CDP_SCRIPT = '/opt/cdp.js';",
+      "function execCdp(args: string[]) { return execFileSync('node', args); }",
+      "function cdpClick(target: string) { return execCdp([CDP_SCRIPT, 'click', target]); }",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'page_click',",
+      '    parameters: Type.Object({ target: Type.String() }),',
+      '    execute(_callId, params) { return cdpClick(params.target); },',
+      '  });',
+      '}',
+    ].join('\n');
+    const file = { path: 'src/browser-extension.ts', contents };
+
+    expect(detectSideEffectingToolWithoutAuthorityBoundary(file)).toHaveLength(1);
+    expect(registeredToolParameterSideEffects(file)).toEqual([
+      expect.objectContaining({
+        kind: 'process',
+        executesModelInput: false,
+      }),
+    ]);
+  });
+
+  it('abstains for a read-only CDP harvest through the same helper depth', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      "const CDP_SCRIPT = '/opt/cdp.js';",
+      "function execCdp(args: string[]) { return execFileSync('node', args); }",
+      "function cdpEval(code: string, target: string) { return execCdp([CDP_SCRIPT, 'eval', code, target]); }",
+      "function getHarvestScript() { return 'document.body.innerText'; }",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'page_state',",
+      '    parameters: Type.Object({ target: Type.String() }),',
+      '    execute(_callId, params) { return cdpEval(getHarvestScript(), params.target); },',
+      '  });',
+      '}',
+    ].join('\n');
+    const file = { path: 'src/browser-extension.ts', contents };
+
+    expect(detectSideEffectingToolWithoutAuthorityBoundary(file)).toEqual([]);
+    expect(registeredToolParameterSideEffects(file)).toEqual([]);
+  });
+
+  it('retains a finding when capture selection interpolates model input into a shell', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'capture_window',",
+      '    parameters: Type.Object({ window: Type.String() }),',
+      '    execute(_callId, params) {',
+      "      const selected = execFileSync('bash', ['-c', `window-id --title \"${params.window}\"`]).trim();",
+      "      const output = '/tmp/capture.png';",
+      "      execFileSync('capture', ['--window', selected, output]);",
+      "      return output;",
+      '    },',
+      '  });',
+      '}',
+    ].join('\n');
+    const file = { path: 'src/capture-extension.ts', contents };
+
+    expect(detectSideEffectingToolWithoutAuthorityBoundary(file)).toHaveLength(1);
+    expect(registeredToolParameterSideEffects(file)).toEqual([
+      expect.objectContaining({
+        kind: 'process',
+        executesModelInput: true,
+      }),
+    ]);
+  });
+
+  it('abstains for constants, read-only helpers, and schema-only member tools', () => {
+    const cases = [
+      [
+        "import type { ToolAPI } from '@synthetic/agent-runtime';",
+        "import { execFileSync } from 'node:child_process';",
+        'export function attach(api: ToolAPI) {',
+        '  api.registerTool({',
+        "    name: 'constant_status',",
+        '    parameters: Type.Object({ target: Type.String() }),',
+        "    execute(_callId, params) { void params; return execFileSync('/usr/bin/status', ['--json']); },",
+        '  });',
+        '}',
+      ],
+      [
+        "import type { ToolAPI } from '@synthetic/agent-runtime';",
+        "import { execFileSync } from 'node:child_process';",
+        'function describeTarget(target: string) { return target.toUpperCase(); }',
+        'export function attach(api: ToolAPI) {',
+        '  api.registerTool({',
+        "    name: 'describe_target',",
+        '    parameters: Type.Object({ target: Type.String() }),',
+        '    execute(_callId, params) { return describeTarget(params.target); },',
+        '  });',
+        '}',
+      ],
+      [
+        "import type { ToolAPI } from '@synthetic/agent-runtime';",
+        "import { writeFileSync } from 'node:fs';",
+        'export function attach(api: ToolAPI) {',
+        '  api.registerTool({',
+        "    name: 'declared_only',",
+        '    parameters: Type.Object({ contents: Type.String() }),',
+        "    execute() { return 'not implemented'; },",
+        '  });',
+        '}',
+      ],
+    ];
+
+    for (const lines of cases) {
+      expect(
+        detectSideEffectingToolWithoutAuthorityBoundary({
+          path: 'src/member-control.ts',
+          contents: lines.join('\n'),
+        }),
+      ).toEqual([]);
+    }
+  });
+
+  it('abstains when a registered-tool operation allowlist fails closed', () => {
+    const contents = [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      "const OPERATION_ALLOWLIST = new Set(['status']);",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'run_operation',",
+      '    parameters: Type.Object({ operation: Type.String() }),',
+      '    execute(_callId, params) {',
+      '      if (!OPERATION_ALLOWLIST.has(params.operation)) return "rejected";',
+      "      return execFileSync('/usr/bin/operation', [params.operation]);",
+      '    },',
+      '  });',
+      '}',
+    ].join('\n');
+
+    expect(
+      detectSideEffectingToolWithoutAuthorityBoundary({
+        path: 'src/allowed-operation.ts',
+        contents,
+      }),
+    ).toEqual([]);
   });
 
   it('requires a fail-closed gate before a member-registered helper side effect', () => {

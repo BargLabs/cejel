@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.6",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "rynfar/meridian",
+      "url": "https://github.com/rynfar/meridian",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "gateway",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Repository metadata describes an Anthropic SDK proxy for coding-agent clients."
+    },
+    {
+      "repository_id": "nathanlesage/local-chat",
+      "url": "https://github.com/nathanlesage/local-chat",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes a ChatGPT-like conversation interface running on the user's computer."
+    },
+    {
+      "repository_id": "epam/ai-dial-chat",
+      "url": "https://github.com/epam/ai-dial-chat",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes an open user interface for AI DIAL models."
+    },
+    {
+      "repository_id": "kwaroran/Risuai",
+      "url": "https://github.com/kwaroran/Risuai",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes an LLM roleplay application supporting Claude, Gemini, GPT, and local models."
+    },
+    {
+      "repository_id": "andreinwald/browser-llm",
+      "url": "https://github.com/andreinwald/browser-llm",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes a local browser LLM demonstration using JavaScript and WebGPU."
+    },
+    {
+      "repository_id": "Osmantic/ODS",
+      "url": "https://github.com/Osmantic/ODS",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes a local machine AI server for LLM chat and agents."
+    },
+    {
+      "repository_id": "jjang-ai/vmlx",
+      "url": "https://github.com/jjang-ai/vmlx",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes a local MLX LLM runtime for Apple hardware."
+    },
+    {
+      "repository_id": "plastic-labs/honcho",
+      "url": "https://github.com/plastic-labs/honcho",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a memory library for building stateful AI agents and retrieval applications."
+    },
+    {
+      "repository_id": "gusye1234/nano-graphrag",
+      "url": "https://github.com/gusye1234/nano-graphrag",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "openai",
+      "inclusion_reason": "GitHub metadata describes a compact GraphRAG implementation using LLM-based knowledge graph retrieval."
+    },
+    {
+      "repository_id": "chunkhound/chunkhound",
+      "url": "https://github.com/chunkhound/chunkhound",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes local-first codebase intelligence and retrieval."
+    },
+    {
+      "repository_id": "felladrin/MiniSearch",
+      "url": "https://github.com/felladrin/MiniSearch",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes browser-based search with a local AI assistant."
+    },
+    {
+      "repository_id": "microsoft/agent-lightning",
+      "url": "https://github.com/microsoft/agent-lightning",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes an agent-training framework for improving LLM-based agent applications."
+    },
+    {
+      "repository_id": "agentscope-ai/QwenPaw",
+      "url": "https://github.com/agentscope-ai/QwenPaw",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes a personal assistant harness with extensible skills and multi-channel integrations."
+    },
+    {
+      "repository_id": "generalaction/emdash",
+      "url": "https://github.com/generalaction/emdash",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes an environment for parallel coding agents."
+    },
+    {
+      "repository_id": "Nano-Collective/nanocoder",
+      "url": "https://github.com/Nano-Collective/nanocoder",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a terminal coding agent with configurable models."
+    },
+    {
+      "repository_id": "ros-claw/rosclaw",
+      "url": "https://github.com/ros-claw/rosclaw",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes runtime infrastructure for embodied AI agents."
+    },
+    {
+      "repository_id": "gptme/gptme",
+      "url": "https://github.com/gptme/gptme",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a terminal agent with local tools."
+    },
+    {
+      "repository_id": "lmnr-ai/lmnr",
+      "url": "https://github.com/lmnr-ai/lmnr",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes an observability platform for AI agents and evaluations."
+    },
+    {
+      "repository_id": "DaoyuanLi2816/pairjudge",
+      "url": "https://github.com/DaoyuanLi2816/pairjudge",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes pairwise LLM judging and preference evaluation."
+    },
+    {
+      "repository_id": "cyberark/simple-llm-eval",
+      "url": "https://github.com/cyberark/simple-llm-eval",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a simple LLM evaluation utility using model-based judging."
+    },
+    {
+      "repository_id": "Ammaar-Alam/minebench",
+      "url": "https://github.com/Ammaar-Alam/minebench",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes a benchmark for comparing AI models."
+    },
+    {
+      "repository_id": "ellydee/acceptance-bench",
+      "url": "https://github.com/ellydee/acceptance-bench",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes an LLM evaluation framework for acceptance and refusal behavior across prompts."
+    },
+    {
+      "repository_id": "izam-mohammed/ragrank",
+      "url": "https://github.com/izam-mohammed/ragrank",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a toolkit for LLM factuality, context handling, and RAG quality evaluation."
+    },
+    {
+      "repository_id": "alumnium-hq/alumnium",
+      "url": "https://github.com/alumnium-hq/alumnium",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes end-to-end testing augmented by AI."
+    }
+  ]
+}

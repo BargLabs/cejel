@@ -428,6 +428,20 @@ function fixture() {
           .filter((opportunity) =>
             opportunity.cohort === cohort && opportunity.rule_id === ruleId)
           .map((opportunity) => opportunity.opportunity_id),
+        blind_review_evidence: [
+          {
+            reviewer_id: 'reviewer-a',
+            role: 'primary_labeler',
+            methodology_id: 'llm-opportunity-discovery-v1.4',
+            coverage_row_sha256: rawSha(`${cohort}:${ruleId}:reviewer-a`),
+          },
+          {
+            reviewer_id: 'reviewer-b',
+            role: 'independent_reviewer',
+            methodology_id: 'llm-opportunity-discovery-v1.4',
+            coverage_row_sha256: rawSha(`${cohort}:${ruleId}:reviewer-b`),
+          },
+        ],
       }))),
   };
   const opportunityDiscoveryCoverage = {
@@ -441,6 +455,7 @@ function fixture() {
     untouched_manifest_sha256: untouched.manifest_sha256,
     opportunity_manifest_sha256: opportunityManifest.manifest_sha256,
     opportunity_discovery_coverage_sha256: opportunityDiscoveryCoverage.record_sha256,
+    discovery_integrity_sha256: rawSha('discovery-integrity'),
     release_thresholds: {
       byte_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.byte_sha256,
       canonical_sha256: TEST_CALIBRATION_CONTRACT.release_thresholds.canonical_sha256,
@@ -733,6 +748,66 @@ function rewriteOpportunityEvidence(candidate, opportunityId, replacement) {
   refreshBlindLabelBindings(candidate);
 }
 
+function replaceFrozenOpportunityWithUnmatchedFindingReview(candidate) {
+  const opportunityId = 'untouched.opportunity:0:0';
+  const receipt = candidate.evidence.execution_receipts.find(
+    ({ document }) => document.cohort === 'untouched',
+  ).document;
+  const report = candidate.evidence.llm_reports.find(
+    (item) => item.cohort === 'untouched',
+  ).document;
+  const findingId = receipt.finding_ids[0];
+  const finding = report.result.findings[0];
+  candidate.evidence.opportunity_manifest.document.opportunities =
+    candidate.evidence.opportunity_manifest.document.opportunities.filter(
+      (opportunity) => opportunity.opportunity_id !== opportunityId,
+    );
+  candidate.evidence.label_records = candidate.evidence.label_records.filter(
+    (record) => record.document.opportunity_id !== opportunityId,
+  );
+  const coverageRow = candidate.evidence.opportunity_discovery_coverage.document.coverage.find(
+    (row) => row.cohort === 'untouched' && row.rule_id === finding.ruleId,
+  );
+  coverageRow.declared_opportunity_ids = coverageRow.declared_opportunity_ids.filter(
+    (id) => id !== opportunityId,
+  );
+  const review = {
+    schema_version: '1.0.0',
+    protocol_id: 'cejel-llm-calibration-v1',
+    label_id: 'llm-label-untouched-unmatched-finding-review',
+    cohort: 'untouched',
+    repository: {
+      repository_id: receipt.repository_id,
+      commit_sha: receipt.commit_sha,
+    },
+    rule: {
+      catalogue_id: 'llm-rules-v1',
+      rule_id: finding.ruleId,
+      rule_version: '1.0.0',
+    },
+    opportunity_id: null,
+    detector_finding_id: findingId,
+    label: 'absent',
+    evidence: [{
+      kind: 'external_result',
+      path_or_reference: `llm-report:${findingId}`,
+      sha256: sha(finding),
+      rationale: 'Independent post-result review binds the exact unmatched detector finding.',
+    }],
+    review: {
+      labeler_id: 'reviewer-c',
+      role: 'finding_reviewer',
+      independent_of_rule_author: true,
+      detector_output_visible: true,
+      adjudication_status: 'not_required',
+    },
+    created_at: '2026-07-22T04:30:00Z',
+  };
+  candidate.evidence.label_records.push(bound(review));
+  refreshBlindLabelBindings(candidate);
+  return review;
+}
+
 test('derives denominated counts from cryptographically bound receipts, reports, and labels', () => {
   const output = computeMetrics(fixture(), thresholds);
   assert.equal(output.counts.true_positives, 16);
@@ -744,6 +819,77 @@ test('derives denominated counts from cryptographically bound receipts, reports,
   assert.equal(output.quality_controls.cohen_kappa.observed_agreement, 1);
   assert.equal(output.evidence_bindings.execution_receipts, 2);
   assert.equal(output.release_evaluation.verdict, 'limited_experimental');
+});
+
+test('counts an exact unmatched finding review as FP without changing the recall denominator', () => {
+  const candidate = fixture();
+  replaceFrozenOpportunityWithUnmatchedFindingReview(candidate);
+  const output = computeMetrics(candidate, thresholds);
+  assert.equal(output.counts.true_positives, 15);
+  assert.equal(output.counts.false_negatives, 0);
+  assert.equal(output.counts.false_positives, 1);
+  assert.equal(output.counts.adjudicated_items, 15);
+  assert.equal(output.metrics.finding_recall.denominator, 15);
+  assert.equal(output.metrics.precision.denominator, 16);
+  assert.equal(output.metrics.negative_false_positive_rate.numerator, 1);
+});
+
+test('unmatched finding reviews fail closed on label, digest, independence, and overlap', () => {
+  const wrongLabel = fixture();
+  const wrongLabelReview = replaceFrozenOpportunityWithUnmatchedFindingReview(wrongLabel);
+  wrongLabelReview.label = 'present';
+  const wrongLabelBinding = wrongLabel.evidence.label_records.find(
+    (record) => record.document.label_id === wrongLabelReview.label_id,
+  );
+  wrongLabelBinding.document_sha256 = sha(wrongLabelReview);
+  assert.throws(
+    () => computeMetrics(wrongLabel, thresholds),
+    /unmatched finding review must use the binary absent label/,
+  );
+
+  const wrongDigest = fixture();
+  const wrongDigestReview = replaceFrozenOpportunityWithUnmatchedFindingReview(wrongDigest);
+  wrongDigestReview.evidence[0].sha256 = 'f'.repeat(64);
+  const wrongDigestBinding = wrongDigest.evidence.label_records.find(
+    (record) => record.document.label_id === wrongDigestReview.label_id,
+  );
+  wrongDigestBinding.document_sha256 = sha(wrongDigestReview);
+  assert.throws(
+    () => computeMetrics(wrongDigest, thresholds),
+    /does not bind the exact actual finding/,
+  );
+
+  const notIndependent = fixture();
+  const notIndependentReview = replaceFrozenOpportunityWithUnmatchedFindingReview(notIndependent);
+  notIndependentReview.review.independent_of_rule_author = false;
+  const notIndependentBinding = notIndependent.evidence.label_records.find(
+    (record) => record.document.label_id === notIndependentReview.label_id,
+  );
+  notIndependentBinding.document_sha256 = sha(notIndependentReview);
+  assert.throws(() => computeMetrics(notIndependent, thresholds), /not a valid label record/);
+
+  const overlapsFrozen = fixture();
+  const existingReview = overlapsFrozen.evidence.label_records.find((record) =>
+    record.document.cohort === 'untouched' &&
+    record.document.opportunity_id === 'untouched.opportunity:0:0' &&
+    record.document.review.role === 'finding_reviewer'
+  );
+  const finding = overlapsFrozen.evidence.llm_reports.find(
+    (item) => item.cohort === 'untouched',
+  ).document.result.findings[0];
+  existingReview.document.opportunity_id = null;
+  existingReview.document.label = 'absent';
+  existingReview.document.evidence = [{
+    kind: 'external_result',
+    path_or_reference: `llm-report:${existingReview.document.detector_finding_id}`,
+    sha256: sha(finding),
+    rationale: 'Synthetic exact binding that still overlaps a frozen opportunity.',
+  }];
+  existingReview.document_sha256 = sha(existingReview.document);
+  assert.throws(
+    () => computeMetrics(overlapsFrozen, thresholds),
+    /unmatched finding review overlaps a frozen opportunity/,
+  );
 });
 
 test('test-only contract override reaches cohort anchoring and changed thresholds are rejected', () => {
@@ -787,6 +933,16 @@ test('opportunity discovery coverage must be complete and independently reviewed
   assert.throws(
     () => computeMetrics(duplicateReviewer, thresholds),
     /not a valid independent frozen record/,
+  );
+
+  const unboundPrivateReview = fixture();
+  const unboundCoverage = unboundPrivateReview.evidence.opportunity_discovery_coverage.document;
+  unboundCoverage.coverage[0].blind_review_evidence[0].methodology_id = 'informal-search';
+  unboundCoverage.record_sha256 = hashOpportunityDiscoveryCoverage(unboundCoverage);
+  unboundPrivateReview.evidence.opportunity_discovery_coverage = bound(unboundCoverage);
+  assert.throws(
+    () => computeMetrics(unboundPrivateReview, thresholds),
+    /invalid or not bound to a frozen repository\/rule/,
   );
 });
 

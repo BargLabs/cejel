@@ -2,7 +2,10 @@ import { isAbsolute } from 'node:path';
 
 import { hasUnmaskedJavaScriptMatch, maskJavaScriptNonCode } from './lexical.js';
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
-import { detectPythonConfiguredSelfJudge } from './python-evaluation-rules.js';
+import {
+  detectPythonConfiguredSelfJudge,
+  detectPythonMissingEvaluationProvenance,
+} from './python-evaluation-rules.js';
 import type { LlmSourceFile } from './rules.js';
 import type {
   CejelLlmConfidence,
@@ -53,7 +56,7 @@ interface DenominatorAliasAssignment {
 
 const RESULT_EMITTER_PATTERN = /\b(?:writeFileSync|appendFileSync|Bun\.write)\s*\(/g;
 const MODEL_CALL_PATTERN =
-  /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b(?:generateText|streamText))\s*\(/g;
+  /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b(?:generateText|streamText|fetch))\s*\(/g;
 const ASSIGNMENT_PATTERN =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g;
 const DENOMINATOR_ALIAS_PATTERN =
@@ -77,6 +80,7 @@ const LINEAGE_CONFIG_KEYS = new Set([
   'policyHash',
   'configDigest',
   'configHash',
+  'configId',
   'configVersion',
   'evaluationConfigVersion',
   'evaluationManifest',
@@ -141,10 +145,64 @@ function completeLocalSource(file: LlmSourceFile): boolean {
 }
 
 function hasSupportedEvaluationImport(file: LlmSourceFile): boolean {
-  return hasUnmaskedJavaScriptMatch(
+  return supportedJavaScriptModelCallIndices(file.contents).size > 0 ||
+    supportedEvaluationHttpInvocationIndices(file.contents).size > 0 ||
+    supportedLangChainEvaluationInvocationIndices(file.contents).size > 0 ||
+    hasUnmaskedJavaScriptMatch(
     file.contents,
     /(?:from\s+['"](?:openai|@anthropic-ai\/sdk|ai)['"]|require\(\s*['"](?:openai|@anthropic-ai\/sdk|ai)['"]\s*\))/,
   );
+}
+
+function supportedLangChainEvaluationInvocationIndices(contents: string): ReadonlySet<number> {
+  const indices = new Set<number>();
+  const masked = maskJavaScriptNonCode(contents);
+  if (
+    !/(?:from\s+['"]@langchain\/core\/runnables['"]|require\(\s*['"]@langchain\/core\/runnables['"]\s*\))/.test(
+      contents,
+    ) ||
+    !/(?:from\s+['"]@langchain\/core\/prompts['"]|require\(\s*['"]@langchain\/core\/prompts['"]\s*\))/.test(
+      contents,
+    )
+  ) return indices;
+  for (const sequence of masked.matchAll(
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*RunnableSequence\.from\s*\(/g,
+  )) {
+    const executor = sequence[1];
+    if (!executor) continue;
+    const callStart = masked.indexOf('(', sequence.index);
+    const callEnd = matchingDelimiter(masked, callStart, '(', ')');
+    if (callStart < 0 || callEnd < 0) continue;
+    const sequenceBody = masked.slice(callStart + 1, callEnd);
+    if (
+      !/\bPromptTemplate\.fromTemplate\s*\(/.test(sequenceBody) ||
+      !/(?:withStructuredOutput|model|llm)/i.test(sequenceBody)
+    ) continue;
+    const escapedExecutor = executor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const invocationPattern = new RegExp(
+      `\\b${escapedExecutor}\\.(?:invoke|batch)\\s*\\(`,
+      'g',
+    );
+    for (const invocation of masked.slice(callEnd + 1).matchAll(invocationPattern)) {
+      indices.add(callEnd + 1 + invocation.index);
+    }
+  }
+  return indices;
+}
+
+function supportedEvaluationHttpInvocationIndices(contents: string): ReadonlySet<number> {
+  const indices = new Set<number>();
+  const masked = maskJavaScriptNonCode(contents);
+  const declaresEvaluationRequest =
+    /['"]X-Flowise-Evaluation['"]\s*:\s*['"]true['"]/.test(contents) &&
+    /\bevaluation\s*:\s*true\b/.test(masked);
+  if (!declaresEvaluationRequest) return indices;
+  for (const match of contents.matchAll(
+    /\baxios\.post\s*\(\s*`[^`]*\/api\/v1\/prediction\/\$\{[^}]+\}[^`]*`/g,
+  )) {
+    if ((masked[match.index] ?? ' ') !== ' ') indices.add(match.index);
+  }
+  return indices;
 }
 
 function lineNumberAt(contents: string, index: number): number {
@@ -283,6 +341,7 @@ function configurationInputLocus(
 }
 
 interface JavaScriptFunctionScope {
+  readonly name: string;
   readonly start: number;
   readonly end: number;
 }
@@ -290,7 +349,7 @@ interface JavaScriptFunctionScope {
 function javaScriptFunctionScopes(masked: string): readonly JavaScriptFunctionScope[] {
   const scopes: JavaScriptFunctionScope[] = [];
   const patterns = [
-    /^\s*(?:async\s+)?(?:function\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/gm,
+    /^\s*(?:export\s+)?(?:async\s+)?(?:function\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/gm,
     /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*(?::[^=\n]+)?=>\s*\{/g,
   ];
   for (const pattern of patterns) {
@@ -302,9 +361,9 @@ function javaScriptFunctionScopes(masked: string): readonly JavaScriptFunctionSc
       ) {
         continue;
       }
-      const start = masked.indexOf('{', declaration.index);
+      const start = declaration.index + declaration[0].lastIndexOf('{');
       const end = matchingDelimiter(masked, start, '{', '}');
-      if (start >= 0 && end >= 0) scopes.push({ start, end });
+      if (start >= 0 && end >= 0) scopes.push({ name: functionName, start, end });
     }
   }
   return scopes;
@@ -344,6 +403,41 @@ function hasScopedInvocationBefore(
   );
 }
 
+function hasLocalOrResolvedHelperInvocationBefore(
+  contents: string,
+  invocations: readonly ModelInvocation[],
+  resultIndex: number,
+): boolean {
+  if (hasScopedInvocationBefore(contents, invocations, resultIndex)) return true;
+  const masked = maskJavaScriptNonCode(contents);
+  const scopes = javaScriptFunctionScopes(masked);
+  const resultScope = scopes
+    .filter((scope) => resultIndex > scope.start && resultIndex < scope.end)
+    .sort((left, right) => right.start - left.start)[0];
+  if (!resultScope) return false;
+  const callerPrefix = masked.slice(resultScope.start + 1, resultIndex);
+  return scopes.some((callee) => {
+    if (callee.start === resultScope.start) return false;
+    const ownsModelInvocation = invocations.some(
+      (invocation) =>
+        invocation.index > callee.start &&
+        invocation.index < callee.end &&
+        !scopes.some(
+          (nested) =>
+            nested.start > callee.start &&
+            nested.end < callee.end &&
+            invocation.index > nested.start &&
+            invocation.index < nested.end,
+        ),
+    );
+    if (!ownsModelInvocation) return false;
+    const escapedName = callee.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(
+      `(?:\\bawait\\s+|=\\s*|\\breturn\\s+)${escapedName}\\s*\\(`,
+    ).test(callerPrefix);
+  });
+}
+
 function parameterBackedPerCaseProvenanceFinding(
   file: LlmSourceFile,
   objects: readonly BoundObject[],
@@ -351,7 +445,7 @@ function parameterBackedPerCaseProvenanceFinding(
 ): CejelLlmEvaluationFinding | null {
   const masked = maskJavaScriptNonCode(file.contents);
   for (const declaration of masked.matchAll(
-    /^\s*(?:async\s+)?(?:function\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/gm,
+    /^\s*(?:export\s+)?(?:async\s+)?(?:function\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/gm,
   )) {
     const functionName = declaration[1];
     if (
@@ -360,7 +454,7 @@ function parameterBackedPerCaseProvenanceFinding(
     ) {
       continue;
     }
-    const openBrace = masked.indexOf('{', declaration.index);
+    const openBrace = declaration.index + declaration[0].lastIndexOf('{');
     const end = matchingDelimiter(masked, openBrace, '{', '}');
     if (end < 0) continue;
     const body = masked.slice(openBrace + 1, end);
@@ -417,6 +511,123 @@ function parameterBackedPerCaseProvenanceFinding(
   return null;
 }
 
+function returnedCollectionProvenanceFinding(
+  file: LlmSourceFile,
+  objects: readonly BoundObject[],
+  invocations: readonly ModelInvocation[],
+): CejelLlmEvaluationFinding | null {
+  const masked = maskJavaScriptNonCode(file.contents);
+  const scopes = javaScriptFunctionScopes(masked);
+  for (const scope of scopes) {
+    if (!/(?:eval|evaluation|evaluator|judge|grader|score|benchmark|assess|metric)/i.test(
+      scope.name,
+    )) continue;
+    const body = masked.slice(scope.start + 1, scope.end);
+    for (const declaration of body.matchAll(
+      /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)(?:\s*:[^=\n]+)?\s*=\s*\[\s*\]\s*;?/g,
+    )) {
+      const collection = declaration[1];
+      if (!collection) continue;
+      const declarationIndex = scope.start + 1 + declaration.index;
+      const escapedCollection = collection.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const observable = new RegExp(
+        `(?:\\breturn\\s+${escapedCollection}\\s*;?|\\b(?:writeFileSync|appendFileSync|Bun\\.write|console\\.(?:log|info))\\s*\\([\\s\\S]{0,500}?JSON\\.stringify\\s*\\(\\s*${escapedCollection}\\b)`,
+      ).exec(masked.slice(declarationIndex, scope.end));
+      if (!observable) continue;
+      const observableIndex = declarationIndex + observable.index;
+      if (!hasScopedInvocationBefore(file.contents, invocations, observableIndex)) continue;
+      const scopeInvocations = invocations.filter(
+        (invocation) =>
+          invocation.index > scope.start &&
+          invocation.index < observableIndex &&
+          hasScopedInvocationBefore(file.contents, [invocation], observableIndex),
+      );
+
+      let properties: ReadonlySet<string> | null = null;
+      let evidenceIndex = declarationIndex;
+      for (const inlinePush of masked.slice(declarationIndex, observableIndex).matchAll(
+        new RegExp(`\\b${escapedCollection}\\.push\\s*\\(\\s*\\{`, 'g'),
+      )) {
+        const pushIndex = declarationIndex + inlinePush.index;
+        if (!scopeInvocations.some((invocation) => invocation.index < pushIndex)) continue;
+        const objectStart = masked.indexOf('{', pushIndex);
+        const objectEnd = matchingDelimiter(masked, objectStart, '{', '}');
+        if (objectStart >= 0 && objectEnd >= 0 && objectEnd < observableIndex) {
+          const candidateProperties = objectProperties(masked.slice(objectStart + 1, objectEnd));
+          if (
+            [...candidateProperties].some((property) =>
+              DISCRETE_OUTCOME_KEY_PATTERN.test(property) ||
+              CASE_RESULT_KEY_PATTERN.test(property)
+            )
+          ) {
+            properties = candidateProperties;
+            evidenceIndex = objectStart;
+            break;
+          }
+        }
+      }
+      if (!properties) {
+        for (const invocation of scopeInvocations) {
+          const lineStart = masked.lastIndexOf('\n', invocation.index) + 1;
+          const assignmentPrefix = masked.slice(lineStart, invocation.index);
+          const alias = assignmentPrefix.match(
+            /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?(?:[A-Za-z_$][\w$.]*)?$/,
+          )?.[1];
+          if (!alias) continue;
+          const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (new RegExp(
+            `\\b${escapedCollection}\\.push\\s*\\(\\s*${escapedAlias}\\s*\\)`,
+          ).test(masked.slice(invocation.index, observableIndex))) {
+            properties = new Set(['result']);
+            evidenceIndex = invocation.index;
+            break;
+          }
+        }
+      }
+      if (!properties) {
+        const candidate = objects.find((object) => {
+          if (object.index <= declarationIndex || object.end >= observableIndex) return false;
+          const escapedObject = object.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(
+            `\\b${escapedCollection}\\.push\\s*\\(\\s*${escapedObject}\\s*\\)`,
+          ).test(masked.slice(object.end, observableIndex));
+        });
+        if (candidate) {
+          properties = new Set([
+            ...candidate.properties,
+            ...assignedProperties(file.contents, candidate.name, candidate.end, observableIndex),
+          ]);
+          evidenceIndex = candidate.index;
+        }
+      }
+      if (!properties) continue;
+      const collectionProperties = assignedProperties(
+        file.contents,
+        collection,
+        declarationIndex + declaration[0].length,
+        observableIndex,
+      );
+      const hasOutcome = [...properties].some((property) =>
+        DISCRETE_OUTCOME_KEY_PATTERN.test(property) ||
+        CASE_RESULT_KEY_PATTERN.test(property)
+      );
+      if (
+        !hasOutcome ||
+        hasAny(new Set([...properties, ...collectionProperties]), LINEAGE_CONFIG_KEYS)
+      ) continue;
+      return finding(
+        'LLM-PRV-001',
+        file,
+        evidenceIndex,
+        'info',
+        'A local evaluation result collection is returned or persisted without immutable prompt, policy, or evaluation-configuration lineage.',
+        'Evaluation result collection retained without reproducible configuration provenance',
+      );
+    }
+  }
+  return null;
+}
+
 /**
  * Covers two complete, local evaluation-result forms that do not compute an aggregate:
  * an identifier-bound discrete result that is emitted or returned, and an incrementally built
@@ -443,7 +654,7 @@ export function detectBoundedEvaluationResultProvenance(
       );
       if (
         emissionIndex === null ||
-        !hasScopedInvocationBefore(file.contents, invocations, emissionIndex)
+        !hasLocalOrResolvedHelperInvocationBefore(file.contents, invocations, emissionIndex)
       ) {
         continue;
       }
@@ -493,7 +704,7 @@ export function detectBoundedEvaluationResultProvenance(
       );
       if (
         emissionIndex === null ||
-        !hasScopedInvocationBefore(file.contents, invocations, emissionIndex)
+        !hasLocalOrResolvedHelperInvocationBefore(file.contents, invocations, emissionIndex)
       ) {
         continue;
       }
@@ -535,7 +746,16 @@ export function detectBoundedEvaluationResultProvenance(
       objects,
       invocations,
     );
-    if (parameterBacked) findings.push(parameterBacked);
+    if (parameterBacked) {
+      findings.push(parameterBacked);
+      continue;
+    }
+    const returnedCollection = returnedCollectionProvenanceFinding(
+      file,
+      objects,
+      invocations,
+    );
+    if (returnedCollection) findings.push(returnedCollection);
   }
   return findings;
 }
@@ -640,6 +860,7 @@ function detectMissingProvenanceIncludingBoundedResults(
     ...detectBoundedEvaluationResultProvenance(files).filter(
       (item) => !aggregatePaths.has(item.evidence.path),
     ),
+    ...files.flatMap((file) => detectPythonMissingEvaluationProvenance(file)),
   ];
 }
 
@@ -772,6 +993,17 @@ function modelInvocations(contents: string): readonly ModelInvocation[] {
     );
     invocations.push({ index: match.index, identity: modelIdentity(call, bindings), judge });
   }
+  for (const index of supportedEvaluationHttpInvocationIndices(contents)) {
+    if (!invocations.some((invocation) => invocation.index === index)) {
+      invocations.push({ index, identity: null, judge: false });
+    }
+  }
+  for (const index of supportedLangChainEvaluationInvocationIndices(contents)) {
+    if (!invocations.some((invocation) => invocation.index === index)) {
+      invocations.push({ index, identity: null, judge: true });
+    }
+  }
+  invocations.sort((left, right) => left.index - right.index);
   return invocations;
 }
 
@@ -832,7 +1064,8 @@ function hasAggregateEvaluationSurface(files: readonly LlmSourceFile[]): boolean
 function hasProvenanceEvaluationSurface(files: readonly LlmSourceFile[]): boolean {
   return (
     hasAggregateEvaluationSurface(files) ||
-    detectBoundedEvaluationResultProvenance(files).length > 0
+    detectBoundedEvaluationResultProvenance(files).length > 0 ||
+    files.some((file) => detectPythonMissingEvaluationProvenance(file).length > 0)
   );
 }
 
@@ -854,11 +1087,12 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
     title: 'Declared evaluation lacks reproducible system provenance',
     detectorConfidence: 'high',
     evidenceContract:
-      'A recognized local model invocation precedes a complete local evaluation result that is emitted or returned while lacking model or prompt/policy evaluation-configuration lineage. Supported forms are aggregate-to-emitter paths, identifier-bound discrete results with model/case/outcome fields, and incrementally built per-case collections with an evaluation identity and resolved return.',
+      'A recognized direct or locally called-helper model invocation precedes a complete local evaluation result that is emitted or returned while lacking model or prompt/policy evaluation-configuration lineage. Recognized invocations include import-resolved SDK calls, a complete authenticated OpenAI-compatible REST request, and a complete local Flowise evaluation request. Supported results are aggregate-to-emitter paths, identifier-bound discrete results with model/case/outcome fields, and incrementally built per-case collections with an evaluation identity and resolved return.',
     exclusions: [
       'External or dynamically assembled result reporters',
       'Exploratory code without a locally emitted or returned evaluation result',
       'Generic returned objects and model metadata without declared case/outcome semantics',
+      'Generic HTTP requests and model helpers not observably called by the result-producing scope',
       'Tests, examples, fixtures, documentation, generated code, and unresolved paths',
     ],
     applies: hasProvenanceEvaluationSurface,
