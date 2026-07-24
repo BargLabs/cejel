@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.4",
+  "record_type": "trusted_golden_gate_no_go",
+  "recorded_at": "2026-07-23T23:59:00Z",
+  "release_decision": "no_go",
+  "untouched_execution_prohibited": true,
+  "trusted_golden_run": {
+    "run_id": 30053703135,
+    "run_url": "https://github.com/BargLabs/cejel/actions/runs/30053703135",
+    "conclusion": "success",
+    "started_at": "2026-07-23T23:36:19Z",
+    "completed_at": "2026-07-23T23:54:02Z",
+    "commit": "bd14a91aff73a89b80d8802579e5f9d46215c20a",
+    "detector_build_sha256": "c54f4d224e991587c456d58dd0d18846028fced132199d35bc2284afa364693b",
+    "pre_result_commitment_sha256": "ec026eae5f71a4933414c3d726122bad965cce1c825e2e0e17071d3487b7d055",
+    "free_core_parity": "passed",
+    "no_egress_execution": "passed",
+    "repositories_executed": 24
+  },
+  "public_commitment": {
+    "comment_id": 5064572119,
+    "comment_url": "https://github.com/BargLabs/cejel/pull/25#issuecomment-5064572119",
+    "server_created_at": "2026-07-23T23:35:29Z",
+    "commitment_git_blob": "76c25602615c701267e36ec0a7b7e1dd5a77e6bd",
+    "commitment_byte_sha256": "59e541a36d3c23ac5f7725b41462a68e78c2a66268fab5bb6d8401c3aaa88199"
+  },
+  "golden_artifacts": {
+    "evidence": {
+      "artifact_id": 8582275112,
+      "archive_sha256": "72631f9f1a4513d8ea0c1a1b6ff2a08d97ba188d2eea5dee381aaa121d054ed4"
+    },
+    "raw": {
+      "artifact_id": 8582275844,
+      "archive_sha256": "bf89d18380db310d7fd8eda4ab44544b19ebfbb9bfe5c132a716f2f679c10953"
+    }
+  },
+  "frozen_inventory": {
+    "golden_opportunities": 1272,
+    "untouched_opportunities": 982,
+    "blind_label_bindings": 5904,
+    "golden_findings": 8,
+    "exact_finding_opportunity_matches": 0,
+    "unmatched_findings": 8
+  },
+  "aggregate_root_cause": {
+    "same_repository_rule_and_path_non_overlapping_line": 3,
+    "same_repository_and_rule_different_path": 5,
+    "same_repository_without_rule_opportunity": 0,
+    "invalid_or_missing_source_scope": 0,
+    "substantively_correct_findings": 6,
+    "false_positive_findings": 1,
+    "generic_evidence_pointer_defects": 1,
+    "reviewer_execution_failures": 0,
+    "methodology_ambiguity_omissions": 4,
+    "candidate_anchor_omissions": 3
+  },
+  "private_audit_bindings": {
+    "golden_execution_evidence_byte_sha256": "9511e2dd825f551c431d8be7140206a9ffa063552447a70af0b4fcdf36109138",
+    "golden_execution_evidence_canonical_sha256": "aa4cc984765ed69e658ef7a1e729a417d9b75f5e49f1d87b4c7a6eff43999f6b",
+    "correction_candidate_audit_byte_sha256": "f3ea7288925579db84982c9eb752b9f7d001d5fff62d9cef670373d5c09f7760",
+    "root_cause_report_byte_sha256": "2d330c2ef6c124f0dc2fb51aead913c9d579f2038defb10a18d320c252c21911",
+    "root_cause_report_canonical_sha256": "268bcfb44cc85d2019af5a3220deed60fa27f36c54ea28ae89c5b360e7a6e292"
+  },
+  "disposition": {
+    "golden": "retired_after_trusted_development_gate",
+    "untouched": "withdrawn_unexecuted_and_unspent",
+    "untouched_detector_executed": false,
+    "reason": "The pre-result opportunity inventory omitted legitimate golden candidates and cannot be amended after detector output. The exact denominator is therefore invalid for release measurement."
+  },
+  "required_v1_5_changes": [
+    "Fix the proven generic decorator false positive and registered-tool evidence-pointer defect with fixture-backed rules.",
+    "Freeze a rule-specific canonical anchor contract before source access.",
+    "Record a complete candidate ledger for every repository and rule: each detector-independent semantic search hit must map to an opportunity identity or a hash-bound exclusion rationale.",
+    "Require a third blind discovery-auditor pass over the identity union and candidate ledger before labels are frozen.",
+    "Circulate every auditor-added identity back to both labelers for independent classification.",
+    "Allow an independently reviewed unmatched detector finding to count as a false positive without adding a post-result opportunity or changing the recall denominator.",
+    "Select fresh golden and untouched cohorts disjoint from every earlier calibration identity.",
+    "Keep release thresholds unchanged and publish a new pre-result commitment before any v1.5 detector output."
+  ]
+}

@@ -7,6 +7,13 @@ remain outside Git.
 
 ## State
 
+- Current decision: v1.4 is **NO-GO** after trusted golden run
+  [30053703135](https://github.com/BargLabs/cejel/actions/runs/30053703135). All eight detector
+  findings lacked an exact frozen opportunity match. Six were substantively correct findings
+  omitted by the shared discovery method, one exposed a generic false positive, and one exposed a
+  generic evidence-pointer defect. The v1.4 untouched cohort was never executed and is withdrawn
+  unspent. `results/v1.4-golden-gate-no-go.json` binds the public chronology and private audits.
+  A fresh, fully disjoint v1.5 cycle is required; thresholds remain unchanged.
 - Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.4` before
   v1.4 source access or detector results. The v1.2 and v1.3 policies remain at
   `selection-policy-v1.2.json` and `selection-policy-v1.3.json`.
