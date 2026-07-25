@@ -4,6 +4,7 @@ import { hasUnmaskedJavaScriptMatch, maskJavaScriptNonCode } from './lexical.js'
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
 import {
   detectPythonConfiguredSelfJudge,
+  detectPythonMissingDenominator,
   detectPythonMissingEvaluationProvenance,
 } from './python-evaluation-rules.js';
 import type { LlmSourceFile } from './rules.js';
@@ -1047,6 +1048,15 @@ function detectSoleSelfJudgeAcrossLanguages(
   ];
 }
 
+function detectMissingDenominatorAcrossLanguages(
+  files: readonly LlmSourceFile[],
+): readonly CejelLlmEvaluationFinding[] {
+  return [
+    ...detectMissingDenominator(files),
+    ...files.flatMap((file) => detectPythonMissingDenominator(file)),
+  ];
+}
+
 function hasAggregateEvaluationSurface(files: readonly LlmSourceFile[]): boolean {
   return files.some((file) => {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) return false;
@@ -1058,7 +1068,7 @@ function hasAggregateEvaluationSurface(files: readonly LlmSourceFile[]): boolean
       const first = Math.min(...emitted.map(([, assignment]) => assignment.index));
       return hasLocalLlmEvaluationInvocation(file, first);
     });
-  });
+  }) || files.some((file) => detectPythonMissingDenominator(file).length > 0);
 }
 
 function hasProvenanceEvaluationSurface(files: readonly LlmSourceFile[]): boolean {
@@ -1110,7 +1120,7 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
       'Tests, examples, fixtures, documentation, generated code, and unresolved paths',
     ],
     applies: hasAggregateEvaluationSurface,
-    detect: detectMissingDenominator,
+    detect: detectMissingDenominatorAcrossLanguages,
   },
   {
     id: 'LLM-EVL-002',

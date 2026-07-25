@@ -538,4 +538,99 @@ describe('Free LLM evaluation and provenance rules', () => {
       ),
     ).toEqual([]);
   });
+
+  it('detects a Python evaluation aggregate emitted without its eligible-case denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = []',
+        '    for case in cases:',
+        '        verdict = judge.evaluate(case)',
+        '        if verdict is not None:',
+        '            scores.append(verdict.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"model_id": "judge-v1", "average_score": average_score}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.confidence).toBe('high');
+  });
+
+  it('suppresses the Python denominator finding when the eligible count is retained', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = []',
+        '    for case in cases:',
+        '        verdict = judge.evaluate(case)',
+        '        if verdict is not None:',
+        '            scores.append(verdict.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"average_score": average_score, "eligible_count": len(scores)}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not flag a Python aggregate with no preceding model or judge invocation', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def summarize_scores(scores):',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"average_score": average_score}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a Python statistics.mean aggregate emitted without its eligible-case denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'import statistics',
+        '',
+        'def run_benchmark(judge, cases):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    mean_score = statistics.mean(scores)',
+        '    return {"mean_score": mean_score}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it('does not flag a Python statistics.mean aggregate with a retained denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'import statistics',
+        '',
+        'def run_benchmark(judge, cases):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    mean_score = statistics.mean(scores)',
+        '    return {"mean_score": mean_score, "total_cases": len(scores)}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
 });

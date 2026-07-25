@@ -65,6 +65,16 @@ const PYTHON_RESULT_KEY_PATTERN =
   /^(?:score|scores|verdict|result|results|metric|metrics|passed|correct|status|output|actualoutput|judgment|judgement|grade|accuracy)$/i;
 const PYTHON_CONFIG_LINEAGE_KEY_PATTERN =
   /^(?:promptdigest|prompthash|promptid|promptversion|policydigest|policyhash|policyid|policyversion|configdigest|confighash|configid|configversion|evaluationconfigversion|evaluationmanifest|repositorycommit)$/i;
+const PYTHON_AGGREGATE_ASSIGNMENT_PATTERN =
+  /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*([^\n]+)$/gm;
+const PYTHON_AGGREGATE_NAME_PATTERN = /(?:rate|score|accuracy|average|mean|percentage|pct)/i;
+const PYTHON_DENOMINATOR_DIVISION_PATTERN = /\/\s*len\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/;
+const PYTHON_DENOMINATOR_CALL_PATTERN =
+  /\b(?:statistics\.mean|np\.mean|numpy\.mean|mean)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)/;
+const PYTHON_DENOMINATOR_KEY_PATTERN =
+  /^(?:eligibletotal|eligiblecount|totalcases|totalcount|denominator|caseresults|rawresults|results)$/i;
+const PYTHON_OUTCOME_COUNT_KEY_PATTERN =
+  /^(?:error|errors|refusal|refusals|abstention|abstentions|excluded|exclusions|excludedcount)$/i;
 
 function pythonFunctionBlocks(
   masked: string,
@@ -342,6 +352,98 @@ export function detectPythonMissingEvaluationProvenance(
     }
   }
   return [];
+}
+
+interface PythonAggregateAssignment {
+  readonly index: number;
+  readonly denominatorCollections: ReadonlySet<string>;
+}
+
+function pythonAggregateAssignmentsIn(
+  masked: string,
+): ReadonlyMap<string, PythonAggregateAssignment> {
+  const assignments = new Map<string, PythonAggregateAssignment>();
+  for (const match of masked.matchAll(PYTHON_AGGREGATE_ASSIGNMENT_PATTERN)) {
+    const name = match[1];
+    const expression = match[2];
+    if (!name || !expression || !PYTHON_AGGREGATE_NAME_PATTERN.test(name)) continue;
+    const division = PYTHON_DENOMINATOR_DIVISION_PATTERN.exec(expression);
+    const call = PYTHON_DENOMINATOR_CALL_PATTERN.exec(expression);
+    if (!division && !call) continue;
+    const denominatorCollections = new Set<string>();
+    if (division?.[1]) denominatorCollections.add(division[1]);
+    if (call?.[1]) denominatorCollections.add(call[1]);
+    assignments.set(name, { index: match.index, denominatorCollections });
+  }
+  return assignments;
+}
+
+/**
+ * Detects a Python evaluation aggregate (an average/rate/accuracy computed by dividing by a case
+ * collection's length, or by a statistics/numpy mean call) that reaches a structured result
+ * emission without its eligible-case denominator or raw per-case results. Mirrors the JS/TS
+ * detectMissingDenominator detector using the same structured-result-expression primitive PRV-001
+ * already relies on, so an aggregate silently computed over a shrunk collection (e.g. after
+ * dropping errored cases) is not reported as if it covered every eligible case.
+ */
+export function detectPythonMissingDenominator(
+  file: LlmSourceFile,
+): readonly CejelLlmEvaluationFinding[] {
+  if (!file.path.toLowerCase().endsWith('.py') || isExcludedLlmSourcePath(file.path)) return [];
+  const masked = maskPythonNonCode(file.contents);
+  const classes = pythonClassBlocks(masked);
+  const blocks = pythonFunctionBlocks(masked, classes);
+  const findings: CejelLlmEvaluationFinding[] = [];
+  for (const block of blocks) {
+    if (!EVALUATOR_CONTEXT_PATTERN.test(block.contextName)) continue;
+    const nestedBlocks = blocks.filter(
+      (candidate) => candidate.index > block.index && candidate.end <= block.end,
+    );
+    const aggregates = pythonAggregateAssignmentsIn(block.contents);
+    if (aggregates.size === 0) continue;
+    const invocations = [...block.contents.matchAll(PYTHON_MODEL_OR_JUDGE_CALL_PATTERN)]
+      .filter((invocation) => {
+        const lineStart = block.contents.lastIndexOf('\n', invocation.index) + 1;
+        return !/\bdef\s*$/.test(block.contents.slice(lineStart, invocation.index));
+      })
+      .filter((invocation) => !nestedBlocks.some((nested) => {
+        const absoluteIndex = block.index + invocation.index;
+        return absoluteIndex > nested.index && absoluteIndex < nested.end;
+      }));
+    if (invocations.length === 0) continue;
+    for (const result of pythonStructuredResultExpressions(file, block).filter(
+      (candidate) => !nestedBlocks.some(
+        (nested) => candidate.index > nested.index && candidate.index < nested.end,
+      ),
+    )) {
+      const emittedAggregates = [...aggregates].filter(([name]) => result.keys.has(
+        name.replaceAll('_', '').toLowerCase(),
+      ));
+      if (emittedAggregates.length === 0) continue;
+      const firstAggregateIndex = Math.min(
+        ...emittedAggregates.map(([, assignment]) => assignment.index),
+      );
+      if (!invocations.some((invocation) => invocation.index < firstAggregateIndex)) continue;
+      if ([...result.keys].some((key) => PYTHON_DENOMINATOR_KEY_PATTERN.test(key))) continue;
+      if (
+        [...result.keys].every((key) => PYTHON_OUTCOME_COUNT_KEY_PATTERN.test(key)) &&
+        result.keys.size > 0
+      ) continue;
+      findings.push({
+        ruleId: 'LLM-EVL-001',
+        severity: 'warning',
+        confidence: 'high',
+        summary:
+          'A locally computed Python evaluation aggregate is emitted without its eligible-case denominator or raw case-level results.',
+        evidence: {
+          path: file.path,
+          line: lineNumberAt(file.contents, result.index),
+          label: 'Evaluation aggregate emitted without reproducible denominator',
+        },
+      });
+    }
+  }
+  return findings;
 }
 
 /**
