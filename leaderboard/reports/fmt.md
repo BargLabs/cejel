@@ -1,8 +1,8 @@
 # Cejel Trust Report - fmt
 
 - Product: fmt
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/fmtlib/fmt @ a79df4504cd4e42ed004b1113fb82171e62ed822
 
 ## Criterion Profile
@@ -19,7 +19,7 @@
 | B3 | CI and QA discipline | Process trust | 3.1 | verified | CI verification depth: 2/4 signals; PR-gate CI workflow count: 4 workflows (capped; 8 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | 2.5 | verified | Audit artifact depth: 2/3 files; Audit freshness depth: 1/2 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B6 | Privileged-operation human gating | Process trust | 4.0 | warning | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
+| B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
 
@@ -61,11 +61,9 @@
 - B4: Audit or changelog artifact (ChangeLog.md:1, sha256:01791cf67050)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:524103c7d5ec)
-- B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:524103c7d5ec) (warning)
 
 ## Findings
 
 - A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (test/add-subdirectory-test/main.cc:1, sha256:400f01bbe88c))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:26b23c0cda15))
 - B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (11 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/codeql.yml:1, sha256:252ba92b5c3e))
-- B6 finding severity warning (dimension band warning): B6 dimension band is warning at 4.0/4.0. Lowest contributing measurements: Protected-path review gate 1/1 present; Privilege-escalation cleanliness 1/1 clean. To improve: require review for changes to protected paths; remove unsafe privilege-escalation patterns. (CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:524103c7d5ec))

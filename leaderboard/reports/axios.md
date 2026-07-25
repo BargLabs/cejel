@@ -1,8 +1,8 @@
 # Cejel Trust Report - axios
 
 - Product: axios
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/axios/axios @ 7a6615e421578081743161eab032d009dc6583a4
 
 ## Criterion Profile
@@ -15,11 +15,11 @@
 | A4 | Dependency hygiene | Code trust | 2.5 | verified | Pinned dependency ratio: 10/62 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.4 | warning | Claim match rate: 12/14 ratio; Claim source depth: 2/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 10 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 10 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 4/4 signals; PR-gate CI workflow count: 4 workflows (capped; 5 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.6 | verified | Audit artifact depth: 3 files (capped; 6 raw); Audit freshness depth: 3/6 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B6 | Privileged-operation human gating | Process trust | 4.0 | warning | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
+| B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
 
@@ -61,7 +61,6 @@
 - B2: Pull-request CI workflow (.github/workflows/moderator.yml:1, sha256:341dacba05b6)
 - B2: Pull request template (.github/PULL_REQUEST_TEMPLATE.md:1, sha256:e313b5da52c6)
 - B2: Review gate configuration (.github/CODEOWNERS:1, sha256:c899dce56703)
-- B2: Pull-request CI workflow (.github/workflows/bundle-size.yml:1, sha256:80cf311e8c1f) (warning)
 - B3: Test script (package.json:1, sha256:b942f4a02b5a)
 - B3: Lint script (package.json:1, sha256:b942f4a02b5a)
 - B3: CI workflow (.github/workflows/bundle-size.yml:1, sha256:80cf311e8c1f)
@@ -72,7 +71,6 @@
 - B4: Audit or changelog artifact (docs/pages/misc/security.md:1, sha256:156a85ca8b6b)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:c899dce56703)
-- B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:c899dce56703) (warning)
 
 ## Findings
 
@@ -80,5 +78,3 @@
 - A3 finding severity warning (dimension band warning): A3 dimension band is warning at 1.8/4.0. Lowest contributing measurements: Rollback and migration-safety depth 0/4 signals; Production-readiness primitive coverage 2/6 primitives. To improve: document and test rollback or recovery procedures; add the missing deployment-readiness controls. (Build or typecheck script (package.json:1, sha256:b942f4a02b5a))
 - A5 finding severity info (dimension band warning): Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming. (Repository claim source (README.md:1, sha256:383efd90571f))
 - A5 finding severity warning (dimension band warning): A5 dimension band is warning at 2.4/4.0. Lowest contributing measurements: Reconciliation artifact depth 0/3 artifacts; Claim source depth 2/4 docs. To improve: publish a claim-to-evidence reconciliation record; document concrete, checkable product claims. (Repository claim source (README.md:1, sha256:383efd90571f))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (10 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/bundle-size.yml:1, sha256:80cf311e8c1f))
-- B6 finding severity warning (dimension band warning): B6 dimension band is warning at 4.0/4.0. Lowest contributing measurements: Protected-path review gate 1/1 present; Privilege-escalation cleanliness 1/1 clean. To improve: require review for changes to protected paths; remove unsafe privilege-escalation patterns. (CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:c899dce56703))

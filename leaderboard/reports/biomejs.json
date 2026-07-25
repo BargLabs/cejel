@@ -5,8 +5,8 @@
     "url": "https://github.com/biomejs/biome",
     "headSha": "01bba129afefced1c04aa69592b1b7f337a7b609"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -103,8 +103,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 7389,
-          "max": 4100,
+          "value": 7395,
+          "max": 4099,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -146,7 +146,7 @@
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
       "score": 3.2,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -156,19 +156,7 @@
           "contentHash": "ebc9a6301ba7087f8902f37c72972f476799d77bebcb01bf2073b1c8cfc02383"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "Data layer migration",
-            "path": "crates/biome_migrate/tests/specs/migrations/all/group_level.json",
-            "line": 1,
-            "contentHash": "ebc9a6301ba7087f8902f37c72972f476799d77bebcb01bf2073b1c8cfc02383"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "secret_cleanliness",
@@ -299,7 +287,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -337,19 +325,7 @@
           "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/actions_linter.yml",
-            "line": 1,
-            "contentHash": "517c943a21f684af0667253fc7161bcf0e825775a956c933c03e7008265a06bf"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -493,7 +469,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 1.7,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -503,19 +479,7 @@
           "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B6 metric-derived score is 1.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "CODEOWNERS/required-review gate on protected paths",
-            "path": ".github/CODEOWNERS",
-            "line": 1,
-            "contentHash": "a56979cfb10c78cb4705bf9d89c97e806af93cec896279911b1ed75ed2192d9f"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "human_gate_documented",

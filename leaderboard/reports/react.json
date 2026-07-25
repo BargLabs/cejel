@@ -5,15 +5,15 @@
     "url": "https://github.com/facebook/react",
     "headSha": "c0c39a6b3907eaab35f43074949e2957a2a734c1"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.3,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -123,17 +123,6 @@
       ],
       "findings": [
         {
-          "severity": "warning",
-          "summary": "A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record.",
-          "evidence": {
-            "kind": "scheduled_health_summary",
-            "label": "Scheduled product-health workflow",
-            "path": ".github/workflows/devtools_regression_tests.yml",
-            "line": 1,
-            "contentHash": "e81037c21b41343489805f05634e7e701bf2306a1e76c61f57b71a61506eb070"
-          }
-        },
-        {
           "severity": "info",
           "summary": "Test suite files are present, but no coverage configuration was detected.",
           "evidence": {
@@ -191,38 +180,19 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 3.2,
-      "status": "warning",
-      "evidence": [
-        {
-          "kind": "secret_scan",
-          "label": "Committed .env file in repository tree",
-          "path": "fixtures/fiber-debugger/.env",
-          "line": 1,
-          "contentHash": "5da7ad963fe4490f8539d9fb156447e75390f96f23fadb81982f9f3170932443"
-        }
-      ],
+      "score": 1.4,
+      "status": "critical",
+      "evidence": [],
       "findings": [
         {
-          "severity": "info",
-          "summary": "A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.",
+          "severity": "critical",
+          "summary": "Secret-shaped value appears committed in the scanned repository.",
           "evidence": {
             "kind": "secret_scan",
-            "label": "Committed .env file (no confirmed secret value found)",
-            "path": "fixtures/fiber-debugger/.env",
-            "line": 1,
-            "contentHash": "5da7ad963fe4490f8539d9fb156447e75390f96f23fadb81982f9f3170932443"
-          }
-        },
-        {
-          "severity": "warning",
-          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "secret_scan",
-            "label": "Committed .env file in repository tree",
-            "path": "fixtures/fiber-debugger/.env",
-            "line": 1,
-            "contentHash": "5da7ad963fe4490f8539d9fb156447e75390f96f23fadb81982f9f3170932443"
+            "label": "Committed secret-shaped value (value redacted; length 32; classes lower+digit)",
+            "path": "compiler/packages/react-mcp-server/src/utils/algolia.ts",
+            "line": 14,
+            "contentHash": "dda98d4dcda5d906904824b149b9d859d85e45ba12bffdeb20823554c5bf7ce7"
           }
         }
       ],
@@ -230,7 +200,7 @@
         {
           "name": "secret_cleanliness",
           "label": "Secret cleanliness",
-          "value": 1,
+          "value": 0,
           "max": 1,
           "weight": 0.7,
           "unit": "clean",
@@ -475,7 +445,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -506,19 +476,7 @@
           "contentHash": "3b66d9d79de509e7c232362d2edcd1fe1a8e4c04e0f8b6da6478b081bd03419c"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/compiler_discord_notify.yml",
-            "line": 1,
-            "contentHash": "e934619a5e08dd392022f003811db1aaca25236e9a14f6d23b6204f59bcfd6be"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -685,7 +643,7 @@
   ],
   "archetype": "monorepo",
   "verdict": "conditional",
-  "codeTrustScore": 2.5,
+  "codeTrustScore": 2.1,
   "processTrustScore": 3.9,
-  "overallScore": 3.2
+  "overallScore": 3
 }

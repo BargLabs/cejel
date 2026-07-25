@@ -5,8 +5,8 @@
     "url": "https://github.com/sinatra/sinatra",
     "headSha": "946812bdec8faf6598fed154a8d611ead612b6fd"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -241,7 +241,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -265,19 +265,7 @@
           "contentHash": "682a996b685690fc448b9ea0679430c665ebe5d8915e0ec04818a2d465522a69"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/release.yml",
-            "line": 1,
-            "contentHash": "cc493a1c4dc20834065212fdfda1e86d136917f0e9b6bd3637c23bdc26d09400"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -412,7 +400,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -422,19 +410,7 @@
           "contentHash": "682a996b685690fc448b9ea0679430c665ebe5d8915e0ec04818a2d465522a69"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "CODEOWNERS/required-review gate on protected paths",
-            "path": ".github/workflows/CODEOWNERS",
-            "line": 1,
-            "contentHash": "682a996b685690fc448b9ea0679430c665ebe5d8915e0ec04818a2d465522a69"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",

@@ -1,8 +1,8 @@
 # Cejel Trust Report - pydantic
 
 - Product: pydantic
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/pydantic/pydantic @ f59e929c999e8b2efc7b12fd0bc1685c1a186be3
 
 ## Criterion Profile
@@ -15,7 +15,7 @@
 | A4 | Dependency hygiene | Code trust | 3.6 | verified | Declared version range ratio: 28/28 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.4 | warning | Claim match rate: 12/20 ratio; Claim source depth: 4 docs (capped; 9 raw); Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 11 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 11 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 3.6 | verified | CI verification depth: 3/4 signals; PR-gate CI workflow count: 4 workflows (capped; 6 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | 2.9 | verified | Audit artifact depth: 2/3 files; Audit freshness depth: 2/2 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -60,7 +60,6 @@
 - B2: Pull-request CI workflow (.github/workflows/codspeed.yml:1, sha256:b2580cad48fe)
 - B2: Pull-request CI workflow (.github/workflows/coverage.yml:1, sha256:778ab27e94bf)
 - B2: Pull request template (.github/PULL_REQUEST_TEMPLATE.md:1, sha256:1fd33fa8826b)
-- B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:b84e54ec0671) (warning)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:b84e54ec0671)
 - B4: Audit or changelog artifact (CITATION.cff:1, sha256:943d40f1504a)
 - B4: Audit or changelog artifact (HISTORY.md:1, sha256:4ac933062dfd)
@@ -70,4 +69,3 @@
 ## Findings
 
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:b5e7970366d9))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (11 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:b84e54ec0671))

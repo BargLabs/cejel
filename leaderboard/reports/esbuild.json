@@ -5,8 +5,8 @@
     "url": "https://github.com/evanw/esbuild",
     "headSha": "6ff1d8b0d8c134e867a397eef39702a223ebef9e"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -423,7 +423,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 1.9,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -433,19 +433,7 @@
           "contentHash": "994fc163880660ebae12719edf7932b3cac71104b5f64fad8da2bb0cb9e62976"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "audit_log",
-            "label": "Audit or changelog artifact",
-            "path": "CHANGELOG.md",
-            "line": 1,
-            "contentHash": "994fc163880660ebae12719edf7932b3cac71104b5f64fad8da2bb0cb9e62976"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "audit_artifact_depth",

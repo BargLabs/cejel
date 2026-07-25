@@ -64,9 +64,9 @@ code { color: var(--warn); overflow-wrap: anywhere; }
       <div class="brand" aria-hidden="true"><span class="brand-mark">C</span><span>Cejel Trust Certificate</span></div>
       <h1>automapper</h1>
       <dl class="meta">
-        <div><dt>Date</dt><dd>2026-07-22</dd></div>
+        <div><dt>Date</dt><dd>2026-07-25</dd></div>
         <div><dt>Run</dt><dd>https://github.com/AutoMapper/AutoMapper @ dfa6dd587c5854b4beee5934beb39ba6e9569b84</dd></div>
-        <div><dt>Rubric</dt><dd>witan-rubric-v9-2026-07-22</dd></div>
+        <div><dt>Rubric</dt><dd>witan-rubric-v17-2026-07-24</dd></div>
       </dl>
       <div class="score">2.2<span>/4.0 overall</span></div>
       <p class="verdict">At risk</p>
@@ -111,11 +111,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
         <div class="criteria-list"><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B2</div><h3>PR outcome traceability</h3></div>
-            <span class="status" data-status="warning">dimension band: warning</span>
+            <span class="status" data-status="verified">dimension band: verified</span>
           </div>
           <div class="criterion-score">4.0</div>
           <ul><li><strong>PR trace primitive coverage</strong><span>2 signals (capped; 4 raw)</span></li><li><strong>Recent PR merge ratio</strong><span>1/1 ratio</span></li></ul>
-          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code></li><li>Pull-request CI workflow <code>.github/workflows/lock.yml:1 · sha256:eb25785fd7d3</code></li><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:527f44911edd</code></li><li>finding severity warning: B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (4 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code>)</li></ul>
+          <ul><li>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code></li><li>Pull-request CI workflow <code>.github/workflows/lock.yml:1 · sha256:eb25785fd7d3</code></li><li>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:527f44911edd</code></li></ul>
         </article><article class="criterion">
           <div class="criterion-top">
             <div><div class="criterion-id">B3</div><h3>CI and QA discipline</h3></div>
@@ -134,11 +134,11 @@ code { color: var(--warn); overflow-wrap: anywhere; }
     <section class="evidence-grid" aria-label="Evidence and gaps">
       <article>
         <h2>Verified evidence</h2>
-        <ul><li>No verified evidence listed in this public certificate.</li></ul>
+        <ul><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/lock.yml:1 · sha256:eb25785fd7d3</code></span></li><li><strong>B2 - PR outcome traceability</strong><span>Pull-request CI workflow <code>.github/workflows/release.yml:1 · sha256:527f44911edd</code></span></li></ul>
       </article>
       <article>
         <h2>Open / unverified</h2>
-        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>finding severity warning: A1 dimension band is warning at 1.8/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file <code>src/AutoMapper.DI.Tests/AppDomainResolutionTests.cs:1 · sha256:12807653e9cc</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>finding severity warning: A4 dimension band is warning at 2.8/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 3/3 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest <code>docs/requirements.txt:1 · sha256:ad06f98eae2c</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>finding severity warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:f0be14ab178e</code>)</span></li><li><strong>B2 - PR outcome traceability</strong><span>finding severity warning: B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (4 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>finding severity warning: B3 dimension band is warning at 0.6/4.0. Lowest contributing measurements: CI verification depth 0/4 signals; PR-gate CI workflow count 1/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code>)</span></li></ul>
+        <ul><li><strong>A1 - Test integrity and regression signal</strong><span>finding severity warning: A1 dimension band is warning at 1.8/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file <code>src/AutoMapper.DI.Tests/AppDomainResolutionTests.cs:1 · sha256:12807653e9cc</code>)</span></li><li><strong>A4 - Dependency hygiene</strong><span>finding severity warning: A4 dimension band is warning at 2.8/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 3/3 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest <code>docs/requirements.txt:1 · sha256:ad06f98eae2c</code>)</span></li><li><strong>A5 - Claim-vs-reality reconciliation</strong><span>finding severity warning: Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source <code>README.md:1 · sha256:f0be14ab178e</code>)</span></li><li><strong>B3 - CI and QA discipline</strong><span>finding severity warning: B3 dimension band is warning at 0.6/4.0. Lowest contributing measurements: CI verification depth 0/4 signals; PR-gate CI workflow count 1/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow <code>.github/workflows/ci.yml:1 · sha256:2da4ee81ab4d</code>)</span></li></ul>
       </article>
     </section>
   </main>

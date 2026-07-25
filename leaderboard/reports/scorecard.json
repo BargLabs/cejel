@@ -5,8 +5,8 @@
     "url": "https://github.com/ossf/scorecard",
     "headSha": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -96,7 +96,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 270,
+          "value": 271,
           "max": 16,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -379,7 +379,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -417,19 +417,7 @@
           "contentHash": "32bebdd1634103c767136963125d6f31b048c93724092032c7841a856d938f7b"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/codeql-analysis.yml",
-            "line": 1,
-            "contentHash": "491d592bcf1e36f61a0001c9e1fb141807eed1b04f318db3fef1e7c47b7b0105"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -457,7 +445,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.7,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -467,19 +455,7 @@
           "contentHash": "491d592bcf1e36f61a0001c9e1fb141807eed1b04f318db3fef1e7c47b7b0105"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "CI workflow",
-            "path": ".github/workflows/codeql-analysis.yml",
-            "line": 1,
-            "contentHash": "491d592bcf1e36f61a0001c9e1fb141807eed1b04f318db3fef1e7c47b7b0105"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "ci_script_depth",
@@ -530,7 +506,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -540,19 +516,7 @@
           "contentHash": "32bebdd1634103c767136963125d6f31b048c93724092032c7841a856d938f7b"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "CODEOWNERS/required-review gate on protected paths",
-            "path": ".github/CODEOWNERS",
-            "line": 1,
-            "contentHash": "32bebdd1634103c767136963125d6f31b048c93724092032c7841a856d938f7b"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",

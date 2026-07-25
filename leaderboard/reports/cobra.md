@@ -1,8 +1,8 @@
 # Cejel Trust Report - cobra
 
 - Product: cobra
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/spf13/cobra @ adbc8813901bba65827259daa8e22ff94ec1f30e
 
 ## Criterion Profile
@@ -15,7 +15,7 @@
 | A4 | Dependency hygiene | Code trust | 3.2 | verified | Declared version range ratio: 4/5 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | no data | insufficient_data | Insufficient data — no measurable signal for this criterion |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2/2 signals; Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2/2 signals; Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 0.6 | warning | CI verification depth: 0/4 signals; PR-gate CI workflow count: 1/4 workflows |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -52,7 +52,6 @@
 - B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d)
 - B2: Pull-request CI workflow (.github/workflows/test.yml:1, sha256:22b2338c231c)
-- B2: Pull-request CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d) (warning)
 - B3: CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d)
 - B3: CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d) (warning)
 - B4: N/A — Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.
@@ -62,5 +61,4 @@
 ## Findings
 
 - A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (active_help_test.go:1, sha256:7ae9d42bd41c))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2/2 signals; Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d))
 - B3 finding severity warning (dimension band warning): B3 dimension band is warning at 0.6/4.0. Lowest contributing measurements: CI verification depth 0/4 signals; PR-gate CI workflow count 1/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/labeler.yml:1, sha256:c2ec854c684d))
