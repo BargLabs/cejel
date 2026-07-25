@@ -59,15 +59,28 @@ interface PythonFunctionBlock {
 
 const EVALUATOR_CONTEXT_PATTERN =
   /(?:eval|evaluation|evaluator|judge|judg|grade|grader|grading|score|scoring|benchmark|assess|metric)/i;
+// The component identifier (the segment tested against PYTHON_JUDGE_COMPONENT_PATTERN below) is
+// captured as a single plain identifier -- not as a nested optional-prefix/keyword/optional-suffix
+// alternation -- specifically to avoid quadratic backtracking on long non-matching identifier
+// chains. Whether a matched identifier actually qualifies is decided afterward in JS via
+// PYTHON_JUDGE_COMPONENT_PATTERN.test(...), not by the shape of this regex.
 const PYTHON_MODEL_OR_JUDGE_CALL_PATTERN =
-  /\b(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:responses\.create|chat\.completions\.create|messages\.create)|(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:(?:[A-Za-z_][A-Za-z0-9_]*_)?(?:llm|model|judge|grader|evaluator|generator|metrics)(?:_[A-Za-z0-9_]*)?)(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.(?:invoke|ainvoke|predict|apredict|complete|acomplete|generate|agenerate|evaluate|aevaluate|judge|grade|score|run|arun)|(?:self\.)?_?(?:evaluate|judge|grade)(?:_[A-Za-z_][A-Za-z0-9_]*)?)\s*\(/g;
+  /\b(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:responses\.create|chat\.completions\.create|messages\.create)|(?:[A-Za-z_][A-Za-z0-9_]*\.)*([A-Za-z_][A-Za-z0-9_]*)(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.(?:invoke|ainvoke|predict|apredict|complete|acomplete|generate|agenerate|evaluate|aevaluate|judge|grade|score|run|arun)|(?:self\.)?_?(?:evaluate|judge|grade)(?:_[A-Za-z_][A-Za-z0-9_]*)?)\s*\(/g;
+// Tested only against the short, already-captured component identifier (group 1 above), never
+// against the whole file -- anchored to underscore/start/end boundaries so a component must
+// contain one of these words as a whole delimited segment, not an arbitrary substring.
+const PYTHON_JUDGE_COMPONENT_PATTERN =
+  /(?:^|_)(?:llm|model|judge|grader|evaluator|generator|metrics_manager)(?:_|$)/i;
 const PYTHON_RESULT_KEY_PATTERN =
   /^(?:score|scores|verdict|result|results|metric|metrics|passed|correct|status|output|actualoutput|judgment|judgement|grade|accuracy)$/i;
 const PYTHON_CONFIG_LINEAGE_KEY_PATTERN =
   /^(?:promptdigest|prompthash|promptid|promptversion|policydigest|policyhash|policyid|policyversion|configdigest|confighash|configid|configversion|evaluationconfigversion|evaluationmanifest|repositorycommit)$/i;
 const PYTHON_AGGREGATE_ASSIGNMENT_PATTERN =
   /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)(?:\[[^\]\n]+\])?\s*(?::[^=\n]+)?=\s*([^\n]+)$/gm;
-const PYTHON_AGGREGATE_NAME_PATTERN = /(?:rate|score|accuracy|average|mean|percentage|pct)/i;
+// Anchored to underscore/start/end boundaries so e.g. "moderate_count" (containing "rate" as a
+// mid-word substring) does not qualify as an aggregate name.
+const PYTHON_AGGREGATE_NAME_PATTERN =
+  /(?:^|_)(?:rate|score|accuracy|average|mean|percentage|pct)s?(?:_|$)/i;
 const PYTHON_DENOMINATOR_DIVISION_PATTERN = /\/\s*len\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/;
 const PYTHON_DENOMINATOR_CALL_PATTERN =
   /\b(?:statistics\.mean|np\.mean|numpy\.mean|mean)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)/;
@@ -312,6 +325,9 @@ export function detectPythonMissingEvaluationProvenance(
       (candidate) => candidate.index > block.index && candidate.end <= block.end,
     );
     const invocations = [...block.contents.matchAll(PYTHON_MODEL_OR_JUDGE_CALL_PATTERN)]
+      .filter((invocation) => (
+        invocation[1] === undefined || PYTHON_JUDGE_COMPONENT_PATTERN.test(invocation[1])
+      ))
       .filter((invocation) => {
         const lineStart = block.contents.lastIndexOf('\n', invocation.index) + 1;
         return (
@@ -402,6 +418,9 @@ export function detectPythonMissingDenominator(
     const aggregates = pythonAggregateAssignmentsIn(block.contents);
     if (aggregates.size === 0) continue;
     const invocations = [...block.contents.matchAll(PYTHON_MODEL_OR_JUDGE_CALL_PATTERN)]
+      .filter((invocation) => (
+        invocation[1] === undefined || PYTHON_JUDGE_COMPONENT_PATTERN.test(invocation[1])
+      ))
       .filter((invocation) => {
         const lineStart = block.contents.lastIndexOf('\n', invocation.index) + 1;
         return !/\bdef\s*$/.test(block.contents.slice(lineStart, invocation.index));
@@ -425,9 +444,13 @@ export function detectPythonMissingDenominator(
       );
       if (!invocations.some((invocation) => invocation.index < firstAggregateIndex)) continue;
       if ([...result.keys].some((key) => PYTHON_DENOMINATOR_KEY_PATTERN.test(key))) continue;
+      const aggregateKeyNames = new Set(
+        emittedAggregates.map(([name]) => name.replaceAll('_', '').toLowerCase()),
+      );
+      const nonAggregateKeys = [...result.keys].filter((key) => !aggregateKeyNames.has(key));
       if (
-        [...result.keys].every((key) => PYTHON_OUTCOME_COUNT_KEY_PATTERN.test(key)) &&
-        result.keys.size > 0
+        nonAggregateKeys.length > 0 &&
+        nonAggregateKeys.every((key) => PYTHON_OUTCOME_COUNT_KEY_PATTERN.test(key))
       ) continue;
       findings.push({
         ruleId: 'LLM-EVL-001',

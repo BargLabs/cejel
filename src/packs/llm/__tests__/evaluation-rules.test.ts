@@ -8,6 +8,10 @@ import {
   CEJEL_LLM_EVALUATION_RULES,
   detectCejelLlmEvaluationRules,
 } from '../evaluation-rules.js';
+import {
+  detectPythonMissingDenominator,
+  detectPythonMissingEvaluationProvenance,
+} from '../python-evaluation-rules.js';
 import type { LlmSourceFile } from '../rules.js';
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -659,6 +663,94 @@ describe('Free LLM evaluation and provenance rules', () => {
       (finding) => finding.ruleId === 'LLM-EVL-001',
     );
     expect(findings).toHaveLength(1);
+  });
+
+  it('does not treat a generic metrics/telemetry component as a judge invocation', () => {
+    // Regression test: a bare "metrics" keyword previously matched any <x>metrics<y> component
+    // paired with a common method name, causing false positives on non-judge telemetry objects.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class ScoreEvaluator:',
+        '    def run_benchmark(self, cases):',
+        '        outputs = []',
+        '        for case in cases:',
+        '            outputs.append(case.value)',
+        '            self.summary_metrics.run(case)',
+        '        return {"scores": outputs, "model_id": "gpt-x"}',
+      ].join('\n'),
+    };
+    expect(detectCejelLlmEvaluationRules([source])).toEqual([]);
+  });
+
+  it('does not treat a mid-word substring as an aggregate name', () => {
+    // Regression test: PYTHON_AGGREGATE_NAME_PATTERN previously matched "rate"/"mean"/etc. as an
+    // unanchored substring, so e.g. "moderate_count" (containing "rate" inside "moderate") could
+    // wrongly qualify as an aggregate name.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases, flags):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    moderate_count = sum(flags) / len(flags)',
+        '    return {"moderate_count": moderate_count}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('suppresses a denominator finding when every other emitted key is an outcome count', () => {
+    // Regression test: the "all outcome counts" suppression branch was unreachable dead code
+    // (the aggregate's own key was always counted against itself). Fixed to exclude the
+    // aggregate's own key(s) before checking whether everything else is just an outcome count.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = []',
+        '    errors = 0',
+        '    for case in cases:',
+        '        verdict = judge.evaluate(case)',
+        '        if verdict is None:',
+        '            errors += 1',
+        '        else:',
+        '            scores.append(verdict.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"average_score": average_score, "errors": errors}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('scans a long non-matching underscore-delimited identifier chain in linear time', () => {
+    // Regression test for a quadratic-time backtracking bug in the widened
+    // PYTHON_MODEL_OR_JUDGE_CALL_PATTERN: a long run of "word_" segments that never resolves to a
+    // recognized `.method(` call previously took seconds to scan; must stay well under a second.
+    // Exercises the two Python detectors directly (not detectCejelLlmEvaluationRules) so this stays
+    // a targeted guard on the pattern that was actually fixed, rather than on the full rule
+    // pipeline, which also runs unrelated JS-side detectors against every file regardless of
+    // extension and can be slow for its own, separate reasons.
+    const longIdentifier = 'a_model_b_'.repeat(8000);
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge):',
+        `    ${longIdentifier}end = 1`,
+        '    return {}',
+      ].join('\n'),
+    };
+    const start = performance.now();
+    detectPythonMissingEvaluationProvenance(source);
+    detectPythonMissingDenominator(source);
+    expect(performance.now() - start).toBeLessThan(500);
   });
 
   it('still treats retained raw per-example results as a sufficient denominator substitute even for a subscript-built aggregate dict', () => {
