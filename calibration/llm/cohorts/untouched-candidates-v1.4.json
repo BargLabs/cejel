@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.4",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "ENTERPILOT/GoModel",
+      "url": "https://github.com/ENTERPILOT/GoModel",
+      "primary_language": "mixed",
+      "primary_surface": "gateway",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes AI gateway written in Go. Lightweight unified OpenAI-compatible API for OpenAI, Anthropic, Gemini, Groq, xAI & Ollama. LiteLLM alternative with observability, guardrails, streaming"
+    },
+    {
+      "repository_id": "iOfficeAI/AionUi",
+      "url": "https://github.com/iOfficeAI/AionUi",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public non-fork chat app candidate identified from GitHub repository metadata; description/topics indicate anthropic relevance."
+    },
+    {
+      "repository_id": "asgeirtj/system_prompts_leaks",
+      "url": "https://github.com/asgeirtj/system_prompts_leaks",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork chat app candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "1Panel-dev/MaxKB",
+      "url": "https://github.com/1Panel-dev/MaxKB",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public non-fork chat app candidate identified from GitHub repository metadata; description/topics indicate local or open model relevance."
+    },
+    {
+      "repository_id": "nomic-ai/gpt4all",
+      "url": "https://github.com/nomic-ai/gpt4all",
+      "primary_language": "mixed",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public non-fork local model candidate identified from GitHub repository metadata; description/topics indicate local or open model relevance."
+    },
+    {
+      "repository_id": "chenhg5/cc-connect",
+      "url": "https://github.com/chenhg5/cc-connect",
+      "primary_language": "mixed",
+      "primary_surface": "local_model",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Bridge local AI coding agents (Claude Code, Cursor, Gemini CLI, Codex) to messaging platforms (Feishu/Lark, DingTalk, Slack, Telegram, Discord, LINE, WeChat Work). Chat with your A"
+    },
+    {
+      "repository_id": "di-sukharev/opencommit",
+      "url": "https://github.com/di-sukharev/opencommit",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "local_model",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork local model candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "AccumulateMore/CV",
+      "url": "https://github.com/AccumulateMore/CV",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork rag candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "PaddlePaddle/PaddleOCR",
+      "url": "https://github.com/PaddlePaddle/PaddleOCR",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork rag candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "sinaptik-ai/pandas-ai",
+      "url": "https://github.com/sinaptik-ai/pandas-ai",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub metadata describes Chat with your database or your datalake (SQL, CSV, parquet). PandasAI makes data analysis conversational using LLMs and RAG."
+    },
+    {
+      "repository_id": "humanlayer/12-factor-agents",
+      "url": "https://github.com/humanlayer/12-factor-agents",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork rag candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "nexu-io/open-design",
+      "url": "https://github.com/nexu-io/open-design",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes 🎨 The open-source Claude Design alternative. 🖥️ Local-first desktop app. 🖼️ Your coding agent becomes the design engine: prototypes, landing pages, dashboards, slides, images &"
+    },
+    {
+      "repository_id": "Yeachan-Heo/oh-my-claudecode",
+      "url": "https://github.com/Yeachan-Heo/oh-my-claudecode",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes Teams-first Multi-agent orchestration for Claude Code"
+    },
+    {
+      "repository_id": "stablyai/orca",
+      "url": "https://github.com/stablyai/orca",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes Orca is the ADE for working with a fleet of parallel agents. Run any coding agent with your own subscription. Available on desktop, mobile and VPS."
+    },
+    {
+      "repository_id": "firecrawl/firecrawl",
+      "url": "https://github.com/firecrawl/firecrawl",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork agent tools candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "charmbracelet/crush",
+      "url": "https://github.com/charmbracelet/crush",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Glamourous agentic coding for all 💘"
+    },
+    {
+      "repository_id": "zarazhangrui/frontend-slides",
+      "url": "https://github.com/zarazhangrui/frontend-slides",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes Create beautiful slides on the web using a coding agent's frontend skills"
+    },
+    {
+      "repository_id": "DeepAuto-AI/automl-agent",
+      "url": "https://github.com/DeepAuto-AI/automl-agent",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes [ICML-25] AutoML-Agent: A Multi-Agent LLM Framework for Full-Pipeline AutoML"
+    },
+    {
+      "repository_id": "georgeguimaraes/tribunal",
+      "url": "https://github.com/georgeguimaraes/tribunal",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes LLM evaluation framework for Elixir: evaluate and test LLM outputs, detect hallucinations, measure response quality"
+    },
+    {
+      "repository_id": "ajac-zero/example-rag-app",
+      "url": "https://github.com/ajac-zero/example-rag-app",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Open-Source RAG app with LLM Observability (Langfuse), support for 100+ providers (LiteLLM), Dockerized, Full Type-checking, 100% Test coverage, and more..."
+    },
+    {
+      "repository_id": "CeeZh/LLoVi",
+      "url": "https://github.com/CeeZh/LLoVi",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Official implementation for \"A Simple LLM Framework for Long-Range Video Question-Answering\""
+    },
+    {
+      "repository_id": "alphasecio/langchain-examples",
+      "url": "https://github.com/alphasecio/langchain-examples",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub metadata describes A collection of apps powered by the LangChain LLM framework."
+    },
+    {
+      "repository_id": "codefuse-ai/CodeFuse-CGM",
+      "url": "https://github.com/codefuse-ai/CodeFuse-CGM",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes [NeurIPS 2025] A Graph-based LLM Framework for Real-world SE Tasks"
+    },
+    {
+      "repository_id": "open-compass/VLMEvalKit",
+      "url": "https://github.com/open-compass/VLMEvalKit",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork evaluation or framework candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    }
+  ]
+}

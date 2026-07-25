@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.6",
+  "cohort": "golden",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "schmitech/orbit",
+      "url": "https://github.com/schmitech/orbit",
+      "primary_language": "python",
+      "primary_surface": "gateway",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a self-hosted OpenAI-compatible gateway for private RAG and tool-calling agents."
+    },
+    {
+      "repository_id": "codecentric/c4-genai-suite",
+      "url": "https://github.com/codecentric/c4-genai-suite",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a generative-AI assistant suite with chat UI."
+    },
+    {
+      "repository_id": "mlc-ai/web-llm-chat",
+      "url": "https://github.com/mlc-ai/web-llm-chat",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes browser chat that runs open large language models locally with WebGPU."
+    },
+    {
+      "repository_id": "kizuna-ai-lab/sokuji",
+      "url": "https://github.com/kizuna-ai-lab/sokuji",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a speech assistant using local and cloud AI providers."
+    },
+    {
+      "repository_id": "raullenchai/Rapid-MLX",
+      "url": "https://github.com/raullenchai/Rapid-MLX",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes a local Apple Silicon LLM engine with OpenAI-compatible service integration."
+    },
+    {
+      "repository_id": "maziyarpanahi/openmed",
+      "url": "https://github.com/maziyarpanahi/openmed",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Repository metadata describes local-first healthcare AI with on-device models."
+    },
+    {
+      "repository_id": "Shishir435/ollama-client",
+      "url": "https://github.com/Shishir435/ollama-client",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes a browser client for local Ollama, LM Studio, and llama.cpp models."
+    },
+    {
+      "repository_id": "MODSetter/SurfSense",
+      "url": "https://github.com/MODSetter/SurfSense",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a NotebookLM-like app with web research, RAG, API, and MCP surfaces."
+    },
+    {
+      "repository_id": "xerrors/Yuxi",
+      "url": "https://github.com/xerrors/Yuxi",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes an agent harness integrating LightRAG knowledge bases and knowledge graphs."
+    },
+    {
+      "repository_id": "Future-House/paper-qa",
+      "url": "https://github.com/Future-House/paper-qa",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a RAG application for scientific-document questions with citations."
+    },
+    {
+      "repository_id": "feyninc/chonkie",
+      "url": "https://github.com/feyninc/chonkie",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a document-ingestion library for retrieval-augmented generation pipelines."
+    },
+    {
+      "repository_id": "DemonDamon/AgenticX",
+      "url": "https://github.com/DemonDamon/AgenticX",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a multi-agent platform with multiple providers."
+    },
+    {
+      "repository_id": "superset-sh/superset",
+      "url": "https://github.com/superset-sh/superset",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a code editor for running multiple coding agents."
+    },
+    {
+      "repository_id": "openai/openai-agents-js",
+      "url": "https://github.com/openai/openai-agents-js",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "openai",
+      "inclusion_reason": "Repository metadata describes a TypeScript SDK for multi-agent OpenAI workflows."
+    },
+    {
+      "repository_id": "strands-agents/harness-sdk",
+      "url": "https://github.com/strands-agents/harness-sdk",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes an SDK for production agent harnesses."
+    },
+    {
+      "repository_id": "zai-org/Open-AutoGLM",
+      "url": "https://github.com/zai-org/Open-AutoGLM",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub metadata describes an open phone-agent model and framework for application control."
+    },
+    {
+      "repository_id": "shareAI-lab/learn-claude-code",
+      "url": "https://github.com/shareAI-lab/learn-claude-code",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "GitHub metadata describes a Claude Code-like agent harness implemented in Python."
+    },
+    {
+      "repository_id": "HAE-RAE/haerae-evaluation-toolkit",
+      "url": "https://github.com/HAE-RAE/haerae-evaluation-toolkit",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a modern toolkit for structured LLM evaluation workloads."
+    },
+    {
+      "repository_id": "microsoft/prompty",
+      "url": "https://github.com/microsoft/prompty",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes managing and evaluating LLM prompts for applications."
+    },
+    {
+      "repository_id": "benlipkin/probsem",
+      "url": "https://github.com/benlipkin/probsem",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a reproducible evaluation approach for language model behavior."
+    },
+    {
+      "repository_id": "verifywise-ai/verifywise",
+      "url": "https://github.com/verifywise-ai/verifywise",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes AI governance with LLM evaluation support."
+    },
+    {
+      "repository_id": "Agenta-AI/agenta",
+      "url": "https://github.com/Agenta-AI/agenta",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Repository metadata describes a workspace for building and evaluating AI agents."
+    },
+    {
+      "repository_id": "maseval/MASEval",
+      "url": "https://github.com/maseval/MASEval",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes an evaluation framework for multi-agent language-model systems."
+    },
+    {
+      "repository_id": "Aleph-Alpha-Research/eval-framework",
+      "url": "https://github.com/Aleph-Alpha-Research/eval-framework",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub metadata describes a production-ready framework for evaluating language models at scale."
+    }
+  ]
+}

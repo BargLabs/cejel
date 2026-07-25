@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/llm/discovery-audit-v1.5.json",
+  "title": "Cejel Free LLM blind third-party discovery audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol_id",
+    "methodology_id",
+    "status",
+    "completed_at",
+    "detector_output_visible",
+    "independent_of_rule_author",
+    "auditor_id",
+    "bindings",
+    "reviewed_candidate_ids",
+    "auditor_added_candidate_ids",
+    "circulation",
+    "unresolved_candidate_ids",
+    "resource_ceiling_exhausted",
+    "record_sha256"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_id": {"const": "cejel-llm-calibration-v1"},
+    "methodology_id": {"const": "llm-opportunity-discovery-v1.5"},
+    "status": {"const": "complete_before_detector_results"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "detector_output_visible": {"const": false},
+    "independent_of_rule_author": {"const": true},
+    "auditor_id": {"type": "string", "minLength": 3},
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_contract_sha256", "candidate_ledger_sha256"],
+      "properties": {
+        "anchor_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_ledger_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "reviewed_candidate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 6}
+    },
+    "auditor_added_candidate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 6}
+    },
+    "circulation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "candidate_id",
+          "primary_reviewer_id",
+          "independent_reviewer_id",
+          "primary_review_sha256",
+          "independent_review_sha256"
+        ],
+        "properties": {
+          "candidate_id": {"type": "string", "minLength": 6},
+          "primary_reviewer_id": {"type": "string", "minLength": 3},
+          "independent_reviewer_id": {"type": "string", "minLength": 3},
+          "primary_review_sha256": {"$ref": "#/$defs/sha256"},
+          "independent_review_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "unresolved_candidate_ids": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "resource_ceiling_exhausted": {"const": false},
+    "record_sha256": {"$ref": "#/$defs/sha256"}
+  }
+}

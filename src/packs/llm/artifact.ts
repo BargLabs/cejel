@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { CejelLlmPackResultSchema, type CejelLlmPackResult } from './types.js';
 
 export const CEJEL_LLM_ARTIFACT_SCHEMA_VERSION = 'cejel-free-llm-artifact-v1';
-export const CEJEL_LLM_RULE_CONTRACT_VERSION = 'cejel-free-llm-rules-v1-2026-07-22';
-export const CEJEL_LLM_DETECTOR_VERSION = 'free-llm-detector-alpha-1';
+export const CEJEL_LLM_RULE_CONTRACT_VERSION = 'cejel-free-llm-rules-v1.1-2026-07-23';
+export const CEJEL_LLM_DETECTOR_VERSION = 'free-llm-detector-alpha-2';
 export const CEJEL_LLM_ATTESTATION_PREDICATE =
   'https://cejel.dev/attestations/free-llm/v1';
 

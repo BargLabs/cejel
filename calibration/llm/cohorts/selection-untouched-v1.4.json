@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.4",
+  "selection_event_id": "v1.4-fresh-untouched-cohort",
+  "cohort": "untouched",
+  "selected_at": "2026-07-23T22:38:29Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "6337399f4689206d77b8b74f036aac60ea3b89106f49b7f768063f3ff24bcead",
+  "selection_evidence_record_sha256": "8181a4014b46237d5a772206155f1d973e699a8bf9a8bb0bb0123a0e877a67ba",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "8181a4014b46237d5a772206155f1d973e699a8bf9a8bb0bb0123a0e877a67ba",
+  "golden_sibling_candidate_sha256": "50d8e5caf60eff33feb0d3d39b6bb3265de619f4555c8dcae2a3c010c9195997",
+  "golden_sibling_selection_record_sha256": "481c29515789c53de5a23be790911289a816201e0dbdc46cf76d14819f7a3f83",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "v14-metadata-search-a",
+      "document_sha256": "154266a29ce875e55ae4331cc8a27cc99a07a27308c644d0b32ecc5e9d5458e2"
+    },
+    {
+      "reviewer_id": "v14-metadata-search-b",
+      "document_sha256": "82fcc76ab2945c5a59e694584ab38fe094016798a80b07fdbbd902854510a9bb"
+    }
+  ],
+  "excluded_repository_count": 221,
+  "excluded_repository_ids_sha256": "9592c9a380ed53c6d380d688d133f2948a11a5c824f4ba701c95b725fb239c50",
+  "classification_conflicts_excluded": [
+    "apify/crawlee",
+    "dataelement/bisheng",
+    "fosowl/agenticseek",
+    "headroomlabs-ai/headroom",
+    "pathwaycom/llm-app",
+    "tencent/weknora"
+  ],
+  "selected": [
+    {
+      "repository_id": "ENTERPILOT/GoModel",
+      "tier": 1,
+      "selection_hash": "2b40509f2d092974429c4906a3c7f3b73313e0f53fdd15a8cb59907155f4c05d",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "iOfficeAI/AionUi",
+      "tier": 1,
+      "selection_hash": "1056da578fb30572b6d9c3d8ae544306a687bd5d7e3c456e9da16af1c1dc4ea8",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "asgeirtj/system_prompts_leaks",
+      "tier": 1,
+      "selection_hash": "12bd1135ca44622b756c9a6370a6a82dd1fd02cccafafe6f04fd5ddaa9f4db7d",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "1Panel-dev/MaxKB",
+      "tier": 1,
+      "selection_hash": "1a529df213b4df139c3b191a958d726d9307163658d698187f3953e6a7fbb997",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "nomic-ai/gpt4all",
+      "tier": 1,
+      "selection_hash": "1134d8a15ec3e243e0ddba8f3ba2423de7812c006f5d32f7c8a046f1af4dfc2f",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "chenhg5/cc-connect",
+      "tier": 1,
+      "selection_hash": "1a6135c91a319cb5a92adc2f514b1aa55c3bc8e1c25e7082e0ba77e8a46c1bb9",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "di-sukharev/opencommit",
+      "tier": 1,
+      "selection_hash": "1fb47be1e992590d14e9a152da15f2ebc4f144cc3764340f56dfb1f43543661d",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "AccumulateMore/CV",
+      "tier": 1,
+      "selection_hash": "247ccd9121c9c05c7451eea1a60d3348a04704453b6e65084ac7e24c3e58f7fe",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "PaddlePaddle/PaddleOCR",
+      "tier": 1,
+      "selection_hash": "2820e6f4104680d1dd5d0edd48835b1cea852dbc88916ba0bdf0e0e92d4b1af3",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "sinaptik-ai/pandas-ai",
+      "tier": 1,
+      "selection_hash": "2bf8d6432c3840f5d4c8b84ccd3aba345655a06c7ed82172e3655070876a3ec1",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "humanlayer/12-factor-agents",
+      "tier": 1,
+      "selection_hash": "33b20ca493d6995dc247cd2ceeb9b273702d8dd6b19f368b5c5682301abc5f8c",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "nexu-io/open-design",
+      "tier": 0,
+      "selection_hash": "e5d3ad193db48acba08f25647a25148ea6f960a048070e56d12c092d9c58e4e6",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "Yeachan-Heo/oh-my-claudecode",
+      "tier": 0,
+      "selection_hash": "eae8da60b6af2ff919472183ec89919b3e0c76f7ff2297af3e88b08778b18b1c",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "stablyai/orca",
+      "tier": 0,
+      "selection_hash": "f15da8349c1f0f4158c19cddc74d5b98e165e838c5c693367cc5431ae15266a5",
+      "proposed_by": [
+        "v14-metadata-search-a",
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "firecrawl/firecrawl",
+      "tier": 1,
+      "selection_hash": "0181e02429da4d01e13c69fafbef41ed5ee59fc1b78422d38eda86dccb0cab63",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    },
+    {
+      "repository_id": "charmbracelet/crush",
+      "tier": 1,
+      "selection_hash": "045ff6dc2c0460c35d6e6b76be09dd34e981f3622b96dd152b1640eb00ed7004",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "zarazhangrui/frontend-slides",
+      "tier": 1,
+      "selection_hash": "0db7bc1237336422af51843e6fc9feb8116684b4cafbec65386db60bb8d39e59",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "DeepAuto-AI/automl-agent",
+      "tier": 1,
+      "selection_hash": "2f185be7368a120c538d8558e7666cfb6e19341bac3db8bcdc8b9cfbb3cdbe22",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "georgeguimaraes/tribunal",
+      "tier": 1,
+      "selection_hash": "33caf1f826b66ad46bf72c9fda432192de88ecd07c9cca28dede9534fef0b698",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "ajac-zero/example-rag-app",
+      "tier": 1,
+      "selection_hash": "33cb14bac9b1adc22845e98b46f6f6144d1239ff11e04b0060195c8e0459fc8a",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "CeeZh/LLoVi",
+      "tier": 1,
+      "selection_hash": "47e85d3574d555316e46c727df1bba344ff73813e86c44cea1e209ced54c23e5",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "alphasecio/langchain-examples",
+      "tier": 1,
+      "selection_hash": "6078ecfe97762446c23fc9223408cfbefbdad12cf62b443f0d93b5e572865d6e",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "codefuse-ai/CodeFuse-CGM",
+      "tier": 1,
+      "selection_hash": "60afdb4ebdd741e9c4d360e21ad05f34a0fa550243c63e896b8f377506e89f8f",
+      "proposed_by": [
+        "v14-metadata-search-a"
+      ]
+    },
+    {
+      "repository_id": "open-compass/VLMEvalKit",
+      "tier": 1,
+      "selection_hash": "658ed01524f17389c60a109a03cf8b13788f82ce88d26963bbe5a6dd61deaf50",
+      "proposed_by": [
+        "v14-metadata-search-b"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "dd8c8f2025e0ad4095fb484b4da8b886b9f4633734a7052adae59b538ae22eba",
+  "record_sha256": "22b00b3cbcd377e400f56d864c7015c404d038d7f5c7cef5e901927f2d850379"
+}

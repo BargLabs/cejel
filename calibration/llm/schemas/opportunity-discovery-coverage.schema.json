@@ -36,7 +36,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["cohort", "repository_id", "commit_sha", "rule_id", "declared_opportunity_ids"],
+        "required": ["cohort", "repository_id", "commit_sha", "rule_id", "declared_opportunity_ids", "blind_review_evidence"],
         "properties": {
           "cohort": {"enum": ["golden", "untouched"]},
           "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
@@ -46,6 +46,22 @@
             "type": "array",
             "uniqueItems": true,
             "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"}
+          },
+          "blind_review_evidence": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["reviewer_id", "role", "methodology_id", "coverage_row_sha256"],
+              "properties": {
+                "reviewer_id": {"type": "string", "minLength": 3},
+                "role": {"enum": ["primary_labeler", "independent_reviewer"]},
+                "methodology_id": {"const": "llm-opportunity-discovery-v1.4"},
+                "coverage_row_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+              }
+            }
           }
         }
       }

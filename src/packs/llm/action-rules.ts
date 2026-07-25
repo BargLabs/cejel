@@ -1,7 +1,7 @@
 import type { LlmSourceFile } from './rules.js';
 import type { CejelLlmConfidence, CejelLlmFinding } from './types.js';
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
-import { maskPythonNonCode } from './lexical.js';
+import { maskJavaScriptNonCode, maskPythonNonCode } from './lexical.js';
 
 export type LlmActionRuleId = 'LLM-VAL-001' | 'LLM-AGY-001';
 
@@ -33,6 +33,17 @@ const APPROVAL_FAIL_CLOSED_PATTERN =
   /if\s*\(\s*!\s*\(?\s*(?:await\s+)?(?:requestApproval|requireApproval|humanApproval|approvalGate|waitForApproval)\s*\([^)]*\)\s*\)?\s*\)\s*(?:\{\s*)?(?:throw\b|return\b)/s;
 const ALLOWLIST_FAIL_CLOSED_PATTERN =
   /if\s*\(\s*!\s*[A-Za-z_$][\w$]*(?:ALLOWLIST|ALLOW_LIST|ALLOWED|PERMITTED)[A-Za-z0-9_$]*\s*\.(?:includes|has)\s*\([^)]*\)\s*\)\s*(?:\{\s*)?(?:throw\b|return\b)/s;
+const NON_MUTATING_OR_INDETERMINATE_OPERATIONS = new Set([
+  'describe',
+  'eval',
+  'get',
+  'harvest',
+  'inspect',
+  'list',
+  'read',
+  'screenshot',
+  'status',
+]);
 
 function isExcludedSourcePath(path: string): boolean {
   return /(?:^|\/)(?:__tests__|test|tests|fixtures?|examples?|vendor|generated)(?:\/|$)/i.test(path) ||
@@ -40,54 +51,7 @@ function isExcludedSourcePath(path: string): boolean {
     /(?:^|\/)(?:test_[^/]+|[^/]+_test)\.py$/i.test(path);
 }
 
-/** Masks comments and string literals while preserving offsets and newlines. */
-function maskNonCode(contents: string): string {
-  const chars = [...contents];
-  let quote: "'" | '"' | '`' | null = null;
-  let escaped = false;
-  let lineComment = false;
-  let blockComment = false;
-  for (let index = 0; index < chars.length; index += 1) {
-    const character = chars[index] ?? '';
-    const next = chars[index + 1] ?? '';
-    if (lineComment) {
-      if (character === '\n') lineComment = false;
-      else chars[index] = ' ';
-      continue;
-    }
-    if (blockComment) {
-      if (character === '*' && next === '/') {
-        chars[index] = ' ';
-        chars[index + 1] = ' ';
-        blockComment = false;
-        index += 1;
-      } else if (character !== '\n') chars[index] = ' ';
-      continue;
-    }
-    if (quote) {
-      if (character !== '\n') chars[index] = ' ';
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === quote) quote = null;
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      chars[index] = ' ';
-      chars[index + 1] = ' ';
-      lineComment = true;
-      index += 1;
-    } else if (character === '/' && next === '*') {
-      chars[index] = ' ';
-      chars[index + 1] = ' ';
-      blockComment = true;
-      index += 1;
-    } else if (character === "'" || character === '"' || character === '`') {
-      chars[index] = ' ';
-      quote = character;
-    }
-  }
-  return chars.join('');
-}
+const maskNonCode = maskJavaScriptNonCode;
 
 function lineStartDepths(contents: string): readonly number[] {
   const masked = maskNonCode(contents);
@@ -498,6 +462,8 @@ function matchingCallEnd(contents: string, openParen: number): number | null {
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
+  let regexLiteral = false;
+  let regexCharacterClass = false;
 
   for (let index = openParen; index < contents.length; index += 1) {
     const character = contents[index] ?? '';
@@ -510,6 +476,20 @@ function matchingCallEnd(contents: string, openParen: number): number | null {
       if (character === '*' && next === '/') {
         blockComment = false;
         index += 1;
+      }
+      continue;
+    }
+    if (regexLiteral) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '[') {
+        regexCharacterClass = true;
+      } else if (character === ']') {
+        regexCharacterClass = false;
+      } else if (character === '/' && !regexCharacterClass) {
+        regexLiteral = false;
       }
       continue;
     }
@@ -532,6 +512,15 @@ function matchingCallEnd(contents: string, openParen: number): number | null {
       blockComment = true;
       index += 1;
       continue;
+    }
+    if (character === '/') {
+      const prefix = contents.slice(openParen, index);
+      const previous = prefix.match(/(\S)\s*$/)?.[1];
+      if (!previous || /[=(:,![{;?&|]/.test(previous)) {
+        regexLiteral = true;
+        regexCharacterClass = false;
+        continue;
+      }
     }
     if (character === "'" || character === '"' || character === '`') {
       quote = character;
@@ -580,9 +569,23 @@ const OBSERVABLE_SIDE_EFFECT_EXPORTS: Readonly<Record<string, ReadonlySet<string
   child_process: new Set(['execFile', 'execFileSync', 'spawn', 'spawnSync']),
 };
 
+export type RegisteredToolSideEffectKind = 'filesystem' | 'process';
+
+export interface RegisteredToolParameterSideEffect {
+  readonly registrationIndex: number;
+  readonly sideEffectIndex: number;
+  readonly kind: RegisteredToolSideEffectKind;
+  readonly executesModelInput: boolean;
+}
+
 interface ObservableSideEffectBindings {
   readonly direct: ReadonlySet<string>;
   readonly namespaces: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly directKinds: ReadonlyMap<string, RegisteredToolSideEffectKind>;
+  readonly namespaceKinds: ReadonlyMap<
+    string,
+    ReadonlyMap<string, RegisteredToolSideEffectKind>
+  >;
 }
 
 function observableSideEffectBindings(
@@ -591,6 +594,11 @@ function observableSideEffectBindings(
 ): ObservableSideEffectBindings {
   const direct = new Set<string>();
   const namespaces = new Map<string, ReadonlySet<string>>();
+  const directKinds = new Map<string, RegisteredToolSideEffectKind>();
+  const namespaceKinds = new Map<
+    string,
+    ReadonlyMap<string, RegisteredToolSideEffectKind>
+  >();
   const namedImport =
     /\bimport\s*\{([^}]*)\}\s*from\s*(['"])(?:node:)?(fs|child_process)\2/g;
   for (const match of contents.matchAll(namedImport)) {
@@ -603,7 +611,10 @@ function observableSideEffectBindings(
         .match(/^([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/);
       const imported = binding?.[1];
       const local = binding?.[2] ?? imported;
-      if (imported && local && exports.has(imported)) direct.add(local);
+      if (imported && local && exports.has(imported)) {
+        direct.add(local);
+        directKinds.set(local, match[3] === 'fs' ? 'filesystem' : 'process');
+      }
     }
   }
 
@@ -613,9 +624,70 @@ function observableSideEffectBindings(
     if ((maskedContents[match.index] ?? ' ') === ' ') continue;
     const namespace = match[1];
     const exports = match[3] ? OBSERVABLE_SIDE_EFFECT_EXPORTS[match[3]] : undefined;
-    if (namespace && exports) namespaces.set(namespace, exports);
+    if (namespace && exports) {
+      namespaces.set(namespace, exports);
+      namespaceKinds.set(
+        namespace,
+        new Map(
+          [...exports].map((operation) => [
+            operation,
+            match[3] === 'fs' ? 'filesystem' : 'process',
+          ]),
+        ),
+      );
+    }
   }
-  return { direct, namespaces };
+  return { direct, namespaces, directKinds, namespaceKinds };
+}
+
+interface ObservableSideEffectCall {
+  readonly index: number;
+  readonly end: number;
+  readonly kind: RegisteredToolSideEffectKind;
+  readonly argumentsText: string;
+}
+
+function observableSideEffectCalls(
+  contents: string,
+  bindings: ObservableSideEffectBindings,
+): readonly ObservableSideEffectCall[] {
+  const calls: ObservableSideEffectCall[] = [];
+  for (const [binding, kind] of bindings.directKinds) {
+    for (const match of contents.matchAll(
+      new RegExp(`\\b${escapeRegExp(binding)}\\s*\\(`, 'g'),
+    )) {
+      const openParen = (match.index ?? 0) + match[0].lastIndexOf('(');
+      const end = matchingCallEnd(contents, openParen);
+      if (end === null) continue;
+      calls.push({
+        index: match.index ?? 0,
+        end,
+        kind,
+        argumentsText: contents.slice(openParen + 1, end - 1),
+      });
+    }
+  }
+  for (const [namespace, operations] of bindings.namespaceKinds) {
+    for (const [operation, kind] of operations) {
+      for (const match of contents.matchAll(
+        new RegExp(
+          `\\b${escapeRegExp(namespace)}\\s*\\.\\s*${escapeRegExp(operation)}\\s*\\(`,
+          'g',
+        ),
+      )) {
+        const openParen = (match.index ?? 0) + match[0].lastIndexOf('(');
+        const end = matchingCallEnd(contents, openParen);
+        if (end === null) continue;
+        calls.push({
+          index: match.index ?? 0,
+          end,
+          kind,
+          argumentsText: contents.slice(openParen + 1, end - 1),
+        });
+      }
+    }
+  }
+  return calls.sort((left, right) => left.index - right.index);
 }
 
 function observableSideEffectIndex(
@@ -645,19 +717,6 @@ function observableSideEffectIndex(
   return earliest;
 }
 
-function dynamicOperationSelector(
-  declaration: string,
-): { readonly name: string; readonly index: number } | null {
-  const field = /\b(action|operation)\s*:\s*Type\.(?:String|Union|Literal)\s*\(/i.exec(
-    declaration,
-  );
-  const name = field?.[1];
-  if (!name) return null;
-  const use = new RegExp(`\\bparams\\.${escapeRegExp(name)}\\b`, 'i').exec(declaration);
-  if (!use) return null;
-  return { name, index: field.index };
-}
-
 function matchingBraceEnd(contents: string, openBrace: number): number | null {
   let depth = 0;
   for (let index = openBrace; index < contents.length; index += 1) {
@@ -671,32 +730,405 @@ function matchingBraceEnd(contents: string, openBrace: number): number | null {
   return null;
 }
 
-function localSideEffectHelpers(
+interface LocalParameterSideEffectHelper {
+  readonly name: string;
+  readonly parameterIndexes: ReadonlySet<number>;
+  readonly kind: RegisteredToolSideEffectKind;
+  readonly depth: 0 | 1;
+  readonly mutationWitness: boolean;
+}
+
+function fixedArrayOperationNames(body: string): readonly string[] {
+  const operations: string[] = [];
+  for (const array of body.matchAll(/\[([\s\S]{0,1200}?)\]/g)) {
+    const argumentsList = splitTopLevelArguments(array[1] ?? '');
+    for (const argument of argumentsList) {
+      const operation = argument.trim().match(/^['"]([A-Za-z_][A-Za-z0-9_-]*)['"]$/)?.[1];
+      if (operation) operations.push(operation.toLowerCase());
+    }
+  }
+  return operations;
+}
+
+function splitTopLevelArguments(argumentsText: string): readonly string[] {
+  const argumentsList: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: "'" | '"' | '`' | null = null;
+  let escaped = false;
+  for (let index = 0; index < argumentsText.length; index += 1) {
+    const character = argumentsText[index] ?? '';
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character;
+      continue;
+    }
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') {
+      depth = Math.max(0, depth - 1);
+    } else if (character === ',' && depth === 0) {
+      argumentsList.push(argumentsText.slice(start, index));
+      start = index + 1;
+    }
+  }
+  argumentsList.push(argumentsText.slice(start));
+  return argumentsList;
+}
+
+function containsAnyIdentifier(
+  expression: string,
+  identifiers: ReadonlySet<string>,
+): boolean {
+  for (const identifier of identifiers) {
+    if (new RegExp(`\\b${escapeRegExp(identifier)}\\b`).test(expression)) return true;
+  }
+  return false;
+}
+
+function localParameterSideEffectHelpers(
+  contents: string,
   maskedContents: string,
   bindings: ObservableSideEffectBindings,
-): ReadonlySet<string> {
-  const helpers = new Map<string, { declarations: number; sideEffecting: boolean }>();
+): readonly LocalParameterSideEffectHelper[] {
+  const hasFixedMutationOperation = (body: string): boolean =>
+    fixedArrayOperationNames(body).some(
+      (operation) => !NON_MUTATING_OR_INDETERMINATE_OPERATIONS.has(operation),
+    );
+  const declarations: {
+    name: string;
+    parameters: readonly string[];
+    body: string;
+  }[] = [];
+  const declarationCounts = new Map<string, number>();
   for (const declaration of maskedContents.matchAll(
-    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{\n]+)?\s*\{/g,
+    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/g,
   )) {
     const name = declaration[1];
     if (!name) continue;
     const openBrace = (declaration.index ?? 0) + declaration[0].lastIndexOf('{');
     const end = matchingBraceEnd(maskedContents, openBrace);
-    if (end === null) continue;
-    const body = maskedContents.slice(openBrace + 1, end - 1);
-    const previous = helpers.get(name) ?? { declarations: 0, sideEffecting: false };
-    helpers.set(name, {
-      declarations: previous.declarations + 1,
-      sideEffecting:
-        previous.sideEffecting || observableSideEffectIndex(body, bindings) !== null,
-    });
+    if (end === null) {
+      continue;
+    }
+    const parameters = (declaration[2] ?? '')
+      .split(',')
+      .map((parameter) => parameter.trim().match(/^([A-Za-z_$][\w$]*)/)?.[1])
+      .filter((parameter): parameter is string => Boolean(parameter));
+    const body = contents.slice(openBrace + 1, end - 1);
+    declarations.push({ name, parameters, body });
+    declarationCounts.set(name, (declarationCounts.get(name) ?? 0) + 1);
   }
-  return new Set(
-    [...helpers]
-      .filter(([, value]) => value.declarations === 1 && value.sideEffecting)
-      .map(([name]) => name),
-  );
+
+  const direct: LocalParameterSideEffectHelper[] = [];
+  for (const declaration of declarations) {
+    if (declarationCounts.get(declaration.name) !== 1) continue;
+    for (const call of observableSideEffectCalls(declaration.body, bindings)) {
+      const parameterIndexes = new Set<number>();
+      declaration.parameters.forEach((parameter, parameterIndex) => {
+        if (
+          new RegExp(`\\b${escapeRegExp(parameter)}\\b`).test(call.argumentsText)
+        ) {
+          parameterIndexes.add(parameterIndex);
+        }
+      });
+      if (parameterIndexes.size > 0) {
+        direct.push({
+          name: declaration.name,
+          parameterIndexes,
+          kind: call.kind,
+          depth: 0,
+          mutationWitness: hasFixedMutationOperation(declaration.body),
+        });
+      }
+    }
+  }
+
+  const composed: LocalParameterSideEffectHelper[] = [];
+  for (const declaration of declarations) {
+    if (declarationCounts.get(declaration.name) !== 1) continue;
+    for (const callee of direct) {
+      for (const call of declaration.body.matchAll(
+        new RegExp(`\\b${escapeRegExp(callee.name)}\\s*\\(`, 'g'),
+      )) {
+        const openParen = (call.index ?? 0) + call[0].lastIndexOf('(');
+        const end = matchingCallEnd(declaration.body, openParen);
+        if (end === null) continue;
+        const argumentsList = splitTopLevelArguments(
+          declaration.body.slice(openParen + 1, end - 1),
+        );
+        const parameterIndexes = new Set<number>();
+        declaration.parameters.forEach((parameter, parameterIndex) => {
+          const tainted = boundedTaintedIdentifiers(
+            declaration.body,
+            new Set([parameter]),
+            bindings,
+            [],
+          );
+          if (
+            [...callee.parameterIndexes].some((calleeIndex) =>
+              containsAnyIdentifier(argumentsList[calleeIndex] ?? '', tainted)
+            )
+          ) {
+            parameterIndexes.add(parameterIndex);
+          }
+        });
+        if (parameterIndexes.size > 0) {
+          composed.push({
+            name: declaration.name,
+            parameterIndexes,
+            kind: callee.kind,
+            depth: 1,
+            mutationWitness:
+              callee.mutationWitness ||
+              hasFixedMutationOperation(declaration.body),
+          });
+        }
+      }
+    }
+  }
+  return [...direct, ...composed];
+}
+
+interface RegisteredToolHandler {
+  readonly body: string;
+  readonly bodyOffset: number;
+  readonly modelInputIdentifiers: ReadonlySet<string>;
+}
+
+function registeredToolHandler(
+  registration: MemberToolRegistration,
+): RegisteredToolHandler | null {
+  const patterns = [
+    /\b(?:async\s+)?(?:execute|handler)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/,
+    /\b(?:execute|handler)\s*:\s*(?:async\s*)?\(([^)]*)\)\s*=>\s*\{/,
+  ];
+  for (const pattern of patterns) {
+    const declaration = pattern.exec(registration.maskedDeclaration);
+    if (!declaration) continue;
+    const openBrace = declaration.index + declaration[0].lastIndexOf('{');
+    const end = matchingBraceEnd(registration.maskedDeclaration, openBrace);
+    if (end === null) continue;
+    const parameters = (declaration[1] ?? '')
+      .split(',')
+      .map((parameter) => parameter.trim().match(/^([A-Za-z_$][\w$]*)/)?.[1])
+      .filter((parameter): parameter is string => Boolean(parameter));
+    const body = registration.declaration.slice(openBrace + 1, end - 1);
+    const modelInputIdentifiers = new Set(
+      parameters.filter((parameter, parameterIndex) => {
+        if (parameter.startsWith('_')) return false;
+        if (parameters.length === 1) return true;
+        if (/^(?:params|input|args|payload|request)$/i.test(parameter)) return true;
+        return (
+          parameterIndex === 1 &&
+          /(?:call)?id$/i.test(parameters[0] ?? '') &&
+          new RegExp(`\\b${escapeRegExp(parameter)}\\s*\\.`).test(body)
+        );
+      }),
+    );
+    if (modelInputIdentifiers.size === 0) return null;
+    return {
+      body,
+      bodyOffset: openBrace + 1,
+      modelInputIdentifiers,
+    };
+  }
+  return null;
+}
+
+function boundedTaintedIdentifiers(
+  body: string,
+  roots: ReadonlySet<string>,
+  bindings: ObservableSideEffectBindings,
+  helpers: readonly LocalParameterSideEffectHelper[],
+): ReadonlySet<string> {
+  const tainted = new Set(roots);
+  const assignments = [
+    ...body.matchAll(
+      /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=\n;]+)?=\s*([\s\S]{0,2400}?);/g,
+    ),
+    ...body.matchAll(
+      /(?<![.\w$])([A-Za-z_$][\w$]*)\s*=\s*(?!=)([\s\S]{0,1200}?);/g,
+    ),
+    ...body.matchAll(
+      /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=\n;]+)?=\s*(`[\s\S]{0,2400}?`)\s*;/g,
+    ),
+  ];
+  const destructuringAssignments = [...body.matchAll(
+    /\b(?:const|let|var)\s*\{([^}]+)\}\s*=\s*([A-Za-z_$][\w$]*)\b/g,
+  )];
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const assignment of assignments) {
+      const identifier = assignment[1];
+      const expression = assignment[2];
+      if (!identifier || !expression || !containsAnyIdentifier(expression, tainted)) {
+        continue;
+      }
+      const returnsProcessResult =
+        [...bindings.directKinds].some(
+          ([binding, kind]) =>
+            kind === 'process' &&
+            new RegExp(`^\\s*${escapeRegExp(binding)}\\s*\\(`).test(expression),
+        ) ||
+        [...bindings.namespaceKinds].some(([namespace, operations]) =>
+          [...operations].some(
+            ([operation, kind]) =>
+              kind === 'process' &&
+              new RegExp(
+                `^\\s*${escapeRegExp(namespace)}\\s*\\.\\s*${escapeRegExp(operation)}\\s*\\(`,
+              ).test(expression),
+          ),
+        ) ||
+        helpers.some(
+          (helper) =>
+            helper.kind === 'process' &&
+            new RegExp(`^\\s*${escapeRegExp(helper.name)}\\s*\\(`).test(expression),
+        );
+      const leadingCall = expression.match(
+        /^\s*(?:await\s+)?(?:new\s+)?([A-Za-z_$][\w$]*)\s*\(/,
+      )?.[1];
+      const boundedBuiltinCall =
+        leadingCall === undefined ||
+        new Set(['String', 'Number', 'Boolean', 'URL']).has(leadingCall);
+      if (!returnsProcessResult && boundedBuiltinCall) {
+        tainted.add(identifier);
+      }
+    }
+    for (const assignment of destructuringAssignments) {
+      const source = assignment[2];
+      if (!source || !tainted.has(source)) continue;
+      for (const member of (assignment[1] ?? '').split(',')) {
+        const identifier = member.trim().match(
+          /^(?:[A-Za-z_$][\w$]*\s*:\s*)?([A-Za-z_$][\w$]*)/,
+        )?.[1];
+        if (identifier) tainted.add(identifier);
+      }
+    }
+    for (const mutation of body.matchAll(
+      /\b([A-Za-z_$][\w$]*)\.(?:push|unshift)\s*\(([\s\S]{0,500}?)\)\s*;/g,
+    )) {
+      const receiver = mutation[1];
+      const expression = mutation[2];
+      if (receiver && expression && containsAnyIdentifier(expression, tainted)) {
+        tainted.add(receiver);
+      }
+    }
+  }
+  return tainted;
+}
+
+function boundedExecutableIdentifiers(
+  body: string,
+  roots: ReadonlySet<string>,
+): ReadonlySet<string> {
+  const executableTaint = new Set(roots);
+  const destructuringAssignments = [
+    ...body.matchAll(
+      /\b(?:const|let|var)\s*\{([^}]+)\}\s*=\s*([A-Za-z_$][\w$]*)\s*;/g,
+    ),
+  ];
+  const assignments = [
+    ...body.matchAll(
+      /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=\n;]+)?=\s*([\s\S]{0,2400}?);/g,
+    ),
+    ...body.matchAll(
+      /(?<![.\w$])([A-Za-z_$][\w$]*)\s*=\s*(?!=)([\s\S]{0,1200}?);/g,
+    ),
+  ];
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const assignment of destructuringAssignments) {
+      const source = assignment[2];
+      if (!source || !executableTaint.has(source)) continue;
+      for (const member of (assignment[1] ?? '').split(',')) {
+        const identifier = member.trim().match(
+          /^(?:[A-Za-z_$][\w$]*\s*:\s*)?([A-Za-z_$][\w$]*)/,
+        )?.[1];
+        if (identifier) executableTaint.add(identifier);
+      }
+    }
+    for (const assignment of assignments) {
+      const identifier = assignment[1];
+      const expression = assignment[2];
+      if (!identifier || !expression) continue;
+      const chars = [...expression];
+      for (const callName of ['JSON.stringify', 'Number']) {
+        for (const call of expression.matchAll(
+          new RegExp(`\\b${callName.replace('.', '\\.')}\\s*\\(`, 'g'),
+        )) {
+          const openParen = (call.index ?? 0) + call[0].lastIndexOf('(');
+          const end = matchingCallEnd(expression, openParen);
+          if (end === null) continue;
+          for (let index = call.index ?? 0; index < end; index += 1) {
+            if ((chars[index] ?? '') !== '\n') chars[index] = ' ';
+          }
+        }
+      }
+      if (containsAnyIdentifier(chars.join(''), executableTaint)) {
+        executableTaint.add(identifier);
+      }
+    }
+    for (const mutation of body.matchAll(
+      /\b([A-Za-z_$][\w$]*)\.(?:push|unshift)\s*\(([\s\S]{0,500}?)\)\s*;/g,
+    )) {
+      const receiver = mutation[1];
+      const expression = mutation[2];
+      if (receiver && expression && containsAnyIdentifier(expression, executableTaint)) {
+        executableTaint.add(receiver);
+      }
+    }
+  }
+  return executableTaint;
+}
+
+function helperCallSideEffects(
+  body: string,
+  tainted: ReadonlySet<string>,
+  helpers: readonly LocalParameterSideEffectHelper[],
+): readonly {
+  readonly index: number;
+  readonly kind: RegisteredToolSideEffectKind;
+  readonly depth: 0 | 1;
+  readonly mutationWitness: boolean;
+  readonly argumentsText: string;
+}[] {
+  const sideEffects: {
+    index: number;
+    kind: RegisteredToolSideEffectKind;
+    depth: 0 | 1;
+    mutationWitness: boolean;
+    argumentsText: string;
+  }[] = [];
+  for (const helper of helpers) {
+    if (new RegExp(`\\bfunction\\s+${escapeRegExp(helper.name)}\\s*\\(`).test(body)) {
+      continue;
+    }
+    for (const call of body.matchAll(
+      new RegExp(`\\b${escapeRegExp(helper.name)}\\s*\\(`, 'g'),
+    )) {
+      const openParen = (call.index ?? 0) + call[0].lastIndexOf('(');
+      const end = matchingCallEnd(body, openParen);
+      if (end === null) continue;
+      const argumentsList = splitTopLevelArguments(body.slice(openParen + 1, end - 1));
+      if (
+        [...helper.parameterIndexes].some((parameterIndex) =>
+          containsAnyIdentifier(argumentsList[parameterIndex] ?? '', tainted)
+        )
+      ) {
+        sideEffects.push({
+          index: call.index ?? 0,
+          kind: helper.kind,
+          depth: helper.depth,
+          mutationWitness: helper.mutationWitness,
+          argumentsText: body.slice(openParen + 1, end - 1),
+        });
+      }
+    }
+  }
+  return sideEffects;
 }
 
 interface ImportedApiParameterScope {
@@ -727,8 +1159,7 @@ function importedApiParameterScopes(
     /\bfunction(?:\s+[A-Za-z_$][\w$]*)?\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/g,
   )) {
     const openBrace = (declaration.index ?? 0) + declaration[0].lastIndexOf('{');
-    const end = matchingBraceEnd(maskedContents, openBrace);
-    if (end === null) continue;
+    const end = matchingBraceEnd(maskedContents, openBrace) ?? maskedContents.length;
     for (const parameter of (declaration[1] ?? '').split(',')) {
       const binding = parameter.trim().match(
         /^([A-Za-z_$][\w$]*)\s*:\s*([A-Za-z_$][\w$]*)\b/,
@@ -740,7 +1171,20 @@ function importedApiParameterScopes(
       }
     }
   }
-  return scopes;
+  const scopeCounts = new Map<string, number>();
+  for (const scope of scopes) {
+    scopeCounts.set(scope.receiver, (scopeCounts.get(scope.receiver) ?? 0) + 1);
+  }
+  return scopes.map((scope) => {
+    const escaped = escapeRegExp(scope.receiver);
+    const isUniqueImportedReceiver = scopeCounts.get(scope.receiver) === 1;
+    const isShadowedByValueDeclaration = new RegExp(
+      `\\b(?:const|let|var)\\s+${escaped}\\b`,
+    ).test(maskedContents);
+    return isUniqueImportedReceiver && !isShadowedByValueDeclaration
+      ? { ...scope, start: 0, end: maskedContents.length }
+      : scope;
+  });
 }
 
 interface MemberToolRegistration {
@@ -748,6 +1192,7 @@ interface MemberToolRegistration {
   readonly index: number;
   readonly end: number;
   readonly declaration: string;
+  readonly maskedDeclaration: string;
 }
 
 function memberToolRegistrations(
@@ -771,33 +1216,192 @@ function memberToolRegistrations(
       continue;
     }
     const openParen = (registration.index ?? 0) + registration[0].lastIndexOf('(');
-    const end = matchingCallEnd(maskedContents, openParen);
+    const lineStart = maskedContents.lastIndexOf('\n', registrationIndex - 1) + 1;
+    const indentation = maskedContents.slice(lineStart, registrationIndex).match(/^\s*/)?.[0] ?? '';
+    const formattedClose = new RegExp(
+      `^${indentation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\);?\\s*$`,
+      'gm',
+    );
+    formattedClose.lastIndex = registrationIndex;
+    const close = formattedClose.exec(maskedContents);
+    const end = close
+      ? (close.index ?? 0) + close[0].length
+      : matchingCallEnd(maskedContents, openParen);
     if (end === null) continue;
     registrations.push({
       receiver,
       index: registrationIndex,
       end,
-      declaration: maskedContents.slice(registration.index, end),
+      declaration: contents.slice(registration.index, end),
+      maskedDeclaration: maskedContents.slice(registration.index, end),
     });
   }
   return registrations;
 }
 
-function registeredToolSideEffectSurface(file: LlmSourceFile): boolean {
-  if (isExcludedSourcePath(file.path)) return false;
+/**
+ * Establishes a bounded model-facing member-tool path: the registered handler parameter (or a
+ * local alias) reaches an import-resolved mutation/execution call, directly or through one unique
+ * local helper. Constants, read-only helpers, external middleware and deeper call graphs abstain.
+ */
+export function registeredToolParameterSideEffects(
+  file: LlmSourceFile,
+  includeControlled = false,
+): readonly RegisteredToolParameterSideEffect[] {
+  if (isExcludedSourcePath(file.path)) return [];
   const maskedContents = maskNonCode(file.contents);
   const bindings = observableSideEffectBindings(file.contents, maskedContents);
-  const helpers = localSideEffectHelpers(maskedContents, bindings);
-  return memberToolRegistrations(file.contents, maskedContents).some((registration) => {
-    if (!/\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration)) return false;
-    if (dynamicOperationSelector(registration.declaration) === null) return false;
-    const direct = observableSideEffectIndex(registration.declaration, bindings);
-    if (direct !== null) return true;
-    return (
-      observableSideEffectIndex(registration.declaration, bindings, helpers) !== null &&
-      dynamicOperationSelector(registration.declaration) !== null
+  const helpers = localParameterSideEffectHelpers(
+    file.contents,
+    maskedContents,
+    bindings,
+  );
+  const findings: RegisteredToolParameterSideEffect[] = [];
+
+  for (const registration of memberToolRegistrations(file.contents, maskedContents)) {
+    if (!/\bparameters\s*:/.test(registration.maskedDeclaration)) continue;
+    const handler = registeredToolHandler(registration);
+    if (!handler) continue;
+    const tainted = boundedTaintedIdentifiers(
+      handler.body,
+      handler.modelInputIdentifiers,
+      bindings,
+      helpers,
     );
-  });
+    const executableTaint = boundedExecutableIdentifiers(
+      handler.body,
+      handler.modelInputIdentifiers,
+    );
+    const directCalls = observableSideEffectCalls(handler.body, bindings)
+      .filter((call) => containsAnyIdentifier(call.argumentsText, tainted))
+      .map((call) => ({
+        index: call.index,
+        kind: call.kind,
+        depth: -1 as const,
+        mutationWitness: true,
+        argumentsText: call.argumentsText,
+      }));
+    const helperCalls = helperCallSideEffects(handler.body, tainted, helpers);
+    const sideEffects = [...directCalls, ...helperCalls]
+      .filter((sideEffect) => {
+        if (sideEffect.kind === 'filesystem') return true;
+        if (
+          /\b(?:action|operation)\s*:\s*Type\.(?:String|Union|Literal)\s*\(/i.test(
+            registration.maskedDeclaration,
+          ) &&
+          [...handler.modelInputIdentifiers].some((identifier) =>
+            new RegExp(
+              `\\b${escapeRegExp(identifier)}\\.(?:action|operation)\\b`,
+              'i',
+            ).test(handler.body)
+          )
+        ) {
+          return true;
+        }
+        if (sideEffect.depth === -1) {
+          return true;
+        }
+        if (sideEffect.mutationWitness) return true;
+        const localContext = handler.body.slice(
+          Math.max(0, sideEffect.index - 1800),
+          sideEffect.index + sideEffect.argumentsText.length,
+        );
+        const fixedOperations = fixedArrayOperationNames(localContext);
+        const hasNonReadOnlyOperation = fixedOperations.some(
+          (operation) => !NON_MUTATING_OR_INDETERMINATE_OPERATIONS.has(operation),
+        );
+        return (
+          hasNonReadOnlyOperation ||
+          /(?:location\.href\s*=|window\.open\s*\(|\.scrollBy\s*\(|Input\.dispatch|\/json\/close\/)/.test(
+            localContext,
+          )
+        );
+      })
+      .sort((left, right) => left.index - right.index);
+    if (sideEffects.length === 0) continue;
+
+    const first = sideEffects[0];
+    if (!first) continue;
+    const beforeSideEffect = handler.body.slice(0, first.index);
+    if (
+      APPROVAL_FAIL_CLOSED_PATTERN.test(beforeSideEffect) ||
+      ALLOWLIST_FAIL_CLOSED_PATTERN.test(beforeSideEffect)
+    ) {
+      if (!includeControlled) continue;
+    }
+
+    let materializedExecution = false;
+    let materializedExecutionIndex: number | null = null;
+    if (first.kind === 'filesystem') {
+      const taintedWrites = observableSideEffectCalls(handler.body, bindings)
+        .filter(
+          (call) =>
+            call.kind === 'filesystem' &&
+            containsAnyIdentifier(call.argumentsText, tainted),
+        );
+      for (const write of taintedWrites) {
+        const writtenPath = splitTopLevelArguments(write.argumentsText)[0]
+          ?.trim()
+          .match(/^([A-Za-z_$][\w$]*)$/)?.[1];
+        if (!writtenPath) continue;
+        const laterExecution = observableSideEffectCalls(handler.body, bindings).some(
+          (call) =>
+            call.kind === 'process' &&
+            call.index > write.index &&
+            new RegExp(`\\b${escapeRegExp(writtenPath)}\\b`).test(call.argumentsText),
+        );
+        if (laterExecution) {
+          materializedExecution = true;
+          const argumentsStart = handler.body.indexOf(write.argumentsText, write.index);
+          if (argumentsStart >= 0) {
+            const executableIdentifiers = [...executableTaint];
+            const commandLikeIdentifiers = executableIdentifiers.filter((identifier) =>
+              /(?:command|cmd|code|script|shell)/i.test(identifier)
+            );
+            const anchorIdentifiers = commandLikeIdentifiers.length > 0
+              ? commandLikeIdentifiers
+              : executableIdentifiers;
+            const executableOccurrences = anchorIdentifiers.flatMap((identifier) => {
+              const match = new RegExp(`\\b${escapeRegExp(identifier)}\\b`).exec(
+                write.argumentsText,
+              );
+              return match?.index === undefined ? [] : [argumentsStart + match.index];
+            });
+            if (executableOccurrences.length > 0) {
+              materializedExecutionIndex = Math.min(...executableOccurrences);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    const selectedSideEffects = [
+      materializedExecutionIndex === null
+        ? first
+        : { ...first, index: materializedExecutionIndex },
+      ...(first.kind === 'filesystem'
+        ? sideEffects.slice(1).filter((sideEffect) => sideEffect.kind === 'filesystem').slice(0, 1)
+        : []),
+    ];
+    selectedSideEffects.forEach((sideEffect) => {
+      findings.push({
+        registrationIndex: registration.index,
+        sideEffectIndex: registration.index + handler.bodyOffset + sideEffect.index,
+        kind: sideEffect.kind,
+        executesModelInput:
+          materializedExecution ||
+          (sideEffect.kind === 'process' &&
+            sideEffect.depth <= 0 &&
+            containsAnyIdentifier(sideEffect.argumentsText, executableTaint)),
+      });
+    });
+  }
+  return findings;
+}
+
+function registeredToolSideEffectSurface(file: LlmSourceFile): boolean {
+  return registeredToolParameterSideEffects(file, true).length > 0;
 }
 
 function hasSideEffectingToolSurface(file: LlmSourceFile): boolean {
@@ -832,7 +1436,6 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
   const findings: CejelLlmFinding[] = [];
   const maskedContents = maskNonCode(file.contents);
   const sideEffectBindings = observableSideEffectBindings(file.contents, maskedContents);
-  const sideEffectHelpers = localSideEffectHelpers(maskedContents, sideEffectBindings);
   for (const registration of maskedContents.matchAll(TOOL_ASSIGNMENT_PATTERN)) {
     const toolName = registration[1];
     if (!toolName) continue;
@@ -866,41 +1469,15 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
       ),
     );
   }
-  for (const registration of memberToolRegistrations(file.contents, maskedContents)) {
-    if (!/\b(?:execute|handler)\s*(?::|[=(])/.test(registration.declaration)) continue;
-    const directSideEffectIndex = observableSideEffectIndex(
-      registration.declaration,
-      sideEffectBindings,
-    );
-    const helperSideEffectIndex = directSideEffectIndex === null
-      ? observableSideEffectIndex(
-          registration.declaration,
-          sideEffectBindings,
-          sideEffectHelpers,
-        )
-      : null;
-    const selector = dynamicOperationSelector(registration.declaration);
-    const sideEffectIndex = directSideEffectIndex ?? helperSideEffectIndex;
-    if (sideEffectIndex === null) continue;
-    // A one-hop helper hides the concrete mutation from this declaration. Fail closed unless
-    // the model-facing schema also exposes a dynamic operation selector that reaches the helper;
-    // a fixed helper invocation alone is insufficient authority-boundary evidence.
-    if (selector === null) continue;
-    const beforeSideEffect = registration.declaration.slice(0, sideEffectIndex);
-    if (
-      APPROVAL_FAIL_CLOSED_PATTERN.test(beforeSideEffect) ||
-      ALLOWLIST_FAIL_CLOSED_PATTERN.test(beforeSideEffect)
-    ) {
-      continue;
-    }
+  for (const sideEffect of registeredToolParameterSideEffects(file)) {
     findings.push(
       finding(
         'LLM-AGY-001',
         file,
-        registration.index,
+        sideEffect.sideEffectIndex,
         'critical',
-        `A locally registered model-facing tool performs a recognized side effect without an observable fail-closed allowlist or human approval gate.`,
-        'Registered tool reaches an import-resolved side-effecting operation',
+        `A locally registered model-facing tool passes handler input to an import-resolved side effect without an observable fail-closed allowlist or human approval gate.`,
+        'Registered tool input reaches an import-resolved side-effecting operation',
         'high',
       ),
     );
@@ -928,13 +1505,15 @@ export const CEJEL_LLM_ACTION_RULES: readonly LlmActionRuleDefinition[] = [
     title: 'Side-effecting tool lacks an authority boundary',
     detectorConfidence: 'high',
     evidenceContract:
-      'A complete local tool declaration calls an import-resolved Node filesystem or child-process mutation API and is exposed through a local tools registry without a preceding fail-closed approval or operation-allowlist guard.',
+      'A complete local tool declaration passes a recognized handler parameter or bounded alias to an import-resolved Node filesystem or child-process mutation API, directly or through one unique local helper, without a preceding fail-closed approval or operation-allowlist guard.',
     exclusions: [
       'Read-only and pure tools',
       'Unbound business-operation names whose side effects cannot be established locally',
       'Dynamic or remotely supplied registries and policy middleware',
       'Tool declarations not observably exposed to a model or agent',
       'Generic registerTool calls or agent objects without an import-resolved supported model call',
+      'Registered handlers whose model-facing input does not reach the supported side effect',
+      'Helpers deeper than one locally resolved call',
     ],
     applies: hasSideEffectingToolSurface,
     detect: detectSideEffectingToolWithoutAuthorityBoundary,

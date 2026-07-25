@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.5",
+  "supersedes_policy_id": "llm-selection-v1.4",
+  "recorded_at": "2026-07-24T01:18:39.000Z",
+  "detector_results_seen": false,
+  "source_accessed": false,
+  "amendments": [
+    {
+      "cohort": "both",
+      "kind": "fresh_cycle_reset_before_results",
+      "from": "v1.4-golden-development-and-withdrawn-untouched",
+      "to": "v1.5-pre-source-metadata-selection",
+      "reason": "The v1.4 golden cohort is retired from release measurement after detector development; the v1.4 untouched cohort remains unexecuted and is conservatively withdrawn. The v1.5 exact historical exclusion ledger is committed before fresh metadata-only selection. No v1.5 source, labels, detector code, or detector output were consulted."
+    },
+    {
+      "cohort": "both",
+      "kind": "detector_independent_discovery_contract_locked",
+      "from": "semantic-cues-only-contract",
+      "to": "machine-readable-lexical-collector-contract",
+      "reason": "The public discovery contract locks a detector-independent collector, file eligibility rules, recipe patterns, deterministic IDs, explicit zero-hit rows, and output hashes before any v1.5 cohort source access."
+    },
+    {
+      "cohort": "policy",
+      "kind": "policy_relock_before_results",
+      "from": "llm-selection-v1.4",
+      "to": "llm-selection-v1.5",
+      "reason": "Fresh disjoint v1.5 cohorts will be selected from two context-isolated GitHub metadata-only proposals after excluding the exact reset ledger. Release thresholds and detector rules do not change."
+    }
+  ]
+}

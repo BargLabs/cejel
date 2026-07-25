@@ -131,6 +131,7 @@ function parseArgs(argv) {
     switch (argument) {
       case '--cohort': options.cohort = takeValue(); break;
       case '--candidate-file': options.candidateFile = takeValue(); break;
+      case '--reuse-pins-from-manifest': options.reusePinsFromManifest = takeValue(); break;
       case '--output': options.output = takeValue(); break;
       case '--reviewer': options.reviewers.push(takeValue()); break;
       case '--review-record': options.reviewRecords.push(takeValue()); break;
@@ -178,6 +179,9 @@ Freeze options:
   --attestation-reference REF  Required internal witness record reference.
   --frozen-at ISO              Optional explicit UTC timestamp; defaults to current time.
   --output PATH                Optional output; defaults to cohorts/<cohort>-manifest-v1.2.json.
+  --reuse-pins-from-manifest PATH
+                               Golden only: retain exact previously frozen repository pins while
+                               creating a new policy-cycle manifest.
 `;
 }
 
@@ -272,11 +276,11 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-function assertCandidateDocument(document, cohort) {
+function assertCandidateDocument(document, cohort, policyId) {
   if (document.schema_version !== '1.0.0' || document.protocol_id !== 'cejel-llm-calibration-v1') {
     throw new Error('candidate file has an unsupported schema or protocol');
   }
-  if (document.policy_id !== 'llm-selection-v1.2' || document.cohort !== cohort) {
+  if (document.policy_id !== policyId || document.cohort !== cohort) {
     throw new Error('candidate file policy or cohort does not match the requested freeze');
   }
   if (document.status !== 'candidate_commit_freeze_pending' || document.selected_before_detector_results !== true) {
@@ -368,16 +372,28 @@ export async function main(argv) {
   if (!Number.isInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8) {
     throw new Error('--concurrency must be an integer from 1 through 8');
   }
+  if (options.reusePinsFromManifest && options.cohort !== 'golden') {
+    throw new Error('--reuse-pins-from-manifest is permitted only for the development golden cohort');
+  }
 
   const defaultCandidate = options.cohort === 'untouched'
     ? 'untouched-candidates-v1.2.json'
     : 'golden-candidates.json';
+  const selectionPolicy = readJson(resolve(calibrationRoot, 'selection-policy.json'));
+  const policyId = selectionPolicy.policy_id;
+  const cycle = policyId?.replace(/^llm-selection-/, '');
+  if (!/^v1\.[0-9]+$/.test(cycle || '')) {
+    throw new Error('current selection policy has an unsupported policy_id');
+  }
+  const currentDefaultCandidate = policyId === 'llm-selection-v1.2'
+    ? defaultCandidate
+    : `${options.cohort}-candidates-${cycle}.json`;
   const candidatePath = resolve(
-    options.candidateFile || resolve(calibrationRoot, 'cohorts', defaultCandidate),
+    options.candidateFile || resolve(calibrationRoot, 'cohorts', currentDefaultCandidate),
   );
   const candidateBytes = readFileSync(candidatePath);
   const candidateDocument = JSON.parse(candidateBytes.toString('utf8'));
-  assertCandidateDocument(candidateDocument, options.cohort);
+  assertCandidateDocument(candidateDocument, options.cohort, policyId);
   const candidateSha256 = createHash('sha256').update(candidateBytes).digest('hex');
 
   const hasFreezeArguments =
@@ -411,18 +427,44 @@ export async function main(argv) {
   }
 
   const resolutionFailures = new Array(candidateDocument.repositories.length);
-  const repositories = await mapLimit(
-    candidateDocument.repositories,
-    options.concurrency,
-    async (candidate, index) => {
-      try {
-        return await resolveRepository(candidate);
-      } catch (error) {
-        resolutionFailures[index] = error.message;
-        return null;
+  let repositories;
+  if (options.reusePinsFromManifest) {
+    const prior = readJson(resolve(options.reusePinsFromManifest));
+    if (
+      prior?.cohort !== 'golden' || prior.status !== 'frozen' ||
+      !Array.isArray(prior.repositories) ||
+      prior.repositories.length !== candidateDocument.repositories.length
+    ) {
+      throw new Error('reused golden manifest is not a complete frozen golden cohort');
+    }
+    repositories = prior.repositories.map((repository, index) => {
+      const candidate = candidateDocument.repositories[index];
+      if (
+        repository.repository_id !== candidate.repository_id ||
+        repository.url !== candidate.url ||
+        repository.primary_language !== candidate.primary_language ||
+        repository.primary_surface !== candidate.primary_surface ||
+        repository.provider_surface !== candidate.provider_surface ||
+        hashRepositoryEntry(repository) !== repository.entry_sha256
+      ) {
+        throw new Error(`reused golden pin ${index} does not match the current golden candidate`);
       }
-    },
-  );
+      return repository;
+    });
+  } else {
+    repositories = await mapLimit(
+      candidateDocument.repositories,
+      options.concurrency,
+      async (candidate, index) => {
+        try {
+          return await resolveRepository(candidate);
+        } catch (error) {
+          resolutionFailures[index] = error.message;
+          return null;
+        }
+      },
+    );
+  }
   const failures = resolutionFailures.filter(Boolean);
   if (failures.length > 0) {
     throw new Error(
@@ -447,12 +489,24 @@ export async function main(argv) {
       golden_candidates_sha256: sha256File(
         options.cohort === 'golden'
           ? candidatePath
-          : resolve(calibrationRoot, 'cohorts/golden-candidates.json'),
+          : resolve(
+            calibrationRoot,
+            'cohorts',
+            policyId === 'llm-selection-v1.2'
+              ? 'golden-candidates.json'
+              : `golden-candidates-${cycle}.json`,
+          ),
       ),
       untouched_candidates_sha256: sha256File(
         options.cohort === 'untouched'
           ? candidatePath
-          : resolve(calibrationRoot, 'cohorts/untouched-candidates-v1.2.json'),
+          : resolve(
+            calibrationRoot,
+            'cohorts',
+            policyId === 'llm-selection-v1.2'
+              ? 'untouched-candidates-v1.2.json'
+              : `untouched-candidates-${cycle}.json`,
+          ),
       ),
       reserve_candidates_sha256: sha256File(
         resolve(calibrationRoot, 'cohorts/reserve-candidates.json'),
@@ -461,7 +515,13 @@ export async function main(argv) {
         resolve(calibrationRoot, 'cohorts/selection-amendments.json'),
       ),
       replacement_selection_sha256: sha256File(
-        resolve(calibrationRoot, 'cohorts/replacement-selection-v1.2.json'),
+        resolve(
+          calibrationRoot,
+          'cohorts',
+          policyId === 'llm-selection-v1.2'
+            ? 'replacement-selection-v1.2.json'
+            : `selection-${cycle}.json`,
+        ),
       ),
       review_record_sha256s: options.reviewRecords.map((path) => sha256File(resolve(path))),
     },
@@ -473,7 +533,7 @@ export async function main(argv) {
   }
 
   const output = resolve(
-    options.output || resolve(calibrationRoot, 'cohorts', `${options.cohort}-manifest-v1.2.json`),
+    options.output || resolve(calibrationRoot, 'cohorts', `${options.cohort}-manifest-${cycle}.json`),
   );
   writeNewFile(output, manifest);
   console.log(JSON.stringify({

@@ -67,16 +67,18 @@ Current native source coverage is:
 
 - **JavaScript/TypeScript:** `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`.
   Integration metadata can record OpenAI, Anthropic, Vercel AI SDK, and LangChain imports.
-  Applicability requires a recognized OpenAI/Anthropic or `generateText`/`streamText` call shape;
-  LangChain metadata alone does not establish v1 applicability or framework-specific coverage.
+  Applicability requires a recognized OpenAI/Anthropic or `generateText`/`streamText` call shape,
+  or the complete authenticated OpenAI-compatible REST request shape documented in the support
+  matrix; LangChain metadata alone does not establish v1 applicability or framework-specific coverage.
   The eight rules below use deliberately bounded, local patterns; an import alone never creates
   a finding.
 - **Python:** `.py` files using observable official OpenAI or Anthropic SDK imports and call/response
-  shapes. The alpha applies `LLM-IOH-001`, `LLM-VAL-001`, `LLM-AGY-002`, `LLM-DAT-001`, and
-  `LLM-EVL-002` to narrowly fixture-backed Python shapes. Python action validation is limited to an
-  `args_schema`-bound local `_run` path, and Python self-judge detection is limited to a complete
-  local configured producer/judge class. `LLM-AGY-001`, `LLM-PRV-001`, and `LLM-EVL-001` still
-  require the supported local JavaScript or TypeScript paths.
+  shapes, explicitly decorated or registered model-facing tools, and narrowly recognized
+  provider-neutral model/agent bases. The alpha follows bounded same-file model-output lineage
+  through local helpers for `LLM-IOH-001` and `LLM-VAL-001`; recognizes fixture-backed official-SDK,
+  abstract-model, and explicitly unset tool-limit forms for `LLM-AGY-002`; and supports bounded
+  Python evaluation provenance and self-judge paths. It does not infer arbitrary framework magic
+  or cross-module data flow.
 
 If no supported production integration is detected, the pack is `not_applicable`. During alpha,
 an applicable repository is always `assessed_with_limitations`. Rule-level `not_applicable` versus
@@ -87,12 +89,12 @@ finding is never proof that a control exists.
 
 | Rule ID | Alpha check |
 |---|---|
-| `LLM-IOH-001` | Direct supported model output reaches a recognized dynamic-evaluation, shell/process, or raw-HTML sink. |
-| `LLM-VAL-001` | A model-produced structured field reaches a named consequential JavaScript/TypeScript dispatcher without observable fail-closed runtime validation. |
+| `LLM-IOH-001` | Supported model output or a registered model-facing tool input reaches a recognized dynamic-evaluation, shell/process, raw-HTML, or executable-script materialization sink. |
+| `LLM-VAL-001` | Model-produced structured data reaches a recognized consequential action without observable fail-closed runtime validation. |
 | `LLM-AGY-001` | A locally exposed JavaScript/TypeScript tool calls a recognized import-resolved Node filesystem or child-process mutation API without an observable fail-closed allowlist or human-approval gate. |
-| `LLM-AGY-002` | A literal unconditional loop has a complete local body containing a recognized model call. |
+| `LLM-AGY-002` | A literal unconditional model/tool loop lacks an observable mandatory bound, or a recognized model-facing agent class explicitly leaves its tool-call limit unset. |
 | `LLM-DAT-001` | A narrowly named secret-like environment value appears directly inside recognized model-call arguments. |
-| `LLM-PRV-001` | A local evaluation path with a recognized model invocation emits an aggregate without model lineage or prompt, policy, or evaluation-configuration lineage. |
+| `LLM-PRV-001` | A local evaluation path with a recognized direct or called-helper model invocation emits an aggregate or bounded case result without model lineage or prompt, policy, or evaluation-configuration lineage. |
 | `LLM-EVL-001` | A local evaluation path with a recognized model invocation emits an aggregate without an eligible-case denominator (including a directly traced local alias) or raw case results. |
 | `LLM-EVL-002` | The sole local model-assisted judge resolves to the same model as the producer, with no recognized independent adjudicator. |
 

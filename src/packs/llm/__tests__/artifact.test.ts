@@ -93,8 +93,8 @@ describe('Free LLM Pack artifact and unsigned attestation', () => {
     expect(value.inputSourceSha256).toBe(INPUT_SHA);
     expect(value.assurance).toEqual({ status: 'unsigned', issuer: 'self-generated' });
     expect(value.lineage).toMatchObject({
-      ruleContractVersion: 'cejel-free-llm-rules-v1-2026-07-22',
-      detectorVersion: 'free-llm-detector-alpha-1',
+      ruleContractVersion: 'cejel-free-llm-rules-v1.1-2026-07-23',
+      detectorVersion: 'free-llm-detector-alpha-2',
       toolVersion: '0.1.8-test',
       detectorSourceRevision: 'local-or-unverified-build:@cejel/cejel@0.1.8-test',
     });

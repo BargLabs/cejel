@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  lstatSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -9,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import { assembleExecutionBundle } from './assemble-execution-bundle.mjs';
 import { canonicalize } from './freeze-cohorts.mjs';
+import { retainGoldenCompatibilityEvidence } from './retain-golden-compatibility.mjs';
 
 const sha = (document) => createHash('sha256').update(canonicalize(document), 'utf8').digest('hex');
 
@@ -45,7 +52,23 @@ test('trusted workflow pins runtime and generates parity from the dedicated pack
   assert.ok(execute >= 0 && assemble > execute && retain > assemble && uploadRaw > retain);
   assert.match(
     workflow,
-    /install -m 600[\s\S]*free-core-parity\.json[\s\S]*llm-output\/free-core-compatibility\.json/,
+    /retain-golden-compatibility\.mjs[\s\S]*free-core-parity\.json[\s\S]*llm-output\/free-core-compatibility\.json/,
+  );
+});
+
+test('golden compatibility retention preserves exact bytes and fails closed on replacement', () => {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-llm-parity-retention-'));
+  const source = join(root, 'free-core-parity.json');
+  const retained = join(root, 'free-core-compatibility.json');
+  const sourceBytes = '{\n  "candidate": {"exit_code": 0},\n  "baseline": {"exit_code": 0}\n}\n';
+  writeFileSync(source, sourceBytes, 'utf8');
+  const result = retainGoldenCompatibilityEvidence(source, retained);
+  assert.equal(readFileSync(retained, 'utf8'), sourceBytes);
+  assert.equal(result.byte_sha256, createHash('sha256').update(sourceBytes).digest('hex'));
+  assert.equal(lstatSync(retained).mode & 0o777, 0o600);
+  assert.throws(
+    () => retainGoldenCompatibilityEvidence(source, retained),
+    /EEXIST|file already exists/,
   );
 });
 

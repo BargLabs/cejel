@@ -65,6 +65,100 @@ describe('Free LLM direct JavaScript rule regressions', () => {
     ])).toHaveLength(1);
   });
 
+  it('treats an imported member-tool handler parameter as observable model input', () => {
+    expect(detect('LLM-IOH-001', [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { execFileSync } from 'node:child_process';",
+      'function runBridge(program: string, args: string[]) {',
+      '  return execFileSync(program, args);',
+      '}',
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'fixed_action',",
+      '    parameters: Type.Object({ target: Type.String() }),',
+      '    execute(_callId, params) {',
+      "      const bridgeArgs = ['act', params.target];",
+      "      return runBridge('/usr/bin/bridge', bridgeArgs);",
+      '    },',
+      '  });',
+      '}',
+    ])).toEqual([
+      expect.objectContaining({
+        ruleId: 'LLM-IOH-001',
+        evidence: expect.objectContaining({ line: 12 }),
+      }),
+    ]);
+  });
+
+  it('links tainted script materialization to its imported process launch', () => {
+    expect(detect('LLM-IOH-001', [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { writeFileSync } from 'node:fs';",
+      "import { spawn } from 'node:child_process';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'visible_command',",
+      '    parameters: Type.Object({ command: Type.String() }),',
+      '    execute(_callId, params) {',
+      "      const scriptPath = '/tmp/run.sh';",
+      '      const script = `#!/bin/sh\\n${params.command}`;',
+      '      writeFileSync(scriptPath, script);',
+      "      return spawn('terminal', [scriptPath]);",
+      '    },',
+      '  });',
+      '}',
+    ])).toEqual([
+      expect.objectContaining({
+        ruleId: 'LLM-IOH-001',
+        evidence: expect.objectContaining({ line: 11 }),
+      }),
+    ]);
+  });
+
+  it('anchors multiline script materialization at the executable model input', () => {
+    expect(detect('LLM-IOH-001', [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { writeFileSync } from 'node:fs';",
+      "import { spawn } from 'node:child_process';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'visible_command',",
+      '    parameters: Type.Object({ command: Type.String() }),',
+      '    execute(_callId, params) {',
+      "      const scriptPath = '/tmp/run.sh';",
+      '      writeFileSync(',
+      '        scriptPath,',
+      '        [',
+      "          '#!/bin/sh',",
+      '          `( ${params.command} )`,',
+      "        ].join('\\n'),",
+      '      );',
+      "      return spawn('terminal', [scriptPath]);",
+      '    },',
+      '  });',
+      '}',
+    ])).toEqual([
+      expect.objectContaining({
+        ruleId: 'LLM-IOH-001',
+        evidence: expect.objectContaining({ line: 14 }),
+      }),
+    ]);
+  });
+
+  it('does not treat an ordinary model-controlled filesystem write as execution', () => {
+    expect(detect('LLM-IOH-001', [
+      "import type { ToolAPI } from '@synthetic/agent-runtime';",
+      "import { writeFileSync } from 'node:fs';",
+      'export function attach(api: ToolAPI) {',
+      '  api.registerTool({',
+      "    name: 'save_note',",
+      '    parameters: Type.Object({ contents: Type.String() }),',
+      "    execute(_callId, params) { writeFileSync('/tmp/note.txt', params.contents); },",
+      '  });',
+      '}',
+    ])).toEqual([]);
+  });
+
   it('does not extract DAT arguments from fake model calls in comments or strings', () => {
     expect(detect('LLM-DAT-001', [
       "import OpenAI from 'openai';",

@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.3",
+  "record_type": "development_only_rehearsal",
+  "release_evidence": false,
+  "go_decision": null,
+  "source_commit": "70d16f383e20e9afa2071561c8bf68ffca7add63",
+  "detector_version": "free-llm-detector-alpha-2",
+  "rule_contract_version": "cejel-free-llm-rules-v1.1-2026-07-23",
+  "detector_entry_sha256": "cc9141e6b800f0eeb2288abd3911cedd900a43368f00850983a7e4bf91775ad6",
+  "runtime": {
+    "name": "node",
+    "version": "v26.5.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "golden_regression": {
+    "repositories": 24,
+    "known_positive_opportunities": 6,
+    "expected_findings_emitted": 5,
+    "additional_findings_emitted": 0,
+    "known_misses": 1,
+    "development_recall": 0.8333333333333334,
+    "development_precision": 1,
+    "limitations": [
+      "Golden data was used during detector development and is not untouched release evidence.",
+      "The remaining LLM-IOH-001 opportunity requires a cross-file generated-code provenance path outside the current evidence contract."
+    ]
+  },
+  "development_corpus": {
+    "corpus_id": "cejel-free-llm-v1.3-development-only",
+    "byte_sha256": "0251b4758b89f3046b8e4e34ce3a68e0f9d64fdcf6377f5f442e06869583c972",
+    "document_sha256": "9adce6fc4fbb27d26ce85d1b1ce4b03c4fa3f8048e5587023b533e53a53f2cb9",
+    "repositories": 12,
+    "exact_commit_and_tree_verification_passed": 12,
+    "network_isolation": "node-runtime-deny-hook-v1",
+    "assessed_with_limitations": 3,
+    "not_applicable": 9,
+    "findings_emitted": 0,
+    "post_scan_opportunity_audit": {
+      "reviewer": "same-codex-task-as-candidate-author",
+      "independent": false,
+      "blind": false,
+      "bounded_detector_changes_justified": 0,
+      "conclusion": "No complete local evidence path was found that justified broadening the detector without weakening the frozen finding threshold."
+    },
+    "repository_results": [
+      {
+        "repository_id": "mishushakov/llm-scraper",
+        "status": "assessed_with_limitations",
+        "findings": 0
+      },
+      {
+        "repository_id": "567-labs/instructor-js",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "Portkey-AI/gateway",
+        "status": "assessed_with_limitations",
+        "findings": 0
+      },
+      {
+        "repository_id": "llm-workflow-engine/llm-workflow-engine",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "AgentOps-AI/agentops",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "refuel-ai/autolabel",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "simonw/llm",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "Chainlit/chainlit",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "mozilla-ai/any-llm",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "botpress/botpress",
+        "status": "not_applicable",
+        "findings": 0
+      },
+      {
+        "repository_id": "Scale3-Labs/langtrace",
+        "status": "assessed_with_limitations",
+        "findings": 0
+      },
+      {
+        "repository_id": "CaviraOSS/OpenMemory",
+        "status": "not_applicable",
+        "findings": 0
+      }
+    ],
+    "limitations": [
+      "No finding was emitted, so this corpus does not estimate precision or recall.",
+      "The high not-applicable rate is a coverage signal for framework and provider-abstraction paths, not evidence that controls exist.",
+      "Every repository in this corpus is permanently excluded from untouched release measurement."
+    ]
+  }
+}

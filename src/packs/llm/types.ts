@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const CEJEL_LLM_PACK_ID = 'free-llm';
-export const CEJEL_LLM_PACK_VERSION = 'cejel-free-llm-v0-alpha-1';
+export const CEJEL_LLM_PACK_VERSION = 'cejel-free-llm-v0-alpha-2';
 
 /** Frozen Free LLM v1 catalogue. Only a measured subset is enabled by the alpha detector. */
 export const CEJEL_LLM_RULE_IDS = [

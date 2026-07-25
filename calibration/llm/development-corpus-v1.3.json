@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "corpus_id": "cejel-free-llm-v1.3-development-only",
+  "status": "frozen_before_first_scan",
+  "purpose": "Detector sensitivity and false-positive rehearsal only; never release measurement.",
+  "selected_from_metadata_only": true,
+  "detector_results_seen_before_freeze": false,
+  "excluded_from_all_release_cohorts": true,
+  "selection_notes": [
+    "Every identity was checked against committed golden, retired untouched, spent untouched, reserve, and replacement-candidate records before selection.",
+    "The corpus intentionally spans JavaScript/TypeScript and Python applications, SDKs, gateways, agent frameworks, evaluation tools, and observability systems.",
+    "Scanning or labeling any repository in this file permanently disqualifies it from a future untouched cohort."
+  ],
+  "repositories": [
+    {
+      "repository_id": "mishushakov/llm-scraper",
+      "url": "https://github.com/mishushakov/llm-scraper",
+      "default_branch_observed": "main",
+      "commit_sha": "2b43d999a17eac040f7cc315fc21dd526870564f",
+      "git_tree_sha": "1447f00d6b691c4d6e96a4193c0be872c6ee3ce4",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "llm_application"
+    },
+    {
+      "repository_id": "567-labs/instructor-js",
+      "url": "https://github.com/567-labs/instructor-js",
+      "default_branch_observed": "main",
+      "commit_sha": "868ef8c1293271930c10dd4a3f3415b3e604cd34",
+      "git_tree_sha": "9f863000fb4acb85b5e9e7df583bf28e8304150c",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "structured_output_sdk"
+    },
+    {
+      "repository_id": "Portkey-AI/gateway",
+      "url": "https://github.com/Portkey-AI/gateway",
+      "default_branch_observed": "main",
+      "commit_sha": "669825cbe89ee51569918b8f78a9db486fd69dd4",
+      "git_tree_sha": "88e70f5375e3e0a1abc3d611577641461abceb7b",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "model_gateway"
+    },
+    {
+      "repository_id": "llm-workflow-engine/llm-workflow-engine",
+      "url": "https://github.com/llm-workflow-engine/llm-workflow-engine",
+      "default_branch_observed": "main",
+      "commit_sha": "44eda9e7288a93e3e5eaaa2b4c3a6ff01447f67c",
+      "git_tree_sha": "14c67e0f96bbcfe21031e7beaa881b3193e7fb03",
+      "primary_language": "python",
+      "primary_surface": "agent_framework"
+    },
+    {
+      "repository_id": "AgentOps-AI/agentops",
+      "url": "https://github.com/AgentOps-AI/agentops",
+      "default_branch_observed": "main",
+      "commit_sha": "f8e907b92dabe47232978023fdcb01e2a7d4b752",
+      "git_tree_sha": "c317526cd1671632880601ecb33cb9868c4fca19",
+      "primary_language": "python",
+      "primary_surface": "agent_observability"
+    },
+    {
+      "repository_id": "refuel-ai/autolabel",
+      "url": "https://github.com/refuel-ai/autolabel",
+      "default_branch_observed": "main",
+      "commit_sha": "404dcd014276b343ce6653670c0f75778e392e11",
+      "git_tree_sha": "9a83e69cc4b5aefbaf6d75294652002474f31eab",
+      "primary_language": "python",
+      "primary_surface": "llm_evaluation"
+    },
+    {
+      "repository_id": "simonw/llm",
+      "url": "https://github.com/simonw/llm",
+      "default_branch_observed": "main",
+      "commit_sha": "0392226e6630746ef51ffd309c2bee6a5f72b58e",
+      "git_tree_sha": "0c173c403eadcbb7c2ec898c973ddb3f2b730939",
+      "primary_language": "python",
+      "primary_surface": "llm_cli"
+    },
+    {
+      "repository_id": "Chainlit/chainlit",
+      "url": "https://github.com/Chainlit/chainlit",
+      "default_branch_observed": "main",
+      "commit_sha": "b094a8fb208f313ec858f3bff3bb4e8c7e430ebc",
+      "git_tree_sha": "29dec48df30e87647cce99f9a9aa5328928964e3",
+      "primary_language": "python",
+      "primary_surface": "llm_application_framework"
+    },
+    {
+      "repository_id": "mozilla-ai/any-llm",
+      "url": "https://github.com/mozilla-ai/any-llm",
+      "default_branch_observed": "main",
+      "commit_sha": "6ec36d445887b14758c70ec446f87b894066d38b",
+      "git_tree_sha": "8ab7f4edfa45277d52996c60e9ee837fb28defb9",
+      "primary_language": "python",
+      "primary_surface": "provider_abstraction"
+    },
+    {
+      "repository_id": "botpress/botpress",
+      "url": "https://github.com/botpress/botpress",
+      "default_branch_observed": "master",
+      "commit_sha": "83d8a69f19145162bf619a2d4c7a1c37fb64db09",
+      "git_tree_sha": "9fec41ee98e81dd53e5b746669d87843da65b34a",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_framework"
+    },
+    {
+      "repository_id": "Scale3-Labs/langtrace",
+      "url": "https://github.com/Scale3-Labs/langtrace",
+      "default_branch_observed": "main",
+      "commit_sha": "8c0a31fc2ff20f8078c53d3b92b07668f74d7247",
+      "git_tree_sha": "1abb80dc7c37bc7c067549a76e8b58255c307e31",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "llm_observability"
+    },
+    {
+      "repository_id": "CaviraOSS/OpenMemory",
+      "url": "https://github.com/CaviraOSS/OpenMemory",
+      "default_branch_observed": "main",
+      "commit_sha": "0761b622ef1b7bf0cd08d83d902169d33b22629c",
+      "git_tree_sha": "326e43ce3368927d4cbbeca291b509a24e0a808c",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_memory"
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.4",
+  "cohort": "golden",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "jina-ai/reader",
+      "url": "https://github.com/jina-ai/reader",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "gateway",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork gateway candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "onyx-dot-app/onyx",
+      "url": "https://github.com/onyx-dot-app/onyx",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public GitHub metadata describes Open Source AI Platform - AI Chat with advanced features that works with every LLM"
+    },
+    {
+      "repository_id": "agentscope-ai/agentscope",
+      "url": "https://github.com/agentscope-ai/agentscope",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork chat app candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "shaxiu/XianyuAutoAgent",
+      "url": "https://github.com/shaxiu/XianyuAutoAgent",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork chat app candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "Andyyyy64/whichllm",
+      "url": "https://github.com/Andyyyy64/whichllm",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public GitHub metadata describes Find the local LLM that actually runs and performs best on your hardware. Ranked by real, recency-aware benchmarks, not parameter count. One command, run it instantly."
+    },
+    {
+      "repository_id": "jamesob/local-llm",
+      "url": "https://github.com/jamesob/local-llm",
+      "primary_language": "mixed",
+      "primary_surface": "local_model",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Everything I know about running LLMs locally"
+    },
+    {
+      "repository_id": "screenpipe/screenpipe",
+      "url": "https://github.com/screenpipe/screenpipe",
+      "primary_language": "mixed",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Public non-fork local model candidate identified from GitHub repository metadata; description/topics indicate local or open model relevance."
+    },
+    {
+      "repository_id": "infiniflow/ragflow",
+      "url": "https://github.com/infiniflow/ragflow",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes RAGFlow is a leading open-source Retrieval-Augmented Generation (RAG) engine that fuses cutting-edge RAG with Agent capabilities to create a superior context layer for LLMs"
+    },
+    {
+      "repository_id": "bojieli/ai-agent-book",
+      "url": "https://github.com/bojieli/ai-agent-book",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork rag candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "PacktPublishing/LLM-Engineers-Handbook",
+      "url": "https://github.com/PacktPublishing/LLM-Engineers-Handbook",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes The LLM's practical guide: From the fundamentals to deploying advanced LLM and RAG apps to AWS using LLMOps best practices"
+    },
+    {
+      "repository_id": "ScrapeGraphAI/Scrapegraph-ai",
+      "url": "https://github.com/ScrapeGraphAI/Scrapegraph-ai",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork rag candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "aaif-goose/goose",
+      "url": "https://github.com/aaif-goose/goose",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes an open source, extensible AI agent that goes beyond code suggestions - install, execute, edit, and test with any LLM"
+    },
+    {
+      "repository_id": "wshobson/agents",
+      "url": "https://github.com/wshobson/agents",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes Multi-harness agentic plugin marketplace for Claude Code, Codex CLI, Cursor, OpenCode, GitHub Copilot, and Gemini CLI"
+    },
+    {
+      "repository_id": "ruvnet/ruflo",
+      "url": "https://github.com/ruvnet/ruflo",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes 🌊 The leading agent meta-harness. Deploy intelligent multi-player swarms, coordinate autonomous workflows, and build conversational AI systems. Features adaptive memory, self-lear"
+    },
+    {
+      "repository_id": "BloopAI/vibe-kanban",
+      "url": "https://github.com/BloopAI/vibe-kanban",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes Get 10X more out of Claude Code, Codex or any coding agent"
+    },
+    {
+      "repository_id": "code-yeongyu/oh-my-openagent",
+      "url": "https://github.com/code-yeongyu/oh-my-openagent",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes omo/lazycodex: The coding agent for tokenmaxxers;the one and only agent harness for complex codebases. For your Codex, for your OpenCode"
+    },
+    {
+      "repository_id": "DietrichGebert/ponytail",
+      "url": "https://github.com/DietrichGebert/ponytail",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public GitHub metadata describes Makes your AI agent think like the laziest senior dev in the room. The best code is the code you never wrote."
+    },
+    {
+      "repository_id": "evidentlyai/evidently",
+      "url": "https://github.com/evidentlyai/evidently",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Evidently is ​​an open-source ML and LLM observability framework. Evaluate, test, and monitor any AI-powered system or data pipeline. From tabular data to Gen AI. 100+ metrics."
+    },
+    {
+      "repository_id": "Sahir619/fable-method",
+      "url": "https://github.com/Sahir619/fable-method",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Public non-fork evaluation or framework candidate identified from GitHub repository metadata; description/topics indicate anthropic relevance."
+    },
+    {
+      "repository_id": "openobserve/openobserve",
+      "url": "https://github.com/openobserve/openobserve",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Open source observability platform for logs, metrics, traces, frontend monitoring, pipelines and LLM observability. A sophisticated, simple and highly performant alternative to Dat"
+    },
+    {
+      "repository_id": "THUDM/AgentBench",
+      "url": "https://github.com/THUDM/AgentBench",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "openai",
+      "inclusion_reason": "Public non-fork evaluation or framework candidate identified from GitHub repository metadata; description/topics indicate openai relevance."
+    },
+    {
+      "repository_id": "Tencent/AI-Infra-Guard",
+      "url": "https://github.com/Tencent/AI-Infra-Guard",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public non-fork evaluation or framework candidate identified from GitHub repository metadata; description/topics indicate multi provider relevance."
+    },
+    {
+      "repository_id": "meistrari/cursive-py",
+      "url": "https://github.com/meistrari/cursive-py",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes ✦ The intuitive python LLM framework"
+    },
+    {
+      "repository_id": "DataDog/llm-observability",
+      "url": "https://github.com/DataDog/llm-observability",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Public GitHub metadata describes Learn by example how to instrument Datadog's LLM Observability product"
+    }
+  ]
+}

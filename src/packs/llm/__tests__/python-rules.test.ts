@@ -357,6 +357,240 @@ describe('Free LLM Pack Python rule foundation', () => {
     expect(rule?.detect(file)).toEqual([]);
   });
 
+  it.each([
+    [
+      'optional iteration limit',
+      [
+        'max_iterations: int | None = None',
+        'iteration = 0',
+        'while True:',
+        '    response = OpenAI().responses.create(model="example", input="x")',
+        '    iteration += 1',
+        '    if max_iterations is not None and iteration >= max_iterations:',
+        '        break',
+      ],
+    ],
+    [
+      'unset step limit with a model stop outcome',
+      [
+        'def run(max_steps=None):',
+        '    step = 0',
+        '    while True:',
+        '        response = OpenAI().responses.create(model="example", input="x")',
+        '        step += 1',
+        '        if max_steps is not None and step >= max_steps:',
+        '            return',
+        '        if response.output_text:',
+        '            return',
+      ],
+    ],
+    [
+      'unset tool-round limit with a tool-call outcome',
+      [
+        'max_tool_rounds = None',
+        'tool_round = 0',
+        'while True:',
+        '    response = OpenAI().chat.completions.create(model="example", messages=[])',
+        '    tool_round += 1',
+        '    if max_tool_rounds is not None and tool_round >= max_tool_rounds:',
+        '        break',
+        '    if not response.choices[0].message.tool_calls:',
+        '        break',
+      ],
+    ],
+    [
+      'optional deadline with an Anthropic stop outcome',
+      [
+        'deadline = None',
+        'while True:',
+        '    response = Anthropic().messages.create(model="example", messages=[])',
+        '    if deadline is not None and time.monotonic() >= deadline:',
+        '        raise TimeoutError()',
+        '    if response.stop_reason == "end_turn":',
+        '        break',
+      ],
+    ],
+  ] as const)('flags a while True loop with an %s', (_name, body) => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const providerImport = body.some((line) => line.includes('Anthropic'))
+      ? 'from anthropic import Anthropic'
+      : 'from openai import OpenAI';
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [providerImport, ...body].join('\n'),
+    };
+
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      'parameter default',
+      [
+        'def run(max_iterations: int = 8):',
+        '    iteration = 0',
+        '    while True:',
+        '        OpenAI().responses.create(model="example", input="x")',
+        '        iteration += 1',
+        '        if iteration >= max_iterations:',
+        '            break',
+      ],
+    ],
+    [
+      'local default',
+      [
+        'max_iterations = 8',
+        'iteration = 0',
+        'while True:',
+        '    OpenAI().responses.create(model="example", input="x")',
+        '    iteration += 1',
+        '    if iteration >= max_iterations:',
+        '        break',
+      ],
+    ],
+  ] as const)('does not flag a while True loop with a finite %s', (_name, body) => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: ['from openai import OpenAI', ...body].join('\n'),
+    };
+
+    expect(rule?.detect(file)).toEqual([]);
+  });
+
+  it('retains Python AGY-002 when loop exit depends only on a model outcome', () => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [
+        'from openai import OpenAI',
+        'while True:',
+        '    response = OpenAI().responses.create(model="example", input="x")',
+        '    if response.output_text:',
+        '        break',
+      ].join('\n'),
+    };
+
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
+  it('retains Python AGY-002 when counter progress depends on a model outcome', () => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [
+        'from openai import OpenAI',
+        'attempts = 0',
+        'while True:',
+        '    response = OpenAI().responses.create(model="example", input="x")',
+        '    if response.output_text:',
+        '        attempts += 1',
+        '    if attempts >= 3:',
+        '        break',
+      ].join('\n'),
+    };
+
+    expect(rule?.detect(file)).toHaveLength(1);
+  });
+
+  it.each([
+    ['sync response', 'self._process_model_response(messages)'],
+    ['async response', 'await self._aprocess_model_response(messages)'],
+    ['sync stream', 'responses = self.process_response_stream(messages)'],
+    ['async stream', 'responses = self.aprocess_response_stream(messages)'],
+  ] as const)(
+    'detects a provider-neutral abstract model loop through its %s helper',
+    (_name, modelCall) => {
+      const rule = CEJEL_LLM_PYTHON_RULES.find(
+        (candidate) => candidate.id === 'LLM-AGY-002',
+      );
+      const file: LlmSourceFile = {
+        path: 'src/models/base.py',
+        contents: [
+          'from abc import ABC, abstractmethod',
+          'class BaseModel(ABC):',
+          '    @abstractmethod',
+          '    def invoke(self, messages):',
+          '        pass',
+          '    def response(self, tool_call_limit=None):',
+          '        while True:',
+          `            ${modelCall}`,
+          '            if assistant_message.tool_calls:',
+          '                continue',
+          '            break',
+        ].join('\n'),
+      };
+
+      expect(rule?.detect(file)).toHaveLength(1);
+    },
+  );
+
+  it('does not borrow an abstract model surface from another class', () => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/processor.py',
+      contents: [
+        'from abc import ABC, abstractmethod',
+        'class BaseModel(ABC):',
+        '    @abstractmethod',
+        '    def invoke(self, messages):',
+        '        pass',
+        'class ResponseProcessor:',
+        '    def run(self):',
+        '        while True:',
+        '            self._process_model_response()',
+      ].join('\n'),
+    };
+
+    expect(rule?.detect(file)).toEqual([]);
+  });
+
+  it('detects an explicitly unset tool-call limit on a model-facing agent class', () => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    const file: LlmSourceFile = {
+      path: 'src/agent.py',
+      contents: [
+        'from framework.models.base import Model',
+        'class RuntimeAgent:',
+        '    model: Optional[Model] = None',
+        '    tools: Optional[List[Callable]] = None',
+        '    tool_call_limit: Optional[int] = None',
+      ].join('\n'),
+    };
+
+    expect(rule?.detect(file)).toEqual([
+      expect.objectContaining({
+        ruleId: 'LLM-AGY-002',
+        evidence: expect.objectContaining({ path: 'src/agent.py', line: 5 }),
+      }),
+    ]);
+  });
+
+  it.each([
+    [
+      'finite tool-call limit',
+      [
+        'from framework.models.base import Model',
+        'class RuntimeAgent:',
+        '    model: Optional[Model] = None',
+        '    tools: Optional[List[Callable]] = None',
+        '    tool_call_limit: int = 10',
+      ],
+    ],
+    [
+      'non-model configuration class',
+      [
+        'from framework.models.base import Model',
+        'class ToolSettings:',
+        '    tools: Optional[List[Callable]] = None',
+        '    tool_call_limit: Optional[int] = None',
+      ],
+    ],
+  ] as const)('does not flag a %s', (_name, body) => {
+    const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
+    expect(rule?.detect({ path: 'src/agent.py', contents: body.join('\n') })).toEqual([]);
+  });
+
   it('retains Python AGY-002 when a bound-looking value never gates loop exit', () => {
     const rule = CEJEL_LLM_PYTHON_RULES.find((candidate) => candidate.id === 'LLM-AGY-002');
     const file: LlmSourceFile = {

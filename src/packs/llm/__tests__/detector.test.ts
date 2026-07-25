@@ -91,6 +91,31 @@ describe('Free LLM Pack alpha', () => {
     expect(result.findings.some((finding) => finding.ruleId === 'LLM-AGY-001')).toBe(true);
   });
 
+  it('lets a model-facing tool registration activate IOH-001 without a local SDK call', () => {
+    const result = scan(
+      [
+        "import type { ToolAPI } from '@synthetic/agent-runtime';",
+        "import { execFileSync } from 'node:child_process';",
+        'function runBridge(program: string, args: string[]) {',
+        '  return execFileSync(program, args);',
+        '}',
+        'export function attach(api: ToolAPI) {',
+        '  api.registerTool({',
+        "    name: 'fixed_action',",
+        '    parameters: Type.Object({ target: Type.String() }),',
+        '    execute(_callId, params) {',
+        "      const bridgeArgs = ['act', params.target];",
+        "      return runBridge('/usr/bin/bridge', bridgeArgs);",
+        '    },',
+        '  });',
+        '}',
+      ].join('\n'),
+    );
+
+    expect(result.status).toBe('assessed_with_limitations');
+    expect(result.findings.some((finding) => finding.ruleId === 'LLM-IOH-001')).toBe(true);
+  });
+
   it('reports a controlled model-facing tool surface as insufficient rather than absent', () => {
     const result = scan(fixture('authority-boundary-member-helper.negative.fixture'));
 
@@ -688,6 +713,63 @@ describe('Free LLM Pack alpha', () => {
 
     expect(result.status).toBe('not_applicable');
     expect(result.coverage.sourceFilesConsidered).toBe(1);
+  });
+
+  it('activates the pack for a registered Python tool sink without a local SDK call', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'cejel-llm-python-tool-'));
+    writeFileSync(
+      join(repo, 'tools.py'),
+      [
+        'class Tools(Toolkit):',
+        '    def __init__(self):',
+        '        tools = [self.run_shell]',
+        '',
+        '    def run_shell(self, command: str):',
+        '        subprocess.run(command, shell=True)',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = scanCejelLlmPack(repo);
+
+    expect(result.status).toBe('assessed_with_limitations');
+    expect(result.findings).toEqual([
+      expect.objectContaining({ ruleId: 'LLM-IOH-001' }),
+    ]);
+    expect(result.coverage.sourceFilesWithLlmIndicators).toBe(1);
+    expect(result.coverage.detectedIntegrations).toContain(
+      'Python model or tool action surface',
+    );
+  });
+
+  it('runs the bounded-loop rule on provider-neutral Python model bases', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'cejel-llm-python-model-base-'));
+    writeFileSync(
+      join(repo, 'model.py'),
+      [
+        'from abc import ABC, abstractmethod',
+        '',
+        'class Model(ABC):',
+        '    @abstractmethod',
+        '    def invoke(self, prompt):',
+        '        raise NotImplementedError',
+        '',
+        '    def run(self, prompt):',
+        '        while True:',
+        '            response = self._process_model_response(prompt)',
+        '            if response.tool_calls:',
+        '                continue',
+        '            break',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = scanCejelLlmPack(repo);
+
+    expect(result.status).toBe('assessed_with_limitations');
+    expect(result.findings).toEqual([
+      expect.objectContaining({ ruleId: 'LLM-AGY-002' }),
+    ]);
   });
 
   it('does not follow a source symlink outside a non-git repository', () => {

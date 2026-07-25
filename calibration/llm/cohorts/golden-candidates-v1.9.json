@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.9",
+  "cohort": "golden",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "EffNine/Conductor",
+      "url": "https://github.com/EffNine/Conductor",
+      "primary_language": "mixed",
+      "primary_surface": "gateway",
+      "provider_surface": "openai",
+      "inclusion_reason": "GitHub repository metadata independently matched the gateway search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "pyscripter/ChatLLM",
+      "url": "https://github.com/pyscripter/ChatLLM",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "chat app candidate from GitHub repository metadata: Simple chat application for querying local and cloud LLM models."
+    },
+    {
+      "repository_id": "RYOITABASHI/Shelly",
+      "url": "https://github.com/RYOITABASHI/Shelly",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the chat_app search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "DakshBhavsar007/Multi-Agent-Resume-Project",
+      "url": "https://github.com/DakshBhavsar007/Multi-Agent-Resume-Project",
+      "primary_language": "mixed",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the chat_app search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "url": "https://github.com/Surya-Hariharan/Velune-CLI",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub repository metadata independently matched the local_model search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "tattn/LocalLLMClient",
+      "url": "https://github.com/tattn/LocalLLMClient",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "local model candidate from GitHub repository metadata: Swift package to run local LLMs on iOS, macOS, Linux"
+    },
+    {
+      "repository_id": "vndee/local-talking-llm",
+      "url": "https://github.com/vndee/local-talking-llm",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "local model candidate from GitHub repository metadata: A talking LLM that runs on your own computer without needing the internet."
+    },
+    {
+      "repository_id": "Danielskry/Awesome-RAG",
+      "url": "https://github.com/Danielskry/Awesome-RAG",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "rag candidate from GitHub repository metadata: 😎 Awesome list of Retrieval-Augmented Generation (RAG) applications in Generative AI."
+    },
+    {
+      "repository_id": "Azure-Samples/rag-postgres-openai-python",
+      "url": "https://github.com/Azure-Samples/rag-postgres-openai-python",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "rag",
+      "provider_surface": "openai",
+      "inclusion_reason": "rag candidate from GitHub repository metadata: A RAG app to ask questions about rows in a database table. Deployable on Azure Container Apps with PostgreSQL Flexible Server."
+    },
+    {
+      "repository_id": "nguyenquoaca-hash/agentic-mesh",
+      "url": "https://github.com/nguyenquoaca-hash/agentic-mesh",
+      "primary_language": "mixed",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the rag search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "Ankitha-GS/rag-qa",
+      "url": "https://github.com/Ankitha-GS/rag-qa",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the rag search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "jarrodwatts/claude-hud",
+      "url": "https://github.com/jarrodwatts/claude-hud",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: A Claude Code plugin that shows what's happening - context usage, active tools, running agents, and todo progress"
+    },
+    {
+      "repository_id": "numtide/llm-agents.nix",
+      "url": "https://github.com/numtide/llm-agents.nix",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: Nix packages for AI coding agents and development tools. Automatically updated daily."
+    },
+    {
+      "repository_id": "sreyun/aiops-monitor",
+      "url": "https://github.com/sreyun/aiops-monitor",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the agent_tools search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "squesadag2000/InventoryForecastAnalysis",
+      "url": "https://github.com/squesadag2000/InventoryForecastAnalysis",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the agent_tools search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "twostraws/SwiftUI-Agent-Skill",
+      "url": "https://github.com/twostraws/SwiftUI-Agent-Skill",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: SwiftUI agent skill for Claude Code, Codex, and other AI tools."
+    },
+    {
+      "repository_id": "jim-schwoebel/awesome_ai_agents",
+      "url": "https://github.com/jim-schwoebel/awesome_ai_agents",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: 🤖 A comprehensive list of 1,500+ resources and tools related to AI agents."
+    },
+    {
+      "repository_id": "SitaraLiang/llm-finmath-reasoning-eval",
+      "url": "https://github.com/SitaraLiang/llm-finmath-reasoning-eval",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "harnexa/nexa-gauge",
+      "url": "https://github.com/harnexa/nexa-gauge",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "openai",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: An graph-eval framework for LLM's"
+    },
+    {
+      "repository_id": "memoturn/memoturn",
+      "url": "https://github.com/memoturn/memoturn",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "url": "https://github.com/Bryancruzcb/aegis-eval-harness",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "manuhalapeth/abundant-ai-eval-design",
+      "url": "https://github.com/manuhalapeth/abundant-ai-eval-design",
+      "primary_language": "mixed",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "linny006/llm-eval-tracker",
+      "url": "https://github.com/linny006/llm-eval-tracker",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "url": "https://github.com/ozturkoktay/insurance-llm-framework",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: An interactive framework for experimenting with and evaluating open-source large language models (LLMs) for insurance-related tasks. This application provides a user-friendly interface for prompt engineering, text generation, model comparison, and benchmark creation."
+    }
+  ]
+}

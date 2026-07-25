@@ -105,7 +105,11 @@ function goldenOpportunityAndLabels(includeFinding = true) {
     ...primary,
     label_id: 'llm-label-finding-example-0001',
     detector_finding_id: execution.findingId,
-    review: { role: 'finding_reviewer', detector_output_visible: true },
+    review: {
+      role: 'finding_reviewer',
+      detector_output_visible: true,
+      independent_of_rule_author: true,
+    },
   };
   const withoutHash = {
     schema_version: '1.0.0',
@@ -149,6 +153,7 @@ function goldenExecutionEvidence(includeFinding = true) {
     commit_sha: repository.commit_sha, git_tree_sha: repository.git_tree_sha,
     manifest_sha256: manifest.manifest_sha256, detector_build_sha256: BUILD_SHA,
     llm_report_canonical_sha256: canonicalSha(report), finding_ids: includeFinding ? [findingId] : [],
+    completed_at: '2026-07-22T04:00:00Z',
   };
   const document = {
     schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', cohort: 'golden',
@@ -446,6 +451,91 @@ test('golden labels derive the exact missed-defect ledger set with no omissions 
   ), /does not match committed labels/);
 });
 
+test('golden labels accept only exact independently reviewed unmatched false positives', () => {
+  const evidence = goldenOpportunityAndLabels();
+  const extraFinding = {
+    ruleId: 'LLM-IOH-001',
+    severity: 'warning',
+    confidence: 'high',
+    summary: 'Synthetic unmatched golden finding.',
+    evidence: { path: 'src/other.ts', line: 7, label: 'synthetic unmatched evidence' },
+  };
+  const extraFindingId = `llm-finding-${canonicalSha({
+    repository_id: evidence.opportunity.repository_id,
+    index: 1,
+    finding: extraFinding,
+  })}`;
+  const execution = structuredClone(evidence.execution.validated);
+  execution.findings = new Map(evidence.execution.validated.findings);
+  execution.findings.set(extraFindingId, {
+    repository_id: evidence.opportunity.repository_id,
+    finding: extraFinding,
+    finding_sha256: canonicalSha(extraFinding),
+    execution_completed_at: '2026-07-22T04:00:00Z',
+  });
+  const unmatched = {
+    ...structuredClone(evidence.primary.document),
+    label_id: 'llm-label-unmatched-example-0001',
+    opportunity_id: null,
+    detector_finding_id: extraFindingId,
+    label: 'absent',
+    created_at: '2026-07-22T04:01:00Z',
+    evidence: [{
+      kind: 'external_result',
+      path_or_reference: `llm-report:${extraFindingId}`,
+      sha256: canonicalSha(extraFinding),
+      rationale: 'Independent review binds the exact unmatched detector finding as incorrect.',
+    }],
+    review: {
+      role: 'finding_reviewer',
+      detector_output_visible: true,
+      independent_of_rule_author: true,
+    },
+  };
+  assert.doesNotThrow(() => validateGoldenLabelEvidence(
+    [evidence.primary, evidence.findingReview, bound(unmatched)],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    execution,
+  ));
+
+  const wrongLabel = structuredClone(unmatched);
+  wrongLabel.label = 'present';
+  assert.throws(() => validateGoldenLabelEvidence(
+    [evidence.primary, evidence.findingReview, bound(wrongLabel)],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    execution,
+  ), /unmatched finding review.*invalid/);
+
+  const wrongDigest = structuredClone(unmatched);
+  wrongDigest.evidence[0].sha256 = 'f'.repeat(64);
+  assert.throws(() => validateGoldenLabelEvidence(
+    [evidence.primary, evidence.findingReview, bound(wrongDigest)],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    execution,
+  ), /unmatched finding review.*invalid/);
+
+  const notIndependent = structuredClone(unmatched);
+  notIndependent.review.independent_of_rule_author = false;
+  assert.throws(() => validateGoldenLabelEvidence(
+    [evidence.primary, evidence.findingReview, bound(notIndependent)],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    execution,
+  ), /does not match an actual finding/);
+
+  const notPostResult = structuredClone(unmatched);
+  notPostResult.created_at = '2026-07-22T04:00:00Z';
+  assert.throws(() => validateGoldenLabelEvidence(
+    [evidence.primary, evidence.findingReview, bound(notPostResult)],
+    evidence.execution.manifest,
+    evidence.validatedOpportunity,
+    execution,
+  ), /unmatched finding review.*invalid/);
+});
+
 test('detector freeze validates the actual golden manifest and every repository-entry hash', () => {
   const golden = immutableManifest('golden');
   assert.equal(validateFrozenGoldenManifest(golden), golden);
@@ -463,6 +553,7 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
     untouched_manifest_sha256: immutableManifest('untouched').manifest_sha256,
     opportunity_manifest_sha256: '6'.repeat(64),
     opportunity_discovery_coverage_sha256: '9'.repeat(64),
+    discovery_integrity_sha256: 'a'.repeat(64),
     release_thresholds: {
       byte_sha256: 'b'.repeat(64),
       canonical_sha256: 'c'.repeat(64),
@@ -478,6 +569,9 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
     ],
     public_document_inventory: [{ path: 'README.md', content_sha256: 'a'.repeat(64) }],
   };
+  const incomplete = { ...document };
+  delete incomplete.discovery_integrity_sha256;
+  assert.throws(() => validatePreResultCommitment(incomplete), /pre-result commitment is invalid/);
   const bytes = `${JSON.stringify(document)}\n`;
   writeFileSync(path, bytes, 'utf8');
   assert.equal(validatePreResultCommitment(document), document);

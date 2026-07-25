@@ -110,6 +110,39 @@ function sourceEvidence(cohort, repository, path, checkout) {
 }
 
 const ALLOWED_LABELS = ['present', 'absent', 'ambiguous', 'not_applicable', 'insufficient_source'];
+const DISCOVERY_METHODOLOGY_ID = 'llm-opportunity-discovery-v1.4';
+const REQUIRED_DISCOVERY_FAMILIES = [
+  'dependency_and_imports',
+  'direct_calls_and_configuration',
+  'aliases_wrappers_and_helpers',
+  'registrations_decorators_and_schemas',
+  'dataflow_sinks_persistence_and_logs',
+  'negative_boundaries_and_abstention',
+];
+
+function validateDiscoveryEvidence(evidence, declaredCount, scope) {
+  if (
+    !evidence ||
+    Object.keys(evidence).sort().join('\0') !== [
+      'candidate_match_count',
+      'completed_at',
+      'methodology_id',
+      'private_notes_sha256',
+      'reviewed_file_count',
+      'search_families',
+    ].sort().join('\0') ||
+    evidence.methodology_id !== DISCOVERY_METHODOLOGY_ID ||
+    canonicalize(evidence.search_families) !== canonicalize(REQUIRED_DISCOVERY_FAMILIES) ||
+    !Number.isInteger(evidence.reviewed_file_count) ||
+    evidence.reviewed_file_count < 0 ||
+    !Number.isInteger(evidence.candidate_match_count) ||
+    evidence.candidate_match_count < declaredCount ||
+    typeof evidence.completed_at !== 'string' ||
+    Number.isNaN(Date.parse(evidence.completed_at)) ||
+    Date.parse(evidence.completed_at) > Date.now() + 60_000 ||
+    !/^[a-f0-9]{64}$/.test(evidence.private_notes_sha256 || '')
+  ) throw new Error(`${scope}: discovery evidence is invalid or incomplete`);
+}
 
 function validateFragment(fragment, expectedCohort, manifest, role) {
   if (
@@ -168,6 +201,11 @@ function validateFragment(fragment, expectedCohort, manifest, role) {
     if (canonicalize(declared) !== canonicalize(observed)) {
       throw new Error(`${expectedCohort}: ${role} coverage row ${index} differs from its opportunities`);
     }
+    validateDiscoveryEvidence(
+      row.discovery_evidence,
+      declared.length,
+      `${expectedCohort}: ${role} coverage row ${index}`,
+    );
     coverageRows.set(key, row);
   }
   for (const repository of manifest.repositories) {
@@ -180,7 +218,7 @@ function validateFragment(fragment, expectedCohort, manifest, role) {
   if (coverageRows.size !== manifest.repositories.length * ENABLED_RULE_IDS.length) {
     throw new Error(`${expectedCohort}: ${role} coverage is outside the frozen repository/rule matrix`);
   }
-  return { items, identities };
+  return { items, identities, coverageRows };
 }
 
 const opportunityIdentity = (item) => canonicalize({
@@ -299,11 +337,16 @@ export function assembleBlindEvidence(input) {
   const opportunityByIdentity = new Map();
   const primaryLabelByIdentity = new Map();
   const disagreements = [];
+  const coverageReviewRows = new Map();
   for (const cohort of ['golden', 'untouched']) {
     const manifest = manifests.get(cohort);
     const repositories = new Map(manifest.repositories.map((repository) => [repository.repository_id, repository]));
     const primaryFragment = validateFragment(input.primary[cohort], cohort, manifest, 'primary');
     const independentFragment = validateFragment(input.independent[cohort], cohort, manifest, 'independent');
+    coverageReviewRows.set(cohort, {
+      primary: primaryFragment.coverageRows,
+      independent: independentFragment.coverageRows,
+    });
     const primary = primaryFragment.items.sort((left, right) =>
       opportunityIdentity(left).localeCompare(opportunityIdentity(right)));
     const independent = independentFragment.items;
@@ -496,6 +539,24 @@ export function assembleBlindEvidence(input) {
           declared_opportunity_ids: opportunities.filter((item) =>
             item.cohort === cohort && item.repository_id === repository.repository_id &&
             item.rule_id === ruleId).map((item) => item.opportunity_id),
+          blind_review_evidence: [
+            {
+              reviewer_id: input.primary[cohort].reviewer_id,
+              role: 'primary_labeler',
+              methodology_id: DISCOVERY_METHODOLOGY_ID,
+              coverage_row_sha256: sha256Canonical(
+                coverageReviewRows.get(cohort).primary.get(`${repository.repository_id}:${ruleId}`),
+              ),
+            },
+            {
+              reviewer_id: input.independent[cohort].reviewer_id,
+              role: 'independent_reviewer',
+              methodology_id: DISCOVERY_METHODOLOGY_ID,
+              coverage_row_sha256: sha256Canonical(
+                coverageReviewRows.get(cohort).independent.get(`${repository.repository_id}:${ruleId}`),
+              ),
+            },
+          ].sort((left, right) => left.role.localeCompare(right.role)),
         });
       }
     }

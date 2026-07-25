@@ -1,0 +1,238 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.6",
+  "selection_event_id": "v1.6-pre-result-cycle-reset",
+  "cohort": "untouched",
+  "selected_at": "2026-07-24T02:55:04.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "bfebf6dcedf7012803b83bdb959f287abd7e94e68d1c33f61082c183a32f3ae3",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "bfebf6dcedf7012803b83bdb959f287abd7e94e68d1c33f61082c183a32f3ae3",
+  "golden_sibling_candidate_sha256": "75469dc352348fbcc638ada04c19c8cc559e134216ba8221c32e657010417331",
+  "golden_sibling_selection_record_sha256": "f0bc6b212070f22c1cdb1cdadfd80735bdd7448fc03d01e16086fb7ad6e3b83f",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "v16-metadata-a",
+      "document_sha256": "e3b02de7dd7fbb39697db6b49e9e63e0952a0b506ab1836c9763b631aa7de557"
+    },
+    {
+      "reviewer_id": "v16-metadata-b",
+      "document_sha256": "ea0f6a3c2adc9f325e3366b75ac3eac98d02dc747dfde42b67502ea6ae22c0fe"
+    }
+  ],
+  "excluded_repository_count": 541,
+  "excluded_repository_ids_sha256": "c6f3d931c4ae568b61738b998bb1438d07ab7f4eb792cae9352a6c2ccbff2e14",
+  "classification_conflicts_excluded": [],
+  "selected": [
+    {
+      "repository_id": "rynfar/meridian",
+      "tier": 1,
+      "selection_hash": "0498ca3006acd2db8cc61207438c1c0ee353fb119f78e9da175f2e5329e80337",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "nathanlesage/local-chat",
+      "tier": 1,
+      "selection_hash": "8b6e9bfdf5a077d43dbe5b593481c8fec8690387f1b908fbee463322254b8624",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "epam/ai-dial-chat",
+      "tier": 1,
+      "selection_hash": "a8e5eba4e57939ab2894f32f7c78d2d332aba0c7a70ad1c3a9db94293f1de899",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "kwaroran/Risuai",
+      "tier": 1,
+      "selection_hash": "afc1827a86a5fea9fa23946962358569fe323744c0b1e858eba5426d1978de62",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "andreinwald/browser-llm",
+      "tier": 1,
+      "selection_hash": "97cfbef5417995a18e61104ee3ad15c1c7262fde3617c16190a38f64e5c86c77",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Osmantic/ODS",
+      "tier": 1,
+      "selection_hash": "a89988168f6f562e7920ba84a656fbb44a5efc928a403199727bfc6cee5188d7",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "jjang-ai/vmlx",
+      "tier": 1,
+      "selection_hash": "c9834d18eed88ac6ea183e9716676ffd0948f46f86c0a154632e1bb7011737b0",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "plastic-labs/honcho",
+      "tier": 1,
+      "selection_hash": "37ea4a2e32380d74256a44a0a924a5080abb2f1a8c51da1c18cf1aa53117c41f",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "gusye1234/nano-graphrag",
+      "tier": 1,
+      "selection_hash": "3c8e2c9831f24e7ef95298eb5295225ff644134bbed61f8a0edd24637de707f0",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "chunkhound/chunkhound",
+      "tier": 1,
+      "selection_hash": "4fb10894801cfed7071deee4d8afb75846e2c8976e711351f101bc2377960767",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "felladrin/MiniSearch",
+      "tier": 1,
+      "selection_hash": "56b5052ab345987790d5dac2765bc969023a02af0cfceec6194a4701f5192527",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "microsoft/agent-lightning",
+      "tier": 1,
+      "selection_hash": "52d446f1403598a659385277a501c4a96d95be4833aa6d92646f3caf1ff0a399",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "agentscope-ai/QwenPaw",
+      "tier": 1,
+      "selection_hash": "55dfa25443c09b862632405d491ea3289f5ac8cd085b669aee57ecb914e52224",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "generalaction/emdash",
+      "tier": 1,
+      "selection_hash": "6d710259226d278940564e39fbcddb3f01abea125cf8f6d7c476683f8ef7e932",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "Nano-Collective/nanocoder",
+      "tier": 1,
+      "selection_hash": "78b453d49f40eb41f91c152466e15db9e86cd65f401719e21f691a08658e03cc",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "ros-claw/rosclaw",
+      "tier": 1,
+      "selection_hash": "7b1cded16c52737002040ceed0fe35e378f911502b024f9333a0d6a704ae0717",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "gptme/gptme",
+      "tier": 1,
+      "selection_hash": "aa0c3e26d381bf4f5884e50b52add85da483de148ae8316aef2e035f6d92f5d5",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "lmnr-ai/lmnr",
+      "tier": 1,
+      "selection_hash": "744b944248c84f7cda94b50609a2402d77bf3497871c8c10bf204d2859ed8c2f",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "DaoyuanLi2816/pairjudge",
+      "tier": 1,
+      "selection_hash": "7bacaa0e552a1e632d34841f5d2c3aef1ad73cd600f05d56478adeb0d7602b28",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "cyberark/simple-llm-eval",
+      "tier": 1,
+      "selection_hash": "84d219c7f3b3e1d9ea982745d2916dacced16c1c9e46b7f217c4aa2ed22a96c5",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Ammaar-Alam/minebench",
+      "tier": 1,
+      "selection_hash": "8891ea17d43f6e133445404fbef0381e623e577a397b6bbfa8582539a0b18ace",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "ellydee/acceptance-bench",
+      "tier": 1,
+      "selection_hash": "94eb885853121f47bc8d1d406d064b4c894e27683da8610336d62076157015a0",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "izam-mohammed/ragrank",
+      "tier": 1,
+      "selection_hash": "9bbf1adc865406b0d0a6e18485d5af8dce5de5f30da2fb2268e2a2c157fb447e",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "alumnium-hq/alumnium",
+      "tier": 1,
+      "selection_hash": "d6292690f6050b9358d33319885f51fd5e7cd68ee7109ac4eff157672bab8841",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "1e5a4111abfe6e430ee10d1711858dc5f8c8cd0c21bd7170f892213434eb6aee",
+  "record_sha256": "a7e80d978399609c6e8229c5725b46d0f9b08a65e90bed60f9cff04ff9728ddb"
+}

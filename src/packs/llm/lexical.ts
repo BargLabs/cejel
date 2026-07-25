@@ -9,6 +9,9 @@ export function maskJavaScriptNonCode(contents: string): string {
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
+  let regexLiteral = false;
+  let regexCharacterClass = false;
+  let lastCodeCharacter = '';
   for (let index = 0; index < chars.length; index += 1) {
     const character = chars[index] ?? '';
     const next = chars[index + 1] ?? '';
@@ -23,6 +26,28 @@ export function maskJavaScriptNonCode(contents: string): string {
         blockComment = false;
         index += 1;
       } else if (character !== '\n') chars[index] = ' ';
+      continue;
+    }
+    if (regexLiteral) {
+      if (character !== '\n') chars[index] = ' ';
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '[') {
+        regexCharacterClass = true;
+      } else if (character === ']') {
+        regexCharacterClass = false;
+      } else if (character === '/' && !regexCharacterClass) {
+        regexLiteral = false;
+        while (/[a-z]/i.test(chars[index + 1] ?? '')) {
+          chars[index + 1] = ' ';
+          index += 1;
+        }
+        lastCodeCharacter = '/';
+      } else if (character === '\n') {
+        regexLiteral = false;
+      }
       continue;
     }
     if (quote) {
@@ -40,9 +65,19 @@ export function maskJavaScriptNonCode(contents: string): string {
       chars[index] = chars[index + 1] = ' ';
       blockComment = true;
       index += 1;
+    } else if (
+      character === '/' &&
+      (!lastCodeCharacter || /[({[=,:;!?&|+\-*%^~<>]/.test(lastCodeCharacter))
+    ) {
+      chars[index] = ' ';
+      regexLiteral = true;
+      regexCharacterClass = false;
     } else if (character === "'" || character === '"' || character === '`') {
       chars[index] = ' ';
       quote = character;
+      lastCodeCharacter = character;
+    } else if (!/\s/.test(character)) {
+      lastCodeCharacter = character;
     }
   }
   return chars.join('');

@@ -29,7 +29,12 @@
         "rule_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
       }
     },
-    "opportunity_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"},
+    "opportunity_id": {
+      "oneOf": [
+        {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"},
+        {"type": "null"}
+      ]
+    },
     "detector_finding_id": {"type": ["string", "null"], "minLength": 3},
     "label": {"enum": ["present", "absent", "ambiguous", "not_applicable", "insufficient_source"]},
     "evidence": {
@@ -74,6 +79,31 @@
     "created_at": {"type": "string", "format": "date-time"}
   },
   "allOf": [
-    {"if": {"properties": {"review": {"properties": {"role": {"const": "finding_reviewer"}}}}}, "then": {"properties": {"detector_finding_id": {"type": "string", "pattern": "^llm-finding-[a-f0-9]{64}$"}}}, "else": {"properties": {"detector_finding_id": {"const": null}}}}
+    {
+      "if": {"properties": {"review": {"properties": {"role": {"const": "finding_reviewer"}}}}},
+      "then": {"properties": {"detector_finding_id": {"type": "string", "pattern": "^llm-finding-[a-f0-9]{64}$"}}},
+      "else": {
+        "properties": {
+          "opportunity_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{5,160}$"},
+          "detector_finding_id": {"const": null}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"opportunity_id": {"type": "null"}}},
+      "then": {
+        "properties": {
+          "label": {"const": "absent"},
+          "review": {
+            "properties": {
+              "role": {"const": "finding_reviewer"},
+              "independent_of_rule_author": {"const": true},
+              "detector_output_visible": {"const": true},
+              "adjudication_status": {"const": "not_required"}
+            }
+          }
+        }
+      }
+    }
   ]
 }

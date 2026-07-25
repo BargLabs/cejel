@@ -1,6 +1,6 @@
 # Free LLM Pack calibration protocol v1
 
-Status: selection policy frozen; candidate repositories selected; immutable commit freeze pending
+Status: v1.4 selection policy and immutable cohort manifests frozen; blind opportunity freeze pending
 Protocol ID: `cejel-llm-calibration-v1`
 Claim boundary: static application-integrity and evaluation-hygiene findings only
 
@@ -83,7 +83,12 @@ Before any detector run:
    `schemas/opportunity-manifest.schema.json` and retain the attestation reference.
 10. Independently freeze opportunity-discovery coverage with one row for every repository ×
     enabled rule, two distinct blind reviewers, and the exact declared opportunity IDs, including
-    explicit empty lists. Bind it to both manifests, the source index, and opportunity manifest.
+    explicit empty lists. Each row binds both reviewers' complete private discovery rows and the
+    locked `llm-opportunity-discovery-v1.4` search methodology by canonical SHA-256. The methodology
+    covers dependencies/imports, direct calls/configuration, aliases/wrappers/helpers,
+    registrations/decorators/schemas, dataflow sinks/persistence/logs, and negative
+    boundaries/abstention. Bind the aggregate record to both manifests, the source index, and
+    opportunity manifest.
 11. Run `validate-calibration.mjs` and preserve its output with the release evidence.
 
 No repository source is copied into public calibration artifacts. The self-contained source index
@@ -112,14 +117,19 @@ fixture. The parity runner binds the fixture tree, embeds and hashes a fixed-clo
 zero exits and identical argv/stdout/stderr, and compares the complete generated artifact-tree
 hash. The golden evidence bundle binds the resulting parity record.
 
-For the untouched cohort, the primary labeler labels every frozen opportunity and every detector
-finding is assigned to exactly one of those opportunities. The independent reviewer labels the
-preregistered review sample required by section 9. They use `present`, `absent`, `ambiguous`,
+For the untouched cohort, the primary labeler labels every frozen opportunity. The independent
+reviewer labels the preregistered review sample required by section 9. They use `present`, `absent`, `ambiguous`,
 `not_applicable`, or `insufficient_source`. `ambiguous` and `insufficient_source` are never silently
 converted to passes or failures. Disagreements go to a named adjudicator who records a rationale
 and final label while remaining blind to detector output. After detector execution, a separate
-`finding_reviewer` may see detector output and binds each finding to exactly one frozen opportunity;
-that record must preserve the blind final ground-truth label and cannot create a new opportunity.
+`finding_reviewer` may see detector output and normally binds each finding to exactly one frozen
+opportunity; that record must preserve the blind final ground-truth label and cannot create a new
+opportunity. If a finding overlaps no frozen opportunity, an independent `finding_reviewer` may
+instead record `opportunity_id: null` and the binary label `absent`. That exception must bind the
+exact actual finding with an `external_result` evidence reference of
+`llm-report:<finding-id>` and the canonical finding digest. It counts as a false positive without
+creating an opportunity or entering the recall or adjudicated-opportunity denominator. The gate
+rejects a null-opportunity review if the finding overlaps any frozen opportunity.
 A reviewer may be identified by a stable pseudonymous ID; the private identity
 mapping must be retained by Barg Labs.
 
@@ -172,7 +182,8 @@ For eligible, adjudicated labels:
 
 - `TP`: labeled `present` defects matched by a detector finding.
 - `FN`: labeled `present` defects with no matching finding.
-- `FP`: detector findings adjudicated `absent` (incorrect findings).
+- `FP`: detector findings independently adjudicated `absent` (incorrect findings), including exact
+  null-opportunity reviews for findings omitted by the frozen inventory.
 - `TN`: predefined negative opportunities labeled `absent` with no detector finding.
 - `A`: scans where the pack abstains because source is insufficient.
 - `N`: scans classified `not_applicable` under a declared rule.
@@ -184,7 +195,7 @@ Publish exact counts and use:
 ```text
 finding recall                 = TP / (TP + FN)
 incorrect-finding rate (FDR)   = FP / (TP + FP) = FP / R when all findings are reviewed
-negative false-positive rate   = FP / (FP + TN)  [only for predefined negative opportunities]
+negative false-positive rate   = FP / (FP + TN)  [FP includes exact unmatched-finding reviews]
 precision                      = TP / (TP + FP)
 abstention rate                = A / E
 not-applicable rate            = N / all scanned repositories
@@ -231,7 +242,10 @@ record, per-repository execution receipts and LLM reports, and independent label
 records. It rejects missing receipts, incomplete primary-label coverage, visible first-pass
 detector output, unreviewed finding IDs, source/blob/tree proof or line-bound mismatches, findings
 that do not overlap their assigned opportunity, labels outside the frozen opportunity
-inventory, and untouched receipts that are not bound to the frozen detector. A disagreement
+inventory (except exact binary-absent null-opportunity finding reviews), and untouched receipts
+that are not bound to the frozen detector. A null-opportunity review must be independent,
+detector-visible, postdate execution, bind the actual finding digest, and prove the finding
+overlaps no frozen opportunity. A disagreement
 requires two `pending` originals and one distinct final adjudicator; an agreement or single label
 must remain `not_required`. Blind ground-truth records carry no detector finding ID; only the
 post-run `finding_reviewer` record may bind one. The double-label fraction and per-rule minimum apply to every GO tier,

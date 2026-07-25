@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.6",
+  "selection_event_id": "v1.6-pre-result-cycle-reset",
+  "cohort": "golden",
+  "selected_at": "2026-07-24T02:54:54.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "bfebf6dcedf7012803b83bdb959f287abd7e94e68d1c33f61082c183a32f3ae3",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "bfebf6dcedf7012803b83bdb959f287abd7e94e68d1c33f61082c183a32f3ae3",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "v16-metadata-a",
+      "document_sha256": "e3b02de7dd7fbb39697db6b49e9e63e0952a0b506ab1836c9763b631aa7de557"
+    },
+    {
+      "reviewer_id": "v16-metadata-b",
+      "document_sha256": "ea0f6a3c2adc9f325e3366b75ac3eac98d02dc747dfde42b67502ea6ae22c0fe"
+    }
+  ],
+  "excluded_repository_count": 517,
+  "excluded_repository_ids_sha256": "5f6b60695974eb8a2eb0b2b34597043309ee371e8b7b16f783d0ae597f576e70",
+  "classification_conflicts_excluded": [],
+  "selected": [
+    {
+      "repository_id": "schmitech/orbit",
+      "tier": 0,
+      "selection_hash": "0edb8a80e389bd64987fc528385c1db977025985cf1aa6c74cdf678a3b561a7f",
+      "proposed_by": [
+        "v16-metadata-a",
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "codecentric/c4-genai-suite",
+      "tier": 1,
+      "selection_hash": "0fcd1212ec416f6a299b2da4bf3a3c4f839c0cdc941e1f6625df2b9f26cf12a7",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "mlc-ai/web-llm-chat",
+      "tier": 1,
+      "selection_hash": "3b13ecaa0887ff973a6f8455ec76010f29a7b5044eb9d4f305da5d375cb749f4",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "kizuna-ai-lab/sokuji",
+      "tier": 1,
+      "selection_hash": "445ac89997e297f773e1397cc53d25074da0a2ffa0133069790aa170da671283",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "raullenchai/Rapid-MLX",
+      "tier": 0,
+      "selection_hash": "224e785692d308b19b6165baa68a180bd00312af5ea5595f1baadf4cf02e9c03",
+      "proposed_by": [
+        "v16-metadata-a",
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "maziyarpanahi/openmed",
+      "tier": 1,
+      "selection_hash": "462059d97fe4621fdfb7c0bbb5d976a6fa3ccf1f0af520a9b47e581dc843d0fa",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "Shishir435/ollama-client",
+      "tier": 1,
+      "selection_hash": "8dbb6cecbc5ab13756c94233853942ece7c16fc501dc20f0a05272a71eb34f9f",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "MODSetter/SurfSense",
+      "tier": 0,
+      "selection_hash": "6e37b2c9ce730f91cd73ebbeb88b73922ff3ca274b456fa59f82f126ab2a5fe0",
+      "proposed_by": [
+        "v16-metadata-a",
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "xerrors/Yuxi",
+      "tier": 1,
+      "selection_hash": "1b660b2fc367cff9c19bc70d601876195890b5ac2497e66005966e9de00bf498",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Future-House/paper-qa",
+      "tier": 1,
+      "selection_hash": "1e2202def39f1cf3290461444e8da3e86313ea66f71070a91f5a6e8918562587",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "feyninc/chonkie",
+      "tier": 1,
+      "selection_hash": "34a8eb24cf5b3998d0e98b8a0129a32ebe4beef238473b2cda89ff0e14f83db7",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "DemonDamon/AgenticX",
+      "tier": 1,
+      "selection_hash": "0250919a4de4ac59b877e05e9639cfe5ef87c730c1f88569c00baf2b93b3c36a",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "superset-sh/superset",
+      "tier": 1,
+      "selection_hash": "0a82cfa63a56d214fe1cee5ee78adf043ce5acb28e723773c430ed37fcf00bab",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "openai/openai-agents-js",
+      "tier": 1,
+      "selection_hash": "0f2b439b81db982d12a2eeba7f369449fbc54c18cca76ddbdcdee5c1baf212b7",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "strands-agents/harness-sdk",
+      "tier": 1,
+      "selection_hash": "24e1dd6a322cdbbae1ff720d629b1a12b38cca972fdaa0ed1b6b40bbd6e05847",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "zai-org/Open-AutoGLM",
+      "tier": 1,
+      "selection_hash": "2930fc79989423cb376ba547d91208d277a05dcdcf50609739751962df9c3dfc",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "shareAI-lab/learn-claude-code",
+      "tier": 1,
+      "selection_hash": "6ce926515a2885d0d1561b4d1f39431d1160d3ebf42845dd20b0f073a0eaeb1d",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "HAE-RAE/haerae-evaluation-toolkit",
+      "tier": 1,
+      "selection_hash": "148634b3b28b41c92647019f78fc98f3fdcb5ce076cc963eec3dfe53ca19320e",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "microsoft/prompty",
+      "tier": 1,
+      "selection_hash": "15bb1e3c55d05d235186bce911008a267adf620a8819a847ebccb6ad4053af84",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "benlipkin/probsem",
+      "tier": 1,
+      "selection_hash": "1d4bab99eec72190b4a686eb3ae7cbdbdfc1dc232f1d78062f9ea111a7d0f3ae",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "verifywise-ai/verifywise",
+      "tier": 1,
+      "selection_hash": "1f5221d5eea4cb88284e3a86e638769ab33ca6702f1be0f47ec077c5fa2676fd",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "Agenta-AI/agenta",
+      "tier": 1,
+      "selection_hash": "32aece1ba22ef5bac9bc99b1e383b0d4d1e6bd207a72b2d28311149812cf3f23",
+      "proposed_by": [
+        "v16-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "maseval/MASEval",
+      "tier": 1,
+      "selection_hash": "5dc6c07f32c4ba97812b5e13ddb5880e94f675edf44c0b351d3134ba7865fed5",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Aleph-Alpha-Research/eval-framework",
+      "tier": 1,
+      "selection_hash": "6208ba6dddba7a4852b835fd7e3f9eac9b368011671a4c09bc74f76e94041da5",
+      "proposed_by": [
+        "v16-metadata-a"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "a779b81647df95273c71000dd58cf107231d8aebd368098a33cd5e326fee54b8",
+  "record_sha256": "b59fadbca8a8990c7e518f48f9f0dc761e50308a2abfa69445654dab2d901f3e"
+}

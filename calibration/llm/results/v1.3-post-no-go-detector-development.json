@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.3",
+  "record_type": "post_no_go_golden_development",
+  "release_evidence": false,
+  "go_decision": null,
+  "experimental_go": false,
+  "public_go": false,
+  "untouched_cohort_executed": false,
+  "detector_build_sha256": "c54f4d224e991587c456d58dd0d18846028fced132199d35bc2284afa364693b",
+  "execution": {
+    "environment": "local_no_egress_development",
+    "repositories": 24,
+    "golden_manifest_sha256": "e4482071e0fdfc3d334838c5f0b9730281630a6a3c8b97fedf4ee9cd98f96ffb",
+    "output_root": "owner_private_not_committed",
+    "full_product_tests": {
+      "files": 29,
+      "tests": 476,
+      "passed": 476
+    }
+  },
+  "frozen_inventory_diagnostic": {
+    "present_opportunities": 65,
+    "exact_matched_present": 65,
+    "exact_missed_present": 0,
+    "diagnostic_recall": 1,
+    "detector_findings": 101,
+    "findings_outside_every_frozen_opportunity": 35,
+    "findings_matching_non_present_frozen_opportunities": 1,
+    "formal_precision_estimable": false,
+    "formal_release_metrics_estimable": false
+  },
+  "per_rule": [
+    {
+      "rule_id": "LLM-AGY-001",
+      "frozen_present": 21,
+      "exact_matched_present": 21,
+      "detector_findings": 23,
+      "outside_inventory": 2
+    },
+    {
+      "rule_id": "LLM-AGY-002",
+      "frozen_present": 5,
+      "exact_matched_present": 5,
+      "detector_findings": 6,
+      "outside_inventory": 1
+    },
+    {
+      "rule_id": "LLM-EVL-001",
+      "frozen_present": 0,
+      "exact_matched_present": 0,
+      "detector_findings": 0,
+      "outside_inventory": 0
+    },
+    {
+      "rule_id": "LLM-EVL-002",
+      "frozen_present": 0,
+      "exact_matched_present": 0,
+      "detector_findings": 1,
+      "outside_inventory": 1
+    },
+    {
+      "rule_id": "LLM-IOH-001",
+      "frozen_present": 22,
+      "exact_matched_present": 22,
+      "detector_findings": 30,
+      "outside_inventory": 7
+    },
+    {
+      "rule_id": "LLM-PRV-001",
+      "frozen_present": 5,
+      "exact_matched_present": 5,
+      "detector_findings": 7,
+      "outside_inventory": 2
+    },
+    {
+      "rule_id": "LLM-VAL-001",
+      "frozen_present": 12,
+      "exact_matched_present": 12,
+      "detector_findings": 34,
+      "outside_inventory": 22
+    },
+    {
+      "rule_id": "LLM-DAT-001",
+      "frozen_present": 0,
+      "exact_matched_present": 0,
+      "detector_findings": 0,
+      "outside_inventory": 0
+    }
+  ],
+  "integrity_boundary": [
+    "Golden source and labels were used to develop this detector; diagnostic recall is not an untouched release metric.",
+    "The v1.3 opportunity inventory was already proven incomplete and was not backfilled after detector output.",
+    "Findings outside the frozen inventory were retained and were not suppressed to improve an apparent precision value.",
+    "No v1.3 untouched repository was executed, inspected, or used for detector tuning."
+  ],
+  "required_next_cycle": [
+    "Freeze this detector implementation at an exact committed revision.",
+    "Select and blind a fresh golden evidence set, or otherwise establish a protocol-valid opportunity inventory that predates detector output.",
+    "Independently enumerate all rule opportunities and bind labels and discovery coverage before any detector execution.",
+    "Publish a fresh pre-result commitment before the trusted golden run.",
+    "Do not execute the untouched cohort until the trusted golden gate, correction ledger, detector freeze, and transport checks all pass."
+  ]
+}

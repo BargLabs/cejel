@@ -66,7 +66,7 @@ export function validatePreResultCommitment(document) {
   const allowed = [
     'schema_version', 'protocol_id', 'status', 'created_at', 'detector_results_seen_before_commitment',
     'golden_manifest_sha256', 'untouched_manifest_sha256', 'opportunity_manifest_sha256',
-    'opportunity_discovery_coverage_sha256', 'release_thresholds',
+    'opportunity_discovery_coverage_sha256', 'discovery_integrity_sha256', 'release_thresholds',
     'public_surface_policy', 'free_core_baseline_commit',
     'blind_label_bindings', 'public_document_inventory',
   ];
@@ -80,6 +80,7 @@ export function validatePreResultCommitment(document) {
     !/^[a-f0-9]{64}$/.test(document.untouched_manifest_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.opportunity_manifest_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.opportunity_discovery_coverage_sha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(document.discovery_integrity_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.release_thresholds?.byte_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.release_thresholds?.canonical_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(document.public_surface_policy?.byte_sha256 || '') ||

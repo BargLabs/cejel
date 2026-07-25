@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.9",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "PublicAffairs/openai-gemini",
+      "url": "https://github.com/PublicAffairs/openai-gemini",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "gateway",
+      "provider_surface": "openai",
+      "inclusion_reason": "gateway candidate from GitHub repository metadata: ✦ Gemini ➜ OpenAI API proxy. Serverless!"
+    },
+    {
+      "repository_id": "janus21030100076/kudoai-search-assistant",
+      "url": "https://github.com/janus21030100076/kudoai-search-assistant",
+      "primary_language": "mixed",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the chat_app search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "ItsDalk-Lane/Pi-only",
+      "url": "https://github.com/ItsDalk-Lane/Pi-only",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the chat_app search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "Katsumitec/meeting-to-issue",
+      "url": "https://github.com/Katsumitec/meeting-to-issue",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the chat_app search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "0xSojalSec/LLMs-local",
+      "url": "https://github.com/0xSojalSec/LLMs-local",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "local model candidate from GitHub repository metadata: list of awesome platforms, tools, and resources run for LLMs locally"
+    },
+    {
+      "repository_id": "Yuvan278/Yuvan-AI",
+      "url": "https://github.com/Yuvan278/Yuvan-AI",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "openai",
+      "inclusion_reason": "GitHub repository metadata independently matched the local_model search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "thu-vu92/local-llms-analyse-finance",
+      "url": "https://github.com/thu-vu92/local-llms-analyse-finance",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "local model candidate from GitHub repository metadata: In this project, I explored how local LLMs can be used to label data and support analyses. Specifically, I used Llama2 model to automatically categorise my bank transaction data."
+    },
+    {
+      "repository_id": "luibots/palworld-local-llm-companion",
+      "url": "https://github.com/luibots/palworld-local-llm-companion",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "GitHub repository metadata independently matched the rag search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "lizhe2004/Awesome-LLM-RAG-Application",
+      "url": "https://github.com/lizhe2004/Awesome-LLM-RAG-Application",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "rag candidate from GitHub repository metadata: the resources about the application based on LLM with RAG pattern"
+    },
+    {
+      "repository_id": "HorizonBrute/Horizon-Brain-Builder",
+      "url": "https://github.com/HorizonBrute/Horizon-Brain-Builder",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the rag search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "footprintjs/agentfootprint",
+      "url": "https://github.com/footprintjs/agentfootprint",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "rag",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the rag search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "sfex11/galaxy_tab_public",
+      "url": "https://github.com/sfex11/galaxy_tab_public",
+      "primary_language": "mixed",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the agent_tools search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "x1xhlol/system-prompts-and-models-of-ai-tools",
+      "url": "https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: FULL Augment Code, Claude Code, Cluely, CodeBuddy, Comet, Cursor, Devin AI, Junie, Kiro, Leap.new, Lovable, Manus, NotionAI, Orchids.app, Perplexity, Poke, Qoder, Replit, Same.dev, Trae, Traycer AI, VSCode Agent, Warp.dev, Windsurf, Xcode, Z.ai Code, Dia & v0. (And other Open Sourced) System Prompts, Internal Tools & AI Models"
+    },
+    {
+      "repository_id": "Octen-Team/octen-mcp",
+      "url": "https://github.com/Octen-Team/octen-mcp",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "GitHub repository metadata independently matched the agent/tools stratum with an Anthropic or Claude provider description; no repository source content was accessed."
+    },
+    {
+      "repository_id": "Aharshi3614/Devwhisper",
+      "url": "https://github.com/Aharshi3614/Devwhisper",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the agent_tools search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "landing-ai/vision-agent",
+      "url": "https://github.com/landing-ai/vision-agent",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: This tool has been deprecated. Use Agentic Document Extraction instead."
+    },
+    {
+      "repository_id": "cosmicstack-labs/mercury-agent",
+      "url": "https://github.com/cosmicstack-labs/mercury-agent",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "agent tools candidate from GitHub repository metadata: Soul-driven AI agent with permission-hardened tools, token budgets, and multi-channel access. Runs 24/7 from CLI or Telegram."
+    },
+    {
+      "repository_id": "RouteWorks/RouterArena",
+      "url": "https://github.com/RouteWorks/RouterArena",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: RouterArena: An open framework for evaluating LLM routers with standardized datasets, metrics, an automated framework, and a live leaderboard."
+    },
+    {
+      "repository_id": "PiotrNawrot/sparse-frontier",
+      "url": "https://github.com/PiotrNawrot/sparse-frontier",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: The evaluation framework for training-free sparse attention in LLMs"
+    },
+    {
+      "repository_id": "midat-fx/tech-salary-radar",
+      "url": "https://github.com/midat-fx/tech-salary-radar",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    },
+    {
+      "repository_id": "ai4cloudops/SecLLMHolmes",
+      "url": "https://github.com/ai4cloudops/SecLLMHolmes",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: SecLLMHolmes is a generalized, fully automated, and scalable framework to systematically evaluate the performance (i.e., accuracy and reasoning capabilities) of LLMs for vulnerability detection."
+    },
+    {
+      "repository_id": "symflower/eval-dev-quality",
+      "url": "https://github.com/symflower/eval-dev-quality",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: DevQualityEval: An evaluation benchmark 📈 and framework to compare and evolve the quality of code generation of LLMs."
+    },
+    {
+      "repository_id": "vishwanathakuthota/openvals",
+      "url": "https://github.com/vishwanathakuthota/openvals",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "evaluation or framework candidate from GitHub repository metadata: Open-source AI model evaluation and benchmarking framework for LLMs (OpenAI, Ollama, Claude, Gemini)"
+    },
+    {
+      "repository_id": "METR/hawk",
+      "url": "https://github.com/METR/hawk",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "GitHub repository metadata independently matched the evaluation_or_framework search stratum; no repository source content was accessed."
+    }
+  ]
+}

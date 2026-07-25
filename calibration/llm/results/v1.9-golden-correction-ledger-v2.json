@@ -1,0 +1,757 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "status": "frozen",
+  "detector_build_sha256": "d8e4fd99e1802bbd48fd71930c05efefb4fa526f6277d1f87ff82492e17cfafa",
+  "golden_manifest_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2",
+  "golden_opportunity_manifest_sha256": "3f8bfe9276bb1e371b5e90eabfce079a5676b3dc03553b48f2f9667deaae6555",
+  "golden_label_evidence_sha256": "d14149d5ada3c2a1c76eca216b830e0f0c7a009984845facdcb5fde24f638e76",
+  "missed_defect_opportunity_ids": [
+    "llm-opp-001a40709304e423a1ddc0e8d110bc2d24eb83a2e6fcde0bda405da44c376ca9",
+    "llm-opp-02ccd7516344cc14fe87d01bcf96698b93cadb0511d04d3dc0f5ca319c50b1be",
+    "llm-opp-0b970f7968403ec901313ce8a495030745a70defc20d298ba4a80e321b319651",
+    "llm-opp-1fb62cec34ae230ba757f3a061a9a8c7879e9aff458e1a63f554be382c1edbae",
+    "llm-opp-245d008f271eeb60fc6067b43fc0786eb231582e850832b6a057024898b0a074",
+    "llm-opp-2798f54915e777b68800782f45e824106180b4153c048ec3c12270a99d5a8b17",
+    "llm-opp-3cf37c8f869843862722a2120156d9a4456dc8f3c1a4bc1fc75120973fe77d75",
+    "llm-opp-4ee1ed7abc8d6f428c30148247b1a628b79ca5e605311f634693c59bc3300794",
+    "llm-opp-52a19bb116ebdf98337a45dc8bcbb3ae37cb895af37b3671ab44c2220de0ee3f",
+    "llm-opp-5e533efe05ee3ac8742a888c0323bd4abca084b35e7498b3f1748c3ed95c2fa9",
+    "llm-opp-6781e213bc91b57c41e8c004897012e1c4cf60a15996d1d1a6cff15838ed1188",
+    "llm-opp-6fc14b3a706960292a8d2bb698ced01d171faf988a4e34ec5649e97bb597f50d",
+    "llm-opp-70212305fccc9efc3a48ac20632e2a600116e4739a969c90e1645e3a554ca5fe",
+    "llm-opp-80bdd28deed33274a2d5b955ef7caa974c7cc7a458fc5bfc1e371ef3cbd2cc21",
+    "llm-opp-8fa3769329d70e67a43e60946d5e14888416543dd7a8a0145f80c73d089ec1fc",
+    "llm-opp-908d9f776748a9b09dd4f73a01d1dbecf588a364ae042846b8cf3129fb32f7ac",
+    "llm-opp-92cc40f038c8805c839e61f1ba95aabd73d68601ff1cfdcbe61190aa359fd3ec",
+    "llm-opp-970d551cff126d3f59e890ca1ee19d2b890d0f0a1a7a5fd45f89801afb12374d",
+    "llm-opp-976a81efaea43753139650f367737758d5a94ab05e486b1f6c3fd6f035a18b50",
+    "llm-opp-97c1108cb83be1da4a6af674094f46be47232b481f1673f64c7dcdf2cd6fff9b",
+    "llm-opp-9cdd8cc0da535ffd54471c0a994ee69902c0b3af6e6a8c685135206be0dcd527",
+    "llm-opp-9e84c89ac92c7d2012528957971bc05e6f83601d0c7ead50ba38af682315cc33",
+    "llm-opp-aae8e1b488ab09fc595898309aea5989beac901f062128890c00144b4e446a8c",
+    "llm-opp-ad6c075efff4410ddd71b79ba89acbd2a5210f452b79ffdec183b1d7503710a1",
+    "llm-opp-b202f9cfe3401fef991acc55499f44512a2df29241e811623ccb728b99f3120b",
+    "llm-opp-b4e789e97c59f503e3cb746516f00019ea9719e2470da7bc6e9a9bcc4f40f6e7",
+    "llm-opp-b61550371989a631f334b6928c20c76a76b9e94282ace1a99259c2a0745c462a",
+    "llm-opp-b77ca250992ce620050698b5267ec4391f8912da59283931dcc38207804470af",
+    "llm-opp-be731fdff13ed5917592a8ddbe5cf300a8ce08b33c82b2911b72d5691ec2b3a2",
+    "llm-opp-c74a8d44d37f504caf9afed90c2651b095426275e75226a1d77e4bfe4b9f1897",
+    "llm-opp-e24f5560d1592b810b1334dfb24ee635ff7136e7b72bdb44e5cb6bbb48eccdbc",
+    "llm-opp-e9feaddc98cc9f1dace8c967bd2ff0a414a10355c8703a213cf4ebaf0e4241e6",
+    "llm-opp-ed0511098fde685e5d02669b79b8dbba069343a973a39f388715d89a9e14edb1",
+    "llm-opp-f9b8f1b9a5ce3fd9edad281359dca66628714a2f4d8b5b3644163896a6a9def7"
+  ],
+  "frozen_at": "2026-07-25T06:00:00.000Z",
+  "frozen_before_untouched": true,
+  "reviewed_by": [
+    "codex-golden-correction-v2-reconciliation",
+    "codex-golden-correction-v2-independent-recheck"
+  ],
+  "open_corrections": 0,
+  "entries": [
+    {
+      "correction_id": "llm-correction-missed-v2-001a40709304e423a1ddc0e8d110bc2d24eb8",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-001a40709304e423a1ddc0e8d110bc2d24eb83a2e6fcde0bda405da44c376ca9",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at evaluators.py:1. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-001a40709304e423a1ddc0e8d110bc2d24eb83a2e6fcde0bda405da44c376ca9",
+          "sha256": "71d2a32074578ba2f609e2a0b952278914e98e48dd4d888e1a61979d35ad9c32"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-02ccd7516344cc14fe87d01bcf96698b93cad",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-02ccd7516344cc14fe87d01bcf96698b93cadb0511d04d3dc0f5ca319c50b1be",
+      "rule_id": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for ozturkoktay/insurance-llm-framework rule LLM-EVL-001 at app.py:1091. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-02ccd7516344cc14fe87d01bcf96698b93cadb0511d04d3dc0f5ca319c50b1be",
+          "sha256": "f06a304daec97ac08d4d85c80e68ee86eedd7e86710aaa7e2371a981d532c793"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-0b970f7968403ec901313ce8a495030745a70",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-0b970f7968403ec901313ce8a495030745a70defc20d298ba4a80e321b319651",
+      "rule_id": "LLM-PRV-001",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for harnexa/nexa-gauge rule LLM-PRV-001 at packages/nexagauge-graph/ng_graph/nodes/report.py:101. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-0b970f7968403ec901313ce8a495030745a70defc20d298ba4a80e321b319651",
+          "sha256": "a49342ff0d9366dd0579fd24769741821272d7b50135e35f65418bfda4e23771"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-1fb62cec34ae230ba757f3a061a9a8c7879e9",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-1fb62cec34ae230ba757f3a061a9a8c7879e9aff458e1a63f554be382c1edbae",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for harnexa/nexa-gauge rule LLM-EVL-002 at packages/nexagauge-graph/ng_graph/nodes/metrics/geval/score.py:68. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-1fb62cec34ae230ba757f3a061a9a8c7879e9aff458e1a63f554be382c1edbae",
+          "sha256": "10635f2a7d5cf0047d93612019d6662575923ecd1f9083a4f31ab203052bc79e"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-245d008f271eeb60fc6067b43fc0786eb2315",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-245d008f271eeb60fc6067b43fc0786eb231582e850832b6a057024898b0a074",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Ankitha-GS/rag-qa rule LLM-EVL-002 at src/evaluator.py:95. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-245d008f271eeb60fc6067b43fc0786eb231582e850832b6a057024898b0a074",
+          "sha256": "0cf2df5aef3adbbf1a0e5549d1ca689b5d365d8c653e547636b241daaab5f786"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-2798f54915e777b68800782f45e824106180b",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-2798f54915e777b68800782f45e824106180b4153c048ec3c12270a99d5a8b17",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at reporter.py:311. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-2798f54915e777b68800782f45e824106180b4153c048ec3c12270a99d5a8b17",
+          "sha256": "24b9e6c10ba19c98e8de2b6a4ea6edbb321abb53e923dfb08d0494c8b02616d4"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-3cf37c8f869843862722a2120156d9a4456dc",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-3cf37c8f869843862722a2120156d9a4456dc8f3c1a4bc1fc75120973fe77d75",
+      "rule_id": "LLM-AGY-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for RYOITABASHI/Shelly rule LLM-AGY-001 at app/_layout.tsx:132. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-3cf37c8f869843862722a2120156d9a4456dc8f3c1a4bc1fc75120973fe77d75",
+          "sha256": "0051f2f2fbb385602eaafa55e9de3697267446a20969602c6da59611d9970d00"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-4ee1ed7abc8d6f428c30148247b1a628b79ca",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-4ee1ed7abc8d6f428c30148247b1a628b79ca5e605311f634693c59bc3300794",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for harnexa/nexa-gauge rule LLM-EVL-002 at packages/nexagauge-graph/ng_graph/nodes/metrics/relevance.py:55. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-4ee1ed7abc8d6f428c30148247b1a628b79ca5e605311f634693c59bc3300794",
+          "sha256": "bc5fb3b695596bc353e54a3876c060d05fc3b4d267959223cffdd3368cbf1bb8"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-52a19bb116ebdf98337a45dc8bcbb3ae37cb8",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-52a19bb116ebdf98337a45dc8bcbb3ae37cb895af37b3671ab44c2220de0ee3f",
+      "rule_id": "LLM-PRV-001",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Surya-Hariharan/Velune-CLI rule LLM-PRV-001 at velune/cli/commands/models.py:1025. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-52a19bb116ebdf98337a45dc8bcbb3ae37cb895af37b3671ab44c2220de0ee3f",
+          "sha256": "8c17dcf0c150cc88b782b0556ddd04ea8f70b3fb9f485e664397cad9581cca62"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-5e533efe05ee3ac8742a888c0323bd4abca08",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-5e533efe05ee3ac8742a888c0323bd4abca084b35e7498b3f1748c3ed95c2fa9",
+      "rule_id": "LLM-VAL-001",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Surya-Hariharan/Velune-CLI rule LLM-VAL-001 at velune/mcp/transports/websocket.py:275. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-5e533efe05ee3ac8742a888c0323bd4abca084b35e7498b3f1748c3ed95c2fa9",
+          "sha256": "d63f75c52aeb1ad96958529504679c1f9f5e6cb7ef643a2d4da394e689fcb10c"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-6781e213bc91b57c41e8c004897012e1c4cf6",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-6781e213bc91b57c41e8c004897012e1c4cf60a15996d1d1a6cff15838ed1188",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Ankitha-GS/rag-qa rule LLM-EVL-002 at src/evaluator.py:44. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-6781e213bc91b57c41e8c004897012e1c4cf60a15996d1d1a6cff15838ed1188",
+          "sha256": "77efbf7a0ba569020e0fbcd00870676bde6e8a050a1468e544ade60146b440e4"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-6fc14b3a706960292a8d2bb698ced01d171fa",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-6fc14b3a706960292a8d2bb698ced01d171faf988a4e34ec5649e97bb597f50d",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at run.py:55. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-6fc14b3a706960292a8d2bb698ced01d171faf988a4e34ec5649e97bb597f50d",
+          "sha256": "393256d073f9fc0cf4c7f93c531bcb550c6d2b5778081a067dc4c94981d4c81a"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-70212305fccc9efc3a48ac20632e2a600116e",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-70212305fccc9efc3a48ac20632e2a600116e4739a969c90e1645e3a554ca5fe",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for harnexa/nexa-gauge rule LLM-EVL-002 at packages/nexagauge-graph/ng_graph/nodes/metrics/relevance.py:57. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-70212305fccc9efc3a48ac20632e2a600116e4739a969c90e1645e3a554ca5fe",
+          "sha256": "414e275b43ba513205ef1966e66d2626dd874f704274c248f8aebc77377fd846"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-80bdd28deed33274a2d5b955ef7caa974c7cc",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-80bdd28deed33274a2d5b955ef7caa974c7cc7a458fc5bfc1e371ef3cbd2cc21",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at reporter.py:468. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-80bdd28deed33274a2d5b955ef7caa974c7cc7a458fc5bfc1e371ef3cbd2cc21",
+          "sha256": "bf7bf9268a46acf95a49cb94bbec89d5ad68d0e042d534133ebf6ab1678ef3ef"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-8fa3769329d70e67a43e60946d5e148884165",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-8fa3769329d70e67a43e60946d5e14888416543dd7a8a0145f80c73d089ec1fc",
+      "rule_id": "LLM-AGY-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for RYOITABASHI/Shelly rule LLM-AGY-001 at app/_layout.tsx:1568. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-8fa3769329d70e67a43e60946d5e14888416543dd7a8a0145f80c73d089ec1fc",
+          "sha256": "7ee822f49ffc2c83a7995ef8f907ab4056c06a9da7e2eb78c642f8171e67ebaf"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-908d9f776748a9b09dd4f73a01d1dbecf588a",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-908d9f776748a9b09dd4f73a01d1dbecf588a364ae042846b8cf3129fb32f7ac",
+      "rule_id": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for ozturkoktay/insurance-llm-framework rule LLM-EVL-001 at evaluation/benchmarks.py:417. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-908d9f776748a9b09dd4f73a01d1dbecf588a364ae042846b8cf3129fb32f7ac",
+          "sha256": "4a2f601dec60156e78ae4e4ee7b783caa8a6d51e89857cd2a9d010ec4410325b"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-92cc40f038c8805c839e61f1ba95aabd73d68",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-92cc40f038c8805c839e61f1ba95aabd73d68601ff1cfdcbe61190aa359fd3ec",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for memoturn/memoturn rule LLM-EVL-002 at packages/server/src/evaluators.ts:273. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-92cc40f038c8805c839e61f1ba95aabd73d68601ff1cfdcbe61190aa359fd3ec",
+          "sha256": "3d5afdfe12c9c71f97eeae20349fee827fffd772707716584baed713efc1018d"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-970d551cff126d3f59e890ca1ee19d2b890d0",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-970d551cff126d3f59e890ca1ee19d2b890d0f0a1a7a5fd45f89801afb12374d",
+      "rule_id": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for ozturkoktay/insurance-llm-framework rule LLM-EVL-001 at app.py:1090. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-970d551cff126d3f59e890ca1ee19d2b890d0f0a1a7a5fd45f89801afb12374d",
+          "sha256": "a6b7465b02b57d76f62bc5003d70bf0f1335e7ed4a17fcf6680a34b654ae98bc"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-976a81efaea43753139650f367737758d5a94",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-976a81efaea43753139650f367737758d5a94ab05e486b1f6c3fd6f035a18b50",
+      "rule_id": "LLM-IOH-001",
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for memoturn/memoturn rule LLM-IOH-001 at apps/console/src/components/trace-detail.tsx:316. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-976a81efaea43753139650f367737758d5a94ab05e486b1f6c3fd6f035a18b50",
+          "sha256": "d3caeaa94d367dd5b6056d3f8cc9e371d85af21d059c3000efacc23336e6effd"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-97c1108cb83be1da4a6af674094f46be47232",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-97c1108cb83be1da4a6af674094f46be47232b481f1673f64c7dcdf2cd6fff9b",
+      "rule_id": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for ozturkoktay/insurance-llm-framework rule LLM-EVL-001 at evaluation/benchmarks.py:419. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-97c1108cb83be1da4a6af674094f46be47232b481f1673f64c7dcdf2cd6fff9b",
+          "sha256": "9ef0803f86389c245fd6d603be989dd5d8acc3d993e731626c21d0ea27eed913"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-9cdd8cc0da535ffd54471c0a994ee69902c0b",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-9cdd8cc0da535ffd54471c0a994ee69902c0b3af6e6a8c685135206be0dcd527",
+      "rule_id": "LLM-DAT-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for RYOITABASHI/Shelly rule LLM-DAT-001 at hooks/use-ai-pane-dispatch.ts:194. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-9cdd8cc0da535ffd54471c0a994ee69902c0b3af6e6a8c685135206be0dcd527",
+          "sha256": "743ac99f10952584ddcfdb15ad9cabdf30e6b27a3e81118a72ee8d54c9073ad5"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-9e84c89ac92c7d2012528957971bc05e6f836",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-9e84c89ac92c7d2012528957971bc05e6f83601d0c7ead50ba38af682315cc33",
+      "rule_id": "LLM-EVL-001",
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for memoturn/memoturn rule LLM-EVL-001 at apps/console/src/routes/dashboard.tsx:797. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-9e84c89ac92c7d2012528957971bc05e6f83601d0c7ead50ba38af682315cc33",
+          "sha256": "30dcaff49d72a12952c2334c77a7faaa2ef383891963fcfaa1d8c318ec98810b"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-aae8e1b488ab09fc595898309aea5989beac9",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-aae8e1b488ab09fc595898309aea5989beac901f062128890c00144b4e446a8c",
+      "rule_id": "LLM-DAT-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for RYOITABASHI/Shelly rule LLM-DAT-001 at hooks/use-ai-pane-dispatch.ts:195. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-aae8e1b488ab09fc595898309aea5989beac901f062128890c00144b4e446a8c",
+          "sha256": "f7e7102b40e35b03c2963fab0c62496480308467d76f8c7a6f337baf6062e198"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-ad6c075efff4410ddd71b79ba89acbd2a5210",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-ad6c075efff4410ddd71b79ba89acbd2a5210f452b79ffdec183b1d7503710a1",
+      "rule_id": "LLM-IOH-001",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Surya-Hariharan/Velune-CLI rule LLM-IOH-001 at velune/cli/fullscreen.py:960. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-ad6c075efff4410ddd71b79ba89acbd2a5210f452b79ffdec183b1d7503710a1",
+          "sha256": "c23119d49af5f4b244d8fc6e87c81cadedfcca7a888e6a7cafc5a9333c20b425"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-b202f9cfe3401fef991acc55499f44512a2df",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-b202f9cfe3401fef991acc55499f44512a2df29241e811623ccb728b99f3120b",
+      "rule_id": "LLM-PRV-001",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for harnexa/nexa-gauge rule LLM-PRV-001 at packages/nexagauge-graph/ng_graph/graph.py:863. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-b202f9cfe3401fef991acc55499f44512a2df29241e811623ccb728b99f3120b",
+          "sha256": "c099e2021db78e2e87029d5e433e464c6d8d9928a8b8422d1d6654cc2d1b9808"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-b4e789e97c59f503e3cb746516f00019ea971",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-b4e789e97c59f503e3cb746516f00019ea9719e2470da7bc6e9a9bcc4f40f6e7",
+      "rule_id": "LLM-DAT-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for RYOITABASHI/Shelly rule LLM-DAT-001 at hooks/use-ai-pane-dispatch.ts:196. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-b4e789e97c59f503e3cb746516f00019ea9719e2470da7bc6e9a9bcc4f40f6e7",
+          "sha256": "6b4b9963b709ff341e153ca89035e2755443edf26cf721c063ab22b1e865b771"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-b61550371989a631f334b6928c20c76a76b9e",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-b61550371989a631f334b6928c20c76a76b9e94282ace1a99259c2a0745c462a",
+      "rule_id": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for ozturkoktay/insurance-llm-framework rule LLM-EVL-001 at app.py:1225. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-b61550371989a631f334b6928c20c76a76b9e94282ace1a99259c2a0745c462a",
+          "sha256": "6b3da95351526674a3311d71e7f001d23c4e36633b7a4b414d1ff28c81d8ff5d"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-b77ca250992ce620050698b5267ec4391f891",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-b77ca250992ce620050698b5267ec4391f8912da59283931dcc38207804470af",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at run.py:56. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-b77ca250992ce620050698b5267ec4391f8912da59283931dcc38207804470af",
+          "sha256": "9fb80cf61ec47157cf01d764fa0a9e0e8c31228aa00a7708e1d1146c73a3022a"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-be731fdff13ed5917592a8ddbe5cf300a8ce0",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-be731fdff13ed5917592a8ddbe5cf300a8ce08b33c82b2911b72d5691ec2b3a2",
+      "rule_id": "LLM-DAT-001",
+      "repository_id": "sreyun/aiops-monitor",
+      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for sreyun/aiops-monitor rule LLM-DAT-001 at cmd/server/terminal.go:1048. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-be731fdff13ed5917592a8ddbe5cf300a8ce08b33c82b2911b72d5691ec2b3a2",
+          "sha256": "4b0efca416537a8e3dea16f3c8b6b258daffaa49f4bed2b93a33932e7f3fa5a1"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-c74a8d44d37f504caf9afed90c2651b095426",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-c74a8d44d37f504caf9afed90c2651b095426275e75226a1d77e4bfe4b9f1897",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for harnexa/nexa-gauge rule LLM-EVL-002 at packages/nexagauge-graph/ng_graph/llm/__init__.py:31. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-c74a8d44d37f504caf9afed90c2651b095426275e75226a1d77e4bfe4b9f1897",
+          "sha256": "4d797b387b10dddfe8ee96fac8396ceedd527fc4b6f600d83d66295bc1af8b9a"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-e24f5560d1592b810b1334dfb24ee635ff713",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-e24f5560d1592b810b1334dfb24ee635ff7136e7b72bdb44e5cb6bbb48eccdbc",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at run.py:54. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-e24f5560d1592b810b1334dfb24ee635ff7136e7b72bdb44e5cb6bbb48eccdbc",
+          "sha256": "f4953f1d42fc14e5bb4083e74f668e12f5eed782b3285a10a2e1dd057a3bd497"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-e9feaddc98cc9f1dace8c967bd2ff0a414a10",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-e9feaddc98cc9f1dace8c967bd2ff0a414a10355c8703a213cf4ebaf0e4241e6",
+      "rule_id": "LLM-VAL-001",
+      "repository_id": "sreyun/aiops-monitor",
+      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for sreyun/aiops-monitor rule LLM-VAL-001 at cmd/server/sreyun.go:1196. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-e9feaddc98cc9f1dace8c967bd2ff0a414a10355c8703a213cf4ebaf0e4241e6",
+          "sha256": "0d5b51549b4f4f4693c44accdd0e2495631255ff513726bb5cc232261c156ac0"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-ed0511098fde685e5d02669b79b8dbba06934",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-ed0511098fde685e5d02669b79b8dbba069343a973a39f388715d89a9e14edb1",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Ankitha-GS/rag-qa rule LLM-EVL-002 at src/evaluator.py:61. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-ed0511098fde685e5d02669b79b8dbba069343a973a39f388715d89a9e14edb1",
+          "sha256": "be53e92986ad220f0a3dc367086df03be1f88a75e6514c954f622e5ca2def4a3"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-missed-v2-f9b8f1b9a5ce3fd9edad281359dca66628714",
+      "status": "resolved",
+      "finding_id": null,
+      "opportunity_id": "llm-opp-f9b8f1b9a5ce3fd9edad281359dca66628714a2f4d8b5b3644163896a6a9def7",
+      "rule_id": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "original_outcome": "missed_defect",
+      "final_outcome": "false_negative",
+      "rationale": "Re-execution of detector build d8e4fd99e180 (after the LLM-EVL-001 Python implementation, subscript-assignment, and invocation-pattern fixes committed this session) still produced zero findings for Bryancruzcb/aegis-eval-harness rule LLM-EVL-002 at run.py:53. Investigated individually where sampled: each remaining miss has its own distinct confound (cross-file/class-attribute tracing, cross-module tracing, or an intentional raw-results-retained negative boundary) beyond what this session's fixes addressed.",
+      "evidence": [
+        {
+          "reference": "opportunity:llm-opp-f9b8f1b9a5ce3fd9edad281359dca66628714a2f4d8b5b3644163896a6a9def7",
+          "sha256": "a30fffb9f2c2bdeacd6be73723d89c622374653c4b283e75ed6e25dfb57054e1"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-finding-v2-7a2ae4ba1d81c1dbf30e5db3a5215c2bdc38c",
+      "status": "resolved",
+      "finding_id": "llm-finding-7a2ae4ba1d81c1dbf30e5db3a5215c2bdc38c7deaf4c498592358a0647a8932c",
+      "opportunity_id": null,
+      "rule_id": "LLM-PRV-001",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "original_outcome": "detector_finding",
+      "final_outcome": "false_positive",
+      "rationale": "Finding at src/evaluator.py:151 (rule LLM-PRV-001) does not overlap any of the 4199 frozen golden opportunities by repository, rule, and line, independently checked against the complete frozen inventory. Recorded false_positive per protocol's null-opportunity exception.",
+      "evidence": [
+        {
+          "reference": "llm-report:llm-finding-7a2ae4ba1d81c1dbf30e5db3a5215c2bdc38c7deaf4c498592358a0647a8932c",
+          "sha256": "46ec0082227ad5e80be92ae2b29862a128740978f3a695c11c2e7eb169a341a2"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-finding-v2-51cebd2dcf98798d6258ce6a39c35e47cd5cd",
+      "status": "resolved",
+      "finding_id": "llm-finding-51cebd2dcf98798d6258ce6a39c35e47cd5cd3736e95171084f69fd0849e901c",
+      "opportunity_id": null,
+      "rule_id": "LLM-PRV-001",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "original_outcome": "detector_finding",
+      "final_outcome": "false_positive",
+      "rationale": "Finding at packages/nexagauge-graph/ng_graph/nodes/metrics/redteam/redteam.py:325 (rule LLM-PRV-001) does not overlap any of the 4199 frozen golden opportunities by repository, rule, and line, independently checked against the complete frozen inventory. Recorded false_positive per protocol's null-opportunity exception.",
+      "evidence": [
+        {
+          "reference": "llm-report:llm-finding-51cebd2dcf98798d6258ce6a39c35e47cd5cd3736e95171084f69fd0849e901c",
+          "sha256": "9d3b3fd66fd854800657c83e0c49f7e04f5289ece6f94992858fd6aa46f18972"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    },
+    {
+      "correction_id": "llm-correction-finding-v2-5ffd609ca243be9151ea85258fcbda18264e0",
+      "status": "resolved",
+      "finding_id": "llm-finding-5ffd609ca243be9151ea85258fcbda18264e02bb8c7711a8163ccd3e14fbfaae",
+      "opportunity_id": null,
+      "rule_id": "LLM-PRV-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "original_outcome": "detector_finding",
+      "final_outcome": "false_positive",
+      "rationale": "Finding at evaluation/benchmarks.py:365 (rule LLM-PRV-001) does not overlap any of the 4199 frozen golden opportunities by repository, rule, and line, independently checked against the complete frozen inventory. Recorded false_positive per protocol's null-opportunity exception.",
+      "evidence": [
+        {
+          "reference": "llm-report:llm-finding-5ffd609ca243be9151ea85258fcbda18264e02bb8c7711a8163ccd3e14fbfaae",
+          "sha256": "48ca91ae36b0d5b78f67af502dfb4a3b42459723f811a4e1decd1c479ee650d8"
+        }
+      ],
+      "resolved_at": "2026-07-25T06:00:00.000Z"
+    }
+  ]
+}

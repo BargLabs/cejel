@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.6",
+  "supersedes_policy_id": "llm-selection-v1.5",
+  "recorded_at": "2026-07-24T02:44:46.000Z",
+  "detector_results_seen": false,
+  "source_accessed": false,
+  "amendments": [
+    {
+      "cohort": "both",
+      "kind": "fresh_cycle_reset_before_results",
+      "from": "v1.5-collector-development-and-withdrawn-untouched",
+      "to": "v1.6-pre-source-metadata-selection",
+      "reason": "The v1.5 golden cohort is retired after the collector failed closed before producing a collection record; the v1.5 untouched cohort remains unexecuted and is conservatively withdrawn. The v1.6 exact historical exclusion ledger is committed before fresh metadata-only selection. No v1.6 source, labels, detector code, or detector output were consulted."
+    },
+    {
+      "cohort": "both",
+      "kind": "detector_independent_discovery_contract_locked",
+      "from": "v1.5-collector-contract",
+      "to": "v1.6-regular-file-collector-contract",
+      "reason": "The public discovery contract locks a detector-independent collector that ignores non-regular Git symlinks without traversing them, plus file eligibility rules, recipe patterns, deterministic IDs, explicit zero-hit rows, and output hashes before any v1.6 cohort source access."
+    },
+    {
+      "cohort": "policy",
+      "kind": "policy_relock_before_results",
+      "from": "llm-selection-v1.5",
+      "to": "llm-selection-v1.6",
+      "reason": "Fresh disjoint v1.6 cohorts will be selected from two new context-isolated GitHub metadata-only proposals after excluding the exact reset ledger. Release thresholds and detector rules do not change."
+    }
+  ]
+}

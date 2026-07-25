@@ -1,0 +1,238 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.9",
+  "selection_event_id": "v1.9-pre-result-cycle-reset",
+  "cohort": "untouched",
+  "selected_at": "2026-07-24T22:55:05.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "70d7106bdde7fc54afabc8ae255f69141c2d0684a77445d929072e4d036d3a3c",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "70d7106bdde7fc54afabc8ae255f69141c2d0684a77445d929072e4d036d3a3c",
+  "golden_sibling_candidate_sha256": "4874c3b11ecd871ae314c0fc2ecdead7058c41afb89b3c125e8e56352584261d",
+  "golden_sibling_selection_record_sha256": "2ee2c23af4f22eaadd776a323756bb5947ccf4aaa891ae34661b3c903f9fb696",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "metadata-collector-a",
+      "document_sha256": "bfb693e3e3f69023147ae120454db14751929949ff16d3050dfac09cc0d237b4"
+    },
+    {
+      "reviewer_id": "v19-proposal-b-metadata-reviewer",
+      "document_sha256": "319b79868687990ff4b7022c2bd1b7b5be989e9e08835ce1c5c074e5704d800e"
+    }
+  ],
+  "excluded_repository_count": 903,
+  "excluded_repository_ids_sha256": "bb70d46bc40ba15cd4ed5bfe43fae6665e944020043edb74abaa97ebacbafd47",
+  "classification_conflicts_excluded": [],
+  "selected": [
+    {
+      "repository_id": "PublicAffairs/openai-gemini",
+      "tier": 1,
+      "selection_hash": "12b7ba46562899a90a2d3503c2fa41dc15a56fac27f4e709357f5526129f2510",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "janus21030100076/kudoai-search-assistant",
+      "tier": 1,
+      "selection_hash": "1e3ba63eb7c5dcd8b6a5aaab2df3d7118e4ef0aa249a479be532522402f8842b",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "ItsDalk-Lane/Pi-only",
+      "tier": 1,
+      "selection_hash": "2b40830386d079c58a6722101a6aac2c60a33327ea922063ea43ecec22ca7e41",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "Katsumitec/meeting-to-issue",
+      "tier": 1,
+      "selection_hash": "3c3c4c5cc8d780c4b57a5e97db8a2c4e2001605a786572efad14c44a6a018441",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "0xSojalSec/LLMs-local",
+      "tier": 1,
+      "selection_hash": "503c83950c73ea19d276826db219305a142ea6ecd08a799cf44135d4f50deb41",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "Yuvan278/Yuvan-AI",
+      "tier": 1,
+      "selection_hash": "5adaf9513ddaf385dd01e2f80a7c635f04e1904deab282ab9da65e7182fbec39",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "thu-vu92/local-llms-analyse-finance",
+      "tier": 1,
+      "selection_hash": "5c9f083e4102928d27b5cc467af11ed890e61bef4246f8331c572f5c25413b74",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "luibots/palworld-local-llm-companion",
+      "tier": 1,
+      "selection_hash": "4546d10deab9eeffaba2df91ed873f9be359adf845ee04ddc505a638ac993f1a",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "lizhe2004/Awesome-LLM-RAG-Application",
+      "tier": 1,
+      "selection_hash": "47b87f4cb150223b06b6fe8aeb1ba303f10dd9c72faaed93a63ff88f17e1a39b",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "HorizonBrute/Horizon-Brain-Builder",
+      "tier": 1,
+      "selection_hash": "53fd5cd1e48cd9b132d643f0c77ab86b6120dd877edd62c4d7744b2558a67d14",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "footprintjs/agentfootprint",
+      "tier": 1,
+      "selection_hash": "55875a9595ae7322df487ea29fa876b64d18284ca499b370f055aaa84f90d1e8",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "sfex11/galaxy_tab_public",
+      "tier": 1,
+      "selection_hash": "59cb508bf490a0899996f70163b22d5af16436f8e2227ff875e4cfb88bd62d40",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "x1xhlol/system-prompts-and-models-of-ai-tools",
+      "tier": 1,
+      "selection_hash": "5be302c54ca1eb7eaeebad5ae96650143ed2e17fc82fc22359db01f97ec18ecf",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "Octen-Team/octen-mcp",
+      "tier": 1,
+      "selection_hash": "81534c4a42c1383623ae087893f25aca7b60b7463c444b0327a1f38598b87309",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "Aharshi3614/Devwhisper",
+      "tier": 1,
+      "selection_hash": "8358f118d06e0c3b64c8567e9bad3e99f33dcbe7d8f662b27657427ae01c4546",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "landing-ai/vision-agent",
+      "tier": 1,
+      "selection_hash": "8ebae9d6d9d70dee63fc45cc62b8ed0c4a517fde7ea3fd0cbadc6f47c6257f5d",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "cosmicstack-labs/mercury-agent",
+      "tier": 1,
+      "selection_hash": "922e087b9a734741e4b336f08cbae6bea6b7a4b4d7446c14eabc32924fa3242b",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "RouteWorks/RouterArena",
+      "tier": 1,
+      "selection_hash": "7f367aca973658c5c9eb1693cacf7b00e140c72db4e9412d5cea39fd5c8ce5ce",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "PiotrNawrot/sparse-frontier",
+      "tier": 1,
+      "selection_hash": "8b5eba68170da00f330526085fca1d353c73b79ac467160f20cc79e0ab71943f",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "midat-fx/tech-salary-radar",
+      "tier": 1,
+      "selection_hash": "8fb8351cc1de7a22497363ecf98e6f88ef89e64c930d338f8e62761f51bd3e3b",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    },
+    {
+      "repository_id": "ai4cloudops/SecLLMHolmes",
+      "tier": 1,
+      "selection_hash": "9bfc44cce1973b49e7c97b6ee223fb690882cdda13dc03891f6fc4df849b9601",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "symflower/eval-dev-quality",
+      "tier": 1,
+      "selection_hash": "9c57513b6f7fb51ab5a687bbf09dad403eba28301a4bd002716375d2c06c1154",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "vishwanathakuthota/openvals",
+      "tier": 1,
+      "selection_hash": "a1183f9d7e8259e471186b15edd2c918b0010111a9f955e40207c099370bb5bc",
+      "proposed_by": [
+        "v19-proposal-b-metadata-reviewer"
+      ]
+    },
+    {
+      "repository_id": "METR/hawk",
+      "tier": 1,
+      "selection_hash": "b3d6a8a8afad4a915e697672e5a41fdef0fc8d6f4f3b28bbefa57bdcf5c1ec48",
+      "proposed_by": [
+        "metadata-collector-a"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "1d712401abc358dbb6bd0cb9398204ee378439925a914c1f345a46ea4bef61c1",
+  "record_sha256": "f3922b63780ff8f4c53c6ef64ab321e8e06d6b8bf94bf960596843ba00b85963"
+}

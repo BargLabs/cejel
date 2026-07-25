@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/candidate-ledger.schema.json",
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "methodology_id": "llm-opportunity-discovery-v1.5",
+  "status": "frozen_before_detector_results",
+  "frozen_at": "replace-with-pre-result-UTC",
+  "detector_results_seen_before_freeze": false,
+  "hash_contract": "rfc8785-sha256-v1; ledger excludes only ledger_sha256",
+  "blind_reviewers": ["primary-stable-id", "independent-stable-id"],
+  "auditor_id": "discovery-auditor-stable-id",
+  "bindings": {
+    "golden_manifest_sha256": "replace",
+    "untouched_manifest_sha256": "replace",
+    "anchor_contract_sha256": "replace"
+  },
+  "repository_matrix": [
+    {
+      "cohort": "golden",
+      "repository_id": "owner/repository",
+      "commit_sha": "0000000000000000000000000000000000000000"
+    }
+  ],
+  "eligible_file_inventories": [
+    {
+      "cohort": "golden",
+      "repository_id": "owner/repository",
+      "commit_sha": "0000000000000000000000000000000000000000",
+      "eligible_file_count": 0,
+      "eligible_file_manifest_sha256": "replace",
+      "ceiling_reached": false
+    }
+  ],
+  "raw_hit_rows": [
+    {
+      "cohort": "golden",
+      "repository_id": "owner/repository",
+      "commit_sha": "0000000000000000000000000000000000000000",
+      "rule_id": "LLM-IOH-001",
+      "query_id": "replace-with-locked-query-id",
+      "hit_ids": [],
+      "observed_hit_count": 0,
+      "ceiling_reached": false
+    }
+  ],
+  "raw_hits": [],
+  "candidates": [],
+  "opportunity_bindings": [],
+  "resource_usage": [
+    {
+      "cohort": "golden",
+      "repository_id": "owner/repository",
+      "eligible_files": 0,
+      "raw_hits": 0,
+      "candidates": 0,
+      "ceiling_reached": false
+    }
+  ],
+  "unresolved_candidate_ids": [],
+  "ledger_sha256": "replace-with-rfc8785-sha256-excluding-only-ledger-sha256"
+}

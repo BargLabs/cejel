@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/discovery-audit.schema.json",
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "methodology_id": "llm-opportunity-discovery-v1.5",
+  "status": "complete_before_detector_results",
+  "completed_at": "replace-with-pre-result-UTC",
+  "detector_output_visible": false,
+  "independent_of_rule_author": true,
+  "auditor_id": "discovery-auditor-stable-id",
+  "bindings": {
+    "anchor_contract_sha256": "replace",
+    "candidate_ledger_sha256": "replace"
+  },
+  "reviewed_candidate_ids": [],
+  "auditor_added_candidate_ids": [],
+  "circulation": [],
+  "unresolved_candidate_ids": [],
+  "resource_ceiling_exhausted": false,
+  "record_sha256": "replace-with-rfc8785-sha256-excluding-only-record-sha256"
+}

@@ -8,6 +8,11 @@ import {
   CEJEL_LLM_EVALUATION_RULES,
   detectCejelLlmEvaluationRules,
 } from '../evaluation-rules.js';
+import { supportedJavaScriptModelCallIndices } from '../javascript-integrations.js';
+import {
+  detectPythonMissingDenominator,
+  detectPythonMissingEvaluationProvenance,
+} from '../python-evaluation-rules.js';
 import type { LlmSourceFile } from '../rules.js';
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -221,6 +226,594 @@ describe('Free LLM evaluation and provenance rules', () => {
       ].join('\n'),
     };
 
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a returned TypeScript evaluation collection with model-only provenance', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluate-batch.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        'const openai = new OpenAI();',
+        'async function evaluateBatch(cases: readonly string[]) {',
+        '  const results = [];',
+        '  for (const caseId of cases) {',
+        "    const response = await openai.responses.create({ model: 'gpt-5', input: caseId });",
+        '    results.push({ modelId: response.model, caseId, score: 1, verdict: response.output_text });',
+        '  }',
+        '  return results;',
+        '}',
+      ].join('\n'),
+    };
+
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-PRV-001',
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence.line).toBe(7);
+  });
+
+  it.each([
+    'promptDigest: promptDigest',
+    'configId: evaluationConfigId',
+    'policyHash: policyHash',
+  ])('suppresses the TypeScript collection form when %s is retained', (lineage) => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluate-batch.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        'const openai = new OpenAI();',
+        'async function evaluateBatch(cases: readonly string[]) {',
+        '  const results = [];',
+        "  const response = await openai.responses.create({ model: 'gpt-5', input: cases[0] });",
+        `  results.push({ modelId: response.model, score: 1, ${lineage} });`,
+        '  return results;',
+        '}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [
+      'direct return',
+      [
+        'async def evaluate_response(client, candidate):',
+        '    judged = await client.responses.create(model="gpt-5", input=candidate)',
+        '    return {"model_id": judged.model, "score": 1, "verdict": judged.output_text}',
+      ],
+    ],
+    [
+      'bound return',
+      [
+        'async def score_candidate(model, candidate):',
+        '    judged = await model.ainvoke(candidate)',
+        '    record = {"model_id": judged.model, "score": 1, "status": "complete"}',
+        '    return record',
+      ],
+    ],
+    [
+      'collection store',
+      [
+        'async def benchmark_cases(model, cases, results):',
+        '    judged = await model.ainvoke(cases[0])',
+        '    results.append({"model_id": judged.model, "score": 1, "result": judged.content})',
+        '    return results',
+      ],
+    ],
+    [
+      'structured log',
+      [
+        'async def grade_output(judge, candidate, logger):',
+        '    judged = await judge.ainvoke(candidate)',
+        '    logger.info("evaluation", extra={"model_id": judged.model, "score": 1, "verdict": judged.content})',
+      ],
+    ],
+  ] as const)('detects bounded Python provenance in the %s form', (_name, lines) => {
+    const findings = detectCejelLlmEvaluationRules([{
+      path: 'src/evaluator.py',
+      contents: lines.join('\n'),
+    }]).filter((finding) => finding.ruleId === 'LLM-PRV-001');
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.confidence).toBe('high');
+  });
+
+  it.each([
+    ['prompt digest', '"promptDigest": prompt_digest'],
+    ['configuration ID', '"config_id": config_id'],
+    ['policy hash', '"policy_hash": policy_hash'],
+  ])('suppresses Python provenance when immutable %s is retained', (_name, lineage) => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluator.py',
+      contents: [
+        'async def evaluate_response(client, candidate):',
+        '    judged = await client.responses.create(model="gpt-5", input=candidate)',
+        `    return {"model_id": judged.model, "score": 1, ${lineage}}`,
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not connect a Python model call to a non-evaluator result scope', () => {
+    const source: LlmSourceFile = {
+      path: 'src/service.py',
+      contents: [
+        'async def generate_reply(client, candidate):',
+        '    response = await client.responses.create(model="gpt-5", input=candidate)',
+        '    return {"model_id": response.model, "score": 1, "result": response.output_text}',
+      ].join('\n'),
+    };
+    expect(detectCejelLlmEvaluationRules([source])).toEqual([]);
+  });
+
+  it('uses the owning Python evaluator class as bounded context for a generic method name', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluator.py',
+      contents: [
+        'class EvaluationRunner:',
+        '    async def run(self, client, candidate):',
+        '        judged = await client.responses.create(model="gpt-5", input=candidate)',
+        '        return {"model_id": judged.model, "score": 1, "verdict": judged.output_text}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('does not borrow a nested Python helper invocation for an outer result', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluator.py',
+      contents: [
+        'async def evaluate_response(client, candidate):',
+        '    async def unrelated_helper():',
+        '        return await client.responses.create(model="gpt-5", input=candidate)',
+        '    return {"model_id": "gpt-5", "score": 1, "verdict": "pending"}',
+      ].join('\n'),
+    };
+    expect(detectCejelLlmEvaluationRules([source])).toEqual([]);
+  });
+
+  it('does not treat a deterministic Python metric call as a model or judge invocation', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluator.py',
+      contents: [
+        'def score_candidate(rouge, candidate):',
+        '    score = rouge.score(candidate)',
+        '    return {"model_id": "candidate-v1", "score": score, "verdict": "measured"}',
+      ].join('\n'),
+    };
+    expect(detectCejelLlmEvaluationRules([source])).toEqual([]);
+  });
+
+  it('does not treat a deterministic similarity-model prediction as a generative judge', () => {
+    const source: LlmSourceFile = {
+      path: 'src/similarity_evaluator.py',
+      contents: [
+        'class SimilarityEvaluator:',
+        '    def run(self, pairs):',
+        '        scores = self._similarity_model.predict(pairs)',
+        '        return {"score": mean(scores), "individual_scores": scores}',
+      ].join('\n'),
+    };
+    const provenanceRule = CEJEL_LLM_EVALUATION_RULES.find(
+      (rule) => rule.id === 'LLM-PRV-001',
+    );
+    expect(provenanceRule?.applies([source])).toBe(false);
+    expect(provenanceRule?.detect([source])).toEqual([]);
+  });
+
+  it('detects a typed LangChain evaluator collection that returns raw structured responses', () => {
+    const source: LlmSourceFile = {
+      path: 'src/llm-evaluation-runner.ts',
+      contents: [
+        "import { RunnableSequence } from '@langchain/core/runnables';",
+        "import { PromptTemplate } from '@langchain/core/prompts';",
+        'export class EvaluationRunner {',
+        '  async runEvaluators(modelWithStructuredOutput: unknown) {',
+        '    const evaluationResults: unknown[] = [];',
+        '    const executor = RunnableSequence.from([',
+        "      PromptTemplate.fromTemplate('score {answer}'),",
+        '      modelWithStructuredOutput,',
+        '    ]);',
+        '    const response = await executor.invoke({ answer: candidate });',
+        '    evaluationResults.push(response);',
+        '    return evaluationResults;',
+        '  }',
+        '}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-PRV-001',
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence.line).toBe(10);
+
+    const withConfig = source.contents.replace(
+      'evaluationResults.push(response);',
+      'evaluationResults.push(response);\n    evaluationResults.configId = evaluationConfigId;',
+    );
+    expect(
+      detectCejelLlmEvaluationRules([{ ...source, contents: withConfig }]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a Python chat-generator evaluation return carrying results and provider metadata', () => {
+    const source: LlmSourceFile = {
+      path: 'src/llm_evaluator.py',
+      contents: [
+        'class LLMEvaluator:',
+        '    def run(self, **inputs):',
+        '        result = self._chat_generator.run(messages=inputs["messages"])',
+        '        results = [parse_reply(result)]',
+        '        metadata = [result["replies"][0].meta]',
+        '        return {"results": results, "meta": metadata}',
+      ].join('\n'),
+    };
+    const provenanceRule = CEJEL_LLM_EVALUATION_RULES.find(
+      (rule) => rule.id === 'LLM-PRV-001',
+    );
+    expect(provenanceRule?.applies([source])).toBe(true);
+    expect(provenanceRule?.detect([source])).toHaveLength(1);
+  });
+
+  it('detects a multiline Python evaluator that mutates and returns a structured result', () => {
+    const source: LlmSourceFile = {
+      path: 'src/agent_evaluator.py',
+      contents: [
+        'class AgentEvaluator:',
+        '    def evaluate(',
+        '        self,',
+        '        agent,',
+        '        trace,',
+        '    ) -> AgentEvaluationResult:',
+        '        result = AgentEvaluationResult(agent_id=agent.id)',
+        '        score = self.evaluator.evaluate(agent=agent, trace=trace)',
+        '        result.metrics["quality"] = score',
+        '        return result',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-PRV-001',
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence.line).toBe(9);
+  });
+
+  it.each([
+    [
+      'accuracy result',
+      [
+        'class AccuracyEval:',
+        '    def run(self, evaluator_agent):',
+        '        result = self.evaluate_answer(evaluator_agent=evaluator_agent)',
+        '        self.result.results.append(result)',
+        '        store_result_in_file(result=self.result)',
+        '        return self.result',
+      ],
+      5,
+    ],
+    [
+      'agent-as-judge result',
+      [
+        'class AgentAsJudge:',
+        '    def run(self, evaluator):',
+        '        result = AgentAsJudgeResult(run_id="run")',
+        '        evaluation = self._evaluate(evaluator_agent=evaluator)',
+        '        result.results.append(evaluation)',
+        '        store_result_in_file(result=result)',
+        '        return result',
+      ],
+      6,
+    ],
+  ] as const)('detects a persisted Python %s at the observable sink', (_name, lines, line) => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation.py',
+      contents: lines.join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-PRV-001',
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence.line).toBe(line);
+
+    const withPolicy = source.contents.replace(
+      'store_result_in_file(',
+      'store_result_in_file(policy_hash=policy_hash, ',
+    );
+    expect(
+      detectCejelLlmEvaluationRules([{ ...source, contents: withPolicy }]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a Python evaluation aggregate emitted without its eligible-case denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = []',
+        '    for case in cases:',
+        '        verdict = judge.evaluate(case)',
+        '        if verdict is not None:',
+        '            scores.append(verdict.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"model_id": "judge-v1", "average_score": average_score}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.confidence).toBe('high');
+  });
+
+  it('suppresses the Python denominator finding when the eligible count is retained', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = []',
+        '    for case in cases:',
+        '        verdict = judge.evaluate(case)',
+        '        if verdict is not None:',
+        '            scores.append(verdict.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"average_score": average_score, "eligible_count": len(scores)}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not flag a Python aggregate with no preceding model or judge invocation', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def summarize_scores(scores):',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"average_score": average_score}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a Python statistics.mean aggregate emitted without its eligible-case denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'import statistics',
+        '',
+        'def run_benchmark(judge, cases):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    mean_score = statistics.mean(scores)',
+        '    return {"mean_score": mean_score}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it('detects a Python per-metric aggregate dict built via subscript assignment', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, metrics, examples):',
+        '        results = []',
+        '        for example in examples:',
+        '            results.append(judge.evaluate(example))',
+        '        aggregate_scores = {}',
+        '        for metric in metrics:',
+        '            scores = [r.metrics.get(metric, 0) for r in results if metric in r.metrics]',
+        '            if scores:',
+        '                aggregate_scores[metric] = sum(scores) / len(scores)',
+        '            else:',
+        '                aggregate_scores[metric] = 0.0',
+        '        benchmark_result = BenchmarkResult(aggregate_scores=aggregate_scores)',
+        '        return benchmark_result',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it('recognizes a domain-named manager component (metrics_manager.evaluate) as a judge invocation', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkManager:',
+        '    def run_benchmark(self, examples, metrics):',
+        '        scores = []',
+        '        for example in examples:',
+        '            result = self.metrics_manager.evaluate(example)',
+        '            scores.append(result.score)',
+        '        average_score = sum(scores) / len(scores)',
+        '        return {"average_score": average_score}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it('does not treat a generic metrics/telemetry component as a judge invocation', () => {
+    // Regression test: a bare "metrics" keyword previously matched any <x>metrics<y> component
+    // paired with a common method name, causing false positives on non-judge telemetry objects.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class ScoreEvaluator:',
+        '    def run_benchmark(self, cases):',
+        '        outputs = []',
+        '        for case in cases:',
+        '            outputs.append(case.value)',
+        '            self.summary_metrics.run(case)',
+        '        return {"scores": outputs, "model_id": "gpt-x"}',
+      ].join('\n'),
+    };
+    expect(detectCejelLlmEvaluationRules([source])).toEqual([]);
+  });
+
+  it('does not treat a mid-word substring as an aggregate name', () => {
+    // Regression test: PYTHON_AGGREGATE_NAME_PATTERN previously matched "rate"/"mean"/etc. as an
+    // unanchored substring, so e.g. "moderate_count" (containing "rate" inside "moderate") could
+    // wrongly qualify as an aggregate name.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases, flags):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    moderate_count = sum(flags) / len(flags)',
+        '    return {"moderate_count": moderate_count}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('suppresses a denominator finding when every other emitted key is an outcome count', () => {
+    // Regression test: the "all outcome counts" suppression branch was unreachable dead code
+    // (the aggregate's own key was always counted against itself). Fixed to exclude the
+    // aggregate's own key(s) before checking whether everything else is just an outcome count.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = []',
+        '    errors = 0',
+        '    for case in cases:',
+        '        verdict = judge.evaluate(case)',
+        '        if verdict is None:',
+        '            errors += 1',
+        '        else:',
+        '            scores.append(verdict.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"average_score": average_score, "errors": errors}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('scans a long non-matching underscore-delimited identifier chain in linear time', () => {
+    // Regression test for a quadratic-time backtracking bug in the widened
+    // PYTHON_MODEL_OR_JUDGE_CALL_PATTERN: a long run of "word_" segments that never resolves to a
+    // recognized `.method(` call previously took seconds to scan; must stay well under a second.
+    // Exercises the two Python detectors directly (not detectCejelLlmEvaluationRules) so this stays
+    // a targeted guard on the pattern that was actually fixed, rather than on the full rule
+    // pipeline, which also runs unrelated JS-side detectors against every file regardless of
+    // extension and can be slow for its own, separate reasons.
+    const longIdentifier = 'a_model_b_'.repeat(8000);
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge):',
+        `    ${longIdentifier}end = 1`,
+        '    return {}',
+      ].join('\n'),
+    };
+    const start = performance.now();
+    detectPythonMissingEvaluationProvenance(source);
+    detectPythonMissingDenominator(source);
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it('scans a long non-matching identifier chain through the JS-side call/scope detectors in linear time', () => {
+    // Regression test for a second, pre-existing quadratic-time backtracking bug found while
+    // diagnosing the one above: supportedJavaScriptModelCallIndices (and the arrow/function-scope
+    // patterns it relies on via functionScopes) each had an unbounded [A-Za-z_$][\w$]* continuation
+    // followed by a check that usually fails on this input, causing the same per-start-offset
+    // backtracking blowup. It matters here specifically because completeLocalSource/
+    // hasSupportedEvaluationImport gate on file *path* shape, not extension, so this JS-side
+    // scanning runs against every file -- including .py files -- regardless of language.
+    const longIdentifier = 'a_model_b_'.repeat(8000);
+    const contents = [
+      'def run_benchmark(judge):',
+      `    ${longIdentifier}end = 1`,
+      '    return {}',
+    ].join('\n');
+    const start = performance.now();
+    supportedJavaScriptModelCallIndices(contents);
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it('still treats retained raw per-example results as a sufficient denominator substitute even for a subscript-built aggregate dict', () => {
+    // Documents an intentional negative boundary: BenchmarkResult here retains the full raw
+    // `results` list alongside `aggregate_scores`, so per the rule's own "denominator or raw
+    // case-level results" contract this does not fire -- even though each individual metric's
+    // eligible count is technically a filtered subset of `results`. Widening this further would
+    // require tracing the per-metric filter, which is out of scope for this detector.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkManager:',
+        '    def run_benchmark(self, examples, metrics):',
+        '        results = []',
+        '        for example in examples:',
+        '            results.append(self.metrics_manager.evaluate(example))',
+        '        aggregate_scores = {}',
+        '        for metric in metrics:',
+        '            scores = [r.metrics.get(metric, 0) for r in results if metric in r.metrics]',
+        '            if scores:',
+        '                aggregate_scores[metric] = sum(scores) / len(scores)',
+        '        return BenchmarkResult(results=results, aggregate_scores=aggregate_scores)',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not flag a Python statistics.mean aggregate with a retained denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'import statistics',
+        '',
+        'def run_benchmark(judge, cases):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    mean_score = statistics.mean(scores)',
+        '    return {"mean_score": mean_score, "total_cases": len(scores)}',
+      ].join('\n'),
+    };
     expect(
       detectCejelLlmEvaluationRules([source]).filter(
         (finding) => finding.ruleId === 'LLM-EVL-001',

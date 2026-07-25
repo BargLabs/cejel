@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "llm-selection-v1.5",
+  "status": "locked_before_metadata_selection",
+  "locked_at": "2026-07-24T01:18:39.000Z",
+  "supersedes_policy_id": "llm-selection-v1.4",
+  "relock_reason": "The v1.4 golden cycle was used only for detector development and the v1.4 untouched cohort remains withdrawn, unexecuted, and unspent. Version 1.5 begins a new evidence cycle: it binds the complete historical exclusion union, a public detector-independent discovery contract, and fresh metadata-only cohort selection before any new cohort source access or detector output.",
+  "detector_results_seen": false,
+  "source_accessed": false,
+  "pre_result_bindings": {
+    "cycle_reset_path": "calibration/llm/results/v1.5-cycle-reset.json",
+    "cycle_reset_byte_sha256": "5afd5c53b4eb7e59df1271bc7f0af9b93e49c21afc59063f9b13b0b878b6cd74",
+    "discovery_anchor_contract_path": "calibration/llm/discovery-anchor-contract-v1.5.json",
+    "discovery_anchor_contract_byte_sha256": "9712fb937b19254bbf6621d52d92c5e50436c94ecc3deddfd5343a3694a227a4"
+  },
+  "target_size_per_cohort": 24,
+  "allowed_hosts": ["github.com"],
+  "eligibility": [
+    "publicly cloneable repository at freeze time",
+    "full immutable Git commit can be resolved",
+    "contains an observable LLM application, agent, RAG, evaluation, gateway, or orchestration surface",
+    "primary implementation is TypeScript/JavaScript or Python, or exposes those integrations",
+    "not a fork or near-duplicate of another selected repository",
+    "inspection is permitted by published repository terms",
+    "can be scanned within 4 GiB checkout size and 30 minute wall-clock ceiling"
+  ],
+  "exclusion": [
+    "documentation-only repository with no runnable integration surface",
+    "model weights or dataset repository without application code",
+    "archived repository with no uniquely needed coverage stratum",
+    "repository present in the exact historical exclusion ledger",
+    "repository selected for another current cohort",
+    "repository chosen or replaced because of observed detector performance"
+  ],
+  "strata": {
+    "language": ["typescript_javascript", "python", "mixed"],
+    "surface": ["chat_app", "rag", "agent_tools", "local_model", "gateway", "evaluation_or_framework"],
+    "provider": ["openai", "anthropic", "multi_provider", "local_or_open_model"]
+  },
+  "assignment": "Two context-isolated metadata-only searches will propose candidates before source access or detector output. The deterministic constraint selector will produce fresh, mutually disjoint 24-repository golden and untouched cohorts after excluding the exact historical ledger. Assignment is not random and any results must not be generalized to all LLM applications.",
+  "replacement_rule": "Use the first eligible reserve candidate with the same primary surface stratum; record the failed eligibility clause and never consult detector output.",
+  "reserve_extension_rule": "If every preregistered reserve for a required surface is consumed or ineligible, append and record the first metadata-eligible same-surface reserve, then re-lock and independently review the complete policy and cohorts before any detector execution.",
+  "blinding_incident_rule": "If untouched source opportunities or labels reach a rule author before the detector artifact is formally frozen, retire the entire affected cohort from release measurement. Preserve immutable artifacts, disclose the incident, select a completely disjoint replacement from two independent metadata-only searches, bind the exact exclusion set and deterministic selector, and independently review and re-freeze both current manifests before any detector execution.",
+  "replacement_selection_rule": "Select exactly gateway=1, chat_app=3, local_model=3, rag=4, agent_tools=6, evaluation_or_framework=7 while requiring Anthropic, OpenAI, and local/open-model provider coverage plus at least four TypeScript/JavaScript and eight Python repositories. Use deterministic dynamic constraint selection, ranking exact dual-proposal agreement before single-proposal candidates and then SHA-256 of policy_id|surface|lowercase_repository. Exclude classification conflicts rather than resolving them after selection. Golden must exclude the exact historical ledger; untouched must additionally bind and exclude the exact golden candidate and selection record. The selected cohort source must not be read before the policy, candidate documents, selection records, and immutable manifests are public and reviewed."
+}

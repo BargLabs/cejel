@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.5",
+  "selection_event_id": "v1.5-pre-result-cycle-reset",
+  "cohort": "golden",
+  "selected_at": "2026-07-24T01:24:42.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "5afd5c53b4eb7e59df1271bc7f0af9b93e49c21afc59063f9b13b0b878b6cd74",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "5afd5c53b4eb7e59df1271bc7f0af9b93e49c21afc59063f9b13b0b878b6cd74",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "v15-metadata-a",
+      "document_sha256": "7379a3b62e31c41b95124bde3e9827f2aa0952db8db58fc911806ef1a3fb690e"
+    },
+    {
+      "reviewer_id": "v15-metadata-b",
+      "document_sha256": "393849384b5a9e07f691e74a88358afbe8f383682c265cb8ec26bfb78d89e6cc"
+    }
+  ],
+  "excluded_repository_count": 386,
+  "excluded_repository_ids_sha256": "63110f7e4cedb61a8a586a71abc850ac64e3806e21230a2e2f81353891f5a7a9",
+  "classification_conflicts_excluded": [
+    "aingdesk/aingdesk"
+  ],
+  "selected": [
+    {
+      "repository_id": "elliot35/deterministic-agent-control-protocol",
+      "tier": 1,
+      "selection_hash": "448c097fad9851d534b96db20e6a634007a4d7497623ff3adf52871417b296d0",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "2noise/ChatTTS",
+      "tier": 1,
+      "selection_hash": "00fe9c1a60b8f942e8147022b92b4f5a849e2757e481ff87f055a6fa6e418deb",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "crmne/ruby_llm",
+      "tier": 1,
+      "selection_hash": "16ab2de8431a016e167ef3352ad9ce5dee39434d5ef0c912af7d1b5aa8d304f1",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "aallam/openai-kotlin",
+      "tier": 1,
+      "selection_hash": "38d88b7ee558afbfe77244d26effa1109dc3bb25880c8587a7439bc8fa2d9434",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "vllm-project/vllm",
+      "tier": 1,
+      "selection_hash": "0a1b773e918e0bca0268b8b4f3fef30b73d279a59916a0b7e1958ce6224c0e2b",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "janhq/jan",
+      "tier": 1,
+      "selection_hash": "0b9b2cd9d225c7389d8d92e6af6b0149ddab854ce2551895ea39c9dd5dc46952",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "djcopley/ShellOracle",
+      "tier": 1,
+      "selection_hash": "1e48f84d316e4660c7041d352800e26a981dd2e07325ee9ef554a7056d68a53a",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "ashishps1/learn-ai-engineering",
+      "tier": 1,
+      "selection_hash": "095658be2891f8fd753e4694610435626594ef3dcf41f98521e4fe14b93d4a99",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "google/langextract",
+      "tier": 1,
+      "selection_hash": "30e7dce6212d9bfc54f966ffd5c9bf650a5595e6a1932c6faed8b0bd21563d1f",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "airweave-ai/airweave",
+      "tier": 1,
+      "selection_hash": "32259707cdad54bebc8ba7f2b27e384706c20d273a80be21a2532d0293a6833a",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "cactus-compute/cactus",
+      "tier": 1,
+      "selection_hash": "3d843cf73675ef7ee219a0e86ee363ed0edfacc3825c410288ebe54773cfed86",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "CopilotKit/CopilotKit",
+      "tier": 0,
+      "selection_hash": "487afc7dd3678928244aef4f1cc9d8b80aa9df267ed085122d39170d73c3b6ba",
+      "proposed_by": [
+        "v15-metadata-a",
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "PySpur-Dev/pyspur",
+      "tier": 1,
+      "selection_hash": "008197e1b3d5e68fdd865cec7ef7d31b00d82b2ac1c9bbf39c8b8ac65eca317c",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "e2b-dev/E2B",
+      "tier": 1,
+      "selection_hash": "03b103f1764348bb6b63361f529a9ac17f9ec77718223c4ec3c0dbcc702c6a99",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "bytedance/trae-agent",
+      "tier": 1,
+      "selection_hash": "166040a21eee400c9f9024c179eede85ad6e2d60d8099b7144082cc755812a5d",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "datawhalechina/easy-vibe",
+      "tier": 1,
+      "selection_hash": "186cdb6bc6b853e6de4edc74bf16cf0a1840e794f1f147cea4038d3347cf360e",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "genkit-ai/genkit",
+      "tier": 1,
+      "selection_hash": "25791cd881293d74cca55d1b08e5f93b08e2884c85f65aeac17eb1a1c510154c",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "JudgmentLabs/judgeval",
+      "tier": 1,
+      "selection_hash": "03cf3b9cf47362aac28e89e66e2e0fc6d0e7dadb4d5c32a5707c1f7167d915c1",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "bridge-mind/bridgebench",
+      "tier": 1,
+      "selection_hash": "03e99e28770a7118b113c77946d8d376d7e15d4d27f7e87baabd4e0cbb61cd9d",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "parea-ai/parea-sdk-py",
+      "tier": 1,
+      "selection_hash": "14937acb5f3909eb334f52f0240ab5e3d5a23e39010a1929c276f3879c68a797",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "cvs-health/langfair",
+      "tier": 1,
+      "selection_hash": "196664b9ac22a9d769fb1748b12e69ab4dac9198a9ba5be54d2ac073c9a6cf56",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "crimeacs/auto-improve",
+      "tier": 1,
+      "selection_hash": "1db3c99032bb31440fbef5cacfaf2ce3bbf151c0e8987a06f3cecb8ee9817146",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "dustalov/evalica",
+      "tier": 1,
+      "selection_hash": "330d52baa7ad6d8463f0d8454a4ad6b2fb95f3bc3d40bc4bc9a51687d6477e69",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "vero-labs-ai/vero-eval",
+      "tier": 1,
+      "selection_hash": "367a7889ad93fb4baf3804793f57075c7a2be8bf3e811c3571d3514b9bc121b1",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "294de75b46682c7ca34ab4bdfbedcae5fe5b01139e49d9c28f1f79185de07d20",
+  "record_sha256": "7164797848e169a2a70fbd8fef0de606207e461959f43a24eb1f2936ddc5f94c"
+}

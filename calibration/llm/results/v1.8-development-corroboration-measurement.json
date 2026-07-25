@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.8",
+  "record_type": "development_only_corroboration_measurement",
+  "source_record_sha256": "d63f50882b4281a9e3c43dd7e89ca2820d7f3fad3e8583c78413d15cccbb26a9",
+  "detector_executed": false,
+  "untouched_source_accessed": false,
+  "raw_hit_count": 329191,
+  "unique_rule_path_line_loci": 290350,
+  "loci_with_at_least_two_distinct_query_recipes": 35717,
+  "loci_with_at_least_three_distinct_query_recipes": 2843,
+  "interpretation": "This is development-only evidence. A future collector may use a deterministic corroboration threshold only when it is locked before fresh source access and retains every supporting raw-hit identifier for each included locus.",
+  "public_claim_boundary": "This record makes no detector-quality, precision, recall, calibration, or release claim."
+}

@@ -1,0 +1,238 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.8",
+  "selection_event_id": "v1.8-pre-result-cycle-reset",
+  "cohort": "untouched",
+  "selected_at": "2026-07-24T03:25:54.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "d24c73f5f78dc97037b5d5b81041c73c50def475b32b7581b62655929d170413",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "d24c73f5f78dc97037b5d5b81041c73c50def475b32b7581b62655929d170413",
+  "golden_sibling_candidate_sha256": "b0bc26f358e292b9e40f8db99f7758558ecbc78ffc253d979e5a59044789532e",
+  "golden_sibling_selection_record_sha256": "d9b8f675edcc1b7fbccff62b5306100ee04358e0e65dd964daed8e727f7d2e01",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "codex-v18-proposal-a-metadata-review",
+      "document_sha256": "c7317629555bcb74b8bb6c9b1d89ac409242429e0fd5b23d3a28ca9c52f94364"
+    },
+    {
+      "reviewer_id": "v18-independent-metadata-review-b",
+      "document_sha256": "817d95cc29f125ba136c0c75a35320c44fb1eab0e361bef9d07f7545c37f2131"
+    }
+  ],
+  "excluded_repository_count": 747,
+  "excluded_repository_ids_sha256": "3321a1022e26edfd60b9e4e7e4768941bd38ef1211d320b4a0392a90ee0e4f74",
+  "classification_conflicts_excluded": [],
+  "selected": [
+    {
+      "repository_id": "hristo2612/jinn",
+      "tier": 1,
+      "selection_hash": "0416a611d501772a90ff68bf9fd420ffcf74687e8687ed54ff8d0b71237534cf",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "DarkNoah/aime-chat",
+      "tier": 1,
+      "selection_hash": "32907dc3124cbdc94a9adf13b5907866af154b5862aea1fd2fbf4c901842ab07",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "virattt/chat_app",
+      "tier": 1,
+      "selection_hash": "39add9e5ea6bca2bf966ed158b5cd0c847c5d41818103362d937c22bb11bb46c",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "run-llama/chat-ui",
+      "tier": 1,
+      "selection_hash": "6ab9aa7de5afb76ce2f961378348186d39fb7edcb9fc3a4e2f47f8aab5118f5a",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "sgInnora/sentinel-reverse",
+      "tier": 1,
+      "selection_hash": "4ebfa4c810180ddeb32d144eb8492d4fae7c4fa968a0b94cde97a28d6ebf4c22",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "itsnamgyu/block-transformer",
+      "tier": 1,
+      "selection_hash": "5425f43467a3a31def3b5d285d5459902b6d6669ff2af6f7b7c9e9571f291791",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "Anil-matcha/awesome-openclaw",
+      "tier": 1,
+      "selection_hash": "5b22b32625fc01ed1345bee29d6ec3929a83db3a7995c428979e322fda782ad9",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "Azure-Samples/azure-search-openai-demo-csharp",
+      "tier": 1,
+      "selection_hash": "3289c91468683ea4a333176271e7b8a1de07d231f1b1e0688cab6ef0a17360eb",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "ConardLi/garden-skills",
+      "tier": 1,
+      "selection_hash": "39cc0d28d427537f5901d91054ec07ca63107d535803940090c4e8964c0bcd57",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "DataScienceUIBK/Rankify",
+      "tier": 1,
+      "selection_hash": "3ec40a50597457b089abcafbed8ebd0280f0ee1d39bf01d74713b1d109319869",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "NirDiamant/RAG_Techniques",
+      "tier": 1,
+      "selection_hash": "548280a23747b7f9db114cca47e82a150baffedafdecd864a2751b2769dbb362",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "shure-dev/Awesome-LLM-Papers-Comprehensive-Topics",
+      "tier": 1,
+      "selection_hash": "2cb18bcdde0d5c482ff0d359ca507169885b53115e3167fd3583d10de3f26308",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "shenmintao/marginalia",
+      "tier": 1,
+      "selection_hash": "3271ecccaff1bfd1aa8019def441f3da9e6c259d9a98afeccacae04b5db9088b",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "antoinezambelli/forge",
+      "tier": 1,
+      "selection_hash": "366b5173d1c18c08241f288dfd12ee460cdabdfd544e7fd9d46d41b682d86e99",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "e2b-dev/awesome-ai-agents",
+      "tier": 1,
+      "selection_hash": "4c024f882883abf9ce8c4bf34648179610152c9d6e950c52a8d3c34a81f78056",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "eracle/OpenOutreach",
+      "tier": 1,
+      "selection_hash": "5335b1ffcb986ff4392462d86083e8b220516124ad85db73d61cf99819f5927b",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "0xSteph/pentest-ai-agents",
+      "tier": 1,
+      "selection_hash": "5c6fba90c06eb0bf4affd4a9ce9b81cba1d13914555f71cd2984dabaa51c3e2a",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "ayulockin/llm-eval-sweep",
+      "tier": 1,
+      "selection_hash": "1d7c6ce8b96e1760c785ab77347818a5557cca0b850155ed32a64fdd14a1368e",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "azminewasi/Awesome-LLMs-ICLR-24",
+      "tier": 1,
+      "selection_hash": "2cd19e2176d12a3c8cb84c1915cdbe68529de38efba3e07544efae8759017eff",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "aiverify-foundation/LLM-Evals-Catalogue",
+      "tier": 1,
+      "selection_hash": "342a01f593c568d90904e107a95efc1c27f4808a136500e004c6d4d96e3a3698",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "ahammadmejbah/Awesome-Datasets-Hub",
+      "tier": 1,
+      "selection_hash": "35c1d498fe0cfce7efbac3be076346fe579ab8c36542ce15604470760675bd1e",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "alibaba-damo-academy/MedEvalKit",
+      "tier": 1,
+      "selection_hash": "4d3988a5916d12011fa4b871764a93f44c8d4685b7aa67a7598bcbf89ce7836c",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "awslabs/llm-evaluation-system",
+      "tier": 1,
+      "selection_hash": "5eeedfb2b820e5839f455aef4ae165850714ea396c2053d8d31c6fcf111f6377",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "rungalileo/hallucination-index",
+      "tier": 1,
+      "selection_hash": "69c311fd982661c75c4e234de25aff2efcb712caa3282f71b445f11ae0cca1e9",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "994f3fd052d7a7e898946c1e636709cbdcbc5333d90ca2e315d769dc76e9b472",
+  "record_sha256": "ba72c46bf95b25311c741a06f68f938c0ed53217d48e6d04493e2d35e1f4f271"
+}

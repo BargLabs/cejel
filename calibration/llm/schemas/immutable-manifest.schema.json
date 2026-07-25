@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "protocol_id": {"const": "cejel-llm-calibration-v1"},
-    "policy_id": {"const": "llm-selection-v1.2"},
+    "policy_id": {"type": "string", "pattern": "^llm-selection-v1\\.(?:[2-9]|[1-9][0-9]+)$"},
     "cohort": {"enum": ["golden", "untouched"]},
     "status": {"const": "frozen"},
     "frozen_at": {"type": "string", "format": "date-time"},

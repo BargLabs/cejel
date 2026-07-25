@@ -1,0 +1,240 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.5",
+  "selection_event_id": "v1.5-pre-result-cycle-reset",
+  "cohort": "untouched",
+  "selected_at": "2026-07-24T01:24:55.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "5afd5c53b4eb7e59df1271bc7f0af9b93e49c21afc59063f9b13b0b878b6cd74",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "5afd5c53b4eb7e59df1271bc7f0af9b93e49c21afc59063f9b13b0b878b6cd74",
+  "golden_sibling_candidate_sha256": "27e279ffa18fef3bbb7e4b3552dafef96478875bf4b2c665db8b3cf972f100f7",
+  "golden_sibling_selection_record_sha256": "3f7cad36f429c9bf6934334840bb566f37ce9b9c715c8b00c65c11ae274e16d1",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "v15-metadata-a",
+      "document_sha256": "7379a3b62e31c41b95124bde3e9827f2aa0952db8db58fc911806ef1a3fb690e"
+    },
+    {
+      "reviewer_id": "v15-metadata-b",
+      "document_sha256": "393849384b5a9e07f691e74a88358afbe8f383682c265cb8ec26bfb78d89e6cc"
+    }
+  ],
+  "excluded_repository_count": 410,
+  "excluded_repository_ids_sha256": "d31c9edb67d944ba447e9c18a8404d43d9f1a4bb347c2597b443d084ab4cc2e4",
+  "classification_conflicts_excluded": [
+    "aingdesk/aingdesk"
+  ],
+  "selected": [
+    {
+      "repository_id": "djtelicloud/grok-mcp-server",
+      "tier": 1,
+      "selection_hash": "5b4652c18a995ee5032772f43a07b8692f8e58760a2d03577bcaa714a04fd03e",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "decolua/9router",
+      "tier": 1,
+      "selection_hash": "525699a056205931c2d7c98f745aac3f3995cefae75d67de0527648eda711af2",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "DSXiangLi/DecryptPrompt",
+      "tier": 1,
+      "selection_hash": "705f10cd675112e06ae434e0d1a39395d870cfd0af00a5ce624b9afabfe50e40",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Open-LLM-VTuber/Open-LLM-VTuber",
+      "tier": 1,
+      "selection_hash": "aaba02a395c145f89bf2fc6d281a9608b3b469923d22c6d5bbec50577a492f2b",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "ariya/ask-llm",
+      "tier": 1,
+      "selection_hash": "2ad06cd842c1a14eced77532d16eeafa4e7de4eb0f95483371bb324c7b8dbeb3",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "cognitivetech/ollama-ebook-summary",
+      "tier": 1,
+      "selection_hash": "384775f7092cb6bac3d23b5d74c5a37df330ca0fb55f624957385aed396a3ec4",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Abhi5h3k/PrivateDocBot",
+      "tier": 1,
+      "selection_hash": "4425fffe9d27b6c17482d256ae9ba8235bc838d16ca8535ad8bedcaa35b5cee2",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "neuml/txtai",
+      "tier": 1,
+      "selection_hash": "4d951e9ea4a47488d4ee985b7d13f2a49a3c38c1f4580c55298533e73510a58a",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "activeloopai/deeplake",
+      "tier": 1,
+      "selection_hash": "5ab619bc790aeb49684dc3ba23bd126fc7882663d9a833dddcd08b13a641229c",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Vbj1808/Dokis",
+      "tier": 1,
+      "selection_hash": "70c69f161f11cd049350b614799a804ec99fc4eb7a1a66683532b7a22087ac98",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "adongwanai/AgentGuide",
+      "tier": 1,
+      "selection_hash": "720bdc8123f65293342832a02b5dd6ef57a69ce2cbede847a44b11c8df7276fa",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "Alibaba-NLP/DeepResearch",
+      "tier": 1,
+      "selection_hash": "2cd3256886e95b3c2a7c514a15d400c1cdc5170d80b39c8d2fa93f826bd3aca6",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "algorithmicsuperintelligence/optillm",
+      "tier": 1,
+      "selection_hash": "2db1279d2c93cf3e37ac284e8f62f2628fe603de431e1e924478b9d5a1ece9c7",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "TanStack/ai",
+      "tier": 1,
+      "selection_hash": "55349a9c6b82a7e87069daff022f6ff649c38bdd463f91da86d6540f65d3d73b",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "areal-project/AReaL",
+      "tier": 1,
+      "selection_hash": "55a4a2b152468759f4992402af0474178aa8c8f51f46e2355111ae4237829f34",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "dataelement/Clawith",
+      "tier": 1,
+      "selection_hash": "5cbbfabc6e86c9666976d5eaf26752427828567326ab5083fdade55209e063d7",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "FoundationAgents/MetaGPT",
+      "tier": 1,
+      "selection_hash": "6274a35a68d15b8d79f09f16004ed7c800c17444cfba8cfbefafa6626f2dfd4a",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "arthur-ai/arthur-engine",
+      "tier": 1,
+      "selection_hash": "3ce43e045eade512a60f0dce61b4369c37e8ba64401baa54902913f3c3ab0ea2",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "fabian-lu/Cafe",
+      "tier": 1,
+      "selection_hash": "3f3fac8ca7bf87374ebfab4e49883bb436115aa04b7a04a98cd6225f5a769b55",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "pezzolabs/pezzo",
+      "tier": 1,
+      "selection_hash": "44484e508e0a2a8693ab773cb14b84e15afe07080b1d13fb753fd77b9fc43396",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "3DCF-Labs/doc2dataset",
+      "tier": 1,
+      "selection_hash": "457d8acc730191b11e01d45ed31c5db5160e2470781923dfb515cdc0435f6344",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "rhesis-ai/rhesis",
+      "tier": 1,
+      "selection_hash": "4cbc1966a7319b09b53e3f0d9e545f6a69d575d0b3aa601f59bdf523ebee9c7e",
+      "proposed_by": [
+        "v15-metadata-b"
+      ]
+    },
+    {
+      "repository_id": "deshwalmahesh/PHUDGE",
+      "tier": 1,
+      "selection_hash": "57321811370822a2f92630becdd97aa716c2779ffc73bd232cf308142cf3ed6b",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    },
+    {
+      "repository_id": "arklexai/arksim",
+      "tier": 1,
+      "selection_hash": "5754cfb3b85fbc11f95cee1ed46fa550654e86b25b1e1767a206eaab29564903",
+      "proposed_by": [
+        "v15-metadata-a"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "11af61c292e2eaecd7ab7418615322cec469f3a3723e8a102dde297179d895f9",
+  "record_sha256": "13bac1341dc6d47cefd4d00aec69d8e109e59bd15685c2656461c2ab77a117eb"
+}

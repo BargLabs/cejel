@@ -54,6 +54,26 @@ function manifest(cohort, repositoryId, checkout, marker) {
   return document;
 }
 
+function discoveryEvidence(cohort, reviewerId, repositoryId, ruleId, candidateMatchCount) {
+  return {
+    methodology_id: 'llm-opportunity-discovery-v1.4',
+    search_families: [
+      'dependency_and_imports',
+      'direct_calls_and_configuration',
+      'aliases_wrappers_and_helpers',
+      'registrations_decorators_and_schemas',
+      'dataflow_sinks_persistence_and_logs',
+      'negative_boundaries_and_abstention',
+    ],
+    reviewed_file_count: 1,
+    candidate_match_count: candidateMatchCount,
+    completed_at: '2026-07-23T04:05:00.000Z',
+    private_notes_sha256: createHash('sha256')
+      .update(`${cohort}:${reviewerId}:${repositoryId}:${ruleId}`)
+      .digest('hex'),
+  };
+}
+
 function fragment(cohort, reviewerId, repositoryId, checkout, label = 'present') {
   const opportunity = {
     rule_id: 'LLM-IOH-001',
@@ -81,6 +101,13 @@ function fragment(cohort, reviewerId, repositoryId, checkout, label = 'present')
       commit_sha: checkout.commit_sha,
       rule_id: ruleId,
       declared_opportunity_identities: ruleId === opportunity.rule_id ? [identity] : [],
+      discovery_evidence: discoveryEvidence(
+        cohort,
+        reviewerId,
+        repositoryId,
+        ruleId,
+        ruleId === opportunity.rule_id ? 1 : 0,
+      ),
     })),
   };
 }
@@ -171,6 +198,13 @@ test('rejects incomplete coverage, mismatched cross-review, and non-distinct rev
       commit_sha: input.goldenManifest.repositories[0].commit_sha,
       rule_id: 'LLM-EVL-002',
       declared_opportunity_identities: [],
+      discovery_evidence: discoveryEvidence(
+        'golden',
+        input.primary.golden.reviewer_id,
+        'owner/golden',
+        'LLM-EVL-002',
+        0,
+      ),
     });
     input.independent.golden.repositories[0].opportunities[0].label = 'absent';
     assert.throws(() => assembleBlindEvidence(input), /require a distinct adjudication/);
@@ -206,6 +240,28 @@ test('rejects incomplete coverage, mismatched cross-review, and non-distinct rev
     delete input.adjudication;
     input.independent.golden.reviewer_id = input.primary.golden.reviewer_id;
     assert.throws(() => assembleBlindEvidence(input), /exactly two cross-reviewing/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('rejects coverage without the complete locked discovery methodology', () => {
+  const { root, input } = fixture();
+  try {
+    delete input.primary.golden.coverage[0].discovery_evidence;
+    assert.throws(() => assembleBlindEvidence(input), /discovery evidence is invalid or incomplete/);
+
+    input.primary.golden = fragment(
+      'golden',
+      input.primary.golden.reviewer_id,
+      'owner/golden',
+      {
+        ...input.goldenManifest.repositories[0],
+        content_sha256: input.primary.golden.repositories[0].opportunities[0].content_sha256,
+      },
+    );
+    input.primary.golden.coverage[0].discovery_evidence.search_families.pop();
+    assert.throws(() => assembleBlindEvidence(input), /discovery evidence is invalid or incomplete/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

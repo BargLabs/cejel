@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.6",
+  "record_type": "collector_development_no_go",
+  "recorded_at": "2026-07-24T03:04:45.000Z",
+  "detector_executed": false,
+  "detector_results_seen": false,
+  "golden_source_accessed": true,
+  "untouched_source_accessed": false,
+  "collector_output_created": false,
+  "reason": "The locked detector-independent collector failed closed before emitting a collection record because a generic pre-locked lexical query reached its declared resource ceiling on the frozen golden cohort. Correct handling requires a revised pre-source collector contract rather than retroactively increasing a ceiling or changing a query after source access.",
+  "disposition": {
+    "golden": "development_only_retired_before_any_detector_execution",
+    "untouched": "withdrawn_unexecuted_unspent_due_to_shared_discovery_methodology",
+    "next_cycle": "A fresh cycle must lock a revised bounded collector contract before source access, include the complete historical exclusion union, use fresh metadata-only selection, and create new immutable manifests before discovery."
+  },
+  "public_claim_boundary": "This record makes no precision, recall, detector, or release-performance claim."
+}

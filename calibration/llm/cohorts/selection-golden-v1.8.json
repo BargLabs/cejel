@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.8",
+  "selection_event_id": "v1.8-pre-result-cycle-reset",
+  "cohort": "golden",
+  "selected_at": "2026-07-24T03:25:47.000Z",
+  "detector_results_seen": false,
+  "source_or_labels_used_for_selection": false,
+  "algorithm": "exact-surface dynamic constraint selection with required-provider mask and capped language minima; tier=dual-identical-before-single; sha256(policy|surface|lowercase-repository)",
+  "selector_source_sha256": "a9c737183c2869ccea3fde0ee3856a6aaf838e21fd10591d42323a91b06e9fe6",
+  "selection_evidence_record_sha256": "d24c73f5f78dc97037b5d5b81041c73c50def475b32b7581b62655929d170413",
+  "surface_targets": {
+    "gateway": 1,
+    "chat_app": 3,
+    "local_model": 3,
+    "rag": 4,
+    "agent_tools": 6,
+    "evaluation_or_framework": 7
+  },
+  "required_provider_surfaces": [
+    "anthropic",
+    "openai",
+    "local_or_open_model"
+  ],
+  "historical_exclusion_ledger_sha256": "d24c73f5f78dc97037b5d5b81041c73c50def475b32b7581b62655929d170413",
+  "proposal_bindings": [
+    {
+      "reviewer_id": "codex-v18-proposal-a-metadata-review",
+      "document_sha256": "c7317629555bcb74b8bb6c9b1d89ac409242429e0fd5b23d3a28ca9c52f94364"
+    },
+    {
+      "reviewer_id": "v18-independent-metadata-review-b",
+      "document_sha256": "817d95cc29f125ba136c0c75a35320c44fb1eab0e361bef9d07f7545c37f2131"
+    }
+  ],
+  "excluded_repository_count": 723,
+  "excluded_repository_ids_sha256": "5aa9bb9632c44e007d3fbb645dc9fea7fdbedb038fbb132076adaf16f251fbf3",
+  "classification_conflicts_excluded": [],
+  "selected": [
+    {
+      "repository_id": "pjq/sap-ai-core-llm-proxy",
+      "tier": 1,
+      "selection_hash": "002b3a3deade1f94067eafca3c66accdb7d90605a717e81f9c489b50c5dfd242",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "rabrain/ai-chat",
+      "tier": 1,
+      "selection_hash": "175c5642da8d6e6a9e1b7b66c7f1b552a236a731c71ec1839f0faf9cd89cdc54",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "evo-family/evo-chat",
+      "tier": 1,
+      "selection_hash": "1fa94c5cd0f26c943912c29bc97411bf8a68895e29c9200da28b4c7172653308",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "aws-samples/foundational-llm-chat",
+      "tier": 1,
+      "selection_hash": "237f07d6eb0ddbf5e1331927587797a92b2cc391bb50a4c265f95f9f2ef63f5f",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "aidatatools/ollama-benchmark",
+      "tier": 1,
+      "selection_hash": "01fefb12c92e3d43fce36ac0644aae4b38b427444203f7435ff5f85a3c0ef83c",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "andersrex/notesollama",
+      "tier": 1,
+      "selection_hash": "2503e51cb6a975a5a6614ad7b7d95854b40c0571615751fbc5cb4a60d3d84bed",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "containers/ramalama",
+      "tier": 1,
+      "selection_hash": "28810fff34c79af9f819e278a271bf9ed2fd2f36b5236768f1b58a01050133a6",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "NirDiamant/GenAI_Agents",
+      "tier": 1,
+      "selection_hash": "016412dc55f5954edeac8ce7c62367be11abf5274417739a584c3452aa9c4c1e",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "dair-ai/Prompt-Engineering-Guide",
+      "tier": 1,
+      "selection_hash": "140c66ee0df682852568b810e64a1b442a914b4247616510032933a30bb48d4e",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "athina-ai/rag-cookbooks",
+      "tier": 1,
+      "selection_hash": "17f1cd82cfbf4beb920c87c1990a832427bc3dec646c0fb528564430f769debb",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "Alibaba-NLP/VRAG",
+      "tier": 1,
+      "selection_hash": "183559472574160239ea2563f566c9c4ae3111c45b2fa6a1596d81905a7da728",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "caramaschiHG/awesome-ai-agents-2026",
+      "tier": 1,
+      "selection_hash": "088883f3d5a6fdc7a8fd0c6cbbdd0ae3dffdb61918e0187f18680da707a6266c",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "nekomeowww/insights-bot",
+      "tier": 1,
+      "selection_hash": "08942f04f57c50a346f51f2372eab27ece6e1c950824f4728c08f72ee024925c",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "ARCANGEL0/EVA",
+      "tier": 1,
+      "selection_hash": "131a36f52b015e93dc5de1c71c42d72607739d79b9c6198c0dfaf2812ae0c52b",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "ntegrals/openbrowser",
+      "tier": 1,
+      "selection_hash": "1c104b4583f4c63ccbfec7177f1e4d2d07994e3ea5abc78e6d1ab7ca6d8be33b",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "Klavis-AI/klavis",
+      "tier": 1,
+      "selection_hash": "2063d4de3458277953d0e295975de31c56d9a371b4200448d6e47e51e83cdcb3",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "pguso/ai-agents-from-scratch",
+      "tier": 1,
+      "selection_hash": "3d4783adb92defdbb605f25f90b4821ea7cc698c1b79084458af4c37a4660ed8",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "IntelLabs/RAG-FiT",
+      "tier": 1,
+      "selection_hash": "034d7c8aeb490568687779a3b9dd0c70aef9990e146feb433f9c82154bf422ae",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "codeforamerica/eval_eval",
+      "tier": 1,
+      "selection_hash": "0834e638bdb0dde244c67a6bade7484016f8251d053f97b1a4cc0612978805bb",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "bakrianoo/tweety",
+      "tier": 1,
+      "selection_hash": "084368466e8fed2c8a695d7ee62c21300064c48bdc37d89e429679377d6cca47",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "aielte-research/HackSynth",
+      "tier": 1,
+      "selection_hash": "0b53c70b7d76822647efb039571679e1ca62a09bd495583dbd56f8f13934fd91",
+      "proposed_by": [
+        "v18-independent-metadata-review-b"
+      ]
+    },
+    {
+      "repository_id": "PetroIvaniuk/llms-tools",
+      "tier": 1,
+      "selection_hash": "0efb3470c1937ec564ca2ca07696668fed171373d06afd2b145ae287cd68c7b4",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "chroma-core/chroma-cookbooks",
+      "tier": 1,
+      "selection_hash": "0f65bb0226c6ca7e93f4695786bd282bb2b02b7183a739de446c6c9ce54678d2",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    },
+    {
+      "repository_id": "borgr/tutEval",
+      "tier": 1,
+      "selection_hash": "1915d5f70917eda0b0c4079bdade7857fddae38ac933a90e69bca7e8b24690d1",
+      "proposed_by": [
+        "codex-v18-proposal-a-metadata-review"
+      ]
+    }
+  ],
+  "candidate_document_sha256": "1c4575a1000ebe6d3ea8d6187d4b1f3dbedbf6093a7b60c35e4fda23b1475b15",
+  "record_sha256": "ed5986334530c37cdcf46893216250b621ac10f628c0f70361b17778e6dbd9c5"
+}

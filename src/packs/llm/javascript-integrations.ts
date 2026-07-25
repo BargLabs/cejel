@@ -24,6 +24,41 @@ function matchingBrace(masked: string, start: number): number {
   return masked.length;
 }
 
+function matchingParenthesis(masked: string, start: number): number {
+  let depth = 0;
+  for (let index = start; index < masked.length; index += 1) {
+    if (masked[index] === '(') depth += 1;
+    if (masked[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return masked.length;
+}
+
+function supportedRestModelCallIndices(contents: string): ReadonlySet<number> {
+  const indices = new Set<number>();
+  const masked = maskJavaScriptNonCode(contents);
+  for (const match of masked.matchAll(/\bfetch\s*\(/g)) {
+    const open = masked.indexOf('(', match.index);
+    const close = matchingParenthesis(masked, open);
+    if (close >= masked.length) continue;
+    const call = contents.slice(match.index, close + 1);
+    const hasModelEndpoint =
+      /\/(?:v1\/)?(?:chat\/completions|responses|messages)(?:["'`/?#}]|$)/i.test(call);
+    const postsJson =
+      /\bmethod\s*:\s*(['"])POST\1/i.test(call) &&
+      /\bbody\s*:\s*JSON\.stringify\s*\(\s*\{[\s\S]*?\bmodel\s*[,}:][\s\S]*?\b(?:messages|input|prompt)\s*[,}:]/i.test(
+        call,
+      );
+    const authenticates =
+      /\bAuthorization\s*:\s*`Bearer\s+\$\{[^}]+\}`/i.test(call) ||
+      /\bAuthorization\s*:\s*(['"])Bearer\s+[^'"]+\1/i.test(call);
+    if (hasModelEndpoint && postsJson && authenticates) indices.add(match.index);
+  }
+  return indices;
+}
+
 function splitTopLevel(value: string, delimiter: string): readonly string[] {
   const parts: string[] = [];
   let start = 0;
@@ -151,10 +186,14 @@ function destructuringAssignmentEvents(
 
 function functionScopes(masked: string): readonly FunctionScope[] {
   const scopes: FunctionScope[] = [];
+  // Continuation quantifiers below are bounded (see supportedJavaScriptModelCallIndices) for the
+  // same reason: each is followed by a check ([)]/=>/{) that usually fails on a long non-matching
+  // identifier run, and unbounded backtracking over that run is quadratic. No real identifier or
+  // parameter list is anywhere near this length.
   const patterns = [
-    /\b(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(([^)]*)\)\s*\{/g,
-    /(?:\(([^()]*)\)|([A-Za-z_$][\w$]*))\s*=>\s*\{/g,
-    /\b(?:async\s+)?(?!(?:if|for|while|switch|catch|with)\b)[A-Za-z_$][\w$]*\s*\(([^)]*)\)\s*\{/g,
+    /\b(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]{0,255})?\s*\(([^)]*)\)\s*\{/g,
+    /(?:\(([^()]*)\)|([A-Za-z_$][\w$]{0,255}))\s*=>\s*\{/g,
+    /\b(?:async\s+)?(?!(?:if|for|while|switch|catch|with)\b)[A-Za-z_$][\w$]{0,255}\s*\(([^)]*)\)\s*\{/g,
   ];
   for (const pattern of patterns) {
     for (const match of masked.matchAll(pattern)) {
@@ -168,7 +207,7 @@ function functionScopes(masked: string): readonly FunctionScope[] {
     }
   }
   for (const match of masked.matchAll(
-    /(?:\(([^()]*)\)|([A-Za-z_$][\w$]*))\s*=>\s*(?!\{)/g,
+    /(?:\(([^()]*)\)|([A-Za-z_$][\w$]{0,255}))\s*=>\s*(?!\{)/g,
   )) {
     const bodyStart = match.index + match[0].length;
     const tail = masked.slice(bodyStart);
@@ -220,6 +259,7 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
   const imports = importedBindings(contents);
   const masked = maskJavaScriptNonCode(contents);
   const indices = new Set<number>();
+  for (const index of supportedRestModelCallIndices(contents)) indices.add(index);
   const scopes = functionScopes(masked);
 
   const innermostScopeAt = (index: number): FunctionScope | undefined =>
@@ -288,8 +328,12 @@ export function supportedJavaScriptModelCallIndices(contents: string): ReadonlyS
     }
     return false;
   };
+  // The identifier-call branch bounds its continuation quantifier: an unbounded [\w$]* followed by
+  // a literal that usually fails (no "(" ahead) backtracks once per start offset it's retried from,
+  // which is quadratic over a long non-matching identifier run. No real identifier is anywhere
+  // near this length, so bounding it changes nothing for legitimate code while capping backtracking.
   for (const match of masked.matchAll(
-    /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b[A-Za-z_$][\w$]*\s*\()/g,
+    /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b[A-Za-z_$][\w$]{0,255}\s*\()/g,
   )) {
     const token = match[0];
     if (!token) continue;

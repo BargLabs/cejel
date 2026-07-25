@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "policy_id": "llm-selection-v1.3",
+  "cohort": "untouched",
+  "status": "candidate_commit_freeze_pending",
+  "selected_before_detector_results": true,
+  "repositories": [
+    {
+      "repository_id": "jwadow/kiro-gateway",
+      "url": "https://github.com/jwadow/kiro-gateway",
+      "primary_language": "python",
+      "primary_surface": "gateway",
+      "provider_surface": "anthropic",
+      "inclusion_reason": "Metadata identifies a Python proxy gateway for Kiro that exposes Claude models to compatible clients."
+    },
+    {
+      "repository_id": "slack-samples/bolt-python-ai-chatbot",
+      "url": "https://github.com/slack-samples/bolt-python-ai-chatbot",
+      "primary_language": "python",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Slack sample metadata describes a workspace chatbot powered by both Anthropic and OpenAI."
+    },
+    {
+      "repository_id": "cogentapps/chat-with-gpt",
+      "url": "https://github.com/cogentapps/chat-with-gpt",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "openai",
+      "inclusion_reason": "Metadata describes an open-source ChatGPT application with voice and GPT-3 and GPT-4 topics."
+    },
+    {
+      "repository_id": "HiveNexus/HiveChat",
+      "url": "https://github.com/HiveNexus/HiveChat",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "chat_app",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Team chat application metadata explicitly lists OpenAI, Claude, Gemini, and DeepSeek model support."
+    },
+    {
+      "repository_id": "jofizcd/Soul-of-Waifu",
+      "url": "https://github.com/jofizcd/Soul-of-Waifu",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Metadata describes a desktop AI companion with local LLM and llama.cpp topics."
+    },
+    {
+      "repository_id": "mlx-chat/mlx-chat-app",
+      "url": "https://github.com/mlx-chat/mlx-chat-app",
+      "primary_language": "python",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Metadata describes a macOS application connecting local documents to a personalized LLM through MLX."
+    },
+    {
+      "repository_id": "fmaclen/hollama",
+      "url": "https://github.com/fmaclen/hollama",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "local_model",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Metadata describes a browser-based minimal chat application centered on local AI and Ollama."
+    },
+    {
+      "repository_id": "microsoft/graphrag",
+      "url": "https://github.com/microsoft/graphrag",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "openai",
+      "inclusion_reason": "Metadata describes a modular graph-based RAG system and lists GPT-4 and GraphRAG topics."
+    },
+    {
+      "repository_id": "StarTrail-org/LEANN",
+      "url": "https://github.com/StarTrail-org/LEANN",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Metadata describes a private RAG application for personal devices with Ollama and offline-first topics."
+    },
+    {
+      "repository_id": "zylon-ai/private-gpt",
+      "url": "https://github.com/zylon-ai/private-gpt",
+      "primary_language": "python",
+      "primary_surface": "rag",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Private AI API metadata explicitly provides RAG, tools, and MCP over local OpenAI-compatible inference servers."
+    },
+    {
+      "repository_id": "RafalWilinski/cloudflare-rag",
+      "url": "https://github.com/RafalWilinski/cloudflare-rag",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "rag",
+      "provider_surface": "openai",
+      "inclusion_reason": "Metadata describes a full-stack chat-with-PDFs RAG application with a ChatGPT topic."
+    },
+    {
+      "repository_id": "open-multi-agent/open-multi-agent",
+      "url": "https://github.com/open-multi-agent/open-multi-agent",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Metadata describes agent orchestration supporting Claude, ChatGPT, Gemini, DeepSeek, Ollama, and local models."
+    },
+    {
+      "repository_id": "HKUDS/nanobot",
+      "url": "https://github.com/HKUDS/nanobot",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Lightweight agent metadata identifies tools and workflows across Anthropic Claude and OpenAI ChatGPT."
+    },
+    {
+      "repository_id": "QwenLM/Qwen-Agent",
+      "url": "https://github.com/QwenLM/Qwen-Agent",
+      "primary_language": "python",
+      "primary_surface": "agent_tools",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Qwen agent framework metadata identifies function calling, MCP, code interpretation, RAG, and applications over open Qwen models."
+    },
+    {
+      "repository_id": "VoltAgent/voltagent",
+      "url": "https://github.com/VoltAgent/voltagent",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "openai",
+      "inclusion_reason": "Metadata describes an AI agent engineering platform with MCP, tools, RAG, and OpenAI topics."
+    },
+    {
+      "repository_id": "coze-dev/coze-studio",
+      "url": "https://github.com/coze-dev/coze-studio",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Agent development platform metadata identifies multimodel tools for agent creation, debugging, deployment, RAG, and workflows."
+    },
+    {
+      "repository_id": "musistudio/claude-code-router",
+      "url": "https://github.com/musistudio/claude-code-router",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "agent_tools",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Local agent control-plane metadata identifies cross-model routing, tool orchestration, and Claude Code integration."
+    },
+    {
+      "repository_id": "allenai/olmes",
+      "url": "https://github.com/allenai/olmes",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Metadata describes a Python project for reproducible and flexible LLM evaluations."
+    },
+    {
+      "repository_id": "evalkit/evalkit",
+      "url": "https://github.com/evalkit/evalkit",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "openai",
+      "inclusion_reason": "Metadata describes a TypeScript LLM evaluation library with OpenAI and GPT topics."
+    },
+    {
+      "repository_id": "The-Pocket/PocketFlow",
+      "url": "https://github.com/The-Pocket/PocketFlow",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Minimal Python LLM framework metadata identifies agentic workflows, orchestration, agents, and retrieval."
+    },
+    {
+      "repository_id": "babelcloud/LLM-RGB",
+      "url": "https://github.com/babelcloud/LLM-RGB",
+      "primary_language": "typescript_javascript",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Metadata describes a systematic LLM reasoning and generation benchmark for complex scenarios."
+    },
+    {
+      "repository_id": "OpenBMB/UltraEval-Audio",
+      "url": "https://github.com/OpenBMB/UltraEval-Audio",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Unified benchmark framework metadata identifies ASR, TTS, codecs, and audio-LLM evaluation."
+    },
+    {
+      "repository_id": "raga-ai-hub/RagaAI-Catalyst",
+      "url": "https://github.com/raga-ai-hub/RagaAI-Catalyst",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "multi_provider",
+      "inclusion_reason": "Python SDK metadata explicitly identifies agent and LLM evaluation, observability, tracing, debugging, datasets, and monitoring."
+    },
+    {
+      "repository_id": "modelscope/evalscope",
+      "url": "https://github.com/modelscope/evalscope",
+      "primary_language": "python",
+      "primary_surface": "evaluation_or_framework",
+      "provider_surface": "local_or_open_model",
+      "inclusion_reason": "Metadata describes a customizable framework for large-model evaluation and performance benchmarking."
+    }
+  ]
+}

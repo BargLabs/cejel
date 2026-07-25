@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "cycle": "v1.9",
+  "record_type": "golden_gate_no_go",
+  "recorded_at": "2026-07-25T00:00:00Z",
+  "release_decision": "no_go",
+  "untouched_execution_prohibited": true,
+  "execution_provenance": "Both golden runs in this cycle were executed locally under the repository's own no-egress wrapper (node-runtime-deny-hook-v1, 5/5 egress paths denied) and validated with the project's own validateGoldenExecutionEvidence and validateGoldenCorrectionLedger -- not via the trusted GitHub Actions golden workflow used by earlier cycles. This record does not claim CI-trusted execution provenance.",
+  "golden_manifest_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2",
+  "golden_opportunity_manifest_sha256": "3f8bfe9276bb1e371b5e90eabfce079a5676b3dc03553b48f2f9667deaae6555",
+  "golden_runs": [
+    {
+      "label": "initial",
+      "detector_build_sha256": "cba97bcdd9abcf837928234bb5ff40d13cd9bd786b83c838048bad64415799ab",
+      "source_commit": "49e4deac11cd60829154936be926260809336c7e",
+      "execution_evidence_byte_sha256": "ce6e57eddae0e555b5259625de1bf63bc92c1a481ac2f71e5dd5e8f396e58bb4",
+      "correction_ledger_byte_sha256": "4a13f9950b3618be252b7d16c437a4d2af70faf4f22b599e5294e39872488e63",
+      "raw_findings": 3,
+      "true_positives": 0,
+      "false_negatives": 34,
+      "unmatched_findings_recorded_false_positive": 3
+    },
+    {
+      "label": "post_fix",
+      "detector_build_sha256": "d8e4fd99e1802bbd48fd71930c05efefb4fa526f6277d1f87ff82492e17cfafa",
+      "source_commit": "5c92625",
+      "execution_evidence_byte_sha256": "59a6e5058cc1a882c5223b66afc17dc56f0820d96cc3ebc7f68520e0bd357081",
+      "correction_ledger_byte_sha256": "f29f329253143c7af03e0a538fb1ceacc53207f6a087654cb97c17f67e00c935",
+      "raw_findings": 3,
+      "true_positives": 0,
+      "false_negatives": 34,
+      "unmatched_findings_recorded_false_positive": 3,
+      "fixes_attempted_between_runs": [
+        "llm: implement Python detection for LLM-EVL-001 (2538fb6)",
+        "llm: recognize subscript-assigned Python aggregates for LLM-EVL-001 (7fc8889)",
+        "llm: recognize domain-named manager components as judge invocations (5c92625)"
+      ],
+      "recall_change_from_fixes": 0
+    }
+  ],
+  "frozen_inventory": {
+    "golden_opportunities": 4199,
+    "golden_present_opportunities": 34,
+    "golden_absent_opportunities": 4165,
+    "golden_not_applicable_excluded": 317
+  },
+  "threshold_comparison": {
+    "release_thresholds_byte_sha256": "dffabeb3e6265d3c53fbde4ce3fb3e051d494d19ba90fcb70f9429ff1297ad5e",
+    "limited_experimental_go_minimum_finding_recall": 0.65,
+    "automatic_no_go_recall_floor": 0.65,
+    "observed_golden_finding_recall": 0.0,
+    "conclusion": "0.0 recall is far below even the lowest (limited_experimental_go) threshold and squarely inside the automatic_no_go condition 'finding recall below 0.65'. This is a golden-informed operational decision not to spend the untouched cohort on a result that would not credibly change this conclusion; it is not itself the formal compute-metrics.mjs gate decision, which can only be derived from untouched."
+  },
+  "root_cause_summary": "Investigated a sample of missed opportunities across all 7 rules present in the golden ground truth. 6 of 7 sampled misses were genuine detector coverage gaps (rule implementations hardcode narrow, same-file/same-function idioms -- specific SDK call shapes, a fixed sink taxonomy, one class-based self-judge idiom, *Action() naming conventions -- that real code routinely routes around via custom abstractions, native bridges, MCP transports, or graph-pipeline architectures); 1 of 7 was a reasonable, documented precision exclusion; 0 of 7 were ground-truth review errors. LLM-EVL-001 additionally had zero Python implementation at all. Three targeted fixes for the Python LLM-EVL-001 gap (base implementation, subscript-assignment support, widened shared invocation pattern) were implemented, unit-tested, and verified correct in isolation, then measured against the full 24-repository golden cohort twice: recall did not move. Each remaining miss has its own distinct confound beyond what was fixed (cross-file/class-attribute tracing, cross-module TypeScript tracing, or an intentional raw-results-retained negative boundary).",
+  "disposition": {
+    "golden": "retired_after_two_execution_attempts_zero_recall",
+    "untouched": "withdrawn_unexecuted_and_unspent",
+    "untouched_detector_executed": false,
+    "reason": "Golden finding recall (0.0) is far below the lowest release threshold (0.65) after a genuine, verified improvement attempt. Spending the one-shot untouched cohort now would not credibly change the release decision and cannot be reversed once executed. Untouched is conservatively preserved, unexecuted, for a future cycle once detector coverage has been substantively broadened."
+  },
+  "external_state_notes": [
+    "Ankitha-GS/rag-qa (a golden repository) no longer resolves on GitHub (404 on fresh clone) as of the post_fix run. A future cycle reusing this cohort should re-verify golden repository availability before relying on the clone-based execution pipeline."
+  ],
+  "required_before_a_future_cycle": [
+    "Scope detector coverage as its own engineering effort, not incremental per-miss patching: evaluate whether the pack can support any cross-file/interprocedural tracing (e.g. class-attribute provenance, cross-module call resolution) versus its current single-function pattern-matching architecture.",
+    "Re-run golden execution against materially broadened rule coverage before considering any pre-result commitment referencing a detector freeze.",
+    "Re-verify golden (and untouched) repository availability on GitHub before reusing this cohort, given at least one golden repository has already disappeared from its origin.",
+    "Keep release thresholds unchanged; this NO-GO does not propose any threshold, methodology, or denominator change."
+  ]
+}
