@@ -66,7 +66,7 @@ const PYTHON_RESULT_KEY_PATTERN =
 const PYTHON_CONFIG_LINEAGE_KEY_PATTERN =
   /^(?:promptdigest|prompthash|promptid|promptversion|policydigest|policyhash|policyid|policyversion|configdigest|confighash|configid|configversion|evaluationconfigversion|evaluationmanifest|repositorycommit)$/i;
 const PYTHON_AGGREGATE_ASSIGNMENT_PATTERN =
-  /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*([^\n]+)$/gm;
+  /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)(?:\[[^\]\n]+\])?\s*(?::[^=\n]+)?=\s*([^\n]+)$/gm;
 const PYTHON_AGGREGATE_NAME_PATTERN = /(?:rate|score|accuracy|average|mean|percentage|pct)/i;
 const PYTHON_DENOMINATOR_DIVISION_PATTERN = /\/\s*len\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/;
 const PYTHON_DENOMINATOR_CALL_PATTERN =

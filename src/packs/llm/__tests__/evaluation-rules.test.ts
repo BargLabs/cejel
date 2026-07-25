@@ -615,6 +615,32 @@ describe('Free LLM evaluation and provenance rules', () => {
     expect(findings).toHaveLength(1);
   });
 
+  it('detects a Python per-metric aggregate dict built via subscript assignment', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, metrics, examples):',
+        '        results = []',
+        '        for example in examples:',
+        '            results.append(judge.evaluate(example))',
+        '        aggregate_scores = {}',
+        '        for metric in metrics:',
+        '            scores = [r.metrics.get(metric, 0) for r in results if metric in r.metrics]',
+        '            if scores:',
+        '                aggregate_scores[metric] = sum(scores) / len(scores)',
+        '            else:',
+        '                aggregate_scores[metric] = 0.0',
+        '        benchmark_result = BenchmarkResult(aggregate_scores=aggregate_scores)',
+        '        return benchmark_result',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+  });
+
   it('does not flag a Python statistics.mean aggregate with a retained denominator', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluation/benchmarks.py',
