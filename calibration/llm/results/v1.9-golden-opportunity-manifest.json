@@ -10,12 +10,12 @@
   "cohort_bindings": {
     "golden_manifest_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2"
   },
-  "source_evidence_index_sha256": "b283c7ce8e6509841aad45a18327d72c1cdeb7953b05b64c7bc3574317189811",
+  "source_evidence_index_sha256": "db4bbe95593716170d9eef353a8e9d7fc9a511b7d3ddbe53c52c78249297fe6d",
   "golden_review_capacity_commitment_reference": "calibration/llm/results/v1.9-golden-review-capacity-commitment.json",
   "label_counts": {
-    "absent": 4223,
-    "not_applicable": 261,
-    "present": 32
+    "absent": 4165,
+    "not_applicable": 317,
+    "present": 34
   },
   "opportunities": [
     {
@@ -458,23 +458,6 @@
         "end_line": 146,
         "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-01b742f9437d6ec3da9cc67107c6c0df65b2c9ac3b9085ba122738ee9880afc0",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 146,
-        "end_line": 146,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -1192,23 +1175,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-0408925c23d79ad236c220acc073f2a4a60181bc6231f5e1f9ba6aa67f6b289e",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 586,
-        "end_line": 586,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-040e32a6e88d361aed5871f5628f47a304fcd058db8f77a76209c2c3fe363037",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -1563,23 +1529,6 @@
         "end_line": 670,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-05793bc348f594715af6dbde73320cab01a6d6356bb35e612516503f44d38803",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 670,
-        "end_line": 670,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -3453,23 +3402,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-0c45ebd2c38697b933564803018ff9b58ba77f65ab6a62f5bf303a43b22bfca3",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 247,
-        "end_line": 247,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-0c5ec984ba3c586add0ef02e7efc8f6f85e429a957b2af8b6c0d054d828a390a",
       "cohort": "golden",
       "repository_id": "harnexa/nexa-gauge",
@@ -4963,23 +4895,6 @@
         "end_line": 52,
         "sha256": "cf3b52d2a2c779a8712a4f19f96949808d6330d21918a2aab84b7b81e99c3974",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-1223d986a27d289f20a2ef2d2d8a355bf26c2ca9ea12c28abe84e8ccb2fef923",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "lib/telegram-inbound.ts",
-        "start_line": 52,
-        "end_line": 52,
-        "sha256": "cf3b52d2a2c779a8712a4f19f96949808d6330d21918a2aab84b7b81e99c3974",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -7193,23 +7108,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-19d6294f77f5490a3213a35e3ca97f67f9203fb780bed6ee668532fbe1d9869b",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 131,
-        "end_line": 131,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-19e1b7d2ec5726a5fcd57775745699d6804f2568db9fc918820da3789f4a81e7",
       "cohort": "golden",
       "repository_id": "Azure-Samples/rag-postgres-openai-python",
@@ -7941,23 +7839,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-1c8573262c5bebd2fc6b00cbd08263e24ffaa2e4280c844d2d73c4af9f47635e",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 164,
-        "end_line": 164,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-1c8dea64ab0886fab669c364a9132a49e3e807aebde920ca0109ff07bd5cd4d3",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -8244,23 +8125,6 @@
         "end_line": 566,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-1d5a24ca91402952c4c48a21810126107d03fc6f9772eb26caa72449134cf073",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 566,
-        "end_line": 566,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -9573,23 +9437,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-213cc3f831723ac4ceb6b043b252bb5a250fc4249bd786bb0854b1f73b4029fc",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 806,
-        "end_line": 806,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-2141975deb49e95342d905af577de76d1caf9a39d4e56322ee1331e0bd6f8501",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -10406,6 +10253,23 @@
       }
     },
     {
+      "opportunity_id": "llm-opp-23f456c66564566c8790e4d01f75872cfe1e6c8dde8c3f9c82241a797f440b07",
+      "cohort": "golden",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "rule_id": "LLM-AGY-002",
+      "ground_truth_label": "absent",
+      "adjudicated": false,
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "lib/local-llm.ts",
+        "start_line": 463,
+        "end_line": 463,
+        "sha256": "d67c54b556e3a401d9b965b81268c4cda1a2c2c6748399a61963afd912744834",
+        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
+      }
+    },
+    {
       "opportunity_id": "llm-opp-23fc5e1ed6bd18c2063326b09cb9f0ff795543aa555ef445043a7963d3acf455",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -10709,23 +10573,6 @@
         "end_line": 21,
         "sha256": "ebcf8edec42ab7fb96174dee385828cd8e5a3969239fabd0519533b309490c54",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-2519f8442c225804b84d222acd873d8ab5bc1366ecff2d8c767e01f77bfcdf8d",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/handlers/resources.py",
-        "start_line": 335,
-        "end_line": 335,
-        "sha256": "058d73197fd1655be8288625932650bf13980bfb3486a4a3a7e31008e116fb19",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -11355,6 +11202,23 @@
         "end_line": 823,
         "sha256": "2591fdbd8226fa7577ae82c92b9d3e8f0935899646a120b856abd919bce32113",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
+      }
+    },
+    {
+      "opportunity_id": "llm-opp-2798f54915e777b68800782f45e824106180b4153c048ec3c12270a99d5a8b17",
+      "cohort": "golden",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "rule_id": "LLM-EVL-002",
+      "ground_truth_label": "present",
+      "adjudicated": true,
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "reporter.py",
+        "start_line": 311,
+        "end_line": 311,
+        "sha256": "d65fee761000240894033fb08115be254f043ed48260149843784eba15f9fef1",
+        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -15115,6 +14979,23 @@
       }
     },
     {
+      "opportunity_id": "llm-opp-36056d7fd84b68762af99527a08489c99c7df410d62d20acbabc2d5d0ecb4f56",
+      "cohort": "golden",
+      "repository_id": "sreyun/aiops-monitor",
+      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
+      "rule_id": "LLM-AGY-001",
+      "ground_truth_label": "absent",
+      "adjudicated": true,
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "cmd/agent/service_darwin.go",
+        "start_line": 159,
+        "end_line": 159,
+        "sha256": "d6b36e5acb51269df11bbd12b81ffd46c64e47357bf24abca4b17d3bad1093a9",
+        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
+      }
+    },
+    {
       "opportunity_id": "llm-opp-36246c8bf0b59c14cf40b61a00d8fc046e7532a24a90a356bec0c9222d0bc027",
       "cohort": "golden",
       "repository_id": "Surya-Hariharan/Velune-CLI",
@@ -17087,23 +16968,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-3e749ed2a0c18bbc9d4365847b18aa74c3c728c18123487b5874dbda513b88b6",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 114,
-        "end_line": 114,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-3e9f84c0f3f54067f77aa63c959e559d9325b3abcd358f70854fde4c403cb1bb",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -18651,23 +18515,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-44f58253cb69750f4d7b8b7c0e37b27e30a51c386cceff26b065ad73fd9cef5c",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-AGY-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cognition/council/scheduler.py",
-        "start_line": 5,
-        "end_line": 5,
-        "sha256": "d53339ce52f90804d2537f67655880b154df5e9015c7897e04f7dc51dddc6b65",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-45239826e1c332ac2ad4bd9c8ddd3b30045554406f1c8e55358299bd0dc4a9a4",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -18716,23 +18563,6 @@
         "end_line": 1081,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-45451656692bb0eaaee30a239442091a013c22def51f6dcf75d36a768b257b75",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1081,
-        "end_line": 1081,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -19753,23 +19583,6 @@
         "end_line": 83,
         "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-48d0efe08d6d138c49f7fff6486418c0a5af279c6de5f0cf548c0bdac5e332b8",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 83,
-        "end_line": 83,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -21402,23 +21215,6 @@
         "end_line": 192,
         "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-4e5ea9de043961a8abbf8d8805a6ade6e273133b970400d7fb1f15795524e0f8",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "apps/console/src/components/project-guardrails.tsx",
-        "start_line": 192,
-        "end_line": 192,
-        "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -23836,6 +23632,23 @@
       }
     },
     {
+      "opportunity_id": "llm-opp-56b5d9e26ca6761d1a012c77d2b54b74a0996427e36b9aa9443fafeed7976126",
+      "cohort": "golden",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "rule_id": "LLM-AGY-001",
+      "ground_truth_label": "absent",
+      "adjudicated": false,
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "velune/cli/handlers/resources.py",
+        "start_line": 335,
+        "end_line": 335,
+        "sha256": "058d73197fd1655be8288625932650bf13980bfb3486a4a3a7e31008e116fb19",
+        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
+      }
+    },
+    {
       "opportunity_id": "llm-opp-56c6868e71c38a35a44a3d0d903f263119c1c15f98a8a221a533880cbb217527",
       "cohort": "golden",
       "repository_id": "Surya-Hariharan/Velune-CLI",
@@ -24346,23 +24159,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-58490c0ee1dfbe2c5414bf423da0d440285476819386f4c2f46c0cbffc38074a",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "packages/telemetry/src/types.ts",
-        "start_line": 178,
-        "end_line": 178,
-        "sha256": "d5bd09d96dd9415bfa4a68406318fd1cc8e53d76ab6396ec1094b6587d10b5ac",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-584fd03fd637ecc408ceac508998721530b71c15b7fd66aa34d2cdc6bc4a4ca7",
       "cohort": "golden",
       "repository_id": "Surya-Hariharan/Velune-CLI",
@@ -24377,23 +24173,6 @@
         "end_line": 62,
         "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-584fd03fd637ecc408ceac508998721530b71c15b7fd66aa34d2cdc6bc4a4ca7",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-VAL-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 62,
-        "end_line": 62,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -25519,23 +25298,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-5c43930ce55be633fd9a537db5ea360015cf13dc0ba3e767a01b64f65d2fcd15",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 277,
-        "end_line": 277,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-5c4ca96218ba75d0691cbcfa82a52161fe6b223df47e4388768e7821386a9398",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -25907,23 +25669,6 @@
         "end_line": 1095,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-5d73d5ca9c228cd6b825d4a15a26c18881a94a02485c7a6c122416e168ac412b",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1095,
-        "end_line": 1095,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -26777,23 +26522,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-5fe8068ac61687547600f4c6fc87dd285ad57b8c485ec9762e6b9bd702ddec3b",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1077,
-        "end_line": 1077,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-5fef5f5aa1c76ea28c789e87d7dd2c7475dfc726feab768c7dc6f57ae251eca0",
       "cohort": "golden",
       "repository_id": "ozturkoktay/insurance-llm-framework",
@@ -27522,23 +27250,6 @@
         "end_line": 1096,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-620bd6233ce7d3b0517b3efa2666a768a957d747922bdb5c153e18a5f4730999",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1096,
-        "end_line": 1096,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -30415,23 +30126,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-6c3858eb041826ab0669377ba4a6ddd64f4fd1de80d818a3486ffa22e9038514",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1058,
-        "end_line": 1058,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-6c3a99eda34f53e5db2cdc36bae808b66d916b7392bcfe79c69e8da657bfec99",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -32727,23 +32421,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-730389681db01a9fb6067f41c517bb8427fbfd42584b1a1cad68634e970b153c",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 83,
-        "end_line": 83,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-7303f333d4368a802f16ce8a26faf32046287bf9b9f9b0493008e3b031c8286a",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -32809,23 +32486,6 @@
         "end_line": 1099,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-737c60ba2b9e75246240f89e143ffb567cb44e29deafcc818eb716504191c42b",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1099,
-        "end_line": 1099,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -34291,23 +33951,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-799986e88bf0b19f6140bbe73670fe64bd0d9d58a1ce2166928487d588d6448f",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "lib/telegram-inbound.ts",
-        "start_line": 5,
-        "end_line": 5,
-        "sha256": "cf3b52d2a2c779a8712a4f19f96949808d6330d21918a2aab84b7b81e99c3974",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-799f9e6eaa7dbb02fc142947734b432d580ab193aa5c831d35e50b88759e85bc",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -34526,23 +34169,6 @@
         "end_line": 301,
         "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-7a2c636258c335fcb4fe04fbb994e48953581c80aded4863207e1cdacaed5ef3",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-AGY-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 301,
-        "end_line": 301,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -35223,23 +34849,6 @@
         "end_line": 327,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-7cf2745e8af40c1e2fa996f88bc1ab2068b6518635623e0848fbbc0f30c6994a",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 327,
-        "end_line": 327,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -36229,23 +35838,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-80824919ddb5272211581e95a6d337a5128ca6eeeae7e52ed199abb128f3b3d3",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 435,
-        "end_line": 435,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-808aa67bccb6c90710412d19b375a5061a35a632e6c2109a79037a5076b8048b",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -36328,6 +35920,23 @@
         "end_line": 439,
         "sha256": "ac5409b1745f0e4a7c82dfbc9ee97122d47c501abc069b72b87fb091d3dee6a2",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
+      }
+    },
+    {
+      "opportunity_id": "llm-opp-80bdd28deed33274a2d5b955ef7caa974c7cc7a458fc5bfc1e371ef3cbd2cc21",
+      "cohort": "golden",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "rule_id": "LLM-EVL-002",
+      "ground_truth_label": "present",
+      "adjudicated": true,
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "reporter.py",
+        "start_line": 468,
+        "end_line": 468,
+        "sha256": "d65fee761000240894033fb08115be254f043ed48260149843784eba15f9fef1",
+        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -37385,23 +36994,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-8503d7af5cddcac23c89b902a315be1a6e01e7e72fa30a7a223255b468dc4b12",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 433,
-        "end_line": 433,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-851fb2597af68eade294b21a17bed790d8f69625f4c48ef8f92dfaec31b0c102",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -37518,23 +37110,6 @@
         "end_line": 247,
         "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-854009dd15fb16a991ead1a7bda46cc4bad5519a29563a820f8bcaf6243bd8ec",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-EVL-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "apps/console/src/components/project-guardrails.tsx",
-        "start_line": 247,
-        "end_line": 247,
-        "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -37688,23 +37263,6 @@
         "end_line": 253,
         "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-85b712546acda3267201f121889616ff773a51b6d80b9fbea2dc854c280d4d2b",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-VAL-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 253,
-        "end_line": 253,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -38164,23 +37722,6 @@
         "end_line": 276,
         "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-879859b2a2412efcabad788044f82160907fd5f8a27a8ac879d2150e27a166f0",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 276,
-        "end_line": 276,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -40190,23 +39731,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-8e36ecdd5d4ede60ebab3209d38de88f100c27e5ea8839cc6216d353fb52215b",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 81,
-        "end_line": 81,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-8e6320cdbd79d43483f1d2254f67f6d5e5717a421599a10573946dbd80eefaaa",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -40306,23 +39830,6 @@
         "end_line": 597,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-8ebb6ce1f8c498fc3e1722f2bb7ee2dfc2cfc72f82e887cb5cccf8237d793e1c",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 597,
-        "end_line": 597,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -40802,23 +40309,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-90294e3c055549f4817df0ae8bb13e4028d9bc8024fed7e151fd9d2c98c98c71",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1100,
-        "end_line": 1100,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-90332729d1cdc5ec41890829f6da84887856e6101705783d4c154a1f6a0ca89b",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -40901,23 +40391,6 @@
         "end_line": 253,
         "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-909cd4dec023f981e300111d9c9eeaa084cce1f413d4cb6091b89295f2b98f3c",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-AGY-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 253,
-        "end_line": 253,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -41326,23 +40799,6 @@
         "end_line": 189,
         "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-9302235831cad315b0cfc6ce10d93f44c8a18700e52430bb44725a1fd226e08a",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-AGY-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "__tests__/plan-executor-parity.test.ts",
-        "start_line": 189,
-        "end_line": 189,
-        "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -42278,23 +41734,6 @@
         "end_line": 42,
         "sha256": "d46801f3b8eaf938c495b0f9acc189ca16ed0c74663b1aceef55f52ed9078183",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-9679ff3063648e3c07969bf4daf1c093e805ad57329c477c165642bccc2a88cc",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "__tests__/agent-pipeline-presets.test.ts",
-        "start_line": 42,
-        "end_line": 42,
-        "sha256": "d46801f3b8eaf938c495b0f9acc189ca16ed0c74663b1aceef55f52ed9078183",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -43709,23 +43148,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-9bf5b1dcf934a9cf06c2b2e3429e1f47104a439ee2fa8191f136161d9d40e875",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "__tests__/plan-executor-parity.test.ts",
-        "start_line": 126,
-        "end_line": 126,
-        "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-9bf9be35161487dc0f6dfda3560405e3cb4c6edad02f026aa1d3814d3d231565",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -44182,23 +43604,6 @@
         "end_line": 434,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-9d7bec56b10855e5939581c39d070653620ee13c1306641e01c72cf61f1cc5c6",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 434,
-        "end_line": 434,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -44899,23 +44304,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-a014f9260b2a1afb03e300dad30a1e1b7a9932de75c1353b6f75f3e4bacba0e7",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 436,
-        "end_line": 436,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-a0555914f292d13f8b6bad5c534e6597cd8a090eacdee3be961140ad21bd7129",
       "cohort": "golden",
       "repository_id": "Surya-Hariharan/Velune-CLI",
@@ -45389,23 +44777,6 @@
         "end_line": 306,
         "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-a20d55878d1e2851bbb4ecdfe2ff35d98832f630aa4b57c8709ed90fe5df00d7",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-AGY-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 306,
-        "end_line": 306,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -46273,23 +45644,6 @@
         "end_line": 1078,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-a4e763fb8b34b65083e91895448b250a43fcdd9cb7f55eeab4e1bb7317f8ea1c",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1078,
-        "end_line": 1078,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -48537,23 +47891,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-ad6c075efff4410ddd71b79ba89acbd2a5210f452b79ffdec183b1d7503710a1",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-IOH-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 960,
-        "end_line": 960,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-ad6d3eae89a2c20463722db4a35ede3b91ceb16dc9a8587904744e29f2241c1d",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -48925,23 +48262,6 @@
         "end_line": 219,
         "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-aea92a1b80927178396fa3f7208bbff5ebebb81f0d7ce7f4508eec22c15b6840",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "__tests__/plan-executor-parity.test.ts",
-        "start_line": 219,
-        "end_line": 219,
-        "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -49350,23 +48670,6 @@
         "end_line": 75,
         "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-b03f1dd1adab8501e9a609bff9089b825963e001be13a2ce81dfcc53f9e20f7d",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 75,
-        "end_line": 75,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -50101,23 +49404,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-b2b69b8d33337fce6d521c75678bc7fbb2956eb0dcd13ff411c70eeda1be4810",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1084,
-        "end_line": 1084,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-b2bfe0d9a89a782ab213af840970cb6eedf29689c9cf5c01c546606d9fe0037d",
       "cohort": "golden",
       "repository_id": "Surya-Hariharan/Velune-CLI",
@@ -50166,23 +49452,6 @@
         "end_line": 225,
         "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-b2d03bbc06d6fbccbccf7ef57e411ac1e177d29836070ed9f037b5f18391cedb",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "__tests__/plan-executor-parity.test.ts",
-        "start_line": 225,
-        "end_line": 225,
-        "sha256": "cfcb71e99641f8b856ea06be5202d16568ddf0b9cdfe7755802cf12dd49b0e41",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -54028,23 +53297,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-c048bd9752784619decce63d7f88215b2b3d9b59fdecfe75fd26a7527268a250",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "lib/telegram-inbound.ts",
-        "start_line": 57,
-        "end_line": 57,
-        "sha256": "cf3b52d2a2c779a8712a4f19f96949808d6330d21918a2aab84b7b81e99c3974",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-c058582838c804588b4936a5a7c3b25b9db46fbdb4fcce4d4b0053121bf0b4e1",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -56459,6 +55711,23 @@
       }
     },
     {
+      "opportunity_id": "llm-opp-c8874706bd96b4fae8ac0c9aeee36caf77153ed0b68ed701b059a996c664a09a",
+      "cohort": "golden",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "rule_id": "LLM-VAL-001",
+      "ground_truth_label": "absent",
+      "adjudicated": false,
+      "evidence_scope": {
+        "kind": "source_span",
+        "path_or_reference": "velune/daemon/transport.py",
+        "start_line": 120,
+        "end_line": 120,
+        "sha256": "d7228d2a15e37b7a72aabc2c4227a88c60634230a23b9919ee0f8dda52f6fa98",
+        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
+      }
+    },
+    {
       "opportunity_id": "llm-opp-c88dc689bb59f3878c22be955d95968975337e610d17b1882d046d08ffe58f9f",
       "cohort": "golden",
       "repository_id": "sreyun/aiops-monitor",
@@ -58819,23 +58088,6 @@
         "end_line": 128,
         "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-d112c4ceff3fd9206776734aae9f64b5e8de84eb3d87a71f8dd00252337fe538",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "apps/console/src/components/project-guardrails.tsx",
-        "start_line": 128,
-        "end_line": 128,
-        "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -62120,23 +61372,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-dd33688919f88453895ab11760e1c085c25561fc105bb95c51f3898a480c48fd",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 367,
-        "end_line": 367,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-dd3f1816a7ace83ea2276c50b2710360afcebfdf7f53c3c4c8fb6c45a71742cf",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -62389,23 +61624,6 @@
         "end_line": 88,
         "sha256": "d09799b800daf9d0058afa62c37d0c229ae5a1aa49ec837aa88acf5e2acc4fb1",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-ddd389f7d249b9b7d99a00c8a404fba7082c597ce8080ce58433deb08b43a40b",
-      "cohort": "golden",
-      "repository_id": "DakshBhavsar007/Multi-Agent-Resume-Project",
-      "commit_sha": "e644f4b5ec6ace8aed8af46e8f642b3c116ac72a",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "backend/api/views/developer/webhooks.py",
-        "start_line": 88,
-        "end_line": 88,
-        "sha256": "d09799b800daf9d0058afa62c37d0c229ae5a1aa49ec837aa88acf5e2acc4fb1",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -62936,23 +62154,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-dfe6b6dcc1029d0a375deadc472648d463bad54e5da00ab450cf9975f1ce0561",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1076,
-        "end_line": 1076,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-dfe836691d970c32b4eaeffe3cadcd30a516e6473f397c1fb816d274bbff2876",
       "cohort": "golden",
       "repository_id": "RYOITABASHI/Shelly",
@@ -63103,23 +62304,6 @@
         "end_line": 246,
         "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-e0909e0a084d8f5735189bdd836675401980cbbbefea0b475fb7993edb7bedcc",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-EVL-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "apps/console/src/components/project-guardrails.tsx",
-        "start_line": 246,
-        "end_line": 246,
-        "sha256": "d0c77abb3cd5d6c274d8bad7c86f249a00584b4ab48cb4eac0443a3487b29787",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -65755,23 +64939,6 @@
         "end_line": 1094,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-e842bb4450d65aa465a328af5c38bcf34aba6f22c8d061311ca5534d60329fa4",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 1094,
-        "end_line": 1094,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -68835,23 +68002,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-f40f03577ac8e86e6f76219c47fa50154d30d729afa36b878ced9b0f335e484b",
-      "cohort": "golden",
-      "repository_id": "sreyun/aiops-monitor",
-      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
-      "rule_id": "LLM-EVL-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "plugins/process_monitor.py",
-        "start_line": 67,
-        "end_line": 67,
-        "sha256": "d4887171b8c62989a33af6db63eecd74de9b48ab4099f23c748bd76e00b13754",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-f428e5812fe32a7747b8e4e35f5e934a6f879fbe2c0c75b0e29d5f91bfe89056",
       "cohort": "golden",
       "repository_id": "Bryancruzcb/aegis-eval-harness",
@@ -68968,23 +68118,6 @@
         "end_line": 70,
         "sha256": "cf3b52d2a2c779a8712a4f19f96949808d6330d21918a2aab84b7b81e99c3974",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-f4893610d18bfa47eb4fe5f480f8371c3691527b141ea0b0ca7d5f404c5f3026",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-AGY-002",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "lib/telegram-inbound.ts",
-        "start_line": 70,
-        "end_line": 70,
-        "sha256": "cf3b52d2a2c779a8712a4f19f96949808d6330d21918a2aab84b7b81e99c3974",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -69308,23 +68441,6 @@
         "end_line": 366,
         "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-f5f9a48e083b4284003360419935b0124cb05bb2bbb14278530a245e7cc81001",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/cli/fullscreen.py",
-        "start_line": 366,
-        "end_line": 366,
-        "sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -70263,23 +69379,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-f8fc44cb5926873c897c4096c752dc4555e406d9f630a5df6fa92f5bfed0dc50",
-      "cohort": "golden",
-      "repository_id": "memoturn/memoturn",
-      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "sdks/js/src/gemini.test.ts",
-        "start_line": 94,
-        "end_line": 94,
-        "sha256": "d08bf82e48c5b2f074c7dfc537845cc7f3d135ed7c2cd7fc1ae2aa944565fddb",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-f917f2f71a420ef77390d352fb8190286019e3f549bddb6a9faefcd3578ad955",
       "cohort": "golden",
       "repository_id": "memoturn/memoturn",
@@ -70481,23 +69580,6 @@
         "end_line": 23,
         "sha256": "4ad733081d3f6fad07b5ab95c1da09a5726397e32945b60c0445d7e1783a32df",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-f9d33509c967b0cd3ea325599c48857bc74a44137bea107e5a3fbe6353f0657d",
-      "cohort": "golden",
-      "repository_id": "RYOITABASHI/Shelly",
-      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
-      "rule_id": "LLM-PRV-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "lib/theme-presets.ts",
-        "start_line": 10,
-        "end_line": 10,
-        "sha256": "d539c97e9f9f668301624ba7f87f6d0dde7ae213f5f30d840690eaf9a07da814",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -70923,23 +70005,6 @@
         "end_line": 66,
         "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
         "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes reaching unanimous agreement against the frozen source."
-      }
-    },
-    {
-      "opportunity_id": "llm-opp-fb60bbc304f1693a2dd86c48e480986ba317b9b8708ec951139760ff1ad7b590",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-EVL-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 66,
-        "end_line": 66,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
       }
     },
     {
@@ -72303,23 +71368,6 @@
       }
     },
     {
-      "opportunity_id": "llm-opp-ffbe1958f1fd44dd862d815d6b797296f6e73bde1faf2945ba5674b0118d83a9",
-      "cohort": "golden",
-      "repository_id": "Surya-Hariharan/Velune-CLI",
-      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
-      "rule_id": "LLM-DAT-001",
-      "ground_truth_label": "absent",
-      "adjudicated": true,
-      "evidence_scope": {
-        "kind": "source_span",
-        "path_or_reference": "velune/providers/adapters/anthropic.py",
-        "start_line": 381,
-        "end_line": 381,
-        "sha256": "d52287d3662a544558ebc9f9767343b4154d167bb188540991596cdba03867e5",
-        "rationale": "Reviewed under the locked llm-opportunity-discovery-v1.9 methodology by two independent AI passes with disagreement, resolved by an independent adjudicator against the frozen source."
-      }
-    },
-    {
       "opportunity_id": "llm-opp-ffe8e71842c12a3ab0543625e933a04010787d4e3f376e60bdca8f28b655345c",
       "cohort": "golden",
       "repository_id": "ozturkoktay/insurance-llm-framework",
@@ -72354,5 +71402,5 @@
       }
     }
   ],
-  "manifest_sha256": "f0e028189c0f13c1ffca2a37bb0771c2b018f48e8cfa3af8a7ee2894d2594866"
+  "manifest_sha256": "3f8bfe9276bb1e371b5e90eabfce079a5676b3dc03553b48f2f9667deaae6555"
 }
