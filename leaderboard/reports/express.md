@@ -1,8 +1,8 @@
 # Cejel Trust Report - express
 
 - Product: express
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/expressjs/express @ ba006766fb964571723138708eacaba0f55759cd
 
 ## Criterion Profile
@@ -15,9 +15,9 @@
 | A4 | Dependency hygiene | Code trust | 3.4 | verified | Declared version range ratio: 44/44 ratio; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | N/A | not_applicable | N/A |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 4 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 4 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 3.6 | verified | CI verification depth: 3/4 signals; PR-gate CI workflow count: 4/4 workflows |
-| B4 | Audit trail and report-up completeness | Process trust | 1.9 | warning | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
+| B4 | Audit trail and report-up completeness | Process trust | 1.9 | verified | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
@@ -52,16 +52,13 @@
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:f50b3232db78)
 - B2: Pull-request CI workflow (.github/workflows/codeql.yml:1, sha256:de0a7a113e14)
 - B2: Pull-request CI workflow (.github/workflows/legacy.yml:1, sha256:1d537259a4e6)
-- B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:f50b3232db78) (warning)
 - B3: Test script (package.json:1, sha256:01f5d42cf38c)
 - B3: Lint script (package.json:1, sha256:01f5d42cf38c)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:f50b3232db78)
 - B4: Audit or changelog artifact (History.md:1, sha256:bd9f9bf85316)
-- B4: Audit or changelog artifact (History.md:1, sha256:bd9f9bf85316) (warning)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
 ## Findings
 
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (4 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:f50b3232db78))
-- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (History.md:1, sha256:bd9f9bf85316))
+- No evidence-backed findings supplied.

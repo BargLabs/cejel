@@ -1,21 +1,21 @@
 # Cejel Trust Report - django
 
 - Product: django
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/django/django @ 65a9f14196c338d70889bd54753370606b3fb4eb
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 2.8 | verified | Test-to-source file ratio: 1 ratio (capped; 2266 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 4/4 ratio; Non-hollow test share: 858/875 ratio |
+| A1 | Test integrity and regression signal | Code trust | 2.8 | verified | Test-to-source file ratio: 1 ratio (capped; 2267 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 4/4 ratio; Non-hollow test share: 858/875 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | 2.8 | warning | Secret cleanliness: 1/1 clean; Environment handling depth: 0/3 practices |
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 2.1 | warning | Declared version range ratio: 9/13 ratio; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | N/A | not_applicable | N/A |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 20 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 20 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 3.6 | verified | CI verification depth: 3/4 signals; PR-gate CI workflow count: 4 workflows (capped; 15 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -55,7 +55,6 @@
 - B2: Pull-request CI workflow (.github/workflows/check-migrations.yml:1, sha256:2647a7fcd299)
 - B2: Pull-request CI workflow (.github/workflows/check_commit_messages.yml:1, sha256:2fe53834db82)
 - B2: Pull request template (.github/pull_request_template.md:1, sha256:3c3cc0e20540)
-- B2: Pull-request CI workflow (.github/workflows/benchmark.yml:1, sha256:0458e12b829d) (warning)
 - B3: Test script (package.json:1, sha256:19afbf089af1)
 - B3: CI workflow (.github/workflows/benchmark.yml:1, sha256:0458e12b829d)
 - B4: N/A — Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.
@@ -67,4 +66,3 @@
 - A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (django/test/__init__.py:1, sha256:5f5d82f7c94a))
 - A2 finding severity warning (dimension band warning): A2 dimension band is warning at 2.8/4.0. Lowest contributing measurements: Environment handling depth 0/3 practices; Secret cleanliness 1/1 clean. To improve: document and enforce safe environment-secret handling; remove committed secrets and rotate any exposed credentials. (Data layer migration (django/conf/app_template/migrations/__init__.py-tpl))
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 2.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 9/13 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (docs/requirements.txt:1, sha256:aa58469ea781))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (20 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/benchmark.yml:1, sha256:0458e12b829d))

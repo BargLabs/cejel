@@ -5,8 +5,8 @@
     "url": "https://github.com/fmtlib/fmt",
     "headSha": "a79df4504cd4e42ed004b1113fb82171e62ed822"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -472,7 +472,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -482,19 +482,7 @@
           "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "CODEOWNERS/required-review gate on protected paths",
-            "path": ".github/CODEOWNERS",
-            "line": 1,
-            "contentHash": "524103c7d5ec954ed79aadbcc5a58d0edab3203346d5fad1ae66967dff15227f"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",

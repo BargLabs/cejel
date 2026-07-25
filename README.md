@@ -18,7 +18,7 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 
 > Dogfooded in production. Cejel is run continuously on Barg Labs' own multi-product
 > monorepo — the ten-product studio it was built inside — which it currently scores
-> 3.1/4.0 ("Conditional"). We score ourselves before asking you to score yourself.
+> 3.5/4.0 ("Verified"). We score ourselves before asking you to score yourself.
 
 ## Install
 
@@ -102,13 +102,13 @@ Microsoft Authenticode code-signing.
 **Docker / OCI.** The same MCP server is published as a non-root, multi-platform image:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.1.10
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.0
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.1.10 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.2.0 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry

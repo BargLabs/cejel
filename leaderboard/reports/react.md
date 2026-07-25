@@ -1,21 +1,21 @@
 # Cejel Trust Report - react
 
 - Product: react
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/facebook/react @ c0c39a6b3907eaab35f43074949e2957a2a734c1
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 2.3 | warning | Test-to-source file ratio: 1873 ratio (capped; 2410 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 4 ratio (capped; 7 raw); Non-hollow test share: 389/2409 ratio |
-| A2 | Data-layer isolation and secrets posture | Code trust | 3.2 | warning | Secret cleanliness: 1/1 clean; Environment handling depth: 1/3 practices |
+| A1 | Test integrity and regression signal | Code trust | 2.3 | verified | Test-to-source file ratio: 1873 ratio (capped; 2410 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 4 ratio (capped; 7 raw); Non-hollow test share: 389/2409 ratio |
+| A2 | Data-layer isolation and secrets posture | Code trust | 1.4 | critical | Secret cleanliness: 0/1 clean; Environment handling depth: 1/3 practices |
 | A3 | Production readiness | Code trust | 2.3 | warning | Production-readiness primitive coverage: 3/6 primitives; Production workflow depth: 6 signals (capped; 23 raw); Observability depth: 4 signals (capped; 68 raw); Rollback and migration-safety depth: 0/4 signals |
 | A4 | Dependency hygiene | Code trust | 2.4 | verified | Pinned dependency ratio: 77/883 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 23 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 23 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 4 signals (capped; 6 raw); PR-gate CI workflow count: 4 workflows (capped; 14 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.8 | verified | Audit artifact depth: 3 files (capped; 5 raw); Audit freshness depth: 4/5 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -23,9 +23,9 @@
 
 ## Summary Scores
 
-- Code trust: 2.5/4.0
+- Code trust: 2.1/4.0
 - Process trust: 3.9/4.0
-- Overall: 3.2/4.0
+- Overall: 3.0/4.0
 - Measured coverage: code trust 5/5, process trust 3/6, overall 8/11 dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.
 - Not applicable: B1, B5, B6 — substrate-specific criteria excluded from composite (N/A for external code).
 
@@ -46,11 +46,8 @@
 - A1: Configured test runner (packages/react-devtools-inline/playwright.config.js:1, sha256:f3f77d7ff100)
 - A1: Configured test runner (package.json:1, sha256:5cc1364afcac)
 - A1: CI workflow runs the test suite (.github/workflows/compiler_playground.yml:1, sha256:99f32e363cdf)
-- A1: Scheduled product-health workflow (.github/workflows/devtools_regression_tests.yml:1, sha256:e81037c21b41) (warning)
 - A1: Detected test file (compiler/apps/playground/__tests__/e2e/page.spec.ts:1, sha256:fd6799d3b88d) (info)
-- A2: Committed .env file in repository tree (fixtures/fiber-debugger/.env:1, sha256:5da7ad963fe4)
-- A2: Committed .env file (no confirmed secret value found) (fixtures/fiber-debugger/.env:1, sha256:5da7ad963fe4) (info)
-- A2: Committed .env file in repository tree (fixtures/fiber-debugger/.env:1, sha256:5da7ad963fe4) (warning)
+- A2: Committed secret-shaped value (value redacted; length 32; classes lower+digit) (compiler/packages/react-mcp-server/src/utils/algolia.ts:14, sha256:dda98d4dcda5) (critical)
 - A3: Build or typecheck script (package.json:1, sha256:5cc1364afcac)
 - A3: CI workflow (.github/workflows/compiler_discord_notify.yml:1, sha256:e934619a5e08)
 - A3: Release deploy configuration (compiler/apps/playground/vercel.json:1, sha256:e22d332ab69c)
@@ -66,7 +63,6 @@
 - B2: Pull-request CI workflow (.github/workflows/compiler_playground.yml:1, sha256:99f32e363cdf)
 - B2: Pull-request CI workflow (.github/workflows/compiler_prereleases.yml:1, sha256:85fc08a7cb0c)
 - B2: Pull request template (.github/PULL_REQUEST_TEMPLATE.md:1, sha256:3b66d9d79de5)
-- B2: Pull-request CI workflow (.github/workflows/compiler_discord_notify.yml:1, sha256:e934619a5e08) (warning)
 - B3: Test script (package.json:1, sha256:5cc1364afcac)
 - B3: Lint script (package.json:1, sha256:5cc1364afcac)
 - B3: CI workflow (.github/workflows/compiler_discord_notify.yml:1, sha256:e934619a5e08)
@@ -80,10 +76,7 @@
 
 ## Findings
 
-- A1 finding severity warning (dimension band warning): A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record. (Scheduled product-health workflow (.github/workflows/devtools_regression_tests.yml:1, sha256:e81037c21b41))
-- A1 finding severity info (dimension band warning): Test suite files are present, but no coverage configuration was detected. (Detected test file (compiler/apps/playground/__tests__/e2e/page.spec.ts:1, sha256:fd6799d3b88d))
-- A2 finding severity info (dimension band warning): A non-template .env file is committed in the current repository tree; no secret-shaped value was detected. (Committed .env file (no confirmed secret value found) (fixtures/fiber-debugger/.env:1, sha256:5da7ad963fe4))
-- A2 finding severity warning (dimension band warning): A2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Environment handling depth 1/3 practices; Secret cleanliness 1/1 clean. To improve: document and enforce safe environment-secret handling; remove committed secrets and rotate any exposed credentials. (Committed .env file in repository tree (fixtures/fiber-debugger/.env:1, sha256:5da7ad963fe4))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (compiler/apps/playground/__tests__/e2e/page.spec.ts:1, sha256:fd6799d3b88d))
+- A2 finding severity critical (dimension band critical): Secret-shaped value appears committed in the scanned repository. (Committed secret-shaped value (value redacted; length 32; classes lower+digit) (compiler/packages/react-mcp-server/src/utils/algolia.ts:14, sha256:dda98d4dcda5))
 - A3 finding severity warning (dimension band warning): A3 dimension band is warning at 2.3/4.0. Lowest contributing measurements: Rollback and migration-safety depth 0/4 signals; Production-readiness primitive coverage 3/6 primitives. To improve: document and test rollback or recovery procedures; add the missing deployment-readiness controls. (Build or typecheck script (package.json:1, sha256:5cc1364afcac))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:4d20edc8d043))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (23 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/compiler_discord_notify.yml:1, sha256:e934619a5e08))

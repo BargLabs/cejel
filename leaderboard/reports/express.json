@@ -5,8 +5,8 @@
     "url": "https://github.com/expressjs/express",
     "headSha": "ba006766fb964571723138708eacaba0f55759cd"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -239,7 +239,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -263,19 +263,7 @@
           "contentHash": "1d537259a4e69c443314adb855564407e012735318cfa286d478bdb1c27b3302"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/ci.yml",
-            "line": 1,
-            "contentHash": "f50b3232db78b8c01823594acca31686d49f56f4db955b68c656803101886a11"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -356,7 +344,7 @@
       "title": "Audit trail and report-up completeness",
       "category": "process_trust",
       "score": 1.9,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "audit_log",
@@ -366,19 +354,7 @@
           "contentHash": "bd9f9bf853162bf5e2940b3aa802d8c8318cba622dd3cbebb2b31b7dd2dfeb4f"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B4 metric-derived score is 1.9/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "audit_log",
-            "label": "Audit or changelog artifact",
-            "path": "History.md",
-            "line": 1,
-            "contentHash": "bd9f9bf853162bf5e2940b3aa802d8c8318cba622dd3cbebb2b31b7dd2dfeb4f"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "audit_artifact_depth",

@@ -5,8 +5,8 @@
     "url": "https://github.com/fastapi/fastapi",
     "headSha": "7cb06f360dd44efac059848df1a9beee7643b018"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -39,6 +39,23 @@
         {
           "kind": "test_run",
           "label": "Detected test file",
+          "path": "docs_src/async_tests/__init__.py"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "docs_src/async_tests/app_a_py310/__init__.py"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "docs_src/async_tests/app_a_py310/main.py",
+          "line": 1,
+          "contentHash": "f28e4cbedad7a9e0a8f72e6fb71a677c40a01977cf79f238b9e0f6402810e0ce"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
           "path": "docs_src/async_tests/app_a_py310/test_main.py",
           "line": 1,
           "contentHash": "a129755184f168aaa0f56307f4e43541ca6e5d392a185a3442983400ab3daffb"
@@ -49,27 +66,6 @@
           "path": "docs_src/settings/app02_an_py310/test_main.py",
           "line": 1,
           "contentHash": "cc6f4b806f7f19165a04a2a1008de1b5609e30d386003013e9d07627d45e99e8"
-        },
-        {
-          "kind": "test_run",
-          "label": "Detected test file",
-          "path": "docs_src/settings/app02_py310/test_main.py",
-          "line": 1,
-          "contentHash": "cc6f4b806f7f19165a04a2a1008de1b5609e30d386003013e9d07627d45e99e8"
-        },
-        {
-          "kind": "test_run",
-          "label": "Detected test file",
-          "path": "scripts/tests/test_translation_fixer/conftest.py",
-          "line": 1,
-          "contentHash": "0a8707cb9d97ca84e6e1da9b43258ef5eefdb4974a3e54a9168710e1d5f649e2"
-        },
-        {
-          "kind": "test_run",
-          "label": "Detected test file",
-          "path": "scripts/tests/test_translation_fixer/test_code_blocks/test_code_blocks_lines_number_mismatch.py",
-          "line": 1,
-          "contentHash": "94ffac1f3a8a63f0305572ff0ff9d8809d4a140268c329cd2f3c02c90d1728ab"
         },
         {
           "kind": "test_run",
@@ -98,7 +94,7 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 601,
+          "value": 604,
           "max": 1,
           "kind": "saturating_count",
           "weight": 0.3,
@@ -318,7 +314,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.7,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -328,19 +324,7 @@
           "contentHash": "74f130b855a5aad1b33855f5a3408cd37e0012624f85f2e99195495d69a93515"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "CI workflow",
-            "path": ".github/workflows/add-to-project.yml",
-            "line": 1,
-            "contentHash": "74f130b855a5aad1b33855f5a3408cd37e0012624f85f2e99195495d69a93515"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "ci_script_depth",

@@ -5,8 +5,8 @@
     "url": "https://github.com/BargLabs/cejel",
     "headSha": "0be03171c810023c65806d87f25ee4873a377cea"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -146,7 +146,7 @@
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
       "score": 3.3,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -163,30 +163,7 @@
           "contentHash": "383f202763dd9edd7a78fc69ace3d6d1972fc7f14051e9f07c73a91812d2fd8a"
         }
       ],
-      "findings": [
-        {
-          "severity": "info",
-          "summary": "A secret/HMAC/signature comparison via plain equality appears in a test/fixture file (src/witan/__tests__/lua-rubric-refinements.test.ts) — likely a test assertion, not a production timing leak; verify.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "Non-constant-time secret comparison",
-            "path": "src/witan/__tests__/lua-rubric-refinements.test.ts",
-            "line": 272,
-            "contentHash": "c5ab7388c8349252d5691144a45a1894911c6ffce622231c1ad2fbf3c88a3bfb"
-          }
-        },
-        {
-          "severity": "warning",
-          "summary": "A2 metric-derived score is 3.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "DB client import",
-            "path": "src/witan/__tests__/repo-signals.test.ts",
-            "line": 1,
-            "contentHash": "213989426f8b192b207bf4178276fee4fa623d9f3020163312ce5662e383334f"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "secret_cleanliness",
@@ -457,7 +434,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -481,19 +458,7 @@
           "contentHash": "b16f13592b843cf0ca9aac5db0f290d60bcb468af3bc131e4b7a62849679d6ea"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/ci.yml",
-            "line": 1,
-            "contentHash": "f9d89e4c65a1cc60d4f4868f15edfbf9b5037d09cbd67dbe0e3f2e16b2870aba"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",

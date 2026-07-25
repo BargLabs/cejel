@@ -1,8 +1,8 @@
 # Cejel Trust Report - flask
 
 - Product: flask
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/pallets/flask @ 36e4a824f340fdee7ed50937ba8e7f6bc7d17f81
 
 ## Criterion Profile
@@ -10,13 +10,13 @@
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
 | A1 | Test integrity and regression signal | Code trust | 2.3 | verified | Test-to-source file ratio: 27 ratio (capped; 59 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 2/4 ratio; Non-hollow test share: 28/28 ratio |
-| A2 | Data-layer isolation and secrets posture | Code trust | 3.2 | warning | Secret cleanliness: 1/1 clean; Environment handling depth: 1/3 practices |
+| A2 | Data-layer isolation and secrets posture | Code trust | 3.2 | verified | Secret cleanliness: 1/1 clean; Environment handling depth: 1/3 practices |
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 2.9 | warning | Declared version range ratio: 27/31 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 3.2 | warning | PR trace primitive coverage: 2 signals (capped; 6 raw); Recent PR merge ratio: 0/1 ratio |
-| B3 | CI and QA discipline | Process trust | 2.1 | warning | CI verification depth: 1/4 signals; PR-gate CI workflow count: 3/4 workflows |
+| B3 | CI and QA discipline | Process trust | 2.1 | verified | CI verification depth: 1/4 signals; PR-gate CI workflow count: 3/4 workflows |
 | B4 | Audit trail and report-up completeness | Process trust | 3.7 | verified | Audit artifact depth: 3/3 files; Audit freshness depth: 2/3 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
@@ -41,9 +41,7 @@
 - A1: Detected test file (examples/tutorial/tests/test_factory.py:1, sha256:1906cfed379a)
 - A1: Configured test runner (pyproject.toml:1, sha256:b006962b5906)
 - A1: Coverage configuration (pyproject.toml:1, sha256:b006962b5906)
-- A2: Committed .env file in repository tree (tests/test_apps/.env:1, sha256:3739562018bb)
-- A2: Committed .env file (no confirmed secret value found) (tests/test_apps/.env:1, sha256:3739562018bb) (info)
-- A2: Committed .env file in repository tree (tests/test_apps/.env:1, sha256:3739562018bb) (warning)
+- A2: .env path detected in git history (.git, sha256:36e4a824f340)
 - A3: N/A — No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.
 - A4: Dependency manifest (examples/celery/requirements.txt:1, sha256:96eaefbbd532)
 - A4: Dependency lockfile (uv.lock:1, sha256:2c98e34b7d92)
@@ -58,7 +56,6 @@
 - B2: Pull request template (.github/pull_request_template.md:1, sha256:f92d7fa6366d)
 - B2: Pull-request CI workflow (.github/workflows/lock.yaml:1, sha256:a1beaa8eb392) (warning)
 - B3: CI workflow (.github/workflows/lock.yaml:1, sha256:a1beaa8eb392)
-- B3: CI workflow (.github/workflows/lock.yaml:1, sha256:a1beaa8eb392) (warning)
 - B4: Audit or changelog artifact (CHANGES.rst:1, sha256:c850d97d088d)
 - B4: Audit or changelog artifact (docs/changes.rst:1, sha256:94c7e3657f87)
 - B4: Audit or changelog artifact (docs/web-security.rst:1, sha256:75044a9c1f60)
@@ -67,9 +64,6 @@
 
 ## Findings
 
-- A2 finding severity info (dimension band warning): A non-template .env file is committed in the current repository tree; no secret-shaped value was detected. (Committed .env file (no confirmed secret value found) (tests/test_apps/.env:1, sha256:3739562018bb))
-- A2 finding severity warning (dimension band warning): A2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Environment handling depth 1/3 practices; Secret cleanliness 1/1 clean. To improve: document and enforce safe environment-secret handling; remove committed secrets and rotate any exposed credentials. (Committed .env file in repository tree (tests/test_apps/.env:1, sha256:3739562018bb))
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 2.9/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 27/31 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (examples/celery/requirements.txt:1, sha256:96eaefbbd532))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:1f2de14735b1))
 - B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (6 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/lock.yaml:1, sha256:a1beaa8eb392))
-- B3 finding severity warning (dimension band warning): B3 dimension band is warning at 2.1/4.0. Lowest contributing measurements: CI verification depth 1/4 signals; PR-gate CI workflow count 3/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/lock.yaml:1, sha256:a1beaa8eb392))

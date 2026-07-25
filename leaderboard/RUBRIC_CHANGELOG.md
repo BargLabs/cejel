@@ -12,6 +12,61 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## witan-rubric-v17-2026-07-24
+
+**What changed.** V17 is the first free-core rubric promoted after a preregistered untouched
+holdout cleared every gate. It carries forward the v9 evidence boundary and adds the measured
+v17 corrections: bounded reviewable-source proof for absence propositions, authenticated A1
+configured-runner absence, full test-inventory discovery, and narrowly scoped structural rescue
+only after a positive core signal. Blind abstention uses authored production source and the
+configured-runner premise; it does not infer a healthy result from metadata alone. The public
+default is promoted only after the v50 terminal GO, not from a development score or a
+configured-runner premise without evidence. The commercial score remains bounded to observable
+repository evidence; it is not a security guarantee.
+
+**Why.** The v49 untouched holdout's only failure was inappropriate abstention (16 of 189,
+upper envelope 12.70% against a 10% gate). V50 tested the v17 revision on a fresh 200-repository
+cohort with three independent blind reviews and the frozen clustered estimator. It passed finding
+precision, worst-case recall, FPR, criterion, missingness, and abstention gates. The measured
+finding precision was 96.43% (95% lower bound 94.16%), worst-case recall 95.64% (lower bound
+92.23%), and worst-case FPR 0.66% (upper bound 1.10%). The terminal claim's precision threshold
+is 80%; this is a calibration result for the frozen free-core population, not universal recall.
+
+All 24 pinned corpus rows were rescored at their existing immutable commits with zero scan or
+score errors on 2026-07-25 UTC. CardDemo remains scoreless `insufficient_source`. The private
+Alfred transparency row is labeled private and is not independently reproducible from public
+source. The table below is the complete v9-to-v17 delta. The historical **Full v8 to v9 delta**
+remains below; it is not silently replaced by this prospective rescore.
+
+**Full v9 to v17 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | Verdict | Rank |
+|---|---:|---:|---:|---|---:|
+| react | 3.2 to 3.0 | 2.5 to 2.1 | 3.9 to 3.9 | Conditional to Conditional | 5 to 7 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 11 to 11 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | Conditional to Conditional | 6 to 5 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.9 to 2.9 | 2.7 to 2.7 | 3.0 to 3.0 | Conditional to Conditional | 13 to 13 |
+| fastapi | 3.1 to 3.1 | 3.0 to 3.0 | 3.2 to 3.2 | Conditional to Conditional | unranked to unranked |
+| express | 3.0 to 3.0 | 2.8 to 2.8 | 3.2 to 3.2 | Conditional to Conditional | unranked to unranked |
+| vite | 3.4 to 3.4 | 2.8 to 2.8 | 4.0 to 4.0 | Conditional to Conditional | 1 to 2 |
+| esbuild | 2.5 to 2.5 | 2.6 to 2.6 | 2.4 to 2.4 | Conditional to Conditional | 15 to 15 |
+| biomejs | 3.0 to 3.0 | 2.9 to 2.9 | 3.0 to 3.0 | Conditional to Conditional | 8 to 8 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 9 to 9 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | Conditional to Conditional | 4 to 4 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | Conditional to Conditional | 3 to 3 |
+| zod | 3.2 to 3.2 | 3.1 to 3.1 | 3.2 to 3.2 | Conditional to Conditional | 7 to 6 |
+| scorecard | 2.9 to 2.9 | 2.2 to 2.2 | 3.6 to 3.6 | Conditional to Conditional | 10 to 10 |
+| ripgrep | 2.1 to 2.1 | 2.1 to 2.1 | 2.0 to 2.0 | At risk to At risk | 16 to 16 |
+| guava | 1.9 to 1.9 | 1.5 to 1.6 | 2.2 to 2.2 | At risk to At risk | unranked to unranked |
+| cobra | 2.5 to 2.5 | 2.6 to 2.6 | 2.3 to 2.3 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | At risk to At risk | unranked to unranked |
+| automapper | 2.2 to 2.2 | 2.0 to 2.0 | 2.3 to 2.3 | At risk to At risk | unranked to unranked |
+| fmt | 2.6 to 2.6 | 2.0 to 2.0 | 3.2 to 3.2 | Conditional to Conditional | 14 to 14 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | Insufficient source to Insufficient source | insufficient to insufficient |
+| alfred | 3.2 to 3.5 | 2.4 to 3.0 | 4.0 to 4.0 | Conditional to Verified | 2 to 1 |
+| cejel | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | Conditional to Conditional | 12 to 12 |
+
 ## witan-rubric-v9-2026-07-22
 
 **What changed.** V9 is the failure-derived remediation from the immutable free-core v32

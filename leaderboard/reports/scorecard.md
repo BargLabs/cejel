@@ -1,25 +1,25 @@
 # Cejel Trust Report - scorecard
 
 - Product: scorecard
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/ossf/scorecard @ 916bfc57fa7431467a33a5a013cba3f8a0c1ec50
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 1.9 | verified | Test-to-source file ratio: 16 ratio (capped; 270 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 1/4 ratio; Non-hollow test share: 186/270 ratio |
+| A1 | Test integrity and regression signal | Code trust | 1.9 | verified | Test-to-source file ratio: 16 ratio (capped; 271 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 1/4 ratio; Non-hollow test share: 186/270 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | N/A | not_applicable | N/A |
 | A3 | Production readiness | Code trust | 1.8 | warning | Production-readiness primitive coverage: 2/6 primitives; Production workflow depth: 6 signals (capped; 34 raw); Observability depth: 3/4 signals; Rollback and migration-safety depth: 0/4 signals |
 | A4 | Dependency hygiene | Code trust | 2.3 | verified | Pinned dependency ratio: 0/822 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.6 | info | Claim match rate: 12/20 ratio; Claim source depth: 4 docs (capped; 8 raw); Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 16 raw); Recent PR merge ratio: 1/1 ratio |
-| B3 | CI and QA discipline | Process trust | 2.7 | warning | CI verification depth: 1/4 signals; PR-gate CI workflow count: 4 workflows (capped; 10 raw) |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 16 raw); Recent PR merge ratio: 1/1 ratio |
+| B3 | CI and QA discipline | Process trust | 2.7 | verified | CI verification depth: 1/4 signals; PR-gate CI workflow count: 4 workflows (capped; 10 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B6 | Privileged-operation human gating | Process trust | 4.0 | warning | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
+| B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
 
@@ -59,19 +59,13 @@
 - B2: Pull-request CI workflow (.github/workflows/docker.yml:1, sha256:83df290e4d6e)
 - B2: Pull request template (.github/PULL_REQUEST_TEMPLATE.md:1, sha256:97111f8601a6)
 - B2: Review gate configuration (.github/CODEOWNERS:1, sha256:32bebdd16341)
-- B2: Pull-request CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e) (warning)
 - B3: CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e)
-- B3: CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e) (warning)
 - B4: N/A — Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:32bebdd16341)
-- B6: CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:32bebdd16341) (warning)
 
 ## Findings
 
 - A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (attestor/command/cli_test.go:1, sha256:8e75726c5f60))
 - A3 finding severity warning (dimension band warning): A3 dimension band is warning at 1.8/4.0. Lowest contributing measurements: Rollback and migration-safety depth 0/4 signals; Production-readiness primitive coverage 2/6 primitives. To improve: document and test rollback or recovery procedures; add the missing deployment-readiness controls. (CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e))
 - A5 finding severity info (dimension band info): Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming. (Repository claim source (README.md:1, sha256:8fed8241afd3))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (16 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e))
-- B3 finding severity warning (dimension band warning): B3 dimension band is warning at 2.7/4.0. Lowest contributing measurements: CI verification depth 1/4 signals; PR-gate CI workflow count 4 workflows capped (10 raw). To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/codeql-analysis.yml:1, sha256:491d592bcf1e))
-- B6 finding severity warning (dimension band warning): B6 dimension band is warning at 4.0/4.0. Lowest contributing measurements: Protected-path review gate 1/1 present; Privilege-escalation cleanliness 1/1 clean. To improve: require review for changes to protected paths; remove unsafe privilege-escalation patterns. (CODEOWNERS/required-review gate on protected paths (.github/CODEOWNERS:1, sha256:32bebdd16341))

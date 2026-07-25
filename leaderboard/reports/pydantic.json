@@ -5,8 +5,8 @@
     "url": "https://github.com/pydantic/pydantic",
     "headSha": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -341,7 +341,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -372,19 +372,7 @@
           "contentHash": "1fd33fa8826bc1c97dd8c56105e3cf2511486de22d45fb8890a738a5f5197d82"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/ci.yml",
-            "line": 1,
-            "contentHash": "b84e54ec0671538f0b03ba7abef91397863c968f0523fb91f16cf491971b1936"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",

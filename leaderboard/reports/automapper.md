@@ -1,8 +1,8 @@
 # Cejel Trust Report - automapper
 
 - Product: automapper
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/AutoMapper/AutoMapper @ dfa6dd587c5854b4beee5934beb39ba6e9569b84
 
 ## Criterion Profile
@@ -15,7 +15,7 @@
 | A4 | Dependency hygiene | Code trust | 2.8 | warning | Declared version range ratio: 3/3 ratio; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 1.4 | warning | Claim match rate: 1/2 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 4 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 4 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 0.6 | warning | CI verification depth: 0/4 signals; PR-gate CI workflow count: 1/4 workflows |
 | B4 | Audit trail and report-up completeness | Process trust | N/A | not_applicable | N/A |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -52,7 +52,6 @@
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d)
 - B2: Pull-request CI workflow (.github/workflows/lock.yml:1, sha256:eb25785fd7d3)
 - B2: Pull-request CI workflow (.github/workflows/release.yml:1, sha256:527f44911edd)
-- B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d) (warning)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d) (warning)
 - B4: N/A — Only a static security-policy artifact (e.g. SECURITY.md) was detected — no committed CHANGELOG/CHANGES/HISTORY/NEWS/AUDIT/STATUS/release-notes/runbook/provenance file to rate for an audit trail. The project may publish release history outside the repository (e.g. GitHub Releases). B4 has no ratable surface here; it is excluded rather than scored.
@@ -64,5 +63,4 @@
 - A1 finding severity warning (dimension band warning): A1 dimension band is warning at 1.8/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file (src/AutoMapper.DI.Tests/AppDomainResolutionTests.cs:1, sha256:12807653e9cc))
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 2.8/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 3/3 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (docs/requirements.txt:1, sha256:ad06f98eae2c))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:f0be14ab178e))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (4 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d))
 - B3 finding severity warning (dimension band warning): B3 dimension band is warning at 0.6/4.0. Lowest contributing measurements: CI verification depth 0/4 signals; PR-gate CI workflow count 1/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/ci.yml:1, sha256:2da4ee81ab4d))

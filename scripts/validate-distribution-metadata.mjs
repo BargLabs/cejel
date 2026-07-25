@@ -15,8 +15,11 @@ const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.ur
 const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
 const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
 const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
+const ALFRED_REPORT_PATH = new URL('../leaderboard/reports/alfred.json', import.meta.url);
+const README_PATH = new URL('../README.md', import.meta.url);
 const ROOT_ACTION_PATH = new URL('../action.yml', import.meta.url);
 const NESTED_ACTION_PATH = new URL('../action/action.yml', import.meta.url);
+const ACTION_RUNNER_PATH = new URL('../action/run.mjs', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
@@ -28,8 +31,11 @@ const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
 const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
 const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
 const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
+const alfredReport = JSON.parse(readFileSync(ALFRED_REPORT_PATH, 'utf8'));
+const readme = readFileSync(README_PATH, 'utf8');
 const rootAction = readFileSync(ROOT_ACTION_PATH, 'utf8');
 const nestedAction = readFileSync(NESTED_ACTION_PATH, 'utf8');
+const actionRunner = readFileSync(ACTION_RUNNER_PATH, 'utf8');
 const ACTION_USE_PATTERN = /^\s*(?:-\s*)?uses:\s*([^#\s]+)(?:\s+#.*)?$/gm;
 
 function requireEqual(actual, expected, field) {
@@ -44,6 +50,13 @@ function requireIncludes(haystack, needle, field) {
   if (!haystack.includes(needle)) {
     throw new Error(`${field} must include ${JSON.stringify(needle)}.`);
   }
+}
+
+function formatVerdict(verdict) {
+  return verdict
+    .split('_')
+    .map((word, index) => (index === 0 ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word))
+    .join(' ');
 }
 
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');
@@ -122,6 +135,11 @@ if (mcpPublishJob.includes('/releases/latest/')) {
 }
 
 requireEqual(leaderboardIndex, leaderboard, 'deployed leaderboard index/leaderboard artifact');
+requireIncludes(
+  readme,
+  `${alfredReport.overallScore.toFixed(1)}/4.0 ("${formatVerdict(alfredReport.verdict)}")`,
+  'README Alfred dogfood score',
+);
 
 requireIncludes(ciWorkflow, '\n        uses: ./\n', 'CI root candidate Action smoke');
 requireIncludes(ciWorkflow, '\n        uses: ./action\n', 'CI nested candidate Action smoke');
@@ -163,6 +181,17 @@ requireIncludes(
   'root Action runner path',
 );
 requireIncludes(
+  rootAction,
+  'Overall Cejel trust score (0.0-4.0), or empty when Cejel abstains.',
+  'root Action score output contract',
+);
+requireIncludes(
+  rootAction,
+  'Unverified / Insufficient source /',
+  'root Action verdict output contract',
+);
+requireIncludes(rootAction, 'Insufficient evidence).', 'root Action evidence abstention verdict');
+requireIncludes(
   nestedAction,
   'cd "$(dirname "${{ github.action_path }}")"',
   'nested Action repository working directory',
@@ -172,9 +201,31 @@ requireIncludes(
   'node "${{ github.action_path }}/run.mjs"',
   'nested Action runner path',
 );
+requireIncludes(
+  nestedAction,
+  'Overall Cejel trust score (0.0-4.0), or empty when Cejel abstains.',
+  'nested Action score output contract',
+);
+requireIncludes(
+  nestedAction,
+  'Unverified / Insufficient source /',
+  'nested Action verdict output contract',
+);
+requireIncludes(
+  nestedAction,
+  'Insufficient evidence).',
+  'nested Action evidence abstention verdict',
+);
 if (rootAction === nestedAction) {
   throw new Error('Root and nested Action manifests must use distinct relative paths.');
 }
+requireIncludes(
+  actionRunner,
+  "s.verdict === 'Insufficient evidence'",
+  'Action insufficient-evidence abstention guard',
+);
+requireIncludes(actionRunner, 'finding.displaySummary ?? finding.summary', 'Action finding copy');
+requireIncludes(actionRunner, 'dimension band:', 'Action dimension-band label');
 
 const listFormActionReference = 'owner/action@0123456789abcdef0123456789abcdef01234567';
 requireEqual(

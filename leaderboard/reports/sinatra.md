@@ -1,8 +1,8 @@
 # Cejel Trust Report - sinatra
 
 - Product: sinatra
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/sinatra/sinatra @ 946812bdec8faf6598fed154a8d611ead612b6fd
 
 ## Criterion Profile
@@ -15,11 +15,11 @@
 | A4 | Dependency hygiene | Code trust | no data | insufficient_data | Insufficient data — no measurable signal for this criterion |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 3 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 3 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 0.6 | warning | CI verification depth: 0/4 signals; PR-gate CI workflow count: 1/4 workflows |
 | B4 | Audit trail and report-up completeness | Process trust | 2.5 | verified | Audit artifact depth: 2/3 files; Audit freshness depth: 1/2 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B6 | Privileged-operation human gating | Process trust | 4.0 | warning | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
+| B6 | Privileged-operation human gating | Process trust | 4.0 | verified | Privilege-escalation cleanliness: 1/1 clean; Protected-path review gate: 1/1 present |
 
 ## Summary Scores
 
@@ -52,19 +52,15 @@
 - B2: Pull-request CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2)
 - B2: Pull-request CI workflow (.github/workflows/test.yml:1, sha256:99756d90f358)
 - B2: Review gate configuration (.github/workflows/CODEOWNERS:1, sha256:682a996b6856)
-- B2: Pull-request CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2) (warning)
 - B3: CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2)
 - B3: CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2) (warning)
 - B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:21e2a2928d51)
 - B4: Audit or changelog artifact (SECURITY.md:1, sha256:0a317e90d1c1)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: CODEOWNERS/required-review gate on protected paths (.github/workflows/CODEOWNERS:1, sha256:682a996b6856)
-- B6: CODEOWNERS/required-review gate on protected paths (.github/workflows/CODEOWNERS:1, sha256:682a996b6856) (warning)
 
 ## Findings
 
 - A1 finding severity warning (dimension band warning): A1 dimension band is warning at 1.8/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file (rack-protection/spec/lib/rack/protection/authenticity_token_spec.rb:1, sha256:eee1d74a3ff0))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:7c8cdf9819db))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (3 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2))
 - B3 finding severity warning (dimension band warning): B3 dimension band is warning at 0.6/4.0. Lowest contributing measurements: CI verification depth 0/4 signals; PR-gate CI workflow count 1/4 workflows. To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/release.yml:1, sha256:cc493a1c4dc2))
-- B6 finding severity warning (dimension band warning): B6 dimension band is warning at 4.0/4.0. Lowest contributing measurements: Protected-path review gate 1/1 present; Privilege-escalation cleanliness 1/1 clean. To improve: require review for changes to protected paths; remove unsafe privilege-escalation patterns. (CODEOWNERS/required-review gate on protected paths (.github/workflows/CODEOWNERS:1, sha256:682a996b6856))

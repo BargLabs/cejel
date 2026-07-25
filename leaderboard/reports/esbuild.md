@@ -1,8 +1,8 @@
 # Cejel Trust Report - esbuild
 
 - Product: esbuild
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/evanw/esbuild @ 6ff1d8b0d8c134e867a397eef39702a223ebef9e
 
 ## Criterion Profile
@@ -17,7 +17,7 @@
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 3.2 | warning | PR trace primitive coverage: 2 signals (capped; 4 raw); Recent PR merge ratio: 0/1 ratio |
 | B3 | CI and QA discipline | Process trust | 2.0 | verified | CI verification depth: 2/4 signals; PR-gate CI workflow count: 2/4 workflows |
-| B4 | Audit trail and report-up completeness | Process trust | 1.9 | warning | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
+| B4 | Audit trail and report-up completeness | Process trust | 1.9 | verified | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
@@ -57,7 +57,6 @@
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:a028444642bb) (warning)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:a028444642bb)
 - B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:994fc1638806)
-- B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:994fc1638806) (warning)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
@@ -67,4 +66,3 @@
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 3.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 59/59 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (npm/esbuild/package.json:1, sha256:d55d1d19fcc5))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:d9233b2fb0eb))
 - B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (4 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:a028444642bb))
-- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (CHANGELOG.md:1, sha256:994fc1638806))

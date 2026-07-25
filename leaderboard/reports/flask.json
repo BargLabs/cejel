@@ -5,8 +5,8 @@
     "url": "https://github.com/pallets/flask",
     "headSha": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -134,40 +134,16 @@
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
       "score": 3.2,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "secret_scan",
-          "label": "Committed .env file in repository tree",
-          "path": "tests/test_apps/.env",
-          "line": 1,
-          "contentHash": "3739562018bb8d8aeddbb540fb4c53e61af5385fb4d3b613e784057c3129ccc0"
+          "label": ".env path detected in git history",
+          "path": ".git",
+          "contentHash": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81"
         }
       ],
-      "findings": [
-        {
-          "severity": "info",
-          "summary": "A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.",
-          "evidence": {
-            "kind": "secret_scan",
-            "label": "Committed .env file (no confirmed secret value found)",
-            "path": "tests/test_apps/.env",
-            "line": 1,
-            "contentHash": "3739562018bb8d8aeddbb540fb4c53e61af5385fb4d3b613e784057c3129ccc0"
-          }
-        },
-        {
-          "severity": "warning",
-          "summary": "A2 metric-derived score is 3.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "secret_scan",
-            "label": "Committed .env file in repository tree",
-            "path": "tests/test_apps/.env",
-            "line": 1,
-            "contentHash": "3739562018bb8d8aeddbb540fb4c53e61af5385fb4d3b613e784057c3129ccc0"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "secret_cleanliness",
@@ -429,7 +405,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.1,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -439,19 +415,7 @@
           "contentHash": "a1beaa8eb3926abfa930d944a1316e6c4b3f60de4f305e05258693f6d95e7b9a"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B3 metric-derived score is 2.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "CI workflow",
-            "path": ".github/workflows/lock.yaml",
-            "line": 1,
-            "contentHash": "a1beaa8eb3926abfa930d944a1316e6c4b3f60de4f305e05258693f6d95e7b9a"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "ci_script_depth",

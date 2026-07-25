@@ -1,8 +1,8 @@
 # Cejel Trust Report - ripgrep
 
 - Product: ripgrep
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/BurntSushi/ripgrep @ d5b85d44057ff729a89be9c6549958c45d95aa99
 
 ## Criterion Profile
@@ -15,9 +15,9 @@
 | A4 | Dependency hygiene | Code trust | 3.1 | warning | Declared version range ratio: 67/67 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 3.2 | critical | PR trace primitive coverage: 2/2 signals; Recent PR merge ratio: 0/1 ratio |
-| B3 | CI and QA discipline | Process trust | 1.0 | warning | CI verification depth: 1/4 signals; PR-gate CI workflow count: 1/4 workflows |
-| B4 | Audit trail and report-up completeness | Process trust | 1.9 | warning | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 3.2 | warning | PR trace primitive coverage: 2/2 signals; Recent PR merge ratio: 0/1 ratio |
+| B3 | CI and QA discipline | Process trust | 1.0 | verified | CI verification depth: 1/4 signals; PR-gate CI workflow count: 1/4 workflows |
+| B4 | Audit trail and report-up completeness | Process trust | 1.9 | verified | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
@@ -51,11 +51,9 @@
 - B1: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94)
 - B2: Pull-request CI workflow (.github/workflows/release.yml:1, sha256:190aea818537)
-- B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94) (critical)
+- B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94) (warning)
 - B3: CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94)
-- B3: CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94) (warning)
 - B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:ec63f4787167)
-- B4: Audit or changelog artifact (CHANGELOG.md:1, sha256:ec63f4787167) (warning)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
@@ -64,6 +62,4 @@
 - A1 finding severity warning (dimension band warning): A1 dimension band is warning at 0.9/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file (crates/ignore/tests/gitignore_matched_path_or_any_parents_tests.rs:1, sha256:1a38fdb4ba4b))
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 3.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 67/67 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (Cargo.toml:1, sha256:90d447c5a856))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:a69c389a49ae))
-- B2 finding severity critical (dimension band critical): B2 dimension band is critical at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2/2 signals. To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94))
-- B3 finding severity warning (dimension band warning): B3 dimension band is warning at 1.0/4.0. Lowest contributing measurements: PR-gate CI workflow count 1/4 workflows; CI verification depth 1/4 signals. To improve: run CI on the default branch and pull requests; run the repository verification commands in CI. (CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94))
-- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (CHANGELOG.md:1, sha256:ec63f4787167))
+- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2/2 signals. To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1c75224e8d94))

@@ -26,10 +26,12 @@ inputs:
 
 outputs:
   score:
-    description: 'Overall Cejel trust score (0.0-4.0).'
+    description: 'Overall Cejel trust score (0.0-4.0), or empty when Cejel abstains.'
     value: ${{ steps.witan-run.outputs.score }}
   verdict:
-    description: 'Verdict label (Verified / Conditional / At risk / Unverified).'
+    description: >-
+      Verdict label (Verified / Conditional / At risk / Unverified / Insufficient source /
+      Insufficient evidence).
     value: ${{ steps.witan-run.outputs.verdict }}
 
 runs:

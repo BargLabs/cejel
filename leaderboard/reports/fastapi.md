@@ -1,22 +1,22 @@
 # Cejel Trust Report - fastapi
 
 - Product: fastapi
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/fastapi/fastapi @ 7cb06f360dd44efac059848df1a9beee7643b018
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 2.3 | verified | Test-to-source file ratio: 1 ratio (capped; 601 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 2/4 ratio; Non-hollow test share: 491/501 ratio |
+| A1 | Test integrity and regression signal | Code trust | 2.3 | verified | Test-to-source file ratio: 1 ratio (capped; 604 raw); Static coverage percentage: 0/100 percent; Verification script ratio: 2/4 ratio; Non-hollow test share: 491/501 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | N/A | not_applicable | N/A |
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 3.6 | verified | Declared version range ratio: 5/5 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | no data | insufficient_data | Insufficient data — no measurable signal for this criterion |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B2 | PR outcome traceability | Process trust | 3.2 | warning | PR trace primitive coverage: 2 signals (capped; 23 raw); Recent PR merge ratio: 0/1 ratio |
-| B3 | CI and QA discipline | Process trust | 2.7 | warning | CI verification depth: 1/4 signals; PR-gate CI workflow count: 4 workflows (capped; 9 raw) |
+| B3 | CI and QA discipline | Process trust | 2.7 | verified | CI verification depth: 1/4 signals; PR-gate CI workflow count: 4 workflows (capped; 9 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.6 | verified | Audit artifact depth: 3 files (capped; 99 raw); Audit freshness depth: 48/99 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
@@ -36,11 +36,11 @@
 - A1: Detected test file (docs_src/app_testing/app_a_py310/test_main.py:1, sha256:e7206e066c05)
 - A1: Detected test file (docs_src/app_testing/app_b_an_py310/test_main.py:1, sha256:0983f6ade01f)
 - A1: Detected test file (docs_src/app_testing/app_b_py310/test_main.py:1, sha256:0983f6ade01f)
+- A1: Detected test file (docs_src/async_tests/__init__.py)
+- A1: Detected test file (docs_src/async_tests/app_a_py310/__init__.py)
+- A1: Detected test file (docs_src/async_tests/app_a_py310/main.py:1, sha256:f28e4cbedad7)
 - A1: Detected test file (docs_src/async_tests/app_a_py310/test_main.py:1, sha256:a129755184f1)
 - A1: Detected test file (docs_src/settings/app02_an_py310/test_main.py:1, sha256:cc6f4b806f7f)
-- A1: Detected test file (docs_src/settings/app02_py310/test_main.py:1, sha256:cc6f4b806f7f)
-- A1: Detected test file (scripts/tests/test_translation_fixer/conftest.py:1, sha256:0a8707cb9d97)
-- A1: Detected test file (scripts/tests/test_translation_fixer/test_code_blocks/test_code_blocks_lines_number_mismatch.py:1, sha256:94ffac1f3a8a)
 - A1: Configured test runner (pyproject.toml:1, sha256:b4181f59f23f)
 - A1: Coverage configuration (pyproject.toml:1, sha256:b4181f59f23f)
 - A1: CI workflow runs the test suite (.github/workflows/test.yml:1, sha256:5e24f8017646)
@@ -56,7 +56,6 @@
 - B2: Pull-request CI workflow (.github/workflows/contributors.yml:1, sha256:7d91c15909bf)
 - B2: Pull-request CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5) (warning)
 - B3: CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5)
-- B3: CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5) (warning)
 - B4: Audit or changelog artifact (CITATION.cff:1, sha256:8feb5e554875)
 - B4: Audit or changelog artifact (docs/de/docs/advanced/security/http-basic-auth.md:1, sha256:a1c453720a1d)
 - B4: Audit or changelog artifact (docs/de/docs/advanced/security/index.md:1, sha256:f86483015af3)
@@ -68,4 +67,3 @@
 ## Findings
 
 - B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (23 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5))
-- B3 finding severity warning (dimension band warning): B3 dimension band is warning at 2.7/4.0. Lowest contributing measurements: CI verification depth 1/4 signals; PR-gate CI workflow count 4 workflows capped (9 raw). To improve: run the repository verification commands in CI; run CI on the default branch and pull requests. (CI workflow (.github/workflows/add-to-project.yml:1, sha256:74f130b855a5))

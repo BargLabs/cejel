@@ -3,17 +3,17 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "2a6077355dea45ead65033007474ab77770347d1"
+    "headSha": "7354b407a020b964f0dae7579d960d7e25a06f7b"
   },
-  "generatedAt": "2026-07-24T06:45:20.555Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
       "title": "Test integrity and regression signal",
       "category": "code_trust",
       "score": 2.3,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "test_run",
@@ -78,16 +78,6 @@
       ],
       "findings": [
         {
-          "severity": "warning",
-          "summary": "A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record.",
-          "evidence": {
-            "kind": "scheduled_health_summary",
-            "label": "Scheduled product-health workflow",
-            "contentHash": "8d3281f0ca90a39ef7ca2b8ec6c15be923ee4c6c34365c61aea4d823b557070d",
-            "locationWithheld": "path withheld — private repository"
-          }
-        },
-        {
           "severity": "info",
           "summary": "Test suite files are present, but no coverage configuration was detected.",
           "evidence": {
@@ -102,8 +92,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 397,
-          "max": 652,
+          "value": 401,
+          "max": 655,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -131,8 +121,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 394,
-          "max": 397,
+          "value": 398,
+          "max": 401,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -144,8 +134,8 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 1.4,
-      "status": "critical",
+      "score": 4,
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -174,35 +164,18 @@
         {
           "kind": "artifact",
           "label": "RLS or tenant migration",
-          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
-          "locationWithheld": "path withheld — private repository"
-        },
-        {
-          "kind": "artifact",
-          "label": "Tenant scoping signal",
-          "contentHash": "d7e19c638f2efc48fefbccc3de2c970d4480792edc0ccd062aadc805e1d3c156",
+          "contentHash": "eafff306bfd620bccb9cf616d3cb87160b1142ea5a2e70513d26bb350e6d1e25",
           "locationWithheld": "path withheld — private repository"
         }
       ],
-      "findings": [
-        {
-          "severity": "critical",
-          "summary": "Secret-shaped value appears committed in the scanned repository.",
-          "evidence": {
-            "kind": "secret_scan",
-            "label": "Committed secret-shaped value (value redacted; length 44; classes lower+upper+digit)",
-            "contentHash": "d226179486334579c3f8183ebf9b8e37fc005345eb38cb4cf3d8191661bc9990",
-            "locationWithheld": "path withheld — private repository"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "secret_cleanliness",
           "label": "Secret cleanliness",
-          "value": 0,
+          "value": 1,
           "max": 1,
-          "weight": 0.25,
+          "weight": 0.7,
           "unit": "clean",
           "description": "Credits absence of committed or recent-history secret findings in the static scan."
         },
@@ -211,28 +184,9 @@
           "label": "Environment handling depth",
           "value": 3,
           "max": 3,
-          "weight": 0.1,
+          "weight": 0.3,
           "unit": "practices",
           "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
-        },
-        {
-          "name": "rls_policy_count",
-          "label": "RLS policy count",
-          "value": 18,
-          "max": 114,
-          "kind": "saturating_count",
-          "weight": 0.4,
-          "unit": "policies",
-          "description": "Counts static row-level-security enables, forced-RLS statements, and policy definitions."
-        },
-        {
-          "name": "tenant_scope_ratio",
-          "label": "Tenant-scoped schema ratio",
-          "value": 38,
-          "max": 49,
-          "weight": 0.25,
-          "unit": "ratio",
-          "description": "Measures tenant/studio/workspace scoping evidence across data-layer files."
         }
       ],
       "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
@@ -299,7 +253,7 @@
         {
           "name": "observability_depth",
           "label": "Observability depth",
-          "value": 56,
+          "value": 58,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.1,
@@ -309,7 +263,7 @@
         {
           "name": "rollback_safety_depth",
           "label": "Rollback and migration-safety depth",
-          "value": 665,
+          "value": 773,
           "max": 4,
           "kind": "saturating_count",
           "weight": 0.15,
@@ -460,7 +414,7 @@
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 3.9,
+      "score": 4,
       "status": "verified",
       "evidence": [
         {
@@ -503,7 +457,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 10,
+          "value": 12,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -577,7 +531,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "97a204dbf27779fc208c53ee1cba4619fca869ac68accf9eb745b1469d289f5b",
+          "contentHash": "f15b3284fb633da8093b3999f21d62d5fe39b353878743adb959d4ed268b0d89",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -661,7 +615,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "97a204dbf27779fc208c53ee1cba4619fca869ac68accf9eb745b1469d289f5b",
+          "contentHash": "f15b3284fb633da8093b3999f21d62d5fe39b353878743adb959d4ed268b0d89",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -717,9 +671,9 @@
     }
   ],
   "archetype": "monorepo",
-  "verdict": "conditional",
-  "codeTrustScore": 2.4,
+  "verdict": "verified",
+  "codeTrustScore": 3,
   "processTrustScore": 4,
-  "overallScore": 3.2,
+  "overallScore": 3.5,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

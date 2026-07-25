@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { buildWitanInputFromRepo, containsRealSecret } from '../repo-signals.js';
+import { WITAN_RUBRIC_VERSION_V9 } from '../rubric-version.js';
 
 function makeTmpRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'witan-signals-'));
@@ -28,6 +29,7 @@ function signalFor(dir: string, id: string) {
     productDisplayName: 'Test',
     repoPath: dir,
     generatedAt: '2026-06-26T00:00:00.000Z',
+    rubricVersion: WITAN_RUBRIC_VERSION_V9,
   });
   return (input.signals ?? []).find((s) => s.criterionId === id) ?? null;
 }

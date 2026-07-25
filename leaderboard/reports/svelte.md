@@ -1,8 +1,8 @@
 # Cejel Trust Report - svelte
 
 - Product: svelte
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/sveltejs/svelte @ b4d1583ae20f3869a88a731d9a265c546c099f66
 
 ## Criterion Profile
@@ -15,9 +15,9 @@
 | A4 | Dependency hygiene | Code trust | 3.1 | warning | Declared version range ratio: 60/60 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio; Dependency count sanity: 1/1 sane |
 | A5 | Claim-vs-reality reconciliation | Code trust | 2.2 | warning | Claim match rate: 12/13 ratio; Claim source depth: 1/4 docs; Reconciliation artifact depth: 0/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 4.0 | warning | PR trace primitive coverage: 2 signals (capped; 6 raw); Recent PR merge ratio: 1/1 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 6 raw); Recent PR merge ratio: 1/1 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 4/4 signals; PR-gate CI workflow count: 4 workflows (capped; 5 raw) |
-| B4 | Audit trail and report-up completeness | Process trust | 1.9 | warning | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
+| B4 | Audit trail and report-up completeness | Process trust | 1.9 | verified | Audit artifact depth: 1/3 files; Audit freshness depth: 1/1 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
 | B6 | Privileged-operation human gating | Process trust | N/A | not_applicable | N/A |
 
@@ -56,12 +56,10 @@
 - B2: Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:1bccd24d65cb)
 - B2: Pull-request CI workflow (.github/workflows/ecosystem-ci-trigger.yml:1, sha256:ce15fb9dd3c8)
 - B2: Pull request template (.github/PULL_REQUEST_TEMPLATE.md:1, sha256:5637321f410f)
-- B2: Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676) (warning)
 - B3: Test script (package.json:1, sha256:cc47e94e6601)
 - B3: Lint script (package.json:1, sha256:cc47e94e6601)
 - B3: CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676)
 - B4: Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916)
-- B4: Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916) (warning)
 - B5: N/A — Substrate-specific: an internal process dimension is not applicable to external code.
 - B6: N/A — No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo.
 
@@ -69,5 +67,3 @@
 
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 3.1/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Declared version range ratio 60/60 ratio. To improve: enable automated dependency updates and an audit command; declare an explicit compatible version for every dependency. (Dependency manifest (packages/svelte/package.json:1, sha256:1b17c4f21e75))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:f58cdd71cf9d))
-- B2 finding severity warning (dimension band warning): B2 dimension band is warning at 4.0/4.0. Lowest contributing measurements: PR trace primitive coverage 2 signals capped (6 raw); Recent PR merge ratio 1/1 ratio. To improve: add pull-request templates and outcome-trace records; preserve merged pull-request history in the scanned clone. (Pull-request CI workflow (.github/workflows/autofix.yml:1, sha256:02f5a1442676))
-- B4 finding severity warning (dimension band warning): B4 dimension band is warning at 1.9/4.0. Lowest contributing measurements: Audit artifact depth 1/3 files; Audit freshness depth 1/1 ratio. To improve: publish changelog, incident, security, or audit records; keep the audit trail current. (Audit or changelog artifact (packages/svelte/CHANGELOG.md:1, sha256:34ca5aff9916))

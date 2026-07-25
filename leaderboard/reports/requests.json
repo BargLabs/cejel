@@ -5,8 +5,8 @@
     "url": "https://github.com/psf/requests",
     "headSha": "f361ead047be5cb873174218582f7d8b9fcd9f49"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -301,7 +301,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -332,19 +332,7 @@
           "contentHash": "1231f289a3ee8071f98af61151a3164ae4a3b50f9608791c6b786650deb66de2"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/close-issues.yml",
-            "line": 1,
-            "contentHash": "3f9ea1ad83af25e895e749a3864b850c70cfc37ece203ee898cb548596a937dc"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",
@@ -372,7 +360,7 @@
       "title": "CI and QA discipline",
       "category": "process_trust",
       "score": 2.7,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -382,19 +370,7 @@
           "contentHash": "3f9ea1ad83af25e895e749a3864b850c70cfc37ece203ee898cb548596a937dc"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B3 metric-derived score is 2.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "CI workflow",
-            "path": ".github/workflows/close-issues.yml",
-            "line": 1,
-            "contentHash": "3f9ea1ad83af25e895e749a3864b850c70cfc37ece203ee898cb548596a937dc"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "ci_script_depth",
@@ -479,7 +455,7 @@
       "title": "Privileged-operation human gating",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "artifact",
@@ -489,19 +465,7 @@
           "contentHash": "1231f289a3ee8071f98af61151a3164ae4a3b50f9608791c6b786650deb66de2"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B6 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "artifact",
-            "label": "CODEOWNERS/required-review gate on protected paths",
-            "path": ".github/CODEOWNERS",
-            "line": 1,
-            "contentHash": "1231f289a3ee8071f98af61151a3164ae4a3b50f9608791c6b786650deb66de2"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "privilege_escalation_cleanliness",

@@ -5,8 +5,8 @@
     "url": "https://github.com/AutoMapper/AutoMapper",
     "headSha": "dfa6dd587c5854b4beee5934beb39ba6e9569b84"
   },
-  "generatedAt": "2026-07-22T20:52:22.603Z",
-  "rubricVersion": "witan-rubric-v9-2026-07-22",
+  "generatedAt": "2026-07-25T00:20:53.476Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
   "criteria": [
     {
       "id": "A1",
@@ -290,7 +290,7 @@
       "title": "PR outcome traceability",
       "category": "process_trust",
       "score": 4,
-      "status": "warning",
+      "status": "verified",
       "evidence": [
         {
           "kind": "ci_run",
@@ -314,19 +314,7 @@
           "contentHash": "527f44911edd7a7c7eee364adeac4c77d524d125b2ab2a1c6d8f6d84ef573559"
         }
       ],
-      "findings": [
-        {
-          "severity": "warning",
-          "summary": "B2 metric-derived score is 4.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
-          "evidence": {
-            "kind": "ci_run",
-            "label": "Pull-request CI workflow",
-            "path": ".github/workflows/ci.yml",
-            "line": 1,
-            "contentHash": "2da4ee81ab4d81623dc020ba3d6c14594f2dc07b45542ea5ef68db6969744aa7"
-          }
-        }
-      ],
+      "findings": [],
       "metrics": [
         {
           "name": "pr_trace_primitives",

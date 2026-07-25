@@ -1,21 +1,21 @@
 # Cejel Trust Report - alfred
 
 - Product: alfred
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-24T06:45:20.555Z
-- Repository: . @ 2a6077355dea45ead65033007474ab77770347d1
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
+- Repository: . @ 7354b407a020b964f0dae7579d960d7e25a06f7b
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 2.3 | warning | Test-to-source file ratio: 397/652 ratio; Static coverage percentage: 0/100 percent; Verification script ratio: 4/4 ratio; Non-hollow test share: 394/397 ratio |
-| A2 | Data-layer isolation and secrets posture | Code trust | 1.4 | critical | Secret cleanliness: 0/1 clean; Environment handling depth: 3/3 practices; RLS policy count: 18/114 policies; Tenant-scoped schema ratio: 38/49 ratio |
-| A3 | Production readiness | Code trust | 3.3 | verified | Production-readiness primitive coverage: 4/6 primitives; Production workflow depth: 6 signals (capped; 30 raw); Observability depth: 4 signals (capped; 56 raw); Rollback and migration-safety depth: 4 signals (capped; 665 raw) |
+| A1 | Test integrity and regression signal | Code trust | 2.3 | verified | Test-to-source file ratio: 401/655 ratio; Static coverage percentage: 0/100 percent; Verification script ratio: 4/4 ratio; Non-hollow test share: 398/401 ratio |
+| A2 | Data-layer isolation and secrets posture | Code trust | 4.0 | verified | Secret cleanliness: 1/1 clean; Environment handling depth: 3/3 practices |
+| A3 | Production readiness | Code trust | 3.3 | verified | Production-readiness primitive coverage: 4/6 primitives; Production workflow depth: 6 signals (capped; 30 raw); Observability depth: 4 signals (capped; 58 raw); Rollback and migration-safety depth: 4 signals (capped; 773 raw) |
 | A4 | Dependency hygiene | Code trust | 2.2 | warning | Pinned dependency ratio: 62/210 ratio; Lockfile coverage: 1/1 present; Dependency automation ratio: 0/2 ratio |
 | A5 | Claim-vs-reality reconciliation | Code trust | 3.0 | info | Claim match rate: 12/20 ratio; Claim source depth: 4 docs (capped; 14 raw); Reconciliation artifact depth: 2/3 artifacts |
 | B1 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
-| B2 | PR outcome traceability | Process trust | 3.9 | verified | PR trace primitive coverage: 2 signals (capped; 27 raw); Recent PR merge ratio: 10/12 ratio |
+| B2 | PR outcome traceability | Process trust | 4.0 | verified | PR trace primitive coverage: 2 signals (capped; 27 raw); Recent PR merge ratio: 12/12 ratio |
 | B3 | CI and QA discipline | Process trust | 4.0 | verified | CI verification depth: 4 signals (capped; 5 raw); PR-gate CI workflow count: 4 workflows (capped; 13 raw) |
 | B4 | Audit trail and report-up completeness | Process trust | 3.9 | verified | Audit artifact depth: 3 files (capped; 73 raw); Audit freshness depth: 65/73 ratio |
 | B5 | Internal process dimension | Process trust | N/A | not_applicable | N/A |
@@ -23,9 +23,9 @@
 
 ## Summary Scores
 
-- Code trust: 2.4/4.0
+- Code trust: 3.0/4.0
 - Process trust: 4.0/4.0
-- Overall: 3.2/4.0
+- Overall: 3.5/4.0
 - Measured coverage: code trust 5/5, process trust 4/6, overall 9/11 dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.
 - Not applicable: B1, B5 — substrate-specific criteria excluded from composite (N/A for external code).
 
@@ -41,15 +41,12 @@
 - A1: Detected test file (path withheld — private repository, sha256:5423edb4ca38)
 - A1: Configured test runner (path withheld — private repository, sha256:bb3758e12fb9)
 - A1: CI workflow runs the test suite (path withheld — private repository, sha256:8d3281f0ca90)
-- A1: Scheduled product-health workflow (path withheld — private repository, sha256:8d3281f0ca90) (warning)
 - A1: Detected test file (path withheld — private repository, sha256:4089241dc743) (info)
 - A2: Data layer migration (path withheld — private repository, sha256:d7e19c638f2e)
 - A2: .env files are gitignored (path withheld — private repository, sha256:8e464ca67fbf)
 - A2: Environment template (path withheld — private repository, sha256:17b9221cd6f9)
 - A2: Environment template (path withheld — private repository, sha256:60cae38769ab)
-- A2: RLS or tenant migration (path withheld — private repository, sha256:d7e19c638f2e)
-- A2: Tenant scoping signal (path withheld — private repository, sha256:d7e19c638f2e)
-- A2: Committed secret-shaped value (value redacted; length 44; classes lower+upper+digit) (path withheld — private repository, sha256:d22617948633) (critical)
+- A2: RLS or tenant migration (path withheld — private repository, sha256:eafff306bfd6)
 - A3: Build or typecheck script (path withheld — private repository, sha256:dbffd60fc946)
 - A3: CI workflow (path withheld — private repository, sha256:d90a520a3cf7)
 - A3: Release deploy configuration (path withheld — private repository, sha256:eb4a78361685)
@@ -71,7 +68,7 @@
 - B3: Lint script (path withheld — private repository, sha256:dbffd60fc946)
 - B3: CI workflow (path withheld — private repository, sha256:d90a520a3cf7)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:b71d90871d8b)
-- B4: Audit or changelog artifact (path withheld — private repository, sha256:97a204dbf277)
+- B4: Audit or changelog artifact (path withheld — private repository, sha256:f15b3284fb63)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:d14484199d1a)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:ef234e3bb333)
 - B4: Audit or changelog artifact (path withheld — private repository, sha256:160074df8986)
@@ -79,11 +76,9 @@
 - B6: Documents privileged operations as human-executed/gated (path withheld — private repository, sha256:430ee9c26d48)
 - B6: Fail-closed privilege-membership check before role elevation (path withheld — private repository, sha256:cd87a11058cc)
 - B6: Un-overridable kill-switch / fail-safe governance toggle (path withheld — private repository, sha256:95ea60e45d8d)
-- B6: CODEOWNERS/required-review gate on protected paths (path withheld — private repository, sha256:97a204dbf277)
+- B6: CODEOWNERS/required-review gate on protected paths (path withheld — private repository, sha256:f15b3284fb63)
 
 ## Findings
 
-- A1 finding severity warning (dimension band warning): A scheduled product-health workflow exists, but its results are handed only to an ephemeral, access-gated CI artifact — not a durable, checkable record. (Scheduled product-health workflow (path withheld — private repository, sha256:8d3281f0ca90))
-- A1 finding severity info (dimension band warning): Test suite files are present, but no coverage configuration was detected. (Detected test file (path withheld — private repository, sha256:4089241dc743))
-- A2 finding severity critical (dimension band critical): Secret-shaped value appears committed in the scanned repository. (Committed secret-shaped value (value redacted; length 44; classes lower+upper+digit) (path withheld — private repository, sha256:d22617948633))
+- A1 finding severity info (dimension band verified): Test suite files are present, but no coverage configuration was detected. (Detected test file (path withheld — private repository, sha256:4089241dc743))
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 2.2/4.0. Lowest contributing measurements: Dependency automation ratio 0/2 ratio; Pinned dependency ratio 62/210 ratio. To improve: enable automated dependency updates and an audit command; pin application dependencies that determine the deployed artifact. (Dependency manifest (path withheld — private repository, sha256:a927e01eac32))

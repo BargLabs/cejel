@@ -1,10 +1,10 @@
 # Cejel Trust Report - carddemo
 
 - Product: carddemo
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/aws-samples/aws-mainframe-modernization-carddemo @ 59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e
-- Verdict: Insufficient source to certify — Cejel does not yet read this repository's dominant source language(s) (.cpy, .jcl, .cbl, .bms, .ps, .ctl) — 9 of 252 source-shaped file(s) (3.6%) are in a language Cejel reads — below the 80% dominance threshold a score would need to be meaningful (329 tracked files in total; manifests, lockfiles, docs, media and bundled binaries are excluded from both sides of the ratio). Cejel abstains from a verdict rather than score a repository whose recognised source is incidental rather than dominant; the Criterion Profile and Measured coverage below show exactly which dimensions were and were not measured. To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>.
+- Verdict: Insufficient evidence to certify — No free-core rubric criterion produced a measurable signal. Cejel abstains rather than publish a numeric zero for an entirely unmeasured repository.
 
 ## Criterion Profile
 
@@ -24,13 +24,13 @@
 
 ## Summary Scores
 
-- Headline scores: not issued (insufficient source).
+- Headline scores: not issued (insufficient evidence).
 - Measured coverage: code trust 0/5, process trust 0/6, overall 0/11 dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.
 - Low confidence: fewer than half of the dimensions behind at least one score above were measured. Low coverage — scored on few signals, less certain than the same score measured across more dimensions.
 - Not applicable: A2, A3, B1, B4, B5, B6 — substrate-specific criteria excluded from composite (N/A for external code).
 - Insufficient data: A1, A4, A5, B2, B3 — no measurable signal for the scorer to read; excluded from composite. Unmeasured, not inapplicable, and not a measured zero.
 
-_This repo has insufficient source to certify. Per-criterion measurements below describe only the surface Cejel could read; they are not a headline score or verdict on the product._
+_This repo has insufficient measurable evidence to certify. Per-criterion gaps below are not a headline score or verdict on the product._
 
 ## Evidence
 

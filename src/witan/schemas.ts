@@ -36,7 +36,10 @@ export const WITAN_RUBRIC_VERSION_V8 = 'witan-rubric-v8-2026-07-21';
 // review-packet source representation, abstention dominance, and semantic-state thresholds are
 // tightened together; see docs/leaderboard/RUBRIC_CHANGELOG.md for the frozen public delta.
 export const WITAN_RUBRIC_VERSION_V9 = 'witan-rubric-v9-2026-07-22';
-export const WITAN_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V9;
+// V17 is the first free-core rubric to clear a preregistered untouched holdout. The named
+// prospective versions remain local to packages/witan so the frozen commercial schema barrel
+// does not change; the shared default changes only after the public v50 terminal GO.
+export const WITAN_RUBRIC_VERSION = 'witan-rubric-v17-2026-07-24';
 export const WITAN_TRADING_RUBRIC_VERSION_V0 = 'witan-trading-rubric-v0-2026-07-01';
 
 export const WITAN_CRITERION_IDS = [

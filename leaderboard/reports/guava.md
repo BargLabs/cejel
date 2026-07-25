@@ -1,15 +1,15 @@
 # Cejel Trust Report - guava
 
 - Product: guava
-- Rubric: witan-rubric-v9-2026-07-22
-- Generated: 2026-07-22T20:52:22.603Z
+- Rubric: witan-rubric-v17-2026-07-24
+- Generated: 2026-07-25T00:20:53.476Z
 - Repository: https://github.com/google/guava @ 486837d756e6d48864620e91b0761467e2abe744
 
 ## Criterion Profile
 
 | ID | Criterion | Category | Score | Status | Measurement signals |
 |---|---|---|---:|---|---|
-| A1 | Test integrity and regression signal | Code trust | 1.3 | warning | Test-to-source file ratio: 1242/1805 ratio; Static coverage percentage: 0/100 percent; Verification script ratio: 0/4 ratio; Non-hollow test share: 842/1112 ratio |
+| A1 | Test integrity and regression signal | Code trust | 1.4 | warning | Test-to-source file ratio: 1373/1805 ratio; Static coverage percentage: 0/100 percent; Verification script ratio: 0/4 ratio; Non-hollow test share: 846/1116 ratio |
 | A2 | Data-layer isolation and secrets posture | Code trust | N/A | not_applicable | N/A |
 | A3 | Production readiness | Code trust | N/A | not_applicable | N/A |
 | A4 | Dependency hygiene | Code trust | 1.1 | warning | Declared version range ratio: 0/1 ratio; Dependency automation ratio: 1/2 ratio; Dependency count sanity: 1/1 sane |
@@ -23,7 +23,7 @@
 
 ## Summary Scores
 
-- Code trust: 1.5/4.0
+- Code trust: 1.6/4.0
 - Process trust: 2.2/4.0
 - Overall: 1.9/4.0
 - Measured coverage: code trust 3/5, process trust 2/6, overall 5/11 dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.
@@ -62,7 +62,7 @@
 
 ## Findings
 
-- A1 finding severity warning (dimension band warning): A1 dimension band is warning at 1.3/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file (android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1, sha256:d5d43f647dc0))
+- A1 finding severity warning (dimension band warning): A1 dimension band is warning at 1.4/4.0. Lowest contributing measurements: Static coverage percentage 0/100 percent; Verification script ratio 0/4 ratio. To improve: configure coverage and publish a measured threshold or report; add explicit test, lint, and typecheck verification commands. (Detected test file (android/guava-testlib/src/com/google/common/collect/testing/MapInterfaceTest.java:1, sha256:d5d43f647dc0))
 - A4 finding severity warning (dimension band warning): A4 dimension band is warning at 1.1/4.0. Lowest contributing measurements: Declared version range ratio 0/1 ratio; Dependency automation ratio 1/2 ratio. To improve: declare an explicit compatible version for every dependency; enable automated dependency updates and an audit command. (Dependency manifest (android/guava-bom/pom.xml:1, sha256:e636a4e3c748))
 - A5 finding severity warning (dimension band warning): Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied. (Repository claim source (README.md:1, sha256:20dc329487f3))
 - B2 finding severity warning (dimension band warning): B2 dimension band is warning at 3.2/4.0. Lowest contributing measurements: Recent PR merge ratio 0/1 ratio; PR trace primitive coverage 2 signals capped (3 raw). To improve: preserve merged pull-request history in the scanned clone; add pull-request templates and outcome-trace records. (Pull-request CI workflow (.github/workflows/ci.yml:1, sha256:0f74c7922fda))
