@@ -60,7 +60,7 @@ interface PythonFunctionBlock {
 const EVALUATOR_CONTEXT_PATTERN =
   /(?:eval|evaluation|evaluator|judge|judg|grade|grader|grading|score|scoring|benchmark|assess|metric)/i;
 const PYTHON_MODEL_OR_JUDGE_CALL_PATTERN =
-  /\b(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:responses\.create|chat\.completions\.create|messages\.create)|(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:llm|model|judge|grader|evaluator|generator|[A-Za-z_][A-Za-z0-9_]*_(?:llm|model|judge|grader|evaluator|generator))(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.(?:invoke|ainvoke|predict|apredict|complete|acomplete|generate|agenerate|evaluate|aevaluate|judge|grade|score|run|arun)|(?:self\.)?_?(?:evaluate|judge|grade)(?:_[A-Za-z_][A-Za-z0-9_]*)?)\s*\(/g;
+  /\b(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:responses\.create|chat\.completions\.create|messages\.create)|(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:(?:[A-Za-z_][A-Za-z0-9_]*_)?(?:llm|model|judge|grader|evaluator|generator|metrics)(?:_[A-Za-z0-9_]*)?)(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.(?:invoke|ainvoke|predict|apredict|complete|acomplete|generate|agenerate|evaluate|aevaluate|judge|grade|score|run|arun)|(?:self\.)?_?(?:evaluate|judge|grade)(?:_[A-Za-z_][A-Za-z0-9_]*)?)\s*\(/g;
 const PYTHON_RESULT_KEY_PATTERN =
   /^(?:score|scores|verdict|result|results|metric|metrics|passed|correct|status|output|actualoutput|judgment|judgement|grade|accuracy)$/i;
 const PYTHON_CONFIG_LINEAGE_KEY_PATTERN =

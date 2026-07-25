@@ -641,6 +641,55 @@ describe('Free LLM evaluation and provenance rules', () => {
     expect(findings).toHaveLength(1);
   });
 
+  it('recognizes a domain-named manager component (metrics_manager.evaluate) as a judge invocation', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkManager:',
+        '    def run_benchmark(self, examples, metrics):',
+        '        scores = []',
+        '        for example in examples:',
+        '            result = self.metrics_manager.evaluate(example)',
+        '            scores.append(result.score)',
+        '        average_score = sum(scores) / len(scores)',
+        '        return {"average_score": average_score}',
+      ].join('\n'),
+    };
+    const findings = detectCejelLlmEvaluationRules([source]).filter(
+      (finding) => finding.ruleId === 'LLM-EVL-001',
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it('still treats retained raw per-example results as a sufficient denominator substitute even for a subscript-built aggregate dict', () => {
+    // Documents an intentional negative boundary: BenchmarkResult here retains the full raw
+    // `results` list alongside `aggregate_scores`, so per the rule's own "denominator or raw
+    // case-level results" contract this does not fire -- even though each individual metric's
+    // eligible count is technically a filtered subset of `results`. Widening this further would
+    // require tracing the per-metric filter, which is out of scope for this detector.
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkManager:',
+        '    def run_benchmark(self, examples, metrics):',
+        '        results = []',
+        '        for example in examples:',
+        '            results.append(self.metrics_manager.evaluate(example))',
+        '        aggregate_scores = {}',
+        '        for metric in metrics:',
+        '            scores = [r.metrics.get(metric, 0) for r in results if metric in r.metrics]',
+        '            if scores:',
+        '                aggregate_scores[metric] = sum(scores) / len(scores)',
+        '        return BenchmarkResult(results=results, aggregate_scores=aggregate_scores)',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
   it('does not flag a Python statistics.mean aggregate with a retained denominator', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluation/benchmarks.py',
