@@ -8,6 +8,7 @@ import {
   CEJEL_LLM_EVALUATION_RULES,
   detectCejelLlmEvaluationRules,
 } from '../evaluation-rules.js';
+import { supportedJavaScriptModelCallIndices } from '../javascript-integrations.js';
 import {
   detectPythonMissingDenominator,
   detectPythonMissingEvaluationProvenance,
@@ -750,6 +751,25 @@ describe('Free LLM evaluation and provenance rules', () => {
     const start = performance.now();
     detectPythonMissingEvaluationProvenance(source);
     detectPythonMissingDenominator(source);
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it('scans a long non-matching identifier chain through the JS-side call/scope detectors in linear time', () => {
+    // Regression test for a second, pre-existing quadratic-time backtracking bug found while
+    // diagnosing the one above: supportedJavaScriptModelCallIndices (and the arrow/function-scope
+    // patterns it relies on via functionScopes) each had an unbounded [A-Za-z_$][\w$]* continuation
+    // followed by a check that usually fails on this input, causing the same per-start-offset
+    // backtracking blowup. It matters here specifically because completeLocalSource/
+    // hasSupportedEvaluationImport gate on file *path* shape, not extension, so this JS-side
+    // scanning runs against every file -- including .py files -- regardless of language.
+    const longIdentifier = 'a_model_b_'.repeat(8000);
+    const contents = [
+      'def run_benchmark(judge):',
+      `    ${longIdentifier}end = 1`,
+      '    return {}',
+    ].join('\n');
+    const start = performance.now();
+    supportedJavaScriptModelCallIndices(contents);
     expect(performance.now() - start).toBeLessThan(500);
   });
 
