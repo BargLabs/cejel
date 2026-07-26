@@ -1,8 +1,13 @@
 # Free LLM Pack calibration protocol v1
 
-Status: v1.4 selection policy and immutable cohort manifests frozen; blind opportunity freeze pending
+Status: v1.9 golden gate **NO-GO**; golden retired; untouched withdrawn unexecuted and unspent
+Current decision record:
+[`results/v1.9-golden-gate-no-go.json`](results/v1.9-golden-gate-no-go.json)
 Protocol ID: `cejel-llm-calibration-v1`
 Claim boundary: static application-integrity and evaluation-hygiene findings only
+
+The versioned references below preserve the protocol's historical evolution. They do not supersede
+the current v1.9 decision record or authorize execution of its withdrawn untouched cohort.
 
 ## 1. Preregistration boundary
 

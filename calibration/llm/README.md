@@ -7,35 +7,36 @@ remain outside Git.
 
 ## State
 
-- Current decision: v1.4 is **NO-GO** after trusted golden run
-  [30053703135](https://github.com/BargLabs/cejel/actions/runs/30053703135). All eight detector
-  findings lacked an exact frozen opportunity match. Six were substantively correct findings
-  omitted by the shared discovery method, one exposed a generic false positive, and one exposed a
-  generic evidence-pointer defect. The v1.4 untouched cohort was never executed and is withdrawn
-  unspent. `results/v1.4-golden-gate-no-go.json` binds the public chronology and private audits.
-  A fresh, fully disjoint v1.5 cycle is required; thresholds remain unchanged.
-- Selection policy: `selection-policy.json` is re-locked at version `llm-selection-v1.4` before
-  v1.4 source access or detector results. The v1.2 and v1.3 policies remain at
-  `selection-policy-v1.2.json` and `selection-policy-v1.3.json`.
+- Current decision: v1.9 is **NO-GO** after two local no-egress golden executions measured zero
+  finding recall. The v1.9 golden cohort is retired; its untouched cohort was never executed and is
+  withdrawn unspent. The canonical record is
+  [`results/v1.9-golden-gate-no-go.json`](results/v1.9-golden-gate-no-go.json). It does not claim
+  CI-trusted execution provenance. A future cycle requires materially broader detector coverage
+  and fresh repository-availability checks; thresholds remain unchanged.
+- Selection policy: the v1.9 selection record is
+  [`cohorts/selection-v1.9.json`](cohorts/selection-v1.9.json), with policy ID
+  `llm-selection-v1.9`. Earlier versioned policies and selection records are retained as historical
+  evidence, not as current execution instructions.
 - Release decision thresholds: `release-thresholds.json` is locked before detector results.
-- Candidate cohorts: `cohorts/golden-candidates-v1.4.json` and
-  `cohorts/untouched-candidates-v1.4.json` are the current fresh, disjoint, pre-result candidate
-  lists. `results/v1.4-cycle-reset.json` binds the complete 197-identity historical exclusion
-  ledger. `cohorts/selection-v1.4.json` binds both context-isolated metadata proposals, the exact
-  selector, both per-cohort selection records, and both candidate documents.
-  Earlier candidate and manifest files remain audit evidence and are never accepted as fallback
-  measurement inputs.
+- Candidate cohorts: the v1.9 candidates, selection records, manifests, and
+  [`results/v1.9-cycle-reset.json`](results/v1.9-cycle-reset.json) remain the audit record for the
+  retired v1.9 cycle. There is no currently executable cohort: the golden cohort is retired and the
+  untouched cohort is withdrawn unexecuted. Earlier candidate and manifest files remain audit
+  evidence and are never accepted as fallback measurement inputs.
 - Metadata-only canonical renames, archived-candidate replacements, reserve ineligibility, and the
   pre-result policy re-lock are recorded in `cohorts/selection-amendments.json`.
-- Immutable manifests: the original v1.1 manifests were frozen at `2026-07-23T04:08:14Z`, but the
+- Immutable manifests: the v1.9 golden and untouched manifests were frozen at
+  `2026-07-24T22:57:00Z` and `2026-07-24T22:57:30Z` after two disclosed sequential owner-review
+  passes. Their disposition is governed by the v1.9 NO-GO record above. Historically, the original
+  v1.1 manifests were frozen at `2026-07-23T04:08:14Z`, but the
   untouched manifest was retired after a cross-review status message exposed first-pass labels to
-  the rule-authoring orchestrator. Neither cohort had been passed to the detector. Current
+  the rule-authoring orchestrator. Neither cohort had been passed to the detector. The historical
   `golden-manifest-v1.2.json` and `untouched-manifest-v1.2.json` were frozen before execution and
   reviewed in two sequential passes by the same AI task under the solo-owner exception. Those
   passes are not independent or human. The v1.3 manifests use the same disclosed sequential-review
   mode. The v1.3 golden set was then used for detector development, and its unexecuted untouched
   set was conservatively withdrawn because the shared opportunity-discovery process was materially
-  incomplete. The fresh v1.4 golden and untouched manifests were frozen at
+  incomplete. The historical v1.4 golden and untouched manifests were frozen at
   `2026-07-23T22:45:38Z` after two disclosed sequential owner review passes. All 48 repositories
   resolve to immutable commit and root-tree identities, and no earlier manifest can satisfy the
   v1.4 gate.
@@ -55,6 +56,10 @@ remain outside Git.
   against `schemas/label.schema.json`.
 
 ## Commands
+
+The validation commands remain applicable. The v1.4 assembly example below is retained as historical
+protocol documentation; it is not authorization to execute an untouched cohort. The v1.9
+untouched cohort is explicitly withdrawn unexecuted by the canonical NO-GO record above.
 
 ```bash
 node calibration/llm/scripts/validate-calibration.mjs
