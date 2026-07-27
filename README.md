@@ -64,6 +64,10 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel .
 ```
 
+> **Distribution note:** npm currently serves `0.2.1`. Standalone binaries, Docker/OCI,
+> GitHub Action, Homebrew, and MCP Registry remain on `0.2.0`. The next patch release will
+> supersede both versions across all supported channels.
+
 If a root `package.json` still carries a template name, override only the certificate display
 name while keeping the repository-derived stable slug:
 

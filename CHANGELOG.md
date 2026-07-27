@@ -29,6 +29,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - This is an npm-only patch. OCI and MCP Registry remain at the actually published `0.2.0`;
   Cejel does not advertise nonexistent `0.2.1` container or registry artifacts.
+- The next patch release will supersede `0.2.1` on npm and `0.2.0` on the other supported
+  distribution channels.
 
 ---
 
