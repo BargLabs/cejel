@@ -1,8 +1,8 @@
 # Cejel Trust Report - vite
 
 - Product: vite
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/vitejs/vite @ 5d95f1631bfde08ee2613a53517dd5ea5d388cda
 
 ## Criterion Profile

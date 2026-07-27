@@ -1,8 +1,8 @@
 # Cejel Trust Report - axios
 
 - Product: axios
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/axios/axios @ 7a6615e421578081743161eab032d009dc6583a4
 
 ## Criterion Profile

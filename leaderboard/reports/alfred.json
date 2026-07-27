@@ -3,10 +3,10 @@
   "productDisplayName": "alfred",
   "repo": {
     "path": ".",
-    "headSha": "7354b407a020b964f0dae7579d960d7e25a06f7b"
+    "headSha": "ed2aa67323ac06190d6c2a9ecb2da3de6dd6c75d"
   },
-  "generatedAt": "2026-07-25T00:20:53.476Z",
-  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "generatedAt": "2026-07-27T01:48:38.955Z",
+  "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
   "criteria": [
     {
       "id": "A1",
@@ -92,8 +92,8 @@
         {
           "name": "test_to_source_ratio",
           "label": "Test-to-source file ratio",
-          "value": 401,
-          "max": 655,
+          "value": 403,
+          "max": 657,
           "kind": "saturating_count",
           "weight": 0.3,
           "unit": "ratio",
@@ -121,8 +121,8 @@
         {
           "name": "non_hollow_test_share",
           "label": "Non-hollow test share",
-          "value": 398,
-          "max": 401,
+          "value": 400,
+          "max": 403,
           "weight": 0.15,
           "unit": "ratio",
           "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
@@ -134,7 +134,7 @@
       "id": "A2",
       "title": "Data-layer isolation and secrets posture",
       "category": "code_trust",
-      "score": 4,
+      "score": 2.4,
       "status": "verified",
       "evidence": [
         {
@@ -166,6 +166,12 @@
           "label": "RLS or tenant migration",
           "contentHash": "eafff306bfd620bccb9cf616d3cb87160b1142ea5a2e70513d26bb350e6d1e25",
           "locationWithheld": "path withheld — private repository"
+        },
+        {
+          "kind": "artifact",
+          "label": "Repository-native RLS scope (studio_id)",
+          "contentHash": "253c372ea48df8f5cfe7df59069d00fc0b7ac838a4f0adb24cdd9cf7b05b7bba",
+          "locationWithheld": "path withheld — private repository"
         }
       ],
       "findings": [],
@@ -175,7 +181,7 @@
           "label": "Secret cleanliness",
           "value": 1,
           "max": 1,
-          "weight": 0.7,
+          "weight": 0.25,
           "unit": "clean",
           "description": "Credits absence of committed or recent-history secret findings in the static scan."
         },
@@ -184,12 +190,31 @@
           "label": "Environment handling depth",
           "value": 3,
           "max": 3,
-          "weight": 0.3,
+          "weight": 0.1,
           "unit": "practices",
           "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        },
+        {
+          "name": "rls_policy_count",
+          "label": "RLS policy count",
+          "value": 6,
+          "max": 38,
+          "kind": "saturating_count",
+          "weight": 0.4,
+          "unit": "policies",
+          "description": "Counts CREATE POLICY definitions with repository-native USING/WITH CHECK clauses against the repository-native scoped data-layer surface."
+        },
+        {
+          "name": "tenant_scope_ratio",
+          "label": "Tenant-scoped schema ratio",
+          "value": 38,
+          "max": 49,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures repository-native RLS scope identifiers (studio_id) across data-layer files."
         }
       ],
-      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported. Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies."
     },
     {
       "id": "A3",
@@ -414,7 +439,7 @@
       "id": "B2",
       "title": "PR outcome traceability",
       "category": "process_trust",
-      "score": 4,
+      "score": 3.8,
       "status": "verified",
       "evidence": [
         {
@@ -457,7 +482,7 @@
         {
           "name": "pr_merge_ratio",
           "label": "Recent PR merge ratio",
-          "value": 12,
+          "value": 9,
           "max": 12,
           "weight": 0.2,
           "unit": "ratio",
@@ -531,7 +556,7 @@
         {
           "kind": "audit_log",
           "label": "Audit or changelog artifact",
-          "contentHash": "f15b3284fb633da8093b3999f21d62d5fe39b353878743adb959d4ed268b0d89",
+          "contentHash": "86aa0b4e81542f56f1b25c2db8bf57c42ee153537d0910903f964fe1fd27b00c",
           "locationWithheld": "path withheld — private repository"
         },
         {
@@ -615,7 +640,7 @@
         {
           "kind": "artifact",
           "label": "CODEOWNERS/required-review gate on protected paths",
-          "contentHash": "f15b3284fb633da8093b3999f21d62d5fe39b353878743adb959d4ed268b0d89",
+          "contentHash": "86aa0b4e81542f56f1b25c2db8bf57c42ee153537d0910903f964fe1fd27b00c",
           "locationWithheld": "path withheld — private repository"
         }
       ],
@@ -671,9 +696,9 @@
     }
   ],
   "archetype": "monorepo",
-  "verdict": "verified",
-  "codeTrustScore": 3,
-  "processTrustScore": 4,
-  "overallScore": 3.5,
+  "verdict": "conditional",
+  "codeTrustScore": 2.6,
+  "processTrustScore": 3.9,
+  "overallScore": 3.3,
   "publicSanitization": "Transparency entry for a repository inside the private source monorepo: every evidence and finding location is withheld from this public copy (marked \"path withheld — private repository\"). Dimension, summary, status, score, finding counts, and content hash are unchanged from the private evidence."
 }

@@ -38,8 +38,13 @@ import {
   WITAN_RUBRIC_VERSION_V15,
   WITAN_RUBRIC_VERSION_V16,
   WITAN_RUBRIC_VERSION_V17,
+  WITAN_RUBRIC_VERSION_V18,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
+
+function usesV17DetectorClosure(rubricVersion: string): boolean {
+  return rubricVersion === WITAN_RUBRIC_VERSION_V17 || rubricVersion === WITAN_RUBRIC_VERSION_V18;
+}
 
 // ---- Signal bounding cap (documented for operator review) --------------------
 //
@@ -188,7 +193,7 @@ export function createWitanReport(
     );
   const noMeasurementAbstention =
     (parsedInput.rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-      parsedInput.rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
+      usesV17DetectorClosure(parsedInput.rubricVersion)) &&
     isFreeCoreRubric &&
     !hasMeasuredCriterion;
   const insufficientSourceReason =
@@ -289,7 +294,8 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V14 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V17
+    rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V18
   ) {
     return statusForScore(roundScore(Math.max(0, nativeScore - adjustment)));
   }
@@ -376,6 +382,7 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }
@@ -564,7 +571,7 @@ function capScoreForFindings(
     // critical "cap" from inflating 0.0 to 1.4.
     const criticalFindings = findings.filter(({ severity }) => severity === 'critical');
     const authenticatedA1Absence =
-      rubricVersion === WITAN_RUBRIC_VERSION_V17 &&
+      usesV17DetectorClosure(rubricVersion) &&
       criterionId === 'A1' &&
       criticalFindings.length === 1 &&
       criticalFindings[0]?.summary === WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY;
@@ -593,7 +600,7 @@ function statusForScoreAndFindings(
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17
+    usesV17DetectorClosure(rubricVersion)
   ) {
     const calibrated =
       rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
@@ -602,7 +609,7 @@ function statusForScoreAndFindings(
       rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-      rubricVersion === WITAN_RUBRIC_VERSION_V17
+      usesV17DetectorClosure(rubricVersion)
         ? calibratedCriterionStateV11(criterionId, metrics)
         : rubricVersion === WITAN_RUBRIC_VERSION_V9 || rubricVersion === WITAN_RUBRIC_VERSION_V10
           ? calibratedCriterionStateV9(criterionId, metrics)
@@ -914,6 +921,7 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     findings.length > 0
   ) {
     return [...findings];

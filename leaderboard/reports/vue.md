@@ -1,8 +1,8 @@
 # Cejel Trust Report - vue
 
 - Product: vue
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/vuejs/core @ c0606e91798c8dca4f33d101e1dd836d672592c1
 
 ## Criterion Profile

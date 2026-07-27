@@ -5,8 +5,8 @@
     "url": "https://github.com/BurntSushi/ripgrep",
     "headSha": "d5b85d44057ff729a89be9c6549958c45d95aa99"
   },
-  "generatedAt": "2026-07-25T00:20:53.476Z",
-  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "generatedAt": "2026-07-27T01:44:27.501Z",
+  "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
   "criteria": [
     {
       "id": "A1",

@@ -1,8 +1,8 @@
 # Cejel Trust Report - pydantic
 
 - Product: pydantic
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/pydantic/pydantic @ f59e929c999e8b2efc7b12fd0bc1685c1a186be3
 
 ## Criterion Profile

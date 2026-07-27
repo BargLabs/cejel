@@ -1,8 +1,8 @@
 # Cejel Trust Report - requests
 
 - Product: requests
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/psf/requests @ f361ead047be5cb873174218582f7d8b9fcd9f49
 
 ## Criterion Profile

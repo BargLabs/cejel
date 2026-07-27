@@ -1,8 +1,8 @@
 # Cejel Trust Report - fmt
 
 - Product: fmt
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/fmtlib/fmt @ a79df4504cd4e42ed004b1113fb82171e62ed822
 
 ## Criterion Profile

@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 
 const PACKAGE_PATH = new URL('../package.json', import.meta.url);
+const PUBLISHED_VERSIONS_PATH = new URL('../published-versions.json', import.meta.url);
 const SERVER_PATH = new URL('../server.json', import.meta.url);
 const DOCKERFILE_PATH = new URL('../Dockerfile', import.meta.url);
 const DOCKER_ENTRYPOINT_PATH = new URL('./docker-entrypoint.sh', import.meta.url);
@@ -22,6 +23,7 @@ const NESTED_ACTION_PATH = new URL('../action/action.yml', import.meta.url);
 const ACTION_RUNNER_PATH = new URL('../action/run.mjs', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
+const publishedVersions = JSON.parse(readFileSync(PUBLISHED_VERSIONS_PATH, 'utf8'));
 const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
 const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf8');
 const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
@@ -52,15 +54,12 @@ function requireIncludes(haystack, needle, field) {
   }
 }
 
-function formatVerdict(verdict) {
-  return verdict
-    .split('_')
-    .map((word, index) => (index === 0 ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word))
-    .join(' ');
-}
-
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');
-requireEqual(serverManifest.version, packageManifest.version, 'server.json/package.json version');
+requireEqual(
+  serverManifest.version,
+  publishedVersions.mcpRegistry,
+  'server.json/published MCP Registry version',
+);
 requireEqual(serverManifest.repository?.url, 'https://github.com/BargLabs/cejel', 'repository URL');
 requireEqual(serverManifest.repository?.id, '1291714236', 'repository ID');
 requireEqual(serverManifest.icons?.[0]?.src, 'https://cejel.dev/brand-icon.png', 'registry icon');
@@ -74,12 +73,17 @@ if ('version' in ociPackage) {
 }
 requireEqual(
   ociPackage.identifier,
-  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
+  `ghcr.io/barglabs/cejel:${publishedVersions.oci}`,
   'OCI identifier',
 );
 requireEqual(ociPackage.transport?.type, 'stdio', 'OCI transport');
 
-requireIncludes(dockerfile, `ARG VERSION=${packageManifest.version}`, 'Dockerfile default version');
+requireIncludes(dockerfile, `ARG VERSION=${publishedVersions.oci}`, 'Dockerfile default version');
+requireIncludes(
+  readme,
+  `ghcr.io/barglabs/cejel:${publishedVersions.oci}`,
+  'README published OCI version',
+);
 requireIncludes(
   dockerfile,
   `io.modelcontextprotocol.server.name="${packageManifest.mcpName}"`,
@@ -137,8 +141,13 @@ if (mcpPublishJob.includes('/releases/latest/')) {
 requireEqual(leaderboardIndex, leaderboard, 'deployed leaderboard index/leaderboard artifact');
 requireIncludes(
   readme,
-  `${alfredReport.overallScore.toFixed(1)}/4.0 ("${formatVerdict(alfredReport.verdict)}")`,
+  `${alfredReport.overallScore.toFixed(1)}/4.0 on its rubric-native certificate`,
   'README Alfred dogfood score',
+);
+requireIncludes(
+  readme,
+  'ranked population and receives no verdict band',
+  'README Alfred comparative-board boundary',
 );
 
 requireIncludes(ciWorkflow, '\n        uses: ./\n', 'CI root candidate Action smoke');
@@ -254,5 +263,5 @@ for (const [name, workflow] of [
 }
 
 process.stdout.write(
-  `Distribution metadata agrees on ${packageManifest.mcpName} v${packageManifest.version}.\n`,
+  `Distribution metadata agrees on npm v${packageManifest.version}, MCP Registry v${publishedVersions.mcpRegistry}, and OCI v${publishedVersions.oci} for ${packageManifest.mcpName}.\n`,
 );

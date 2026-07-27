@@ -12,6 +12,72 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## witan-rubric-v18-prospective-2026-07-25
+
+**Status.** Prospective only. The public `npx @cejel/cejel` default remains the
+holdout-calibrated `witan-rubric-v17-2026-07-24`. V18 must be selected explicitly and is not
+eligible to replace that default until a fresh authenticated untouched v51 holdout clears every
+preregistered gate. The public leaderboard selects v18 explicitly, with verdict bands withheld,
+so it can disclose the correction without representing the changed detector as calibrated.
+
+**What changed.** V18 inherits the complete v17 detector and scoring closure except for D7
+multi-tenancy evidence. Positive isolation credit is now derived from each repository's own
+`CREATE POLICY ... USING (...)` and `WITH CHECK (...)` clauses. Identifiers parsed from those
+clauses define the repository-native scope vocabulary and are traced across the data-layer
+surface; a fixed tenant-token dictionary cannot create positive isolation credit. The
+`rls_policy_count` denominator is derived from that same scoped surface rather than saturating at
+a hand-typed three policies.
+
+The negative rule remains fail-closed. A tenant-shaped schema with zero RLS policies still emits
+`CORE-A2-TENANT-WITHOUT-RLS`; it is never silently relabeled single-tenant. The conservative
+non-policy schema premise exists only to emit that gap finding and cannot award isolation metrics.
+A regression fixture now exercises this exact zero-policy case under calibrated v17 and
+prospective v18.
+
+**Why.** The v0.2.0 board exposed two distinct protocol defects. Its headline used a 50/50 mean
+of category means, allowing a thin four-criterion process bucket to receive half the headline;
+the board now uses the pre-statable, uniform rule that thin buckets must not receive
+disproportionate headline weight, implemented as equal weight per measured comparable criterion.
+Separately, the attempted D7 correction initially changed v17 in place. That would have shipped a
+different detector under the same identifier used by the v50 GO. Versioning D7 as prospective
+v18 preserves the exact calibrated detector and its measured claim while making the correction
+auditable. The finding-level v50 GO and `terminal-go.md` are unchanged.
+
+All 24 pinned corpus rows were compared at their existing immutable commits. The only rubric-score
+move is the private Alfred transparency snapshot; no third-party repository changes score,
+verdict, coverage class, or board placement. Publisher-owned rows remain outside the calibrated
+public population. Board verdict bands are withheld because the historical 3.5 cutoff has not
+been calibrated for the comparative score.
+
+**Full v17 to prospective-v18 delta (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | Native verdict | Board placement |
+|---|---:|---:|---:|---|---|
+| react | 3.0 to 3.0 | 2.1 to 2.1 | 3.9 to 3.9 | Conditional to Conditional | 9 to 9 |
+| vue | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 11 to 11 |
+| svelte | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | Conditional to Conditional | 4 to 4 |
+| django | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | Conditional to Conditional | unranked to unranked |
+| flask | 2.9 to 2.9 | 2.7 to 2.7 | 3.0 to 3.0 | Conditional to Conditional | 8 to 8 |
+| fastapi | 3.1 to 3.1 | 3.0 to 3.0 | 3.2 to 3.2 | Conditional to Conditional | unranked to unranked |
+| express | 3.0 to 3.0 | 2.8 to 2.8 | 3.2 to 3.2 | Conditional to Conditional | unranked to unranked |
+| vite | 3.4 to 3.4 | 2.8 to 2.8 | 4.0 to 4.0 | Conditional to Conditional | 1 to 1 |
+| esbuild | 2.5 to 2.5 | 2.6 to 2.6 | 2.4 to 2.4 | Conditional to Conditional | 13 to 13 |
+| biomejs | 3.0 to 3.0 | 2.9 to 2.9 | 3.0 to 3.0 | Conditional to Conditional | 6 to 6 |
+| requests | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | 7 to 7 |
+| pydantic | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | Conditional to Conditional | 3 to 3 |
+| axios | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | Conditional to Conditional | 2 to 2 |
+| zod | 3.2 to 3.2 | 3.1 to 3.1 | 3.2 to 3.2 | Conditional to Conditional | 5 to 5 |
+| scorecard | 2.9 to 2.9 | 2.2 to 2.2 | 3.6 to 3.6 | Conditional to Conditional | 10 to 10 |
+| ripgrep | 2.1 to 2.1 | 2.1 to 2.1 | 2.0 to 2.0 | At risk to At risk | 14 to 14 |
+| guava | 1.9 to 1.9 | 1.6 to 1.6 | 2.2 to 2.2 | At risk to At risk | unranked to unranked |
+| cobra | 2.5 to 2.5 | 2.6 to 2.6 | 2.3 to 2.3 | Conditional to Conditional | unranked to unranked |
+| sinatra | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | At risk to At risk | unranked to unranked |
+| automapper | 2.2 to 2.2 | 2.0 to 2.0 | 2.3 to 2.3 | At risk to At risk | unranked to unranked |
+| fmt | 2.6 to 2.6 | 2.0 to 2.0 | 3.2 to 3.2 | Conditional to Conditional | 12 to 12 |
+| carddemo | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | Insufficient source to Insufficient source | unrated to unrated |
+| alfred | 3.5 to 3.3 | 3.0 to 2.6 | 3.9 to 3.9 | Verified to Conditional | transparency to transparency |
+| cejel | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | Conditional to Conditional | transparency to transparency |
+
 ## witan-rubric-v17-2026-07-24
 
 **What changed.** V17 is the first free-core rubric promoted after a preregistered untouched
