@@ -125,6 +125,50 @@ describe('cejel install-from-tarball (published artifact)', () => {
     });
   });
 
+  it('preserves v17 source-coverage arithmetic through the installed terminal and artifacts', () => {
+    const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-mainframe-abstention-'));
+    execFileSync('git', ['init', '--quiet'], { cwd: targetRepo });
+    execFileSync('git', ['config', 'user.email', 'cejel@example.com'], { cwd: targetRepo });
+    execFileSync('git', ['config', 'user.name', 'Cejel fixture'], { cwd: targetRepo });
+    mkdirSync(join(targetRepo, 'scripts'), { recursive: true });
+    mkdirSync(join(targetRepo, 'src'), { recursive: true });
+    writeFileSync(
+      join(targetRepo, 'scripts/review.sh'),
+      '#!/bin/sh\nprintf "%s\\n" review\n',
+      'utf8',
+    );
+    for (let index = 1; index <= 5; index += 1) {
+      writeFileSync(
+        join(targetRepo, `src/program-${index}.cbl`),
+        `IDENTIFICATION DIVISION.\nPROGRAM-ID. P${index}.\n`,
+        'utf8',
+      );
+    }
+    writeFileSync(join(targetRepo, 'README.md'), '# Mainframe sample\n', 'utf8');
+    execFileSync('git', ['add', '-A'], { cwd: targetRepo });
+
+    const output = execFileSync(binPath, [], { cwd: targetRepo, encoding: 'utf8' });
+    const report = JSON.parse(readFileSync(join(targetRepo, '.cejel', 'report.json'), 'utf8')) as {
+      insufficientSourceReason?: string;
+    };
+    const summary = JSON.parse(
+      readFileSync(join(targetRepo, '.cejel', 'summary.json'), 'utf8'),
+    ) as { insufficientSourceReason?: string };
+    const attestation = JSON.parse(
+      readFileSync(join(targetRepo, '.cejel', 'attestation.json'), 'utf8'),
+    ) as { predicate?: { outcome?: { reason?: string } } };
+    const certificate = readFileSync(join(targetRepo, '.cejel', 'certificate.html'), 'utf8');
+    const expectedArithmetic =
+      '1 of 6 source-shaped files (16.7%) are criterion-ratable, below the 20% reviewable-source threshold (7 tracked files in total)';
+
+    expect(output).toContain('Insufficient evidence to certify.');
+    expect(output).toContain(expectedArithmetic);
+    expect(report.insufficientSourceReason).toContain(expectedArithmetic);
+    expect(summary.insufficientSourceReason).toContain(expectedArithmetic);
+    expect(attestation.predicate?.outcome?.reason).toContain(expectedArithmetic);
+    expect(certificate).toContain(expectedArithmetic);
+  });
+
   it('executes every documented flag through the installed artifact', () => {
     const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-flag-surface-'));
     writeFileSync(join(targetRepo, 'index.js'), 'export const answer = 42;\n');

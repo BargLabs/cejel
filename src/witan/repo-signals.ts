@@ -24,7 +24,10 @@ import type {
   WitanReportInputPayload,
 } from './schemas.js';
 
-import { WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY } from './abstention.js';
+import {
+  WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+  WITAN_NO_MEASUREMENT_REASON,
+} from './abstention.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -36,7 +39,12 @@ import {
   WITAN_RUBRIC_VERSION_V15,
   WITAN_RUBRIC_VERSION_V16,
   WITAN_RUBRIC_VERSION_V17,
+  WITAN_RUBRIC_VERSION_V18,
 } from './rubric-version.js';
+
+function usesV17DetectorClosure(rubricVersion: string): boolean {
+  return rubricVersion === WITAN_RUBRIC_VERSION_V17 || rubricVersion === WITAN_RUBRIC_VERSION_V18;
+}
 
 // Additive domain-signal extension point (goal_cejel_public_extraction_ip_scrub_2026-07-10):
 // a collector appends one extra criterion signal computed from the same repo file inventory.
@@ -70,14 +78,15 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   const inventoryFiles = listRepoInventory(options.repoPath, repoFiles);
   const ignoredTargetReason =
     repoFiles.length === 0 ? explainIgnoredScanTarget(options.repoPath) : undefined;
-  const usesV17Detectors = rubricVersion === WITAN_RUBRIC_VERSION_V17;
+  const usesV17Detectors = usesV17DetectorClosure(rubricVersion);
+  const usesV18NativeRls = rubricVersion === WITAN_RUBRIC_VERSION_V18;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17
+    usesV17DetectorClosure(rubricVersion)
       ? applyReadableSourceRepresentationGate(
           options.repoPath,
           inventoryFiles,
@@ -90,7 +99,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17
+    usesV17DetectorClosure(rubricVersion)
       ? applySemanticSourceRepresentationGate(
           options.repoPath,
           inventoryFiles,
@@ -108,7 +117,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+    usesV17DetectorClosure(rubricVersion);
   const usesV33Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V9 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
@@ -118,7 +127,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+    usesV17DetectorClosure(rubricVersion);
   const usesV36Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V10 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
@@ -127,7 +136,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+    usesV17DetectorClosure(rubricVersion);
   const usesV39Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V11 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V12 ||
@@ -135,11 +144,11 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+    usesV17DetectorClosure(rubricVersion);
   const usesV47Detectors =
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17;
+    usesV17DetectorClosure(rubricVersion);
   const reviewableSourceProof = usesV17Detectors
     ? buildReviewableSourceProof(options.repoPath, inventoryFiles, headSha, rubricVersion)
     : undefined;
@@ -152,6 +161,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     usesV36Detectors,
     usesV39Detectors,
     usesV47Detectors,
+    usesV18NativeRls,
     reviewableSourceProof,
   );
   const archetype =
@@ -357,7 +367,7 @@ export function isRecognizedSourcePath(
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17
+    usesV17DetectorClosure(rubricVersion)
       ? SOURCE_EXTENSION_PATTERN_V10
       : SOURCE_EXTENSION_PATTERN
   ).test(path);
@@ -413,6 +423,7 @@ const SOURCE_DOMINANCE_RATIO_THRESHOLD_V8 = 0.2;
 const SOURCE_DOMINANCE_RATIO_THRESHOLD_V9 = 0.8;
 const SOURCE_DOMINANCE_RATIO_THRESHOLD_V10 = 0.5;
 const SOURCE_DOMINANCE_RATIO_THRESHOLD_V11 = 0.2;
+const V17_REVIEWABLE_SOURCE_RATABLE_SHARE_THRESHOLD = 0.2;
 
 // V26 structural-abstention thresholds are frozen prospectively against the synthetic boundary
 // matrix in free-core-v26-detector-regressions.test.ts and documented in the v26 remediation
@@ -491,7 +502,7 @@ export function classifyRepoArchetype(
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17
+    usesV17DetectorClosure(rubricVersion)
   ) {
     const authoredSourceFiles = sourceFiles.filter(isAuthoredProductionPath);
     const documentationFiles = repoFiles.filter((file) =>
@@ -519,7 +530,7 @@ export function classifyRepoArchetype(
         rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
         rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
         rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-        rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
+        usesV17DetectorClosure(rubricVersion)) &&
       materialFiles > 0 &&
       authoredSourceFiles.length / materialFiles <= 0.1
     ) {
@@ -577,7 +588,7 @@ export function classifyRepoArchetype(
           rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
           rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
           rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-          rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
+          usesV17DetectorClosure(rubricVersion)) &&
           unrecognisedSourceFiles.length === 0))
     ) {
       return {
@@ -771,6 +782,43 @@ export function buildV17ReviewableSourceProof(
   );
 }
 
+/**
+ * Adds repository-specific arithmetic to v17/v18's zero-measurement abstention.
+ *
+ * This is presentation context only: the scorer has already decided to abstain because no
+ * free-core criterion was measurable. Re-deriving the existing v17 reviewable-source proof
+ * here explains why a source-shaped repository did not establish a criterion-ratable surface;
+ * it does not alter classification, findings, scores, or the calibrated detector closure.
+ */
+export function explainNoMeasurementSourceCoverage(
+  repoPath: string,
+  rubricVersion: string,
+): string | undefined {
+  if (!usesV17DetectorClosure(rubricVersion)) return undefined;
+
+  const repoFiles = listRepoFiles(repoPath);
+  const inventoryFiles = listRepoInventory(repoPath, repoFiles);
+  const proof = buildReviewableSourceProof(
+    repoPath,
+    inventoryFiles,
+    readGitHead(repoPath),
+    rubricVersion,
+  );
+  if (proof.sourceShapedFileCount === 0) return undefined;
+
+  const ratableShare = proof.eligibleSourceFileCount / proof.sourceShapedFileCount;
+  if (ratableShare >= V17_REVIEWABLE_SOURCE_RATABLE_SHARE_THRESHOLD) return undefined;
+
+  const ratablePct = (ratableShare * 100).toFixed(1);
+  const thresholdPct = (V17_REVIEWABLE_SOURCE_RATABLE_SHARE_THRESHOLD * 100).toFixed(0);
+  return (
+    `${WITAN_NO_MEASUREMENT_REASON} Source coverage: ` +
+    `${proof.eligibleSourceFileCount} of ${proof.sourceShapedFileCount} source-shaped files ` +
+    `(${ratablePct}%) are criterion-ratable, below the ${thresholdPct}% reviewable-source ` +
+    `threshold (${inventoryFiles.length} tracked files in total).`
+  );
+}
+
 function buildReviewableSourceProof(
   repoPath: string,
   repoFiles: readonly string[],
@@ -810,7 +858,7 @@ function buildReviewableSourceProof(
     ...(readablePaths[0] ? { firstReadablePath: readablePaths[0] } : {}),
     passes:
       eligibleSourceFiles.length > 0 &&
-      ratableShare >= 0.2 &&
+      ratableShare >= V17_REVIEWABLE_SOURCE_RATABLE_SHARE_THRESHOLD &&
       readablePaths.length > 0 &&
       (readableShare >= 0.75 || readablePaths.length >= 8),
   };
@@ -1017,7 +1065,7 @@ function sourceDominanceThreshold(rubricVersion: string): number {
     rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V17
+    usesV17DetectorClosure(rubricVersion)
   ) {
     return SOURCE_DOMINANCE_RATIO_THRESHOLD_V11;
   }
@@ -1045,7 +1093,7 @@ export function isUnrecognisedSourcePath(
       rubricVersion === WITAN_RUBRIC_VERSION_V14 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
       rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
-      rubricVersion === WITAN_RUBRIC_VERSION_V17) &&
+      usesV17DetectorClosure(rubricVersion)) &&
     V13_NON_SOURCE_EXTENSION_PATTERN.test(base)
   ) {
     return false;
@@ -1189,6 +1237,7 @@ function collectRepoSignals(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors: boolean,
+  useV18NativeRls: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
@@ -1211,6 +1260,7 @@ function collectRepoSignals(
     useV36Detectors,
     useV39Detectors,
     useV47Detectors,
+    useV18NativeRls,
   );
   const a3Signal = collectA3ProdReadinessEvidence(repoPath, repoFiles, useV27Detectors);
   const a4Signal = collectA4DependencyEvidence(
@@ -1602,6 +1652,7 @@ function collectA2IsolationEvidence(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors: boolean,
+  useV18NativeRls: boolean,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -1762,9 +1813,18 @@ function collectA2IsolationEvidence(
   // hasSecretsSurface via gitignoreHasEnvRule or envExamples: pushed in main loop below.
 
   const v47RlsPolicyFiles = useV47Detectors ? findRlsPolicyFiles(repoPath, repoFiles) : [];
-  const v47TenantStorageFiles = useV47Detectors
+  const nativeRlsInventory = useV18NativeRls
+    ? deriveRlsPolicyScopeInventory(repoPath, repoFiles)
+    : null;
+  // V18 positive isolation credit is policy-native, but a schema that advertises a
+  // tenant boundary and has zero policies must never be silently reclassified as
+  // single-tenant. This legacy, conservative premise is used only to emit the
+  // fail-closed gap finding; it cannot manufacture D7 credit or isolation metrics.
+  const tenantWithoutRlsPremiseFiles = useV18NativeRls
     ? findTenantStoragePremiseFiles(repoPath, repoFiles)
     : [];
+  const v47TenantStorageFiles =
+    useV47Detectors && !useV18NativeRls ? findTenantStoragePremiseFiles(repoPath, repoFiles) : [];
   const rlsMigration = useV47Detectors
     ? v47RlsPolicyFiles[0]
     : migrationFiles.find((file) => fileContains(repoPath, file, RLS_PATTERN));
@@ -1773,19 +1833,25 @@ function collectA2IsolationEvidence(
     : useV36Detectors
       ? TENANT_SCOPE_PATTERN_V10
       : TENANT_SCOPE_PATTERN;
-  const tenantScopedFile = useV47Detectors
-    ? v47TenantStorageFiles[0]
-    : migrationFiles.find((file) => fileContains(repoPath, file, tenantScopePattern));
-  const rlsPolicyCount = useV47Detectors
-    ? v47RlsPolicyFiles.length
-    : countPatternMatches(
-        repoPath,
-        migrationFiles,
-        /create policy|enable row level security|force row level security/gi,
-      );
-  const tenantScopedMigrationFileCount = useV47Detectors
-    ? v47TenantStorageFiles.length
-    : countFilesContaining(repoPath, migrationFiles, tenantScopePattern);
+  const tenantScopedFile = useV18NativeRls
+    ? nativeRlsInventory?.storageFiles[0]
+    : useV47Detectors
+      ? v47TenantStorageFiles[0]
+      : migrationFiles.find((file) => fileContains(repoPath, file, tenantScopePattern));
+  const rlsPolicyCount = useV18NativeRls
+    ? (nativeRlsInventory?.policyCount ?? 0)
+    : useV47Detectors
+      ? v47RlsPolicyFiles.length
+      : countPatternMatches(
+          repoPath,
+          migrationFiles,
+          /create policy|enable row level security|force row level security/gi,
+        );
+  const tenantScopedMigrationFileCount = useV18NativeRls
+    ? (nativeRlsInventory?.storageFiles.length ?? 0)
+    : useV47Detectors
+      ? v47TenantStorageFiles.length
+      : countFilesContaining(repoPath, migrationFiles, tenantScopePattern);
   // gitignoreEnvFile is non-null only when the gitignore actually contains an .env rule.
   const gitignoreEnvFile =
     gitignore && fileContains(repoPath, gitignore, /^\.env(\*|\b)|\.env\./m) ? gitignore : null;
@@ -1798,7 +1864,10 @@ function collectA2IsolationEvidence(
       ? 1
       : 0);
   // Whether the repo claims multi-tenant architecture (tenant/studio/org-scoped schema signals).
-  const isMultiTenant = tenantScopedMigrationFileCount > 0;
+  const isMultiTenant = useV18NativeRls
+    ? (nativeRlsInventory?.policyCount ?? 0) > 0 &&
+      (nativeRlsInventory?.scopeIdentifiers.length ?? 0) > 0
+    : tenantScopedMigrationFileCount > 0;
 
   if (gitignoreEnvFile) {
     evidence.push(
@@ -1815,7 +1884,14 @@ function collectA2IsolationEvidence(
   }
   if (tenantScopedFile) {
     evidence.push(
-      evidenceForRelative(repoPath, tenantScopedFile, 'artifact', 'Tenant scoping signal'),
+      evidenceForRelative(
+        repoPath,
+        tenantScopedFile,
+        'artifact',
+        useV18NativeRls
+          ? `Repository-native RLS scope (${nativeRlsInventory?.scopeIdentifiers.join(', ')})`
+          : 'Tenant scoping signal',
+      ),
     );
   }
 
@@ -1891,8 +1967,11 @@ function collectA2IsolationEvidence(
   }
 
   // Flag a real isolation gap: tenant-scoped schema without any RLS enforcement.
-  if (isMultiTenant && rlsPolicyCount === 0) {
-    const gapEvidence = rlsMigration ?? tenantScopedFile;
+  const hasTenantWithoutRlsGap =
+    rlsPolicyCount === 0 &&
+    (useV18NativeRls ? tenantWithoutRlsPremiseFiles.length > 0 : isMultiTenant);
+  if (hasTenantWithoutRlsGap) {
+    const gapEvidence = rlsMigration ?? tenantScopedFile ?? tenantWithoutRlsPremiseFiles[0];
     if (gapEvidence) {
       findings.push({
         severity: 'warning',
@@ -1947,20 +2026,28 @@ function collectA2IsolationEvidence(
           'rls_policy_count',
           'RLS policy count',
           rlsPolicyCount,
-          Math.max(tenantScopedMigrationFileCount * 3, 3),
+          useV18NativeRls
+            ? Math.max(tenantScopedMigrationFileCount, 1)
+            : Math.max(tenantScopedMigrationFileCount * 3, 3),
           0.4,
           'policies',
-          'Counts static row-level-security enables, forced-RLS statements, and policy definitions.',
+          useV18NativeRls
+            ? 'Counts CREATE POLICY definitions with repository-native USING/WITH CHECK clauses against the repository-native scoped data-layer surface.'
+            : 'Counts static row-level-security enables, forced-RLS statements, and policy definitions.',
           'saturating_count',
         ),
         metric(
           'tenant_scope_ratio',
           'Tenant-scoped schema ratio',
-          countFilesContaining(repoPath, migrationFiles, tenantScopePattern),
+          useV18NativeRls
+            ? tenantScopedMigrationFileCount
+            : countFilesContaining(repoPath, migrationFiles, tenantScopePattern),
           Math.max(migrationFiles.length, 1),
           0.25,
           'ratio',
-          'Measures tenant/studio/workspace scoping evidence across data-layer files.',
+          useV18NativeRls
+            ? `Measures repository-native RLS scope identifiers (${nativeRlsInventory?.scopeIdentifiers.join(', ')}) across data-layer files.`
+            : 'Measures tenant/studio/workspace scoping evidence across data-layer files.',
         ),
       ]
     : [];
@@ -1985,8 +2072,9 @@ function collectA2IsolationEvidence(
     positiveEvidence: evidence,
     findings,
     metrics: [...baseMetrics, ...isolationMetrics, ...cryptoMetrics],
-    notes:
-      'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported.',
+    notes: useV18NativeRls
+      ? 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported. Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies.'
+      : 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported.',
   };
 }
 
@@ -3250,7 +3338,7 @@ const TEST_DIRECTORY_SOURCE_PATTERN_V17 = new RegExp(
 
 function isTestFile(file: string, rubricVersion = WITAN_RUBRIC_VERSION): boolean {
   return (
-    (rubricVersion === WITAN_RUBRIC_VERSION_V17 &&
+    (usesV17DetectorClosure(rubricVersion) &&
       (TEST_DIRECTORY_SOURCE_PATTERN_V17.test(file) ||
         /\.tftest\.hcl$/i.test(file) ||
         /\.bats$/i.test(file) ||
@@ -4339,6 +4427,167 @@ export function findRlsPolicyFiles(repoPath: string, repoFiles: readonly string[
         /\b(?:create\s+policy|enable\s+row\s+level\s+security|force\s+row\s+level\s+security)\b/i,
       ),
     );
+}
+
+export interface RlsPolicyScopeInventory {
+  policyFiles: string[];
+  policyCount: number;
+  scopeIdentifiers: string[];
+  storageFiles: string[];
+}
+
+const RLS_CLAUSE_SQL_WORDS = new Set([
+  'all',
+  'and',
+  'any',
+  'as',
+  'asc',
+  'between',
+  'by',
+  'case',
+  'cast',
+  'current',
+  'desc',
+  'distinct',
+  'else',
+  'end',
+  'exists',
+  'false',
+  'from',
+  'in',
+  'is',
+  'join',
+  'like',
+  'limit',
+  'not',
+  'null',
+  'on',
+  'or',
+  'order',
+  'select',
+  'then',
+  'text',
+  'true',
+  'uuid',
+  'varchar',
+  'when',
+  'where',
+]);
+
+function extractBalancedSqlClause(statement: string, keyword: 'using' | 'with check'): string[] {
+  const clauses: string[] = [];
+  const keywordPattern = keyword === 'using' ? /\busing\s*\(/gi : /\bwith\s+check\s*\(/gi;
+  for (const match of statement.matchAll(keywordPattern)) {
+    const openingParen = (match.index ?? 0) + match[0].lastIndexOf('(');
+    let depth = 0;
+    let quote: "'" | '"' | null = null;
+    for (let index = openingParen; index < statement.length; index += 1) {
+      const character = statement[index];
+      if (quote) {
+        if (character === quote && statement[index - 1] !== '\\') quote = null;
+        continue;
+      }
+      if (character === "'" || character === '"') {
+        quote = character;
+      } else if (character === '(') {
+        depth += 1;
+      } else if (character === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          clauses.push(statement.slice(openingParen + 1, index));
+          break;
+        }
+      }
+    }
+  }
+  return clauses;
+}
+
+function extractRlsScopeIdentifiers(clause: string): string[] {
+  const scrubbed = clause.replace(/'(?:''|[^'])*'/g, ' ').replace(/"(?:""|[^"])*"/g, ' ');
+  const identifiers = new Set<string>();
+  const identifierPattern = /\b[A-Za-z_][A-Za-z0-9_$]*(?:\.[A-Za-z_][A-Za-z0-9_$]*)*\b/g;
+  for (const match of scrubbed.matchAll(identifierPattern)) {
+    const token = match[0];
+    const segments = token.split('.').map((segment) => segment.toLowerCase());
+    const lastSegment = segments.at(-1);
+    if (!lastSegment || lastSegment.length < 2 || RLS_CLAUSE_SQL_WORDS.has(lastSegment)) continue;
+    if (['app', 'auth', 'jwt', 'request', 'session'].includes(segments[0] ?? '')) continue;
+    const remainder = scrubbed.slice((match.index ?? 0) + token.length);
+    if (/^\s*\(/.test(remainder)) continue;
+    if (['auth', 'current_setting', 'jwt', 'pg_catalog', 'public', 'uid'].includes(lastSegment)) {
+      continue;
+    }
+    identifiers.add(lastSegment);
+  }
+  return [...identifiers].sort();
+}
+
+/**
+ * Re-derive multi-tenancy from the repository's own RLS language.
+ *
+ * There is deliberately no tenant/org/workspace token dictionary here. We first
+ * locate RLS policy files, then parse CREATE POLICY statements and their
+ * USING/WITH CHECK clauses. Identifiers found in those clauses become that
+ * repository's native isolation vocabulary and are traced across its data-layer
+ * files. A schema token with no policy cannot manufacture a multi-tenant claim.
+ */
+export function deriveRlsPolicyScopeInventory(
+  repoPath: string,
+  repoFiles: readonly string[],
+): RlsPolicyScopeInventory {
+  const candidatePolicyFiles = findRlsPolicyFiles(repoPath, repoFiles);
+  const policyFiles = new Set<string>();
+  const scopeIdentifiers = new Set<string>();
+  let policyCount = 0;
+
+  for (const file of candidatePolicyFiles) {
+    let content: string;
+    try {
+      content = readFileSync(join(repoPath, file), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const match of content.matchAll(/\bcreate\s+policy\b[\s\S]*?(?:;|$)/gi)) {
+      const statement = match[0];
+      const clauses = [
+        ...extractBalancedSqlClause(statement, 'using'),
+        ...extractBalancedSqlClause(statement, 'with check'),
+      ];
+      if (clauses.length === 0) continue;
+      policyCount += 1;
+      policyFiles.add(file);
+      for (const clause of clauses) {
+        for (const identifier of extractRlsScopeIdentifiers(clause)) {
+          scopeIdentifiers.add(identifier);
+        }
+      }
+    }
+  }
+
+  const identifiers = [...scopeIdentifiers].sort();
+  const dataLayerFiles = repoFiles.filter((file) =>
+    /(^|\/)(?:migrations?|drizzle|prisma)\/|\.(?:sql|prisma)$/i.test(file),
+  );
+  const storageFiles =
+    identifiers.length === 0
+      ? []
+      : dataLayerFiles.filter((file) =>
+          identifiers.some((identifier) =>
+            fileContains(
+              repoPath,
+              file,
+              new RegExp(`\\b${identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
+            ),
+          ),
+        );
+
+  return {
+    policyFiles: [...policyFiles].sort(),
+    policyCount,
+    scopeIdentifiers: identifiers,
+    storageFiles,
+  };
 }
 
 export function findCiOrReleaseDeployFiles(

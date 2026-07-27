@@ -5,8 +5,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { renderWitanAbstentionLabel } from '../abstention.js';
+import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { buildWitanInputFromRepo, containsRealSecret } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V9 } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V9, WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 
 function makeTmpRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'witan-signals-'));
@@ -57,6 +59,49 @@ describe('scan-target scope explanations', () => {
     expect(input.insufficientSourceReason).toContain(
       'Cejel abstains rather than score an ignored or vendored working tree',
     );
+  });
+});
+
+describe('zero-measurement source-coverage explanations', () => {
+  it('keeps v17 scoring unchanged while publishing the operative reviewable-source arithmetic', () => {
+    const repo = makeTmpRepo();
+    writeFile(repo, 'scripts/review.sh', '#!/bin/sh\nprintf "%s\\n" review\n');
+    for (let index = 1; index <= 5; index += 1) {
+      writeFile(
+        repo,
+        `src/program-${index}.cbl`,
+        `IDENTIFICATION DIVISION.\nPROGRAM-ID. P${index}.`,
+      );
+    }
+    writeFile(repo, 'README.md', '# Mainframe sample');
+
+    const report = scoreRepoWithPublicCejel({
+      productSlug: 'mainframe-sample',
+      productDisplayName: 'Mainframe sample',
+      repoPath: repo,
+      generatedAt: '2026-07-26T00:00:00.000Z',
+      rubricVersion: WITAN_RUBRIC_VERSION_V17,
+    });
+
+    expect(report).toMatchObject({
+      verdict: 'insufficient_source',
+      overallScore: null,
+      codeTrustScore: null,
+      processTrustScore: null,
+    });
+    if (report.verdict !== 'insufficient_source') {
+      throw new Error('fixture unexpectedly received a score');
+    }
+    expect(report.insufficientSourceReason).toContain(
+      'No free-core rubric criterion produced a measurable signal.',
+    );
+    expect(report.insufficientSourceReason).toContain(
+      '1 of 6 source-shaped files (16.7%) are criterion-ratable',
+    );
+    expect(report.insufficientSourceReason).toContain(
+      'below the 20% reviewable-source threshold (7 tracked files in total)',
+    );
+    expect(renderWitanAbstentionLabel(report)).toBe('Insufficient evidence');
   });
 });
 

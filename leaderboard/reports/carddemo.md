@@ -1,10 +1,10 @@
 # Cejel Trust Report - carddemo
 
 - Product: carddemo
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/aws-samples/aws-mainframe-modernization-carddemo @ 59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e
-- Verdict: Insufficient evidence to certify — No free-core rubric criterion produced a measurable signal. Cejel abstains rather than publish a numeric zero for an entirely unmeasured repository.
+- Verdict: Insufficient evidence to certify — No free-core rubric criterion produced a measurable signal. Cejel abstains rather than publish a numeric zero for an entirely unmeasured repository. Source coverage: 9 of 250 source-shaped files (3.6%) are criterion-ratable, below the 20% reviewable-source threshold (329 tracked files in total).
 
 ## Criterion Profile
 

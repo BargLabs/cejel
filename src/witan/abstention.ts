@@ -16,7 +16,7 @@ export const WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY =
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (
     report.verdict === 'insufficient_source' &&
-    report.insufficientSourceReason === WITAN_NO_MEASUREMENT_REASON &&
+    report.insufficientSourceReason.startsWith(WITAN_NO_MEASUREMENT_REASON) &&
     report.criteria.every(
       ({ status }) => status === 'not_applicable' || status === 'insufficient_data',
     )

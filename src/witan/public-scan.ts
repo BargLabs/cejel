@@ -2,8 +2,9 @@ import { resolve } from 'node:path';
 
 import type { WitanInputSignal, WitanReport } from './schemas.js';
 
+import { isWitanNoMeasurementAbstention } from './abstention.js';
 import { discoverIngestInputs, expandIngestPattern, parseIngestFile } from './ingest.js';
-import { buildWitanInputFromRepo } from './repo-signals.js';
+import { buildWitanInputFromRepo, explainNoMeasurementSourceCoverage } from './repo-signals.js';
 import { createWitanReport } from './scoring.js';
 
 /**
@@ -32,7 +33,21 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
   const inputSignals = resolvePublicIngestSignals(options);
-  return createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);
+  const report = createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);
+  if (report.verdict !== 'insufficient_source' || !isWitanNoMeasurementAbstention(report)) {
+    return report;
+  }
+
+  const contextualReason = explainNoMeasurementSourceCoverage(
+    options.repoPath,
+    report.rubricVersion,
+  );
+  return contextualReason
+    ? {
+        ...report,
+        insufficientSourceReason: contextualReason,
+      }
+    : report;
 }
 
 /** Resolve the exact ingest surface available to `npx cejel .`. */

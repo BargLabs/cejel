@@ -5,8 +5,8 @@
     "url": "https://github.com/biomejs/biome",
     "headSha": "01bba129afefced1c04aa69592b1b7f337a7b609"
   },
-  "generatedAt": "2026-07-25T00:20:53.476Z",
-  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "generatedAt": "2026-07-27T01:44:27.501Z",
+  "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
   "criteria": [
     {
       "id": "A1",
@@ -177,7 +177,7 @@
           "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
         }
       ],
-      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported. Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies."
     },
     {
       "id": "A3",

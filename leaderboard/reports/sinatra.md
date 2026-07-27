@@ -1,8 +1,8 @@
 # Cejel Trust Report - sinatra
 
 - Product: sinatra
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/sinatra/sinatra @ 946812bdec8faf6598fed154a8d611ead612b6fd
 
 ## Criterion Profile

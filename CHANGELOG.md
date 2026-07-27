@@ -14,6 +14,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.1] — 2026-07-26
+
+### Fixed
+
+- Zero-measurement v17/v18 abstentions now explain the reviewable-source arithmetic instead
+  of stopping at a generic message. The terminal, report, summary, attestation, and HTML
+  certificate state that AWS CardDemo has 9 criterion-ratable files among 250 source-shaped
+  files (3.6%), below the 20% threshold, across 329 tracked files.
+- The change is presentation-only: calibrated v17 scoring, findings, rubric identity, and the
+  v50 finding-level GO are unchanged.
+
+### Distribution
+
+- This is an npm-only patch. OCI and MCP Registry remain at the actually published `0.2.0`;
+  Cejel does not advertise nonexistent `0.2.1` container or registry artifacts.
+
+---
+
 ## [0.2.0] — 2026-07-24
 
 ### Added

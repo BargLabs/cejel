@@ -18,7 +18,10 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 
 > Dogfooded in production. Cejel is run continuously on Barg Labs' own multi-product
 > monorepo — the ten-product studio it was built inside — which it currently scores
-> 3.5/4.0 ("Verified"). We score ourselves before asking you to score yourself.
+> 3.3/4.0 on its rubric-native certificate. That transparency snapshot opts into prospective
+> v18; the public CLI default remains calibrated v17. On the comparative board, our code sits
+> outside the ranked population and receives no verdict band. We score ourselves before
+> asking you to score yourself.
 
 ## Install
 
@@ -99,7 +102,8 @@ gh attestation verify ./cejel-Darwin-arm64 -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The same MCP server is published as a non-root, multi-platform image:
+**Docker / OCI.** The current container release is `0.2.0` (container releases are
+versioned independently from npm-only patches):
 
 ```bash
 docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.0

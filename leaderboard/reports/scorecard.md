@@ -1,8 +1,8 @@
 # Cejel Trust Report - scorecard
 
 - Product: scorecard
-- Rubric: witan-rubric-v17-2026-07-24
-- Generated: 2026-07-25T00:20:53.476Z
+- Rubric: witan-rubric-v18-prospective-2026-07-25
+- Generated: 2026-07-27T01:44:27.501Z
 - Repository: https://github.com/ossf/scorecard @ 916bfc57fa7431467a33a5a013cba3f8a0c1ec50
 
 ## Criterion Profile

@@ -37,3 +37,10 @@ export const WITAN_RUBRIC_VERSION_V16 = 'witan-rubric-v16-2026-07-24';
 // narrowly bounded post-signal structural rescue. It is the public default after the v50
 // untouched holdout cleared every preregistered gate.
 export const WITAN_RUBRIC_VERSION_V17 = 'witan-rubric-v17-2026-07-24';
+
+// Prospective free-core v51 rubric. V18 inherits the complete, holdout-calibrated v17
+// detector/scoring closure and changes only D7 multi-tenancy evidence: positive isolation
+// credit is derived from each repository's own CREATE POLICY USING/WITH CHECK clauses.
+// The shared/public default remains v17 until a fresh authenticated untouched holdout clears
+// every gate; callers must opt in explicitly.
+export const WITAN_RUBRIC_VERSION_V18 = 'witan-rubric-v18-prospective-2026-07-25';
