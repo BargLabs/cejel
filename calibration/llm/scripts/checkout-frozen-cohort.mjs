@@ -12,6 +12,11 @@ import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
 import { hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
+import {
+  assertCanonicalRepositoryReference,
+  withIsolatedGitEnvironment,
+  withHttpsOnlyGitTransport,
+} from './git-transport-policy.mjs';
 
 const execFile = promisify(execFileCallback);
 
@@ -38,18 +43,22 @@ function repositoryDirectory(repositoryId) {
   return repositoryId.replace('/', '__');
 }
 
-async function runGit(args, options = {}) {
-  const { stdout } = await execFile('git', args, {
-    encoding: 'utf8',
-    timeout: 30 * 60_000,
-    maxBuffer: 4 * 1024 * 1024,
-    env: { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' },
-    ...options,
-  });
+async function runGit(args, options = {}, gitExecutor = execFile) {
+  const { env = process.env, ...execOptions } = options;
+  const { stdout } = await withIsolatedGitEnvironment(
+    { ...env, GIT_LFS_SKIP_SMUDGE: '1' },
+    (gitEnvironment) => gitExecutor('git', withHttpsOnlyGitTransport(args), {
+      encoding: 'utf8',
+      timeout: 30 * 60_000,
+      maxBuffer: 4 * 1024 * 1024,
+      ...execOptions,
+      env: gitEnvironment,
+    }),
+  );
   return stdout.trim();
 }
 
-export async function checkoutFrozenCohort({ manifest, workRoot }) {
+export async function checkoutFrozenCohort({ manifest, workRoot, gitExecutor = execFile }) {
   assertManifest(manifest, manifest.cohort);
   const root = resolve(workRoot);
   if (existsSync(root)) throw new Error('checkout work root already exists');
@@ -58,11 +67,16 @@ export async function checkoutFrozenCohort({ manifest, workRoot }) {
   try {
     for (const repository of manifest.repositories) {
       const sourceRoot = join(root, repositoryDirectory(repository.repository_id));
-      await runGit(['clone', '--no-checkout', repository.url, sourceRoot]);
-      await runGit(['-C', sourceRoot, '-c', 'advice.detachedHead=false', 'checkout', '--detach', repository.commit_sha]);
+      const repositoryUrl = assertCanonicalRepositoryReference(repository);
+      await runGit(['clone', '--no-checkout', repositoryUrl, sourceRoot], {}, gitExecutor);
+      await runGit(
+        ['-C', sourceRoot, '-c', 'advice.detachedHead=false', 'checkout', '--detach', repository.commit_sha],
+        {},
+        gitExecutor,
+      );
       const [commit, tree] = await Promise.all([
-        runGit(['-C', sourceRoot, 'rev-parse', 'HEAD']),
-        runGit(['-C', sourceRoot, 'rev-parse', 'HEAD^{tree}']),
+        runGit(['-C', sourceRoot, 'rev-parse', 'HEAD'], {}, gitExecutor),
+        runGit(['-C', sourceRoot, 'rev-parse', 'HEAD^{tree}'], {}, gitExecutor),
       ]);
       if (commit !== repository.commit_sha || tree !== repository.git_tree_sha) {
         throw new Error(`${repository.repository_id}: checkout does not match frozen commit/tree`);

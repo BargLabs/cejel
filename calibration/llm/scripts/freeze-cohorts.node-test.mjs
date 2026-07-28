@@ -100,8 +100,8 @@ test('freeze distinguishes human, independent AI, and sequential AI review modes
 
 test('repository resolution uses GitHub metadata, git branch commit, and commit tree', async () => {
   const commands = [];
-  const runner = async (command, args) => {
-    commands.push([command, args]);
+  const runner = async (command, args, options) => {
+    commands.push([command, args, options]);
     if (command === 'git') return `${'a'.repeat(40)}\trefs/heads/main`;
     if (args[1] === 'repos/owner/repo') {
       return JSON.stringify({
@@ -128,7 +128,54 @@ test('repository resolution uses GitHub metadata, git branch commit, and commit 
   assert.equal(result.license_spdx, 'MIT');
   assert.equal(result.entry_sha256.length, 64);
   assert.deepEqual(commands.map(([command]) => command), ['gh', 'git', 'gh']);
+  assert.deepEqual(commands[1][1].slice(0, 4), [
+    '-c',
+    'protocol.allow=never',
+    '-c',
+    'protocol.https.allow=always',
+  ]);
+  assert.equal(commands[1][2].env.GIT_TERMINAL_PROMPT, '0');
+  assert.equal(commands[1][2].env.GIT_ALLOW_PROTOCOL, 'https');
+  assert.equal(commands[1][2].env.GIT_CONFIG_NOSYSTEM, '1');
 });
+
+for (const [name, url] of [
+  ['ext transport', 'ext::sh -c id'],
+  ['file transport', 'file:///tmp/x'],
+  ['scp-like SSH transport', 'git@evil:repo.git'],
+  ['unknown transport', 'fake://example/repo'],
+]) {
+  test(`repository resolution rejects ${name} before invoking git`, async () => {
+    let gitCalls = 0;
+    const runner = async (command) => {
+      if (command === 'git') {
+        gitCalls += 1;
+        throw new Error('git runner must not be reached');
+      }
+      return JSON.stringify({
+        full_name: 'owner/repo',
+        default_branch: 'main',
+        fork: false,
+        archived: false,
+        size: 1024,
+        license: { spdx_id: 'MIT' },
+      });
+    };
+
+    await assert.rejects(
+      () => resolveRepository({
+        repository_id: 'owner/repo',
+        url,
+        primary_language: 'python',
+        primary_surface: 'rag',
+        provider_surface: 'openai',
+        inclusion_reason: 'A sufficiently specific preregistered reason.',
+      }, runner),
+      /canonical HTTPS GitHub repository URL/,
+    );
+    assert.equal(gitCalls, 0);
+  });
+}
 
 test('repository resolution rejects archived and oversized candidates before Git access', async () => {
   const candidate = {
