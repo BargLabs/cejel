@@ -7,6 +7,12 @@ import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import {
+  assertCanonicalRepositoryReference,
+  withIsolatedGitEnvironment,
+  withHttpsOnlyGitTransport,
+} from './git-transport-policy.mjs';
+
 const execFile = promisify(execFileCallback);
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
@@ -185,12 +191,13 @@ Freeze options:
 `;
 }
 
-async function run(command, args) {
+async function run(command, args, options = {}) {
   try {
     const { stdout } = await execFile(command, args, {
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024,
       timeout: 120_000,
+      ...options,
     });
     return stdout.trim();
   } catch (error) {
@@ -220,11 +227,17 @@ export async function resolveRepository(candidate, commandRunner = run) {
   }
   if (!metadata.default_branch) throw new Error(`${candidate.repository_id}: default branch is unavailable`);
 
-  const remote = await commandRunner('git', [
-    'ls-remote',
-    candidate.url,
-    `refs/heads/${metadata.default_branch}`,
-  ]);
+  const repositoryUrl = assertCanonicalRepositoryReference(candidate);
+  const remote = await withIsolatedGitEnvironment(
+    process.env,
+    (gitEnvironment) => commandRunner('git', withHttpsOnlyGitTransport([
+      'ls-remote',
+      repositoryUrl,
+      `refs/heads/${metadata.default_branch}`,
+    ]), {
+      env: gitEnvironment,
+    }),
+  );
   const match = /^([a-f0-9]{40})\s+refs\/heads\/(.+)$/m.exec(remote);
   if (!match || match[2] !== metadata.default_branch) {
     throw new Error(`${candidate.repository_id}: could not resolve the observed default branch to a full commit`);
