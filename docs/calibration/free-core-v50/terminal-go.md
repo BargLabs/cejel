@@ -45,6 +45,25 @@ protocol. It is not customer validation, a universal security guarantee, a
 claim of vulnerability completeness, or evidence of dynamic-execution
 coverage. It does not establish performance for other packs or populations.
 
+---
+## Prior-iteration and multiple-comparisons disclosure
+
+Rubric `witan-rubric-v17` was evaluated exactly once, on the never-before-scanned v50 holdout, with
+every repository from all prior holdouts authenticated and excluded from the v50 cohort. No rubric
+revision was re-run against a second holdout after a decision: each revision in the development
+sequence (rubric v7 through v17) was tested at most once, each on its own freshly drawn
+200-repository cohort with rotated selection and control seeds and all earlier orders excluded.
+Earlier revisions that did not pass were retired as immutable NO-GO records and used only as
+development evidence to fix documented, named defects — not resampled and not folded into any later
+claim. An earlier revision (rubric v15) had independently passed its own fresh-holdout gate on a
+separate never-seen cohort before v17 was tested, so the v50 GO replicates the passing behaviour on
+a second independent cohort rather than standing on a single draw. The reported v50 confidence
+intervals are the intervals for the v50 cohort under the frozen estimator; they are not adjusted for
+the number of prior revisions evaluated. The anti-leakage design — a fresh, prior-excluded cohort
+for every revision, each tested once, with independent replication at v15 — is what makes the v50
+result an out-of-sample measurement of rubric v17 rather than a selection artifact.
+---
+
 The record is immutable terminal GO. It must not be rescored, relabeled,
 amended, or replaced with a favorable subset.
 
