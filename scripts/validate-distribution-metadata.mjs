@@ -89,9 +89,17 @@ requireEqual(ociPackage.transport?.type, 'stdio', 'OCI transport');
 requireIncludes(dockerfile, `ARG VERSION=${publishedVersions.oci}`, 'Dockerfile default version');
 requireIncludes(
   readme,
-  `ghcr.io/barglabs/cejel:${publishedVersions.oci}`,
-  'README published OCI version',
+  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
+  'README release OCI version',
 );
+if (
+  packageManifest.version !== publishedVersions.oci &&
+  readme.includes(`ghcr.io/barglabs/cejel:${publishedVersions.oci}`)
+) {
+  throw new Error(
+    `README contains stale OCI pin ghcr.io/barglabs/cejel:${publishedVersions.oci}; expected release version ${packageManifest.version}.`,
+  );
+}
 requireIncludes(
   dockerfile,
   `io.modelcontextprotocol.server.name="${packageManifest.mcpName}"`,

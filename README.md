@@ -141,13 +141,13 @@ Microsoft Authenticode code-signing.
 versioned independently from npm-only patches):
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.0
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.2
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.2.0 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.2.2 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
