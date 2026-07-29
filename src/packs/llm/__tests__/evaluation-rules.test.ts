@@ -646,6 +646,156 @@ describe('Free LLM evaluation and provenance rules', () => {
     expect(findings).toHaveLength(1);
   });
 
+  it.each([
+    [
+      'attribute',
+      'metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+      "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+    ],
+    [
+      'static subscript',
+      "metrics['accuracy'] = eligible.filter((item) => item.correct).length / eligible.length;",
+      "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+    ],
+    [
+      'dynamic subscript on an aggregate-named container',
+      'aggregateScores[metric] = scores.reduce((sum, value) => sum + value, 0) / scores.length;',
+      "writeFileSync('evaluation.json', JSON.stringify({ aggregateScores, modelId, promptDigest }));",
+    ],
+  ] as const)(
+    'detects a JavaScript aggregate assigned through a local %s',
+    (_name, assignment, emission) => {
+      const source: LlmSourceFile = {
+        path: 'src/evaluation/benchmarks.ts',
+        contents: [
+          "import OpenAI from 'openai';",
+          "import { writeFileSync } from 'node:fs';",
+          'const client = new OpenAI();',
+          "await client.responses.create({ model: 'gpt-5', input: candidate });",
+          'const eligible = cases.filter((item) => item.status === "ok");',
+          'const scores = eligible.map((item) => item.score);',
+          'const metrics = { modelId, promptDigest };',
+          'const aggregateScores = {};',
+          assignment,
+          emission,
+        ].join('\n'),
+      };
+      expect(
+        detectCejelLlmEvaluationRules([source]).filter(
+          (finding) => finding.ruleId === 'LLM-EVL-001',
+        ),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('suppresses a JavaScript attribute aggregate when the emitted result retains its denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const eligible = cases.filter((item) => item.status === "ok");',
+        'const metrics = { modelId, promptDigest };',
+        'metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        'metrics.eligibleTotal = eligible.length;',
+        "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not treat a mid-word JavaScript property substring as an aggregate name', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const flags = cases.map((item) => item.moderate);',
+        'const metrics = { modelId, promptDigest };',
+        'metrics.moderateCount = flags.reduce((sum, value) => sum + value, 0) / flags.length;',
+        "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not combine a JavaScript aggregate and identifier emitter across local scopes', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'async function calculateEvaluation() {',
+        '  const client = new OpenAI();',
+        "  await client.responses.create({ model: 'gpt-5', input: candidate });",
+        '  const eligible = cases.filter((item) => item.status === "ok");',
+        '  const metrics = {};',
+        '  metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        '}',
+        'function publishUnrelatedMetrics() {',
+        '  const metrics = { accuracy: cachedAccuracy, modelId, promptDigest };',
+        "  writeFileSync('evaluation.json', JSON.stringify(metrics));",
+        '}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a Python aggregate assigned to a local result attribute', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, cases):',
+        '        scores = [judge.evaluate(case).score for case in cases]',
+        '        result = BenchmarkResult(model_id="judge-v1")',
+        '        result.average_score = sum(scores) / len(scores)',
+        '        return result',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('suppresses a Python result-attribute aggregate when the result retains its denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, cases):',
+        '        scores = [judge.evaluate(case).score for case in cases]',
+        '        result = BenchmarkResult(model_id="judge-v1")',
+        '        result.average_score = sum(scores) / len(scores)',
+        '        result.eligible_count = len(scores)',
+        '        return result',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
   it('recognizes a domain-named manager component (metrics_manager.evaluate) as a judge invocation', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluation/benchmarks.py',

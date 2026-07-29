@@ -76,7 +76,7 @@ const PYTHON_RESULT_KEY_PATTERN =
 const PYTHON_CONFIG_LINEAGE_KEY_PATTERN =
   /^(?:promptdigest|prompthash|promptid|promptversion|policydigest|policyhash|policyid|policyversion|configdigest|confighash|configid|configversion|evaluationconfigversion|evaluationmanifest|repositorycommit)$/i;
 const PYTHON_AGGREGATE_ASSIGNMENT_PATTERN =
-  /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)(?:\[[^\]\n]+\])?\s*(?::[^=\n]+)?=\s*([^\n]+)$/gm;
+  /^[ \t]*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*(?:\[[^\]\n]+\])?)\s*(?::[^=\n]+)?=\s*([^\n]+)$/gm;
 // Anchored to underscore/start/end boundaries so e.g. "moderate_count" (containing "rate" as a
 // mid-word substring) does not qualify as an aggregate name.
 const PYTHON_AGGREGATE_NAME_PATTERN =
@@ -380,16 +380,22 @@ function pythonAggregateAssignmentsIn(
 ): ReadonlyMap<string, PythonAggregateAssignment> {
   const assignments = new Map<string, PythonAggregateAssignment>();
   for (const match of masked.matchAll(PYTHON_AGGREGATE_ASSIGNMENT_PATTERN)) {
-    const name = match[1];
+    const target = match[1];
     const expression = match[2];
-    if (!name || !expression || !PYTHON_AGGREGATE_NAME_PATTERN.test(name)) continue;
+    if (!target || !expression) continue;
+    const staticSubscript = target.match(
+      /\[\s*(['"])([A-Za-z_][A-Za-z0-9_]*)\1\s*\]$/,
+    )?.[2];
+    const withoutSubscript = target.replace(/\[[^\]\n]+\]$/, '');
+    const leaf = staticSubscript ?? withoutSubscript.split('.').at(-1);
+    if (!leaf || !PYTHON_AGGREGATE_NAME_PATTERN.test(leaf)) continue;
     const division = PYTHON_DENOMINATOR_DIVISION_PATTERN.exec(expression);
     const call = PYTHON_DENOMINATOR_CALL_PATTERN.exec(expression);
     if (!division && !call) continue;
     const denominatorCollections = new Set<string>();
     if (division?.[1]) denominatorCollections.add(division[1]);
     if (call?.[1]) denominatorCollections.add(call[1]);
-    assignments.set(name, { index: match.index, denominatorCollections });
+    assignments.set(leaf, { index: match.index, denominatorCollections });
   }
   return assignments;
 }

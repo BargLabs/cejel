@@ -10,7 +10,13 @@ import { CEJEL_LLM_PYTHON_RULES } from '../python-rules.js';
 import { CEJEL_LLM_V1_RULES, type LlmSourceFile } from '../rules.js';
 import { CEJEL_LLM_ENABLED_RULE_IDS, type CejelLlmEnabledRuleId } from '../types.js';
 
-type Detector = 'javascript' | 'python' | 'action' | 'python-action' | 'evaluation';
+type Detector =
+  | 'javascript'
+  | 'python'
+  | 'action'
+  | 'python-action'
+  | 'evaluation'
+  | 'python-evaluation';
 interface CoveragePattern {
   readonly pattern_id: string;
   readonly detector: Detector;
@@ -37,7 +43,12 @@ const manifest = JSON.parse(
 ) as FixtureCoverageManifest;
 
 function source(name: string, detector: Detector): LlmSourceFile {
-  const extension = detector === 'python' || detector === 'python-action' ? 'py' : 'ts';
+  const extension =
+    detector === 'python' ||
+      detector === 'python-action' ||
+      detector === 'python-evaluation'
+      ? 'py'
+      : 'ts';
   return {
     path: `src/fixture-coverage.${extension}`,
     contents: readFileSync(join(fixtureDir, name), 'utf8'),
@@ -49,7 +60,7 @@ function findings(
   ruleId: CejelLlmEnabledRuleId,
   file: LlmSourceFile,
 ) {
-  if (detector === 'evaluation') {
+  if (detector === 'evaluation' || detector === 'python-evaluation') {
     return detectCejelLlmEvaluationRules([file]).filter((finding) => finding.ruleId === ruleId);
   }
   const catalogue = detector === 'python'
