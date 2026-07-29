@@ -155,6 +155,17 @@ requireIncludes(
 requireIncludes(readme, 'Windows signing status:', 'README Windows signing disclosure');
 requireIncludes(readme, 'npx @cejel/cejel@latest --version', 'README npx cache guidance');
 requireIncludes(readme, '## Install on OpenClaw', 'README OpenClaw installation');
+const openClawSectionStart = readme.indexOf('## Install on OpenClaw');
+const openClawSectionEnd = readme.indexOf('\n## ', openClawSectionStart + 1);
+const openClawSection = readme.slice(
+  openClawSectionStart,
+  openClawSectionEnd < 0 ? undefined : openClawSectionEnd,
+);
+requireIncludes(
+  openClawSection,
+  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
+  'README OpenClaw release OCI version',
+);
 requireIncludes(
   readme,
   'does **not** watch, intercept,',
