@@ -27,6 +27,7 @@ import {
   validateImmutableManifest,
 } from './run-frozen-cohort.mjs';
 import { validatePreResultCommitment, verifyGitCommittedPreResult } from './pre-result-commitment.mjs';
+import { withHttpsOnlyGitTransport } from './git-transport-policy.mjs';
 
 const BUILD_SHA = 'b'.repeat(64);
 const COMMIT_SHA = 'c'.repeat(40);
@@ -749,9 +750,9 @@ test('repository runner checks out and verifies only manifest commit/tree before
   const workRoot = join(root, 'work');
   const outputRoot = join(root, 'output');
   const commands = [];
-  const commandRunner = async (command, args) => {
-    commands.push([command, args]);
-    if (command === 'git' && args[0] === 'clone') {
+  const commandRunner = async (command, args, options = {}) => {
+    commands.push([command, args, options]);
+    if (command === 'git' && args.includes('clone')) {
       mkdirSync(args.at(-1), { recursive: true });
       return '';
     }
@@ -789,10 +790,54 @@ test('repository runner checks out and verifies only manifest commit/tree before
   assert.equal(result.receipt.output_outside_source, true);
   assert.equal(result.receipt.manifest_sha256, immutableManifest().manifest_sha256);
   assert.match(result.receipt.llm_report_canonical_sha256, /^[a-f0-9]{64}$/);
-  assert.deepEqual(commands[0], [
+  assert.deepEqual(commands[0].slice(0, 2), [
     'git',
-    ['clone', '--no-checkout', 'https://github.com/owner/repository', result.source],
+    withHttpsOnlyGitTransport(['clone', '--no-checkout', 'https://github.com/owner/repository', result.source]),
   ]);
   assert.ok(commands.some(([command, args]) => command === 'git' && args.includes('--detach') && args.includes(COMMIT_SHA)));
   assert.ok(commands.some(([command]) => command === '/usr/bin/no-egress'));
+  for (const [command, , options] of commands) {
+    if (command !== 'git') continue;
+    assert.notEqual(options.env.HOME, process.env.HOME);
+    assert.equal(options.env.GIT_TERMINAL_PROMPT, '0');
+    assert.equal(options.env.GIT_CONFIG_NOSYSTEM, '1');
+    assert.equal(options.env.NETRC, undefined);
+  }
 });
+
+for (const [name, url] of [
+  ['ext transport', 'ext::sh -c id'],
+  ['file transport', 'file:///tmp/x'],
+  ['scp-like SSH transport', 'git@evil:repo.git'],
+  ['unknown transport', 'fake://example/repo'],
+]) {
+  test(`repository runner rejects ${name} before invoking git`, async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cejel-llm-runner-boundary-'));
+    let gitCalls = 0;
+    const commandRunner = async (command) => {
+      if (command === 'git') gitCalls += 1;
+      throw new Error('git executor must not be reached');
+    };
+    const repository = { ...immutableManifest().repositories[0], url };
+    await assert.rejects(
+      () => runFrozenRepository({
+        cohort: 'untouched',
+        repository,
+        cejel: '/opt/cejel',
+        workRoot: join(root, 'work'),
+        outputRoot: join(root, 'output'),
+        isolationPrefix: ['/usr/bin/no-egress', '--'],
+        networkIsolationMode: 'test-no-egress',
+        detectorBuildSha256: BUILD_SHA,
+        detectorFreezeSha256: detectorFreeze().record_sha256,
+        manifestSha256: immutableManifest().manifest_sha256,
+        preResultCommitment: {
+          document_sha256: '3'.repeat(64), canonical_sha256: '4'.repeat(64),
+          git_commit: '5'.repeat(40), git_path: 'calibration/llm/pre-result-commitment.json',
+        },
+      }, commandRunner),
+      /canonical HTTPS GitHub repository URL/,
+    );
+    assert.equal(gitCalls, 0);
+  });
+}

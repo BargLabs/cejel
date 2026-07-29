@@ -30,8 +30,24 @@ import {
   validateGoldenCorrectionLedger,
 } from './freeze-detector.mjs';
 import { verifyGitCommittedPreResult } from './pre-result-commitment.mjs';
+import {
+  assertCanonicalRepositoryReference,
+  withIsolatedGitEnvironment,
+  withHttpsOnlyGitTransport,
+} from './git-transport-policy.mjs';
 
 const execFile = promisify(execFileCallback);
+
+async function runHardenedGit(commandRunner, args, options = {}) {
+  const { env = process.env, ...execOptions } = options;
+  return withIsolatedGitEnvironment(
+    { ...env, GIT_LFS_SKIP_SMUDGE: '1' },
+    (gitEnvironment) => commandRunner('git', withHttpsOnlyGitTransport(args), {
+      ...execOptions,
+      env: gitEnvironment,
+    }),
+  );
+}
 
 function sha256Bytes(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
@@ -245,21 +261,17 @@ export async function runFrozenRepository(input, commandRunner = defaultRunner) 
   mkdirSync(dirname(source), { recursive: true });
   mkdirSync(dirname(output), { recursive: true });
 
-  await commandRunner(
-    'git',
-    ['clone', '--no-checkout', input.repository.url, source],
-    { env: { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' } },
-  );
-  await commandRunner(
-    'git',
+  const repositoryUrl = assertCanonicalRepositoryReference(input.repository);
+  await runHardenedGit(commandRunner, ['clone', '--no-checkout', repositoryUrl, source]);
+  await runHardenedGit(
+    commandRunner,
     ['-C', source, '-c', 'advice.detachedHead=false', 'checkout', '--detach', input.repository.commit_sha],
-    { env: { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' } },
   );
-  const actualCommit = await commandRunner('git', ['-C', source, 'rev-parse', 'HEAD']);
+  const actualCommit = await runHardenedGit(commandRunner, ['-C', source, 'rev-parse', 'HEAD']);
   if (actualCommit !== input.repository.commit_sha) {
     throw new Error(`${input.repository.repository_id}: checked-out commit differs from manifest`);
   }
-  const actualTree = await commandRunner('git', ['-C', source, 'rev-parse', 'HEAD^{tree}']);
+  const actualTree = await runHardenedGit(commandRunner, ['-C', source, 'rev-parse', 'HEAD^{tree}']);
   if (actualTree !== input.repository.git_tree_sha) {
     throw new Error(`${input.repository.repository_id}: checked-out Git tree differs from manifest`);
   }
