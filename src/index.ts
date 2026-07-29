@@ -204,7 +204,11 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
     JSON.stringify(attestation, null, 2),
     'utf8',
   );
-  writeFileSync(join(options.outDir, 'certificate.html'), renderWitanHtmlReport(report), 'utf8');
+  writeFileSync(
+    join(options.outDir, 'certificate.html'),
+    renderWitanHtmlReport(report, { cliVersion: cliVersion() }),
+    'utf8',
+  );
   writeFileSync(
     join(options.outDir, 'badge.json'),
     JSON.stringify(renderWitanBadgeEndpoint(report), null, 2),

@@ -136,6 +136,43 @@ function runOffline(binaryPath, repoPath) {
     );
     return 'sandbox-exec deny network';
   }
+  if (process.platform === 'win32') {
+    const ruleName = `Cejel SEA offline ${process.pid}-${Date.now()}`;
+    const firewallEnv = {
+      ...process.env,
+      CEJEL_OFFLINE_RULE_NAME: ruleName,
+      CEJEL_OFFLINE_BINARY: binaryPath,
+    };
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        "$ErrorActionPreference = 'Stop'; New-NetFirewallRule -DisplayName $env:CEJEL_OFFLINE_RULE_NAME -Direction Outbound -Program $env:CEJEL_OFFLINE_BINARY -Action Block -Profile Any | Out-Null",
+      ],
+      { env: firewallEnv, stdio: 'inherit' },
+    );
+    try {
+      execFileSync(binaryPath, [repoPath, '--out', join(repoPath, '.cejel'), '--quiet'], {
+        stdio: 'inherit',
+      });
+    } finally {
+      execFileSync(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          "$ErrorActionPreference = 'Stop'; Remove-NetFirewallRule -DisplayName $env:CEJEL_OFFLINE_RULE_NAME",
+        ],
+        { env: firewallEnv, stdio: 'inherit' },
+      );
+    }
+    return 'Windows Firewall program-scoped outbound deny';
+  }
   throw new Error(`Guard 2: unsupported release platform ${process.platform}.`);
 }
 

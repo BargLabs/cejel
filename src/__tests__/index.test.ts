@@ -180,6 +180,11 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     );
     const html = readFileSync(join(outDir, 'certificate.html'), 'utf8');
     expect(html).toContain('Trust Certificate');
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+    expect(html).toContain(`<dt>CLI</dt><dd>Cejel ${manifest.version}</dd>`);
+    expect(html).toContain(`<dt>Rubric</dt><dd>${report.rubricVersion}</dd>`);
     const badgeJson = JSON.parse(readFileSync(join(outDir, 'badge.json'), 'utf8'));
     expect(badgeJson).toMatchObject({ schemaVersion: 1, label: 'cejel trust' });
     const badgeSvg = readFileSync(join(outDir, 'badge.svg'), 'utf8');

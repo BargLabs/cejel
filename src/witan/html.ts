@@ -25,7 +25,15 @@ import {
 } from './external-findings.js';
 import { renderFindingSummary } from './finding-presentation.js';
 
-export function renderWitanHtmlReport(report: WitanReport): string {
+export interface WitanHtmlReportOptions {
+  /** Version of the Cejel CLI/server that produced this certificate. */
+  cliVersion?: string;
+}
+
+export function renderWitanHtmlReport(
+  report: WitanReport,
+  options: WitanHtmlReportOptions = {},
+): string {
   const codeCriteria = criteriaByCategory(report, 'code_trust');
   const processCriteria = criteriaByCategory(report, 'process_trust');
   const verifiedEvidence = report.criteria.flatMap((criterion) =>
@@ -38,6 +46,7 @@ export function renderWitanHtmlReport(report: WitanReport): string {
   const externalSourceSummaries = summarizeExternalSources(report.consumedSignals ?? []);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const coverage = computeMeasuredCoverage(report);
+  const gitHistoryUnavailable = !report.repo.headSha;
 
   return `<!doctype html>
 <html lang="en">
@@ -61,6 +70,7 @@ export function renderWitanHtmlReport(report: WitanReport): string {
           <dl class="meta">
             <div><dt>Date</dt><dd>${escapeHtml(formatDate(report.generatedAt))}</dd></div>
             <div><dt>Run</dt><dd>${escapeHtml(renderRepo(report))}</dd></div>
+            <div><dt>CLI</dt><dd>${escapeHtml(options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded')}</dd></div>
             <div><dt>Rubric</dt><dd>${escapeHtml(report.rubricVersion)}</dd></div>
             ${
               contributingSources.length > 0
@@ -91,8 +101,8 @@ export function renderWitanHtmlReport(report: WitanReport): string {
     </header>
 
     <section class="trust-grid" aria-label="Rubric criteria">
-      ${renderCriterionColumn('Code trust', codeCriteria)}
-      ${renderCriterionColumn('Process trust', processCriteria)}
+      ${renderCriterionColumn('Code trust', codeCriteria, gitHistoryUnavailable)}
+      ${renderCriterionColumn('Process trust', processCriteria, gitHistoryUnavailable)}
     </section>
 
     <section class="evidence-grid" aria-label="Evidence and gaps">
@@ -157,7 +167,11 @@ function criteriaByCategory(
 // a second detection path. 'insufficient_data' (a measurement gap, not
 // inapplicability) stays in the normal scored list, unchanged — see
 // goal_cejel_cert_applicable_dims_and_link_integrity_2026-07-12.
-function renderCriterionColumn(title: string, criteria: readonly WitanCriterionScore[]): string {
+function renderCriterionColumn(
+  title: string,
+  criteria: readonly WitanCriterionScore[],
+  gitHistoryUnavailable: boolean,
+): string {
   const applicable = criteria.filter((criterion) => criterion.status !== 'not_applicable');
   const notApplicable = criteria.filter((criterion) => criterion.status === 'not_applicable');
   const notApplicableGroup =
@@ -165,7 +179,7 @@ function renderCriterionColumn(title: string, criteria: readonly WitanCriterionS
   return `<section class="criteria-column">
         <h2>${escapeHtml(title)}</h2>
         <div class="criteria-list">
-          ${applicable.map(renderCriterionCard).join('')}
+          ${applicable.map((criterion) => renderCriterionCard(criterion, gitHistoryUnavailable)).join('')}
         </div>${notApplicableGroup}
       </section>`;
 }
@@ -184,12 +198,20 @@ function renderNotApplicableItem(criterion: WitanCriterionScore): string {
   return `<li><span class="na-id">${escapeHtml(criterion.id)}</span> ${escapeHtml(criterion.title)} — <span class="na-reason">${escapeHtml(reason)}</span></li>`;
 }
 
-function renderCriterionCard(criterion: WitanCriterionScore): string {
+function renderCriterionCard(
+  criterion: WitanCriterionScore,
+  gitHistoryUnavailable: boolean,
+): string {
   const evidence = [
     ...criterion.evidence.map(renderEvidencePointer),
     ...criterion.findings.map((finding) => renderFindingEvidence(criterion, finding)),
   ];
   const metrics = criterion.metrics.map(renderMetric);
+  const statusReconciliation = renderStatusReconciliation(criterion);
+  const historyWarning =
+    gitHistoryUnavailable && criterion.metrics.some((metric) => metric.name === 'pr_merge_ratio')
+      ? `<p class="scan-warning"><strong>Scan limitation:</strong> Git history was unavailable (for example, this may be a source tarball), so the recent PR merge ratio is not a measured repository outcome and its displayed zero may undercount ${escapeHtml(criterion.id)}. Re-scan a full Git clone for this signal.</p>`
+      : '';
 
   return `<article class="criterion">
             <div class="criterion-top">
@@ -200,6 +222,8 @@ function renderCriterionCard(criterion: WitanCriterionScore): string {
               ${renderStatusChip(criterion.status)}
             </div>
             <div class="criterion-score">${criterion.status === 'not_applicable' ? 'N/A' : criterion.status === 'insufficient_data' ? 'No data' : formatScore(criterion.score)}</div>
+            ${statusReconciliation}
+            ${historyWarning}
             <ul class="criterion-metrics">
               ${metrics.length > 0 ? metrics.map((item) => `<li>${item}</li>`).join('') : '<li>No measured depth metrics supplied.</li>'}
             </ul>
@@ -207,6 +231,29 @@ function renderCriterionCard(criterion: WitanCriterionScore): string {
               ${evidence.length > 0 ? evidence.map((item) => `<li>${item}</li>`).join('') : '<li>No concrete evidence supplied.</li>'}
             </ul>
           </article>`;
+}
+
+function renderStatusReconciliation(criterion: WitanCriterionScore): string {
+  if (
+    criterion.status === 'not_applicable' ||
+    criterion.status === 'insufficient_data' ||
+    criterion.status === 'unverified'
+  ) {
+    return '';
+  }
+  const numericBand = scoreBandForPresentation(criterion.score);
+  if (numericBand === criterion.status) return '';
+  return `<p class="status-explanation"><strong>Why the labels differ:</strong> the ${escapeHtml(criterion.status)} dimension band is calibrated from criterion evidence thresholds and findings, independently of the ${formatScore(criterion.score)}/4.0 weighted score (which falls in the ${numericBand} numeric band).</p>`;
+}
+
+function scoreBandForPresentation(score: number): Extract<
+  WitanCriterionStatus,
+  'verified' | 'info' | 'warning' | 'critical'
+> {
+  if (score >= 3.5) return 'verified';
+  if (score >= 2.5) return 'info';
+  if (score >= 1.5) return 'warning';
+  return 'critical';
 }
 
 function renderMetric(metric: WitanCriterionScore['metrics'][number]): string {
@@ -436,6 +483,12 @@ h2 { font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacin
 .criterion-id { color: var(--periwinkle); font-family: var(--mono); font-size: 12px; margin-bottom: 4px; }
 h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .criterion-score { margin-top: 12px; color: var(--text); font-family: var(--mono); font-size: 24px; }
+.status-explanation, .scan-warning {
+  margin: 10px 0 0; border-left: 3px solid var(--periwinkle); padding: 8px 10px;
+  background: var(--periwinkle-weak); color: var(--muted); font-size: 12px; line-height: 1.5;
+}
+.scan-warning { border-left-color: var(--warn); background: var(--warn-weak); }
+.status-explanation strong, .scan-warning strong { color: var(--text); }
 .criterion-metrics { display: grid; gap: 7px; margin-top: 10px; padding: 0; list-style: none; font-size: 12px; }
 .criterion-metrics li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(238, 244, 247, .08); padding-bottom: 6px; }
 .criterion-metrics strong { color: var(--text); font-weight: 650; }

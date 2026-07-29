@@ -51,12 +51,29 @@ function log(message) {
 }
 
 function currentAssetName() {
-  const os = execFileSync('uname', ['-s'], { encoding: 'utf8' }).trim();
-  const arch = execFileSync('uname', ['-m'], { encoding: 'utf8' }).trim();
-  const assetName = `cejel-${os}-${arch}`;
-  if (!/^cejel-(Darwin|Linux)-(arm64|x86_64|aarch64)$/.test(assetName)) {
+  const os = {
+    darwin: 'Darwin',
+    linux: 'Linux',
+    win32: 'Windows',
+  }[process.platform];
+  const arch =
+    process.arch === 'x64'
+      ? 'x86_64'
+      : process.arch === 'arm64'
+        ? process.platform === 'linux'
+          ? 'aarch64'
+          : 'arm64'
+        : undefined;
+  const extension = process.platform === 'win32' ? '.exe' : '';
+  const assetName = os && arch ? `cejel-${os}-${arch}${extension}` : undefined;
+  if (
+    !assetName ||
+    !/^cejel-(Darwin-(arm64|x86_64)|Linux-(aarch64|x86_64)|Windows-x86_64\.exe)$/.test(
+      assetName,
+    )
+  ) {
     throw new Error(
-      `sea-build-cejel: unsupported release platform ${assetName}; refusing to emit an asset outside the documented curl contract.`,
+      `sea-build-cejel: unsupported release platform ${process.platform}/${process.arch}; refusing to emit an asset outside the documented download contract.`,
     );
   }
   return assetName;
@@ -91,10 +108,11 @@ function main() {
     throw new Error(`sea-build-cejel: ${baseNode} does not contain the Node SEA sentinel fuse.`);
   }
 
-  const postjectBin = join(PACKAGE_ROOT, 'node_modules/.bin/postject');
-  if (!existsSync(postjectBin)) {
+  // Invoke postject's JavaScript entry directly so Windows does not depend on a .cmd shim.
+  const postjectCli = join(PACKAGE_ROOT, 'node_modules/postject/dist/cli.js');
+  if (!existsSync(postjectCli)) {
     throw new Error(
-      `sea-build-cejel: ${postjectBin} not found. Install the public package dependencies first.`,
+      `sea-build-cejel: ${postjectCli} not found. Install the public package dependencies first.`,
     );
   }
 
@@ -120,7 +138,7 @@ function main() {
   log(`generating SEA blob with ${baseNode}`);
   execFileSync(baseNode, ['--experimental-sea-config', configPath], { stdio: 'inherit' });
   copyFileSync(baseNode, binaryPath);
-  chmodSync(binaryPath, 0o755);
+  if (process.platform !== 'win32') chmodSync(binaryPath, 0o755);
 
   if (process.platform === 'darwin') {
     try {
@@ -128,12 +146,31 @@ function main() {
     } catch {
       log('base executable had no removable signature; continuing to injection');
     }
+  } else if (process.platform === 'win32') {
+    // node.exe is Authenticode-signed. Injection invalidates that signature, so remove it
+    // first and ship an explicitly unsigned executable rather than a misleading invalid one.
+    // The release workflow separately asserts NotSigned and publishes verification artifacts.
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        "$ErrorActionPreference = 'Stop'; $kits = ${env:ProgramFiles(x86)}; $tool = Get-ChildItem \"$kits\\Windows Kits\\10\\bin\\*\\x64\\signtool.exe\" | Sort-Object FullName | Select-Object -Last 1; if (-not $tool) { throw 'signtool.exe not found in Windows SDK' }; & $tool.FullName remove /s $env:CEJEL_SEA_BINARY; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+      ],
+      {
+        env: { ...process.env, CEJEL_SEA_BINARY: binaryPath },
+        stdio: 'inherit',
+      },
+    );
   }
 
   log(`injecting SEA blob into ${assetName}`);
   execFileSync(
-    postjectBin,
+    process.execPath,
     [
+      postjectCli,
       binaryPath,
       'NODE_SEA_BLOB',
       blobPath,
