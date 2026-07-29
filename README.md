@@ -87,9 +87,8 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** npm currently serves `0.2.1`. Standalone binaries, Docker/OCI,
-> GitHub Action, Homebrew, and MCP Registry remain on `0.2.0`. The next patch release will
-> supersede both versions across all supported channels.
+> **Distribution note:** Cejel `0.2.2` is the coordinated release version for npm,
+> standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry.
 
 `npx` can reuse a stale cached package. Force the current npm release with the `@latest`
 specifier above, and check the version that will run before comparing certificates:
@@ -137,8 +136,7 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.2.0` (container releases are
-versioned independently from npm-only patches):
+**Docker / OCI.** The current container release is `0.2.2`:
 
 ```bash
 docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.2
