@@ -9,6 +9,7 @@ const EXPECTED_ASSETS = {
   'cejel-Darwin-x86_64': { platform: 'darwin', architecture: 'x64' },
   'cejel-Linux-aarch64': { platform: 'linux', architecture: 'arm64' },
   'cejel-Linux-x86_64': { platform: 'linux', architecture: 'x64' },
+  'cejel-Windows-x86_64.exe': { platform: 'win32', architecture: 'x64' },
 };
 
 function valueAfter(argv, index, flag) {

@@ -90,7 +90,11 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
       if (!lastScan) throw new Error('No scan has run yet — call the scan tool first.');
       return {
         contents: [
-          { uri: uri.href, mimeType: 'text/html', text: renderWitanHtmlReport(lastScan.report) },
+          {
+            uri: uri.href,
+            mimeType: 'text/html',
+            text: renderWitanHtmlReport(lastScan.report, { cliVersion: identity.version }),
+          },
         ],
       };
     },

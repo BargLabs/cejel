@@ -37,6 +37,8 @@ jobs:
             asset: cejel-Linux-aarch64
           - runner: ubuntu-24.04
             asset: cejel-Linux-x86_64
+          - runner: windows-latest
+            asset: cejel-Windows-x86_64.exe
 
     steps:
       - name: Checkout
@@ -81,7 +83,18 @@ jobs:
 
       - name: Assert contracted asset name
         working-directory: ${{ steps.package.outputs.root }}
+        shell: bash
         run: test -f ".build/cejel-sea/${{ matrix.asset }}"
+
+      - name: Assert Windows executable is intentionally unsigned
+        if: runner.os == 'Windows'
+        working-directory: ${{ steps.package.outputs.root }}
+        shell: pwsh
+        run: |
+          $signature = Get-AuthenticodeSignature ".build/cejel-sea/${{ matrix.asset }}"
+          if ($signature.Status -ne "NotSigned") {
+            throw "Expected an explicitly unsigned Windows executable; got $($signature.Status)."
+          }
 
       - name: Execute CLI contract and compare binary
         working-directory: ${{ steps.package.outputs.root }}
@@ -100,13 +113,24 @@ jobs:
         working-directory: ${{ steps.package.outputs.root }}
         run: node scripts/verify-cejel-binary-offline.mjs ".build/cejel-sea/${{ matrix.asset }}"
 
-      - name: Upload verified binary and receipt
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: ${{ steps.package.outputs.root }}
+          format: spdx-json
+          artifact-name: ${{ matrix.asset }}.spdx.json
+          output-file: ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload verified binary, receipt, and SBOM
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.asset }}
           path: |
             ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}
             ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}.verified.json
+            ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}.spdx.json
           if-no-files-found: error
           retention-days: 14
 
@@ -152,6 +176,7 @@ jobs:
           cejel-Darwin-x86_64
           cejel-Linux-aarch64
           cejel-Linux-x86_64
+          cejel-Windows-x86_64.exe
           > SHA256SUMS
 
       - name: Create signed provenance for all release binaries
@@ -174,6 +199,12 @@ jobs:
             release-assets/cejel-Darwin-x86_64 \
             release-assets/cejel-Linux-aarch64 \
             release-assets/cejel-Linux-x86_64 \
+            release-assets/cejel-Windows-x86_64.exe \
+            release-assets/cejel-Darwin-arm64.spdx.json \
+            release-assets/cejel-Darwin-x86_64.spdx.json \
+            release-assets/cejel-Linux-aarch64.spdx.json \
+            release-assets/cejel-Linux-x86_64.spdx.json \
+            release-assets/cejel-Windows-x86_64.exe.spdx.json \
             release-assets/SHA256SUMS \
             "release-assets/cejel-${{ inputs.release_tag }}-provenance.sigstore.json" \
             --clobber

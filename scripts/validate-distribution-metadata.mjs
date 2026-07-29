@@ -21,6 +21,10 @@ const README_PATH = new URL('../README.md', import.meta.url);
 const ROOT_ACTION_PATH = new URL('../action.yml', import.meta.url);
 const NESTED_ACTION_PATH = new URL('../action/action.yml', import.meta.url);
 const ACTION_RUNNER_PATH = new URL('../action/run.mjs', import.meta.url);
+const SEA_BUILD_PATH = new URL('./sea-build-cejel.mjs', import.meta.url);
+const BINARY_VERIFY_PATH = new URL('./verify-cejel-binary.mjs', import.meta.url);
+const OFFLINE_VERIFY_PATH = new URL('./verify-cejel-binary-offline.mjs', import.meta.url);
+const RELEASE_SET_VERIFY_PATH = new URL('./verify-cejel-release-set.mjs', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const publishedVersions = JSON.parse(readFileSync(PUBLISHED_VERSIONS_PATH, 'utf8'));
@@ -38,6 +42,10 @@ const readme = readFileSync(README_PATH, 'utf8');
 const rootAction = readFileSync(ROOT_ACTION_PATH, 'utf8');
 const nestedAction = readFileSync(NESTED_ACTION_PATH, 'utf8');
 const actionRunner = readFileSync(ACTION_RUNNER_PATH, 'utf8');
+const seaBuild = readFileSync(SEA_BUILD_PATH, 'utf8');
+const binaryVerify = readFileSync(BINARY_VERIFY_PATH, 'utf8');
+const offlineVerify = readFileSync(OFFLINE_VERIFY_PATH, 'utf8');
+const releaseSetVerify = readFileSync(RELEASE_SET_VERIFY_PATH, 'utf8');
 const ACTION_USE_PATTERN = /^\s*(?:-\s*)?uses:\s*([^#\s]+)(?:\s+#.*)?$/gm;
 
 function requireEqual(actual, expected, field) {
@@ -81,9 +89,17 @@ requireEqual(ociPackage.transport?.type, 'stdio', 'OCI transport');
 requireIncludes(dockerfile, `ARG VERSION=${publishedVersions.oci}`, 'Dockerfile default version');
 requireIncludes(
   readme,
-  `ghcr.io/barglabs/cejel:${publishedVersions.oci}`,
-  'README published OCI version',
+  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
+  'README release OCI version',
 );
+if (
+  packageManifest.version !== publishedVersions.oci &&
+  readme.includes(`ghcr.io/barglabs/cejel:${publishedVersions.oci}`)
+) {
+  throw new Error(
+    `README contains stale OCI pin ghcr.io/barglabs/cejel:${publishedVersions.oci}; expected release version ${packageManifest.version}.`,
+  );
+}
 requireIncludes(
   dockerfile,
   `io.modelcontextprotocol.server.name="${packageManifest.mcpName}"`,
@@ -112,6 +128,56 @@ requireIncludes(
   distributionWorkflow,
   'artifact-metadata: write',
   'distribution workflow artifact metadata permission',
+);
+requireIncludes(releaseWorkflow, 'runner: windows-latest', 'Windows release runner');
+requireIncludes(
+  releaseWorkflow,
+  'asset: cejel-Windows-x86_64.exe',
+  'Windows release asset',
+);
+requireIncludes(
+  releaseWorkflow,
+  'uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610',
+  'release SBOM generation',
+);
+requireIncludes(
+  releaseWorkflow,
+  'Get-AuthenticodeSignature',
+  'explicit Windows signing-status assertion',
+);
+requireIncludes(seaBuild, "win32: 'Windows'", 'Windows SEA platform mapping');
+requireIncludes(seaBuild, "node_modules/postject/dist/cli.js", 'cross-platform postject entry');
+requireIncludes(seaBuild, 'signtool.exe', 'Windows inherited-signature removal');
+requireIncludes(binaryVerify, "execFileSync(binaryPath, ['--version']", 'binary version smoke');
+requireIncludes(binaryVerify, "execFileSync(binaryPath, ['--help']", 'binary help smoke');
+requireIncludes(
+  offlineVerify,
+  'New-NetFirewallRule',
+  'Windows network-denied binary verification',
+);
+requireIncludes(
+  releaseSetVerify,
+  "'cejel-Windows-x86_64.exe'",
+  'Windows complete-release guard',
+);
+requireIncludes(readme, 'Windows signing status:', 'README Windows signing disclosure');
+requireIncludes(readme, 'npx @cejel/cejel@latest --version', 'README npx cache guidance');
+requireIncludes(readme, '## Install on OpenClaw', 'README OpenClaw installation');
+const openClawSectionStart = readme.indexOf('## Install on OpenClaw');
+const openClawSectionEnd = readme.indexOf('\n## ', openClawSectionStart + 1);
+const openClawSection = readme.slice(
+  openClawSectionStart,
+  openClawSectionEnd < 0 ? undefined : openClawSectionEnd,
+);
+requireIncludes(
+  openClawSection,
+  `ghcr.io/barglabs/cejel:${packageManifest.version}`,
+  'README OpenClaw release OCI version',
+);
+requireIncludes(
+  readme,
+  'does **not** watch, intercept,',
+  'README free-pack runtime-governance boundary',
 );
 
 const mcpPublishJobStart = distributionWorkflow.indexOf('  publish-mcp-registry:');

@@ -102,9 +102,23 @@ function readArtifacts(outDir) {
 }
 
 function currentAssetName() {
-  const os = execFileSync('uname', ['-s'], { encoding: 'utf8' }).trim();
-  const arch = execFileSync('uname', ['-m'], { encoding: 'utf8' }).trim();
-  return `cejel-${os}-${arch}`;
+  const os = {
+    darwin: 'Darwin',
+    linux: 'Linux',
+    win32: 'Windows',
+  }[process.platform];
+  const arch =
+    process.arch === 'x64'
+      ? 'x86_64'
+      : process.arch === 'arm64'
+        ? process.platform === 'linux'
+          ? 'aarch64'
+          : 'arm64'
+        : undefined;
+  if (!os || !arch) {
+    throw new Error(`Guard 4: unsupported release platform ${process.platform}/${process.arch}.`);
+  }
+  return `cejel-${os}-${arch}${process.platform === 'win32' ? '.exe' : ''}`;
 }
 
 function findingCount(report) {
@@ -128,6 +142,19 @@ function verifyBinary(binaryPath, sourceDistPath) {
   if (banned.length > 0) {
     throw new Error(`Guard 3: public binary contains commercial identifiers: ${banned.join(', ')}`);
   }
+
+  const manifest = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'));
+  const versionOutput = execFileSync(binaryPath, ['--version'], { encoding: 'utf8' }).trim();
+  if (versionOutput !== manifest.version) {
+    throw new Error(
+      `Guard 1: --version returned ${JSON.stringify(versionOutput)}, expected ${JSON.stringify(manifest.version)}.`,
+    );
+  }
+  const helpOutput = execFileSync(binaryPath, ['--help'], { encoding: 'utf8' });
+  if (!helpOutput.includes('Usage:') || !helpOutput.includes('cejel verify')) {
+    throw new Error('Guard 1: --help did not print the complete CLI contract.');
+  }
+  log(`Guard 1 smoke passed: --version=${versionOutput}; --help printed the CLI contract.`);
 
   const executeRepo = makeFixtureRepo('execute');
   try {

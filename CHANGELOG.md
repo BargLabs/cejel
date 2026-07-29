@@ -14,6 +14,58 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.2] — 2026-07-28
+
+### Added
+
+- Adds the final standalone platform gap: `cejel-Windows-x86_64.exe`. The Windows SEA build
+  injects into `node.exe`, smoke-tests `--version`, `--help`, and a real scan, compares the
+  binary with the source build, and runs a second scan with outbound networking denied by a
+  program-scoped Windows Firewall rule.
+- Every standalone binary now carries an SPDX SBOM alongside its own-platform verification
+  receipt, SHA-256 checksum, and GitHub-signed build-provenance bundle.
+- Documents installation as an OpenClaw-managed MCP server through the shipped `cejel-mcp`
+  stdio bin, with the published OCI image as an alternative. The documentation states the
+  product boundary plainly: free Cejel scans code selected by the caller; it does not govern
+  an agent's runtime actions.
+
+### Fixed
+
+- Certificates now show both the producing Cejel CLI version and the exact rubric version,
+  so reports created by different installed versions explain their scoring identity.
+- A calibrated dimension band that differs from the weighted numeric score now carries an
+  inline explanation instead of presenting, for example, `1.9` beside `verified` with no
+  reconciliation. Reported by Hirad.
+- A certificate produced from a source tarball now warns on B2 that Git history was
+  unavailable and that a zero recent-PR proxy may undercount the criterion. Reported by
+  Hirad.
+- The npm instructions force `@latest`, explain the stale `npx` cache footgun, and show how
+  to print the version before comparing certificates. Rubric/CLI drift was reported by
+  Mojan (Fortinet).
+
+### Included from main
+
+- Patch-distribution documentation from #39.
+- D8 Git transport hardening from #40 and #42.
+- Free-core v50 multiple-comparisons disclosure from #41.
+- Cross-repository preflight script from #43.
+
+### Signing
+
+- The Windows executable is intentionally **not Authenticode-signed** in 0.2.2. The build
+  removes Node's inherited signature, asserts that the final executable is `NotSigned`, and
+  the README warns that SmartScreen may intervene. Human review must decide whether this
+  verification-first release is acceptable or whether Windows publication waits for Azure
+  Trusted Signing or another approved Authenticode path.
+
+### Rubric
+
+- No detector, rubric, score, criterion status, or verdict behavior changes in this patch.
+  The tester reports' already-fixed scoring items are not reimplemented, and detector-level
+  follow-ups remain deferred to a future rubric release.
+
+---
+
 ## [0.2.1] — 2026-07-26
 
 ### Fixed

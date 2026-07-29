@@ -49,6 +49,29 @@ chmod +x cejel
 ./cejel .
 ```
 
+**Windows x86_64 (PowerShell).**
+
+```powershell
+$asset = "cejel-Windows-x86_64.exe"
+Invoke-WebRequest "https://github.com/BargLabs/cejel/releases/latest/download/$asset" -OutFile $asset
+Invoke-WebRequest "https://github.com/BargLabs/cejel/releases/latest/download/SHA256SUMS" -OutFile SHA256SUMS
+$expected = ((Select-String -Path SHA256SUMS -Pattern "  $([regex]::Escape($asset))$").Line -split "\s+")[0]
+$actual = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLowerInvariant()
+if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
+  throw "SHA-256 verification failed for $asset"
+}
+.\cejel-Windows-x86_64.exe .
+```
+
+> **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
+> 0.2.2 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
+> it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
+> GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM and an
+> own-platform verification receipt covering `--version`, `--help`, a real scan,
+> source/binary parity, and a network-denied scan. If your policy requires Authenticode,
+> use the npm package or the OCI image until a human-approved signing path is available.
+
 **Don't take the offline claim on trust — check it.** Turn your network off, then run the
 binary. It will score your repository and write you a certificate anyway. That is the whole
 product, and you can falsify it in ten seconds:
@@ -61,12 +84,19 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 **npm.**
 
 ```bash
-npx @cejel/cejel .
+npx @cejel/cejel@latest .
 ```
 
 > **Distribution note:** npm currently serves `0.2.1`. Standalone binaries, Docker/OCI,
 > GitHub Action, Homebrew, and MCP Registry remain on `0.2.0`. The next patch release will
 > supersede both versions across all supported channels.
+
+`npx` can reuse a stale cached package. Force the current npm release with the `@latest`
+specifier above, and check the version that will run before comparing certificates:
+
+```bash
+npx @cejel/cejel@latest --version
+```
 
 If a root `package.json` still carries a template name, override only the certificate display
 name while keeping the repository-derived stable slug:
@@ -93,14 +123,15 @@ pnpm install && pnpm build
 node dist/index.js .
 ```
 
-Released binaries: `cejel-Darwin-arm64`, `cejel-Darwin-x86_64`, `cejel-Linux-aarch64`, and
-`cejel-Linux-x86_64`. The release also carries `SHA256SUMS`; each binary is executed against
-the source build and with networking denied before attachment. Releases from v0.1.6 also
-carry a Sigstore bundle containing GitHub's signed build-provenance attestation for all four
-binaries. Verify a downloaded binary with:
+Released binaries: `cejel-Darwin-arm64`, `cejel-Darwin-x86_64`, `cejel-Linux-aarch64`,
+`cejel-Linux-x86_64`, and `cejel-Windows-x86_64.exe`. The release also carries
+`SHA256SUMS`, a per-binary SPDX SBOM, and an own-platform verification receipt. Each binary
+is executed against the source build and with networking denied before attachment. Releases
+from v0.1.6 also carry a Sigstore bundle containing GitHub's signed build-provenance
+attestation for the release set. Verify a downloaded binary with:
 
 ```bash
-gh attestation verify ./cejel-Darwin-arm64 -R BargLabs/cejel
+gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 ```
 
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
@@ -110,13 +141,13 @@ Microsoft Authenticode code-signing.
 versioned independently from npm-only patches):
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.0
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.2.2
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.2.0 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.2.2 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
@@ -363,6 +394,46 @@ The server exposes one tool and two resources:
 
 Like the CLI, scoring over MCP is fully offline: no network calls, no telemetry, no signup,
 and the server writes no files.
+
+## Install on OpenClaw
+
+OpenClaw stores outbound MCP servers under `mcp.servers`. Add Cejel with the npm package's
+shipped `cejel-mcp` bin:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "cejel": {
+        "command": "npx",
+        "args": ["-y", "--package=@cejel/cejel", "cejel-mcp"]
+      }
+    }
+  }
+}
+```
+
+The equivalent OpenClaw command is:
+
+```bash
+openclaw mcp add cejel --command npx --arg -y --arg --package=@cejel/cejel --arg cejel-mcp
+openclaw mcp doctor cejel --probe
+```
+
+The OCI image is an alternative when Docker is the preferred execution boundary. Replace
+the host path with the repository OpenClaw should allow Cejel to read:
+
+```bash
+openclaw mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.2.2"]}'
+openclaw mcp doctor cejel-oci --probe
+```
+
+Cejel is active in the Official MCP Registry as `io.github.BargLabs/cejel`. The explicit
+OpenClaw configuration above works independently of catalog indexing.
+
+Cejel scans code you point it at. This free adoption surface does **not** watch, intercept,
+or govern an agent's runtime actions. Runtime-action governance is a separate boundary for
+the future paid Agent Pack.
 
 ## What "offline" means here
 
