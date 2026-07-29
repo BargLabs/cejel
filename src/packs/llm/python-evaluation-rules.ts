@@ -148,6 +148,7 @@ function observablePythonResultIndex(
 ): number | null {
   const name = escaped(identifier);
   const tail = masked.slice(after);
+  let persistedIndex: number | null = null;
   for (const call of tail.matchAll(
     /\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\(/g,
   )) {
@@ -157,12 +158,26 @@ function observablePythonResultIndex(
     const callEnd = matchingParenthesis(tail, callStart);
     if (callStart < 0 || callEnd < 0) continue;
     if (new RegExp(`\\b${name}\\b`).test(tail.slice(callStart + 1, callEnd))) {
-      return after + call.index;
+      persistedIndex = after + call.index;
+      break;
     }
   }
-  if (persistedOnly) return null;
+  if (persistedOnly) return persistedIndex;
   const returned = new RegExp(`\\breturn\\s+${name}\\b`).exec(tail);
-  return returned ? after + returned.index : null;
+  const returnedIndex = returned ? after + returned.index : null;
+  if (persistedIndex === null) return returnedIndex;
+  if (returnedIndex === null) return persistedIndex;
+  return Math.min(persistedIndex, returnedIndex);
+}
+
+function observablePythonResultEnd(masked: string, observableIndex: number): number {
+  const callStart = masked.indexOf('(', observableIndex);
+  const lineEnd = masked.indexOf('\n', observableIndex);
+  if (callStart >= 0 && (lineEnd < 0 || callStart < lineEnd)) {
+    const callEnd = matchingParenthesis(masked, callStart);
+    if (callEnd >= 0) return callEnd + 1;
+  }
+  return lineEnd < 0 ? masked.length : lineEnd;
 }
 
 function normalizedPythonKeys(expression: string): ReadonlySet<string> {
@@ -210,10 +225,16 @@ function pythonStructuredResultExpressions(
       }
     }
     if (expressionEnd < 0) continue;
-    const propertyMatches = [...masked.slice(expressionEnd + 1).matchAll(
+    const observableIndex = observablePythonResultIndex(masked, identifier, expressionEnd + 1);
+    if (observableIndex === null) continue;
+    const observableTail = masked.slice(
+      expressionEnd + 1,
+      observablePythonResultEnd(masked, observableIndex),
+    );
+    const propertyMatches = [...observableTail.matchAll(
       new RegExp(`\\b${escaped(identifier)}\\.([A-Za-z_][A-Za-z0-9_]*)`, 'g'),
     )];
-    const lineageMatches = [...masked.slice(expressionEnd + 1).matchAll(
+    const lineageMatches = [...observableTail.matchAll(
       /\b(prompt_digest|prompt_hash|prompt_id|prompt_version|policy_digest|policy_hash|policy_id|policy_version|config_digest|config_hash|config_id|config_version|evaluation_config_version|evaluation_manifest|repository_commit)\b/gi,
     )];
     const keys = new Set([
@@ -232,8 +253,6 @@ function pythonStructuredResultExpressions(
         (property[1] ?? '').replaceAll('_', '').toLowerCase(),
       )
     );
-    const observableIndex = observablePythonResultIndex(masked, identifier, expressionEnd + 1);
-    if (observableIndex === null) continue;
     const persistenceIndex = observablePythonResultIndex(
       masked,
       identifier,
@@ -265,7 +284,10 @@ function pythonStructuredResultExpressions(
 
   const mutatedRoots = new Map<
     string,
-    { index: number; keys: Set<string> }
+    {
+      index: number;
+      mutations: { readonly index: number; readonly key: string }[];
+    }
   >();
   for (const mutation of masked.matchAll(
     /\b((?:self\.)?[A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\[[^\]\n]+\]\s*=|\.(?:append|extend|add|update)\s*\()/g,
@@ -275,32 +297,41 @@ function pythonStructuredResultExpressions(
     if (!root || !property) continue;
     const current = mutatedRoots.get(root) ?? {
       index: block.index + mutation.index,
-      keys: new Set<string>(),
+      mutations: [],
     };
-    current.keys.add(property.replaceAll('_', '').toLowerCase());
+    current.mutations.push({
+      index: mutation.index,
+      key: property.replaceAll('_', '').toLowerCase(),
+    });
     mutatedRoots.set(root, current);
   }
   for (const [root, result] of mutatedRoots) {
-    const tail = masked.slice(result.index - block.index);
+    const localStart = result.index - block.index;
     const observableIndex = observablePythonResultIndex(
       masked,
       root,
-      result.index - block.index,
+      localStart,
     );
     if (observableIndex === null) continue;
+    const observableEnd = observablePythonResultEnd(masked, observableIndex);
+    const keys = new Set(
+      result.mutations
+        .filter((mutation) => mutation.index < observableEnd)
+        .map((mutation) => mutation.key),
+    );
     const persistenceIndex = observablePythonResultIndex(
       masked,
       root,
-      result.index - block.index,
+      localStart,
       true,
     );
-    for (const lineage of tail.matchAll(
+    for (const lineage of masked.slice(localStart, observableEnd).matchAll(
       /\b(prompt_digest|prompt_hash|prompt_id|prompt_version|policy_digest|policy_hash|policy_id|policy_version|config_digest|config_hash|config_id|config_version|evaluation_config_version|evaluation_manifest|repository_commit)\b/gi,
     )) {
-      if (lineage[1]) result.keys.add(lineage[1].replaceAll('_', '').toLowerCase());
+      if (lineage[1]) keys.add(lineage[1].replaceAll('_', '').toLowerCase());
     }
     results.push({
-      ...result,
+      keys,
       index: persistenceIndex === null ? result.index : block.index + persistenceIndex,
     });
   }
