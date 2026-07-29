@@ -1,0 +1,715 @@
+{
+  "document_type": "adr-0011-action-item-3-catchable-fraction-classification",
+  "protocol_id": "cejel-llm-calibration-v1",
+  "adr_reference": "ADR-0011, action item 3",
+  "cycle": "v1.9",
+  "purpose": "Classify each of the 34 existing trusted (frozen golden-manifest) present-opportunities as file-local or cross-module under the LLM-PRV-001, LLM-EVL-001, and LLM-EVL-002 evidence contracts named in action item 3. This is retrospective engineering classification of already-frozen v1.9 golden ground truth; it labels no new opportunity, relabels no existing ground truth, and reruns no detector.",
+  "gate_status_note": "The v1.9 golden gate is NO-GO (see results/v1.9-golden-gate-no-go.json) and this document does not reverse, supersede, or reopen that decision. It creates no release claim, GO tier, or performance estimate and does not authorize execution of the withdrawn v1.9 untouched cohort.",
+  "primary_author": "Claude Sonnet AI",
+  "primary_author_type": "ai",
+  "human_author": null,
+  "authoring_note": "Authoring of this action item is reserved for Claude. No human authored or edited the classification content, rationale text, or counts in this document.",
+  "immutable_base_commit": "cfcfb3a30ab868ad278bd0023fe5f024541f2406",
+  "worktree_scope_note": "Produced entirely from committed v1.9 golden artifacts already present at the immutable base commit in this worktree. No untouched-cohort artifact (calibration/llm/private/untouched-evidence.enc, any untouched-* manifest/candidate/selection file, or any untouched label) was accessed, listed, run, or spent while producing this document. No detector, recognition logic, golden label, cohort manifest, or prior v1.9 result file was modified.",
+  "inputs": {
+    "golden_manifest": {
+      "path": "calibration/llm/cohorts/golden-manifest-v1.9.json",
+      "sha256": "60ac025d4f3db93576dedb67a5fadcc9ce87d0b19d0b129c02750187912b9982",
+      "internal_canonical_manifest_sha256_field": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2"
+    },
+    "golden_opportunity_manifest": {
+      "path": "calibration/llm/results/v1.9-golden-opportunity-manifest.json",
+      "sha256": "dc8b06a57ae7cd6644323efecd19b399e5eb48b2de0302b08589ab9a759d38ba",
+      "internal_canonical_manifest_sha256_field": "3f8bfe9276bb1e371b5e90eabfce079a5676b3dc03553b48f2f9667deaae6555",
+      "note": "Source of the 34 rows: every opportunity with ground_truth_label == \"present\" in this frozen golden-only manifest (label_counts.present == 34)."
+    },
+    "golden_correction_ledger_v2": {
+      "path": "calibration/llm/results/v1.9-golden-correction-ledger-v2.json",
+      "sha256": "f29f329253143c7af03e0a538fb1ceacc53207f6a087654cb97c17f67e00c935",
+      "note": "Cross-check: missed_defect_opportunity_ids in this ledger (34 entries) is the identical opportunity_id set to the 34 present-labeled opportunities above; each row below cites its correction_id for traceability."
+    }
+  },
+  "classification_contracts": {
+    "explicit_action_item_3_contracts": {
+      "LLM-PRV-001": "requires model invocation and complete evaluation result in the same local result-producing scope",
+      "LLM-EVL-001": "requires complete local case iteration, aggregate calculation, and direct result emission",
+      "LLM-EVL-002": "requires one local producer and one explicit local judge resolving to the same literal model identity"
+    },
+    "derived_contracts_for_remaining_rules": {
+      "LLM-IOH-001": "derived from the frozen rule contract's own split: file-local requires a same-function/same-file path from the LLM response accessor to the sink; cross-module is a resolved inter-procedural path crossing file boundaries",
+      "LLM-VAL-001": "derived from the frozen rule contract's own split: file-local requires a direct local path from the parsed model field to the action dispatcher; cross-module is a fully resolved inter-procedural path",
+      "LLM-AGY-001": "derived from the frozen rule contract's own split: file-local requires a direct local registration-to-dispatch path; cross-module is a resolved framework-middleware path",
+      "LLM-DAT-001": "derived from the frozen rule contract's own split: file-local requires a direct local path from the secret source to the sink; cross-module is a supported resolved inter-procedural path",
+      "_note": "Action item 3 enumerated explicit file-local/cross-module contracts only for LLM-PRV-001, LLM-EVL-001, and LLM-EVL-002 (24 of the 34 rows). The 34 trusted present-opportunities span all 7 rules that produced a present label in the v1.9 golden set. For the remaining 4 rules (LLM-AGY-001, LLM-VAL-001, LLM-IOH-001, LLM-DAT-001; 10 of the 34 rows) this document applies the equivalent local/resolved-inter-procedural distinction already frozen in docs/packs/free-llm-v1-rule-contract.md for that rule, and flags each such row for owner confirmation that this extension is in scope."
+    }
+  },
+  "methodology_and_limitations": [
+    "Every one of the 34 frozen evidence_scope entries in the golden opportunity manifest pins a single file+line anchor (start_line == end_line in all 34 cases). Every one of the three named contracts, and the derived contracts for the remaining four rules, requires confirming a second local component (a producer/judge pair, an iteration+aggregation+emission chain, or an invocation+result pair) that the frozen single-point anchor does not itself locate.",
+    "Whole-file source bytes for the golden cohort are not committed to this repository. Per protocol.md section 5 step 8 and the calibration README, the source-evidence index retains only a digest (source_evidence_index_sha256) in public artifacts; the whole-file bytes and Git blob/tree proofs live in restricted internal evidence outside this working tree.",
+    "The only source-level text committed for this cycle is calibration/llm/results/v1.9-golden-execution-evidence.json and its -v2 counterpart, which record just 3 detector findings total across the entire golden cohort -- all 3 are LLM-PRV-001 false positives adjudicated against no frozen opportunity (see the correction ledger). None of the 34 present-labeled opportunities has an associated detector finding or narrative description in any committed v1.9 artifact; this is consistent with, and is the direct cause of, the recorded zero finding recall.",
+    "One golden repository's execution receipt (Ankitha-GS/rag-qa) additionally records that the origin no longer resolves on GitHub as of the most recent re-execution, which is independent confirmation that live external re-inspection of golden source is not a reliable or reproducible substitute for the missing committed evidence for this cycle.",
+    "Because no committed artifact differentiates the required second local component per opportunity, every one of the 34 rows is genuinely ambiguous under this document's own definition of file-local. Per the governing instruction for this action item, genuine ambiguity is classified cross-module and flagged for owner review rather than guessed as file-local.",
+    "This is a structural, not a performance, conclusion: it says the frozen v1.9 golden evidence as committed cannot support a file-local determination for any of the 34 items, not that the underlying repository code is actually cross-module in every case."
+  ],
+  "rows": [
+    {
+      "id": "llm-opp-001a40709304e423a1ddc0e8d110bc2d24eb83a2e6fcde0bda405da44c376ca9",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "evaluators.py",
+        "start_line": 1,
+        "end_line": 1,
+        "whole_file_sha256": "9d5c67a8f494cf060368268f8bcd6752269fff3175dc46311649cf1e6890a7c6"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-001a40709304e423a1ddc0e8d110bc2d24eb8",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (evaluators.py:1) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-02ccd7516344cc14fe87d01bcf96698b93cadb0511d04d3dc0f5ca319c50b1be",
+      "rule": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "evidence_anchor": {
+        "path": "app.py",
+        "start_line": 1091,
+        "end_line": 1091,
+        "whole_file_sha256": "f9a5154b01deacb10ce5f40a8cb6a447ef6d8b9cc164c473d2d3b4960c1e5aca"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-02ccd7516344cc14fe87d01bcf96698b93cad",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-001 requires complete local case iteration, aggregate calculation, and direct result emission; the frozen evidence_scope for this opportunity pins a single anchor (app.py:1091) and does not separately pin the case-iteration and aggregate-calculation lines, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-0b970f7968403ec901313ce8a495030745a70defc20d298ba4a80e321b319651",
+      "rule": "LLM-PRV-001",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "evidence_anchor": {
+        "path": "packages/nexagauge-graph/ng_graph/nodes/report.py",
+        "start_line": 101,
+        "end_line": 101,
+        "whole_file_sha256": "0a4ab307e62f302d46f876a70cce64469b673af64db8f7c9d88f85f1d9ab6da6"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-0b970f7968403ec901313ce8a495030745a70",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-PRV-001 requires model invocation and complete evaluation result in the same local result-producing scope; the frozen evidence_scope for this opportunity pins a single anchor (packages/nexagauge-graph/ng_graph/nodes/report.py:101) and does not separately pin the model-invocation line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-1fb62cec34ae230ba757f3a061a9a8c7879e9aff458e1a63f554be382c1edbae",
+      "rule": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "evidence_anchor": {
+        "path": "packages/nexagauge-graph/ng_graph/nodes/metrics/geval/score.py",
+        "start_line": 68,
+        "end_line": 68,
+        "whole_file_sha256": "928de54b4922bdb63c1a8355958caeabf769abd58d43d261cf0a48e499ab04c5"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-1fb62cec34ae230ba757f3a061a9a8c7879e9",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (packages/nexagauge-graph/ng_graph/nodes/metrics/geval/score.py:68) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-245d008f271eeb60fc6067b43fc0786eb231582e850832b6a057024898b0a074",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "evidence_anchor": {
+        "path": "src/evaluator.py",
+        "start_line": 95,
+        "end_line": 95,
+        "whole_file_sha256": "01dd8305bdf7965565f67949eefceecc1c86b8815366575011e9b92485d984ba"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-245d008f271eeb60fc6067b43fc0786eb2315",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (src/evaluator.py:95) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-2798f54915e777b68800782f45e824106180b4153c048ec3c12270a99d5a8b17",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "reporter.py",
+        "start_line": 311,
+        "end_line": 311,
+        "whole_file_sha256": "d65fee761000240894033fb08115be254f043ed48260149843784eba15f9fef1"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-2798f54915e777b68800782f45e824106180b",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (reporter.py:311) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-3cf37c8f869843862722a2120156d9a4456dc8f3c1a4bc1fc75120973fe77d75",
+      "rule": "LLM-AGY-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "evidence_anchor": {
+        "path": "app/_layout.tsx",
+        "start_line": 132,
+        "end_line": 132,
+        "whole_file_sha256": "479c3c5d66e7544f95595ce07182a47432da1a82efca3ac42634f2d068d358ea"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-3cf37c8f869843862722a2120156d9a4456dc",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-AGY-001 derived from the frozen rule contract's own split: file-local requires a direct local registration-to-dispatch path; cross-module is a resolved framework-middleware path; the frozen evidence_scope for this opportunity pins a single anchor (app/_layout.tsx:132) and does not separately pin a distinct tool definition/registration line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-AGY-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-4ee1ed7abc8d6f428c30148247b1a628b79ca5e605311f634693c59bc3300794",
+      "rule": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "evidence_anchor": {
+        "path": "packages/nexagauge-graph/ng_graph/nodes/metrics/relevance.py",
+        "start_line": 55,
+        "end_line": 55,
+        "whole_file_sha256": "cda18a1e50a14659e3ea49841a9ed1283eea337b47e871b394bd3d0064d378e6"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-4ee1ed7abc8d6f428c30148247b1a628b79ca",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (packages/nexagauge-graph/ng_graph/nodes/metrics/relevance.py:55) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-52a19bb116ebdf98337a45dc8bcbb3ae37cb895af37b3671ab44c2220de0ee3f",
+      "rule": "LLM-PRV-001",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "evidence_anchor": {
+        "path": "velune/cli/commands/models.py",
+        "start_line": 1025,
+        "end_line": 1025,
+        "whole_file_sha256": "f894ada40377a7d6034a517209be652ea289b9f51a6f05b016d0a07633d7e693"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-52a19bb116ebdf98337a45dc8bcbb3ae37cb8",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-PRV-001 requires model invocation and complete evaluation result in the same local result-producing scope; the frozen evidence_scope for this opportunity pins a single anchor (velune/cli/commands/models.py:1025) and does not separately pin the model-invocation line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-5e533efe05ee3ac8742a888c0323bd4abca084b35e7498b3f1748c3ed95c2fa9",
+      "rule": "LLM-VAL-001",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "evidence_anchor": {
+        "path": "velune/mcp/transports/websocket.py",
+        "start_line": 275,
+        "end_line": 275,
+        "whole_file_sha256": "7c45f3f36a5394257aa6545f3bec688f54fb218655ed2562bcff01e56c0a4e70"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-5e533efe05ee3ac8742a888c0323bd4abca08",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-VAL-001 derived from the frozen rule contract's own split: file-local requires a direct local path from the parsed model field to the action dispatcher; cross-module is a fully resolved inter-procedural path; the frozen evidence_scope for this opportunity pins a single anchor (velune/mcp/transports/websocket.py:275) and does not separately pin the model-field parse/assert line feeding this dispatcher, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-VAL-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-6781e213bc91b57c41e8c004897012e1c4cf60a15996d1d1a6cff15838ed1188",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "evidence_anchor": {
+        "path": "src/evaluator.py",
+        "start_line": 44,
+        "end_line": 44,
+        "whole_file_sha256": "01dd8305bdf7965565f67949eefceecc1c86b8815366575011e9b92485d984ba"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-6781e213bc91b57c41e8c004897012e1c4cf6",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (src/evaluator.py:44) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-6fc14b3a706960292a8d2bb698ced01d171faf988a4e34ec5649e97bb597f50d",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "run.py",
+        "start_line": 55,
+        "end_line": 55,
+        "whole_file_sha256": "994814c8e994a3cf845eab19878ee374efb75f68167cd9d0c34553758d645979"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-6fc14b3a706960292a8d2bb698ced01d171fa",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (run.py:55) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-70212305fccc9efc3a48ac20632e2a600116e4739a969c90e1645e3a554ca5fe",
+      "rule": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "evidence_anchor": {
+        "path": "packages/nexagauge-graph/ng_graph/nodes/metrics/relevance.py",
+        "start_line": 57,
+        "end_line": 57,
+        "whole_file_sha256": "cda18a1e50a14659e3ea49841a9ed1283eea337b47e871b394bd3d0064d378e6"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-70212305fccc9efc3a48ac20632e2a600116e",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (packages/nexagauge-graph/ng_graph/nodes/metrics/relevance.py:57) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-80bdd28deed33274a2d5b955ef7caa974c7cc7a458fc5bfc1e371ef3cbd2cc21",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "reporter.py",
+        "start_line": 468,
+        "end_line": 468,
+        "whole_file_sha256": "d65fee761000240894033fb08115be254f043ed48260149843784eba15f9fef1"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-80bdd28deed33274a2d5b955ef7caa974c7cc",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (reporter.py:468) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-8fa3769329d70e67a43e60946d5e14888416543dd7a8a0145f80c73d089ec1fc",
+      "rule": "LLM-AGY-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "evidence_anchor": {
+        "path": "app/_layout.tsx",
+        "start_line": 1568,
+        "end_line": 1568,
+        "whole_file_sha256": "479c3c5d66e7544f95595ce07182a47432da1a82efca3ac42634f2d068d358ea"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-8fa3769329d70e67a43e60946d5e148884165",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-AGY-001 derived from the frozen rule contract's own split: file-local requires a direct local registration-to-dispatch path; cross-module is a resolved framework-middleware path; the frozen evidence_scope for this opportunity pins a single anchor (app/_layout.tsx:1568) and does not separately pin a distinct tool definition/registration line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-AGY-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-908d9f776748a9b09dd4f73a01d1dbecf588a364ae042846b8cf3129fb32f7ac",
+      "rule": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "evidence_anchor": {
+        "path": "evaluation/benchmarks.py",
+        "start_line": 417,
+        "end_line": 417,
+        "whole_file_sha256": "e7536e384f651187e083a8ea658bd26ae5e1cfebe8bee082754e7b917e539262"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-908d9f776748a9b09dd4f73a01d1dbecf588a",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-001 requires complete local case iteration, aggregate calculation, and direct result emission; the frozen evidence_scope for this opportunity pins a single anchor (evaluation/benchmarks.py:417) and does not separately pin the case-iteration and aggregate-calculation lines, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-92cc40f038c8805c839e61f1ba95aabd73d68601ff1cfdcbe61190aa359fd3ec",
+      "rule": "LLM-EVL-002",
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "evidence_anchor": {
+        "path": "packages/server/src/evaluators.ts",
+        "start_line": 273,
+        "end_line": 273,
+        "whole_file_sha256": "e9116189ce4ae14a950f64218139477efe481b608cc8cc32ae1ab48515570ac7"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-92cc40f038c8805c839e61f1ba95aabd73d68",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (packages/server/src/evaluators.ts:273) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-970d551cff126d3f59e890ca1ee19d2b890d0f0a1a7a5fd45f89801afb12374d",
+      "rule": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "evidence_anchor": {
+        "path": "app.py",
+        "start_line": 1090,
+        "end_line": 1090,
+        "whole_file_sha256": "f9a5154b01deacb10ce5f40a8cb6a447ef6d8b9cc164c473d2d3b4960c1e5aca"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-970d551cff126d3f59e890ca1ee19d2b890d0",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-001 requires complete local case iteration, aggregate calculation, and direct result emission; the frozen evidence_scope for this opportunity pins a single anchor (app.py:1090) and does not separately pin the case-iteration and aggregate-calculation lines, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-976a81efaea43753139650f367737758d5a94ab05e486b1f6c3fd6f035a18b50",
+      "rule": "LLM-IOH-001",
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "evidence_anchor": {
+        "path": "apps/console/src/components/trace-detail.tsx",
+        "start_line": 316,
+        "end_line": 316,
+        "whole_file_sha256": "12e21da633e9f57f03f97113f4485efabee5e292eae2ff539a242b089d5a2a09"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-976a81efaea43753139650f367737758d5a94",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-IOH-001 derived from the frozen rule contract's own split: file-local requires a same-function/same-file path from the LLM response accessor to the sink; cross-module is a resolved inter-procedural path crossing file boundaries; the frozen evidence_scope for this opportunity pins a single anchor (apps/console/src/components/trace-detail.tsx:316) and does not separately pin the LLM response accessor line feeding this sink, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-IOH-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-97c1108cb83be1da4a6af674094f46be47232b481f1673f64c7dcdf2cd6fff9b",
+      "rule": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "evidence_anchor": {
+        "path": "evaluation/benchmarks.py",
+        "start_line": 419,
+        "end_line": 419,
+        "whole_file_sha256": "e7536e384f651187e083a8ea658bd26ae5e1cfebe8bee082754e7b917e539262"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-97c1108cb83be1da4a6af674094f46be47232",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-001 requires complete local case iteration, aggregate calculation, and direct result emission; the frozen evidence_scope for this opportunity pins a single anchor (evaluation/benchmarks.py:419) and does not separately pin the case-iteration and aggregate-calculation lines, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-9cdd8cc0da535ffd54471c0a994ee69902c0b3af6e6a8c685135206be0dcd527",
+      "rule": "LLM-DAT-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "evidence_anchor": {
+        "path": "hooks/use-ai-pane-dispatch.ts",
+        "start_line": 194,
+        "end_line": 194,
+        "whole_file_sha256": "c92dbcb2197f9cd2463772f53bb87cde4d4a14b66ce2dac9a3845549eff53619"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-9cdd8cc0da535ffd54471c0a994ee69902c0b",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-DAT-001 derived from the frozen rule contract's own split: file-local requires a direct local path from the secret source to the sink; cross-module is a supported resolved inter-procedural path; the frozen evidence_scope for this opportunity pins a single anchor (hooks/use-ai-pane-dispatch.ts:194) and does not separately pin the secret-source read line feeding this sink, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-DAT-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-9e84c89ac92c7d2012528957971bc05e6f83601d0c7ead50ba38af682315cc33",
+      "rule": "LLM-EVL-001",
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "evidence_anchor": {
+        "path": "apps/console/src/routes/dashboard.tsx",
+        "start_line": 797,
+        "end_line": 797,
+        "whole_file_sha256": "377e5b48afa56b5c6f4a652751ebb263c109b0fa6f68add3ea33e6b4fa9fd2bb"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-9e84c89ac92c7d2012528957971bc05e6f836",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-001 requires complete local case iteration, aggregate calculation, and direct result emission; the frozen evidence_scope for this opportunity pins a single anchor (apps/console/src/routes/dashboard.tsx:797) and does not separately pin the case-iteration and aggregate-calculation lines, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-aae8e1b488ab09fc595898309aea5989beac901f062128890c00144b4e446a8c",
+      "rule": "LLM-DAT-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "evidence_anchor": {
+        "path": "hooks/use-ai-pane-dispatch.ts",
+        "start_line": 195,
+        "end_line": 195,
+        "whole_file_sha256": "c92dbcb2197f9cd2463772f53bb87cde4d4a14b66ce2dac9a3845549eff53619"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-aae8e1b488ab09fc595898309aea5989beac9",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-DAT-001 derived from the frozen rule contract's own split: file-local requires a direct local path from the secret source to the sink; cross-module is a supported resolved inter-procedural path; the frozen evidence_scope for this opportunity pins a single anchor (hooks/use-ai-pane-dispatch.ts:195) and does not separately pin the secret-source read line feeding this sink, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-DAT-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-ad6c075efff4410ddd71b79ba89acbd2a5210f452b79ffdec183b1d7503710a1",
+      "rule": "LLM-IOH-001",
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "evidence_anchor": {
+        "path": "velune/cli/fullscreen.py",
+        "start_line": 960,
+        "end_line": 960,
+        "whole_file_sha256": "cf368c077a01d7657db7215f82d458bd9f38f28aeb427ba135ec9f4a2dff9d61"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-ad6c075efff4410ddd71b79ba89acbd2a5210",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-IOH-001 derived from the frozen rule contract's own split: file-local requires a same-function/same-file path from the LLM response accessor to the sink; cross-module is a resolved inter-procedural path crossing file boundaries; the frozen evidence_scope for this opportunity pins a single anchor (velune/cli/fullscreen.py:960) and does not separately pin the LLM response accessor line feeding this sink, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-IOH-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-b202f9cfe3401fef991acc55499f44512a2df29241e811623ccb728b99f3120b",
+      "rule": "LLM-PRV-001",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "evidence_anchor": {
+        "path": "packages/nexagauge-graph/ng_graph/graph.py",
+        "start_line": 863,
+        "end_line": 863,
+        "whole_file_sha256": "7ab39512f8e726a1e36cb7164d7ce4d24106ede49fcc3dbd0b4d9163fa41c52e"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-b202f9cfe3401fef991acc55499f44512a2df",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-PRV-001 requires model invocation and complete evaluation result in the same local result-producing scope; the frozen evidence_scope for this opportunity pins a single anchor (packages/nexagauge-graph/ng_graph/graph.py:863) and does not separately pin the model-invocation line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-b4e789e97c59f503e3cb746516f00019ea9719e2470da7bc6e9a9bcc4f40f6e7",
+      "rule": "LLM-DAT-001",
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "evidence_anchor": {
+        "path": "hooks/use-ai-pane-dispatch.ts",
+        "start_line": 196,
+        "end_line": 196,
+        "whole_file_sha256": "c92dbcb2197f9cd2463772f53bb87cde4d4a14b66ce2dac9a3845549eff53619"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-b4e789e97c59f503e3cb746516f00019ea971",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-DAT-001 derived from the frozen rule contract's own split: file-local requires a direct local path from the secret source to the sink; cross-module is a supported resolved inter-procedural path; the frozen evidence_scope for this opportunity pins a single anchor (hooks/use-ai-pane-dispatch.ts:196) and does not separately pin the secret-source read line feeding this sink, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-DAT-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-b61550371989a631f334b6928c20c76a76b9e94282ace1a99259c2a0745c462a",
+      "rule": "LLM-EVL-001",
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "evidence_anchor": {
+        "path": "app.py",
+        "start_line": 1225,
+        "end_line": 1225,
+        "whole_file_sha256": "f9a5154b01deacb10ce5f40a8cb6a447ef6d8b9cc164c473d2d3b4960c1e5aca"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-b61550371989a631f334b6928c20c76a76b9e",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-001 requires complete local case iteration, aggregate calculation, and direct result emission; the frozen evidence_scope for this opportunity pins a single anchor (app.py:1225) and does not separately pin the case-iteration and aggregate-calculation lines, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-b77ca250992ce620050698b5267ec4391f8912da59283931dcc38207804470af",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "run.py",
+        "start_line": 56,
+        "end_line": 56,
+        "whole_file_sha256": "994814c8e994a3cf845eab19878ee374efb75f68167cd9d0c34553758d645979"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-b77ca250992ce620050698b5267ec4391f891",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (run.py:56) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-be731fdff13ed5917592a8ddbe5cf300a8ce08b33c82b2911b72d5691ec2b3a2",
+      "rule": "LLM-DAT-001",
+      "repository_id": "sreyun/aiops-monitor",
+      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
+      "evidence_anchor": {
+        "path": "cmd/server/terminal.go",
+        "start_line": 1048,
+        "end_line": 1048,
+        "whole_file_sha256": "555b24cb5601f31c12f84e7fe2be1091913aaa0510f7c5c453b97e9b11770300"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-be731fdff13ed5917592a8ddbe5cf300a8ce0",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-DAT-001 derived from the frozen rule contract's own split: file-local requires a direct local path from the secret source to the sink; cross-module is a supported resolved inter-procedural path; the frozen evidence_scope for this opportunity pins a single anchor (cmd/server/terminal.go:1048) and does not separately pin the secret-source read line feeding this sink, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-DAT-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-c74a8d44d37f504caf9afed90c2651b095426275e75226a1d77e4bfe4b9f1897",
+      "rule": "LLM-EVL-002",
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "evidence_anchor": {
+        "path": "packages/nexagauge-graph/ng_graph/llm/__init__.py",
+        "start_line": 31,
+        "end_line": 31,
+        "whole_file_sha256": "3ec015947df67036308b4b84513a38980001bf95ec6c19bbb0f034e2b3306730"
+      },
+      "golden_label_adjudicated": true,
+      "correction_ledger_id": "llm-correction-missed-v2-c74a8d44d37f504caf9afed90c2651b095426",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (packages/nexagauge-graph/ng_graph/llm/__init__.py:31) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-e24f5560d1592b810b1334dfb24ee635ff7136e7b72bdb44e5cb6bbb48eccdbc",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "run.py",
+        "start_line": 54,
+        "end_line": 54,
+        "whole_file_sha256": "994814c8e994a3cf845eab19878ee374efb75f68167cd9d0c34553758d645979"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-e24f5560d1592b810b1334dfb24ee635ff713",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (run.py:54) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-e9feaddc98cc9f1dace8c967bd2ff0a414a10355c8703a213cf4ebaf0e4241e6",
+      "rule": "LLM-VAL-001",
+      "repository_id": "sreyun/aiops-monitor",
+      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
+      "evidence_anchor": {
+        "path": "cmd/server/sreyun.go",
+        "start_line": 1196,
+        "end_line": 1196,
+        "whole_file_sha256": "fb56b85ce3806679c4ccc24d17eb343f9b6b0ba841cbabf7619ade2f017d99cc"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-e9feaddc98cc9f1dace8c967bd2ff0a414a10",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": false,
+      "rationale": "LLM-VAL-001 derived from the frozen rule contract's own split: file-local requires a direct local path from the parsed model field to the action dispatcher; cross-module is a fully resolved inter-procedural path; the frozen evidence_scope for this opportunity pins a single anchor (cmd/server/sreyun.go:1196) and does not separately pin the model-field parse/assert line feeding this dispatcher, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default. Action item 3 did not enumerate an explicit file-local/cross-module contract for LLM-VAL-001; this row applies the derived analogy above and is additionally flagged for owner confirmation of scope.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-ed0511098fde685e5d02669b79b8dbba069343a973a39f388715d89a9e14edb1",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "evidence_anchor": {
+        "path": "src/evaluator.py",
+        "start_line": 61,
+        "end_line": 61,
+        "whole_file_sha256": "01dd8305bdf7965565f67949eefceecc1c86b8815366575011e9b92485d984ba"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-ed0511098fde685e5d02669b79b8dbba06934",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (src/evaluator.py:61) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    },
+    {
+      "id": "llm-opp-f9b8f1b9a5ce3fd9edad281359dca66628714a2f4d8b5b3644163896a6a9def7",
+      "rule": "LLM-EVL-002",
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "evidence_anchor": {
+        "path": "run.py",
+        "start_line": 53,
+        "end_line": 53,
+        "whole_file_sha256": "994814c8e994a3cf845eab19878ee374efb75f68167cd9d0c34553758d645979"
+      },
+      "golden_label_adjudicated": false,
+      "correction_ledger_id": "llm-correction-missed-v2-f9b8f1b9a5ce3fd9edad281359dca66628714",
+      "classification": "cross-module",
+      "contract_in_scope_of_action_item_3": true,
+      "rationale": "LLM-EVL-002 requires one local producer and one explicit local judge resolving to the same literal model identity; the frozen evidence_scope for this opportunity pins a single anchor (run.py:53) and does not separately pin a distinct judge (or producer) line, and whole-file source bytes for this golden repository are not committed to this worktree (only source_evidence_index_sha256 is retained) -- co-location cannot be confirmed from committed v1.9 artifacts alone, so this item is genuinely ambiguous and is classified cross-module per the action item's ambiguity default.",
+      "owner_review_flag": true
+    }
+  ],
+  "summary": {
+    "denominator": 34,
+    "file_local_count": 0,
+    "file_local_denominator": "0/34",
+    "cross_module_count": 34,
+    "cross_module_denominator": "34/34",
+    "by_rule": {
+      "LLM-EVL-002": {
+        "total": 15,
+        "file_local": 0,
+        "cross_module": 15
+      },
+      "LLM-EVL-001": {
+        "total": 6,
+        "file_local": 0,
+        "cross_module": 6
+      },
+      "LLM-PRV-001": {
+        "total": 3,
+        "file_local": 0,
+        "cross_module": 3
+      },
+      "LLM-AGY-001": {
+        "total": 2,
+        "file_local": 0,
+        "cross_module": 2
+      },
+      "LLM-VAL-001": {
+        "total": 2,
+        "file_local": 0,
+        "cross_module": 2
+      },
+      "LLM-IOH-001": {
+        "total": 2,
+        "file_local": 0,
+        "cross_module": 2
+      },
+      "LLM-DAT-001": {
+        "total": 4,
+        "file_local": 0,
+        "cross_module": 4
+      }
+    },
+    "rows_within_explicit_action_item_3_contracts": 24,
+    "rows_using_derived_contract_flagged_for_owner_scope_confirmation": 10
+  },
+  "publication_note": "This document is published as engineering evidence either way its counts land (0/34, 34/34, or any other split): it is not gated on a preferred outcome, is not itself a release artifact under release-thresholds.json, and creates no automatic-GO or automatic-NO-GO evidence record. It does not change the v1.9 golden or untouched denominators, the recall/precision counts in results/v1.9-golden-gate-no-go.json, or any prior ground-truth label."
+}
