@@ -1,0 +1,16 @@
+import { writeFileSync } from 'node:fs';
+import OpenAI from 'openai';
+const openai = new OpenAI();
+
+const MODEL = 'gpt-4.1-2025-04-14';
+async function produceCandidate(candidate) {
+  return openai.responses.create({ model: MODEL, input: candidate });
+}
+async function judgeUnrelated(candidateOutput) {
+  const judge = await openai.responses.create({
+    model: MODEL,
+    instructions: 'You are the evaluation judge. Score the candidate response.',
+    input: candidateOutput,
+  });
+  writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text }));
+}

@@ -44,6 +44,8 @@ interface ModelInvocation {
   readonly index: number;
   readonly identity: string | null;
   readonly judge: boolean;
+  readonly resultIdentifier: string | null;
+  readonly call: string;
 }
 
 interface AggregateAssignment {
@@ -79,8 +81,7 @@ const AGGREGATE_NAME_WORDS = new Set([
 ]);
 const MODEL_LITERAL_PATTERN = /\bmodel\s*:\s*(['"`])([^'"`$]+)\1/;
 const MODEL_IDENTIFIER_PATTERN = /\bmodel\s*:\s*([A-Za-z_$][\w$]*)/;
-const LITERAL_BINDING_PATTERN =
-  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(['"`])([^'"`$]+)\2\s*;/g;
+const JUDGE_INPUT_KEYS = new Set(['input', 'messages', 'prompt']);
 const LINEAGE_MODEL_KEYS = new Set([
   'model',
   'modelId',
@@ -129,32 +130,44 @@ function isAggregateName(name: string): boolean {
     .some((word) => AGGREGATE_NAME_WORDS.has(word));
 }
 
-function hasIndependentAcceptanceSignal(file: LlmSourceFile): boolean {
+function hasIndependentAcceptanceSignal(
+  file: LlmSourceFile,
+  emission: LocalEmission,
+  scopes: readonly JavaScriptFunctionScope[],
+): boolean {
   const masked = maskJavaScriptNonCode(file.contents);
-  const emissions = localEmissions(file);
+  const callStart = masked.indexOf('(', emission.index);
+  const callEnd = callStart < 0
+    ? emission.index
+    : matchingDelimiter(masked, callStart, '(', ')');
+  const observableEnd = callEnd < 0 ? emission.index : callEnd + 1;
   for (const match of masked.matchAll(
     /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?(?:humanReview|humanAdjudication|manualReview|evidenceVerification|exactMatch|schemaCheck|propertyCheck|deterministicGrade|independentDecision)\s*\(/g,
   )) {
     const identifier = match[1];
-    if (!identifier) continue;
-    if (emissions.some((emission) => {
-      if (emission.index <= match.index) return false;
-      const callStart = masked.indexOf('(', emission.index);
-      const callEnd = callStart < 0 ? -1 : matchingDelimiter(masked, callStart, '(', ')');
-      if (callEnd < 0) return false;
-      const escaped = identifier.replaceAll('$', '\\$');
-      return new RegExp(`\\b${escaped}\\b`).test(masked.slice(callStart, callEnd + 1));
-    })) return true;
+    if (
+      !identifier ||
+      emission.index <= match.index ||
+      !sameJavaScriptLocalScope(scopes, match.index, emission.index)
+    ) continue;
     const tail = masked.slice(match.index + match[0].length);
     const escaped = identifier.replaceAll('$', '\\$');
+    if (
+      callStart >= 0 &&
+      new RegExp(`\\b${escaped}\\b`).test(masked.slice(callStart, observableEnd))
+    ) return true;
     const gate = new RegExp(
       `\\bif\\s*\\([^)]*\\b${escaped}\\b[^)]*\\)\\s*(?:\\{[\\s\\S]{0,300}?\\b(?:throw|return|writeFileSync|appendFileSync|Bun\\.write)\\b|(?:throw|return)\\b)`,
     );
-    if (gate.test(tail)) return true;
+    const tailLength = observableEnd - (match.index + match[0].length);
+    if (gate.test(tail.slice(0, Math.max(0, tailLength)))) return true;
   }
-  return /\bif\s*\([^)]*(?:humanReview|humanAdjudication|manualReview|evidenceVerification|exactMatch|schemaCheck|propertyCheck|deterministicGrade|independentDecision)\s*\([^)]*\)[^)]*\)\s*(?:\{[\s\S]{0,300}?\b(?:throw|return|writeFileSync|appendFileSync|Bun\.write)\b|(?:throw|return)\b)/.test(
-    masked,
-  );
+  for (const direct of masked.slice(0, observableEnd).matchAll(
+    /\bif\s*\([^)]*(?:humanReview|humanAdjudication|manualReview|evidenceVerification|exactMatch|schemaCheck|propertyCheck|deterministicGrade|independentDecision)\s*\([^)]*\)[^)]*\)\s*(?:\{[\s\S]{0,300}?\b(?:throw|return|writeFileSync|appendFileSync|Bun\.write)\b|(?:throw|return)\b)/g,
+  )) {
+    if (sameJavaScriptLocalScope(scopes, direct.index, emission.index)) return true;
+  }
+  return false;
 }
 
 function completeLocalSource(file: LlmSourceFile): boolean {
@@ -1341,25 +1354,128 @@ function detectMissingDenominator(
   return findings;
 }
 
-function literalBindings(contents: string): ReadonlyMap<string, string> {
-  const bindings = new Map<string, string>();
-  for (const match of contents.matchAll(LITERAL_BINDING_PATTERN)) {
-    const identifier = match[1];
-    const value = match[3];
-    if (identifier && value) bindings.set(identifier, value);
-  }
-  return bindings;
+function modelBindingParameterIsShadowed(
+  contents: string,
+  identifier: string,
+  scope: JavaScriptFunctionScope | undefined,
+): boolean {
+  if (!scope) return false;
+  const header = contents.slice(Math.max(0, scope.start - 1000), scope.start);
+  const parameters = header.match(/\(([^()]*)\)\s*(?::[^=\n]+)?(?:=>)?\s*$/)?.[1];
+  if (!parameters) return false;
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[,({]\\s*)${escaped}\\b`).test(parameters);
 }
 
-function modelIdentity(call: string, bindings: ReadonlyMap<string, string>): string | null {
+function resolvedLiteralBinding(
+  contents: string,
+  identifier: string,
+  callIndex: number,
+  scopes: readonly JavaScriptFunctionScope[],
+): string | null {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const masked = maskJavaScriptNonCode(contents);
+  const scopeAt = (index: number): JavaScriptFunctionScope | undefined =>
+    scopes
+      .filter((scope) => index > scope.start && index < scope.end)
+      .sort((left, right) => right.start - left.start)[0];
+  const scopeChain = [
+    ...scopes
+      .filter((scope) => callIndex > scope.start && callIndex < scope.end)
+      .sort((left, right) => right.start - left.start),
+    undefined,
+  ];
+  const eventPattern = new RegExp(
+    `\\b(const|let|var)\\s+${escaped}\\b(?:\\s*=\\s*([^;\\n]+))?` +
+      `|(?<![.$\\w])${escaped}\\s*=\\s*(?![=>])([^;\\n]+)` +
+      `|\\b(?:function|class)\\s+${escaped}\\b`,
+    'g',
+  );
+  const events = [...contents.slice(0, callIndex).matchAll(eventPattern)]
+    .filter((event) => (masked[event.index] ?? ' ') !== ' ')
+    .map((event) => ({
+      index: event.index,
+      constant: event[1] === 'const',
+      expression: event[2] ?? event[3],
+    }));
+  for (const scope of scopeChain) {
+    if (modelBindingParameterIsShadowed(contents, identifier, scope)) return null;
+    const event = events.filter((candidate) => scopeAt(candidate.index) === scope).at(-1);
+    if (!event?.expression) {
+      if (event) return null;
+      continue;
+    }
+    if (!event.constant) return null;
+    return event.expression.trim().match(/^(['"`])([^'"`$]+)\1$/)?.[2] ?? null;
+  }
+  return null;
+}
+
+function modelIdentity(
+  call: string,
+  contents: string,
+  callIndex: number,
+  scopes: readonly JavaScriptFunctionScope[],
+): string | null {
   const literal = call.match(MODEL_LITERAL_PATTERN)?.[2];
   if (literal) return literal;
   const identifier = call.match(MODEL_IDENTIFIER_PATTERN)?.[1];
-  return identifier ? (bindings.get(identifier) ?? null) : null;
+  return identifier
+    ? resolvedLiteralBinding(contents, identifier, callIndex, scopes)
+    : null;
 }
 
-function modelInvocations(contents: string): readonly ModelInvocation[] {
-  const bindings = literalBindings(contents);
+function assignedIdentifierBefore(masked: string, callIndex: number): string | null {
+  const lineStart = masked.lastIndexOf('\n', callIndex) + 1;
+  const prefix = masked.slice(lineStart, callIndex);
+  return prefix.match(
+    /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)(?:\s*:[^=]+)?\s*=/,
+  )?.[1] ?? prefix.match(
+    /^\s*([A-Za-z_$][\w$]*)\s*=/,
+  )?.[1] ?? null;
+}
+
+function containsIdentifier(value: string, identifier: string): boolean {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`).test(maskJavaScriptNonCode(value));
+}
+
+function judgeInputContainsIdentifier(call: string, identifier: string): boolean {
+  const callStart = call.indexOf('(');
+  const objectStart = call.indexOf('{', callStart + 1);
+  if (callStart < 0 || objectStart < 0) return false;
+  const objectEnd = matchingDelimiter(call, objectStart, '{', '}');
+  if (objectEnd < 0) return false;
+  return splitTopLevelMembers(call.slice(objectStart + 1, objectEnd)).some((member) => {
+    const property = member.match(
+      /^\s*(?:['"])?([A-Za-z_$][\w$]*)(?:['"])?\s*:/,
+    )?.[1];
+    const colon = member.indexOf(':');
+    return (
+      property !== undefined &&
+      JUDGE_INPUT_KEYS.has(property) &&
+      colon >= 0 &&
+      containsIdentifier(member.slice(colon + 1), identifier)
+    );
+  });
+}
+
+function emissionContainsIdentifier(
+  contents: string,
+  emissionIndex: number,
+  identifier: string,
+): boolean {
+  const callStart = contents.indexOf('(', emissionIndex);
+  if (callStart < 0) return false;
+  const callEnd = matchingDelimiter(contents, callStart, '(', ')');
+  if (callEnd < 0) return false;
+  return containsIdentifier(contents.slice(callStart + 1, callEnd), identifier);
+}
+
+function modelInvocations(
+  contents: string,
+  scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(contents)),
+): readonly ModelInvocation[] {
   const invocations: ModelInvocation[] = [];
   const masked = maskJavaScriptNonCode(contents);
   const supportedIndices = supportedJavaScriptModelCallIndices(contents);
@@ -1374,16 +1490,34 @@ function modelInvocations(contents: string): readonly ModelInvocation[] {
     const judge = /\b(?:system|instructions?)\s*:\s*(['"`])[^'"`]*(?:judge|grader|evaluate|score)[^'"`]*\1/i.test(
       call,
     );
-    invocations.push({ index: match.index, identity: modelIdentity(call, bindings), judge });
+    invocations.push({
+      index: match.index,
+      identity: modelIdentity(call, contents, match.index, scopes),
+      judge,
+      resultIdentifier: assignedIdentifierBefore(masked, match.index),
+      call,
+    });
   }
   for (const index of supportedEvaluationHttpInvocationIndices(contents)) {
     if (!invocations.some((invocation) => invocation.index === index)) {
-      invocations.push({ index, identity: null, judge: false });
+      invocations.push({
+        index,
+        identity: null,
+        judge: false,
+        resultIdentifier: assignedIdentifierBefore(masked, index),
+        call: '',
+      });
     }
   }
   for (const index of supportedLangChainEvaluationInvocationIndices(contents)) {
     if (!invocations.some((invocation) => invocation.index === index)) {
-      invocations.push({ index, identity: null, judge: true });
+      invocations.push({
+        index,
+        identity: null,
+        judge: true,
+        resultIdentifier: assignedIdentifierBefore(masked, index),
+        call: '',
+      });
     }
   }
   invocations.sort((left, right) => left.index - right.index);
@@ -1396,27 +1530,44 @@ function detectSoleSelfJudge(
   const findings: CejelLlmEvaluationFinding[] = [];
   for (const file of files) {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) continue;
-    if (hasIndependentAcceptanceSignal(file)) continue;
-    const invocations = modelInvocations(file.contents);
-    const judges = invocations.filter((invocation) => invocation.judge);
-    const producers = invocations.filter((invocation) => !invocation.judge);
-    if (judges.length !== 1 || producers.length !== 1) continue;
-    const judge = judges[0];
-    const producer = producers[0];
-    if (!judge?.identity || !producer?.identity || judge.identity !== producer.identity) continue;
-    // A complete local result emission is required before an absence finding. Otherwise this may
-    // be self-critique or an intermediate draft rather than the accepted evaluation result.
-    if (localEmissions(file).length === 0) continue;
-    findings.push(
-      finding(
-        'LLM-EVL-002',
-        file,
-        judge.index,
-        'warning',
-        `The producer and sole model-assisted judge resolve to the same configured model (${judge.identity}), with no local independent adjudicator.`,
-        `Judge invocation reuses producer model ${judge.identity}`,
-      ),
-    );
+    const scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(file.contents));
+    const invocations = modelInvocations(file.contents, scopes);
+    for (const emission of localEmissions(file, scopes)) {
+      const localInvocations = invocations.filter(
+        (invocation) =>
+          invocation.index < emission.index &&
+          sameJavaScriptLocalScope(scopes, invocation.index, emission.index),
+      );
+      const judges = localInvocations.filter((invocation) => invocation.judge);
+      const producers = localInvocations.filter((invocation) => !invocation.judge);
+      if (judges.length !== 1 || producers.length !== 1) continue;
+      const judge = judges[0];
+      const producer = producers[0];
+      if (!judge?.identity || !producer?.identity || judge.identity !== producer.identity) {
+        continue;
+      }
+      if (
+        producer.index >= judge.index ||
+        !producer.resultIdentifier ||
+        !judge.resultIdentifier ||
+        !judgeInputContainsIdentifier(judge.call, producer.resultIdentifier) ||
+        !emissionContainsIdentifier(file.contents, emission.index, judge.resultIdentifier)
+      ) {
+        continue;
+      }
+      if (hasIndependentAcceptanceSignal(file, emission, scopes)) continue;
+      findings.push(
+        finding(
+          'LLM-EVL-002',
+          file,
+          judge.index,
+          'warning',
+          `The producer and sole model-assisted judge resolve to the same configured model (${judge.identity}), with no local independent adjudicator.`,
+          `Judge invocation reuses producer model ${judge.identity}`,
+        ),
+      );
+      break;
+    }
   }
   return findings;
 }
@@ -1470,12 +1621,19 @@ function hasProvenanceEvaluationSurface(files: readonly LlmSourceFile[]): boolea
 function hasModelJudgeSurface(files: readonly LlmSourceFile[]): boolean {
   return files.some((file) => {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) return false;
+    const scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(file.contents));
     const invocations = modelInvocations(file.contents);
-    return (
-      invocations.some((invocation) => invocation.judge) &&
-      invocations.some((invocation) => !invocation.judge) &&
-      localEmissions(file).length > 0
-    );
+    return localEmissions(file, scopes).some((emission) => {
+      const localInvocations = invocations.filter(
+        (invocation) =>
+          invocation.index < emission.index &&
+          sameJavaScriptLocalScope(scopes, invocation.index, emission.index),
+      );
+      return (
+        localInvocations.some((invocation) => invocation.judge) &&
+        localInvocations.some((invocation) => !invocation.judge)
+      );
+    });
   }) || files.some((file) => detectPythonConfiguredSelfJudge(file).length > 0);
 }
 
@@ -1515,7 +1673,7 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
     title: 'Evaluated system is its own sole judge',
     detectorConfidence: 'high',
     evidenceContract:
-      'Exactly one local producer and one explicit model-assisted judge resolve to the same literal model identity, a result is locally emitted, and no observable independent review signal participates in evaluation acceptance or gating.',
+      'Exactly one same-scope producer and one explicit model-assisted judge resolve to the same immutable literal model identity, the bound producer result reaches the judge, the bound judge result reaches the local emitter, and no observable independent review signal participates in evaluation acceptance or gating.',
     exclusions: [
       'Unresolved or provider-managed model identities',
       'Distinct judge models and locally declared independent adjudication',

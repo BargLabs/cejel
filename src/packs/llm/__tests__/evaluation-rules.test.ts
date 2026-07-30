@@ -85,6 +85,129 @@ describe('Free LLM evaluation and provenance rules', () => {
   });
 
   it.each([
+    [
+      'a later non-literal reassignment',
+      (contents: string) => contents.replace(
+        "const MODEL = 'gpt-4.1-2025-04-14';",
+        "let MODEL = 'gpt-4.1-2025-04-14';\nMODEL = process.env.MODEL_ID;",
+      ),
+    ],
+    [
+      'a local parameter shadow',
+      (contents: string) => contents.replace(
+        'async function evaluateCandidate(candidate) {',
+        'async function evaluateCandidate(candidate, MODEL) {',
+      ),
+    ],
+  ] as const)('abstains when model identity is obscured by %s', (_name, mutate) => {
+    const source = fixture('llm-evaluation-self-judge-scope.positive.fixture');
+    expect(
+      detectCejelLlmEvaluationRules([{
+        ...source,
+        contents: mutate(source.contents),
+      }]).filter((finding) => finding.ruleId === 'LLM-EVL-002'),
+    ).toEqual([]);
+  });
+
+  it('does not combine a producer, judge, and result across sibling JavaScript scopes', () => {
+    expect(
+      detectCejelLlmEvaluationRules([
+        fixture('llm-evaluation-self-judge-scope.negative.fixture'),
+      ]).filter((finding) => finding.ruleId === 'LLM-EVL-002'),
+    ).toEqual([]);
+  });
+
+  it('does not let an independent gate in a sibling scope suppress a local self-judge finding', () => {
+    const source = fixture('llm-evaluation-self-judge-scope.positive.fixture');
+    const contents = [
+      source.contents,
+      'async function reviewUnrelated(candidate) {',
+      '  const review = await humanReview(candidate);',
+      "  if (!review.approved) throw new Error('rejected');",
+      '}',
+    ].join('\n');
+    expect(
+      detectCejelLlmEvaluationRules([{ ...source, contents }]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-002',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('does not use a judge invocation that occurs after the emitted result', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation.ts',
+      contents: [
+        "import { writeFileSync } from 'node:fs';",
+        "import OpenAI from 'openai';",
+        'const openai = new OpenAI();',
+        "const MODEL = 'gpt-4.1-2025-04-14';",
+        'async function evaluateCandidate(candidate) {',
+        '  const response = await openai.responses.create({ model: MODEL, input: candidate });',
+        "  writeFileSync('evaluation.json', JSON.stringify({ score: cachedScore }));",
+        '  await openai.responses.create({',
+        '    model: MODEL,',
+        "    instructions: 'Judge and score this candidate.',",
+        '    input: response.output_text,',
+        '  });',
+        '}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-002',
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [
+      'judge does not consume the producer result',
+      '    input: unrelatedOutput,',
+      "  writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text }));",
+    ],
+    [
+      'judge mentions the producer only as metadata',
+      [
+        '    input: unrelatedOutput,',
+        '    metadata: { producerResponse: response },',
+      ].join('\n'),
+      "  writeFileSync('evaluation.json', JSON.stringify({ score: judge.output_text }));",
+    ],
+    [
+      'emission does not retain the judge result',
+      '    input: response.output_text,',
+      "  writeFileSync('evaluation.json', JSON.stringify({ score: cachedScore }));",
+    ],
+  ] as const)(
+    'abstains when the local self-judge chain is incomplete: %s',
+    (_name, judgeInput, emission) => {
+      const source: LlmSourceFile = {
+        path: 'src/evaluation.ts',
+        contents: [
+          "import { writeFileSync } from 'node:fs';",
+          "import OpenAI from 'openai';",
+          'const openai = new OpenAI();',
+          "const MODEL = 'gpt-4.1-2025-04-14';",
+          'async function evaluateCandidate(candidate) {',
+          '  const response = await openai.responses.create({ model: MODEL, input: candidate });',
+          '  const judge = await openai.responses.create({',
+          '    model: MODEL,',
+          "    instructions: 'Judge and score this candidate.',",
+          judgeInput,
+          '  });',
+          emission,
+          '}',
+        ].join('\n'),
+      };
+      expect(
+        detectCejelLlmEvaluationRules([source]).filter(
+          (finding) => finding.ruleId === 'LLM-EVL-002',
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  it.each([
     '// humanReview must approve this score',
     "const documentation = 'independentDecision(judge)';",
     'const independentDecision = true;',

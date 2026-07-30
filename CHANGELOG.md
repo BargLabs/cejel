@@ -25,6 +25,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Python evaluation rules now attribute official OpenAI and Anthropic call shapes only when the
   receiver resolves to a live same-file SDK import/client binding. Unrelated and parameter-shadowed
   lookalikes abstain; local custom judge wrappers remain within the file-local contract.
+- JavaScript self-judge detection now requires the producer, explicit judge, and emitted result to
+  occur in the same local result-producing scope and in execution order, with direct bound
+  producer-to-judge-to-emitter lineage and immutable literal model identity. Independent acceptance
+  signals suppress only the result path in their own scope.
 
 ---
 
