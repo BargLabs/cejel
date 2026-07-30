@@ -73,6 +73,16 @@ describe('witan CLI offline guarantee', () => {
       'transitive-entry.fixture.ts',
       'network_module',
     ],
+    [
+      'unapproved code-execution and subprocess built-ins',
+      'unapproved-builtins.fixture.ts',
+      'unapproved_builtin_module',
+    ],
+    [
+      'unresolved relative runtime loaders',
+      'unresolved-relative-loader.fixture.cjs',
+      'opaque_module_loader',
+    ],
   ])('rejects %s', (_label, fixture, expectedKind) => {
     const violations = findOfflineBoundaryViolations(repoRoot, [join(fixtureRoot, fixture)]);
     expect(violations.map((violation) => violation.kind)).toContain(expectedKind);
@@ -102,6 +112,27 @@ describe('witan CLI offline guarantee', () => {
     );
   });
 
+  it('rejects every unapproved built-in in the code-execution fixture', () => {
+    const violations = findOfflineBoundaryViolations(repoRoot, [
+      join(fixtureRoot, 'unapproved-builtins.fixture.ts'),
+    ]);
+    expect(violations.map((violation) => violation.detail)).toEqual(
+      expect.arrayContaining([
+        'import reaches unapproved built-in module "node:cluster"',
+        'import reaches unapproved built-in module "node:vm"',
+      ]),
+    );
+  });
+
+  it('rejects an unresolved relative loader outside the scanned graph', () => {
+    const violations = findOfflineBoundaryViolations(repoRoot, [
+      join(fixtureRoot, 'unresolved-relative-loader.fixture.cjs'),
+    ]);
+    expect(violations.map((violation) => violation.detail)).toContain(
+      'require reaches relative module "./generated.cjs" outside the scanned first-party graph',
+    );
+  });
+
   it.each([
     'bare-builtins.fixture.ts',
     'aliased-fetch.fixture.ts',
@@ -115,6 +146,8 @@ describe('witan CLI offline guarantee', () => {
     'global-object-alias.fixture.ts',
     'computed-loader-member.fixture.ts',
     'transitive-entry.fixture.ts',
+    'unapproved-builtins.fixture.ts',
+    'unresolved-relative-loader.fixture.cjs',
   ])('%s demonstrates a bypass of the legacy source-text guard', (fixture) => {
     const contents = readFileSync(join(fixtureRoot, fixture), 'utf8');
     expect(legacySourcePatterns.some((pattern) => pattern.test(contents))).toBe(false);
@@ -122,6 +155,36 @@ describe('witan CLI offline guarantee', () => {
 
   it('ignores comments, strings, and locally bound names that only resemble network primitives', () => {
     const fixture = join(fixtureRoot, 'safe-local-bindings.fixture.ts');
+    expect(findOfflineBoundaryViolations(repoRoot, [fixture])).toEqual([]);
+  });
+
+  it('ignores network-capability names and imports that TypeScript erases', () => {
+    const fixture = join(fixtureRoot, 'type-only-capabilities.fixture.ts');
+    expect(findOfflineBoundaryViolations(repoRoot, [fixture])).toEqual([]);
+  });
+
+  it('still rejects a runtime capability when its type assertion is erased', () => {
+    const fixture = join(fixtureRoot, 'runtime-type-assertion.fixture.ts');
+    expect(findOfflineBoundaryViolations(repoRoot, [fixture])).toEqual([
+      expect.objectContaining({
+        kind: 'outbound_global',
+        detail: 'global fetch exposes an outbound network primitive',
+      }),
+    ]);
+  });
+
+  it('preserves explicitly approved built-ins', () => {
+    const fixture = join(fixtureRoot, 'allowed-builtins.fixture.ts');
+    expect(findOfflineBoundaryViolations(repoRoot, [fixture])).toEqual([]);
+  });
+
+  it('preserves relative imports that resolve into the scanned first-party graph', () => {
+    const fixture = join(fixtureRoot, 'safe-relative-entry.fixture.ts');
+    expect(findOfflineBoundaryViolations(repoRoot, [fixture])).toEqual([]);
+  });
+
+  it('preserves relative require calls that resolve into the scanned first-party graph', () => {
+    const fixture = join(fixtureRoot, 'safe-relative-loader.fixture.cjs');
     expect(findOfflineBoundaryViolations(repoRoot, [fixture])).toEqual([]);
   });
 

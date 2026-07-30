@@ -31,6 +31,16 @@ const NETWORK_MODULES = new Set([
   'ws',
 ]);
 const OPAQUE_LOADER_MODULES = new Set(['module']);
+// Every newly reachable built-in must be reviewed for code-execution, process,
+// native-addon, or transport capabilities before it enters this allowlist.
+const ALLOWED_BUILTIN_MODULES = new Set([
+  'crypto',
+  'fs',
+  'fs/promises',
+  'os',
+  'path',
+  'url',
+]);
 // External packages are not capability-transparent. Keep the exact runtime
 // entrypoints used by the scoring graph explicit so a new client/transport
 // import requires review instead of silently expanding the offline boundary.
@@ -47,6 +57,7 @@ const GLOBAL_LOADER_OBJECTS = new Set(['process', 'module']);
 export type OfflineBoundaryViolationKind =
   | 'subprocess_module'
   | 'network_module'
+  | 'unapproved_builtin_module'
   | 'unapproved_external_module'
   | 'opaque_module_loader'
   | 'outbound_global';
@@ -209,6 +220,33 @@ function isDirectCapabilityReceiver(node: ts.Identifier): boolean {
   );
 }
 
+function importHasRuntimeBindings(node: ts.ImportDeclaration): boolean {
+  const clause = node.importClause;
+  if (!clause) return true;
+  if (clause.isTypeOnly) return false;
+  if (clause.name || !clause.namedBindings || ts.isNamespaceImport(clause.namedBindings)) {
+    return true;
+  }
+  return clause.namedBindings.elements.some((element) => !element.isTypeOnly);
+}
+
+function exportHasRuntimeBindings(node: ts.ExportDeclaration): boolean {
+  if (node.isTypeOnly) return false;
+  if (!node.exportClause || ts.isNamespaceExport(node.exportClause)) return true;
+  return node.exportClause.elements.some((element) => !element.isTypeOnly);
+}
+
+function isErasedTypeNode(node: ts.Node): boolean {
+  if (!ts.isTypeNode(node)) return false;
+  if (!ts.isExpressionWithTypeArguments(node)) return true;
+  const heritage = node.parent;
+  return !(
+    ts.isHeritageClause(heritage) &&
+    heritage.token === ts.SyntaxKind.ExtendsKeyword &&
+    (ts.isClassDeclaration(heritage.parent) || ts.isClassExpression(heritage.parent))
+  );
+}
+
 function isFirstPartySourceFile(repoRoot: string, sourceFile: ts.SourceFile): boolean {
   if (sourceFile.isDeclarationFile) return false;
   const repoPath = toRepoPath(repoRoot, sourceFile.fileName);
@@ -303,30 +341,61 @@ export function findOfflineBoundaryViolations(
       );
       return;
     }
-    if (isBuiltin(specifier)) return;
-    if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
-      if (!ALLOWED_EXTERNAL_MODULES.has(specifier)) {
+    if (isBuiltin(specifier)) {
+      if (!ALLOWED_BUILTIN_MODULES.has(normalized)) {
         add(
           sourceFile,
           node,
-          'unapproved_external_module',
-          `${loadKind} reaches unapproved external module ${JSON.stringify(specifier)}`,
+          'unapproved_builtin_module',
+          `${loadKind} reaches unapproved built-in module ${JSON.stringify(specifier)}`,
         );
       }
+      return;
+    }
+    if (specifier.startsWith('./') || specifier.startsWith('../')) {
+      const resolvedModule = ts.resolveModuleName(
+        specifier,
+        sourceFile.fileName,
+        program.getCompilerOptions(),
+        ts.sys,
+      ).resolvedModule;
+      const resolvedSourceFile = resolvedModule
+        ? program.getSourceFile(resolvedModule.resolvedFileName)
+        : undefined;
+      if (!resolvedSourceFile || !isFirstPartySourceFile(root, resolvedSourceFile)) {
+        add(
+          sourceFile,
+          node,
+          'opaque_module_loader',
+          `${loadKind} reaches relative module ${JSON.stringify(specifier)} outside the scanned first-party graph`,
+        );
+      }
+      return;
+    }
+    if (!ALLOWED_EXTERNAL_MODULES.has(specifier)) {
+      add(
+        sourceFile,
+        node,
+        'unapproved_external_module',
+        `${loadKind} reaches unapproved external module ${JSON.stringify(specifier)}`,
+      );
     }
   }
 
   function visit(sourceFile: ts.SourceFile, node: ts.Node): void {
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
-      if (node.moduleSpecifier) {
-        inspectModuleSpecifier(
-          sourceFile,
-          node.moduleSpecifier,
-          ts.isImportDeclaration(node) ? 'import' : 're-export',
-        );
+    if (isErasedTypeNode(node)) return;
+
+    if (ts.isImportDeclaration(node)) {
+      if (importHasRuntimeBindings(node)) {
+        inspectModuleSpecifier(sourceFile, node.moduleSpecifier, 'import');
+      }
+    } else if (ts.isExportDeclaration(node)) {
+      if (node.moduleSpecifier && exportHasRuntimeBindings(node)) {
+        inspectModuleSpecifier(sourceFile, node.moduleSpecifier, 're-export');
       }
     } else if (
       ts.isImportEqualsDeclaration(node) &&
+      !node.isTypeOnly &&
       ts.isExternalModuleReference(node.moduleReference) &&
       node.moduleReference.expression
     ) {
