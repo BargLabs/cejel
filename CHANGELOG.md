@@ -26,6 +26,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   receiver resolves to a live same-file SDK import/client binding. Unrelated and parameter-shadowed
   lookalikes abstain; local custom judge wrappers remain within the file-local contract.
 
+### Fixed
+
+- The offline architecture guard now parses every first-party `src` and deployed `api` scoring
+  module with the TypeScript compiler instead of matching raw source text. Bare built-ins, aliases,
+  re-exports, computed loaders, and indirect global network primitives can no longer bypass the
+  single hardened Git subprocess boundary.
+
 ---
 
 ## [0.2.2] — 2026-07-28
