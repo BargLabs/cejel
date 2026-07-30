@@ -87,6 +87,14 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
           `- Verdict: ${renderWitanAbstentionLabel(report)} to certify — ${report.insufficientSourceReason}`,
         ]
       : []),
+    ...((report.scanLimitations?.length ?? 0) > 0
+      ? [
+          '',
+          '## Scan limitations',
+          '',
+          ...(report.scanLimitations ?? []).map((limitation) => `- ${limitation}`),
+        ]
+      : []),
     '',
     '## Criterion Profile',
     '',

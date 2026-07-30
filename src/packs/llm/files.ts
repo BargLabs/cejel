@@ -1,6 +1,7 @@
-import { execFileSync } from 'node:child_process';
 import { type Dirent, lstatSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
+
+import { describeGitFailure, execGit, isExpectedGitAbsence } from '../../witan/git-exec.js';
 
 const SKIPPED_DIRECTORIES = new Set([
   '.git',
@@ -35,31 +36,30 @@ function isRegularFile(path: string): boolean {
 }
 
 function listTrackedFiles(repoPath: string): string[] | null {
-  try {
-    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const output = execFileSync('git', ['ls-files', '--cached'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    if (!output) return [];
-
-    const root = resolve(repoPath);
-    return output
-      .split('\n')
-      .filter((path) => {
-        if (path.length === 0 || HARD_EXCLUDED_PATH_PATTERN.test(path)) return false;
-        const fullPath = resolve(root, path);
-        return isInsideRoot(root, fullPath) && isRegularFile(fullPath);
-      })
-      .sort();
-  } catch {
-    return null;
+  const workTree = execGit(['rev-parse', '--is-inside-work-tree'], { cwd: repoPath });
+  if (!workTree.ok) {
+    if (isExpectedGitAbsence(workTree)) return null;
+    throw new Error(describeGitFailure(workTree.reason, 'work-tree check'));
   }
+  if (workTree.stdout.trim() !== 'true') return null;
+
+  const inventory = execGit(['ls-files', '--cached'], { cwd: repoPath });
+  if (!inventory.ok) {
+    if (isExpectedGitAbsence(inventory)) return null;
+    throw new Error(describeGitFailure(inventory.reason, 'tracked-file inventory'));
+  }
+  const output = inventory.stdout.trim();
+  if (!output) return [];
+
+  const root = resolve(repoPath);
+  return output
+    .split('\n')
+    .filter((path) => {
+      if (path.length === 0 || HARD_EXCLUDED_PATH_PATTERN.test(path)) return false;
+      const fullPath = resolve(root, path);
+      return isInsideRoot(root, fullPath) && isRegularFile(fullPath);
+    })
+    .sort();
 }
 
 function visitDirectory(root: string, directory: string, files: string[]): void {
