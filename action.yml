@@ -33,6 +33,15 @@ outputs:
       Verdict label (Verified / Conditional / At risk / Unverified / Insufficient source /
       Insufficient evidence).
     value: ${{ steps.witan-run.outputs.verdict }}
+  limited:
+    description: 'true when scan limitations qualify the score and verdict; otherwise false.'
+    value: ${{ steps.witan-run.outputs.limited }}
+  limitation-count:
+    description: 'Number of scan limitations that qualify the certificate.'
+    value: ${{ steps.witan-run.outputs['limitation-count'] }}
+  limitations:
+    description: 'JSON array of scan limitation messages.'
+    value: ${{ steps.witan-run.outputs.limitations }}
 
 runs:
   using: 'composite'

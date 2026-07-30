@@ -436,9 +436,18 @@ the future paid Agent Pack.
 ## What "offline" means here
 
 Scoring a repo — `cejel scan .` itself, and the Action's scoring step — makes zero network
-calls: no telemetry, no signup, no model call. Fetching the `@cejel/cejel` package the
-first time (like any npm-distributed CLI, including this Action's own dependency install)
-does need network; that's a one-time install cost, not part of the scoring guarantee.
+calls: no telemetry, no signup, no model call. The scanner does invoke your local `git`
+binary through one hardened subprocess chokepoint: fixed argv only (never a shell), an
+explicit timeout and output bound, prompts and network transports disabled, proxy variables
+removed, and repository-controlled filesystem monitoring neutralized. A static CI guard
+allows `node:child_process` in that one module only and rejects direct network primitives
+everywhere, while each release binary is also scanned with outbound networking denied.
+
+Fetching the `@cejel/cejel` package the first time (like any npm-distributed CLI, including
+this Action's own dependency install) does need network; that's a one-time install cost, not
+part of the scoring guarantee. If the tracked-file inventory fails unexpectedly, the JSON,
+HTML, and markdown certificates declare that the scanner used its bounded directory fallback
+instead of silently presenting the two inventories as equivalent.
 
 ## Help validate Cejel
 

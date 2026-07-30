@@ -100,6 +100,20 @@ export function renderWitanHtmlReport(
       </div>
     </header>
 
+    ${
+      (report.scanLimitations?.length ?? 0) > 0
+        ? `<section class="scan-limitations-section evidence-section" aria-label="Scan limitations">
+      <h2>Scan limitations</h2>
+      <ul>${(report.scanLimitations ?? [])
+        .map(
+          (limitation) =>
+            `<li class="scan-warning"><strong>Scan limitation</strong><span>${escapeHtml(limitation)}</span></li>`,
+        )
+        .join('')}</ul>
+    </section>`
+        : ''
+    }
+
     <section class="trust-grid" aria-label="Rubric criteria">
       ${renderCriterionColumn('Code trust', codeCriteria, gitHistoryUnavailable)}
       ${renderCriterionColumn('Process trust', processCriteria, gitHistoryUnavailable)}
@@ -467,6 +481,8 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .coverage-note { margin-top: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
 .source-counts { margin: 8px 0 0; padding-left: 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .trust-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
+.scan-limitations-section { margin-top: 28px; border-color: rgba(231, 191, 114, .44); }
+.scan-limitations-section .scan-warning { list-style: none; margin-left: -18px; }
 .external-findings-section { margin-top: 18px; }
 .external-note { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
 .criteria-column, .evidence-section { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 22px; }

@@ -213,6 +213,9 @@ export function createWitanReport(
     overallScore: abstained ? null : overallScore,
     criteria,
     ...(consumedSignals.length > 0 ? { consumedSignals } : {}),
+    ...(parsedInput.scanLimitations.length > 0
+      ? { scanLimitations: parsedInput.scanLimitations }
+      : {}),
     // Only surface the full per-category map for rubrics with more than two buckets —
     // the default two-category rubric is fully represented by codeTrustScore/processTrustScore.
     ...(!abstained && categoryOrder.length > 2 ? { categoryScores: categoryScoreMap } : {}),

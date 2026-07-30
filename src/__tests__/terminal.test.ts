@@ -18,6 +18,7 @@ function summary(overrides: Partial<WitanCliSummary> = {}): WitanCliSummary {
     externalSources: [],
     externalFindingCount: 0,
     topExternalFindings: [],
+    scanLimitations: [],
     ...overrides,
   };
 }
@@ -33,6 +34,15 @@ describe('renderTerminalCertificate', () => {
 
   it('reports no findings cleanly', () => {
     expect(renderTerminalCertificate(summary())).toContain('No evidence-backed findings.');
+  });
+
+  it('renders scan limitations prominently', () => {
+    const output = renderTerminalCertificate(
+      summary({ scanLimitations: ['Tracked-file inventory used a bounded directory walk.'] }),
+    );
+
+    expect(output).toContain('LIMITED EVIDENCE');
+    expect(output).toContain('Tracked-file inventory used a bounded directory walk.');
   });
 
   it('lists top findings and notes how many more exist', () => {

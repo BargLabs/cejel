@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -333,6 +334,33 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     ]);
 
     expect(exitCode).toBe(0);
+  });
+
+  it('refuses --min-score when the result carries a scan limitation', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-limited-threshold-'));
+    const outDir = join(repoPath, '.witan');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    execFileSync('git', ['init', '--quiet'], { cwd: repoPath });
+    writeFileSync(join(repoPath, '.git', 'index'), 'not a valid git index');
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    try {
+      expect(
+        await runWitanFreeCli([
+          repoPath,
+          '--out-dir',
+          outDir,
+          '--min-score',
+          '0',
+          '--quiet',
+        ]),
+      ).toBe(1);
+      expect(stderrSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
+        'cannot evaluate the required minimum 0.0/4.0 because the scan has limited evidence',
+      );
+    } finally {
+      stderrSpy.mockRestore();
+    }
   });
 });
 

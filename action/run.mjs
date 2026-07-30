@@ -17,6 +17,17 @@ const cliEntry = fileURLToPath(new URL('../dist/index.js', import.meta.url));
 
 export function renderStepSummary(s) {
   const abstained = s.verdict === 'Insufficient source' || s.verdict === 'Insufficient evidence';
+  const limitationLines =
+    Array.isArray(s.scanLimitations) && s.scanLimitations.length > 0
+      ? [
+          '### LIMITED EVIDENCE',
+          '',
+          'The score and verdict are qualified by scan limitations:',
+          '',
+          ...s.scanLimitations.map((limitation) => `- ${limitation}`),
+          '',
+        ]
+      : [];
   if (abstained) {
     return `${[
       `## Cejel trust check — ${s.productDisplayName}`,
@@ -25,6 +36,7 @@ export function renderStepSummary(s) {
       '',
       s.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.',
       '',
+      ...limitationLines,
     ].join('\n')}\n`;
   }
   if (
@@ -43,6 +55,7 @@ export function renderStepSummary(s) {
     '|---|---|',
     `| ${s.codeTrustScore.toFixed(1)}/4.0 | ${s.processTrustScore.toFixed(1)}/4.0 |`,
     '',
+    ...limitationLines,
   ];
   if (s.topFindings.length === 0) {
     lines.push('No evidence-backed findings.');
@@ -59,6 +72,18 @@ export function renderStepSummary(s) {
   }
   lines.push('');
   return `${lines.join('\n')}\n`;
+}
+
+export function renderActionOutputs(summary) {
+  const limitations = Array.isArray(summary.scanLimitations) ? summary.scanLimitations : [];
+  return [
+    `score=${typeof summary.overallScore === 'number' ? summary.overallScore.toFixed(1) : ''}`,
+    `verdict=${summary.verdict}`,
+    `limited=${limitations.length > 0 ? 'true' : 'false'}`,
+    `limitation-count=${limitations.length}`,
+    `limitations=${JSON.stringify(limitations)}`,
+    '',
+  ].join('\n');
 }
 
 function main() {
@@ -102,11 +127,7 @@ function main() {
 
   const outputPath = process.env.GITHUB_OUTPUT;
   if (outputPath) {
-    appendFileSync(
-      outputPath,
-      `score=${typeof summary.overallScore === 'number' ? summary.overallScore.toFixed(1) : ''}\n`,
-    );
-    appendFileSync(outputPath, `verdict=${summary.verdict}\n`);
+    appendFileSync(outputPath, renderActionOutputs(summary));
   }
 
   if (cliFailed) process.exitCode = 1;

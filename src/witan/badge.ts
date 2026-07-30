@@ -41,6 +41,7 @@ const VERDICT_SVG_FILL: Record<string, string> = {
 // a bare low number reads as a judgment even when it's really "there was nothing to rate"
 // (goal_cejel_repo_archetype_detection_2026-07-06).
 function badgeMessage(report: WitanReport, verdict: string): string {
+  if ((report.scanLimitations?.length ?? 0) > 0) return 'unrated: limited evidence';
   if (isWitanNoMeasurementAbstention(report)) return 'unrated: no measurable evidence';
   if (report.verdict === 'insufficient_source') return 'unrated: no source';
   return `${formatScore(report.overallScore)}/4.0 ${verdict.toLowerCase()}`;
@@ -48,11 +49,12 @@ function badgeMessage(report: WitanReport, verdict: string): string {
 
 export function renderWitanBadgeEndpoint(report: WitanReport): WitanBadgeEndpoint {
   const verdict = renderReportVerdict(report);
+  const limited = (report.scanLimitations?.length ?? 0) > 0;
   return {
     schemaVersion: 1,
     label: 'cejel trust',
     message: badgeMessage(report, verdict),
-    color: VERDICT_COLOR[verdict] ?? 'lightgrey',
+    color: limited ? 'lightgrey' : (VERDICT_COLOR[verdict] ?? 'lightgrey'),
   };
 }
 
@@ -63,7 +65,10 @@ export function renderWitanBadgeSvg(report: WitanReport): string {
   const verdict = renderReportVerdict(report);
   const label = 'cejel trust';
   const message = badgeMessage(report, verdict);
-  const fill = VERDICT_SVG_FILL[verdict] ?? '#8c8c8c';
+  const fill =
+    (report.scanLimitations?.length ?? 0) > 0
+      ? '#8c8c8c'
+      : (VERDICT_SVG_FILL[verdict] ?? '#8c8c8c');
 
   const charWidth = 6.5;
   const padding = 10;

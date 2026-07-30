@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   type Dirent,
@@ -28,6 +27,12 @@ import {
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
+import {
+  describeGitFailure,
+  execGit,
+  isExpectedGitAbsence,
+  type GitExecResult,
+} from './git-exec.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -73,9 +78,10 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   assertRepoPathExists(options.repoPath);
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const rubricVersion = options.rubricVersion ?? WITAN_RUBRIC_VERSION;
+  const fileInventory = collectRepoFileInventory(options.repoPath);
   const headSha = readGitHead(options.repoPath);
-  const repoFiles = listRepoFiles(options.repoPath);
-  const inventoryFiles = listRepoInventory(options.repoPath, repoFiles);
+  const repoFiles = fileInventory.repoFiles;
+  const inventoryFiles = fileInventory.inventoryFiles;
   const ignoredTargetReason =
     repoFiles.length === 0 ? explainIgnoredScanTarget(options.repoPath) : undefined;
   const usesV17Detectors = usesV17DetectorClosure(rubricVersion);
@@ -152,6 +158,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   const reviewableSourceProof = usesV17Detectors
     ? buildReviewableSourceProof(options.repoPath, inventoryFiles, headSha, rubricVersion)
     : undefined;
+  const scanLimitations = new Set(fileInventory.scanLimitations);
   const coreSignals = collectRepoSignals(
     options.repoPath,
     generatedAt,
@@ -163,6 +170,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     usesV47Detectors,
     usesV18NativeRls,
     reviewableSourceProof,
+    scanLimitations,
   );
   const archetype =
     usesV17Detectors &&
@@ -188,6 +196,9 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     archetype: archetype.archetype,
     ...((ignoredTargetReason ?? archetype.insufficientSourceReason)
       ? { insufficientSourceReason: ignoredTargetReason ?? archetype.insufficientSourceReason }
+      : {}),
+    ...(scanLimitations.size > 0
+      ? { scanLimitations: [...scanLimitations] }
       : {}),
     signals: [
       ...coreSignals,
@@ -1185,29 +1196,29 @@ function assertRepoPathExists(repoPath: string): void {
 }
 
 function explainIgnoredScanTarget(repoPath: string): string | undefined {
-  let top: string;
-  try {
-    top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
-    return undefined;
+  const topResult = execGit(['rev-parse', '--show-toplevel'], { cwd: repoPath });
+  if (!topResult.ok) {
+    if (isExpectedGitAbsence(topResult)) return undefined;
+    throw new Error(describeGitFailure(topResult.reason, 'repository-root discovery'));
   }
+  const top = topResult.stdout.trim();
   if (!top) return undefined;
 
   const topResolved = realpathSync(top);
   const targetResolved = realpathSync(repoPath);
   const target = relative(topResolved, targetResolved).split(sep).join('/');
   if (!target || target.startsWith('../')) return undefined;
-  try {
-    execFileSync('git', ['check-ignore', '--quiet', '--', `${target}/`], {
-      cwd: topResolved,
-      stdio: 'ignore',
-    });
-  } catch {
-    return undefined;
+  const ignored = execGit(['check-ignore', '--quiet', '--', `${target}/`], {
+    cwd: topResolved,
+  });
+  if (!ignored.ok) {
+    if (
+      isExpectedGitAbsence(ignored) ||
+      (ignored.reason === 'exec_failed' && ignored.exitCode === 1)
+    ) {
+      return undefined;
+    }
+    throw new Error(describeGitFailure(ignored.reason, 'ignore-rule check'));
   }
   return `The requested scan path (${target}) is excluded by this repository's Git ignore rules, so Cejel found no tracked source to evaluate. Scan a tracked project or intentionally add the path to version control; Cejel abstains rather than score an ignored or vendored working tree.`;
 }
@@ -1239,11 +1250,12 @@ function collectRepoSignals(
   useV47Detectors: boolean,
   useV18NativeRls: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
+  scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
   // scan; null when scanning a standalone repo or the git root (byte-identical there).
-  const mono = resolveMonorepoContext(repoPath);
+  const mono = resolveMonorepoContext(repoPath, scanLimitations);
   const a1Signal = collectA1TestIntegrityEvidence(
     repoPath,
     repoFiles,
@@ -1261,6 +1273,7 @@ function collectRepoSignals(
     useV39Detectors,
     useV47Detectors,
     useV18NativeRls,
+    scanLimitations,
   );
   const a3Signal = collectA3ProdReadinessEvidence(repoPath, repoFiles, useV27Detectors);
   const a4Signal = collectA4DependencyEvidence(
@@ -1653,6 +1666,7 @@ function collectA2IsolationEvidence(
   useV39Detectors: boolean,
   useV47Detectors: boolean,
   useV18NativeRls: boolean,
+  scanLimitations: Set<string>,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -1716,6 +1730,7 @@ function collectA2IsolationEvidence(
           repoPath,
           useV27Detectors,
           currentSecretFingerprintsByPath,
+          scanLimitations,
           useV33Detectors,
           useV36Detectors,
           useV39Detectors,
@@ -1757,7 +1772,8 @@ function collectA2IsolationEvidence(
       (!useV39Detectors || !hasTemplateOnlyEnvContent(repoPath, f)),
   );
   // Only scan history when the current tree has no .env* to avoid redundant scanning.
-  const hasEnvInHistory = committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath);
+  const hasEnvInHistory =
+    committedEnvFilePath === undefined && hasEnvPathInGitHistory(repoPath, scanLimitations);
   // DB client import file (checked before migrationFiles so we can use it as evidence anchor).
   const dbLayerImportFile =
     migrationFiles.length === 0
@@ -3678,17 +3694,85 @@ const HARD_EXCLUDED_PATH_PATTERN =
 const COVERAGE_PERCENT_PATTERN =
   /(?:statements|branches|lines|functions|fail_under)\s*[:=]\s*["']?(\d+(?:\.\d+)?)/gi;
 
-function listRepoFiles(repoPath: string): string[] {
-  const gitFiles = listGitTrackedFiles(repoPath, false);
-  if (gitFiles) return gitFiles;
+interface RepoFileInventory {
+  readonly repoFiles: string[];
+  readonly inventoryFiles: string[];
+  readonly scanLimitations: string[];
+}
 
+function gitFailureDetail(reason: Exclude<GitExecResult, { readonly ok: true }>['reason']): string {
+  if (reason === 'buffer_exceeded') return 'output exceeded the explicit 8 MiB limit';
+  if (reason === 'timeout') return 'execution exceeded the explicit 30 second timeout';
+  return 'the local Git command failed';
+}
+
+function readGitTrackedFileOutput(repoPath: string): GitExecResult {
+  const workTree = execGit(['rev-parse', '--is-inside-work-tree'], { cwd: repoPath });
+  if (!workTree.ok) return workTree;
+  if (workTree.stdout.trim() !== 'true') return { ok: false, reason: 'not_a_repo' };
+  return execGit(['ls-files', '--cached'], { cwd: repoPath });
+}
+
+function parseGitTrackedFiles(
+  repoPath: string,
+  output: string,
+  includeHardExcluded: boolean,
+): string[] {
+  return output
+    .trim()
+    .split('\n')
+    .filter(
+      (file) =>
+        file.length > 0 &&
+        (includeHardExcluded || !isHardExcludedPath(file)) &&
+        isRegularFile(join(repoPath, file)),
+    )
+    .sort();
+}
+
+function directoryInventory(repoPath: string): string[] {
   const files: string[] = [];
   visitRepoDir(repoPath, repoPath, files);
   return files.filter((file) => !isHardExcludedPath(file)).sort();
 }
 
+function collectRepoFileInventory(repoPath: string): RepoFileInventory {
+  const tracked = readGitTrackedFileOutput(repoPath);
+  if (tracked.ok) {
+    return {
+      repoFiles: parseGitTrackedFiles(repoPath, tracked.stdout, false),
+      inventoryFiles: parseGitTrackedFiles(repoPath, tracked.stdout, true),
+      scanLimitations: [],
+    };
+  }
+
+  const fallbackFiles = directoryInventory(repoPath);
+  if (isExpectedGitAbsence(tracked)) {
+    return {
+      repoFiles: fallbackFiles,
+      inventoryFiles: fallbackFiles,
+      scanLimitations: [],
+    };
+  }
+
+  return {
+    repoFiles: fallbackFiles,
+    inventoryFiles: fallbackFiles,
+    scanLimitations: [
+      `Tracked-file inventory was unavailable because ${gitFailureDetail(tracked.reason)}. Cejel used a bounded directory walk with different exclusion semantics; re-scan after the local Git failure is resolved to compare the certificate.`,
+    ],
+  };
+}
+
+function listRepoFiles(repoPath: string): string[] {
+  return [...collectRepoFileInventory(repoPath).repoFiles];
+}
+
 function listRepoInventory(repoPath: string, fallbackFiles: readonly string[]): string[] {
-  return listGitTrackedFiles(repoPath, true) ?? [...fallbackFiles];
+  const tracked = readGitTrackedFileOutput(repoPath);
+  if (tracked.ok) return parseGitTrackedFiles(repoPath, tracked.stdout, true);
+  if (isExpectedGitAbsence(tracked)) return [...fallbackFiles];
+  throw new Error(describeGitFailure(tracked.reason, 'tracked-file inventory'));
 }
 
 // Monorepo-root shared config that legitimately governs a sub-package but lives at
@@ -3704,17 +3788,19 @@ interface MonorepoContext {
   readonly sharedFiles: readonly string[];
 }
 
-function resolveMonorepoContext(repoPath: string): MonorepoContext | null {
-  let top: string;
-  try {
-    top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
+function resolveMonorepoContext(
+  repoPath: string,
+  scanLimitations: Set<string>,
+): MonorepoContext | null {
+  const topResult = execGit(['rev-parse', '--show-toplevel'], { cwd: repoPath });
+  if (!topResult.ok) {
+    if (isExpectedGitAbsence(topResult)) return null;
+    scanLimitations.add(
+      `${describeGitFailure(topResult.reason, 'repository-root discovery')} Cejel continued without monorepo root-level shared configuration.`,
+    );
     return null;
   }
+  const top = topResult.stdout.trim();
   if (!top) return null;
   // git resolves symlinks in --show-toplevel (e.g. macOS /var -> /private/var);
   // realpath the scan path too so the prefix check below compares like with like.
@@ -3731,7 +3817,7 @@ function resolveMonorepoContext(repoPath: string): MonorepoContext | null {
   // The scan target must be nested inside the git root.
   if (!repoResolved.startsWith(rootResolved + sep)) return null;
 
-  const rootFiles = listGitTrackedFiles(rootResolved);
+  const rootFiles = listGitTrackedFiles(rootResolved, scanLimitations);
   if (!rootFiles || rootFiles.length === 0) return null;
 
   // Sub-package path relative to the root, so we exclude files already inside the
@@ -3750,31 +3836,18 @@ function resolveMonorepoContext(repoPath: string): MonorepoContext | null {
   return { root: rootResolved, sharedFiles };
 }
 
-function listGitTrackedFiles(repoPath: string, includeHardExcluded = false): string[] | null {
-  try {
-    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const output = execFileSync('git', ['ls-files', '--cached'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    if (!output) return [];
-    return output
-      .split('\n')
-      .filter(
-        (file) =>
-          file.length > 0 &&
-          (includeHardExcluded || !isHardExcludedPath(file)) &&
-          isRegularFile(join(repoPath, file)),
-      )
-      .sort();
-  } catch {
-    return null;
-  }
+function listGitTrackedFiles(
+  repoPath: string,
+  scanLimitations: Set<string>,
+  includeHardExcluded = false,
+): string[] | null {
+  const tracked = readGitTrackedFileOutput(repoPath);
+  if (tracked.ok) return parseGitTrackedFiles(repoPath, tracked.stdout, includeHardExcluded);
+  if (isExpectedGitAbsence(tracked)) return null;
+  scanLimitations.add(
+    `${describeGitFailure(tracked.reason, 'monorepo shared-file inventory')} Cejel continued without monorepo root-level shared configuration.`,
+  );
+  return null;
 }
 
 function visitRepoDir(repoPath: string, dirPath: string, files: string[]): void {
@@ -6033,16 +6106,35 @@ interface HistorySecretScanResult {
   truncated: boolean;
 }
 
+const CONTROL_CHARACTER_HISTORY_PATH_LIMITATION =
+  'Git history contained a credential-shaped pathname with control characters. Cejel omitted that path from historical blob inspection and continued with reduced history evidence.';
+
+function declareHistoryFailure(
+  scanLimitations: Set<string>,
+  reason: Exclude<GitExecResult, { readonly ok: true }>['reason'],
+  operation: string,
+  maxBufferBytes?: number,
+): void {
+  scanLimitations.add(
+    `${describeGitFailure(reason, operation, maxBufferBytes)} Cejel continued with reduced Git history evidence.`,
+  );
+}
+
 function collectHistorySecretEvidence(
   repoPath: string,
   excludeHead: boolean,
   currentSecretFingerprintsByPath: ReadonlyMap<string, ReadonlySet<string>>,
+  scanLimitations: Set<string>,
   authoredProductionOnly = false,
   useV36Detectors = false,
   useV39Detectors = false,
   useV47Detectors = false,
 ): HistorySecretScanResult {
-  const historyEntries = readCredentialHistoryEntries(repoPath, useV36Detectors);
+  const historyEntries = readCredentialHistoryEntries(
+    repoPath,
+    scanLimitations,
+    useV36Detectors,
+  );
   const head = excludeHead ? readGitHead(repoPath) : null;
   let scannedFiles = 0;
   let envPathEvidence: WitanEvidencePointer | null = null;
@@ -6062,7 +6154,7 @@ function collectHistorySecretEvidence(
       return { evidence: null, envPathEvidence, truncated: true };
     }
     scannedFiles += 1;
-    const contents = readGitBlob(repoPath, entry.commit, entry.path);
+    const contents = readGitBlob(repoPath, entry.commit, entry.path, scanLimitations);
     if (!contents) continue;
     const scanContents = prepareCredentialScanContents(
       contents,
@@ -6117,6 +6209,7 @@ interface GitHistoryEntry {
 
 function readCredentialHistoryEntries(
   repoPath: string,
+  scanLimitations: Set<string>,
   useV36Detectors = false,
 ): GitHistoryEntry[] {
   const entries: GitHistoryEntry[] = [];
@@ -6129,16 +6222,14 @@ function readCredentialHistoryEntries(
     entries.push(entry);
   };
 
-  try {
-    // A report is bound to the checked-out revision. Unrelated local branches and
-    // remote-tracking refs are ambient clone state, not evidence for that revision.
-    const commits = execFileSync('git', ['rev-list', 'HEAD'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const output = execFileSync(
-      'git',
+  // A report is bound to the checked-out revision. Unrelated local branches and
+  // remote-tracking refs are ambient clone state, not evidence for that revision.
+  const commitsResult = execGit(['rev-list', 'HEAD'], { cwd: repoPath });
+  if (!commitsResult.ok && !isExpectedGitAbsence(commitsResult)) {
+    declareHistoryFailure(scanLimitations, commitsResult.reason, 'history revision enumeration');
+  }
+  if (commitsResult.ok) {
+    const historyResult = execGit(
       [
         'diff-tree',
         '--stdin',
@@ -6146,32 +6237,40 @@ function readCredentialHistoryEntries(
         '--name-only',
         '-r',
         '--diff-filter=AM',
-        '--pretty=format:commit:%H',
+        '-z',
+        '--pretty=format:commit:%H%x00',
       ],
-      {
-        cwd: repoPath,
-        encoding: 'utf8',
-        input: commits,
-        stdio: ['pipe', 'pipe', 'ignore'],
-      },
+      { cwd: repoPath, input: commitsResult.stdout },
     );
-    let currentCommit: string | null = null;
-    for (const line of output.split('\n')) {
-      if (line.startsWith('commit:')) {
-        currentCommit = line.slice('commit:'.length);
-        continue;
+    if (!historyResult.ok) {
+      if (!isExpectedGitAbsence(historyResult)) {
+        declareHistoryFailure(scanLimitations, historyResult.reason, 'history tree enumeration');
       }
-      const path = line.trim();
-      if (!currentCommit || !path) continue;
-      if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
-      appendEntry({ commit: currentCommit, path });
+    } else {
+      let currentCommit: string | null = null;
+      for (const rawToken of historyResult.stdout.split('\0')) {
+        const token = rawToken.startsWith('\n') ? rawToken.slice(1) : rawToken;
+        if (token.startsWith('commit:')) {
+          currentCommit = token.slice('commit:'.length);
+          continue;
+        }
+        const path = token;
+        if (!currentCommit || !path) continue;
+        if (/[\u0000-\u001f\u007f]/.test(path)) {
+          scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+          continue;
+        }
+        if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
+        appendEntry({ commit: currentCommit, path });
+      }
     }
-  } catch {
-    // Fall through to the deleted-path pass below; it covers the highest-risk
-    // case for history-only secrets even if the bulk diff-tree scan is unavailable.
   }
 
-  for (const entry of readDeletedCredentialHistoryEntries(repoPath, useV36Detectors)) {
+  for (const entry of readDeletedCredentialHistoryEntries(
+    repoPath,
+    scanLimitations,
+    useV36Detectors,
+  )) {
     appendEntry(entry);
   }
 
@@ -6180,13 +6279,18 @@ function readCredentialHistoryEntries(
 
 function readDeletedCredentialHistoryEntries(
   repoPath: string,
+  scanLimitations: Set<string>,
   useV36Detectors = false,
 ): GitHistoryEntry[] {
-  const deletedPaths = readDeletedCredentialHistoryPaths(repoPath, useV36Detectors);
+  const deletedPaths = readDeletedCredentialHistoryPaths(
+    repoPath,
+    scanLimitations,
+    useV36Detectors,
+  );
   const entries: GitHistoryEntry[] = [];
   const seen = new Set<string>();
   for (const path of deletedPaths) {
-    for (const commit of readHistoryCommitsForPath(repoPath, path)) {
+    for (const commit of readHistoryCommitsForPath(repoPath, path, scanLimitations)) {
       const key = `${commit}:${path}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -6196,51 +6300,63 @@ function readDeletedCredentialHistoryEntries(
   return entries;
 }
 
-function readDeletedCredentialHistoryPaths(repoPath: string, useV36Detectors = false): string[] {
-  try {
-    const output = execFileSync(
-      'git',
-      ['log', 'HEAD', '--diff-filter=D', '--name-status', '--format=commit:%H'],
-      {
-        cwd: repoPath,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      },
-    );
-    const paths: string[] = [];
-    const seen = new Set<string>();
-    for (const line of output.split('\n')) {
-      if (!line.startsWith('D\t')) continue;
-      const path = line.slice(2).trim();
-      if (!path || seen.has(path)) continue;
-      if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
-      seen.add(path);
-      paths.push(path);
-    }
-    return paths;
-  } catch {
+function readDeletedCredentialHistoryPaths(
+  repoPath: string,
+  scanLimitations: Set<string>,
+  useV36Detectors = false,
+): string[] {
+  const historyResult = execGit(
+    [
+      'log',
+      '--no-show-signature',
+      'HEAD',
+      '--diff-filter=D',
+      '--name-only',
+      '-z',
+      '--format=commit:%H%x00',
+    ],
+    { cwd: repoPath },
+  );
+  if (!historyResult.ok) {
+    if (isExpectedGitAbsence(historyResult)) return [];
+    declareHistoryFailure(scanLimitations, historyResult.reason, 'deleted-path history scan');
     return [];
   }
+  const paths: string[] = [];
+  const seen = new Set<string>();
+  for (const rawToken of historyResult.stdout.split('\0')) {
+    const path = rawToken.startsWith('\n') ? rawToken.slice(1) : rawToken;
+    if (path.startsWith('commit:') || !path) continue;
+    if (/[\u0000-\u001f\u007f]/.test(path)) {
+      scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+      continue;
+    }
+    if (!path || seen.has(path)) continue;
+    if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
+    seen.add(path);
+    paths.push(path);
+  }
+  return paths;
 }
 
-function readHistoryCommitsForPath(repoPath: string, path: string): string[] {
-  try {
-    const output = execFileSync(
-      'git',
-      ['log', 'HEAD', '--diff-filter=AM', '--format=%H', '--', path],
-      {
-        cwd: repoPath,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      },
-    );
-    return output
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => /^[0-9a-f]{40}$/i.test(line));
-  } catch {
+function readHistoryCommitsForPath(
+  repoPath: string,
+  path: string,
+  scanLimitations: Set<string>,
+): string[] {
+  const historyResult = execGit(
+    ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--format=%H', '--', path],
+    { cwd: repoPath },
+  );
+  if (!historyResult.ok) {
+    if (isExpectedGitAbsence(historyResult)) return [];
+    declareHistoryFailure(scanLimitations, historyResult.reason, 'path history scan');
     return [];
   }
+  return historyResult.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^[0-9a-f]{40}$/i.test(line));
 }
 
 function isCredentialHistoryPath(path: string, _useV36Detectors = false): boolean {
@@ -6279,17 +6395,28 @@ function isEnvHistoryPath(path: string, useV36Detectors = false, useV47Detectors
   return (useV36Detectors ? /^\.env(?:\.|$)/ : /\.env(?:\.|$)/).test(basename);
 }
 
-function readGitBlob(repoPath: string, commit: string, path: string): string | null {
-  try {
-    return execFileSync('git', ['show', `${commit}:${path}`], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      maxBuffer: 512_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-  } catch {
+function readGitBlob(
+  repoPath: string,
+  commit: string,
+  path: string,
+  scanLimitations: Set<string>,
+): string | null {
+  const maxBufferBytes = 512_000;
+  const blobResult = execGit(['show', `${commit}:${path}`], {
+    cwd: repoPath,
+    maxBufferBytes,
+  });
+  if (!blobResult.ok) {
+    if (isExpectedGitAbsence(blobResult)) return null;
+    declareHistoryFailure(
+      scanLimitations,
+      blobResult.reason,
+      'historical blob read',
+      maxBufferBytes,
+    );
     return null;
   }
+  return blobResult.stdout;
 }
 
 // A human-readable ALL-CAPS snake_case label (YOUR_API_KEY_HERE, CHANGE_THIS_VALUE,
@@ -6385,23 +6512,25 @@ interface GitCommitSummary {
 }
 
 function readRecentCommits(repoPath: string): GitCommitSummary[] {
-  try {
-    const output = execFileSync('git', ['log', '--max-count=12', '--format=%H%x00%s'], {
+  const historyResult = execGit(
+    ['log', '--no-show-signature', '--max-count=12', '--format=%H%x00%s'],
+    {
       cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    if (!output) return [];
-    return output
-      .split('\n')
-      .map((line) => {
-        const [sha = '', subject = ''] = line.split('\0');
-        return { sha, subject };
-      })
-      .filter((commit) => commit.sha.length >= 7);
-  } catch {
-    return [];
+    },
+  );
+  if (!historyResult.ok) {
+    if (isExpectedGitAbsence(historyResult)) return [];
+    throw new Error(describeGitFailure(historyResult.reason, 'recent history scan'));
   }
+  const output = historyResult.stdout.trim();
+  if (!output) return [];
+  return output
+    .split('\n')
+    .map((line) => {
+      const [sha = '', subject = ''] = line.split('\0');
+      return { sha, subject };
+    })
+    .filter((commit) => commit.sha.length >= 7);
 }
 
 function readPackageScripts(packageJsonPath: string): Map<string, string> {
@@ -6490,34 +6619,34 @@ function firstMeaningfulLine(contents: string): number {
 }
 
 function readGitHead(repoPath: string): string | null {
-  try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], {
-      cwd: repoPath,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
-    return null;
+  const headResult = execGit(['rev-parse', 'HEAD'], { cwd: repoPath });
+  if (!headResult.ok) {
+    if (isExpectedGitAbsence(headResult)) return null;
+    throw new Error(describeGitFailure(headResult.reason, 'HEAD resolution'));
   }
+  return headResult.stdout.trim() || null;
 }
 
 // True if any .env* file has ever been added/modified in git history (including deleted files).
 // A once-committed .env file is a ratable secrets surface even after deletion.
-function hasEnvPathInGitHistory(repoPath: string): boolean {
-  try {
-    const output = execFileSync(
-      'git',
-      ['log', 'HEAD', '--diff-filter=AM', '--name-only', '--format='],
-      {
-        cwd: repoPath,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        maxBuffer: 512_000,
-      },
-    ).trim();
-    if (!output) return false;
-    return output.split('\n').some((p) => /(?:^|\/)\.env(?:\.|$)/i.test(p.trim()));
-  } catch {
+function hasEnvPathInGitHistory(repoPath: string, scanLimitations: Set<string>): boolean {
+  const historyResult = execGit(
+    ['log', '--no-show-signature', 'HEAD', '--diff-filter=AM', '--name-only', '-z', '--format='],
+    { cwd: repoPath },
+  );
+  if (!historyResult.ok) {
+    if (isExpectedGitAbsence(historyResult)) return false;
+    declareHistoryFailure(scanLimitations, historyResult.reason, 'environment-file history scan');
     return false;
   }
+  const output = historyResult.stdout;
+  if (!output) return false;
+  return output.split('\0').some((rawPath) => {
+    const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
+    if (/[\u0000-\u001f\u007f]/.test(path)) {
+      scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
+      return false;
+    }
+    return /(?:^|\/)\.env(?:\.|$)/i.test(path);
+  });
 }

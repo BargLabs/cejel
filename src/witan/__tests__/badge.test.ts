@@ -54,6 +54,20 @@ describe('witan-core badge rendering', () => {
     expect(renderWitanBadgeEndpoint(report)).toEqual(renderWitanBadgeEndpoint(report));
   });
 
+  it('renders a limitation-bearing certificate as unrated at a glance', () => {
+    const report = {
+      ...fixtureReport(4),
+      scanLimitations: ['Tracked-file inventory used a bounded directory walk.'],
+    };
+
+    expect(renderWitanBadgeEndpoint(report)).toMatchObject({
+      message: 'unrated: limited evidence',
+      color: 'lightgrey',
+    });
+    expect(renderWitanBadgeSvg(report)).toContain('unrated: limited evidence');
+    expect(renderWitanBadgeSvg(report)).not.toContain('4.0/4.0 verified');
+  });
+
   it('escapes XML-sensitive characters in labels', () => {
     const svg = renderWitanBadgeSvg(fixtureReport(3.8));
     expect(svg).not.toContain('<script');

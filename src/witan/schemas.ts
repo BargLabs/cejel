@@ -210,6 +210,7 @@ export const WitanReportInputSchema = z
     signals: z.array(WitanCriterionSignalSchema).default([]),
     archetype: WitanRepoArchetypeSchema.optional(),
     insufficientSourceReason: z.string().min(1).max(2000).optional(),
+    scanLimitations: z.array(z.string().min(1).max(1000)).max(16).default([]),
   })
   .strict();
 
@@ -300,6 +301,7 @@ const WitanReportCommonSchema = z.object({
   criteria: z.array(WitanCriterionScoreSchema).min(1),
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
   archetype: WitanRepoArchetypeSchema.optional(),
+  scanLimitations: z.array(z.string().min(1).max(1000)).max(16).optional(),
 });
 
 const WitanScoredReportSchema = WitanReportCommonSchema.extend({

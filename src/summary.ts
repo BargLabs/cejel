@@ -52,6 +52,8 @@ export interface WitanCliSummary {
    * attributed to their source tool and the cejel criterion they were folded into — kept
    * separate from topFindings, which are cejel's own repo-scan findings. */
   topExternalFindings: WitanExternalFinding[];
+  /** Evidence-collection degradations that qualify every headline score and verdict. */
+  scanLimitations: string[];
   /** Present when the repo archetype has no ratable source (docs/binary-only/empty — see
    * classifyRepoArchetype), so the terminal shows this instead of a numeric verdict. */
   insufficientSourceReason?: string;
@@ -99,6 +101,7 @@ export function buildWitanCliSummary(report: WitanReport): WitanCliSummary {
     externalSources,
     externalFindingCount: allExternalFindings.length,
     topExternalFindings: allExternalFindings.slice(0, EXTERNAL_FINDINGS_DISPLAY_LIMIT),
+    scanLimitations: [...(report.scanLimitations ?? [])],
   };
 
   if (report.verdict === 'insufficient_source') {

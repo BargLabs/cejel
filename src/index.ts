@@ -14,7 +14,11 @@ import {
 } from './witan/index.js';
 
 import { runCejelScan } from './scan.js';
-import { renderMinScoreAbstentionFailure, renderTerminalCertificate } from './terminal.js';
+import {
+  renderMinScoreAbstentionFailure,
+  renderMinScoreLimitationFailure,
+  renderTerminalCertificate,
+} from './terminal.js';
 
 export interface WitanCliOptions {
   repoPath: string;
@@ -225,6 +229,10 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   }
 
   if (options.minScore != null) {
+    if (summary.scanLimitations.length > 0) {
+      process.stderr.write(renderMinScoreLimitationFailure(summary, options.minScore));
+      return 1;
+    }
     if (report.verdict === 'insufficient_source') {
       process.stderr.write(renderMinScoreAbstentionFailure(summary, options.minScore));
       return 1;
