@@ -127,6 +127,15 @@ describe('buildWitanCliSummary', () => {
     expect(summary.findingCount).toBe(0);
   });
 
+  it('preserves scan limitations in the compact summary projection', () => {
+    const report = {
+      ...fixtureReport([findingCriterion('A1', [])]),
+      scanLimitations: ['Tracked-file inventory used a bounded directory walk.'],
+    };
+
+    expect(buildWitanCliSummary(report).scanLimitations).toEqual(report.scanLimitations);
+  });
+
   it('distinguishes an all-unmeasured source tree from structural source absence', () => {
     const report: WitanReport = {
       productSlug: 'unmeasured-source',

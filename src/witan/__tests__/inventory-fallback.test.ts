@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -47,6 +47,7 @@ function fixtureRepo(): string {
 function commandArguments(rawArguments: readonly string[] | undefined): readonly string[] {
   if (!rawArguments) return [];
   let index = 0;
+  if (rawArguments[index] === '--no-pager') index += 1;
   while (rawArguments[index] === '-c') index += 2;
   return rawArguments.slice(index);
 }
@@ -58,7 +59,9 @@ function mockInventoryBufferFailure(repoPath: string): void {
       throw Object.assign(new Error('stdout maxBuffer length exceeded'), { code: 'ENOBUFS' });
     }
     if (argv[0] === 'rev-parse' && argv[1] === '--is-inside-work-tree') return 'true\n';
-    if (argv[0] === 'rev-parse' && argv[1] === '--show-toplevel') return `${repoPath}\n`;
+    if (argv[0] === 'rev-parse' && argv[1] === '--show-toplevel') {
+      return `${realpathSync(repoPath)}\n`;
+    }
     if (argv[0] === 'rev-parse' && argv[1] === 'HEAD') {
       return '0123456789abcdef0123456789abcdef01234567\n';
     }
@@ -81,7 +84,7 @@ describe('tracked-file inventory fallback', () => {
     const { report } = runCejelScan({ repoPath });
 
     expect(report.scanLimitations).toEqual([
-      expect.stringContaining('output exceeded the explicit 64 MiB limit'),
+      expect.stringContaining('output exceeded the explicit 8 MiB limit'),
     ]);
     expect(JSON.stringify(report)).toContain('bounded directory walk');
     expect(renderWitanMarkdownReport(report)).toContain('## Scan limitations');
@@ -95,8 +98,30 @@ describe('tracked-file inventory fallback', () => {
     mockInventoryBufferFailure(repoPath);
 
     expect(() => listCejelLlmPackFiles(repoPath)).toThrow(
-      'local git tracked-file inventory exceeded the 64 MiB output limit',
+      'local git tracked-file inventory exceeded the 8 MiB output limit',
     );
+  });
+
+  it('keeps a nested scan on the declared fallback when monorepo inventory retries fail', () => {
+    const rootPath = fixtureRepo();
+    const nestedPath = join(rootPath, 'packages', 'app');
+    mkdirSync(join(nestedPath, 'src'), { recursive: true });
+    writeFileSync(join(nestedPath, 'src', 'index.ts'), 'export const nested = true;\n');
+    writeFileSync(
+      join(nestedPath, 'package.json'),
+      '{"name":"nested-inventory-fallback","version":"1.0.0"}\n',
+    );
+    mockInventoryBufferFailure(rootPath);
+
+    const { report } = runCejelScan({ repoPath: nestedPath });
+
+    expect(report.scanLimitations).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('bounded directory walk'),
+        expect.stringContaining('continued without monorepo root-level shared configuration'),
+      ]),
+    );
+    expect(report.criteria.length).toBeGreaterThan(0);
   });
 
   it.each(['git_absent', 'not_a_repo'] as const)(

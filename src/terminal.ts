@@ -12,6 +12,16 @@ export function renderMinScoreAbstentionFailure(
   return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because this repository has ${summary.verdict.toLowerCase()}.\n`;
 }
 
+export function renderMinScoreLimitationFailure(
+  summary: WitanCliSummary,
+  minScore: number,
+): string {
+  if (summary.scanLimitations.length === 0) {
+    throw new Error('A minimum-score limitation message requires a limited Cejel summary.');
+  }
+  return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because the scan has limited evidence (${summary.scanLimitations.length} limitation${summary.scanLimitations.length === 1 ? '' : 's'}). Resolve the reported limitations and re-scan.\n`;
+}
+
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
 export function renderTerminalCertificate(summary: WitanCliSummary): string {
@@ -42,6 +52,14 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
         `  Process trust: ${formatScore(summary.processTrustScore)}/4.0`,
         '',
       ];
+
+  if (summary.scanLimitations.length > 0) {
+    lines.push(
+      'LIMITED EVIDENCE — the score and verdict are qualified by scan limitations:',
+      ...summary.scanLimitations.map((limitation) => `  - ${limitation}`),
+      '',
+    );
+  }
 
   if (summary.contributingSources.length > 0) {
     lines.push(`Incorporates findings from: ${summary.contributingSources.join(', ')}`);

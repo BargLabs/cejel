@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   GIT_EXEC_MAX_BUFFER_BYTES,
   GIT_EXEC_TIMEOUT_MS,
+  describeGitFailure,
   execGit,
 } from '../git-exec.js';
 
@@ -25,6 +26,11 @@ describe('git subprocess chokepoint', () => {
   });
 
   it('passes fixed argv, explicit resource ceilings, and a hardened environment', () => {
+    process.env.PATH = '/safe/bin';
+    process.env.HOME = '/safe/home';
+    process.env.TZ = 'UTC';
+    process.env.LANG = 'fr_FR.UTF-8';
+    process.env.LC_ALL = 'fr_FR.UTF-8';
     process.env.HTTP_PROXY = 'http://attacker.invalid';
     process.env.https_proxy = 'http://attacker.invalid';
     process.env.ALL_PROXY = 'socks5://attacker.invalid';
@@ -34,6 +40,15 @@ describe('git subprocess chokepoint', () => {
     process.env.GIT_CONFIG_KEY_0 = 'core.fsmonitor';
     process.env.GIT_CONFIG_VALUE_0 = '/tmp/attacker-controlled-hook';
     process.env.GIT_CONFIG_GLOBAL = '/tmp/global-config-with-safe-directory';
+    process.env.GIT_ALLOW_PROTOCOL = 'file:ssh:https';
+    process.env.GIT_PROTOCOL_FROM_USER = '1';
+    process.env.GIT_EXEC_PATH = '/tmp/attacker-git-core';
+    process.env.GIT_TEMPLATE_DIR = '/tmp/attacker-template';
+    process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = '/tmp/attacker-objects';
+    process.env.GIT_INDEX_FILE = '/tmp/attacker-index';
+    process.env.GIT_OBJECT_DIRECTORY = '/tmp/attacker-object-directory';
+    process.env.GIT_DIR = '/tmp/attacker-git-dir';
+    process.env.GIT_WORK_TREE = '/tmp/attacker-work-tree';
     execFileSyncMock.mockReturnValue('tracked.ts\n');
 
     expect(execGit(['ls-files', '--cached'], { cwd: '/repo' })).toEqual({
@@ -58,8 +73,31 @@ describe('git subprocess chokepoint', () => {
       | undefined;
     expect(file).toBe('git');
     expect(argv).toEqual([
+      '--no-pager',
       '-c',
       'core.fsmonitor=false',
+      '-c',
+      'core.pager=',
+      '-c',
+      'core.editor=false',
+      '-c',
+      'core.sshCommand=false',
+      '-c',
+      'diff.external=false',
+      '-c',
+      'credential.helper=',
+      '-c',
+      'log.showSignature=false',
+      '-c',
+      'gpg.program=false',
+      '-c',
+      'gpg.openpgp.program=false',
+      '-c',
+      'gpg.x509.program=false',
+      '-c',
+      'gpg.ssh.program=false',
+      '-c',
+      'core.quotePath=false',
       '-c',
       'protocol.allow=never',
       '-c',
@@ -89,23 +127,31 @@ describe('git subprocess chokepoint', () => {
         timeout: GIT_EXEC_TIMEOUT_MS,
       });
     }
-    expect(options?.env).toMatchObject({
+    expect(options?.env).toEqual({
+      PATH: '/safe/bin',
+      HOME: '/safe/home',
+      TZ: 'UTC',
+      LC_ALL: 'C',
+      LANG: 'C',
       GIT_CONFIG_NOSYSTEM: '1',
       GIT_TERMINAL_PROMPT: '0',
-      GIT_ASKPASS: '',
+      GIT_ASKPASS: 'true',
       GIT_OPTIONAL_LOCKS: '0',
       GIT_PAGER: 'cat',
       PAGER: 'cat',
-      GIT_CONFIG_GLOBAL: '/tmp/global-config-with-safe-directory',
     });
-    expect(options?.env?.HTTP_PROXY).toBeUndefined();
-    expect(options?.env?.https_proxy).toBeUndefined();
-    expect(options?.env?.ALL_PROXY).toBeUndefined();
-    expect(options?.env?.NO_PROXY).toBeUndefined();
-    expect(options?.env?.GIT_CONFIG_PARAMETERS).toBeUndefined();
-    expect(options?.env?.GIT_CONFIG_COUNT).toBeUndefined();
-    expect(options?.env?.GIT_CONFIG_KEY_0).toBeUndefined();
-    expect(options?.env?.GIT_CONFIG_VALUE_0).toBeUndefined();
+  });
+
+  it('allows a smaller per-operation output ceiling', () => {
+    execFileSyncMock.mockReturnValue('blob');
+
+    expect(
+      execGit(['show', 'HEAD:small.txt'], { cwd: '/repo', maxBufferBytes: 512_000 }),
+    ).toEqual({ ok: true, stdout: 'blob' });
+    expect(execFileSyncMock.mock.calls[0]?.[2]).toMatchObject({ maxBuffer: 512_000 });
+    expect(describeGitFailure('buffer_exceeded', 'historical blob read', 512_000)).toBe(
+      'Cejel: local git historical blob read exceeded the 500 KiB output limit.',
+    );
   });
 
   it.each([

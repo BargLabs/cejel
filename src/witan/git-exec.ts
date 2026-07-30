@@ -1,14 +1,37 @@
 import { execFileSync } from 'node:child_process';
 
-export const GIT_EXEC_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+export const GIT_EXEC_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
 export const GIT_EXEC_TIMEOUT_MS = 30_000;
 
-// At roughly 40 bytes per tracked path (including the newline), 64 MiB carries about
-// 1.67 million paths. The explicit ceiling is large enough for substantial monorepos while
-// remaining bounded; exceeding it is a surfaced scan limitation, never a silent fallback.
+// The largest measured inventory in the 24-repository release corpus is Biome at
+// 2,144,483 bytes / 26,244 entries. 8 MiB leaves 6,244,125 bytes (3.91x) of headroom while
+// keeping each hostile Git response bounded. Exceeding it is a surfaced scan limitation.
 const HARDENED_GIT_ARGUMENTS = [
+  '--no-pager',
   '-c',
   'core.fsmonitor=false',
+  '-c',
+  'core.pager=',
+  '-c',
+  'core.editor=false',
+  '-c',
+  'core.sshCommand=false',
+  '-c',
+  'diff.external=false',
+  '-c',
+  'credential.helper=',
+  '-c',
+  'log.showSignature=false',
+  '-c',
+  'gpg.program=false',
+  '-c',
+  'gpg.openpgp.program=false',
+  '-c',
+  'gpg.x509.program=false',
+  '-c',
+  'gpg.ssh.program=false',
+  '-c',
+  'core.quotePath=false',
   '-c',
   'protocol.allow=never',
   '-c',
@@ -24,18 +47,6 @@ const HARDENED_GIT_ARGUMENTS = [
   '-c',
   'protocol.ssh.allow=never',
 ] as const;
-
-const SCRUBBED_ENVIRONMENT_KEYS = new Set([
-  'ALL_PROXY',
-  'GIT_CONFIG_COUNT',
-  'GIT_CONFIG_PARAMETERS',
-  'GIT_PROXY_COMMAND',
-  'GIT_SSH',
-  'GIT_SSH_COMMAND',
-  'HTTP_PROXY',
-  'HTTPS_PROXY',
-  'NO_PROXY',
-]);
 
 export type GitExecFailureReason =
   | 'git_absent'
@@ -55,26 +66,28 @@ export type GitExecResult =
 export interface GitExecOptions {
   readonly cwd: string;
   readonly input?: string;
+  readonly maxBufferBytes?: number;
 }
 
 function hardenedGitEnvironment(): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    const normalizedKey = key.toUpperCase();
-    if (
-      SCRUBBED_ENVIRONMENT_KEYS.has(normalizedKey) ||
-      /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(normalizedKey)
-    ) {
-      continue;
-    }
-    environment[key] = value;
+  for (const key of ['PATH', 'HOME', 'TZ'] as const) {
+    const entry = Object.entries(process.env).find(
+      ([candidate, value]) => candidate.toUpperCase() === key && value !== undefined,
+    );
+    if (entry?.[1] !== undefined) environment[key] = entry[1];
+  }
+  if (environment.HOME === undefined && process.env.USERPROFILE !== undefined) {
+    environment.HOME = process.env.USERPROFILE;
   }
 
   return {
     ...environment,
+    LC_ALL: 'C',
+    LANG: 'C',
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_TERMINAL_PROMPT: '0',
-    GIT_ASKPASS: '',
+    GIT_ASKPASS: 'true',
     GIT_OPTIONAL_LOCKS: '0',
     GIT_PAGER: 'cat',
     PAGER: 'cat',
@@ -119,9 +132,15 @@ function classifyGitFailure(error: unknown): GitExecFailureReason {
  *
  * The caller supplies argv, never a shell command. Global Git config remains readable on
  * purpose: cross-uid Docker/CI mounts depend on user-configured safe.directory entries.
- * Repository-controlled executable behavior is neutralized narrowly with core.fsmonitor=false,
- * every transport protocol is denied, system config and prompts are disabled, and proxy/config
- * injection environment variables are removed.
+ * The child receives only PATH/HOME/TZ plus fixed hardening variables, so ambient GIT_*,
+ * proxy, alternate-object, work-tree, and config-injection variables cannot cross the boundary.
+ *
+ * Executable/file-valued config audit: commands reachable here can consult core.fsmonitor,
+ * core.pager, core.editor, core.sshCommand, diff.external, credential.helper, log.showSignature,
+ * and gpg.*.program; all are neutralized above. filter.* clean/smudge requires checkout/add
+ * conversion, uploadpack.packObjectsHook requires upload-pack, and gpg.ssh.allowedSignersFile
+ * requires signature verification; Cejel invokes none of those operations and also disables
+ * signature display. Every transport protocol is denied and prompts/system config are disabled.
  */
 export function execGit(argv: readonly string[], options: GitExecOptions): GitExecResult {
   try {
@@ -130,7 +149,7 @@ export function execGit(argv: readonly string[], options: GitExecOptions): GitEx
       encoding: 'utf8',
       env: hardenedGitEnvironment(),
       input: options.input,
-      maxBuffer: GIT_EXEC_MAX_BUFFER_BYTES,
+      maxBuffer: options.maxBufferBytes ?? GIT_EXEC_MAX_BUFFER_BYTES,
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: GIT_EXEC_TIMEOUT_MS,
     });
@@ -151,9 +170,17 @@ export function isExpectedGitAbsence(
   return result.reason === 'git_absent' || result.reason === 'not_a_repo';
 }
 
-export function describeGitFailure(reason: GitExecFailureReason, operation: string): string {
+export function describeGitFailure(
+  reason: GitExecFailureReason,
+  operation: string,
+  maxBufferBytes = GIT_EXEC_MAX_BUFFER_BYTES,
+): string {
   if (reason === 'buffer_exceeded') {
-    return `Cejel: local git ${operation} exceeded the 64 MiB output limit.`;
+    const outputLimit =
+      maxBufferBytes % (1024 * 1024) === 0
+        ? `${maxBufferBytes / (1024 * 1024)} MiB`
+        : `${Math.ceil(maxBufferBytes / 1024)} KiB`;
+    return `Cejel: local git ${operation} exceeded the ${outputLimit} output limit.`;
   }
   if (reason === 'timeout') {
     return `Cejel: local git ${operation} exceeded the 30 second timeout.`;

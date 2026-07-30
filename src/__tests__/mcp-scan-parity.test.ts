@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -146,6 +147,22 @@ describe('cejel MCP scan tool parity with the CLI', () => {
     };
     expect(mcpReport.overallScore).toBe(cliReport.overallScore);
     expect(mcpReport.criteria.length).toBeGreaterThan(0);
+  });
+
+  it('includes scan limitations in the default compact response', async () => {
+    const limitedRepo = writeFixtureRepo();
+    execFileSync('git', ['init', '--quiet'], { cwd: limitedRepo });
+    writeFileSync(join(limitedRepo, '.git', 'index'), 'not a valid git index');
+
+    const result = await client.callTool({
+      name: 'scan',
+      arguments: { path: limitedRepo },
+    });
+    const summary = JSON.parse(toolResultText(result)) as WitanCliSummary;
+
+    expect(summary.scanLimitations).toEqual([
+      expect.stringContaining('bounded directory walk'),
+    ]);
   });
 
   it('exposes the last scan certificate + badge as resources', async () => {

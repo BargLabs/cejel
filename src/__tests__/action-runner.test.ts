@@ -19,6 +19,19 @@ function renderStepSummary(summary: unknown): string {
   });
 }
 
+function renderActionOutputs(summary: unknown): string {
+  const encodedSummary = Buffer.from(JSON.stringify(summary), 'utf8').toString('base64');
+  const evaluation = `
+    import { renderActionOutputs } from ${JSON.stringify(ACTION_RUNNER_URL)};
+    const summary = JSON.parse(Buffer.from(process.env.CEJEL_ACTION_SUMMARY, 'base64').toString('utf8'));
+    process.stdout.write(renderActionOutputs(summary));
+  `;
+  return execFileSync(process.execPath, ['--input-type=module', '--eval', evaluation], {
+    encoding: 'utf8',
+    env: { ...process.env, CEJEL_ACTION_SUMMARY: encodedSummary },
+  });
+}
+
 describe('GitHub Action step summary', () => {
   it('uses actionable finding copy and labels severity separately from the dimension band', () => {
     const rendered = renderStepSummary({
@@ -67,4 +80,25 @@ describe('GitHub Action step summary', () => {
       expect(rendered).not.toContain('/4.0');
     },
   );
+
+  it('renders limitations in the step summary and machine-readable outputs', () => {
+    const summary = {
+      productDisplayName: 'fixture',
+      overallScore: 4,
+      codeTrustScore: 4,
+      processTrustScore: 4,
+      verdict: 'Verified',
+      findingCount: 0,
+      topFindings: [],
+      scanLimitations: ['Tracked-file inventory used a bounded directory walk.'],
+    };
+
+    expect(renderStepSummary(summary)).toContain('LIMITED EVIDENCE');
+    expect(renderStepSummary(summary)).toContain(summary.scanLimitations[0]);
+    expect(renderActionOutputs(summary)).toContain('limited=true\n');
+    expect(renderActionOutputs(summary)).toContain('limitation-count=1\n');
+    expect(renderActionOutputs(summary)).toContain(
+      `limitations=${JSON.stringify(summary.scanLimitations)}\n`,
+    );
+  });
 });
