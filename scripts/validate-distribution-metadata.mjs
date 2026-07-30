@@ -94,6 +94,33 @@ function requirePnpmVersionDerived(workflowName, workflow, expectedVersion) {
   }
 }
 
+function hasPermissionsBlock(workflow) {
+  const lines = workflow.split(/\r?\n/);
+
+  for (const [index, line] of lines.entries()) {
+    const permissionsMatch = line.match(/^(\s*)permissions:\s*(?:#.*)?$/);
+    if (!permissionsMatch) continue;
+
+    const permissionsIndent = permissionsMatch[1].length;
+    for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
+      const nextLine = lines[nextIndex];
+      if (/^\s*(?:#.*)?$/.test(nextLine)) continue;
+
+      const nextIndent = nextLine.match(/^\s*/)?.[0].length ?? 0;
+      if (nextIndent <= permissionsIndent) break;
+      if (/^\s+[a-z-]+:\s+(?:read|write|none)\s*(?:#.*)?$/.test(nextLine)) return true;
+    }
+  }
+
+  return false;
+}
+
+function requirePermissionsBlock(workflowName, workflow) {
+  if (!hasPermissionsBlock(workflow)) {
+    throw new Error(`${workflowName} must declare an explicit permissions block.`);
+  }
+}
+
 const packageManagerMatch = packageManifest.packageManager?.match(/^pnpm@(\d+\.\d+\.\d+)$/);
 if (!packageManagerMatch) {
   throw new Error('package.json packageManager must pin pnpm to an exact semantic version.');
@@ -101,7 +128,19 @@ if (!packageManagerMatch) {
 const pnpmVersion = packageManagerMatch[1];
 for (const [workflowName, workflow] of workflows) {
   requirePnpmVersionDerived(workflowName, workflow, pnpmVersion);
+  requirePermissionsBlock(workflowName, workflow);
 }
+
+requireEqual(
+  hasPermissionsBlock('name: fixture\npermissions:\n  contents: read\njobs: {}'),
+  true,
+  'workflow permissions positive fixture',
+);
+requireEqual(
+  hasPermissionsBlock('name: fixture\njobs:\n  test:\n    runs-on: ubuntu-latest'),
+  false,
+  'workflow permissions missing fixture',
+);
 
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');
 requireEqual(
@@ -372,3 +411,4 @@ for (const [name, workflow] of [
 process.stdout.write(
   `Distribution metadata agrees on npm v${packageManifest.version}, MCP Registry v${publishedVersions.mcpRegistry}, and OCI v${publishedVersions.oci} for ${packageManifest.mcpName}.\n`,
 );
+process.stdout.write(`Validated explicit permissions blocks in ${workflows.length} GitHub workflows.\n`);
