@@ -155,6 +155,20 @@
           "structural_signature": "a local judge call precedes an average assigned to a returned result-object attribute; a retained eligible_count attribute distinguishes the negative",
           "positive_fixture": "python-llm-evaluation-denominator-attribute.positive.fixture",
           "negative_fixture": "python-llm-evaluation-denominator-attribute.negative.fixture"
+        },
+        {
+          "pattern_id": "python-openai-import-resolved-evaluation-invocation",
+          "detector": "python-evaluation",
+          "structural_signature": "an import-resolved official OpenAI client responses.create(...) call precedes a locally returned average; the negative preserves the same call shape on an unrelated client and must abstain",
+          "positive_fixture": "python-llm-evaluation-denominator-openai-invocation.positive.fixture",
+          "negative_fixture": "python-llm-evaluation-denominator-openai-invocation.negative.fixture"
+        },
+        {
+          "pattern_id": "python-anthropic-import-resolved-evaluation-invocation",
+          "detector": "python-evaluation",
+          "structural_signature": "an import-resolved official Anthropic client messages.create(...) call precedes a locally returned average; the negative preserves the same call shape on an unrelated client and must abstain",
+          "positive_fixture": "python-llm-evaluation-denominator-anthropic-invocation.positive.fixture",
+          "negative_fixture": "python-llm-evaluation-denominator-anthropic-invocation.negative.fixture"
         }
       ]
     },

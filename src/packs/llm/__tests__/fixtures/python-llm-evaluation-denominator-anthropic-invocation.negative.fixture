@@ -1,0 +1,8 @@
+def run_benchmark(cases):
+    client = MessageStore()
+    scores = []
+    for case in cases:
+        response = client.messages.create(model="claude-sonnet-4-5", messages=[{"role": "user", "content": case}], max_tokens=16)
+        scores.append(response.content[0].score)
+    average_score = sum(scores) / len(scores)
+    return {"model_id": "claude-sonnet-4-5", "average_score": average_score}
