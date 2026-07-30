@@ -19,8 +19,10 @@ export interface PublicCejelScoreOptions {
   generatedAt?: string;
   /** Explicit experimental rubric pin. Omitted public calls retain the current shared default. */
   rubricVersion?: string;
-  /** Public `--ingest` inputs. Auto-discovered .cejel/inputs are always included. */
+  /** Explicit operator-supplied `--ingest` inputs. */
   ingestPatterns?: readonly string[];
+  /** Opt in to untrusted `.cejel/inputs` authored by the scanned repository. Default: false. */
+  autoDiscoverIngest?: boolean;
   warnOnEmptyIngestMatch?: boolean;
 }
 
@@ -50,12 +52,15 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     : report;
 }
 
-/** Resolve the exact ingest surface available to `npx cejel .`. */
+/** Resolve the sealed public-scan ingest surface; repository-authored inputs require opt-in. */
 export function resolvePublicIngestSignals(
-  options: Pick<PublicCejelScoreOptions, 'repoPath' | 'ingestPatterns' | 'warnOnEmptyIngestMatch'>,
+  options: Pick<
+    PublicCejelScoreOptions,
+    'repoPath' | 'ingestPatterns' | 'autoDiscoverIngest' | 'warnOnEmptyIngestMatch'
+  >,
 ): WitanInputSignal[] {
   const seen = new Set<string>();
-  const files: string[] = [];
+  const explicitFiles: string[] = [];
 
   for (const pattern of options.ingestPatterns ?? []) {
     const matches = expandIngestPattern(pattern);
@@ -66,16 +71,21 @@ export function resolvePublicIngestSignals(
       const resolved = resolve(match);
       if (seen.has(resolved)) continue;
       seen.add(resolved);
-      files.push(match);
+      explicitFiles.push(match);
     }
   }
+
+  const signals = explicitFiles.flatMap((file) =>
+    parseIngestFile(file, { provenance: 'operator_supplied' }),
+  );
+  if (!options.autoDiscoverIngest) return signals;
 
   for (const discovered of discoverIngestInputs(options.repoPath)) {
     const resolved = resolve(discovered);
     if (seen.has(resolved)) continue;
     seen.add(resolved);
-    files.push(discovered);
+    signals.push(...parseIngestFile(discovered, { provenance: 'auto_discovered' }));
   }
 
-  return files.flatMap((file) => parseIngestFile(file));
+  return signals;
 }

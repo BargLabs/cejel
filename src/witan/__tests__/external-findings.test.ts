@@ -80,7 +80,9 @@ describe('ingest itemization: fixture SARIF surfaces per-source counts + attribu
     const report = createWitanReport(REPO_INPUT, signals);
     const markdown = renderWitanMarkdownReport(report);
 
-    expect(markdown).toContain('- Codex Security: 3 findings ingested (folded into A2, A4)');
+    expect(markdown).toContain(
+      '- Codex Security (operator-supplied): 3 findings ingested (folded into A2, A4)',
+    );
     expect(markdown).toContain('## External findings');
     expect(markdown).toContain('sql-injection — User input passed directly to SQL query.');
     expect(markdown).toContain('hardcoded-secret — Hardcoded API key detected in source.');
@@ -95,7 +97,9 @@ describe('ingest itemization: fixture SARIF surfaces per-source counts + attribu
     const html = renderWitanHtmlReport(report);
 
     expect(html).toContain('External findings');
-    expect(html).toContain('Codex Security: 3 findings ingested (folded into A2, A4)');
+    expect(html).toContain(
+      'Codex Security (operator-supplied): 3 findings ingested (folded into A2, A4)',
+    );
     expect(html).toContain('sql-injection');
     expect(html).toContain('hardcoded-secret');
     expect(html).toContain('cve-2024-9999');

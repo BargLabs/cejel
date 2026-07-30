@@ -3,6 +3,7 @@ import type {
   WitanCriterionScore,
   WitanEvidencePointer,
   WitanFinding,
+  WitanIngestProvenance,
   WitanReport,
 } from './schemas.js';
 
@@ -12,8 +13,7 @@ import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
   collectExternalFindings,
-  formatExternalSourceLine,
-  summarizeExternalSources,
+  formatExternalSourceLabel,
 } from './external-findings.js';
 import { renderFindingSummary } from './finding-presentation.js';
 
@@ -48,8 +48,8 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   ];
 
   const hasSignals = (report.consumedSignals?.length ?? 0) > 0;
-  const contributingSources = renderContributingSources(report.consumedSignals ?? []);
-  const externalSourceSummaries = summarizeExternalSources(report.consumedSignals ?? []);
+  const externalSourceSummaries = summarizeSourcesByProvenance(report.consumedSignals ?? []);
+  const contributingSources = externalSourceSummaries.map(renderSourceProvenanceLabel);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const noMeasurementAbstention = isWitanNoMeasurementAbstention(report);
   const summaryScoreLines =
@@ -79,7 +79,7 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
     ...(hasSignals
       ? [
           `- Incorporates findings from: ${contributingSources.join(', ')}`,
-          ...externalSourceSummaries.map((s) => `  - ${formatExternalSourceLine(s)}`),
+          ...externalSourceSummaries.map((s) => `  - ${formatSourceProvenanceLine(s)}`),
         ]
       : []),
     ...(report.verdict === 'insufficient_source'
@@ -176,19 +176,72 @@ function renderCriterionRow(criterion: WitanCriterionScore, showNative: boolean)
   return cols.join(' | ').replace(/^/, '| ').replace(/$/, ' |');
 }
 
-function renderContributingSources(signals: readonly WitanConsumedSignalSummary[]): string[] {
-  return Array.from(new Set(signals.map((s) => s.source))).sort();
+interface ProvenanceSourceSummary {
+  source: string;
+  provenance: WitanIngestProvenance;
+  findingCount: number;
+  dimensions: string[];
+}
+
+function summarizeSourcesByProvenance(
+  signals: readonly WitanConsumedSignalSummary[],
+): ProvenanceSourceSummary[] {
+  const grouped = new Map<
+    string,
+    {
+      source: string;
+      provenance: WitanIngestProvenance;
+      findingCount: number;
+      dimensions: Set<string>;
+    }
+  >();
+  for (const signal of signals) {
+    const provenance = signal.provenance ?? 'operator_supplied';
+    const key = `${signal.source}\u0000${provenance}`;
+    const summary = grouped.get(key) ?? {
+      source: signal.source,
+      provenance,
+      findingCount: 0,
+      dimensions: new Set<string>(),
+    };
+    summary.findingCount += signal.findingCount;
+    summary.dimensions.add(signal.dimension);
+    grouped.set(key, summary);
+  }
+  return Array.from(grouped.values())
+    .map((summary) => ({ ...summary, dimensions: Array.from(summary.dimensions).sort() }))
+    .sort(
+      (a, b) =>
+        a.source.localeCompare(b.source) || a.provenance.localeCompare(b.provenance),
+    );
+}
+
+function renderSourceProvenanceLabel(summary: ProvenanceSourceSummary): string {
+  const label = escapeMarkdownInline(formatExternalSourceLabel(summary.source));
+  return summary.provenance === 'auto_discovered'
+    ? `"${label}" (self-declared by the scanned repository — not verified)`
+    : `${label} (operator-supplied)`;
+}
+
+function formatSourceProvenanceLine(summary: ProvenanceSourceSummary): string {
+  const noun = summary.findingCount === 1 ? 'finding' : 'findings';
+  return `${renderSourceProvenanceLabel(summary)}: ${summary.findingCount} ${noun} ingested (folded into ${summary.dimensions.join(', ')})`;
+}
+
+function escapeMarkdownInline(value: string): string {
+  return value.replace(/([\\`*_[\]<>|])/g, '\\$1');
 }
 
 function renderConsumedSignals(signals: readonly WitanConsumedSignalSummary[]): string[] {
   const lines: string[] = [
-    '| Source | Dimension | Findings | Critical | Warning | Info | Native score | Adjustment | Adjusted score |',
-    '|---|---|---:|---:|---:|---:|---:|---:|---:|',
+    '| Source | Provenance | Dimension | Findings | Critical | Warning | Info | Native score | Adjustment | Adjusted score |',
+    '|---|---|---|---:|---:|---:|---:|---:|---:|---:|',
   ];
   for (const s of signals) {
     lines.push(
       [
-        s.source,
+        escapeMarkdownInline(s.source),
+        s.provenance ?? 'operator_supplied',
         s.dimension,
         s.findingCount,
         s.severityBreakdown.critical,
@@ -212,7 +265,7 @@ function renderExternalFindings(findings: readonly WitanExternalFinding[]): stri
   const shown = findings.slice(0, EXTERNAL_FINDINGS_DISPLAY_LIMIT);
   const lines = shown.map(
     (f) =>
-      `- [${f.severity}] ${f.label} → ${f.dimension}: ${f.ruleId} — ${f.message}${
+      `- [${f.severity}] ${escapeMarkdownInline(f.label)} → ${f.dimension}: ${f.ruleId} — ${f.message}${
         f.location ? ` (${f.location})` : ''
       }`,
   );

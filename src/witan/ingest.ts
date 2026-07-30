@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { WitanInputSignal } from './schemas.js';
+import type { WitanIngestProvenance, WitanInputSignal } from './schemas.js';
 
 import { clampFinding } from './finding-limits.js';
 import { isGenericSignalDocument, parseGenericJson } from './generic-adapter.js';
@@ -55,6 +55,19 @@ function rawToolName(raw: unknown): string {
 // generic Cejel external-signal shape by structure. Offline — reads a local file only.
 export interface ParseIngestFileOptions {
   extraSarifDimensionRules?: readonly SarifDimensionRule[];
+  provenance?: WitanIngestProvenance;
+}
+
+const MAX_INGEST_SOURCE_LENGTH = 120;
+
+// Scanner names are untrusted presentation input. Strip Unicode control/format characters and
+// cap the complete source identifier before it reaches report JSON or any certificate renderer.
+export function sanitizeIngestSource(source: string): string {
+  const withoutControls = source.replace(/[\p{Cc}\p{Cf}]/gu, '').trim();
+  const safeSource = withoutControls.length > 0 ? withoutControls : 'unknown';
+  const codePoints = Array.from(safeSource);
+  if (codePoints.length <= MAX_INGEST_SOURCE_LENGTH) return safeSource;
+  return `${codePoints.slice(0, MAX_INGEST_SOURCE_LENGTH - 3).join('')}...`;
 }
 
 export function parseIngestFile(
@@ -96,6 +109,8 @@ export function parseIngestFile(
   // whole certificate downstream in WitanReportSchema.parse().
   return signals.map((signal) => ({
     ...signal,
+    source: sanitizeIngestSource(signal.source),
+    provenance: options.provenance ?? 'operator_supplied',
     findings: signal.findings.map(clampFinding),
   }));
 }
@@ -111,7 +126,7 @@ export function expandIngestPattern(pattern: string): string[] {
   const lastSlash = pattern.lastIndexOf('/');
   const dir = lastSlash === -1 ? '.' : pattern.slice(0, lastSlash);
   const filePattern = lastSlash === -1 ? pattern : pattern.slice(lastSlash + 1);
-  const regexSource = filePattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  const regexSource = filePattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
   const regex = new RegExp(`^${regexSource}$`);
 
   let entries: string[];
