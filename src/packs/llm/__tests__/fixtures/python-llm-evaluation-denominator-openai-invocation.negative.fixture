@@ -1,0 +1,8 @@
+def run_benchmark(cases):
+    client = MetricsClient()
+    scores = []
+    for case in cases:
+        response = client.responses.create(model="gpt-5", input=case)
+        scores.append(response.score)
+    average_score = sum(scores) / len(scores)
+    return {"model_id": "gpt-5", "average_score": average_score}

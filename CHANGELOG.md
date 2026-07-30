@@ -22,6 +22,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Python evaluation aggregates assigned through local result-object attributes or subscripts.
   Fixture-backed controls retain the eligible denominator, and lookalike names do not activate the
   rule. This does not change the immutable v1.9 NO-GO or authorize a performance or release claim.
+- Python evaluation rules now attribute official OpenAI and Anthropic call shapes only when the
+  receiver resolves to a live same-file SDK import/client binding. Unrelated and parameter-shadowed
+  lookalikes abstain; local custom judge wrappers remain within the file-local contract.
 
 ---
 

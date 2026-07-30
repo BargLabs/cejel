@@ -1,5 +1,6 @@
 import { isExcludedLlmSourcePath, maskPythonNonCode } from './lexical.js';
 import type { CejelLlmEvaluationFinding } from './evaluation-rules.js';
+import { supportedPythonModelCallIndices } from './python-rules.js';
 import type { LlmSourceFile } from './rules.js';
 
 function lineNumberAt(contents: string, index: number): number {
@@ -64,8 +65,8 @@ const EVALUATOR_CONTEXT_PATTERN =
 // alternation -- specifically to avoid quadratic backtracking on long non-matching identifier
 // chains. Whether a matched identifier actually qualifies is decided afterward in JS via
 // PYTHON_JUDGE_COMPONENT_PATTERN.test(...), not by the shape of this regex.
-const PYTHON_MODEL_OR_JUDGE_CALL_PATTERN =
-  /\b(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?:responses\.create|chat\.completions\.create|messages\.create)|(?:[A-Za-z_][A-Za-z0-9_]*\.)*([A-Za-z_][A-Za-z0-9_]*)(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.(?:invoke|ainvoke|predict|apredict|complete|acomplete|generate|agenerate|evaluate|aevaluate|judge|grade|score|run|arun)|(?:self\.)?_?(?:evaluate|judge|grade)(?:_[A-Za-z_][A-Za-z0-9_]*)?)\s*\(/g;
+const PYTHON_LOCAL_JUDGE_CALL_PATTERN =
+  /\b(?:(?:[A-Za-z_][A-Za-z0-9_]*\.)*([A-Za-z_][A-Za-z0-9_]*)(?:\.[A-Za-z_][A-Za-z0-9_]*)*\.(?:invoke|ainvoke|predict|apredict|complete|acomplete|generate|agenerate|evaluate|aevaluate|judge|grade|score|run|arun)|(?:self\.)?_?(?:evaluate|judge|grade)(?:_[A-Za-z_][A-Za-z0-9_]*)?)\s*\(/g;
 // Tested only against the short, already-captured component identifier (group 1 above), never
 // against the whole file -- anchored to underscore/start/end boundaries so a component must
 // contain one of these words as a whole delimited segment, not an arbitrary substring.
@@ -88,6 +89,10 @@ const PYTHON_DENOMINATOR_KEY_PATTERN =
   /^(?:eligibletotal|eligiblecount|totalcases|totalcount|denominator|caseresults|rawresults|results)$/i;
 const PYTHON_OUTCOME_COUNT_KEY_PATTERN =
   /^(?:error|errors|refusal|refusals|abstention|abstentions|excluded|exclusions|excludedcount)$/i;
+
+interface PythonEvaluationInvocation {
+  readonly index: number;
+}
 
 function pythonFunctionBlocks(
   masked: string,
@@ -114,6 +119,57 @@ function pythonFunctionBlocks(
       contextName: `${owner?.name ?? ''}.${declaration[2] ?? ''}`,
     };
   });
+}
+
+function pythonEvaluationInvocations(
+  block: PythonFunctionBlock,
+  nestedBlocks: readonly PythonFunctionBlock[],
+  supportedSdkInvocations: ReadonlySet<number>,
+  excludeNonGenerativeLookalikes: boolean,
+): readonly PythonEvaluationInvocation[] {
+  const invocations: PythonEvaluationInvocation[] = [];
+  const isNested = (absoluteIndex: number): boolean =>
+    nestedBlocks.some(
+      (nested) => absoluteIndex > nested.index && absoluteIndex < nested.end,
+    );
+
+  for (const absoluteIndex of supportedSdkInvocations) {
+    if (
+      absoluteIndex <= block.index ||
+      absoluteIndex >= block.end ||
+      isNested(absoluteIndex)
+    ) {
+      continue;
+    }
+    invocations.push({ index: absoluteIndex - block.index });
+  }
+
+  for (const invocation of block.contents.matchAll(PYTHON_LOCAL_JUDGE_CALL_PATTERN)) {
+    if (
+      invocation[1] !== undefined &&
+      !PYTHON_JUDGE_COMPONENT_PATTERN.test(invocation[1])
+    ) {
+      continue;
+    }
+    const lineStart = block.contents.lastIndexOf('\n', invocation.index) + 1;
+    if (/\bdef\s*$/.test(block.contents.slice(lineStart, invocation.index))) continue;
+    if (
+      excludeNonGenerativeLookalikes &&
+      /(?:similarity|embedding|encoder|classifier|rerank)/i.test(invocation[0])
+    ) {
+      continue;
+    }
+    const absoluteIndex = block.index + invocation.index;
+    if (isNested(absoluteIndex)) continue;
+    invocations.push({ index: invocation.index });
+  }
+
+  return invocations
+    .filter(
+      (invocation, index, values) =>
+        values.findIndex((candidate) => candidate.index === invocation.index) === index,
+    )
+    .sort((left, right) => left.index - right.index);
 }
 
 function matchingBrace(masked: string, start: number): number {
@@ -350,26 +406,18 @@ export function detectPythonMissingEvaluationProvenance(
   const masked = maskPythonNonCode(file.contents);
   const classes = pythonClassBlocks(masked);
   const blocks = pythonFunctionBlocks(masked, classes);
+  const supportedSdkInvocations = supportedPythonModelCallIndices(file.contents);
   for (const block of blocks) {
     if (!EVALUATOR_CONTEXT_PATTERN.test(block.contextName)) continue;
     const nestedBlocks = blocks.filter(
       (candidate) => candidate.index > block.index && candidate.end <= block.end,
     );
-    const invocations = [...block.contents.matchAll(PYTHON_MODEL_OR_JUDGE_CALL_PATTERN)]
-      .filter((invocation) => (
-        invocation[1] === undefined || PYTHON_JUDGE_COMPONENT_PATTERN.test(invocation[1])
-      ))
-      .filter((invocation) => {
-        const lineStart = block.contents.lastIndexOf('\n', invocation.index) + 1;
-        return (
-          !/\bdef\s*$/.test(block.contents.slice(lineStart, invocation.index)) &&
-          !/(?:similarity|embedding|encoder|classifier|rerank)/i.test(invocation[0])
-        );
-      })
-      .filter((invocation) => !nestedBlocks.some((nested) => {
-        const absoluteIndex = block.index + invocation.index;
-        return absoluteIndex > nested.index && absoluteIndex < nested.end;
-      }));
+    const invocations = pythonEvaluationInvocations(
+      block,
+      nestedBlocks,
+      supportedSdkInvocations,
+      true,
+    );
     if (invocations.length === 0) continue;
     for (const result of pythonStructuredResultExpressions(file, block).filter(
       (candidate) => !nestedBlocks.some(
@@ -446,6 +494,7 @@ export function detectPythonMissingDenominator(
   const masked = maskPythonNonCode(file.contents);
   const classes = pythonClassBlocks(masked);
   const blocks = pythonFunctionBlocks(masked, classes);
+  const supportedSdkInvocations = supportedPythonModelCallIndices(file.contents);
   const findings: CejelLlmEvaluationFinding[] = [];
   for (const block of blocks) {
     if (!EVALUATOR_CONTEXT_PATTERN.test(block.contextName)) continue;
@@ -454,18 +503,12 @@ export function detectPythonMissingDenominator(
     );
     const aggregates = pythonAggregateAssignmentsIn(block.contents);
     if (aggregates.size === 0) continue;
-    const invocations = [...block.contents.matchAll(PYTHON_MODEL_OR_JUDGE_CALL_PATTERN)]
-      .filter((invocation) => (
-        invocation[1] === undefined || PYTHON_JUDGE_COMPONENT_PATTERN.test(invocation[1])
-      ))
-      .filter((invocation) => {
-        const lineStart = block.contents.lastIndexOf('\n', invocation.index) + 1;
-        return !/\bdef\s*$/.test(block.contents.slice(lineStart, invocation.index));
-      })
-      .filter((invocation) => !nestedBlocks.some((nested) => {
-        const absoluteIndex = block.index + invocation.index;
-        return absoluteIndex > nested.index && absoluteIndex < nested.end;
-      }));
+    const invocations = pythonEvaluationInvocations(
+      block,
+      nestedBlocks,
+      supportedSdkInvocations,
+      false,
+    );
     if (invocations.length === 0) continue;
     for (const result of pythonStructuredResultExpressions(file, block).filter(
       (candidate) => !nestedBlocks.some(

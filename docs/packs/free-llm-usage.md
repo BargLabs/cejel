@@ -77,8 +77,10 @@ Current native source coverage is:
   provider-neutral model/agent bases. The alpha follows bounded same-file model-output lineage
   through local helpers for `LLM-IOH-001` and `LLM-VAL-001`; recognizes fixture-backed official-SDK,
   abstract-model, and explicitly unset tool-limit forms for `LLM-AGY-002`; and supports bounded
-  Python evaluation provenance and self-judge paths. It does not infer arbitrary framework magic
-  or cross-module data flow.
+  Python evaluation provenance and self-judge paths. Evaluation rules require an import-resolved
+  official SDK client or a conservatively named local model/judge wrapper; they abstain from
+  unresolved SDK-shaped receivers. The pack does not infer arbitrary framework magic or
+  cross-module data flow.
 
 If no supported production integration is detected, the pack is `not_applicable`. During alpha,
 an applicable repository is always `assessed_with_limitations`. Rule-level `not_applicable` versus

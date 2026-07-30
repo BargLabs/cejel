@@ -286,7 +286,10 @@ describe('Free LLM evaluation and provenance rules', () => {
     [
       'direct return',
       [
-        'async def evaluate_response(client, candidate):',
+        'from openai import OpenAI',
+        '',
+        'async def evaluate_response(candidate):',
+        '    client = OpenAI()',
         '    judged = await client.responses.create(model="gpt-5", input=candidate)',
         '    return {"model_id": judged.model, "score": 1, "verdict": judged.output_text}',
       ],
@@ -334,7 +337,10 @@ describe('Free LLM evaluation and provenance rules', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluator.py',
       contents: [
-        'async def evaluate_response(client, candidate):',
+        'from openai import OpenAI',
+        '',
+        'async def evaluate_response(candidate):',
+        '    client = OpenAI()',
         '    judged = await client.responses.create(model="gpt-5", input=candidate)',
         `    return {"model_id": judged.model, "score": 1, ${lineage}}`,
       ].join('\n'),
@@ -350,7 +356,10 @@ describe('Free LLM evaluation and provenance rules', () => {
     const source: LlmSourceFile = {
       path: 'src/service.py',
       contents: [
-        'async def generate_reply(client, candidate):',
+        'from openai import OpenAI',
+        '',
+        'async def generate_reply(candidate):',
+        '    client = OpenAI()',
         '    response = await client.responses.create(model="gpt-5", input=candidate)',
         '    return {"model_id": response.model, "score": 1, "result": response.output_text}',
       ].join('\n'),
@@ -362,8 +371,11 @@ describe('Free LLM evaluation and provenance rules', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluator.py',
       contents: [
+        'from openai import OpenAI',
+        '',
         'class EvaluationRunner:',
-        '    async def run(self, client, candidate):',
+        '    async def run(self, candidate):',
+        '        client = OpenAI()',
         '        judged = await client.responses.create(model="gpt-5", input=candidate)',
         '        return {"model_id": judged.model, "score": 1, "verdict": judged.output_text}',
       ].join('\n'),
@@ -379,7 +391,10 @@ describe('Free LLM evaluation and provenance rules', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluator.py',
       contents: [
-        'async def evaluate_response(client, candidate):',
+        'from openai import OpenAI',
+        '',
+        'async def evaluate_response(candidate):',
+        '    client = OpenAI()',
         '    async def unrelated_helper():',
         '        return await client.responses.create(model="gpt-5", input=candidate)',
         '    return {"model_id": "gpt-5", "score": 1, "verdict": "pending"}',
@@ -563,6 +578,85 @@ describe('Free LLM evaluation and provenance rules', () => {
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.confidence).toBe('high');
+  });
+
+  it('recognizes an import-resolved official Python SDK evaluation invocation', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'from openai import OpenAI',
+        '',
+        'def run_benchmark(cases):',
+        '    client = OpenAI()',
+        '    scores = []',
+        '    for case in cases:',
+        '        response = client.responses.create(model="gpt-5", input=case)',
+        '        scores.append(response.score)',
+        '    average_score = sum(scores) / len(scores)',
+        '    return {"model_id": "gpt-5", "average_score": average_score}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      'unrelated lookalike client',
+      [
+        'def run_benchmark(cases):',
+        '    client = MetricsClient()',
+      ],
+    ],
+    [
+      'parameter shadowing an official client',
+      [
+        'from openai import OpenAI',
+        'client = OpenAI()',
+        '',
+        'def run_benchmark(client, cases):',
+      ],
+    ],
+  ] as const)(
+    'abstains from a Python SDK-shaped evaluation invocation on an %s',
+    (_name, prefix) => {
+      const source: LlmSourceFile = {
+        path: 'src/evaluation/benchmarks.py',
+        contents: [
+          ...prefix,
+          '    scores = []',
+          '    for case in cases:',
+          '        response = client.responses.create(model="gpt-5", input=case)',
+          '        scores.append(response.score)',
+          '    average_score = sum(scores) / len(scores)',
+          '    return {"model_id": "gpt-5", "average_score": average_score}',
+        ].join('\n'),
+      };
+      expect(
+        detectCejelLlmEvaluationRules([source]).filter(
+          (finding) => finding.ruleId === 'LLM-EVL-001',
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  it('does not treat an unresolved Python SDK-shaped call as provenance evidence', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluator.py',
+      contents: [
+        'async def evaluate_response(client, candidate):',
+        '    judged = await client.responses.create(model="gpt-5", input=candidate)',
+        '    return {"model_id": judged.model, "score": 1, "verdict": judged.output_text}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toEqual([]);
   });
 
   it('suppresses the Python denominator finding when the eligible count is retained', () => {
