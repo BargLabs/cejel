@@ -14,6 +14,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- The Free LLM detector-development candidate recognizes file-local JavaScript/TypeScript and
+  Python evaluation aggregates assigned through local result-object attributes or subscripts.
+  Fixture-backed controls retain the eligible denominator, and lookalike names do not activate the
+  rule. This does not change the immutable v1.9 NO-GO or authorize a performance or release claim.
+
+---
+
 ## [0.2.2] — 2026-07-28
 
 ### Added

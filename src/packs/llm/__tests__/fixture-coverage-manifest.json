@@ -141,6 +141,20 @@
           "structural_signature": "responses.create(...) precedes case iteration and a locally emitted accuracy; local alias n traces to eligible.length in the negative",
           "positive_fixture": "llm-evaluation-denominator.positive.fixture",
           "negative_fixture": "llm-evaluation-denominator.negative.fixture"
+        },
+        {
+          "pattern_id": "javascript-openai-local-attribute-evaluation-denominator",
+          "detector": "evaluation",
+          "structural_signature": "responses.create(...) precedes case iteration and an accuracy assigned to a local result-object attribute; an emitted eligibleTotal property distinguishes the negative",
+          "positive_fixture": "llm-evaluation-denominator-attribute.positive.fixture",
+          "negative_fixture": "llm-evaluation-denominator-attribute.negative.fixture"
+        },
+        {
+          "pattern_id": "python-local-attribute-evaluation-denominator",
+          "detector": "python-evaluation",
+          "structural_signature": "a local judge call precedes an average assigned to a returned result-object attribute; a retained eligible_count attribute distinguishes the negative",
+          "positive_fixture": "python-llm-evaluation-denominator-attribute.positive.fixture",
+          "negative_fixture": "python-llm-evaluation-denominator-attribute.negative.fixture"
         }
       ]
     },

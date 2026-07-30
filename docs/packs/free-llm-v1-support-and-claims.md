@@ -1,8 +1,8 @@
 # Free LLM Pack v1 support and claims
 
 - Applies to candidate: `cejel-free-llm-rules-v1.1-2026-07-23`
-- Status: implemented experimental alpha; v1.2 calibration is an evidence-integrity NO-GO and
-  v1.3 has not yet produced a release measurement
+- Status: detector-development candidate; the retired v1.9 golden is an immutable NO-GO at 0/34
+  finding recall, and a fresh preregistered file-local cycle is required before any release claim
 
 ## Recognized syntax inventory
 
@@ -19,7 +19,7 @@ imply that every rule supports that syntax.
 | Anthropic call/output syntax | `.messages.create` and `content[].text` bounded patterns when the official SDK import or call is visible | Same bounded call/output shapes when an official `anthropic` import is present |
 | Vercel AI SDK | `generateText` and `streamText` calls; local `tool`/`defineTool`/`createTool` declarations for the action rule | Not implemented |
 | Consequential actions | Direct local JavaScript/TypeScript JSON parse, named dispatch, tool exposure, and fail-closed gate patterns | Narrow `LLM-VAL-001` support for an `args_schema`-bound local `_run` dispatcher with observable validation; `LLM-AGY-001` is not implemented |
-| Evaluation hygiene | Direct local JavaScript/TypeScript model invocation, bounded called-helper invocation, aggregate or per-case result, JSON emitter/return, lineage, denominator, and sole-judge patterns; a complete Flowise evaluation request/result path is recognized | Narrow configured producer/judge self-judge support for `LLM-EVL-002`; provenance and denominator rules are not implemented |
+| Evaluation hygiene | Direct local JavaScript/TypeScript model invocation, bounded called-helper invocation, plain-variable, local attribute, or local subscript aggregate assignment, aggregate or per-case result, JSON emitter/return, lineage, denominator, and sole-judge patterns; a complete Flowise evaluation request/result path is recognized | Local evaluator/judge invocation, structured returned or persisted results, plain-variable, local attribute, or local subscript aggregate assignment, configuration lineage, denominator, and configured producer/judge self-judge patterns |
 | LangChain / LangGraph | Import is recorded as metadata only; it does not establish v1 applicability or a framework-specific finding claim | Import establishes no Python rule coverage |
 | Raw provider HTTP, local-model SDKs, external evaluators | Only the authenticated OpenAI-compatible request shape and complete local Flowise evaluation path above are implemented; all other raw HTTP, local-model SDK, and external-evaluator paths abstain | Not implemented; Cejel abstains or reports a limitation |
 
@@ -50,17 +50,16 @@ real applications.
 
 ## Current calibration decision
 
-The frozen v1.2 cycle executed 24 golden and 24 untouched repositories. It ended in an
-[evidence-integrity NO-GO](../../calibration/llm/reviews/v1.2-integrity-no-go-2026-07-23.md): the
-golden run bound a required compatibility record by hash but did not retain its exact bytes in a
-downloaded artifact. The untouched run emitted no findings, but TP, FP, FN, TN, precision, recall,
-and false-positive rate are all **not estimable** because the measurement protocol correctly
-stopped before calculation. This cycle supports no measured detector-performance claim.
+The frozen v1.9 golden gate is an immutable
+[NO-GO](../../calibration/llm/results/v1.9-golden-gate-no-go.json): the detector matched 0 of 34
+labeled present opportunities, or 0.0 finding recall against the release threshold. Its untouched
+cohort was not executed and remains unspent. The v1.9 result is not rescored after the file-local
+scope amendment and is not reused as the next release gate.
 
-The v1.3 candidate recognizes two previously missed golden provenance paths. A local regression over
-the same 24 golden repositories emits five exactly adjudicable findings, corresponding to five of
-the six known positive golden opportunities, with no additional findings. This is development
-evidence only—not an untouched result, release metric, or GO decision.
+Recognition widening is detector-development work only. It does not establish precision, recall,
+framework coverage, or a release result. A fresh file-local golden and a separately selected
+untouched cohort must be preregistered and frozen before the widened detector is evaluated. Until a
+dated GO is published, external status remains exactly “in calibration, publishing either way.”
 
 ## Repository and execution boundary
 

@@ -1,0 +1,6 @@
+class BenchmarkRunner:
+    def run_benchmark(self, judge, cases):
+        scores = [judge.evaluate(case).score for case in cases]
+        result = BenchmarkResult(model_id="judge-v1")
+        result.average_score = sum(scores) / len(scores)
+        return result

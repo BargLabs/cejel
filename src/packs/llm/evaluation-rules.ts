@@ -37,6 +37,7 @@ export interface LlmEvaluationRuleDefinition {
 interface LocalEmission {
   readonly index: number;
   readonly properties: ReadonlySet<string>;
+  readonly latestAssignmentIndices: ReadonlyMap<string, number>;
 }
 
 interface ModelInvocation {
@@ -47,6 +48,7 @@ interface ModelInvocation {
 
 interface AggregateAssignment {
   readonly index: number;
+  readonly target: string;
   readonly denominatorCollections: ReadonlySet<string>;
 }
 
@@ -60,9 +62,21 @@ const MODEL_CALL_PATTERN =
   /(?:\.responses\.create|\.chat\.completions\.create|\.messages\.create|\b(?:generateText|streamText|fetch))\s*\(/g;
 const ASSIGNMENT_PATTERN =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g;
+const PROPERTY_ASSIGNMENT_PATTERN =
+  /\b([A-Za-z_$][\w$]*(?:(?:\.[A-Za-z_$][\w$]*)|(?:\[\s*(?:['"][A-Za-z_$][\w$]*['"]|[A-Za-z_$][\w$]*)\s*\]))+)\s*=\s*(?![=>])(?:\r?\n[ \t]*)?([^;\n]+);/g;
 const DENOMINATOR_ALIAS_PATTERN =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\.length\s*;/g;
-const AGGREGATE_NAME_PATTERN = /(?:rate|score|accuracy|average|mean|percentage|pct)/i;
+const AGGREGATE_NAME_WORDS = new Set([
+  'rate',
+  'rates',
+  'score',
+  'scores',
+  'accuracy',
+  'average',
+  'mean',
+  'percentage',
+  'pct',
+]);
 const MODEL_LITERAL_PATTERN = /\bmodel\s*:\s*(['"`])([^'"`$]+)\1/;
 const MODEL_IDENTIFIER_PATTERN = /\bmodel\s*:\s*([A-Za-z_$][\w$]*)/;
 const LITERAL_BINDING_PATTERN =
@@ -106,6 +120,15 @@ const DISCRETE_OUTCOME_KEY_PATTERN =
 const CASE_COLLECTION_KEY_PATTERN = /^(?:cases|rows|samples|caseResults|results)$/i;
 const CASE_RESULT_KEY_PATTERN =
   /^(?:status|actualOutput|output|score|verdict|correct|success|error|latency|metrics)$/i;
+
+function isAggregateName(name: string): boolean {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .some((word) => AGGREGATE_NAME_WORDS.has(word));
+}
+
 function hasIndependentAcceptanceSignal(file: LlmSourceFile): boolean {
   const masked = maskJavaScriptNonCode(file.contents);
   const emissions = localEmissions(file);
@@ -236,6 +259,102 @@ function matchingDelimiter(contents: string, start: number, open: string, close:
   return -1;
 }
 
+function splitTopLevelMembers(value: string): readonly string[] {
+  const members: string[] = [];
+  let start = 0;
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  let quote: string | null = null;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (!character) continue;
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character;
+      continue;
+    }
+    if (character === '(') round += 1;
+    else if (character === ')') round -= 1;
+    else if (character === '[') square += 1;
+    else if (character === ']') square -= 1;
+    else if (character === '{') curly += 1;
+    else if (character === '}') curly -= 1;
+    else if (character === ',' && round === 0 && square === 0 && curly === 0) {
+      members.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  members.push(value.slice(start));
+  return members;
+}
+
+function topLevelColonIndex(value: string): number {
+  let round = 0;
+  let square = 0;
+  let curly = 0;
+  let quote: string | null = null;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (!character) continue;
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character;
+      continue;
+    }
+    if (character === '(') round += 1;
+    else if (character === ')') round -= 1;
+    else if (character === '[') square += 1;
+    else if (character === ']') square -= 1;
+    else if (character === '{') curly += 1;
+    else if (character === '}') curly -= 1;
+    else if (character === ':' && round === 0 && square === 0 && curly === 0) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function canonicalJavaScriptReference(value: string): string | null {
+  const normalized = value.trim();
+  if (
+    !/^[A-Za-z_$][\w$]*(?:(?:\.[A-Za-z_$][\w$]*)|(?:\[\s*(['"])[A-Za-z_$][\w$]*\1\s*\]))*$/.test(
+      normalized,
+    )
+  ) {
+    return null;
+  }
+  return normalized.replace(
+    /\[\s*(['"])([A-Za-z_$][\w$]*)\1\s*\]/g,
+    '.$2',
+  );
+}
+
+function objectReferences(objectBody: string): ReadonlySet<string> {
+  const references = new Set<string>();
+  for (const rawMember of splitTopLevelMembers(objectBody)) {
+    const member = rawMember.trim();
+    if (!member || member.startsWith('...')) continue;
+    const colon = topLevelColonIndex(member);
+    const expression = colon < 0 ? member : member.slice(colon + 1);
+    const reference = canonicalJavaScriptReference(expression);
+    if (reference) references.add(reference);
+  }
+  return references;
+}
+
 function objectProperties(objectBody: string): ReadonlySet<string> {
   const properties = new Set<string>();
   for (const match of objectBody.matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*(?=:|,|$)/g)) {
@@ -250,11 +369,14 @@ interface BoundObject {
   readonly index: number;
   readonly end: number;
   readonly properties: ReadonlySet<string>;
+  readonly references: ReadonlySet<string>;
 }
 
-function boundObjectLiterals(contents: string): readonly BoundObject[] {
+function boundObjectLiterals(
+  contents: string,
+  masked = maskJavaScriptNonCode(contents),
+): readonly BoundObject[] {
   const objects: BoundObject[] = [];
-  const masked = maskJavaScriptNonCode(contents);
   for (const match of contents.matchAll(
     /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)(?:\s*:[^=\n]+)?\s*=\s*\{/g,
   )) {
@@ -269,6 +391,7 @@ function boundObjectLiterals(contents: string): readonly BoundObject[] {
       index: match.index,
       end,
       properties: objectProperties(masked.slice(start + 1, end)),
+      references: objectReferences(contents.slice(start + 1, end)),
     });
   }
   return objects;
@@ -303,16 +426,28 @@ function assignedProperties(
 ): ReadonlySet<string> {
   const properties = new Set<string>();
   const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const maskedTail = maskJavaScriptNonCode(contents.slice(afterIndex, beforeIndex));
+  const sourceTail = contents.slice(afterIndex, beforeIndex);
+  const maskedTail = maskJavaScriptNonCode(sourceTail);
   const redeclaration = new RegExp(
     `\\b(?:const|let|var)\\s+${escaped}\\b`,
   ).exec(maskedTail);
   const masked = redeclaration
     ? maskedTail.slice(0, redeclaration.index)
     : maskedTail;
+  const source = redeclaration
+    ? sourceTail.slice(0, redeclaration.index)
+    : sourceTail;
   const pattern = new RegExp(`\\b${escaped}\\.([A-Za-z_$][\\w$]*)\\s*=`, 'g');
   for (const match of masked.matchAll(pattern)) {
     if (match[1]) properties.add(match[1]);
+  }
+  const subscriptPattern = new RegExp(
+    `\\b${escaped}\\[\\s*(['"])([A-Za-z_$][\\w$]*)\\1\\s*\\]\\s*=`,
+    'g',
+  );
+  for (const match of source.matchAll(subscriptPattern)) {
+    if ((masked[match.index] ?? ' ') === ' ') continue;
+    if (match[2]) properties.add(match[2]);
   }
   return properties;
 }
@@ -342,13 +477,24 @@ function configurationInputLocus(
 }
 
 interface JavaScriptFunctionScope {
-  readonly name: string;
+  readonly name: string | null;
   readonly start: number;
   readonly end: number;
 }
 
 function javaScriptFunctionScopes(masked: string): readonly JavaScriptFunctionScope[] {
   const scopes: JavaScriptFunctionScope[] = [];
+  const addScope = (name: string | null, start: number): void => {
+    const end = matchingDelimiter(masked, start, '{', '}');
+    if (
+      start < 0 ||
+      end < 0 ||
+      scopes.some((scope) => scope.start === start && scope.end === end)
+    ) {
+      return;
+    }
+    scopes.push({ name, start, end });
+  };
   const patterns = [
     /^\s*(?:export\s+)?(?:async\s+)?(?:function\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^{\n]+)?\s*\{/gm,
     /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*(?::[^=\n]+)?=>\s*\{/g,
@@ -363,9 +509,26 @@ function javaScriptFunctionScopes(masked: string): readonly JavaScriptFunctionSc
         continue;
       }
       const start = declaration.index + declaration[0].lastIndexOf('{');
-      const end = matchingDelimiter(masked, start, '{', '}');
-      if (start >= 0 && end >= 0) scopes.push({ name: functionName, start, end });
+      addScope(functionName, start);
     }
+  }
+  for (const callback of masked.matchAll(
+    /(?:async\s*)?\([^()]*\)\s*(?::[^=\n]+)?=>\s*\{/g,
+  )) {
+    addScope(null, callback.index + callback[0].lastIndexOf('{'));
+  }
+  for (const callback of masked.matchAll(
+    /(?:async\s+)?[A-Za-z_$][\w$]*\s*=>\s*\{/g,
+  )) {
+    addScope(null, callback.index + callback[0].lastIndexOf('{'));
+  }
+  for (const callback of masked.matchAll(
+    /\b(?:async\s+)?function(?:\s+([A-Za-z_$][\w$]*))?\s*\([^)]*\)\s*\{/g,
+  )) {
+    addScope(
+      callback[1] ?? null,
+      callback.index + callback[0].lastIndexOf('{'),
+    );
   }
   return scopes;
 }
@@ -374,8 +537,8 @@ function hasScopedInvocationBefore(
   contents: string,
   invocations: readonly ModelInvocation[],
   resultIndex: number,
+  scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(contents)),
 ): boolean {
-  const scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(contents));
   const resultScope = scopes
     .filter((scope) => resultIndex > scope.start && resultIndex < scope.end)
     .sort((left, right) => right.start - left.start)[0];
@@ -418,7 +581,7 @@ function hasLocalOrResolvedHelperInvocationBefore(
   if (!resultScope) return false;
   const callerPrefix = masked.slice(resultScope.start + 1, resultIndex);
   return scopes.some((callee) => {
-    if (callee.start === resultScope.start) return false;
+    if (callee.start === resultScope.start || !callee.name) return false;
     const ownsModelInvocation = invocations.some(
       (invocation) =>
         invocation.index > callee.start &&
@@ -437,6 +600,20 @@ function hasLocalOrResolvedHelperInvocationBefore(
       `(?:\\bawait\\s+|=\\s*|\\breturn\\s+)${escapedName}\\s*\\(`,
     ).test(callerPrefix);
   });
+}
+
+function sameJavaScriptLocalScope(
+  scopes: readonly JavaScriptFunctionScope[],
+  leftIndex: number,
+  rightIndex: number,
+): boolean {
+  const innermostAt = (index: number): JavaScriptFunctionScope | undefined =>
+    scopes
+      .filter((scope) => index > scope.start && index < scope.end)
+      .sort((left, right) => right.start - left.start)[0];
+  const left = innermostAt(leftIndex);
+  const right = innermostAt(rightIndex);
+  return left?.start === right?.start && left?.end === right?.end;
 }
 
 function parameterBackedPerCaseProvenanceFinding(
@@ -520,6 +697,7 @@ function returnedCollectionProvenanceFinding(
   const masked = maskJavaScriptNonCode(file.contents);
   const scopes = javaScriptFunctionScopes(masked);
   for (const scope of scopes) {
+    if (!scope.name) continue;
     if (!/(?:eval|evaluation|evaluator|judge|grader|score|benchmark|assess|metric)/i.test(
       scope.name,
     )) continue;
@@ -761,7 +939,12 @@ export function detectBoundedEvaluationResultProvenance(
   return findings;
 }
 
-function directObjectEmission(contents: string, emitterIndex: number): LocalEmission | null {
+function directObjectEmission(
+  contents: string,
+  emitterIndex: number,
+  scopes: readonly JavaScriptFunctionScope[],
+  assignmentEvents: readonly JavaScriptAssignmentEvent[],
+): LocalEmission | null {
   const callStart = contents.indexOf('(', emitterIndex);
   if (callStart < 0) return null;
   const callEnd = matchingDelimiter(contents, callStart, '(', ')');
@@ -773,21 +956,179 @@ function directObjectEmission(contents: string, emitterIndex: number): LocalEmis
   if (objectStart < 0) return null;
   const objectEnd = matchingDelimiter(call, objectStart, '{', '}');
   if (objectEnd < 0) return null;
+  const body = call.slice(objectStart + 1, objectEnd);
+  const references = objectReferences(body);
   return {
     index: emitterIndex,
-    properties: objectProperties(call.slice(objectStart + 1, objectEnd)),
+    properties: objectProperties(body),
+    latestAssignmentIndices: latestAssignmentsForReferences(
+      references,
+      emitterIndex,
+      scopes,
+      assignmentEvents,
+    ),
   };
 }
 
-function localEmissions(file: LlmSourceFile): readonly LocalEmission[] {
+interface JavaScriptAssignmentEvent {
+  readonly index: number;
+  readonly target: string;
+}
+
+function canonicalPropertyAssignmentTarget(target: string): string {
+  const staticReferences = target.replace(
+    /\[\s*(['"])([A-Za-z_$][\w$]*)\1\s*\]/g,
+    '.$2',
+  );
+  return staticReferences.replace(/\[[^\]\n]+\]$/, '');
+}
+
+function javaScriptAssignmentEvents(
+  contents: string,
+  masked = maskJavaScriptNonCode(contents),
+): readonly JavaScriptAssignmentEvent[] {
+  const events: JavaScriptAssignmentEvent[] = [];
+  for (const match of contents.matchAll(ASSIGNMENT_PATTERN)) {
+    if ((masked[match.index] ?? ' ') === ' ' || !match[1]) continue;
+    events.push({ index: match.index, target: match[1] });
+  }
+  for (const match of contents.matchAll(PROPERTY_ASSIGNMENT_PATTERN)) {
+    if ((masked[match.index] ?? ' ') === ' ') continue;
+    const target = match[1];
+    if (target) {
+      events.push({
+        index: match.index,
+        target: canonicalPropertyAssignmentTarget(target),
+      });
+    }
+  }
+  for (const match of contents.matchAll(
+    /\b([A-Za-z_$][\w$]*)\s*=\s*(?![=>])[^;\n]+(?:;|$)/gm,
+  )) {
+    if ((masked[match.index] ?? ' ') === ' ' || !match[1]) continue;
+    const previousCharacter = masked[match.index - 1];
+    if (previousCharacter === '.' || previousCharacter === ']') continue;
+    const lineStart = masked.lastIndexOf('\n', match.index) + 1;
+    if (/\b(?:const|let|var)\s*$/.test(masked.slice(lineStart, match.index))) continue;
+    events.push({ index: match.index, target: match[1] });
+  }
+  events.sort((left, right) => left.index - right.index);
+  return events;
+}
+
+function latestAssignmentsForReferences(
+  references: ReadonlySet<string>,
+  beforeIndex: number,
+  scopes: readonly JavaScriptFunctionScope[],
+  assignmentEvents: readonly JavaScriptAssignmentEvent[],
+): ReadonlyMap<string, number> {
+  const latest = new Map<string, number>();
+  for (const assignment of assignmentEvents) {
+    if (
+      assignment.index >= beforeIndex ||
+      !references.has(assignment.target) ||
+      !sameJavaScriptLocalScope(scopes, assignment.index, beforeIndex)
+    ) {
+      continue;
+    }
+    latest.set(assignment.target, assignment.index);
+  }
+  return latest;
+}
+
+function identifierEmission(
+  contents: string,
+  emitterIndex: number,
+  scopes: readonly JavaScriptFunctionScope[],
+  objects: readonly BoundObject[],
+  assignmentEvents: readonly JavaScriptAssignmentEvent[],
+): LocalEmission | null {
+  const callStart = contents.indexOf('(', emitterIndex);
+  if (callStart < 0) return null;
+  const callEnd = matchingDelimiter(contents, callStart, '(', ')');
+  if (callEnd < 0) return null;
+  const call = contents.slice(callStart + 1, callEnd);
+  const identifier = call.match(
+    /\bJSON\.stringify\s*\(\s*([A-Za-z_$][\w$]*)\b/,
+  )?.[1];
+  if (!identifier) return null;
+  const object = objects
+    .filter(
+      (candidate) =>
+        candidate.name === identifier &&
+        candidate.end < emitterIndex &&
+        sameJavaScriptLocalScope(scopes, candidate.index, emitterIndex),
+    )
+    .at(-1);
+  if (!object) return null;
+  const assignments = assignmentEvents.filter(
+    (assignment) =>
+      assignment.index > object.end &&
+      assignment.index < emitterIndex &&
+      sameJavaScriptLocalScope(scopes, assignment.index, emitterIndex) &&
+      (
+        assignment.target === identifier ||
+        assignment.target.startsWith(`${identifier}.`)
+      ),
+  );
+  const latestAssignmentIndices = new Map(
+    latestAssignmentsForReferences(
+      object.references,
+      object.index,
+      scopes,
+      assignmentEvents,
+    ),
+  );
+  for (const assignment of assignments) {
+    latestAssignmentIndices.set(assignment.target, assignment.index);
+  }
+  return {
+    index: emitterIndex,
+    properties: new Set([
+      ...object.properties,
+      ...assignments.map((assignment) =>
+        assignment.target.slice(identifier.length + 1).split('.')[0],
+      ).filter((property): property is string => Boolean(property)),
+    ]),
+    latestAssignmentIndices,
+  };
+}
+
+function localEmissions(
+  file: LlmSourceFile,
+  scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(file.contents)),
+): readonly LocalEmission[] {
   const emissions: LocalEmission[] = [];
   const masked = maskJavaScriptNonCode(file.contents);
+  const objects = boundObjectLiterals(file.contents, masked);
+  const assignmentEvents = javaScriptAssignmentEvents(file.contents, masked);
   for (const match of file.contents.matchAll(RESULT_EMITTER_PATTERN)) {
     if ((masked[match.index] ?? ' ') === ' ') continue;
-    const emission = directObjectEmission(file.contents, match.index);
+    const emission =
+      directObjectEmission(
+        file.contents,
+        match.index,
+        scopes,
+        assignmentEvents,
+      ) ??
+      identifierEmission(
+        file.contents,
+        match.index,
+        scopes,
+        objects,
+        assignmentEvents,
+      );
     if (emission) emissions.push(emission);
   }
   return emissions;
+}
+
+function emissionContainsAggregate(
+  emission: LocalEmission,
+  assignment: AggregateAssignment,
+): boolean {
+  if (assignment.index >= emission.index) return false;
+  return emission.latestAssignmentIndices.get(assignment.target) === assignment.index;
 }
 
 function hasAny(properties: ReadonlySet<string>, candidates: ReadonlySet<string>): boolean {
@@ -822,17 +1163,26 @@ function detectMissingProvenance(
   const findings: CejelLlmEvaluationFinding[] = [];
   for (const file of files) {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) continue;
+    const scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(file.contents));
+    const invocations = modelInvocations(file.contents);
     const aggregateAssignments = aggregateAssignmentsIn(file.contents);
-    if (aggregateAssignments.size === 0) continue;
-    for (const emission of localEmissions(file)) {
-      const emittedAggregates = [...aggregateAssignments].filter(([name]) =>
-        emission.properties.has(name),
+    if (aggregateAssignments.length === 0) continue;
+    for (const emission of localEmissions(file, scopes)) {
+      const emittedAggregates = aggregateAssignments.filter(
+        (assignment) =>
+          emissionContainsAggregate(emission, assignment) &&
+          sameJavaScriptLocalScope(scopes, assignment.index, emission.index),
       );
       if (emittedAggregates.length === 0) continue;
       const firstAggregateIndex = Math.min(
-        ...emittedAggregates.map(([, assignment]) => assignment.index),
+        ...emittedAggregates.map((assignment) => assignment.index),
       );
-      if (!hasLocalLlmEvaluationInvocation(file, firstAggregateIndex)) continue;
+      if (!hasScopedInvocationBefore(
+        file.contents,
+        invocations,
+        firstAggregateIndex,
+        scopes,
+      )) continue;
       const hasModelLineage = hasAny(emission.properties, LINEAGE_MODEL_KEYS);
       const hasConfigurationLineage = hasAny(emission.properties, LINEAGE_CONFIG_KEYS);
       if (hasModelLineage && hasConfigurationLineage) continue;
@@ -865,24 +1215,51 @@ function detectMissingProvenanceIncludingBoundedResults(
   ];
 }
 
-function aggregateAssignmentsIn(contents: string): ReadonlyMap<string, AggregateAssignment> {
-  const assignments = new Map<string, AggregateAssignment>();
+function aggregateAssignmentsIn(contents: string): readonly AggregateAssignment[] {
+  const assignments: AggregateAssignment[] = [];
   const masked = maskJavaScriptNonCode(contents);
+  const addAssignment = (
+    name: string | undefined,
+    target: string | undefined,
+    expression: string | undefined,
+    index: number,
+  ): void => {
+    if (!name || !target || !expression || !isAggregateName(name)) return;
+    if (!/\.length\s*\/|\/\s*[A-Za-z_$][\w$]*\.length\b|\.reduce\s*\(/.test(expression)) {
+      return;
+    }
+    const denominatorCollections = new Set<string>();
+    for (const denominator of expression.matchAll(
+      /\/\s*([A-Za-z_$][\w$]*)\.length\b/g,
+    )) {
+      if (denominator[1]) denominatorCollections.add(denominator[1]);
+    }
+    assignments.push({ index, target, denominatorCollections });
+  };
   for (const match of contents.matchAll(ASSIGNMENT_PATTERN)) {
     if ((masked[match.index] ?? ' ') === ' ') continue;
-    const name = match[1];
-    const expression = match[2];
-    if (!name || !expression) continue;
-    if (!AGGREGATE_NAME_PATTERN.test(name)) continue;
-    if (/\.length\s*\/|\/\s*[A-Za-z_$][\w$]*\.length\b|\.reduce\s*\(/.test(expression)) {
-      const denominatorCollections = new Set<string>();
-      for (const denominator of expression.matchAll(
-        /\/\s*([A-Za-z_$][\w$]*)\.length\b/g,
-      )) {
-        if (denominator[1]) denominatorCollections.add(denominator[1]);
-      }
-      assignments.set(name, { index: match.index, denominatorCollections });
-    }
+    addAssignment(match[1], match[1], match[2], match.index);
+  }
+  for (const match of contents.matchAll(PROPERTY_ASSIGNMENT_PATTERN)) {
+    if ((masked[match.index] ?? ' ') === ' ') continue;
+    const target = match[1];
+    if (!target) continue;
+    const staticSubscript = target.match(/\[\s*(['"])([A-Za-z_$][\w$]*)\1\s*\]$/)?.[2];
+    const withoutSubscript = target.replace(/\[[^\]\n]+\]$/, '');
+    const segments = withoutSubscript.split('.');
+    const root = segments[0];
+    const leaf = staticSubscript ?? segments.at(-1);
+    const name = leaf && isAggregateName(leaf)
+      ? leaf
+      : root && isAggregateName(root)
+        ? root
+        : undefined;
+    addAssignment(
+      name,
+      canonicalPropertyAssignmentTarget(target),
+      match[2],
+      match.index,
+    );
   }
   return assignments;
 }
@@ -905,37 +1282,42 @@ function hasOutcomeCounts(properties: ReadonlySet<string>): boolean {
   return [...properties].some((property) => OUTCOME_COUNT_PATTERN.test(property));
 }
 
-function hasLocalLlmEvaluationInvocation(file: LlmSourceFile, beforeIndex: number): boolean {
-  return modelInvocations(file.contents).some((invocation) => invocation.index < beforeIndex);
-}
-
 function detectMissingDenominator(
   files: readonly LlmSourceFile[],
 ): readonly CejelLlmEvaluationFinding[] {
   const findings: CejelLlmEvaluationFinding[] = [];
   for (const file of files) {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) continue;
+    const scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(file.contents));
+    const invocations = modelInvocations(file.contents);
     const aggregateAssignments = aggregateAssignmentsIn(file.contents);
     const denominatorAliases = denominatorAliasAssignments(file.contents);
-    if (aggregateAssignments.size === 0) continue;
+    if (aggregateAssignments.length === 0) continue;
     const iteratesCases = /\.(?:map|filter|reduce|forEach)\s*\(|\bfor\s*\([^)]*\bof\b/.test(
       file.contents,
     );
     if (!iteratesCases) continue;
-    for (const emission of localEmissions(file)) {
-      const emittedAggregates = [...aggregateAssignments].filter(([name]) =>
-        emission.properties.has(name),
+    for (const emission of localEmissions(file, scopes)) {
+      const emittedAggregates = aggregateAssignments.filter(
+        (assignment) =>
+          emissionContainsAggregate(emission, assignment) &&
+          sameJavaScriptLocalScope(scopes, assignment.index, emission.index),
       );
       if (emittedAggregates.length === 0) continue;
       const firstAggregateIndex = Math.min(
-        ...emittedAggregates.map(([, assignment]) => assignment.index),
+        ...emittedAggregates.map((assignment) => assignment.index),
       );
-      if (!hasLocalLlmEvaluationInvocation(file, firstAggregateIndex)) continue;
+      if (!hasScopedInvocationBefore(
+        file.contents,
+        invocations,
+        firstAggregateIndex,
+        scopes,
+      )) continue;
       if (hasAny(emission.properties, DENOMINATOR_KEYS)) continue;
       const emittedAliasHasLineage = [...emission.properties].some((property) => {
         const alias = denominatorAliases.get(property);
         if (!alias || alias.index >= emission.index) return false;
-        return emittedAggregates.some(([, aggregate]) =>
+        return emittedAggregates.some((aggregate) =>
           aggregate.denominatorCollections.has(alias.collection),
         );
       });
@@ -1060,13 +1442,19 @@ function detectMissingDenominatorAcrossLanguages(
 function hasAggregateEvaluationSurface(files: readonly LlmSourceFile[]): boolean {
   return files.some((file) => {
     if (!completeLocalSource(file) || !hasSupportedEvaluationImport(file)) return false;
+    const scopes = javaScriptFunctionScopes(maskJavaScriptNonCode(file.contents));
+    const invocations = modelInvocations(file.contents);
     const aggregates = aggregateAssignmentsIn(file.contents);
-    if (aggregates.size === 0) return false;
-    return localEmissions(file).some((emission) => {
-      const emitted = [...aggregates].filter(([name]) => emission.properties.has(name));
+    if (aggregates.length === 0) return false;
+    return localEmissions(file, scopes).some((emission) => {
+      const emitted = aggregates.filter(
+        (assignment) =>
+          emissionContainsAggregate(emission, assignment) &&
+          sameJavaScriptLocalScope(scopes, assignment.index, emission.index),
+      );
       if (emitted.length === 0) return false;
-      const first = Math.min(...emitted.map(([, assignment]) => assignment.index));
-      return hasLocalLlmEvaluationInvocation(file, first);
+      const first = Math.min(...emitted.map((assignment) => assignment.index));
+      return hasScopedInvocationBefore(file.contents, invocations, first, scopes);
     });
   }) || files.some((file) => detectPythonMissingDenominator(file).length > 0);
 }

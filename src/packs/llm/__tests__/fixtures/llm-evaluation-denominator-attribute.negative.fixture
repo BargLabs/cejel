@@ -1,0 +1,11 @@
+import OpenAI from 'openai';
+import { writeFileSync } from 'node:fs';
+
+const client = new OpenAI();
+const eligible = cases.filter((item) => item.status === 'ok');
+await client.responses.create({ model: 'gpt-5', input: eligible[0] });
+const metrics = { modelId, promptDigest };
+metrics.accuracy =
+  eligible.filter((item) => item.correct).length / eligible.length;
+metrics.eligibleTotal = eligible.length;
+writeFileSync('evaluation.json', JSON.stringify(metrics));

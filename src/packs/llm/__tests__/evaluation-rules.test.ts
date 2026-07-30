@@ -646,6 +646,303 @@ describe('Free LLM evaluation and provenance rules', () => {
     expect(findings).toHaveLength(1);
   });
 
+  it.each([
+    [
+      'attribute',
+      'metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+      "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+    ],
+    [
+      'static subscript',
+      "metrics['accuracy'] = eligible.filter((item) => item.correct).length / eligible.length;",
+      "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+    ],
+    [
+      'dynamic subscript on an aggregate-named container',
+      'aggregateScores[metric] = scores.reduce((sum, value) => sum + value, 0) / scores.length;',
+      "writeFileSync('evaluation.json', JSON.stringify({ aggregateScores, modelId, promptDigest }));",
+    ],
+  ] as const)(
+    'detects a JavaScript aggregate assigned through a local %s',
+    (_name, assignment, emission) => {
+      const source: LlmSourceFile = {
+        path: 'src/evaluation/benchmarks.ts',
+        contents: [
+          "import OpenAI from 'openai';",
+          "import { writeFileSync } from 'node:fs';",
+          'const client = new OpenAI();',
+          "await client.responses.create({ model: 'gpt-5', input: candidate });",
+          'const eligible = cases.filter((item) => item.status === "ok");',
+          'const scores = eligible.map((item) => item.score);',
+          'const metrics = { modelId, promptDigest };',
+          'const aggregateScores = {};',
+          assignment,
+          emission,
+        ].join('\n'),
+      };
+      expect(
+        detectCejelLlmEvaluationRules([source]).filter(
+          (finding) => finding.ruleId === 'LLM-EVL-001',
+        ),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('suppresses a JavaScript attribute aggregate when the emitted result retains its denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const eligible = cases.filter((item) => item.status === "ok");',
+        'const metrics = { modelId, promptDigest };',
+        'metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        'metrics.eligibleTotal = eligible.length;',
+        "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not treat a mid-word JavaScript property substring as an aggregate name', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const flags = cases.map((item) => item.moderate);',
+        'const metrics = { modelId, promptDigest };',
+        'metrics.moderateCount = flags.reduce((sum, value) => sum + value, 0) / flags.length;',
+        "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not combine a JavaScript aggregate and identifier emitter across local scopes', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'async function calculateEvaluation() {',
+        '  const client = new OpenAI();',
+        "  await client.responses.create({ model: 'gpt-5', input: candidate });",
+        '  const eligible = cases.filter((item) => item.status === "ok");',
+        '  const metrics = {};',
+        '  metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        '}',
+        'function publishUnrelatedMetrics() {',
+        '  const metrics = { accuracy: cachedAccuracy, modelId, promptDigest };',
+        "  writeFileSync('evaluation.json', JSON.stringify(metrics));",
+        '}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not infer aggregate lineage from an unrelated emitted property value', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const eligible = cases.filter((item) => item.status === "ok");',
+        'const metrics = { modelId, promptDigest };',
+        'metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        "writeFileSync('evaluation.json', JSON.stringify({ accuracy: cachedAccuracy, modelId, promptDigest }));",
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not connect an emitted object to an aggregate assigned after emission', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const eligible = cases.filter((item) => item.status === "ok");',
+        'const metrics = { modelId, promptDigest };',
+        "writeFileSync('evaluation.json', JSON.stringify(metrics));",
+        'metrics.accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not retain aggregate lineage after the emitted variable is overwritten', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        'const eligible = cases.filter((item) => item.status === "ok");',
+        'let accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        'accuracy = cachedAccuracy;',
+        "writeFileSync('evaluation.json', JSON.stringify({ accuracy, modelId, promptDigest }));",
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not combine evaluation evidence across sibling callback scopes', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        'cases.forEach(async (candidate) => {',
+        "  await client.responses.create({ model: 'gpt-5', input: candidate });",
+        '  const eligible = cases.filter((item) => item.status === "ok");',
+        '  const accuracy = eligible.filter((item) => item.correct).length / eligible.length;',
+        '});',
+        'queueMicrotask(() => {',
+        "  writeFileSync('evaluation.json', JSON.stringify({ accuracy, modelId, promptDigest }));",
+        '});',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
+  it('detects a Python aggregate assigned to a local result attribute', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, cases):',
+        '        scores = [judge.evaluate(case).score for case in cases]',
+        '        result = BenchmarkResult(model_id="judge-v1")',
+        '        result.average_score = sum(scores) / len(scores)',
+        '        return result',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      'return',
+      [
+        '        return result',
+        '        result.eligible_count = len(scores)',
+        '        store_result(result, eligible_count=result.eligible_count)',
+      ],
+    ],
+    [
+      'persistence call',
+      [
+        '        store_result(result)',
+        '        result.eligible_count = len(scores)',
+        '        return result',
+      ],
+    ],
+  ] as const)(
+    'ignores Python denominator mutations after the first observable %s',
+    (_name, observableLines) => {
+      const source: LlmSourceFile = {
+        path: 'src/evaluation/benchmarks.py',
+        contents: [
+          'class BenchmarkRunner:',
+          '    def run_benchmark(self, judge, cases):',
+          '        scores = [judge.evaluate(case).score for case in cases]',
+          '        result = BenchmarkResult(model_id="judge-v1")',
+          '        result.average_score = sum(scores) / len(scores)',
+          ...observableLines,
+        ].join('\n'),
+      };
+      expect(
+        detectCejelLlmEvaluationRules([source]).filter(
+          (finding) => finding.ruleId === 'LLM-EVL-001',
+        ),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('ignores Python provenance mutations after the result is returned', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, case):',
+        '        verdict = judge.evaluate(case)',
+        '        result = EvaluationResult(model_id="judge-v1")',
+        '        result.score = verdict.score',
+        '        return result',
+        '        result.config_id = config_id',
+        '        store_result(result, config_id=result.config_id)',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-PRV-001',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('suppresses a Python result-attribute aggregate when the result retains its denominator', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'class BenchmarkRunner:',
+        '    def run_benchmark(self, judge, cases):',
+        '        scores = [judge.evaluate(case).score for case in cases]',
+        '        result = BenchmarkResult(model_id="judge-v1")',
+        '        result.average_score = sum(scores) / len(scores)',
+        '        result.eligible_count = len(scores)',
+        '        return result',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
   it('recognizes a domain-named manager component (metrics_manager.evaluate) as a judge invocation', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluation/benchmarks.py',
@@ -771,6 +1068,27 @@ describe('Free LLM evaluation and provenance rules', () => {
     const start = performance.now();
     supportedJavaScriptModelCallIndices(contents);
     expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it('indexes JavaScript scopes once for many aggregate-emission pairs', () => {
+    const pairs = Array.from({ length: 200 }, (_, index) => [
+      `const scores_${index} = cases.map((item) => item.score);`,
+      `const accuracy_${index} = scores_${index}.reduce((sum, value) => sum + value, 0) / scores_${index}.length;`,
+      `writeFileSync('evaluation-${index}.json', JSON.stringify({ accuracy_${index}, modelId, promptDigest }));`,
+    ].join('\n'));
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.ts',
+      contents: [
+        "import OpenAI from 'openai';",
+        "import { writeFileSync } from 'node:fs';",
+        'const client = new OpenAI();',
+        "await client.responses.create({ model: 'gpt-5', input: candidate });",
+        ...pairs,
+      ].join('\n'),
+    };
+    const start = performance.now();
+    detectCejelLlmEvaluationRules([source]);
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 
   it('still treats retained raw per-example results as a sufficient denominator substitute even for a subscript-built aggregate dict', () => {
