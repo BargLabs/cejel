@@ -3,7 +3,7 @@
   "card": "C2",
   "wave": 1,
   "status": "complete",
-  "pr": null,
+  "pr": "https://github.com/BargLabs/cejel/pull/57",
   "denominators": {
     "window_start_utc": "2026-06-30T21:45:25Z",
     "window_end_utc": "2026-07-30T21:45:25Z",
