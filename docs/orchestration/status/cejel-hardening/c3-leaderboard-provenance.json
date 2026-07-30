@@ -3,7 +3,7 @@
   "card": "C3",
   "wave": 1,
   "status": "complete",
-  "pr": null,
+  "pr": "https://github.com/BargLabs/cejel/pull/58",
   "denominators": {
     "baseline": {
       "revision": "74ae7f86bab42f8dfb10d92c6c59a566b9c1644d",
