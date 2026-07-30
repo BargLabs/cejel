@@ -12,13 +12,14 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-        with:
-          version: 9.0.0
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
           cache: 'pnpm'
+
+      - name: Assert devDependency install environment
+        run: node scripts/assert-dev-environment.mjs --phase=preinstall
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck

@@ -3,7 +3,8 @@ FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb
 WORKDIR /src
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
+COPY scripts/assert-dev-environment.mjs ./scripts/assert-dev-environment.mjs
 RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json tsup.config.ts ./
