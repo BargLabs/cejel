@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 const PACKAGE_PATH = new URL('../package.json', import.meta.url);
 const PUBLISHED_VERSIONS_PATH = new URL('../published-versions.json', import.meta.url);
@@ -14,6 +14,7 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
 const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml', import.meta.url);
 const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
 const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
+const WORKFLOWS_DIR = new URL('../.github/workflows/', import.meta.url);
 const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
 const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
 const ALFRED_REPORT_PATH = new URL('../leaderboard/reports/alfred.json', import.meta.url);
@@ -35,6 +36,9 @@ const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
 const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
 const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
 const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
+const workflows = readdirSync(WORKFLOWS_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
+  .map((entry) => [entry.name, readFileSync(new URL(entry.name, WORKFLOWS_DIR), 'utf8')]);
 const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
 const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
 const alfredReport = JSON.parse(readFileSync(ALFRED_REPORT_PATH, 'utf8'));
@@ -60,6 +64,43 @@ function requireIncludes(haystack, needle, field) {
   if (!haystack.includes(needle)) {
     throw new Error(`${field} must include ${JSON.stringify(needle)}.`);
   }
+}
+
+function requirePnpmVersionDerived(workflowName, workflow, expectedVersion) {
+  const lines = workflow.split(/\r?\n/);
+
+  for (const [index, line] of lines.entries()) {
+    if (!/^\s*(?:-\s*)?uses:\s*pnpm\/action-setup@/.test(line)) continue;
+
+    const stepIndent = line.match(/^\s*/)?.[0].length ?? 0;
+    for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
+      const nextLine = lines[nextIndex];
+      const nextIndent = nextLine.match(/^\s*/)?.[0].length ?? 0;
+      if (nextIndent <= stepIndent && /^\s*-\s+/.test(nextLine)) break;
+
+      const versionMatch = nextLine.match(/^\s*version:\s*['"]?([^'"\s#]+)['"]?/);
+      if (!versionMatch) continue;
+
+      const hardcodedVersion = versionMatch[1];
+      if (hardcodedVersion !== expectedVersion) {
+        throw new Error(
+          `${workflowName} pnpm/action-setup version ${hardcodedVersion} disagrees with package.json packageManager pnpm@${expectedVersion}; remove the workflow version so it is derived.`,
+        );
+      }
+      throw new Error(
+        `${workflowName} hardcodes pnpm/action-setup version ${hardcodedVersion}; remove the workflow version so pnpm@${expectedVersion} is derived from package.json packageManager.`,
+      );
+    }
+  }
+}
+
+const packageManagerMatch = packageManifest.packageManager?.match(/^pnpm@(\d+\.\d+\.\d+)$/);
+if (!packageManagerMatch) {
+  throw new Error('package.json packageManager must pin pnpm to an exact semantic version.');
+}
+const pnpmVersion = packageManagerMatch[1];
+for (const [workflowName, workflow] of workflows) {
+  requirePnpmVersionDerived(workflowName, workflow, pnpmVersion);
 }
 
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');

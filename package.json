@@ -31,6 +31,7 @@
     "type": "git",
     "url": "git+https://github.com/BargLabs/cejel.git"
   },
+  "packageManager": "pnpm@9.0.0",
   "type": "module",
   "bin": {
     "cejel": "dist/index.js",
@@ -47,9 +48,12 @@
   "scripts": {
     "build": "tsup",
     "build:sea-js": "tsup --config tsup.public-sea.config.ts",
+    "check:dev-environment": "node scripts/assert-dev-environment.mjs --phase=verify",
     "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
+    "pnpm:devPreinstall": "node scripts/assert-dev-environment.mjs --phase=preinstall",
     "prepublishOnly": "pnpm run build",
     "prepack": "pnpm run build",
+    "pretest": "node scripts/assert-dev-environment.mjs --phase=verify",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
