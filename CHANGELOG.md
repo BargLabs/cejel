@@ -29,9 +29,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - The offline architecture guard now parses every first-party `src` and deployed `api` scoring
-  module with the TypeScript compiler instead of matching raw source text. Bare built-ins, aliases,
-  re-exports, computed loaders, and indirect global network primitives can no longer bypass the
-  single hardened Git subprocess boundary.
+  module and its resolved first-party dependencies with the TypeScript compiler instead of matching
+  raw source text. Bare built-ins, unapproved package entrypoints, aliases, re-exports, computed
+  loaders, and indirect global network primitives can no longer bypass the single hardened Git
+  subprocess boundary.
 
 ---
 

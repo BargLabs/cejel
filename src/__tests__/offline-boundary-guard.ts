@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs';
+import { isBuiltin } from 'node:module';
 import { extname, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 
@@ -30,12 +31,23 @@ const NETWORK_MODULES = new Set([
   'ws',
 ]);
 const OPAQUE_LOADER_MODULES = new Set(['module']);
+// External packages are not capability-transparent. Keep the exact runtime
+// entrypoints used by the scoring graph explicit so a new client/transport
+// import requires review instead of silently expanding the offline boundary.
+const ALLOWED_EXTERNAL_MODULES = new Set([
+  '@modelcontextprotocol/sdk/server/mcp.js',
+  '@modelcontextprotocol/sdk/server/stdio.js',
+  '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js',
+  'zod',
+]);
 const OUTBOUND_GLOBALS = new Set(['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource']);
-const GLOBAL_OBJECTS = new Set(['globalThis', 'window', 'self']);
+const GLOBAL_OBJECTS = new Set(['globalThis', 'global', 'window', 'self']);
+const GLOBAL_LOADER_OBJECTS = new Set(['process', 'module']);
 
 export type OfflineBoundaryViolationKind =
   | 'subprocess_module'
   | 'network_module'
+  | 'unapproved_external_module'
   | 'opaque_module_loader'
   | 'outbound_global';
 
@@ -149,6 +161,14 @@ function globalObjectName(checker: ts.TypeChecker, node: ts.Expression): string 
     : null;
 }
 
+function globalLoaderObjectName(checker: ts.TypeChecker, node: ts.Expression): string | null {
+  return ts.isIdentifier(node) &&
+    GLOBAL_LOADER_OBJECTS.has(node.text) &&
+    isGlobalBinding(checker, node)
+    ? node.text
+    : null;
+}
+
 function propertyNameText(
   node: ts.PropertyName | ts.BindingName | ts.Expression | undefined,
 ): string | null {
@@ -166,16 +186,40 @@ function isRequireCall(checker: ts.TypeChecker, node: ts.CallExpression): boolea
     return isGlobalBinding(checker, node.expression);
   }
   return (
-    ts.isPropertyAccessExpression(node.expression) &&
-    ts.isIdentifier(node.expression.expression) &&
-    node.expression.expression.text === 'module' &&
-    isGlobalBinding(checker, node.expression.expression) &&
-    node.expression.name.text === 'require'
+    ((ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'require') ||
+      (ts.isElementAccessExpression(node.expression) &&
+        literalText(node.expression.argumentExpression) === 'require')) &&
+    globalLoaderObjectName(checker, node.expression.expression) === 'module'
   );
 }
 
 function isDirectRequireCallee(node: ts.Node): boolean {
   return ts.isCallExpression(node.parent) && node.parent.expression === node;
+}
+
+function isDirectCapabilityReceiver(node: ts.Identifier): boolean {
+  const parent = node.parent;
+  return (
+    ((ts.isPropertyAccessExpression(parent) || ts.isElementAccessExpression(parent)) &&
+      parent.expression === node) ||
+    (ts.isVariableDeclaration(parent) &&
+      ts.isObjectBindingPattern(parent.name) &&
+      parent.initializer === node)
+  );
+}
+
+function isFirstPartySourceFile(repoRoot: string, sourceFile: ts.SourceFile): boolean {
+  if (sourceFile.isDeclarationFile) return false;
+  const repoPath = toRepoPath(repoRoot, sourceFile.fileName);
+  const segments = repoPath.split('/');
+  return (
+    repoPath !== '' &&
+    repoPath !== '..' &&
+    !repoPath.startsWith('../') &&
+    !segments.includes('node_modules') &&
+    PRODUCTION_SOURCE_EXTENSIONS.has(extname(sourceFile.fileName))
+  );
 }
 
 export function findOfflineBoundaryViolations(
@@ -257,6 +301,18 @@ export function findOfflineBoundaryViolations(
         'opaque_module_loader',
         `${loadKind} reaches ${JSON.stringify(specifier)}, which can construct an untracked module loader`,
       );
+      return;
+    }
+    if (isBuiltin(specifier)) return;
+    if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+      if (!ALLOWED_EXTERNAL_MODULES.has(specifier)) {
+        add(
+          sourceFile,
+          node,
+          'unapproved_external_module',
+          `${loadKind} reaches unapproved external module ${JSON.stringify(specifier)}`,
+        );
+      }
     }
   }
 
@@ -321,6 +377,13 @@ export function findOfflineBoundaryViolations(
           'outbound_global',
           `${objectName}.${node.name.text} exposes an outbound network primitive`,
         );
+      } else if (objectName && GLOBAL_LOADER_OBJECTS.has(node.name.text)) {
+        add(
+          sourceFile,
+          node,
+          'opaque_module_loader',
+          `${objectName}.${node.name.text} exposes an opaque module-loader object`,
+        );
       }
     } else if (ts.isElementAccessExpression(node)) {
       const objectName = globalObjectName(checker, node.expression);
@@ -340,20 +403,30 @@ export function findOfflineBoundaryViolations(
             'outbound_global',
             `${objectName}[${JSON.stringify(member)}] exposes an outbound network primitive`,
           );
+        } else if (GLOBAL_LOADER_OBJECTS.has(member)) {
+          add(
+            sourceFile,
+            node,
+            'opaque_module_loader',
+            `${objectName}[${JSON.stringify(member)}] exposes an opaque module-loader object`,
+          );
         }
       }
-      if (
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === 'process' &&
-        isGlobalBinding(checker, node.expression) &&
-        propertyNameText(node.argumentExpression) === 'getBuiltinModule'
-      ) {
-        add(
-          sourceFile,
-          node,
-          'opaque_module_loader',
-          'process["getBuiltinModule"] can bypass static import analysis',
-        );
+      const loaderObjectName = globalLoaderObjectName(checker, node.expression);
+      if (loaderObjectName) {
+        const member = literalText(node.argumentExpression);
+        const loaderMember =
+          loaderObjectName === 'process' ? 'getBuiltinModule' : 'require';
+        if (member === null || member === loaderMember) {
+          add(
+            sourceFile,
+            node,
+            'opaque_module_loader',
+            member === null
+              ? `${loaderObjectName}[...] uses a computed module-loader capability lookup`
+              : `${loaderObjectName}[${JSON.stringify(member)}] exposes an opaque module loader`,
+          );
+        }
       }
     } else if (
       ts.isVariableDeclaration(node) &&
@@ -363,14 +436,21 @@ export function findOfflineBoundaryViolations(
     ) {
       for (const element of node.name.elements) {
         const member = propertyNameText(element.propertyName ?? element.name);
-        if (member === null || OUTBOUND_GLOBALS.has(member)) {
+        if (element.dotDotDotToken || member === null || OUTBOUND_GLOBALS.has(member)) {
           add(
             sourceFile,
             element,
             'outbound_global',
-            member === null
+            element.dotDotDotToken || member === null
               ? 'global capability rest binding is not statically bounded'
               : `global ${member} is aliased through destructuring`,
+          );
+        } else if (GLOBAL_LOADER_OBJECTS.has(member)) {
+          add(
+            sourceFile,
+            element,
+            'opaque_module_loader',
+            `global loader object ${member} is aliased through destructuring`,
           );
         }
       }
@@ -398,16 +478,67 @@ export function findOfflineBoundaryViolations(
         'outbound_global',
         `global ${node.text} exposes an outbound network primitive`,
       );
+    } else if (
+      ts.isIdentifier(node) &&
+      GLOBAL_OBJECTS.has(node.text) &&
+      isGlobalBinding(checker, node) &&
+      !isDirectCapabilityReceiver(node)
+    ) {
+      add(
+        sourceFile,
+        node,
+        'outbound_global',
+        `global object ${node.text} escapes direct capability analysis`,
+      );
+    } else if (
+      ts.isIdentifier(node) &&
+      GLOBAL_LOADER_OBJECTS.has(node.text) &&
+      isGlobalBinding(checker, node) &&
+      !isDirectCapabilityReceiver(node)
+    ) {
+      add(
+        sourceFile,
+        node,
+        'opaque_module_loader',
+        `global loader object ${node.text} escapes direct capability analysis`,
+      );
+    }
+
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer
+    ) {
+      const loaderObjectName = globalLoaderObjectName(checker, node.initializer);
+      if (loaderObjectName) {
+        const loaderMember =
+          loaderObjectName === 'process' ? 'getBuiltinModule' : 'require';
+        for (const element of node.name.elements) {
+          const member = propertyNameText(element.propertyName ?? element.name);
+          if (element.dotDotDotToken || member === null || member === loaderMember) {
+            add(
+              sourceFile,
+              element,
+              'opaque_module_loader',
+              element.dotDotDotToken || member === null
+                ? `${loaderObjectName} capability rest binding is not statically bounded`
+                : `${loaderObjectName}.${loaderMember} is aliased through destructuring`,
+            );
+          }
+        }
+      }
     }
 
     ts.forEachChild(node, (child) => visit(sourceFile, child));
   }
 
   for (const file of files) {
-    const sourceFile = program.getSourceFile(resolve(file));
-    if (!sourceFile) {
+    if (!program.getSourceFile(resolve(file))) {
       throw new Error(`offline_guard_source_unavailable:${toRepoPath(root, file)}`);
     }
+  }
+  for (const sourceFile of program.getSourceFiles()) {
+    if (!isFirstPartySourceFile(root, sourceFile)) continue;
     visit(sourceFile, sourceFile);
   }
 

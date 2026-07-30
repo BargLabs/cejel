@@ -61,9 +61,45 @@ describe('witan CLI offline guarantee', () => {
     ['process.getBuiltinModule loaders', 'get-builtin-module.fixture.ts', 'opaque_module_loader'],
     ['aliased require loaders', 'require-alias.fixture.ts', 'opaque_module_loader'],
     ['subprocess imports outside the chokepoint', 'subprocess.fixture.ts', 'subprocess_module'],
+    [
+      'an existing package HTTP client',
+      'external-client.fixture.ts',
+      'unapproved_external_module',
+    ],
+    ['global-object aliases', 'global-object-alias.fixture.ts', 'outbound_global'],
+    ['computed loader members', 'computed-loader-member.fixture.ts', 'opaque_module_loader'],
+    [
+      'network modules behind an excluded transitive path',
+      'transitive-entry.fixture.ts',
+      'network_module',
+    ],
   ])('rejects %s', (_label, fixture, expectedKind) => {
     const violations = findOfflineBoundaryViolations(repoRoot, [join(fixtureRoot, fixture)]);
     expect(violations.map((violation) => violation.kind)).toContain(expectedKind);
+  });
+
+  it('rejects both globalThis and Node global aliases', () => {
+    const violations = findOfflineBoundaryViolations(repoRoot, [
+      join(fixtureRoot, 'global-object-alias.fixture.ts'),
+    ]);
+    expect(violations.map((violation) => violation.detail)).toEqual(
+      expect.arrayContaining([
+        'global object globalThis escapes direct capability analysis',
+        'global object global escapes direct capability analysis',
+      ]),
+    );
+  });
+
+  it('rejects both computed process and module loader members', () => {
+    const violations = findOfflineBoundaryViolations(repoRoot, [
+      join(fixtureRoot, 'computed-loader-member.fixture.ts'),
+    ]);
+    expect(violations.map((violation) => violation.detail)).toEqual(
+      expect.arrayContaining([
+        'process[...] uses a computed module-loader capability lookup',
+        'module[...] uses a computed module-loader capability lookup',
+      ]),
+    );
   });
 
   it.each([
@@ -75,6 +111,10 @@ describe('witan CLI offline guarantee', () => {
     'network-subpath.fixture.ts',
     'require-alias.fixture.ts',
     'subprocess.fixture.ts',
+    'external-client.fixture.ts',
+    'global-object-alias.fixture.ts',
+    'computed-loader-member.fixture.ts',
+    'transitive-entry.fixture.ts',
   ])('%s demonstrates a bypass of the legacy source-text guard', (fixture) => {
     const contents = readFileSync(join(fixtureRoot, fixture), 'utf8');
     expect(legacySourcePatterns.some((pattern) => pattern.test(contents))).toBe(false);
