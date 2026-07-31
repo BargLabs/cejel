@@ -26,3 +26,8 @@ A1-B6 Witan rubric, alter certificate scores, or change the published leaderboar
 oracle-backed acceptance pair is outside the frozen historical denominator. DC-02, DC-06, DC-12,
 and DC-14 remain semantic D4 examples rather than exact proof for this matcher; none is claimed as
 caught. Their frozen result remains cited `0 / 4` and paired-clean findings `0 / 4`.
+
+The detector was frozen before public-cohort observation and produced zero findings across all 23
+public leaderboard repositories at their pinned revisions (`0 / 23`). The leaderboard tree was
+byte-identical before and after the run. The machine-readable result is
+`docs/experiments/d4-precision-gate-2026-07-31.json`.

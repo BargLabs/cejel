@@ -26,3 +26,10 @@ leaderboard artifacts and scores must remain byte-identical.
 The focused regression guard was observed RED before implementation: Vitest could not resolve the
 then-absent `empty-failure-conflation.js` detector module. After implementation, the same focused
 guard passed all 10 tests.
+
+Detector behavior was frozen in commit `7af6118` before its first public-cohort observation. That
+observation passed with findings `0 / 23`; every checkout matched its pinned revision. The matcher
+source SHA-256 was
+`418393eb1fcf7b9cffaeb24b9ce86e97b87e61770faf83d1b9c22459ec38f4ae`, and no matcher edit was
+made after observation. The leaderboard tree SHA-256 remained
+`54e066650b27563022d4bd6f7c43c3276021a5dc0adb3b72725125c21237cce6` before and after the run.
