@@ -3,6 +3,11 @@ import { isBuiltin } from 'node:module';
 import { extname, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 
+import {
+  createTypeScriptModuleGraph,
+  isFirstPartyModuleGraphSource,
+} from '../typescript-module-graph.js';
+
 export const SCORING_SOURCE_ROOTS = ['src', 'api'] as const;
 export const ALLOWED_SUBPROCESS_FILE = 'src/witan/git-exec.ts';
 
@@ -50,6 +55,10 @@ const ALLOWED_EXTERNAL_MODULES = new Set([
   // /api/mcp now requires application-level bearer authentication; retain this transport so
   // authorized remote clients can use the route without granting scoring code outbound access.
   '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js',
+  // D-series structural rules bundle the compiler and use only its in-process parser, resolver,
+  // and checker over the caller-supplied local repository. TypeScript has no outbound transport
+  // role in the pack and remains a bundled build input rather than an installed runtime package.
+  'typescript',
   'zod',
 ]);
 const OUTBOUND_GLOBALS = new Set(['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource']);
@@ -249,19 +258,6 @@ function isErasedTypeNode(node: ts.Node): boolean {
   );
 }
 
-function isFirstPartySourceFile(repoRoot: string, sourceFile: ts.SourceFile): boolean {
-  if (sourceFile.isDeclarationFile) return false;
-  const repoPath = toRepoPath(repoRoot, sourceFile.fileName);
-  const segments = repoPath.split('/');
-  return (
-    repoPath !== '' &&
-    repoPath !== '..' &&
-    !repoPath.startsWith('../') &&
-    !segments.includes('node_modules') &&
-    PRODUCTION_SOURCE_EXTENSIONS.has(extname(sourceFile.fileName))
-  );
-}
-
 export function findOfflineBoundaryViolations(
   repoRoot: string,
   files: readonly string[],
@@ -269,18 +265,7 @@ export function findOfflineBoundaryViolations(
   const root = resolve(repoRoot);
   // A Program provides the parsed ASTs, resolved first-party module graph, and
   // binding information needed to distinguish globals from harmless local names.
-  const program = ts.createProgram({
-    rootNames: [...files],
-    options: {
-      allowJs: true,
-      checkJs: false,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      noEmit: true,
-      target: ts.ScriptTarget.ES2022,
-    },
-  });
-  const checker = program.getTypeChecker();
+  const { program, checker } = createTypeScriptModuleGraph(root, files);
   const violations: OfflineBoundaryViolation[] = [];
 
   function add(
@@ -364,7 +349,7 @@ export function findOfflineBoundaryViolations(
       const resolvedSourceFile = resolvedModule
         ? program.getSourceFile(resolvedModule.resolvedFileName)
         : undefined;
-      if (!resolvedSourceFile || !isFirstPartySourceFile(root, resolvedSourceFile)) {
+      if (!resolvedSourceFile || !isFirstPartyModuleGraphSource(root, resolvedSourceFile)) {
         add(
           sourceFile,
           node,
@@ -609,7 +594,7 @@ export function findOfflineBoundaryViolations(
     }
   }
   for (const sourceFile of program.getSourceFiles()) {
-    if (!isFirstPartySourceFile(root, sourceFile)) continue;
+    if (!isFirstPartyModuleGraphSource(root, sourceFile)) continue;
     visit(sourceFile, sourceFile);
   }
 

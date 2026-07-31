@@ -7,10 +7,15 @@ import { defineConfig } from 'tsup';
 // published dist runnable standalone. Second entry: the MCP stdio server bin
 // (dist/mcp/index.js) — same bundling story, same offline guarantee.
 export default defineConfig({
-  entry: ['src/index.ts', 'src/mcp/index.ts'],
+  entry: ['src/index.ts', 'src/mcp/index.ts', 'src/packs/d-series/index.ts'],
   format: ['esm'],
   platform: 'node',
   target: 'node18',
-  banner: { js: '#!/usr/bin/env node' },
+  shims: true,
+  banner: {
+    js: `#!/usr/bin/env node
+import { createRequire as __cejelCreateRequire } from 'node:module';
+const require = __cejelCreateRequire(import.meta.url);`,
+  },
   clean: true,
 });
