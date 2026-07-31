@@ -1,6 +1,6 @@
 # D3 exact-signature acceptance preregistration — 2026-07-31
 
-This fixture-only commit fixes the exact acceptance case for ADR-0013 D3 before detector
+The fixture-only commit `5f4217f` fixed the exact acceptance case for ADR-0013 D3 before detector
 implementation. D3 is limited here to a high-confidence false-success subset of unasserted set
 transforms in JavaScript and TypeScript: a function directly filters a parameter into a const-bound
 output, initializes a distinct const-bound explanation ledger to an empty array, then returns
@@ -22,6 +22,8 @@ seed-to-rule acceptance mapping, are not relabeled, and are not claimed as caugh
 
 The attempt may ship only if it cites the defective path, emits no finding for the paired repair,
 and the first frozen detector observation emits zero findings across all 23 public entries in
-`leaderboard/corpus.json` at their pinned revisions. Detector behavior must be frozen before that
-observation. A precision failure is a no-ship result; the matcher will not be edited after observing
-the public cohort. Published leaderboard artifacts and scores must remain byte-identical.
+`leaderboard/corpus.json` at their pinned revisions. Detector behavior was frozen in commit
+`2bf342f` before that observation; the matcher file's SHA-256 is
+`12cfa7550b549456b0f2c5e0db95dc2101ca2a8770b2c5978bca43555f224896`. A precision failure is a
+no-ship result; the matcher is not edited after observing the public cohort. Published leaderboard
+artifacts and scores remain byte-identical.
