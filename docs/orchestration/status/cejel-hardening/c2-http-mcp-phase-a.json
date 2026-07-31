@@ -1,0 +1,40 @@
+{
+  "lane": "C2",
+  "card": "C2",
+  "wave": 1,
+  "status": "complete",
+  "pr": "https://github.com/BargLabs/cejel/pull/57",
+  "denominators": {
+    "window_start_utc": "2026-06-30T21:45:25Z",
+    "window_end_utc": "2026-07-30T21:45:25Z",
+    "window_days": 30,
+    "vercel_team": "team_CahG9f6tPZP43Exf0cxca7x0",
+    "vercel_project": "prj_Gha02qzF5eKGdw2iJM6QYJZTL8df",
+    "environment": "production",
+    "request_path": "/api/mcp",
+    "http_request_records": 832,
+    "http_status_200": 788,
+    "http_status_202": 43,
+    "http_status_406": 1,
+    "http_2xx_request_records": 831,
+    "unique_clients": null,
+    "successful_mcp_requests": null,
+    "successful_scan_calls": null,
+    "baseline_test_files": 36,
+    "baseline_tests": 708,
+    "lane_test_files": 36,
+    "lane_tests": 708,
+    "test_delta": 0
+  },
+  "guards_added": [],
+  "unverified": [
+    "Unique-client count: the available Vercel runtime-log result does not expose a stable client identifier.",
+    "Successful MCP operation and successful scan counts: no operation-level telemetry or payload classification is available.",
+    "References in binary files, remote systems, unmounted or private partner material, direct client configurations, bookmarks, or messages outside the searched local roots.",
+    "Whether recurring traffic is synthetic monitoring, one client, or multiple clients; timing alone is insufficient attribution."
+  ],
+  "paths_written": [
+    "docs/orchestration/status/cejel-hardening/c2-http-mcp-phase-a.md",
+    "docs/orchestration/status/cejel-hardening/c2-http-mcp-phase-a.json"
+  ]
+}
