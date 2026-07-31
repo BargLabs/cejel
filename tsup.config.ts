@@ -12,6 +12,10 @@ export default defineConfig({
   platform: 'node',
   target: 'node18',
   shims: true,
-  banner: { js: '#!/usr/bin/env node' },
+  banner: {
+    js: `#!/usr/bin/env node
+import { createRequire as __cejelCreateRequire } from 'node:module';
+const require = __cejelCreateRequire(import.meta.url);`,
+  },
   clean: true,
 });

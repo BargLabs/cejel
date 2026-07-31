@@ -119,10 +119,14 @@ function propertyRead(
   node: ts.Node,
 ): string | null {
   if (ts.isPropertyAccessExpression(node)) {
-    return resolvedSymbol(checker, node.expression) === candidate.symbol ? node.name.text : null;
+    return ts.isIdentifier(node.expression) &&
+      resolvedSymbol(checker, node.expression) === candidate.symbol
+      ? node.name.text
+      : null;
   }
   if (
     ts.isElementAccessExpression(node) &&
+    ts.isIdentifier(node.expression) &&
     resolvedSymbol(checker, node.expression) === candidate.symbol &&
     node.argumentExpression &&
     ts.isStringLiteralLike(node.argumentExpression)
@@ -187,6 +191,7 @@ function objectReadState(
       if (read !== null) readKeys.add(read);
       if (
         ts.isIdentifier(node) &&
+        node.text === (candidate.declaration.name as ts.Identifier).text &&
         resolvedSymbol(graph.checker, node) === candidate.symbol &&
         !isHarmlessObjectReference(candidate, node)
       ) {
@@ -272,17 +277,24 @@ function safeFrontmatterReads(
           if (!ts.isIdentifier(parameter.name) || !/^frontmatter$/i.test(parameter.name.text)) {
             continue;
           }
+          const parameterName = parameter.name.text;
           const symbol = resolvedSymbol(graph.checker, parameter.name);
           if (!symbol) continue;
           const localReads = new Set<string>();
           let escaped = false;
           const inspect = (child: ts.Node): void => {
             if (ts.isPropertyAccessExpression(child)) {
-              if (resolvedSymbol(graph.checker, child.expression) === symbol) {
+              if (
+                ts.isIdentifier(child.expression) &&
+                child.expression.text === parameterName &&
+                resolvedSymbol(graph.checker, child.expression) === symbol
+              ) {
                 localReads.add(child.name.text);
               }
             } else if (
               ts.isElementAccessExpression(child) &&
+              ts.isIdentifier(child.expression) &&
+              child.expression.text === parameterName &&
               resolvedSymbol(graph.checker, child.expression) === symbol
             ) {
               if (child.argumentExpression && ts.isStringLiteralLike(child.argumentExpression)) {
@@ -293,6 +305,7 @@ function safeFrontmatterReads(
             } else if (
               ts.isIdentifier(child) &&
               child !== parameter.name &&
+              child.text === parameterName &&
               resolvedSymbol(graph.checker, child) === symbol &&
               !(
                 (ts.isPropertyAccessExpression(child.parent) ||
