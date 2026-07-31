@@ -23,6 +23,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exact declaration path, and abstains on dynamic config access. It does not feed A1-B6 scoring;
   the frozen three-seed D1 baseline remains unchanged and exact-signature acceptance is reported
   separately.
+- The opt-in D-series pack adds a narrow D2 swallowed-error rule for an awaited operation whose
+  catch discards its bound error while returning a static failure result. Exact acceptance and the
+  23-repository precision gate are reported separately because the frozen 16-case suite contains
+  no D2 seed. The rule does not feed A1-B6 scoring or change the published leaderboard.
 - The opt-in D-series pack adds the high-confidence D5 self-referential-verification rule for
   equality assertions whose visibly named expected value and exercised code are imported from the
   same first-party module. It cites the assertion path and remains outside A1-B6 scoring; the frozen
