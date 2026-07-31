@@ -10,3 +10,8 @@ export {
   type D5AssertionKind,
   type D5Finding,
 } from './self-referential-verification.js';
+export {
+  detectSwallowedErrors,
+  scanSwallowedErrors,
+  type D2Finding,
+} from './swallowed-error.js';
