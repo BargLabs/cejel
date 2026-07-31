@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "cejel-d1-acceptance-v1",
+  "preregisteredAt": "2026-07-31",
+  "historicalDualControlDenominator": {
+    "included": false,
+    "frozenD1Seeds": ["DC-01", "DC-03", "DC-11"],
+    "reason": "These exact-signature specimens were added after the frozen dual-control baseline and do not alter or satisfy its D1 0/3 result."
+  },
+  "cases": [
+    {
+      "id": "D1-ACCEPT-CONFIG-01",
+      "kind": "config",
+      "defectPath": "calibration/d-series/d1/acceptance/config/subject.positive.fixture.mjs",
+      "repairedPath": "calibration/d-series/d1/acceptance/config/subject.negative.fixture.mjs",
+      "key": "requireNamedApprover",
+      "oracle": "calibration/d-series/d1/acceptance/config/oracle.node-test.mjs"
+    },
+    {
+      "id": "D1-ACCEPT-SCHEMA-01",
+      "kind": "schema",
+      "defectPath": "calibration/d-series/d1/acceptance/schema/subject.positive.fixture.mjs",
+      "repairedPath": "calibration/d-series/d1/acceptance/schema/subject.negative.fixture.mjs",
+      "key": "requireNamedApprover",
+      "oracle": "calibration/d-series/d1/acceptance/schema/oracle.node-test.mjs"
+    },
+    {
+      "id": "D1-ACCEPT-FRONTMATTER-01",
+      "kind": "frontmatter",
+      "defectPath": "calibration/d-series/d1/acceptance/frontmatter/policy.positive.fixture.md",
+      "repairedPath": "calibration/d-series/d1/acceptance/frontmatter/policy.negative.fixture.md",
+      "key": "requireNamedApprover",
+      "oracle": "calibration/d-series/d1/acceptance/frontmatter/oracle.node-test.mjs"
+    }
+  ],
+  "precisionGate": {
+    "cohort": "leaderboard/corpus.json public entries",
+    "expectedRepositories": 23,
+    "maximumFindings": 0
+  }
+}
