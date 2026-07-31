@@ -7,10 +7,12 @@ on:
     types: [opened, closed, synchronize]
 
 permissions:
+  # Check or record CLA signature reruns the last failed CLA workflow after signing.
   actions: write
+  # Check or record CLA signature stores signatures on the cla-signatures branch.
   contents: write
+  # Check or record CLA signature reads, writes, and locks pull-request conversations.
   pull-requests: write
-  statuses: write
 
 jobs:
   cla:

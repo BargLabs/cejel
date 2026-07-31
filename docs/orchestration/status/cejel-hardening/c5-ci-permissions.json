@@ -1,0 +1,39 @@
+{
+  "lane": "C5",
+  "card": "C5",
+  "wave": 1,
+  "status": "complete",
+  "pr": "https://github.com/BargLabs/cejel/pull/56",
+  "denominators": {
+    "workflows": {
+      "total": 5,
+      "already_compliant": 4,
+      "final_compliant": 5
+    },
+    "baseline_tests": {
+      "files": 36,
+      "tests": 708
+    },
+    "final_tests": {
+      "files": 36,
+      "tests": 708,
+      "delta": 0
+    }
+  },
+  "guards_added": [
+    "CI declares top-level contents: read permissions",
+    "CLA retains only actions: write, contents: write, and pull-requests: write with named step justifications",
+    "Distribution metadata validation requires an explicit permissions mapping in every workflow",
+    "Permissions-block detection has positive and missing-block inline fixtures"
+  ],
+  "unverified": [
+    "The PR's own remote cla and build-test runs were not available before PR creation",
+    "No live CLA signing transaction was performed because it would mutate the signature branch"
+  ],
+  "paths_written": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/cla.yml",
+    "scripts/validate-distribution-metadata.mjs",
+    "docs/orchestration/status/cejel-hardening/c5-ci-permissions.json"
+  ]
+}
