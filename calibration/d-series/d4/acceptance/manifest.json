@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "cejel-d4-acceptance-v1",
+  "preregisteredAt": "2026-07-31",
+  "historicalDualControlDenominator": {
+    "included": false,
+    "frozenD4Seeds": ["DC-02", "DC-06", "DC-12", "DC-14"],
+    "cited": "0 / 4",
+    "pairedCleanFindings": "0 / 4",
+    "reason": "The frozen D4 fixtures are semantic pass-by-absence examples, but they do not contain this exact first-party failure/empty/populated callee and unconditional-success caller signature. This additional specimen does not relabel or alter them."
+  },
+  "cases": [
+    {
+      "id": "D4-ACCEPT-FAILURE-AS-EMPTY-01",
+      "defectPath": "calibration/d-series/d4/acceptance/subject.positive.fixture.mjs",
+      "repairedPath": "calibration/d-series/d4/acceptance/subject.negative.fixture.mjs",
+      "callee": "readQueue",
+      "resultBinding": "result",
+      "collectionBinding": "entries",
+      "oracle": "calibration/d-series/d4/acceptance/oracle.node-test.mjs"
+    }
+  ],
+  "precisionGate": {
+    "cohort": "leaderboard/corpus.json public entries",
+    "expectedRepositories": 23,
+    "maximumFindings": 0
+  }
+}
