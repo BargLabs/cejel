@@ -55,6 +55,7 @@
     "audit:path-emission": "node --test scripts/criterion-path-emission-audit.node-test.mjs",
     "gate:d1": "pnpm run build && node scripts/d1-precision-gate.mjs",
     "gate:d2": "pnpm run build && node scripts/d2-precision-gate.mjs",
+    "gate:d3": "pnpm run build && node scripts/d3-precision-gate.mjs",
     "gate:d4": "pnpm run build && node scripts/d4-precision-gate.mjs",
     "gate:d5": "pnpm run build && node scripts/d5-precision-gate.mjs",
     "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
