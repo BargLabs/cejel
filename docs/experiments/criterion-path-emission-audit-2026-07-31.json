@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "cejel-criterion-path-emission-audit-v1",
+  "measurementDate": "2026-07-31",
+  "cejelRevision": "cd8d225881996273ad59702dd020c70eb90a7458",
+  "scope": "native A1-B6 repository signals emitted by scoreRepoWithPublicCejel; operator-ingested findings and opt-in domain packs are excluded",
+  "definitions": {
+    "canEmitEvidencePath": "At least one executable native collector branch can construct a WitanEvidencePointer with path and place it in positiveEvidence or a finding.",
+    "findingPathCapable": "At least one executable native collector branch can place a path-bearing WitanEvidencePointer in criterion.findings[].evidence.",
+    "cited": "The dual-control predicate at Alfred runner commit 28fb2365dd1fa4952f63b2d1506cf248d31148c0 requires criterion.findings[].evidence.path to equal the defect-file path exactly."
+  },
+  "summary": {
+    "totalCriteria": 11,
+    "pathCapable": 9,
+    "findingPathCapable": 6,
+    "positiveEvidenceOnlyPathCapable": 3,
+    "notPathCapable": 2
+  },
+  "criteria": [
+    {
+      "id": "A1",
+      "collector": "collectA1TestIntegrityEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": true,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates test/config/coverage paths; scheduled-health and authenticated-absence findings construct or reuse those path pointers"
+    },
+    {
+      "id": "A2",
+      "collector": "collectA2IsolationEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": true,
+      "canEmitEvidencePath": true,
+      "observedInPc01": true,
+      "codeEvidence": "evidenceForRelative/evidenceForRelativeAtLine create secret, data-layer, and isolation paths; committed-secret findings cite the measured match path"
+    },
+    {
+      "id": "A3",
+      "collector": "collectA3ProdReadinessEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": true,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates deploy/readiness paths; the missing-automation finding reuses firstEvidence"
+    },
+    {
+      "id": "A4",
+      "collector": "collectA4DependencyEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": true,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates manifest/lock/update paths and dependency findings construct manifest paths"
+    },
+    {
+      "id": "A5",
+      "collector": "collectA5ClaimRealityEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": true,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates claim-source/implementation paths; the reconciliation-gap finding reuses firstEvidence"
+    },
+    {
+      "id": "B1",
+      "collector": "buildNotApplicableSignal",
+      "positiveEvidencePath": false,
+      "findingEvidencePath": false,
+      "canEmitEvidencePath": false,
+      "observedInPc01": false,
+      "codeEvidence": "collectRepoSignals always builds repository-scan B1 as not_applicable; buildNotApplicableSignal returns empty positiveEvidence and findings"
+    },
+    {
+      "id": "B2",
+      "collector": "collectB2PrTraceEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": false,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates workflow/template/review-gate paths; the collector always returns findings: []"
+    },
+    {
+      "id": "B3",
+      "collector": "collectB3CiDisciplineEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": false,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates package-script/workflow paths; the collector always returns findings: []"
+    },
+    {
+      "id": "B4",
+      "collector": "collectB4AuditEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": false,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates audit/changelog paths; the measured collector branch returns findings: []"
+    },
+    {
+      "id": "B5",
+      "collector": "buildNotApplicableSignal",
+      "positiveEvidencePath": false,
+      "findingEvidencePath": false,
+      "canEmitEvidencePath": false,
+      "observedInPc01": false,
+      "codeEvidence": "collectRepoSignals always builds repository-scan B5 as not_applicable; buildNotApplicableSignal returns empty positiveEvidence and findings"
+    },
+    {
+      "id": "B6",
+      "collector": "collectB6PrivilegedOpsGatingEvidence",
+      "positiveEvidencePath": true,
+      "findingEvidencePath": true,
+      "canEmitEvidencePath": true,
+      "observedInPc01": false,
+      "codeEvidence": "evidenceForRelative creates governance/gate paths and ungated-escalation findings construct executable-file paths"
+    }
+  ],
+  "positiveControl": {
+    "controlId": "PC-01",
+    "criterionId": "A2",
+    "evidencePath": "src/subject.mjs",
+    "preregistrationCommit": "d879c2f69488f4fb3f3c6b45667125812c2c7364",
+    "harnessCommit": "28fb2365dd1fa4952f63b2d1506cf248d31148c0",
+    "recordedResultCommit": "a506a5e8aaa89862a8288a208aa083e685e47fbc",
+    "entersSeededDenominator": false,
+    "independentlyRerunByThisAudit": false
+  }
+}
