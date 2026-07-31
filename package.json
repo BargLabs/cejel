@@ -37,6 +37,9 @@
     "cejel": "dist/index.js",
     "cejel-mcp": "dist/mcp/index.js"
   },
+  "exports": {
+    "./d-series": "./dist/packs/d-series/index.js"
+  },
   "files": [
     "dist",
     "README.md",
@@ -50,6 +53,7 @@
     "build:sea-js": "tsup --config tsup.public-sea.config.ts",
     "check:dev-environment": "node scripts/assert-dev-environment.mjs --phase=verify",
     "audit:path-emission": "node --test scripts/criterion-path-emission-audit.node-test.mjs",
+    "gate:d1": "pnpm run build && node scripts/d1-precision-gate.mjs",
     "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
     "pnpm:devPreinstall": "node scripts/assert-dev-environment.mjs --phase=preinstall",
     "prepublishOnly": "pnpm run build",

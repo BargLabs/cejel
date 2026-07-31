@@ -16,6 +16,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- A separate opt-in D-series pack entrypoint adds the high-confidence D1
+  declared-but-unread-config rule. It uses Cejel's resolved TypeScript module graph, cites the
+  exact declaration path, and abstains on dynamic config access. It does not feed A1-B6 scoring;
+  the frozen three-seed D1 baseline remains unchanged and exact-signature acceptance is reported
+  separately.
+
 ### Changed
 
 - The public product claim now states explicitly that Cejel scores engineering-trust signals; it
