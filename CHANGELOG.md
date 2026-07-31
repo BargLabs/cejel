@@ -18,6 +18,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The public product claim now states explicitly that Cejel scores engineering-trust signals; it
+  does not claim to detect software defects or prove that code is safe. A regression guard covers
+  the README opening, package metadata, Action metadata, registry metadata, and MCP tool copy. This
+  is a documentation boundary only; scoring, findings, detector behavior, and board scores are
+  unchanged.
 - The Free LLM detector-development candidate recognizes file-local JavaScript/TypeScript and
   Python evaluation aggregates assigned through local result-object attributes or subscripts.
   Fixture-backed controls retain the eligible denominator, and lookalike names do not activate the

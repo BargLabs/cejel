@@ -11,6 +11,10 @@ a trust certificate + badge. Especially valuable when AI wrote a lot of the code
 exactly when you can't eyeball trust. Built on a deterministic, no-LLM scoring core — the
 free path makes zero network calls and requires no account.
 
+**Claim boundary:** Cejel scores engineering-trust signals; it does not claim to detect software
+defects or prove that code is safe. Defect and vulnerability scanners remain evidence producers
+that Cejel can aggregate into a trust certificate.
+
 Cejel is not another point scanner competing with the one you already run — it's the open,
 portable, offline trust certificate that aggregates them. Pipe in SARIF-compatible output
 (MunaTrust, Snyk, Semgrep, CodeQL, Codex) plus OpenSSF Scorecard, and get one shareable
