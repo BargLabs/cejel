@@ -412,7 +412,10 @@ describe('runWitanFreeCli (--ingest scanner aggregation)', () => {
 
     const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8'));
     expect(report.consumedSignals).toBeDefined();
-    expect(report.consumedSignals[0].source).toBe('sarif:codex-security');
+    expect(report.consumedSignals[0]).toMatchObject({
+      source: 'sarif:codex-security',
+      provenance: 'operator_supplied',
+    });
     const a2 = report.criteria.find((c: { id: string }) => c.id === 'A2');
     expect(a2.score).toBeLessThanOrEqual(baselineA2.score);
 
@@ -420,7 +423,7 @@ describe('runWitanFreeCli (--ingest scanner aggregation)', () => {
     expect(summary.contributingSources).toContain('sarif:codex-security');
 
     const html = readFileSync(join(outDir, 'certificate.html'), 'utf8');
-    expect(html).toContain('sarif:codex-security');
+    expect(html).toContain('codex-security (operator-supplied)');
   });
 
   it('folds multiple --ingest sources (SARIF + Scorecard) and lists both in provenance', async () => {
@@ -539,7 +542,9 @@ describe('runWitanFreeCli (--ingest scanner aggregation)', () => {
     // certificate.html has a clearly-labeled, distinct "External findings" section.
     const html = readFileSync(join(outDir, 'certificate.html'), 'utf8');
     expect(html).toContain('External findings');
-    expect(html).toContain('Codex Security: 3 findings ingested (folded into A2, A4)');
+    expect(html).toContain(
+      'Codex Security (operator-supplied): 3 findings ingested (folded into A2, A4)',
+    );
     expect(html).toContain('sql-injection');
 
     // Terminal output shows the tool name + finding count, and itemizes the findings.

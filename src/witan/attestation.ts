@@ -40,6 +40,20 @@ export function createWitanAttestation(
   options: CreateWitanAttestationOptions,
 ): WitanAttestationStatement {
   const reportSha256 = hashWitanReport(report);
+  const externalSignalProvenance = Array.from(
+    new Map(
+      (report.consumedSignals ?? []).map((signal) => {
+        const provenance = signal.provenance ?? 'operator_supplied';
+        return [
+          `${signal.source}\u0000${provenance}`,
+          { source: signal.source, provenance },
+        ] as const;
+      }),
+    ).values(),
+  ).sort(
+    (a, b) =>
+      a.source.localeCompare(b.source) || a.provenance.localeCompare(b.provenance),
+  );
   const outcome =
     report.verdict === 'insufficient_source'
       ? {
@@ -75,6 +89,7 @@ export function createWitanAttestation(
         artifact: 'report.json',
         sha256: reportSha256,
       },
+      externalSignalProvenance,
       outcome,
       assurance: {
         status: 'unsigned',
@@ -129,6 +144,26 @@ export function verifyWitanAttestationBinding(
   }
   if (parsed.data.predicate.repository.url !== report.repo.url) {
     errors.push('repository URL does not match report.json');
+  }
+  const expectedExternalSignalProvenance = Array.from(
+    new Map(
+      (report.consumedSignals ?? []).map((signal) => {
+        const provenance = signal.provenance ?? 'operator_supplied';
+        return [
+          `${signal.source}\u0000${provenance}`,
+          { source: signal.source, provenance },
+        ] as const;
+      }),
+    ).values(),
+  ).sort(
+    (a, b) =>
+      a.source.localeCompare(b.source) || a.provenance.localeCompare(b.provenance),
+  );
+  if (
+    JSON.stringify(parsed.data.predicate.externalSignalProvenance) !==
+    JSON.stringify(expectedExternalSignalProvenance)
+  ) {
+    errors.push('external signal provenance does not match report.json');
   }
 
   const outcome = parsed.data.predicate.outcome;

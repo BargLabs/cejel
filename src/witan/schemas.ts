@@ -240,9 +240,14 @@ export const WitanInputSignalFindingSchema = z
   })
   .strict();
 
+export const WitanIngestProvenanceSchema = z.enum(['operator_supplied', 'auto_discovered']);
+
 export const WitanInputSignalSchema = z
   .object({
     source: z.string().min(1).max(120),
+    // Adapters can still be used directly by internal callers; absent provenance retains the
+    // historical operator-supplied meaning. The ingest funnel always sets this explicitly.
+    provenance: WitanIngestProvenanceSchema.optional(),
     dimension: WitanCriterionIdSchema,
     findings: z.array(WitanInputSignalFindingSchema),
     weight: z.number().min(0).max(1),
@@ -253,6 +258,9 @@ export const WitanInputSignalSchema = z
 export const WitanConsumedSignalSummarySchema = z
   .object({
     source: z.string().min(1).max(120),
+    // Optional on read for compatibility with already-published reports. Newly generated
+    // reports always carry the explicit value copied from WitanInputSignal.
+    provenance: WitanIngestProvenanceSchema.optional(),
     dimension: WitanCriterionIdSchema,
     findingCount: z.number().int().min(0),
     severityBreakdown: z
@@ -425,6 +433,16 @@ export const WitanAttestationStatementSchema = z
             sha256: z.string().regex(/^[a-f0-9]{64}$/),
           })
           .strict(),
+        externalSignalProvenance: z
+          .array(
+            z
+              .object({
+                source: z.string().min(1).max(120),
+                provenance: WitanIngestProvenanceSchema,
+              })
+              .strict(),
+          )
+          .default([]),
         outcome: WitanAttestationOutcomeSchema,
         assurance: z
           .object({
@@ -460,6 +478,7 @@ export type WitanReport = z.infer<typeof WitanReportSchema>;
 export type WitanScoredReport = Extract<WitanReport, { verdict: WitanScoredVerdict }>;
 export type WitanAbstainedReport = Extract<WitanReport, { verdict: 'insufficient_source' }>;
 export type WitanInputSignalFinding = z.infer<typeof WitanInputSignalFindingSchema>;
+export type WitanIngestProvenance = z.infer<typeof WitanIngestProvenanceSchema>;
 export type WitanInputSignal = z.infer<typeof WitanInputSignalSchema>;
 export type WitanConsumedSignalSummary = z.infer<typeof WitanConsumedSignalSummarySchema>;
 export type WitanAttestationOutcome = z.infer<typeof WitanAttestationOutcomeSchema>;

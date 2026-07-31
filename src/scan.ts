@@ -34,6 +34,10 @@ export function runCejelScan(options: CejelScanOptions): CejelScanResult {
     productDisplayName: options.productDisplayName ?? identity.productDisplayName,
     repoPath: options.repoPath,
     ingestPatterns: options.ingestPatterns,
+    // Local CLI/MCP scans retain the documented convenience default: their operator controls
+    // the repository. Direct public/leaderboard scans default this off because their targets
+    // are third-party repositories and must opt in explicitly.
+    autoDiscoverIngest: true,
     warnOnEmptyIngestMatch: options.warnOnEmptyIngestMatch,
   });
   const summary = buildWitanCliSummary(report);

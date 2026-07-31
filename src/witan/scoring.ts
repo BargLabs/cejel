@@ -248,6 +248,7 @@ function applySignalAdjustment(
 
     summaries.push({
       source: signal.source,
+      provenance: signal.provenance ?? 'operator_supplied',
       dimension,
       findingCount: signal.findings.length,
       severityBreakdown: { critical: criticalCount, warning: warningCount, info: infoCount },

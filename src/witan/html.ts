@@ -5,6 +5,7 @@ import type {
   WitanCriterionStatus,
   WitanEvidencePointer,
   WitanFinding,
+  WitanIngestProvenance,
   WitanReport,
   WitanReportVerdict,
 } from './schemas.js';
@@ -20,8 +21,7 @@ import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
   collectExternalFindings,
-  formatExternalSourceLine,
-  summarizeExternalSources,
+  formatExternalSourceLabel,
 } from './external-findings.js';
 import { renderFindingSummary } from './finding-presentation.js';
 
@@ -42,8 +42,8 @@ export function renderWitanHtmlReport(
       : [],
   );
   const openItems = report.criteria.flatMap(renderOpenItems);
-  const contributingSources = renderContributingSources(report.consumedSignals ?? []);
-  const externalSourceSummaries = summarizeExternalSources(report.consumedSignals ?? []);
+  const externalSourceSummaries = summarizeSourcesByProvenance(report.consumedSignals ?? []);
+  const contributingSources = externalSourceSummaries.map(renderSourceProvenanceLabel);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const coverage = computeMeasuredCoverage(report);
   const gitHistoryUnavailable = !report.repo.headSha;
@@ -75,7 +75,7 @@ export function renderWitanHtmlReport(
             ${
               contributingSources.length > 0
                 ? `<div><dt>Sources</dt><dd>Incorporates findings from: ${escapeHtml(contributingSources.join(', '))}<ul class="source-counts">${externalSourceSummaries
-                    .map((s) => `<li>${escapeHtml(formatExternalSourceLine(s))}</li>`)
+                    .map((s) => `<li>${escapeHtml(formatSourceProvenanceLine(s))}</li>`)
                     .join('')}</ul></dd></div>`
                 : ''
             }
@@ -147,8 +147,56 @@ export function renderWitanHtmlReport(
 `;
 }
 
-function renderContributingSources(signals: readonly WitanConsumedSignalSummary[]): string[] {
-  return Array.from(new Set(signals.map((s) => s.source))).sort();
+interface ProvenanceSourceSummary {
+  source: string;
+  provenance: WitanIngestProvenance;
+  findingCount: number;
+  dimensions: string[];
+}
+
+function summarizeSourcesByProvenance(
+  signals: readonly WitanConsumedSignalSummary[],
+): ProvenanceSourceSummary[] {
+  const grouped = new Map<
+    string,
+    {
+      source: string;
+      provenance: WitanIngestProvenance;
+      findingCount: number;
+      dimensions: Set<string>;
+    }
+  >();
+  for (const signal of signals) {
+    const provenance = signal.provenance ?? 'operator_supplied';
+    const key = `${signal.source}\u0000${provenance}`;
+    const summary = grouped.get(key) ?? {
+      source: signal.source,
+      provenance,
+      findingCount: 0,
+      dimensions: new Set<string>(),
+    };
+    summary.findingCount += signal.findingCount;
+    summary.dimensions.add(signal.dimension);
+    grouped.set(key, summary);
+  }
+  return Array.from(grouped.values())
+    .map((summary) => ({ ...summary, dimensions: Array.from(summary.dimensions).sort() }))
+    .sort(
+      (a, b) =>
+        a.source.localeCompare(b.source) || a.provenance.localeCompare(b.provenance),
+    );
+}
+
+function renderSourceProvenanceLabel(summary: ProvenanceSourceSummary): string {
+  const label = formatExternalSourceLabel(summary.source);
+  return summary.provenance === 'auto_discovered'
+    ? `"${label}" (self-declared by the scanned repository — not verified)`
+    : `${label} (operator-supplied)`;
+}
+
+function formatSourceProvenanceLine(summary: ProvenanceSourceSummary): string {
+  const noun = summary.findingCount === 1 ? 'finding' : 'findings';
+  return `${renderSourceProvenanceLabel(summary)}: ${summary.findingCount} ${noun} ingested (folded into ${summary.dimensions.join(', ')})`;
 }
 
 function renderExternalFindingItems(findings: readonly WitanExternalFinding[]): string[] {

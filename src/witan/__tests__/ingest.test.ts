@@ -165,6 +165,17 @@ describe('ingest — expandIngestPattern', () => {
   it('returns [] when the directory does not exist', () => {
     expect(expandIngestPattern('/definitely/not/a/real/dir/*.sarif')).toEqual([]);
   });
+
+  it.each(['.', '+', '?', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\'])(
+    'treats regex metacharacter %j as a literal while preserving * glob semantics',
+    (metacharacter) => {
+      const dir = mkdtempSync(join(tmpdir(), 'witan-glob-metachar-'));
+      const expected = writeJson(dir, `scan${metacharacter}match.sarif`, SARIF_DOC);
+      writeJson(dir, 'scanXmatch.sarif', SARIF_DOC);
+
+      expect(expandIngestPattern(join(dir, `scan${metacharacter}*.sarif`))).toEqual([expected]);
+    },
+  );
 });
 
 describe('ingest — discoverIngestInputs', () => {
