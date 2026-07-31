@@ -56,6 +56,13 @@ export async function handleAuthenticatedCejelHttpRequest(
     return refuseUnauthorized(request, 'access_token_unconfigured');
   }
 
+  // Browsers do not include credentials on a CORS preflight. Once the endpoint
+  // is configured fail-closed, OPTIONS may advertise the Authorization header
+  // without granting access to an MCP operation.
+  if (request.method === 'OPTIONS') {
+    return handleCejelHttpRequest(request, identity());
+  }
+
   const presentedToken = presentedBearerToken(request);
   if (!presentedToken || !tokensMatch(presentedToken, configuredToken)) {
     return refuseUnauthorized(request, 'authorization_missing_or_invalid');

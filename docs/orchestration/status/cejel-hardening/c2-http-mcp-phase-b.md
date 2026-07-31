@@ -12,6 +12,8 @@ The route fails closed. If the variable is unset or empty, every exported
 method (`GET`, `POST`, `DELETE`, and `OPTIONS`) returns `401`; no configuration
 state disables authentication. Presented and configured UTF-8 token buffers
 are compared with `crypto.timingSafeEqual` only when their lengths match.
+When the variable is configured, a credential-free `OPTIONS` request may return
+the CORS preflight response; it cannot execute an MCP operation or read data.
 
 Refusals emit the event `cejel_mcp_auth_refused` with:
 
@@ -100,9 +102,12 @@ The checked-in `server.json` has the same OCI/stdio-only shape.
   and unconfigured credentials returned `200`, and refusal metadata was not
   logged. The positive handshake regression was already green because the
   anonymous route accepted every request.
-- Final full suite: 731 tests in 38 files, all passing. This is +23 tests and
+- Review regression run: the new authenticated GET/SSE and browser-preflight
+  assertions both failed before their fixes because the event stream closed
+  immediately and credential-free preflight returned `401`.
+- Final full suite: 734 tests in 38 files, all passing. This is +26 tests and
   +2 files against the Phase A baseline of 708 tests in 36 files; the branch
-  itself adds 5 tests over the 726-test `origin/main` starting point.
+  itself adds 8 tests over the 726-test `origin/main` starting point.
 - Strict TypeScript, production build, and distribution metadata validation
   pass.
 - A candidate Docker image scans the LLM fixture corpus successfully under

@@ -272,9 +272,5 @@ export async function handleCejelHttpRequest(
     enableJsonResponse: true,
   });
   await server.connect(transport);
-  try {
-    return corsResponse(await transport.handleRequest(request));
-  } finally {
-    await server.close();
-  }
+  return corsResponse(await transport.handleRequest(request));
 }

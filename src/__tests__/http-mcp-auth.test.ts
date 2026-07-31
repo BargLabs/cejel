@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { handleAuthenticatedCejelHttpRequest } from '../http/auth.js';
@@ -96,6 +98,58 @@ describe.sequential('/api/mcp bearer authentication', () => {
         }),
       }),
     );
+  });
+
+  it('keeps an authenticated GET event stream open for the client', async () => {
+    const response = await handleRequest(
+      new Request('https://cejel-mcp.vercel.app/api/mcp', {
+        method: 'GET',
+        headers: {
+          accept: 'text/event-stream',
+          authorization: `Bearer ${ACCESS_TOKEN}`,
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    if (!response.body) throw new Error('Authenticated SSE response has no body.');
+
+    const reader = response.body.getReader();
+    const outcome = await Promise.race([
+      reader.read().then((result) => (result.done ? 'closed' : 'event')),
+      new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 25)),
+    ]);
+    expect(outcome).not.toBe('closed');
+    await reader.cancel();
+  });
+
+  it('allows credential-free browser preflight when the access token is configured', async () => {
+    const response = await handleRequest(
+      new Request('https://cejel-mcp.vercel.app/api/mcp', {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://client.example',
+          'access-control-request-method': 'POST',
+          'access-control-request-headers': 'authorization,content-type',
+        },
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-origin')).toBe('*');
+    expect(response.headers.get('access-control-allow-headers')).toContain('authorization');
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it('structurally routes every Vercel method through the authenticated handler', () => {
+    const routeSource = readFileSync(new URL('../../api/mcp.ts', import.meta.url), 'utf8');
+
+    expect(routeSource).toContain(
+      "import { handleAuthenticatedCejelHttpRequest } from '../src/http/auth.js';",
+    );
+    expect(routeSource).not.toContain("from '../src/http/server.js'");
+    expect(routeSource.match(/return handleAuthenticatedRequest\(request\);/g)).toHaveLength(4);
   });
 
   it('fails closed when the access-token environment variable is unset or empty', async () => {
