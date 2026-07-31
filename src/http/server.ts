@@ -144,7 +144,10 @@ async function writeRemoteRepository(
 function corsResponse(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', '*');
-  headers.set('Access-Control-Allow-Headers', 'content-type, mcp-session-id, last-event-id');
+  headers.set(
+    'Access-Control-Allow-Headers',
+    'authorization, content-type, mcp-session-id, last-event-id',
+  );
   headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   headers.set('Access-Control-Expose-Headers', 'mcp-session-id, last-event-id, content-type');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });

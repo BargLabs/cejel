@@ -47,6 +47,8 @@ const ALLOWED_BUILTIN_MODULES = new Set([
 const ALLOWED_EXTERNAL_MODULES = new Set([
   '@modelcontextprotocol/sdk/server/mcp.js',
   '@modelcontextprotocol/sdk/server/stdio.js',
+  // /api/mcp now requires application-level bearer authentication; retain this transport so
+  // authorized remote clients can use the route without granting scoring code outbound access.
   '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js',
   'zod',
 ]);
