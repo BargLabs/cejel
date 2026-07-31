@@ -54,6 +54,7 @@
     "check:dev-environment": "node scripts/assert-dev-environment.mjs --phase=verify",
     "audit:path-emission": "node --test scripts/criterion-path-emission-audit.node-test.mjs",
     "gate:d1": "pnpm run build && node scripts/d1-precision-gate.mjs",
+    "gate:d2": "pnpm run build && node scripts/d2-precision-gate.mjs",
     "gate:d5": "pnpm run build && node scripts/d5-precision-gate.mjs",
     "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
     "pnpm:devPreinstall": "node scripts/assert-dev-environment.mjs --phase=preinstall",
