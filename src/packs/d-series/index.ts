@@ -16,6 +16,11 @@ export {
   type D2Finding,
 } from './swallowed-error.js';
 export {
+  detectUnassertedSetTransforms,
+  scanUnassertedSetTransforms,
+  type D3Finding,
+} from './unasserted-set-transform.js';
+export {
   detectEmptyFailureConflation,
   scanEmptyFailureConflation,
   type D4Finding,

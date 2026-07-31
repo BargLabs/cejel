@@ -27,6 +27,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   catch discards its bound error while returning a static failure result. Exact acceptance and the
   23-repository precision gate are reported separately because the frozen 16-case suite contains
   no D2 seed. The rule does not feed A1-B6 scoring or change the published leaderboard.
+- The opt-in D-series pack adds a narrow D3 unasserted-set-transform rule for a filter that reports
+  literal success while pairing retained output with a statically empty explanation ledger. Exact
+  acceptance and the 23-repository precision gate are reported separately; the frozen five-seed D3
+  baseline remains unchanged. The rule does not feed A1-B6 scoring or change the leaderboard.
 - The opt-in D-series pack adds a narrowly bounded D4 rule for an exact caller/callee shape where a
   statically signalled failure is converted to an empty collection and then returned as literal
   success. It does not infer that emptiness is itself defective, feed A1-B6 scoring, or claim any
