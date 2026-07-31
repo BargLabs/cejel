@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "cejel-d5-acceptance-v1",
+  "preregisteredAt": "2026-07-31",
+  "historicalDualControlDenominator": {
+    "included": false,
+    "frozenD5Seeds": ["DC-04", "DC-05", "DC-07", "DC-10"],
+    "reason": "This exact-signature specimen was added after the frozen dual-control baseline and does not alter or satisfy its D5 0/4 result."
+  },
+  "cases": [
+    {
+      "id": "D5-ACCEPT-ASSERT-01",
+      "defectPath": "calibration/d-series/d5/acceptance/verification.positive.test.fixture.mjs",
+      "subjectPath": "calibration/d-series/d5/acceptance/subject.positive.fixture.mjs",
+      "repairedPath": "calibration/d-series/d5/acceptance/verification.negative.test.fixture.mjs",
+      "repairedSubjectPath": "calibration/d-series/d5/acceptance/subject.negative.fixture.mjs",
+      "expectedImport": "EXPECTED_REVIEW_REQUIRED",
+      "oracle": "calibration/d-series/d5/acceptance/oracle.node-test.mjs"
+    }
+  ],
+  "precisionGate": {
+    "cohort": "leaderboard/corpus.json public entries",
+    "expectedRepositories": 23,
+    "maximumFindings": 0
+  }
+}

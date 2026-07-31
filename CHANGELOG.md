@@ -23,6 +23,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exact declaration path, and abstains on dynamic config access. It does not feed A1-B6 scoring;
   the frozen three-seed D1 baseline remains unchanged and exact-signature acceptance is reported
   separately.
+- The opt-in D-series pack adds the high-confidence D5 self-referential-verification rule for
+  equality assertions whose visibly named expected value and exercised code are imported from the
+  same first-party module. It cites the assertion path and remains outside A1-B6 scoring; the frozen
+  four-seed D5 baseline remains unchanged and exact-signature acceptance is reported separately.
 
 ### Changed
 
