@@ -1,6 +1,6 @@
 # D4 exact-signature acceptance preregistration — 2026-07-31
 
-This fixture-only commit fixes the exact acceptance case for ADR-0013 D4 before detector
+The fixture-only commit `4b35f2b` fixes the exact acceptance case for ADR-0013 D4 before detector
 implementation. D4 is limited here to a three-statement call site that binds a direct call to a
 first-party function, maps the function's explicit failure result to an empty array, and then
 returns literal success unconditionally. The resolved callee must itself contain static returns for
@@ -22,3 +22,7 @@ emits zero findings across all 23 public entries in `leaderboard/corpus.json` at
 revisions. Detector behavior must be frozen in a commit before the first public-cohort observation.
 A precision failure is a no-ship result: the matcher is not tuned after observation. Published
 leaderboard artifacts and scores must remain byte-identical.
+
+The focused regression guard was observed RED before implementation: Vitest could not resolve the
+then-absent `empty-failure-conflation.js` detector module. After implementation, the same focused
+guard passed all 10 tests.

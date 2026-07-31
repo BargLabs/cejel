@@ -27,6 +27,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   catch discards its bound error while returning a static failure result. Exact acceptance and the
   23-repository precision gate are reported separately because the frozen 16-case suite contains
   no D2 seed. The rule does not feed A1-B6 scoring or change the published leaderboard.
+- The opt-in D-series pack adds a narrowly bounded D4 rule for an exact caller/callee shape where a
+  statically signalled failure is converted to an empty collection and then returned as literal
+  success. It does not infer that emptiness is itself defective, feed A1-B6 scoring, or claim any
+  of the four frozen semantic D4 seeds as caught.
 - The opt-in D-series pack adds the high-confidence D5 self-referential-verification rule for
   equality assertions whose visibly named expected value and exercised code are imported from the
   same first-party module. It cites the assertion path and remains outside A1-B6 scoring; the frozen

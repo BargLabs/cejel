@@ -15,3 +15,8 @@ export {
   scanSwallowedErrors,
   type D2Finding,
 } from './swallowed-error.js';
+export {
+  detectEmptyFailureConflation,
+  scanEmptyFailureConflation,
+  type D4Finding,
+} from './empty-failure-conflation.js';
