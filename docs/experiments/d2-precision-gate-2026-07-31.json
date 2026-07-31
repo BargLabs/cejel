@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "cejel-d2-precision-gate-v1",
+  "ruleId": "D2",
+  "detectorCommit": "78847825f7b44677f88bab7341991eb0de42e997",
+  "cohortPath": "leaderboard/corpus.json",
+  "publicRepositoryDenominator": 23,
+  "findingCount": 0,
+  "result": "pass",
+  "boardArtifacts": {
+    "sha256Before": "54e066650b27563022d4bd6f7c43c3276021a5dc0adb3b72725125c21237cce6",
+    "sha256After": "54e066650b27563022d4bd6f7c43c3276021a5dc0adb3b72725125c21237cce6",
+    "unchanged": true
+  },
+  "repositories": [
+    {
+      "name": "react",
+      "url": "https://github.com/facebook/react",
+      "pinnedRevision": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "findings": []
+    },
+    {
+      "name": "vue",
+      "url": "https://github.com/vuejs/core",
+      "pinnedRevision": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "findings": []
+    },
+    {
+      "name": "svelte",
+      "url": "https://github.com/sveltejs/svelte",
+      "pinnedRevision": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "findings": []
+    },
+    {
+      "name": "django",
+      "url": "https://github.com/django/django",
+      "pinnedRevision": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "findings": []
+    },
+    {
+      "name": "flask",
+      "url": "https://github.com/pallets/flask",
+      "pinnedRevision": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "findings": []
+    },
+    {
+      "name": "fastapi",
+      "url": "https://github.com/fastapi/fastapi",
+      "pinnedRevision": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "findings": []
+    },
+    {
+      "name": "express",
+      "url": "https://github.com/expressjs/express",
+      "pinnedRevision": "ba006766fb964571723138708eacaba0f55759cd",
+      "findings": []
+    },
+    {
+      "name": "vite",
+      "url": "https://github.com/vitejs/vite",
+      "pinnedRevision": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "findings": []
+    },
+    {
+      "name": "esbuild",
+      "url": "https://github.com/evanw/esbuild",
+      "pinnedRevision": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "findings": []
+    },
+    {
+      "name": "biomejs",
+      "url": "https://github.com/biomejs/biome",
+      "pinnedRevision": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "findings": []
+    },
+    {
+      "name": "requests",
+      "url": "https://github.com/psf/requests",
+      "pinnedRevision": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "findings": []
+    },
+    {
+      "name": "pydantic",
+      "url": "https://github.com/pydantic/pydantic",
+      "pinnedRevision": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "findings": []
+    },
+    {
+      "name": "axios",
+      "url": "https://github.com/axios/axios",
+      "pinnedRevision": "7a6615e421578081743161eab032d009dc6583a4",
+      "findings": []
+    },
+    {
+      "name": "zod",
+      "url": "https://github.com/colinhacks/zod",
+      "pinnedRevision": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "findings": []
+    },
+    {
+      "name": "scorecard",
+      "url": "https://github.com/ossf/scorecard",
+      "pinnedRevision": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "findings": []
+    },
+    {
+      "name": "ripgrep",
+      "url": "https://github.com/BurntSushi/ripgrep",
+      "pinnedRevision": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "findings": []
+    },
+    {
+      "name": "guava",
+      "url": "https://github.com/google/guava",
+      "pinnedRevision": "486837d756e6d48864620e91b0761467e2abe744",
+      "findings": []
+    },
+    {
+      "name": "cobra",
+      "url": "https://github.com/spf13/cobra",
+      "pinnedRevision": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "findings": []
+    },
+    {
+      "name": "sinatra",
+      "url": "https://github.com/sinatra/sinatra",
+      "pinnedRevision": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "findings": []
+    },
+    {
+      "name": "automapper",
+      "url": "https://github.com/AutoMapper/AutoMapper",
+      "pinnedRevision": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "findings": []
+    },
+    {
+      "name": "fmt",
+      "url": "https://github.com/fmtlib/fmt",
+      "pinnedRevision": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "findings": []
+    },
+    {
+      "name": "carddemo",
+      "url": "https://github.com/aws-samples/aws-mainframe-modernization-carddemo",
+      "pinnedRevision": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "findings": []
+    },
+    {
+      "name": "cejel",
+      "url": "https://github.com/BargLabs/cejel",
+      "pinnedRevision": "0be03171c810023c65806d87f25ee4873a377cea",
+      "findings": []
+    }
+  ]
+}

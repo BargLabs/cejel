@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "cejel-d2-acceptance-v1",
+  "preregisteredAt": "2026-07-31",
+  "historicalDualControlDenominator": {
+    "included": false,
+    "frozenD2Seeds": [],
+    "reason": "The frozen 16-case dual-control suite contains no D2 seed. This exact-signature specimen is additional acceptance evidence and does not alter that D2 n=0 status."
+  },
+  "cases": [
+    {
+      "id": "D2-ACCEPT-SURFACED-RESULT-01",
+      "defectPath": "calibration/d-series/d2/acceptance/subject.positive.fixture.mjs",
+      "repairedPath": "calibration/d-series/d2/acceptance/subject.negative.fixture.mjs",
+      "binding": "error",
+      "messageProperty": "message",
+      "oracle": "calibration/d-series/d2/acceptance/oracle.node-test.mjs"
+    }
+  ],
+  "precisionGate": {
+    "cohort": "leaderboard/corpus.json public entries",
+    "expectedRepositories": 23,
+    "maximumFindings": 0
+  }
+}
