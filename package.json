@@ -49,6 +49,7 @@
     "build": "tsup",
     "build:sea-js": "tsup --config tsup.public-sea.config.ts",
     "check:dev-environment": "node scripts/assert-dev-environment.mjs --phase=verify",
+    "audit:path-emission": "node --test scripts/criterion-path-emission-audit.node-test.mjs",
     "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
     "pnpm:devPreinstall": "node scripts/assert-dev-environment.mjs --phase=preinstall",
     "prepublishOnly": "pnpm run build",
