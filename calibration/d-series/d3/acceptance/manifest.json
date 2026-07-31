@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "cejel-d3-acceptance-v1",
+  "preregisteredAt": "2026-07-31",
+  "historicalDualControlDenominator": {
+    "included": false,
+    "frozenD3Seeds": ["DC-08", "DC-09", "DC-13", "DC-14", "DC-15"],
+    "cited": "0 / 5",
+    "pairedCleanFindings": "0 / 5",
+    "reason": "The five frozen semantic D3 seeds are not exact acceptance proof for this narrower signature. This specimen is additional evidence and does not alter the historical denominator."
+  },
+  "signature": {
+    "language": "JavaScript or TypeScript",
+    "source": "a simple identifier naming a function parameter",
+    "transform": "a const-bound direct source.filter(...) call",
+    "explanationLedger": "a distinct const-bound empty array literal",
+    "surfacedResult": "a returned object with literal ok: true and shorthand properties for the filtered output and empty explanation ledger"
+  },
+  "cases": [
+    {
+      "id": "D3-ACCEPT-EMPTY-EXPLANATION-LEDGER-01",
+      "defectPath": "calibration/d-series/d3/acceptance/subject.positive.fixture.mjs",
+      "repairedPath": "calibration/d-series/d3/acceptance/subject.negative.fixture.mjs",
+      "sourceBinding": "rows",
+      "outputBinding": "published",
+      "explanationBinding": "explained",
+      "oracle": "calibration/d-series/d3/acceptance/oracle.node-test.mjs"
+    }
+  ],
+  "precisionGate": {
+    "cohort": "leaderboard/corpus.json public entries",
+    "expectedRepositories": 23,
+    "maximumFindings": 0
+  }
+}
