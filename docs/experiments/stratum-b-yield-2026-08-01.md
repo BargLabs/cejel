@@ -226,6 +226,28 @@ Wilson intervals use `z = 1.959963984540054`; for zero catches in `n`, the upper
 interval `[0.00%, 17.59%]`.** B2 contains five additional defects but remains separate and does not
 enter that interval.
 
+**Scope qualification:** this result covers **repo-anchored workflow and configuration defects**
+selected from committed repository history. It did not measure archived sessions, shell history,
+local-machine configuration, cloud-console settings, or uncommitted operational state. Those
+surfaces require separately defined discovery channels and cannot be inferred from this yield.
+
+### Cross-stratum yield finding
+
+Three independently selected repo-anchored strata now show monotonically declining conversion at
+the qualification bar:
+
+| Stratum | Qualified / structural candidates | Conversion |
+|---|---:|---:|
+| A2 CI/deployment transitions | 12 / 325 | 3.69% |
+| Archived session traces | 3 / 123 | 2.44% |
+| B workflow/configuration transitions | 2 / 191 | 1.05% |
+
+The inventory moved from 16 to 18, improving the zero-catch Wilson 95% upper bound from 19.36% to
+17.59%: **1.77 percentage points for a full eleven-repository measurement cycle**. The same
+single-digit outcome across three independent selection mechanisms establishes a population fact,
+not an extraction-method problem. Further repo-anchored extraction under comparable qualification
+bars is not expected to be worthwhile; it should not be the programme's next denominator strategy.
+
 The preregistered ten-case demonstration was unattainable. All eleven repositories were exhausted;
 only the two B1 cases below survived structural selection, defect adjudication, frozen-tip reverse
 application, a green fixed control, a red reversed control, and a green restored control. This is a
@@ -294,15 +316,19 @@ uses only local Git objects and a generated non-secret path-list fixture. Raw co
 retained; the mode-0600 JSON records only exit status, signal, duration, patch mode, and the safe
 step label.
 
-## B2 catalog — not pooled
+## B2 catalog and detection targets — not pooled
 
-| Repository | Fix anchor | Parent anchor | Named job used for qualification | Binding external dependency | Class |
-|---|---|---|---|---|---|
-| `BargLabs/cejel` | `520011e12e75468de423b453621298e28df359e1` | `12bf95c72ab6511aa0cafcd8329021d303ceb47d` | `publish-oci` | GitHub release identity/OIDC and OCI registry write | Outside D1–D8 |
-| `BargStudio/egbert` | `e308972796473778c46eed1e160fed983e785197` | `43438c55a400159454d94dbcbdfbcae31ab65ab5` | `Build & Deploy Cockpit` | loaded deployment SSH identity and live host | Outside D1–D8 |
-| `BargStudio/egbert` | `13d9d0e400340c72793b9e5e21d2919ab39f0630` | `1e520d00d0207e8722f5d3bf8cab316ef57fd0b6` | `Deploy core to Vultr` | tracked-file drift in the live server checkout | D7 |
-| `houman44/edwin` | `eb8cc619dbe08e1b27282f2a082f923c7aa26698` | `8569a2b88b266d2b3404b38e7900c26a7d62ccb8` | `Edwin coordinator preflight` | private Egbert package checkout and its deploy key during the exact job install | Outside D1–D8 |
-| `houman44/edwin` | `3cd9bd41de35301c7ea5f6b2674aa0646657f2eb` | `97d16d935503218c351742ce24ca475cf33757f8` | `edwin-ci-fast` | pinned private Egbert package revision over authenticated SSH | Outside D1–D8 |
+Replayability is a requirement of this measurement, not a requirement of detection. Each B2 entry
+is therefore retained as a detection target with a static signature even though its production-
+state oracle keeps it outside the B1 mechanical denominator.
+
+| ID | Repository | Fix anchor | Parent anchor | Named job | Detection target | Static signature | Binding external dependency | Class |
+|---|---|---|---|---|---|---|---|---|
+| B2-DT1 | `BargLabs/cejel` | `520011e12e75468de423b453621298e28df359e1` | `12bf95c72ab6511aa0cafcd8329021d303ceb47d` | `publish-oci` | Missing permission for registry-backed provenance attestation | A workflow invokes artifact/provenance attestation for a registry publication while the job's effective `permissions` omit `artifact-metadata: write` | GitHub release identity/OIDC and OCI registry write | Outside D1–D8 |
+| B2-DT2 | `BargStudio/egbert` | `e308972796473778c46eed1e160fed983e785197` | `43438c55a400159454d94dbcbdfbcae31ab65ab5` | `Build & Deploy Cockpit` | Loaded SSH deployment identity made ineligible by client options | A job loads a key into an SSH agent and later invokes `ssh`/`scp` with `IdentitiesOnly yes` but without a matching explicit `-i`/`IdentityFile` | loaded deployment SSH identity and live host | Outside D1–D8 |
+| B2-DT3 | `BargStudio/egbert` | `13d9d0e400340c72793b9e5e21d2919ab39f0630` | `1e520d00d0207e8722f5d3bf8cab316ef57fd0b6` | `Deploy core to Vultr` | Drift gate rejects a known deployment-owned tracked mutation | A deploy step fails on non-empty `git status --porcelain` before reset-to-tested-SHA while an earlier deployment path intentionally mutates a tracked configuration file that the gate does not exempt | tracked-file drift in the live server checkout | D7 |
+| B2-DT4 | `houman44/edwin` | `eb8cc619dbe08e1b27282f2a082f923c7aa26698` | `8569a2b88b266d2b3404b38e7900c26a7d62ccb8` | `Edwin coordinator preflight` | Dependency interval excludes the job-required version family | A dependency range in the job-installed project has an empty intersection with a checked-in constraint, audit policy, or locked resolution required by that job | private package checkout and its deploy key during the exact job install | Outside D1–D8 |
+| B2-DT5 | `houman44/edwin` | `3cd9bd41de35301c7ea5f6b2674aa0646657f2eb` | `97d16d935503218c351742ce24ca475cf33757f8` | `edwin-ci-fast` | Stale or uninstallable immutable private VCS dependency pin | A PEP 508 `git+ssh` dependency carries a full revision and subdirectory; the revision must resolve and the subdirectory must expose installable matching package metadata | pinned private package revision over authenticated SSH | Outside D1–D8 |
 
 All five B2 patches apply at their frozen tips. No production token, key, host, registry, or live
 repository state was invoked to turn them into synthetic B1 demonstrations.
