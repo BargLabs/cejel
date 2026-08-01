@@ -1,9 +1,18 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { evaluateCrossArtifactConformancePilot } from './d-series-cross-artifact-conformance-lib.mjs';
+
+const RECOVERY_PREREGISTRATION_COMMIT = '1163749225e678063b4d8c75e09c0839dbd53b77';
+const RUNTIME_PINS = {
+  tsxVersion: '4.22.3',
+  tsxCliSha256: '5c916fa6ecad44aedbb01ca5815536d00ea07de6b73eeb9443d317326b0218d8',
+  lockfileBlob: 'f265bc459610b22a7844e019e4d1fc9bf307dfd3',
+  packageJsonBlob: '8b7e8adace9696090761aa95adfc9be7f2b8470d',
+};
 
 function parseArguments(argv) {
   const args = new Map();
@@ -44,12 +53,36 @@ function verifyCheckout(manifest, subject, checkout) {
       `declaration_blob_mismatch:${actualDeclarationBlob}:${manifest.declaration.blob}`,
     );
   }
+
+  const actualLockfileBlob = git(checkout, ['rev-parse', 'HEAD:pnpm-lock.yaml']);
+  if (actualLockfileBlob !== RUNTIME_PINS.lockfileBlob) {
+    throw new Error(`lockfile_blob_mismatch:${actualLockfileBlob}:${RUNTIME_PINS.lockfileBlob}`);
+  }
+  const actualPackageJsonBlob = git(checkout, ['rev-parse', 'HEAD:package.json']);
+  if (actualPackageJsonBlob !== RUNTIME_PINS.packageJsonBlob) {
+    throw new Error(
+      `package_json_blob_mismatch:${actualPackageJsonBlob}:${RUNTIME_PINS.packageJsonBlob}`,
+    );
+  }
+  const tsxPackagePath = resolve(checkout, 'node_modules/tsx/package.json');
+  const tsxCliPath = resolve(checkout, 'node_modules/tsx/dist/cli.mjs');
+  const tsxPackage = JSON.parse(readFileSync(tsxPackagePath, 'utf8'));
+  if (tsxPackage.version !== RUNTIME_PINS.tsxVersion) {
+    throw new Error(`tsx_version_mismatch:${tsxPackage.version}:${RUNTIME_PINS.tsxVersion}`);
+  }
+  const actualTsxCliSha256 = createHash('sha256').update(readFileSync(tsxCliPath)).digest('hex');
+  if (actualTsxCliSha256 !== RUNTIME_PINS.tsxCliSha256) {
+    throw new Error(
+      `tsx_cli_hash_mismatch:${actualTsxCliSha256}:${RUNTIME_PINS.tsxCliSha256}`,
+    );
+  }
+  return { ...RUNTIME_PINS, tsxCliPath };
 }
 
-function observe(adapterPath, checkout, subject) {
+function observe(adapterPath, checkout, subject, runtime) {
   const stdout = execFileSync(
-    'pnpm',
-    ['exec', 'tsx', adapterPath, '--alfred-root', checkout],
+    process.execPath,
+    [runtime.tsxCliPath, adapterPath, '--alfred-root', checkout],
     { cwd: checkout, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
   const parsed = JSON.parse(stdout);
@@ -57,6 +90,12 @@ function observe(adapterPath, checkout, subject) {
     role: subject.role,
     revision: parsed.revision,
     reportBlob: subject.reportBlob,
+    runtime: {
+      tsxVersion: runtime.tsxVersion,
+      tsxCliSha256: runtime.tsxCliSha256,
+      lockfileBlob: runtime.lockfileBlob,
+      packageJsonBlob: runtime.packageJsonBlob,
+    },
     summaries: {
       zero: {
         claimBearing: parsed.summaries.zero.claimBearing,
@@ -96,13 +135,22 @@ try {
 } catch {
   throw new Error(`preregistration_not_ancestor:${manifest.preregistrationCommit}`);
 }
+try {
+  execFileSync(
+    'git',
+    ['merge-base', '--is-ancestor', RECOVERY_PREREGISTRATION_COMMIT, 'HEAD'],
+    { cwd: repoRoot, stdio: 'ignore' },
+  );
+} catch {
+  throw new Error(`recovery_preregistration_not_ancestor:${RECOVERY_PREREGISTRATION_COMMIT}`);
+}
 
 for (const subject of manifest.subjects) {
   const checkoutArgument = args.get(`--${subject.role}-checkout`);
   if (!checkoutArgument) throw new Error(`missing_argument:--${subject.role}-checkout`);
   const checkout = resolve(checkoutArgument);
-  verifyCheckout(manifest, subject, checkout);
-  observations.push(observe(adapterPath, checkout, subject));
+  const runtime = verifyCheckout(manifest, subject, checkout);
+  observations.push(observe(adapterPath, checkout, subject, runtime));
 }
 
 const result = evaluateCrossArtifactConformancePilot(manifest, observations);

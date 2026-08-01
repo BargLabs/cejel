@@ -122,3 +122,17 @@ test('suppresses the conformance finding when the defective revision pin changes
   assert.equal(result.findingCount, 0);
   assert.match(result.failures.join('\n'), /revision_mismatch:defective/);
 });
+
+test('pins the recovery launcher and never routes it through pnpm', () => {
+  const source = readFileSync(
+    resolve('scripts/d-series-cross-artifact-conformance-pilot.mjs'),
+    'utf8',
+  );
+
+  assert.match(source, /node_modules\/tsx\/dist\/cli\.mjs/);
+  assert.match(
+    source,
+    /5c916fa6ecad44aedbb01ca5815536d00ea07de6b73eeb9443d317326b0218d8/,
+  );
+  assert.doesNotMatch(source, /execFileSync\(\s*['"]pnpm['"]/);
+});

@@ -13,7 +13,7 @@ describe('D-series cross-artifact conformance pilot harness', () => {
       { cwd: repoRoot, encoding: 'utf8' },
     );
 
-    expect(output).toContain('pass 6');
+    expect(output).toContain('pass 7');
     expect(output).toContain('fail 0');
   });
 });

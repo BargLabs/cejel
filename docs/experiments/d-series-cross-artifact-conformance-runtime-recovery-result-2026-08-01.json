@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "cejel-d-series-cross-artifact-conformance-pilot-v1",
+  "result": "pass",
+  "denominator": 1,
+  "findingCount": 1,
+  "findings": [
+    {
+      "ruleId": "D1-conformance",
+      "title": "Declared publication-guard arms did not bind implementation behavior",
+      "missingArms": [
+        "held_out_recall_is_zero",
+        "defect_class_has_zero_catches"
+      ],
+      "evidence": {
+        "declaration": {
+          "revision": "d879c2f69488f4fb3f3c6b45667125812c2c7364",
+          "path": "docs/experiments/dual-control-preregistration.md"
+        },
+        "implementation": {
+          "revision": "76a631be63cf1be2cd4d9c6b303626a7124864c4",
+          "path": "packages/bede/src/dual-control/report.ts"
+        }
+      }
+    }
+  ],
+  "failures": [],
+  "observations": [
+    {
+      "role": "defective",
+      "revision": "76a631be63cf1be2cd4d9c6b303626a7124864c4",
+      "reportBlob": "e79f55cf0f4fd3a7865bde32d2f33e584a96d560",
+      "runtime": {
+        "tsxVersion": "4.22.3",
+        "tsxCliSha256": "5c916fa6ecad44aedbb01ca5815536d00ea07de6b73eeb9443d317326b0218d8",
+        "lockfileBlob": "f265bc459610b22a7844e019e4d1fc9bf307dfd3",
+        "packageJsonBlob": "8b7e8adace9696090761aa95adfc9be7f2b8470d"
+      },
+      "summaries": {
+        "zero": {
+          "claimBearing": true,
+          "refusalReasons": []
+        },
+        "perfect": {
+          "claimBearing": false,
+          "refusalReasons": [
+            "held_out_recall_is_perfect",
+            "defect_class_has_no_miss:decorative_predicate",
+            "defect_class_has_no_miss:fail_open_metadata",
+            "defect_class_has_no_miss:claim_artifact_mismatch",
+            "defect_class_has_no_miss:scope_aggregation"
+          ]
+        }
+      }
+    },
+    {
+      "role": "repair",
+      "revision": "21495c14bbd1caa1669d507ea374a1c4ac6940b2",
+      "reportBlob": "eb16fadcd0814352538a9aa8730439d10bdbab73",
+      "runtime": {
+        "tsxVersion": "4.22.3",
+        "tsxCliSha256": "5c916fa6ecad44aedbb01ca5815536d00ea07de6b73eeb9443d317326b0218d8",
+        "lockfileBlob": "f265bc459610b22a7844e019e4d1fc9bf307dfd3",
+        "packageJsonBlob": "8b7e8adace9696090761aa95adfc9be7f2b8470d"
+      },
+      "summaries": {
+        "zero": {
+          "claimBearing": false,
+          "refusalReasons": [
+            "held_out_recall_is_zero",
+            "defect_class_has_zero_catches:decorative_predicate",
+            "defect_class_has_zero_catches:fail_open_metadata",
+            "defect_class_has_zero_catches:claim_artifact_mismatch",
+            "defect_class_has_zero_catches:scope_aggregation"
+          ]
+        },
+        "perfect": {
+          "claimBearing": false,
+          "refusalReasons": [
+            "held_out_recall_is_perfect",
+            "defect_class_has_no_miss:decorative_predicate",
+            "defect_class_has_no_miss:fail_open_metadata",
+            "defect_class_has_no_miss:claim_artifact_mismatch",
+            "defect_class_has_no_miss:scope_aggregation"
+          ]
+        }
+      }
+    },
+    {
+      "role": "mergedRepair",
+      "revision": "800983fb06c36641ad25b34b82b6465df638c756",
+      "reportBlob": "eb16fadcd0814352538a9aa8730439d10bdbab73",
+      "runtime": {
+        "tsxVersion": "4.22.3",
+        "tsxCliSha256": "5c916fa6ecad44aedbb01ca5815536d00ea07de6b73eeb9443d317326b0218d8",
+        "lockfileBlob": "f265bc459610b22a7844e019e4d1fc9bf307dfd3",
+        "packageJsonBlob": "8b7e8adace9696090761aa95adfc9be7f2b8470d"
+      },
+      "summaries": {
+        "zero": {
+          "claimBearing": false,
+          "refusalReasons": [
+            "held_out_recall_is_zero",
+            "defect_class_has_zero_catches:decorative_predicate",
+            "defect_class_has_zero_catches:fail_open_metadata",
+            "defect_class_has_zero_catches:claim_artifact_mismatch",
+            "defect_class_has_zero_catches:scope_aggregation"
+          ]
+        },
+        "perfect": {
+          "claimBearing": false,
+          "refusalReasons": [
+            "held_out_recall_is_perfect",
+            "defect_class_has_no_miss:decorative_predicate",
+            "defect_class_has_no_miss:fail_open_metadata",
+            "defect_class_has_no_miss:claim_artifact_mismatch",
+            "defect_class_has_no_miss:scope_aggregation"
+          ]
+        }
+      }
+    }
+  ],
+  "detectorCommit": "52cda115f10e1a36c1d46bc66cfb0fad253a850e",
+  "manifestPath": "docs/experiments/d-series-cross-artifact-conformance-pilot-manifest-2026-08-01.json"
+}
