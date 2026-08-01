@@ -15,22 +15,35 @@ are compared with `crypto.timingSafeEqual` only when their lengths match.
 When the variable is configured, a credential-free `OPTIONS` request may return
 the CORS preflight response; it cannot execute an MCP operation or read data.
 
-Refusals emit the event `cejel_mcp_auth_refused` with:
+Caller-caused refusals emit the event `cejel_mcp_auth_refused` with:
 
 - `reason`;
 - `user_agent`, sourced from the `user-agent` header;
-- `x_vercel_ip_country`, sourced from the `x-vercel-ip-country` header.
+- `authorization_header_present`, recording presence only;
+- `trusted_client_ip`, sourced from the platform-provided
+  `x-vercel-forwarded-for` header;
+- `x_forwarded_for_untrusted`, sourced from the client-settable
+  `x-forwarded-for` header and explicitly named as untrusted;
+- `x_vercel_ip_country`, sourced from the `x-vercel-ip-country` header;
+- `request_path` and `request_method`;
+- `presented_token_length`, only when a token was parsed.
+
+The refusal reasons distinguish server misconfiguration, a missing or
+non-Bearer Authorization header, a Bearer-shaped header without a parseable
+token, and a parsed token that does not match. Server misconfiguration emits
+the separate error event `cejel_mcp_auth_configuration_alert`; it is not
+counted with caller-caused `401` events.
 
 The presented token, its prefix, and the Authorization header are never
 logged.
 
-## Operator action required
+## Operator action completed
 
-An operator must provision a strong, randomly generated
-`CEJEL_MCP_ACCESS_TOKEN` in the `cejel-mcp` Vercel project's **production**
-environment and redeploy production after this change merges. Grant the token
-to approved clients out of band. This change does not create, store, or set
-the production token, and it does not modify Vercel Deployment Protection.
+On 2026-08-01, a 384-bit randomly generated `CEJEL_MCP_ACCESS_TOKEN` was
+provisioned as a sensitive variable in the `cejel-mcp` Vercel project's
+**production** environment. Deployment `dpl_8LnyYZvW88g2uwj9EzeD5P9PqiV7`
+was promoted after an authenticated MCP handshake succeeded. The token value
+is not recorded in this repository or this status document.
 
 ## Refusal and authenticated handshake
 
@@ -71,6 +84,26 @@ if deployment occurs later, query `cejel_mcp_auth_refused` events and group by
 measured approximately 58-61 requests/day. Record whether the traffic stops,
 continues as `401`, or authenticates, and whether the metadata identifies an
 operator monitor, platform health check, or unknown external dependent.
+
+## Production observation — 2026-08-01
+
+The recurring caller reached the promoted deployment at 09:01:11 UTC. It sent
+`POST /api/mcp` with no User-Agent and no Authorization header, so the request
+was correctly refused as `authorization_header_absent`. No token was parsed
+and no token length was logged. Vercel reported country `US` and
+`trusted_client_ip` `172.69.134.236`.
+
+That address falls within
+[Cloudflare's published `172.64.0.0/13` IPv4 range](https://www.cloudflare.com/ips-v4/).
+It is trustworthy only as the address that connected to Vercel: it is a
+Cloudflare edge address, not caller-origin attribution. Do not use it to name
+a caller or construct an origin blocklist. A service running on Cloudflare
+Workers or fronted by Cloudflare can present the same address.
+
+A separate earlier request identified itself as
+`agent-tools.cloud-crawler/0.1 (+https://agent-tools.cloud)`. The anonymous
+recurring probe is compatible with that kind of discovery or health-check
+traffic, but the available evidence does not prove they are the same caller.
 
 ## Guard coupling
 
