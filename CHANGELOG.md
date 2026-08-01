@@ -47,11 +47,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the README opening, package metadata, Action metadata, registry metadata, and MCP tool copy. This
   is a documentation boundary only; scoring, findings, detector behavior, and board scores are
   unchanged.
-- The public D-series coverage documentation now excludes D6 partial-view inference from static
-  source rules. D6 requires trace-surface evidence and remains blocked on the harvester resolver;
-  until then it is unmeasured, not clean, and no source heuristic claims to detect reasoning
-  defects. This is a documentation boundary only; no scoring rubric, rule behavior, or public board
-  score changes.
 - The Free LLM detector-development candidate recognizes file-local JavaScript/TypeScript and
   Python evaluation aggregates assigned through local result-object attributes or subscripts.
   Fixture-backed controls retain the eligible denominator, and lookalike names do not activate the
