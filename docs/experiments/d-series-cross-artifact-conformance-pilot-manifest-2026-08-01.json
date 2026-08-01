@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "cejel-d-series-cross-artifact-conformance-pilot-v1",
+  "preregistrationCommit": "e61be2079b467ce92eb007334af948ea55726705",
+  "repository": "BargLabs/alfred",
+  "declaration": {
+    "revision": "d879c2f69488f4fb3f3c6b45667125812c2c7364",
+    "path": "docs/experiments/dual-control-preregistration.md",
+    "blob": "e637b02f1a65796669612e18caa7fccda7820c52"
+  },
+  "implementationPath": "packages/bede/src/dual-control/report.ts",
+  "subjects": [
+    {
+      "role": "defective",
+      "revision": "76a631be63cf1be2cd4d9c6b303626a7124864c4",
+      "reportBlob": "e79f55cf0f4fd3a7865bde32d2f33e584a96d560"
+    },
+    {
+      "role": "repair",
+      "revision": "21495c14bbd1caa1669d507ea374a1c4ac6940b2",
+      "reportBlob": "eb16fadcd0814352538a9aa8730439d10bdbab73"
+    },
+    {
+      "role": "mergedRepair",
+      "revision": "800983fb06c36641ad25b34b82b6465df638c756",
+      "reportBlob": "eb16fadcd0814352538a9aa8730439d10bdbab73"
+    }
+  ],
+  "missingArms": [
+    "held_out_recall_is_zero",
+    "defect_class_has_zero_catches"
+  ],
+  "expectedRepairRefusalReasons": [
+    "held_out_recall_is_zero",
+    "defect_class_has_zero_catches:decorative_predicate",
+    "defect_class_has_zero_catches:fail_open_metadata",
+    "defect_class_has_zero_catches:claim_artifact_mismatch",
+    "defect_class_has_zero_catches:scope_aggregation"
+  ],
+  "expectedPerfectRefusalReasons": [
+    "held_out_recall_is_perfect",
+    "defect_class_has_no_miss:decorative_predicate",
+    "defect_class_has_no_miss:fail_open_metadata",
+    "defect_class_has_no_miss:claim_artifact_mismatch",
+    "defect_class_has_no_miss:scope_aggregation"
+  ]
+}
