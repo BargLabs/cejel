@@ -167,12 +167,29 @@ provider JSON, allowlist retained structural fields, route shell text through `c
 route non-shell text leaves through `redactText`, and emit category/count telemetry without raw
 values. That adapter is format handling, not a competing scrubber.
 
+### Corpus text-length contract
+
+Corpus ingestion must **never** inherit `redactText`'s 240-character default. That default is for
+display-sized log lines and summaries; applying it here could silently remove a retraction or
+qualifier at the end of an otherwise usable claim. The adapter must define
+`CORPUS_TEXT_MAX_LENGTH = 64_000`, reject a raw non-shell text leaf longer than that limit before
+calling the redactor, record the rejection as `oversize` telemetry without the raw value, and call
+`redactText(raw, CORPUS_TEXT_MAX_LENGTH)` for retained leaves. This precheck guarantees that the
+redactor cannot produce an ellipsis on the corpus path. The 240-character default remains valid
+only for a later display projection derived from the scrubbed corpus.
+
+Adapter tests must prove that a retraction qualifier beyond character 240 survives unchanged, that
+a 64,001-character leaf is dropped and counted rather than truncated, and that no corpus-ingestion
+call site invokes `redactText` without an explicit maximum. This makes length loss auditable before
+any transcript body is read.
+
 ## Next gate
 
 Before any transcript content is ingested:
 
 1. expose the Alfred redactor through a shared/pinned import and implement the structured adapter
-   above, without duplicating its credential-pattern engine;
+   above, including the explicit corpus text-length contract, without duplicating its credential-
+   pattern engine;
 2. add transcript-format tests for nested environment maps, embedded-authentication URLs, workflow
    secret expressions, private-key bodies, and per-leaf fail-closed retention;
 3. emit only redaction categories/counts plus scrubbed normalized events;
