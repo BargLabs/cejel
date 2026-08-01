@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "cejel-d-series-cross-artifact-conformance-pilot-result-v1",
+  "status": "failed_before_observation",
+  "preregistrationCommit": "e61be2079b467ce92eb007334af948ea55726705",
+  "detectorCommit": "03871339c3df74eadfe8437f85825ee2b6aa6e9a",
+  "observedAt": "2026-08-01T18:14:53Z",
+  "plannedDefectDenominator": 1,
+  "subjectsEvaluated": 0,
+  "findingCount": null,
+  "claimBearing": false,
+  "failure": {
+    "stage": "defective_adapter_launch",
+    "code": "pnpm_signature_verification_fetch_failed",
+    "detail": "The pinned Alfred adapter did not start because the project-level pnpm launcher could not verify its registry signature while offline."
+  },
+  "pinsVerifiedBeforeLaunch": true,
+  "detectorEditedAfterFailure": false,
+  "retryCount": 0,
+  "conformanceVerdict": null
+}
