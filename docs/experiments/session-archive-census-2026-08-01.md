@@ -131,16 +131,54 @@ The next recall gain must therefore come from one or more of:
 It must not come from counting machine copies as independent sessions or accepting transcript prose
 as an oracle.
 
+## Existing-redactor reuse assessment
+
+The required first choice is **reuse**, not a second credential-pattern implementation. Alfred's
+`packages/operator-trace/src/redactor.ts` at
+`5a8e496c33e783b2271827e78096e5f515f656a0` already provides:
+
+- `classifyCommand(raw)` for shell payloads, with fail-closed command-head classification;
+- `redactText(raw, maxLength)` for free text from non-shell sources;
+- whole-payload replacement on a secret match rather than partial masking; and
+- fail-closed rejection of unclassified high-entropy text.
+
+Its targeted `guard1-fail-closed-redaction.test.ts` suite passes **8/8**, including the static
+classification-before-write guard and the free-text cases. The transcript parser should import a
+shared/pinned form of this module; it must not copy the patterns into a Cejel-local scrubber that can
+drift independently.
+
+`redactText` is reusable at the **parsed text-leaf** boundary, but it is not by itself a transcript-
+body ingester:
+
+1. it is not recursive or event-aware; applying it to a complete JSONL record would flatten
+   whitespace, truncate at the default 240 characters, and destroy tool/result structure;
+2. it returns a replacement string but no redaction category/count ledger;
+3. shell commands need `classifyCommand`, whose command-head allowlist is stricter than
+   `redactText` and is part of the fail-closed guarantee;
+4. transcript event maps need explicit handling for nested environment values, generic embedded-
+   credential URLs, workflow secret expressions, and complete private-key bodies before a safe leaf
+   can be retained; and
+5. a secret in one leaf should drop that leaf while preserving non-sensitive event metadata such as
+   provider, session ID, timestamp, exit status, and event type. Whole-record replacement would make
+   the structural funnel unusable.
+
+The required addition is therefore a thin structured adapter around the existing redactor: parse
+provider JSON, allowlist retained structural fields, route shell text through `classifyCommand`,
+route non-shell text leaves through `redactText`, and emit category/count telemetry without raw
+values. That adapter is format handling, not a competing scrubber.
+
 ## Next gate
 
 Before any transcript content is ingested:
 
-1. implement and test an in-memory scrubber for credentials, environment assignments, embedded
-   authentication URLs, shell-history lines, and common secret-bearing key shapes;
-2. emit only redaction categories/counts plus scrubbed normalized events;
-3. hash the scrubbed canonical event stream, never the raw transcript;
-4. deduplicate by provider/session ID and scrubbed canonical hash before funnel counts; and
-5. preregister parser coverage and a yield prediction before examining candidate identities.
+1. expose the Alfred redactor through a shared/pinned import and implement the structured adapter
+   above, without duplicating its credential-pattern engine;
+2. add transcript-format tests for nested environment maps, embedded-authentication URLs, workflow
+   secret expressions, private-key bodies, and per-leaf fail-closed retention;
+3. emit only redaction categories/counts plus scrubbed normalized events;
+4. hash the scrubbed canonical event stream, never the raw transcript;
+5. deduplicate by provider/session ID and scrubbed canonical hash before funnel counts; and
+6. preregister parser coverage and a yield prediction before examining candidate identities.
 
 Reproduce the metadata census with:
 
