@@ -277,6 +277,23 @@ This list will grow. It will never be "any codebase" — that claim is a promise
 cannot keep, and an honest support matrix is worth more than a marketing line the code
 contradicts on the first unsupported repository someone runs it against.
 
+## D-series source-rule coverage
+
+The opt-in `@cejel/cejel/d-series` pack is separate from the A1-B6 Witan rubric. It does not
+change a trust-certificate score or the public leaderboard. Its shipped source rules are narrow,
+exact signatures: [D1](./docs/packs/d-series-d1-rule-contract.md),
+[D2](./docs/packs/d-series-d2-rule-contract.md),
+[D3](./docs/packs/d-series-d3-rule-contract.md),
+[D4](./docs/packs/d-series-d4-rule-contract.md), and
+[D5](./docs/packs/d-series-d5-rule-contract.md). Each contract states what the rule matches and
+where it abstains; none claims the full semantic defect class.
+
+**D6 (partial-view inference) is excluded** from the source-rule pack. D6 requires
+trace-surface evidence showing what information was available to a reasoner and which partial view
+drove the conclusion; source code alone cannot establish that relationship. Trace-surface
+evaluation remains blocked on the harvester resolver. Until that resolver lands, D6 is unmeasured,
+not clean. No static or source heuristic in Cejel claims to detect D6 or reasoning defects in source.
+
 ## Aggregate your scanners
 
 Cejel doesn't compete with your AI-code scanner (MunaTrust, Snyk, Semgrep, CodeQL, Codex,
