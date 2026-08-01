@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,6 +6,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { handleAuthenticatedCejelHttpRequest } from '../http/auth.js';
 
 const ACCESS_TOKEN = 'test-only-cejel-mcp-access-token';
+const CONFIGURED_TOKEN_SENTINEL = `configured-token-${'x'.repeat(173)}`;
 const ORIGINAL_ACCESS_TOKEN = process.env.CEJEL_MCP_ACCESS_TOKEN;
 const ACCESS_MESSAGE =
   'Bearer token required. Request access at https://github.com/BargLabs/cejel/issues/new.';
@@ -56,6 +58,7 @@ describe.sequential('/api/mcp bearer authentication', () => {
   beforeEach(() => {
     process.env.CEJEL_MCP_ACCESS_TOKEN = ACCESS_TOKEN;
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -76,10 +79,35 @@ describe.sequential('/api/mcp bearer authentication', () => {
       await handleAuthenticatedCejelHttpRequest(initializeRequest(), identity),
     );
     expect(identity).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(
+      'cejel_mcp_auth_refused',
+      expect.objectContaining({
+        reason: 'authorization_header_absent',
+        authorization_header_present: false,
+      }),
+    );
   });
 
   it('rejects a request with the wrong bearer token', async () => {
     await expectUnauthorized(await handleRequest(initializeRequest('wrong-token')));
+    expect(console.warn).toHaveBeenCalledWith(
+      'cejel_mcp_auth_refused',
+      expect.objectContaining({
+        reason: 'token_mismatch',
+        presented_token_length: 'wrong-token'.length,
+      }),
+    );
+  });
+
+  it('rejects a Bearer-shaped header with no parseable token', async () => {
+    const request = initializeRequest();
+    request.headers.set('authorization', 'Bearer two tokens');
+
+    await expectUnauthorized(await handleRequest(request));
+    expect(console.warn).toHaveBeenCalledWith(
+      'cejel_mcp_auth_refused',
+      expect.objectContaining({ reason: 'token_absent' }),
+    );
   });
 
   it('accepts the correct bearer token and completes the MCP handshake', async () => {
@@ -98,6 +126,8 @@ describe.sequential('/api/mcp bearer authentication', () => {
         }),
       }),
     );
+    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it('keeps an authenticated GET event stream open for the client', async () => {
@@ -140,6 +170,7 @@ describe.sequential('/api/mcp bearer authentication', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
     expect(response.headers.get('access-control-allow-headers')).toContain('authorization');
     expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it('structurally routes every Vercel method through the authenticated handler', () => {
@@ -168,22 +199,130 @@ describe.sequential('/api/mcp bearer authentication', () => {
         await expectUnauthorized(await handleRequest(request));
       }
     }
+
+    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      'cejel_mcp_auth_configuration_alert',
+      expect.objectContaining({ reason: 'access_token_unconfigured' }),
+    );
   });
 
-  it('logs refusal metadata without logging the presented token', async () => {
+  it('logs trusted refusal metadata without logging the presented token', async () => {
     const presentedToken = 'never-log-this-presented-token';
     const request = initializeRequest(presentedToken);
     request.headers.set('user-agent', 'cejel-auth-observer/1.0');
+    request.headers.set('x-vercel-forwarded-for', '203.0.113.8');
+    request.headers.set('x-forwarded-for', '198.51.100.23');
     request.headers.set('x-vercel-ip-country', 'CA');
 
     await expectUnauthorized(await handleRequest(request));
 
+    expect(console.warn).toHaveBeenCalledWith(
+      'cejel_mcp_auth_refused',
+      expect.objectContaining({
+        reason: 'token_mismatch',
+        user_agent: 'cejel-auth-observer/1.0',
+        authorization_header_present: true,
+        trusted_client_ip: '203.0.113.8',
+        x_forwarded_for_untrusted: '198.51.100.23',
+        x_vercel_ip_country: 'CA',
+        request_path: '/api/mcp',
+        request_method: 'POST',
+        presented_token_length: presentedToken.length,
+      }),
+    );
+
     const serializedLogs = JSON.stringify(vi.mocked(console.warn).mock.calls);
-    expect(serializedLogs).toContain('user_agent');
-    expect(serializedLogs).toContain('x_vercel_ip_country');
-    expect(serializedLogs).toContain('cejel-auth-observer/1.0');
-    expect(serializedLogs).toContain('CA');
     expect(serializedLogs).not.toContain(presentedToken);
     expect(serializedLogs).not.toContain(presentedToken.slice(0, 8));
+    expect(serializedLogs).not.toContain(presentedToken.slice(-8));
+  });
+
+  it.each([
+    {
+      reason: 'access_token_unconfigured',
+      authorization: 'Bearer never-log-unconfigured-token-value',
+      configure: false,
+      logger: 'error',
+    },
+    {
+      reason: 'authorization_header_absent',
+      authorization: 'Basic never-log-wrong-scheme-token-value',
+      configure: true,
+      logger: 'warn',
+    },
+    {
+      reason: 'token_absent',
+      authorization: 'Bearer never-log-unparseable-token-value extra',
+      configure: true,
+      logger: 'warn',
+    },
+    {
+      reason: 'token_mismatch',
+      authorization: 'Bearer never-log-mismatched-token-value',
+      configure: true,
+      logger: 'warn',
+    },
+  ] as const)(
+    'does not disclose credential material on the $reason path',
+    async ({ reason, authorization, configure, logger }) => {
+      if (configure) {
+        process.env.CEJEL_MCP_ACCESS_TOKEN = CONFIGURED_TOKEN_SENTINEL;
+      } else {
+        delete process.env.CEJEL_MCP_ACCESS_TOKEN;
+      }
+      const request = initializeRequest();
+      request.headers.set('authorization', authorization);
+
+      await expectUnauthorized(await handleRequest(request));
+
+      const logCalls = [
+        ...vi.mocked(console.warn).mock.calls,
+        ...vi.mocked(console.error).mock.calls,
+      ];
+      const serializedLogs = JSON.stringify(logCalls);
+      const loggedValues = logCalls.flatMap((call) =>
+        call.flatMap((value) =>
+          typeof value === 'object' && value !== null ? Object.values(value) : [value],
+        ),
+      );
+      const credentialMaterial = authorization.replace(/^(?:Bearer|Basic) /, '').split(' ')[0];
+      if (!credentialMaterial) throw new Error('Test authorization has no credential material.');
+      const credentialSha256 = createHash('sha256').update(credentialMaterial).digest('hex');
+      expect(serializedLogs).toContain(reason);
+      expect(serializedLogs).not.toContain(credentialMaterial);
+      expect(serializedLogs).not.toContain(credentialMaterial.slice(0, 12));
+      expect(serializedLogs).not.toContain(credentialMaterial.slice(-12));
+      expect(serializedLogs).not.toContain(credentialSha256);
+
+      if (configure) {
+        expect(loggedValues).not.toContain(CONFIGURED_TOKEN_SENTINEL);
+        expect(loggedValues).not.toContain(CONFIGURED_TOKEN_SENTINEL.length);
+        expect(loggedValues).not.toContain(String(CONFIGURED_TOKEN_SENTINEL.length));
+      }
+
+      if (logger === 'error') {
+        expect(console.error).toHaveBeenCalledOnce();
+        expect(console.warn).not.toHaveBeenCalled();
+      } else {
+        expect(console.warn).toHaveBeenCalledOnce();
+        expect(console.error).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it('keeps server misconfiguration alerts separate from caller refusals', async () => {
+    delete process.env.CEJEL_MCP_ACCESS_TOKEN;
+
+    await expectUnauthorized(await handleRequest(initializeRequest('presented-token')));
+
+    expect(console.error).toHaveBeenCalledWith(
+      'cejel_mcp_auth_configuration_alert',
+      expect.objectContaining({
+        reason: 'access_token_unconfigured',
+        presented_token_length: 'presented-token'.length,
+      }),
+    );
+    expect(console.warn).not.toHaveBeenCalled();
   });
 });
