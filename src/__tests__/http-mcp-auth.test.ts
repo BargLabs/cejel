@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,6 +6,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { handleAuthenticatedCejelHttpRequest } from '../http/auth.js';
 
 const ACCESS_TOKEN = 'test-only-cejel-mcp-access-token';
+const CONFIGURED_TOKEN_SENTINEL = `configured-token-${'x'.repeat(173)}`;
 const ORIGINAL_ACCESS_TOKEN = process.env.CEJEL_MCP_ACCESS_TOKEN;
 const ACCESS_MESSAGE =
   'Bearer token required. Request access at https://github.com/BargLabs/cejel/issues/new.';
@@ -264,22 +266,40 @@ describe.sequential('/api/mcp bearer authentication', () => {
   ] as const)(
     'does not disclose credential material on the $reason path',
     async ({ reason, authorization, configure, logger }) => {
-      if (!configure) delete process.env.CEJEL_MCP_ACCESS_TOKEN;
+      if (configure) {
+        process.env.CEJEL_MCP_ACCESS_TOKEN = CONFIGURED_TOKEN_SENTINEL;
+      } else {
+        delete process.env.CEJEL_MCP_ACCESS_TOKEN;
+      }
       const request = initializeRequest();
       request.headers.set('authorization', authorization);
 
       await expectUnauthorized(await handleRequest(request));
 
-      const serializedLogs = JSON.stringify([
+      const logCalls = [
         ...vi.mocked(console.warn).mock.calls,
         ...vi.mocked(console.error).mock.calls,
-      ]);
+      ];
+      const serializedLogs = JSON.stringify(logCalls);
+      const loggedValues = logCalls.flatMap((call) =>
+        call.flatMap((value) =>
+          typeof value === 'object' && value !== null ? Object.values(value) : [value],
+        ),
+      );
       const credentialMaterial = authorization.replace(/^(?:Bearer|Basic) /, '').split(' ')[0];
       if (!credentialMaterial) throw new Error('Test authorization has no credential material.');
+      const credentialSha256 = createHash('sha256').update(credentialMaterial).digest('hex');
       expect(serializedLogs).toContain(reason);
       expect(serializedLogs).not.toContain(credentialMaterial);
       expect(serializedLogs).not.toContain(credentialMaterial.slice(0, 12));
       expect(serializedLogs).not.toContain(credentialMaterial.slice(-12));
+      expect(serializedLogs).not.toContain(credentialSha256);
+
+      if (configure) {
+        expect(loggedValues).not.toContain(CONFIGURED_TOKEN_SENTINEL);
+        expect(loggedValues).not.toContain(CONFIGURED_TOKEN_SENTINEL.length);
+        expect(loggedValues).not.toContain(String(CONFIGURED_TOKEN_SENTINEL.length));
+      }
 
       if (logger === 'error') {
         expect(console.error).toHaveBeenCalledOnce();
