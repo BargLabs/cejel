@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "frozenSnapshotCutoff": "2026-08-01T17:18:11.396Z",
+  "capturedAt": "2026-08-01T21:45:31.052Z",
+  "reason": "IDs created after the frozen census boundary; excluded from the 3,542 provisional population.",
+  "count": 18,
+  "sessions": [
+    { "id": "019fbe84-bec4-7cc2-873a-1e6624581d6a", "source": "codex-active", "birthtime": "2026-08-01T18:09:58.578Z" },
+    { "id": "019fbe84-d7c4-7210-9188-eb2526a6e18d", "source": "codex-active", "birthtime": "2026-08-01T18:10:04.977Z" },
+    { "id": "019fbe84-fd3b-7a82-9b3a-111ea1b36255", "source": "codex-active", "birthtime": "2026-08-01T18:10:14.568Z" },
+    { "id": "019fbe85-28bb-7c71-b013-bc5da66f1a9c", "source": "codex-active", "birthtime": "2026-08-01T18:10:25.674Z" },
+    { "id": "019fbe84-fd9d-72c1-bf0c-d3f5716f55e5", "source": "codex-active", "birthtime": "2026-08-01T18:11:03.788Z" },
+    { "id": "019fbe84-d826-7681-a2ff-0aa160aab255", "source": "codex-active", "birthtime": "2026-08-01T18:11:04.994Z" },
+    { "id": "019fbe84-bf25-7cd0-9d02-cc307901f44a", "source": "codex-active", "birthtime": "2026-08-01T18:11:26.451Z" },
+    { "id": "019fbea8-e82c-7922-9ddb-ed8da95a23d6", "source": "codex-active", "birthtime": "2026-08-01T18:49:28.501Z" },
+    { "id": "019fbef0-da06-70f3-8cf9-ee73f07272b0", "source": "codex-active", "birthtime": "2026-08-01T20:08:03.467Z" },
+    { "id": "019fbef0-fe85-72d0-9bbb-dec09ddf0668", "source": "codex-active", "birthtime": "2026-08-01T20:08:12.789Z" },
+    { "id": "019fbef0-fee8-7ce3-aa13-40f902d10fa6", "source": "codex-active", "birthtime": "2026-08-01T20:09:09.100Z" },
+    { "id": "019fbef0-da7f-7501-861a-cb2ab796c5b7", "source": "codex-active", "birthtime": "2026-08-01T20:09:17.295Z" },
+    { "id": "019fbea8-e8a9-7070-aa1d-b62d8a5d1d49", "source": "codex-active", "birthtime": "2026-08-01T20:20:49.862Z" },
+    { "id": "019fbf01-8b4b-7d70-ba51-363b252b3fc3", "source": "codex-active", "birthtime": "2026-08-01T20:28:05.789Z" },
+    { "id": "019fbf26-2e72-7b93-9215-b4575a692d65", "source": "codex-active", "birthtime": "2026-08-01T21:07:21.371Z" },
+    { "id": "019fbf3a-9d05-7221-9a11-9e5524f1c0e3", "source": "codex-active", "birthtime": "2026-08-01T21:28:37.665Z" },
+    { "id": "019fbf3b-4d79-7e50-bf29-0c82042010de", "source": "codex-active", "birthtime": "2026-08-01T21:29:22.613Z" },
+    { "id": "019fbf45-1a14-7252-af84-5d02b5284207", "source": "codex-active", "birthtime": "2026-08-01T21:40:05.060Z" }
+  ]
+}

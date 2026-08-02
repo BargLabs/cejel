@@ -3,13 +3,38 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // This census is deliberately content-blind. It may stat paths and inspect names,
 // but it must not open, read, or hash transcript or shell-history bodies.
 
 const home = os.homedir();
-const outputPath = process.argv[2] ?? '/tmp/session-archive-census.json';
 const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const frozenSnapshot = {
+  cutoff: '2026-08-01T17:18:11.396Z',
+  provisionalTranscriptIds: 3_542,
+  postSnapshotLedger: 'docs/experiments/session-archive-census-post-snapshot-ids-2026-08-01.json',
+  idsKnownAtFirstPostSnapshotCheck: 18,
+};
+const frozenSnapshotCutoff = new Date(frozenSnapshot.cutoff);
+
+export const deniedArchiveRoots = [
+  {
+    label: 'claude-cli-nodejs-cache',
+    root: path.join(home, 'Library/Caches/claude-cli-nodejs'),
+    // MCP connector logs can contain third-party message bodies, queries, and result rows.
+    // Their path is sufficient to classify them as non-transcript material; never open them.
+    reason: 'MCP connector caches are not agent transcripts and may contain third-party content.',
+  },
+];
+
+export function isDeniedArchivePath(candidate, deniedRoots = deniedArchiveRoots.map(({ root }) => root)) {
+  const resolvedCandidate = path.resolve(candidate);
+  return deniedRoots.some((root) => {
+    const resolvedRoot = path.resolve(root);
+    return resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`);
+  });
+}
 
 const sources = [
   { label: 'codex-active', family: 'codex', root: path.join(home, '.codex/sessions') },
@@ -91,7 +116,7 @@ function visibleSessionId(file) {
   return matches[0].toLowerCase();
 }
 
-function walkMetadata(root) {
+export function walkMetadata(root, { deniedRoots = deniedArchiveRoots.map((item) => item.root) } = {}) {
   const summary = {
     exists: false,
     files: 0,
@@ -100,11 +125,18 @@ function walkMetadata(root) {
     provisionalLocalSessionDirs: 0,
     localWorkspaceIds: new Set(),
     stableIds: new Set(),
+    stableIdsAtFrozenSnapshot: new Set(),
+    stableIdsAfterFrozenSnapshot: new Set(),
     extensions: new Map(),
     earliestMtime: null,
     latestMtime: null,
     embeddedDates: [],
+    deniedSubtreesSkipped: 0,
   };
+  if (isDeniedArchivePath(root, deniedRoots)) {
+    summary.deniedSubtreesSkipped = 1;
+    return summary;
+  }
   if (!fs.existsSync(root)) return summary;
   summary.exists = true;
   const rootStat = fs.lstatSync(root);
@@ -113,6 +145,10 @@ function walkMetadata(root) {
 
   while (stack.length) {
     const current = stack.pop();
+    if (isDeniedArchivePath(current, deniedRoots)) {
+      summary.deniedSubtreesSkipped++;
+      continue;
+    }
     const stat = fs.lstatSync(current);
     if (stat.isSymbolicLink()) continue;
     if (stat.isDirectory()) {
@@ -134,12 +170,40 @@ function walkMetadata(root) {
     summary.extensions.set(extension, (summary.extensions.get(extension) ?? 0) + 1);
     if (extension === '.jsonl') summary.jsonlFiles++;
     const sessionId = visibleSessionId(current);
-    if (sessionId) summary.stableIds.add(sessionId);
+    if (sessionId) {
+      summary.stableIds.add(sessionId);
+      if (stat.birthtime <= frozenSnapshotCutoff) summary.stableIdsAtFrozenSnapshot.add(sessionId);
+      else summary.stableIdsAfterFrozenSnapshot.add(sessionId);
+    }
     const date = path.basename(current).match(/rollout-(\d{4}-\d{2}-\d{2})/i)?.[1];
     if (date) summary.embeddedDates.push(date);
     const mtime = stat.mtime.toISOString();
     if (!summary.earliestMtime || mtime < summary.earliestMtime) summary.earliestMtime = mtime;
     if (!summary.latestMtime || mtime > summary.latestMtime) summary.latestMtime = mtime;
+  }
+  return summary;
+}
+
+function countDeniedTree(root) {
+  const summary = { exists: false, directories: 0, files: 0, jsonlFiles: 0, bytes: 0 };
+  if (!fs.existsSync(root)) return summary;
+  summary.exists = true;
+  const stack = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) continue;
+    if (stat.isDirectory()) {
+      summary.directories++;
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        stack.push(path.join(current, entry.name));
+      }
+      continue;
+    }
+    if (!stat.isFile()) continue;
+    summary.files++;
+    if (path.extname(current).toLowerCase() === '.jsonl') summary.jsonlFiles++;
+    summary.bytes += stat.size;
   }
   return summary;
 }
@@ -156,6 +220,8 @@ function serializeSummary(summary) {
     bytes: summary.bytes,
     jsonlFiles: summary.jsonlFiles,
     stableSessionIdsVisibleInNames: summary.stableIds.size,
+    stableSessionIdsAtFrozenSnapshot: summary.stableIdsAtFrozenSnapshot.size,
+    stableSessionIdsAfterFrozenSnapshot: summary.stableIdsAfterFrozenSnapshot.size,
     provisionalLocalSessionDirs: summary.provisionalLocalSessionDirs,
     provisionalLocalWorkspaceIds: summary.localWorkspaceIds.size,
     earliestMtime: summary.earliestMtime,
@@ -164,6 +230,7 @@ function serializeSummary(summary) {
       ? { earliest: embeddedDates[0], latest: embeddedDates.at(-1) }
       : null,
     topExtensions: extensions,
+    deniedSubtreesSkipped: summary.deniedSubtreesSkipped,
   };
 }
 
@@ -242,34 +309,64 @@ function claudePathLineage(root) {
   return counts;
 }
 
-const collected = sources.map((source) => ({ ...source, summary: walkMetadata(source.root) }));
-const output = {
-  schemaVersion: 1,
-  generatedAt: new Date().toISOString(),
-  method: {
-    contentBlind: true,
-    rawBodiesRead: false,
-    rawBodiesHashed: false,
-    caution: 'Stable-ID overlap is provisional. Definitive content deduplication must occur only after in-memory credential scrubbing.',
-  },
-  sources: collected.map(({ label, family, root, summary }) => ({
-    label,
-    family,
-    root,
-    ...serializeSummary(summary),
-  })),
-  shellRecoveryMetadata: shellSources.map(({ label, root }) => ({ label, root, ...serializeSummary(walkMetadata(root)) })),
-  secondaryExports: secondaryExports.map(({ label, root }) => ({ label, root, ...serializeSummary(walkMetadata(root)) })),
-  visibleStableIdOverlap: {
-    codex: overlapFor('codex', collected),
-    claudeCode: overlapFor('claude-code', collected),
-    cowork: overlapFor('cowork', collected),
-    coworkLocalWorkspaces: localWorkspaceOverlap(collected),
-  },
-  migratedPathLineage: {
-    claudeCodeLiveProjectKeys: claudePathLineage(path.join(home, '.claude/projects')),
-  },
-};
+function frozenFamilyIds(family, collected) {
+  const ids = new Set();
+  for (const source of collected.filter((item) => item.family === family)) {
+    for (const id of source.summary.stableIdsAtFrozenSnapshot) ids.add(id);
+  }
+  return ids.size;
+}
 
-fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`, { mode: 0o600 });
-console.log(JSON.stringify(output, null, 2));
+export function runCensus(outputPath = '/tmp/session-archive-census.json', { log = true } = {}) {
+  const collected = sources.map((source) => ({ ...source, summary: walkMetadata(source.root) }));
+  const frozenVisiblePopulation = {
+    codex: frozenFamilyIds('codex', collected),
+    claudeCode: frozenFamilyIds('claude-code', collected),
+    cowork: frozenFamilyIds('cowork', collected),
+  };
+  const output = {
+    schemaVersion: 2,
+    generatedAt: new Date().toISOString(),
+    method: {
+      contentBlind: true,
+      rawBodiesRead: false,
+      rawBodiesHashed: false,
+      caution: 'Stable-ID overlap is provisional. Definitive content deduplication must occur only after in-memory credential scrubbing.',
+    },
+    frozenSnapshot: {
+      ...frozenSnapshot,
+      observedVisibleIdsByFamily: frozenVisiblePopulation,
+      observedVisibleIdsTotal: Object.values(frozenVisiblePopulation).reduce((sum, count) => sum + count, 0),
+    },
+    deniedRoots: deniedArchiveRoots.map(({ label, root, reason }) => ({
+      label,
+      root,
+      reason,
+      ...countDeniedTree(root),
+    })),
+    sources: collected.map(({ label, family, root, summary }) => ({
+      label,
+      family,
+      root,
+      ...serializeSummary(summary),
+    })),
+    shellRecoveryMetadata: shellSources.map(({ label, root }) => ({ label, root, ...serializeSummary(walkMetadata(root)) })),
+    secondaryExports: secondaryExports.map(({ label, root }) => ({ label, root, ...serializeSummary(walkMetadata(root)) })),
+    visibleStableIdOverlap: {
+      codex: overlapFor('codex', collected),
+      claudeCode: overlapFor('claude-code', collected),
+      cowork: overlapFor('cowork', collected),
+      coworkLocalWorkspaces: localWorkspaceOverlap(collected),
+    },
+    migratedPathLineage: {
+      claudeCodeLiveProjectKeys: claudePathLineage(path.join(home, '.claude/projects')),
+    },
+  };
+
+  fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`, { mode: 0o600 });
+  if (log) console.log(JSON.stringify(output, null, 2));
+  return output;
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) runCensus(process.argv[2]);
