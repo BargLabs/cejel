@@ -4,27 +4,37 @@ Status: complete; additive measurement; frozen inventory unchanged at 18
 
 Preregistration: `0cf9170` (`docs: preregister repository shape-diversity study`)
 
-## Result first: the corpus represents local-oracle defects, not repositories in general
+## Result first: yield is defect density × replayability
 
-**The frozen 18 are not representative of customer repositories in general. They are
-representative of a narrower population: merged, patch-applicable defects with structured red-to-
-green metadata, causally coupled tests, and an oracle that runs without live external state.** That
-population is common in Alfred/Edwin-style code paths. It is not the same thing as “TypeScript
-monorepo,” “tests beside source,” or “mostly atomic PRs.”
-
-The leading shape figure is **Therasyn B2-shaped share `1 / 2 = 50%`** among the two real defect
-subcommits exposed by its off-default history: one needed the live Vercel build environment and one
-had a credential-free local k6 oracle. Both subcommits belong to merged PR #243, whose whole-PR
+**Therasyn's B2-shaped share `1 / 2 = 50%` is the leading result.** The denominator is the two real
+defect subcommits exposed by its off-default history: one needed the live Vercel build environment
+and one had a credential-free local k6 oracle. Both subcommits belong to merged PR #243, whose whole-PR
 anchor was already measured, so they are shape evidence and **not new inventory members**.
 Site-machine has no honest B2 percentage: its newly reachable candidates contain zero real defects
 after causal adjudication (`0 / 0`, not 0%).
 
-This matters because site-machine looks even more extraction-friendly than Alfred on the superficial
-metrics: `87 / 96 = 90.6%` of merged PRs touch source and tests together and `87 / 96 = 90.6%` are
-single-commit PRs, versus Alfred's 56.5% and 67.5%. It still produced no new qualifier. The missing
-dimension is not co-location or atomicity; it is whether the changed test is a causal regression
-oracle for the source/configuration fix, and whether that oracle is local rather than provider-
-backed.
+The replacement model is:
+
+`qualifying-defect yield = defect density × replayability`
+
+The original hypothesis attributed Alfred's yield to co-located tests and atomic fixes. Site-machine
+falsifies that account: `87 / 96 = 90.6%` of its merged PRs touch source and tests together and
+`87 / 96 = 90.6%` are single-commit PRs—the ideal shape under that hypothesis—yet it produced zero
+new qualifying defects. Layout and atomicity do not predict yield. Site-machine has excellent
+replayability, but its changes are small and usually right first time, so defect density is low.
+
+The portfolio is coherent under the replacement model. Egbert has high defect density but poor
+replayability because market data, time, and external state make failures hard to reconstruct.
+Alfred has both defect density and replayability, so it yields. Therasyn's 50% B2-shaped rate is the
+positive cross-product evidence that the two terms vary independently. Co-located tests, atomic
+commits, and similar shape measures were only ever proxies for replayability, the second term; they
+cannot supply the first.
+
+**The frozen 18 are therefore not representative of customer repositories in general. They are
+representative of a narrower population: merged, patch-applicable defects with structured red-to-
+green metadata, causally coupled tests, and an oracle that runs without live external state.** That
+population is common in Alfred/Edwin-style code paths. It is not the same thing as “TypeScript
+monorepo,” “tests beside source,” or “mostly atomic PRs.”
 
 **New qualifying defects: 0.** The prediction was one mechanical qualifier (range 0–2) and one B2
 catalog defect (range 0–3). Both point predictions missed low after enforcing prior-PR provenance.
@@ -44,9 +54,12 @@ Remote symbolic `HEAD` still resolves to `main` at the exact prior frozen tips:
 | `BargStudio/therasyn` | `39f228590c2b2ecb47ddb420709d15c9271ad65a` | 2026-07-04 16:53:50 -07:00 |
 | `houman44/site-machine` | `1e4106f131f9af27a9a314a0dbb2ecc35c09b441` | 2026-07-04 16:42:10 -07:00 |
 
-The requested `lab_notes/_studio/Standing_Constraints_2026-08-01.md` was absent from the Cejel
-checkout, all Cejel refs, and the accessible project tree. The supplied goal brief therefore
-controlled the run, as recorded before extraction in the preregistration.
+The standing-constraints file was not missing or unavailable. It exists at
+`/Users/bargs/projects/lab_notes/_studio/Standing_Constraints_2026-08-01.md`; it was outside the
+Cejel repository boundary and therefore unreachable from the worktree-scoped search. The supplied
+goal brief controlled the run, as recorded before extraction in the preregistration. “Unreachable
+from the Cejel worktree” is the scoped result; the earlier description of the file as absent is
+retracted.
 
 “Absent” below means `git rev-list --count origin/main..<remote branch>` after fetching and pruning
 all heads. Per-branch counts overlap; the union counts later in this section deduplicate full SHAs.
