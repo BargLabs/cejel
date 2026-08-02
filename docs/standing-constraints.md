@@ -1,11 +1,11 @@
-<!-- CANONICAL. Identical copy in the sibling repo. A test asserts byte-equality. -->
-<!-- Edit one, copy to the other, or CI fails. -->
+<!-- CANONICAL LOWERCASE FILE. Alfred and Cejel share a point-in-time copy. -->
+<!-- Each repo pins only its local bytes; cross-repo parity requires an explicit comparison. -->
 
-**CONSTRAINTS-VERSION: 2026-08-01.1**
+**CONSTRAINTS-VERSION: 2026-08-01.2**
 
-> Every agent report must echo the CONSTRAINTS-VERSION line above. A report that
-> omits it did not read this file, and that is the only way non-delivery becomes
-> visible — nothing else about the report will look different.
+> Every agent report must echo the exact CONSTRAINTS-VERSION line above. This is an
+> observable delivery handshake: omission flags non-delivery or non-compliance, but
+> does not logically prove the whole file was unread.
 
 ---
 
@@ -108,7 +108,17 @@ origin is legible is harder to argue away later.
   list is a prerequisite for any external-corpus work; it is not currently recoverable from
   `docs/calibration/`.
 
-## Open at the close of this session
+## Open at the close of this session — historical snapshot
+
+The bullets below preserve the state at the close of the 2026-07-31/08-01 session. They are not
+current repository facts. Current resolution notes as of the later 2026-08-01 review:
+
+- ADR-0013 now records D1–D5 as exact signatures rather than demonstrated semantic-class
+  detectors; that correction merged in Alfred [#794](https://github.com/BargLabs/alfred/pull/794)
+  at `a33579f`.
+- The old count of 23 `REPLACE_WITH_40_HEX_FIX_COMMIT` values is historical. An Alfred-side
+  mechanical guard now verifies zero such values and two Alfred `PENDING_` files containing 16
+  total entries.
 
 - 23 of the alfred lesson seeds carry `REPLACE_WITH_40_HEX_FIX_COMMIT`. They are held out of
   candidate storage by the `PENDING_` filename prefix — a real protection with no test
