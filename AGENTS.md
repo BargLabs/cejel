@@ -27,6 +27,9 @@ checked explicitly on every change: compare both files, copy the canonical bytes
 delivery handshake: omission flags non-delivery or non-compliance, but does not logically prove the
 whole file was unread.
 
+**If the constraints file cannot be resolved at that path, report the absence explicitly and
+name what governed the run instead; never proceed silently.**
+
 ## Project
 
 Cejel — an offline, no-LLM trust-certificate CLI. It scores a repository against a published
