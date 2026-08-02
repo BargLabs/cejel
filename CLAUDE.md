@@ -10,9 +10,16 @@ Canonical instructions for Claude Code in this repository. Non-Claude agents rea
 Safety-relevant constraints on secrets, guards, experiment integrity and evidence
 discipline. The canonical lowercase file is a historical snapshot written at the close of the
 2026-08-01 session; its final open-items section records that point in time, not current repo state.
-Current resolution note: ADR-0013 now records D1–D5 as exact signatures, merged in #794 at
-`a33579f`. Historical counts and open-item labels must be mechanically reverified against current
-repository state before action.
+Current resolution note: ADR-0013 records D1-D5 as exact signatures, merged in #794 at
+`a33579f`. **D-series detection was retired on 2026-08-02.** The rules fire on constructed
+acceptance specimens only; across four real-world evaluations — 16 seeded fixtures, 23 public
+repositories, and Alfred's Maeve production surface — they produced zero findings. D1-D6 remain a
+taxonomy for organising findings, review prompts and future detection targets. They are not a
+production detector: a zero-result D-series scan means no rule matched, never that a repository is
+clean, and D-series output must not gate a release, support a precision or recall claim, or appear
+in customer-facing material as a shipped capability. A preregistered base-rate scan is in
+progress; only a rule firing on a real, unconstructed defect changes this. Historical counts and
+open-item labels must be mechanically reverified against current repository state before action.
 
 The Alfred and Cejel copies share a point-in-time SHA-256 pin. Each repository pins only its local
 file. This is a shared point-in-time parity record and local immutability guard; neither test proves
@@ -24,6 +31,9 @@ checked explicitly on every change: compare both files, copy the canonical bytes
 **Echo the exact `CONSTRAINTS-VERSION` line from that file in every report.** This is an observable
 delivery handshake: omission flags non-delivery or non-compliance, but does not logically prove the
 whole file was unread.
+
+**If the constraints file cannot be resolved at that path, report the absence explicitly and
+name what governed the run instead; never proceed silently.**
 
 ## What Cejel is
 
