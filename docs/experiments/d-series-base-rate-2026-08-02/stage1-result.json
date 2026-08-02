@@ -1,0 +1,542 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-scan-v1",
+  "benchmarkId": "cejel-d-series-base-rate-tier1-2026-08-02",
+  "startedAt": "2026-08-02T15:17:23.704Z",
+  "manifestPath": "docs/experiments/d-series-base-rate-2026-08-02/owned-corpus.json",
+  "manifestSha256": "47bdbd664746c691134c7225279d7fc7858ed12b2a436a9410a3dad6cc596b51",
+  "blindFindingDetails": false,
+  "clonePolicy": {
+    "depth": 1,
+    "tags": false,
+    "maximumAttempts": 3,
+    "streamedDelete": true
+  },
+  "repositories": [
+    {
+      "index": 1,
+      "fullName": "BargLabs/alfred",
+      "revision": "5a8e496c33e783b2271827e78096e5f515f656a0",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 463128,
+      "inventory": {
+        "trackedPaths": 5496,
+        "regularFiles": 5496,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1979,
+        "d2ToD5AnalyzedFiles": 1126,
+        "d1ExcludedExtension": 3517,
+        "d2ToD5ExcludedExtension": 4370,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2061.032,
+          "scanWallMilliseconds": 933.366375,
+          "errored": false,
+          "findings": []
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 953.498,
+          "scanWallMilliseconds": 572.581125,
+          "errored": false,
+          "findings": []
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 999.559,
+          "scanWallMilliseconds": 615.490916,
+          "errored": false,
+          "findings": []
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 801.21,
+          "scanWallMilliseconds": 564.582209,
+          "errored": false,
+          "findings": []
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 871.983,
+          "scanWallMilliseconds": 536.325833,
+          "errored": false,
+          "findings": []
+        }
+      }
+    },
+    {
+      "index": 2,
+      "fullName": "houman44/edwin",
+      "revision": "cf0512fa1b3286b132f931539f1e6a49392818e1",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 95708,
+      "inventory": {
+        "trackedPaths": 3697,
+        "regularFiles": 3697,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1027,
+        "d2ToD5AnalyzedFiles": 258,
+        "d1ExcludedExtension": 2670,
+        "d2ToD5ExcludedExtension": 3439,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 796.476,
+          "scanWallMilliseconds": 494.441042,
+          "errored": false,
+          "findings": []
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 387.281,
+          "scanWallMilliseconds": 244.342875,
+          "errored": false,
+          "findings": []
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 367.735,
+          "scanWallMilliseconds": 257.262375,
+          "errored": false,
+          "findings": []
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 349.346,
+          "scanWallMilliseconds": 250.1125,
+          "errored": false,
+          "findings": []
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 406.589,
+          "scanWallMilliseconds": 242.897625,
+          "errored": false,
+          "findings": []
+        }
+      }
+    },
+    {
+      "index": 3,
+      "fullName": "BargStudio/egbert",
+      "revision": "1a62ec1a08da85365fe0923e4edc717c45bc7930",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 98860,
+      "inventory": {
+        "trackedPaths": 3450,
+        "regularFiles": 3450,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1266,
+        "d2ToD5AnalyzedFiles": 372,
+        "d1ExcludedExtension": 2184,
+        "d2ToD5ExcludedExtension": 3078,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 794.07,
+          "scanWallMilliseconds": 514.92225,
+          "errored": false,
+          "findings": []
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 412.249,
+          "scanWallMilliseconds": 261.988459,
+          "errored": false,
+          "findings": []
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 491.301,
+          "scanWallMilliseconds": 290.918042,
+          "errored": false,
+          "findings": []
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 403.508,
+          "scanWallMilliseconds": 273.602208,
+          "errored": false,
+          "findings": []
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 435.541,
+          "scanWallMilliseconds": 264.319083,
+          "errored": false,
+          "findings": []
+        }
+      }
+    },
+    {
+      "index": 4,
+      "fullName": "houman44/site-machine",
+      "revision": "6f443d1a8d55e476a2d5290e448e543e9b6dbcc7",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 8836,
+      "inventory": {
+        "trackedPaths": 837,
+        "regularFiles": 837,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 742,
+        "d2ToD5AnalyzedFiles": 679,
+        "d1ExcludedExtension": 95,
+        "d2ToD5ExcludedExtension": 158,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 530.189,
+          "scanWallMilliseconds": 354.66075,
+          "errored": false,
+          "findings": []
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 585.593,
+          "scanWallMilliseconds": 348.211416,
+          "errored": false,
+          "findings": []
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 514.609,
+          "scanWallMilliseconds": 364.378958,
+          "errored": false,
+          "findings": []
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 490.726,
+          "scanWallMilliseconds": 345.879125,
+          "errored": false,
+          "findings": []
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 460.026,
+          "scanWallMilliseconds": 322.561375,
+          "errored": false,
+          "findings": []
+        }
+      }
+    },
+    {
+      "index": 5,
+      "fullName": "BargStudio/therasyn",
+      "revision": "95f6e7011810b19c300135f595dc81055a1a4aac",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 12336,
+      "inventory": {
+        "trackedPaths": 804,
+        "regularFiles": 803,
+        "deniedPath": 1,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 361,
+        "d2ToD5AnalyzedFiles": 211,
+        "d1ExcludedExtension": 442,
+        "d2ToD5ExcludedExtension": 592,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 358.432,
+          "scanWallMilliseconds": 206.868875,
+          "errored": false,
+          "findings": []
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 272.761,
+          "scanWallMilliseconds": 181.178291,
+          "errored": false,
+          "findings": []
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 255.721,
+          "scanWallMilliseconds": 182.637333,
+          "errored": false,
+          "findings": []
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 324.764,
+          "scanWallMilliseconds": 192.334375,
+          "errored": false,
+          "findings": []
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 277.194,
+          "scanWallMilliseconds": 180.481084,
+          "errored": false,
+          "findings": []
+        }
+      }
+    },
+    {
+      "index": 6,
+      "fullName": "BargLabs/cejel",
+      "revision": "05d5d9fca79ea9cb1d34e64fa795f9713b6d1bf1",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 73856,
+      "inventory": {
+        "trackedPaths": 648,
+        "regularFiles": 648,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 346,
+        "d2ToD5AnalyzedFiles": 229,
+        "d1ExcludedExtension": 302,
+        "d2ToD5ExcludedExtension": 419,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 1,
+          "scanCpuMilliseconds": 531.568,
+          "scanWallMilliseconds": 355.492166,
+          "errored": false,
+          "findings": [
+            {
+              "ruleId": "D1",
+              "declarationKind": "schema",
+              "key": "requireNamedApprover",
+              "severity": "warning",
+              "confidence": "high",
+              "summary": "Declared schema key \"requireNamedApprover\" has no read site in the resolved first-party module graph.",
+              "evidence": {
+                "path": "[redacted: unclassified]",
+                "line": 3,
+                "label": "Unread schema key requireNamedApprover"
+              }
+            }
+          ]
+        },
+        "D2": {
+          "findingCount": 1,
+          "scanCpuMilliseconds": 320.121,
+          "scanWallMilliseconds": 209.919834,
+          "errored": false,
+          "findings": [
+            {
+              "ruleId": "D2",
+              "binding": "error",
+              "severity": "warning",
+              "confidence": "high",
+              "summary": "Caught error is discarded while a static failure message is returned to the caller.",
+              "evidence": {
+                "path": "[redacted: unclassified]",
+                "line": 5,
+                "label": "Swallowed catch binding error"
+              }
+            }
+          ]
+        },
+        "D3": {
+          "findingCount": 1,
+          "scanCpuMilliseconds": 380.505,
+          "scanWallMilliseconds": 231.65725,
+          "errored": false,
+          "findings": [
+            {
+              "ruleId": "D3",
+              "sourceBinding": "rows",
+              "outputBinding": "published",
+              "explanationBinding": "explained",
+              "severity": "warning",
+              "confidence": "high",
+              "summary": "Filtered output is surfaced as successful beside a statically empty explanation ledger.",
+              "evidence": {
+                "path": "[redacted: unclassified]",
+                "line": 2,
+                "label": "Unasserted rows filter into published"
+              }
+            }
+          ]
+        },
+        "D4": {
+          "findingCount": 1,
+          "scanCpuMilliseconds": 302.841,
+          "scanWallMilliseconds": 215.556041,
+          "errored": false,
+          "findings": [
+            {
+              "ruleId": "D4",
+              "callee": "readQueue",
+              "resultBinding": "result",
+              "collection": "entries",
+              "severity": "warning",
+              "confidence": "high",
+              "summary": "Failure from \"readQueue\" is converted to an empty \"entries\" collection and returned as success.",
+              "evidence": {
+                "path": "[redacted: unclassified]",
+                "line": 12,
+                "label": "Failure-as-empty result result"
+              }
+            }
+          ]
+        },
+        "D5": {
+          "findingCount": 1,
+          "scanCpuMilliseconds": 354.354,
+          "scanWallMilliseconds": 211.6155,
+          "errored": false,
+          "findings": [
+            {
+              "ruleId": "D5",
+              "assertionKind": "node-assert",
+              "expectedImport": "EXPECTED_REVIEW_REQUIRED",
+              "subjectPath": "[redacted: unclassified]",
+              "severity": "warning",
+              "confidence": "high",
+              "summary": "Assertion expected value \"EXPECTED_REVIEW_REQUIRED\" is imported from the module under test.",
+              "evidence": {
+                "path": "[redacted: unclassified]",
+                "line": 8,
+                "label": "Self-referential expected value EXPECTED_REVIEW_REQUIRED"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "index": 7,
+      "fullName": "houman44/knut",
+      "revision": "fb988af413582250268414a61a12ceef9bd98bbd",
+      "cloneWallMilliseconds": 0,
+      "bytesTransferred": 0,
+      "peakDiskKilobytes": 808,
+      "inventory": {
+        "trackedPaths": 78,
+        "regularFiles": 78,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 10,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 68,
+        "d2ToD5ExcludedExtension": 78,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.57,
+          "scanWallMilliseconds": 0.572958,
+          "errored": false,
+          "findings": []
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.087,
+          "scanWallMilliseconds": 0.088083,
+          "errored": false,
+          "findings": []
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.064,
+          "scanWallMilliseconds": 0.06325,
+          "errored": false,
+          "findings": []
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.055,
+          "scanWallMilliseconds": 0.055708,
+          "errored": false,
+          "findings": []
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.051,
+          "scanWallMilliseconds": 0.051625,
+          "errored": false,
+          "findings": []
+        }
+      }
+    }
+  ],
+  "totals": {
+    "repositoryCount": 7,
+    "d1AnalyzedFiles": 5731,
+    "d2ToD5AnalyzedFiles": 2875,
+    "skippedBoundaryOrFileErrors": 1,
+    "peakDiskKilobytes": 463128,
+    "cloneWallMilliseconds": 0,
+    "bytesTransferred": 0,
+    "unknownTransferRows": 0,
+    "rules": {
+      "D1": {
+        "findings": 1,
+        "errors": 0,
+        "scanCpuMilliseconds": 5072.337
+      },
+      "D2": {
+        "findings": 1,
+        "errors": 0,
+        "scanCpuMilliseconds": 2931.59
+      },
+      "D3": {
+        "findings": 1,
+        "errors": 0,
+        "scanCpuMilliseconds": 3009.4939999999997
+      },
+      "D4": {
+        "findings": 1,
+        "errors": 0,
+        "scanCpuMilliseconds": 2672.45
+      },
+      "D5": {
+        "findings": 1,
+        "errors": 0,
+        "scanCpuMilliseconds": 2805.7379999999994
+      }
+    }
+  },
+  "completedAt": "2026-08-02T15:17:38.028Z",
+  "noNetwork": true,
+  "cloneCount": 0,
+  "streamedDeleteConfirmed": true
+}

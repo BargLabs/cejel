@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-positive-control-v1",
+  "generatedAt": "2026-08-02T15:14:01.500Z",
+  "harnessPath": "scripts/d-series-base-rate-scan.ts",
+  "harnessSha256": "edc070f74dbd4758994b02cbedf1b8efbd9211cfa8c378285a797c91ee250c18",
+  "passed": true,
+  "cases": [
+    {
+      "id": "D1-ACCEPT-CONFIG-01",
+      "ruleId": "D1",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    },
+    {
+      "id": "D1-ACCEPT-SCHEMA-01",
+      "ruleId": "D1",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    },
+    {
+      "id": "D1-ACCEPT-FRONTMATTER-01",
+      "ruleId": "D1",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    },
+    {
+      "id": "D2-ACCEPT-SURFACED-RESULT-01",
+      "ruleId": "D2",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    },
+    {
+      "id": "D3-ACCEPT-EMPTY-EXPLANATION-LEDGER-01",
+      "ruleId": "D3",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    },
+    {
+      "id": "D4-ACCEPT-FAILURE-AS-EMPTY-01",
+      "ruleId": "D4",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    },
+    {
+      "id": "D5-ACCEPT-ASSERT-01",
+      "ruleId": "D5",
+      "positiveFindingCount": 1,
+      "negativeFindingCount": 0,
+      "passed": true
+    }
+  ]
+}

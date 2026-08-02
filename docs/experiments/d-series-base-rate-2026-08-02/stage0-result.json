@@ -1,0 +1,2855 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-scan-v1",
+  "benchmarkId": "cejel-d-series-base-rate-stage0-2026-08-02",
+  "startedAt": "2026-08-02T15:14:15.366Z",
+  "manifestPath": "docs/experiments/d-series-base-rate-2026-08-02/stage0-manifest.json",
+  "manifestSha256": "2865d453daed2332730661bf5be37591804af4f21e64b65bc562bc27f9784dcc",
+  "blindFindingDetails": true,
+  "clonePolicy": {
+    "depth": 1,
+    "tags": false,
+    "maximumAttempts": 3,
+    "streamedDelete": true
+  },
+  "repositories": [
+    {
+      "index": 1,
+      "fullName": "gmelodie/awesome-wordlists",
+      "revision": "bbe5a21161b644b73842c046b0f37eb91c0a0cf0",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 560.092833,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 168,
+      "inventory": {
+        "trackedPaths": 6,
+        "regularFiles": 6,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 3,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 3,
+        "d2ToD5ExcludedExtension": 6,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 4.832,
+          "scanWallMilliseconds": 4.611792,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.447,
+          "scanWallMilliseconds": 0.352166,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.347,
+          "scanWallMilliseconds": 0.233875,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.2,
+          "scanWallMilliseconds": 0.201666,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.259,
+          "scanWallMilliseconds": 0.211084,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 2,
+      "fullName": "J2TEAM/awesome-AutoIt",
+      "revision": "182573752d5c5b2558e8d3fda2664644e5888881",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 670.166542,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 196,
+      "inventory": {
+        "trackedPaths": 4,
+        "regularFiles": 4,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 2,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 2,
+        "d2ToD5ExcludedExtension": 4,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.416,
+          "scanWallMilliseconds": 0.415667,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.205,
+          "scanWallMilliseconds": 0.202292,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.513,
+          "scanWallMilliseconds": 0.204292,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.646,
+          "scanWallMilliseconds": 0.210792,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.66,
+          "scanWallMilliseconds": 0.193958,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 3,
+      "fullName": "enaqx/awesome-react",
+      "revision": "99ab3bc41835c59a79dcb0c8ecb97b4297635b42",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 719.216167,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 140,
+      "inventory": {
+        "trackedPaths": 2,
+        "regularFiles": 2,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 1,
+        "d2ToD5ExcludedExtension": 2,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.417,
+          "scanWallMilliseconds": 0.418583,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.12,
+          "scanWallMilliseconds": 0.122333,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.093,
+          "scanWallMilliseconds": 0.094167,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.09,
+          "scanWallMilliseconds": 0.096125,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.069,
+          "scanWallMilliseconds": 0.07025,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 4,
+      "fullName": "xgrommx/awesome-redux",
+      "revision": "5b472a5d2e7968a74c5e7db9c68b21cf4fb5b0d8",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 635.052417,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 232,
+      "inventory": {
+        "trackedPaths": 3,
+        "regularFiles": 3,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 2,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 1,
+        "d2ToD5ExcludedExtension": 3,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2.206,
+          "scanWallMilliseconds": 0.466792,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.106,
+          "scanWallMilliseconds": 0.1055,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.129,
+          "scanWallMilliseconds": 0.087708,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.215,
+          "scanWallMilliseconds": 0.072042,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.069,
+          "scanWallMilliseconds": 0.064208,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 5,
+      "fullName": "[redacted: unclassified]",
+      "revision": "d0bb8698d10b2d78ee531e85010ab423386105c1",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1003.94875,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 2028,
+      "inventory": {
+        "trackedPaths": 5,
+        "regularFiles": 5,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 2,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 3,
+        "d2ToD5ExcludedExtension": 5,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.386,
+          "scanWallMilliseconds": 0.304166,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.093,
+          "scanWallMilliseconds": 0.093875,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.069,
+          "scanWallMilliseconds": 0.069208,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.055,
+          "scanWallMilliseconds": 0.055875,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.054,
+          "scanWallMilliseconds": 0.054292,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 6,
+      "fullName": "daviddias/awesome-hacking-locations",
+      "revision": "3a95fef47c0574e4402149a6fc2a375eccb8b751",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 546.177709,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 192,
+      "inventory": {
+        "trackedPaths": 3,
+        "regularFiles": 3,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 2,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 1,
+        "d2ToD5ExcludedExtension": 3,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.356,
+          "scanWallMilliseconds": 0.353208,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.092,
+          "scanWallMilliseconds": 0.092375,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.069,
+          "scanWallMilliseconds": 0.068709,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.058,
+          "scanWallMilliseconds": 0.058834,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.067,
+          "scanWallMilliseconds": 0.067208,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 7,
+      "fullName": "nyas1/Material-You-app-list",
+      "revision": "e928fe33d8a318b3f11dcd8b663c0e8e63cd4f5d",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 972.85225,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 2844,
+      "inventory": {
+        "trackedPaths": 7,
+        "regularFiles": 7,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 6,
+        "d2ToD5ExcludedExtension": 7,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.393,
+          "scanWallMilliseconds": 0.394917,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.118,
+          "scanWallMilliseconds": 0.119125,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.136,
+          "scanWallMilliseconds": 0.072583,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.16,
+          "scanWallMilliseconds": 0.057708,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.137,
+          "scanWallMilliseconds": 0.065125,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 8,
+      "fullName": "friuns2/BlackFriday-GPTs-Prompts",
+      "revision": "35c81ed4ae122b0faa08f11e3d273c50b79eb013",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 4249.189916,
+      "bytesTransferred": 17448305,
+      "peakDiskKilobytes": 93028,
+      "inventory": {
+        "trackedPaths": 8715,
+        "regularFiles": 8715,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 8713,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 2,
+        "d2ToD5ExcludedExtension": 8715,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 158.781,
+          "scanWallMilliseconds": 153.241041,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.908,
+          "scanWallMilliseconds": 0.906708,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1.161,
+          "scanWallMilliseconds": 0.836042,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2.179,
+          "scanWallMilliseconds": 0.799833,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.969,
+          "scanWallMilliseconds": 0.7375,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 9,
+      "fullName": "taishi-i/awesome-japanese-nlp-resources",
+      "revision": "6f785a4a8e4075a6a02a0b03fb74d484d72d16c3",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1034.432084,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 4936,
+      "inventory": {
+        "trackedPaths": 25,
+        "regularFiles": 25,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 19,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 6,
+        "d2ToD5ExcludedExtension": 25,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 3.324,
+          "scanWallMilliseconds": 3.266708,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.123,
+          "scanWallMilliseconds": 0.11975,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.212,
+          "scanWallMilliseconds": 0.078875,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.059,
+          "scanWallMilliseconds": 0.059208,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.062,
+          "scanWallMilliseconds": 0.060708,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 10,
+      "fullName": "analyticalmonk/awesome-neuroscience",
+      "revision": "33ca06398bff26a53a913f0ea7a600e5e18164eb",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 761.456084,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 380,
+      "inventory": {
+        "trackedPaths": 6,
+        "regularFiles": 6,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 3,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 3,
+        "d2ToD5ExcludedExtension": 6,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.3,
+          "scanWallMilliseconds": 0.298458,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.084,
+          "scanWallMilliseconds": 0.08525,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.085,
+          "scanWallMilliseconds": 0.08325,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.059,
+          "scanWallMilliseconds": 0.059292,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.067,
+          "scanWallMilliseconds": 0.067542,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 11,
+      "fullName": "Goddard-Fortran-Ecosystem/pFUnit",
+      "revision": "e432744fff4142d1f7f5d661c28d9cc086498ae4",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1158.253917,
+      "bytesTransferred": 861184,
+      "peakDiskKilobytes": 3096,
+      "inventory": {
+        "trackedPaths": 405,
+        "regularFiles": 404,
+        "deniedPath": 0,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 3,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 401,
+        "d2ToD5ExcludedExtension": 404,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.37,
+          "scanWallMilliseconds": 0.367416,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.136,
+          "scanWallMilliseconds": 0.136459,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.093,
+          "scanWallMilliseconds": 0.091958,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.395,
+          "scanWallMilliseconds": 0.087666,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.132,
+          "scanWallMilliseconds": 0.090292,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 12,
+      "fullName": "pranjalssh/fast.cu",
+      "revision": "38eb642e0c081231d6f695978be63604bd7c689b",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 655.465292,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 608,
+      "inventory": {
+        "trackedPaths": 21,
+        "regularFiles": 21,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 20,
+        "d2ToD5ExcludedExtension": 21,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2.553,
+          "scanWallMilliseconds": 0.993125,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.189,
+          "scanWallMilliseconds": 0.140833,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.125,
+          "scanWallMilliseconds": 0.08525,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.218,
+          "scanWallMilliseconds": 0.084875,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.146,
+          "scanWallMilliseconds": 0.071584,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 13,
+      "fullName": "liu673cn/bug",
+      "revision": "7820ab8e94f060401f791a646df760404276098e",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1454.840375,
+      "bytesTransferred": 18203279,
+      "peakDiskKilobytes": 38388,
+      "inventory": {
+        "trackedPaths": 295,
+        "regularFiles": 295,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 9,
+        "d2ToD5AnalyzedFiles": 2,
+        "d1ExcludedExtension": 286,
+        "d2ToD5ExcludedExtension": 293,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 591.797,
+          "scanWallMilliseconds": 205.639375,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 273.307,
+          "scanWallMilliseconds": 131.495541,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 207.204,
+          "scanWallMilliseconds": 121.062917,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 205.37,
+          "scanWallMilliseconds": 121.223458,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 205.205,
+          "scanWallMilliseconds": 118.27025,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 14,
+      "fullName": "ConnorAtherton/loaders.css",
+      "revision": "dee8aabed3adbfb121b931a42e3ebc233fafdd68",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 546.659291,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 616,
+      "inventory": {
+        "trackedPaths": 48,
+        "regularFiles": 48,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 2,
+        "d2ToD5AnalyzedFiles": 1,
+        "d1ExcludedExtension": 46,
+        "d2ToD5ExcludedExtension": 47,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 245.097,
+          "scanWallMilliseconds": 122.631042,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 162.84,
+          "scanWallMilliseconds": 108.699333,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 160.209,
+          "scanWallMilliseconds": 109.851208,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 191.301,
+          "scanWallMilliseconds": 113.833083,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 188.532,
+          "scanWallMilliseconds": 114.344958,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 15,
+      "fullName": "bertinetto/staple",
+      "revision": "7b6b5b579a7cd25acae6bcabe93f8dfb78040215",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1861.116959,
+      "bytesTransferred": 18853396,
+      "peakDiskKilobytes": 48200,
+      "inventory": {
+        "trackedPaths": 153,
+        "regularFiles": 153,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 152,
+        "d2ToD5ExcludedExtension": 153,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.276,
+          "scanWallMilliseconds": 0.273958,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.233,
+          "scanWallMilliseconds": 0.108167,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.137,
+          "scanWallMilliseconds": 0.078916,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.083,
+          "scanWallMilliseconds": 0.0645,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.055,
+          "scanWallMilliseconds": 0.056208,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 16,
+      "fullName": "lightbearco/tupper",
+      "revision": "b803d27ceb5ecaeb5dfb11ddeb71d49a43a95e5a",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 723.465833,
+      "bytesTransferred": 819200,
+      "peakDiskKilobytes": 828,
+      "inventory": {
+        "trackedPaths": 114,
+        "regularFiles": 114,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 83,
+        "d2ToD5AnalyzedFiles": 53,
+        "d1ExcludedExtension": 31,
+        "d2ToD5ExcludedExtension": 61,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 282.618,
+          "scanWallMilliseconds": 139.966375,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 181.512,
+          "scanWallMilliseconds": 118.111208,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 230.858,
+          "scanWallMilliseconds": 132.111291,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 170.019,
+          "scanWallMilliseconds": 120.722417,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 180.611,
+          "scanWallMilliseconds": 120.367292,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 17,
+      "fullName": "PearOCR/pearocr_issue",
+      "revision": "7cd18e4fc7eb22b7e6b975ec99cae44882a2f729",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 555.510375,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 112,
+      "inventory": {
+        "trackedPaths": 1,
+        "regularFiles": 1,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 0,
+        "d2ToD5ExcludedExtension": 1,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.266,
+          "scanWallMilliseconds": 0.263458,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.092,
+          "scanWallMilliseconds": 0.091917,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.068,
+          "scanWallMilliseconds": 0.068875,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.079,
+          "scanWallMilliseconds": 0.078375,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.058,
+          "scanWallMilliseconds": 0.054583,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 18,
+      "fullName": "faker-js/faker",
+      "revision": "e59f49956403cfb744270a051f789b39233c75d1",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1503.917375,
+      "bytesTransferred": 4215276,
+      "peakDiskKilobytes": 20928,
+      "inventory": {
+        "trackedPaths": 3488,
+        "regularFiles": 3488,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 3401,
+        "d2ToD5AnalyzedFiles": 3369,
+        "d1ExcludedExtension": 87,
+        "d2ToD5ExcludedExtension": 119,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 747.507,
+          "scanWallMilliseconds": 410.630167,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 494.817,
+          "scanWallMilliseconds": 355.902417,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 564.996,
+          "scanWallMilliseconds": 382.174667,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 590.674,
+          "scanWallMilliseconds": 370.615583,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 502.935,
+          "scanWallMilliseconds": 355.54475,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 19,
+      "fullName": "benawad/dogehouse",
+      "revision": "584055ad407bc37fa35cdf36ebb271622e29d436",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1801.117208,
+      "bytesTransferred": 13254001,
+      "peakDiskKilobytes": 35588,
+      "inventory": {
+        "trackedPaths": 2230,
+        "regularFiles": 2230,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 783,
+        "d2ToD5AnalyzedFiles": 745,
+        "d1ExcludedExtension": 1447,
+        "d2ToD5ExcludedExtension": 1485,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 2,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1036.891,
+          "scanWallMilliseconds": 541.853791,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 775.206,
+          "scanWallMilliseconds": 456.754208,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 704.857,
+          "scanWallMilliseconds": 492.27175,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 727.117,
+          "scanWallMilliseconds": 479.719333,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 741.624,
+          "scanWallMilliseconds": 434.172334,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 20,
+      "fullName": "tambo-ai/tambo",
+      "revision": "d24882e2b581a564a7bb4f2727feb15e3737452d",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 2769.582125,
+      "bytesTransferred": 32788972,
+      "peakDiskKilobytes": 136432,
+      "inventory": {
+        "trackedPaths": 2042,
+        "regularFiles": 2041,
+        "deniedPath": 0,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 1507,
+        "d2ToD5AnalyzedFiles": 1269,
+        "d1ExcludedExtension": 534,
+        "d2ToD5ExcludedExtension": 772,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1478.358,
+          "scanWallMilliseconds": 869.716834,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 716.583,
+          "scanWallMilliseconds": 478.512459,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 722.651,
+          "scanWallMilliseconds": 508.990833,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 687.587,
+          "scanWallMilliseconds": 494.147958,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 752.723,
+          "scanWallMilliseconds": 474.915958,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 21,
+      "fullName": "vercel/vercel",
+      "revision": "830e0912920fbdad94745598182612837a5f49d0",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 6365.834708,
+      "bytesTransferred": 15802040,
+      "peakDiskKilobytes": 237096,
+      "inventory": {
+        "trackedPaths": 13190,
+        "regularFiles": 12665,
+        "deniedPath": 517,
+        "nonRegular": 8,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 6524,
+        "d2ToD5AnalyzedFiles": 5913,
+        "d1ExcludedExtension": 6141,
+        "d2ToD5ExcludedExtension": 6752,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 3,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 8987.14,
+          "scanWallMilliseconds": 7495.040917,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2729.831,
+          "scanWallMilliseconds": 1687.203959,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2448.865,
+          "scanWallMilliseconds": 1818.804333,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2611.037,
+          "scanWallMilliseconds": 1770.732792,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 2386.574,
+          "scanWallMilliseconds": 1595.83575,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 22,
+      "fullName": "KaTeX/KaTeX",
+      "revision": "69edd93f98dea2e98b831880a9b9dd5a13727165",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1454.17225,
+      "bytesTransferred": 19188941,
+      "peakDiskKilobytes": 45616,
+      "inventory": {
+        "trackedPaths": 701,
+        "regularFiles": 701,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 168,
+        "d2ToD5AnalyzedFiles": 139,
+        "d1ExcludedExtension": 533,
+        "d2ToD5ExcludedExtension": 562,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 414.583,
+          "scanWallMilliseconds": 212.925125,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 236.167,
+          "scanWallMilliseconds": 165.764125,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 230.204,
+          "scanWallMilliseconds": 169.386958,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 305.65,
+          "scanWallMilliseconds": 184.795167,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 234.855,
+          "scanWallMilliseconds": 164.711416,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 23,
+      "fullName": "modelcontextprotocol/servers",
+      "revision": "76d64c822f5125032f89eb71dbdb94e42b434821",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 821.5505,
+      "bytesTransferred": 1373635,
+      "peakDiskKilobytes": 2196,
+      "inventory": {
+        "trackedPaths": 145,
+        "regularFiles": 145,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 88,
+        "d2ToD5AnalyzedFiles": 65,
+        "d1ExcludedExtension": 57,
+        "d2ToD5ExcludedExtension": 80,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 288.622,
+          "scanWallMilliseconds": 152.305333,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 195.128,
+          "scanWallMilliseconds": 133.5765,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 201.079,
+          "scanWallMilliseconds": 133.852375,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 185.221,
+          "scanWallMilliseconds": 131.420459,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 184.517,
+          "scanWallMilliseconds": 129.743834,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 24,
+      "fullName": "DayuanJiang/next-ai-draw-io",
+      "revision": "6e653942b0a9912123093179c6f2db2cf7c1d42f",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1082.483375,
+      "bytesTransferred": 3974103,
+      "peakDiskKilobytes": 7204,
+      "inventory": {
+        "trackedPaths": 302,
+        "regularFiles": 302,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 236,
+        "d2ToD5AnalyzedFiles": 177,
+        "d1ExcludedExtension": 66,
+        "d2ToD5ExcludedExtension": 125,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 452.637,
+          "scanWallMilliseconds": 252.165959,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 269.505,
+          "scanWallMilliseconds": 178.330417,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 270.559,
+          "scanWallMilliseconds": 187.698417,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 252.018,
+          "scanWallMilliseconds": 177.042541,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 315.99,
+          "scanWallMilliseconds": 185.96675,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 25,
+      "fullName": "nextai-translator/nextai-translator",
+      "revision": "c6d619386e9d1b7ee4da21f92f4e4a5b29f6a88c",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1195.543583,
+      "bytesTransferred": 9479127,
+      "peakDiskKilobytes": 16304,
+      "inventory": {
+        "trackedPaths": 331,
+        "regularFiles": 331,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 179,
+        "d2ToD5AnalyzedFiles": 168,
+        "d1ExcludedExtension": 152,
+        "d2ToD5ExcludedExtension": 163,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 348.764,
+          "scanWallMilliseconds": 184.532458,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 263.946,
+          "scanWallMilliseconds": 173.132542,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 244.276,
+          "scanWallMilliseconds": 174.446291,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 240.309,
+          "scanWallMilliseconds": 171.490792,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 298.379,
+          "scanWallMilliseconds": 176.68,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 26,
+      "fullName": "jimp-dev/jimp",
+      "revision": "e1bfa9340b6a889a5c107e6f074683ea3ca6f55d",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 2699.990916,
+      "bytesTransferred": 16452157,
+      "peakDiskKilobytes": 59904,
+      "inventory": {
+        "trackedPaths": 504,
+        "regularFiles": 504,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 253,
+        "d2ToD5AnalyzedFiles": 172,
+        "d1ExcludedExtension": 251,
+        "d2ToD5ExcludedExtension": 332,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 341.603,
+          "scanWallMilliseconds": 160.157583,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 237.116,
+          "scanWallMilliseconds": 149.313583,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 205.627,
+          "scanWallMilliseconds": 143.554709,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 219.551,
+          "scanWallMilliseconds": 145.031584,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 253.48,
+          "scanWallMilliseconds": 146.248,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 27,
+      "fullName": "justjavac/wechat-miniapp-radar",
+      "revision": "597c3e1763e5506b09037bd82d9897ca28dd6e4d",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 940.180167,
+      "bytesTransferred": 1153434,
+      "peakDiskKilobytes": 2364,
+      "inventory": {
+        "trackedPaths": 179,
+        "regularFiles": 179,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 141,
+        "d2ToD5AnalyzedFiles": 138,
+        "d1ExcludedExtension": 38,
+        "d2ToD5ExcludedExtension": 41,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 305.79,
+          "scanWallMilliseconds": 171.177916,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 218.378,
+          "scanWallMilliseconds": 150.2755,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 221.781,
+          "scanWallMilliseconds": 153.278625,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 244.122,
+          "scanWallMilliseconds": 155.235916,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 221.451,
+          "scanWallMilliseconds": 148.30125,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 28,
+      "fullName": "JOYCEQL/magic-resume",
+      "revision": "33b9b6db1bba480af630951472446feea3e2993b",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 6706.8835,
+      "bytesTransferred": 32086426,
+      "peakDiskKilobytes": 317244,
+      "inventory": {
+        "trackedPaths": 373,
+        "regularFiles": 373,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 299,
+        "d2ToD5AnalyzedFiles": 296,
+        "d1ExcludedExtension": 74,
+        "d2ToD5ExcludedExtension": 77,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 610.073,
+          "scanWallMilliseconds": 410.06175,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 254.93,
+          "scanWallMilliseconds": 178.936959,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 258.903,
+          "scanWallMilliseconds": 187.584417,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 315.768,
+          "scanWallMilliseconds": 190.676958,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 270.714,
+          "scanWallMilliseconds": 181.381208,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 29,
+      "fullName": "is-a-dev/register",
+      "revision": "5582157ac7444894281286aa2f81b9ce70e3e0f9",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 2000.175583,
+      "bytesTransferred": 11691622,
+      "peakDiskKilobytes": 71008,
+      "inventory": {
+        "trackedPaths": 14166,
+        "regularFiles": 14166,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 19,
+        "d2ToD5AnalyzedFiles": 7,
+        "d1ExcludedExtension": 14147,
+        "d2ToD5ExcludedExtension": 14159,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 230.682,
+          "scanWallMilliseconds": 124.734333,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 174.687,
+          "scanWallMilliseconds": 116.203292,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 159.818,
+          "scanWallMilliseconds": 113.599458,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 170.517,
+          "scanWallMilliseconds": 115.018958,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 210.669,
+          "scanWallMilliseconds": 125.827,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 30,
+      "fullName": "jagenjo/litegraph.js",
+      "revision": "0555a2f2a3df5d4657593c6d45eb192359888195",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 2394.416625,
+      "bytesTransferred": 12540969,
+      "peakDiskKilobytes": 46568,
+      "inventory": {
+        "trackedPaths": 143,
+        "regularFiles": 132,
+        "deniedPath": 11,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 45,
+        "d2ToD5AnalyzedFiles": 41,
+        "d1ExcludedExtension": 87,
+        "d2ToD5ExcludedExtension": 91,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 393.896,
+          "scanWallMilliseconds": 226.713917,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 284.555,
+          "scanWallMilliseconds": 202.646083,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 365.849,
+          "scanWallMilliseconds": 225.989041,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 357.221,
+          "scanWallMilliseconds": 219.30125,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 319.254,
+          "scanWallMilliseconds": 206.57275,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 31,
+      "fullName": "romannurik/AndroidAssetStudio",
+      "revision": "ac5649658291b556db017817914f843a41d344b9",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1114.454417,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 2440,
+      "inventory": {
+        "trackedPaths": 75,
+        "regularFiles": 75,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 37,
+        "d2ToD5AnalyzedFiles": 36,
+        "d1ExcludedExtension": 38,
+        "d2ToD5ExcludedExtension": 39,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 206.584,
+          "scanWallMilliseconds": 128.591583,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 201.851,
+          "scanWallMilliseconds": 124.444167,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 164.303,
+          "scanWallMilliseconds": 118.935917,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 205.695,
+          "scanWallMilliseconds": 124.982084,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 170.414,
+          "scanWallMilliseconds": 119.753458,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 32,
+      "fullName": "feross/simple-peer",
+      "revision": "f1a492d1999ce727fa87193ebdea20ac89c1fc6d",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 755.754583,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 732,
+      "inventory": {
+        "trackedPaths": 29,
+        "regularFiles": 29,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 18,
+        "d2ToD5AnalyzedFiles": 14,
+        "d1ExcludedExtension": 11,
+        "d2ToD5ExcludedExtension": 15,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 231.25,
+          "scanWallMilliseconds": 138.534084,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 222.425,
+          "scanWallMilliseconds": 132.037625,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 180.829,
+          "scanWallMilliseconds": 128.573209,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 224.279,
+          "scanWallMilliseconds": 132.441792,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 243.994,
+          "scanWallMilliseconds": 137.299375,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 33,
+      "fullName": "rebassjs/rebass",
+      "revision": "31726a00fc81371b5cde9eb35fd01cabc5a21a58",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1181.231542,
+      "bytesTransferred": 1258291,
+      "peakDiskKilobytes": 2116,
+      "inventory": {
+        "trackedPaths": 142,
+        "regularFiles": 141,
+        "deniedPath": 0,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 105,
+        "d2ToD5AnalyzedFiles": 40,
+        "d1ExcludedExtension": 36,
+        "d2ToD5ExcludedExtension": 101,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 222.996,
+          "scanWallMilliseconds": 130.316125,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 185.847,
+          "scanWallMilliseconds": 121.844625,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 162.164,
+          "scanWallMilliseconds": 115.736375,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 166.055,
+          "scanWallMilliseconds": 115.927375,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 209.725,
+          "scanWallMilliseconds": 123.915417,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 34,
+      "fullName": "cobusgreyling/loop-engineering",
+      "revision": "ab6a1aa311f91ee4da349cc75cc571fcbede209c",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1215.981083,
+      "bytesTransferred": 3082813,
+      "peakDiskKilobytes": 6716,
+      "inventory": {
+        "trackedPaths": 637,
+        "regularFiles": 553,
+        "deniedPath": 84,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 375,
+        "d2ToD5AnalyzedFiles": 72,
+        "d1ExcludedExtension": 178,
+        "d2ToD5ExcludedExtension": 481,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 315.679,
+          "scanWallMilliseconds": 161.834667,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 206.291,
+          "scanWallMilliseconds": 138.746667,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 211.947,
+          "scanWallMilliseconds": 141.667125,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 196.301,
+          "scanWallMilliseconds": 137.503208,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 204.089,
+          "scanWallMilliseconds": 139.4445,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 35,
+      "fullName": "EvoMap/evolver",
+      "revision": "f2bc3264d2b3e0b55d7bf8a548ac9412b51a0a83",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1477.79625,
+      "bytesTransferred": 5536481,
+      "peakDiskKilobytes": 18120,
+      "inventory": {
+        "trackedPaths": 459,
+        "regularFiles": 457,
+        "deniedPath": 2,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 446,
+        "d2ToD5AnalyzedFiles": 436,
+        "d1ExcludedExtension": 11,
+        "d2ToD5ExcludedExtension": 21,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 3,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1009.203,
+          "scanWallMilliseconds": 671.140208,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 942.702,
+          "scanWallMilliseconds": 618.132167,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1077.139,
+          "scanWallMilliseconds": 685.804,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 882.798,
+          "scanWallMilliseconds": 647.834834,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 863.464,
+          "scanWallMilliseconds": 602.595125,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 36,
+      "fullName": "simple-icons/simple-icons",
+      "revision": "34c22501f9ac9f22b12f825677ccbab1fb22e14b",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1351.994416,
+      "bytesTransferred": 5442109,
+      "peakDiskKilobytes": 19648,
+      "inventory": {
+        "trackedPaths": 3540,
+        "regularFiles": 3536,
+        "deniedPath": 3,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 38,
+        "d2ToD5AnalyzedFiles": 30,
+        "d1ExcludedExtension": 3498,
+        "d2ToD5ExcludedExtension": 3506,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 279.976,
+          "scanWallMilliseconds": 142.556334,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 189.624,
+          "scanWallMilliseconds": 123.110625,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 174.02,
+          "scanWallMilliseconds": 119.52875,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 178.253,
+          "scanWallMilliseconds": 121.399041,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 166.072,
+          "scanWallMilliseconds": 117.541083,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 37,
+      "fullName": "cerebroapp/cerebro",
+      "revision": "33090d06255025fda72713768b581ccb6eeaa764",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1011.320375,
+      "bytesTransferred": 2789212,
+      "peakDiskKilobytes": 3996,
+      "inventory": {
+        "trackedPaths": 134,
+        "regularFiles": 121,
+        "deniedPath": 12,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 87,
+        "d2ToD5AnalyzedFiles": 83,
+        "d1ExcludedExtension": 34,
+        "d2ToD5ExcludedExtension": 38,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 217.232,
+          "scanWallMilliseconds": 134.48775,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 219.067,
+          "scanWallMilliseconds": 130.290625,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 217.319,
+          "scanWallMilliseconds": 131.881458,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 167.96,
+          "scanWallMilliseconds": 122.948625,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 173.089,
+          "scanWallMilliseconds": 123.445083,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 38,
+      "fullName": "RelaxedJS/ReLaXed",
+      "revision": "9e31cd446150afcaa1f2be1df09870ad4b444bfa",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 790.713042,
+      "bytesTransferred": 1352663,
+      "peakDiskKilobytes": 1100,
+      "inventory": {
+        "trackedPaths": 80,
+        "regularFiles": 80,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 21,
+        "d2ToD5AnalyzedFiles": 19,
+        "d1ExcludedExtension": 59,
+        "d2ToD5ExcludedExtension": 61,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 212.616,
+          "scanWallMilliseconds": 127.13725,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 182.314,
+          "scanWallMilliseconds": 117.145,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 179.665,
+          "scanWallMilliseconds": 116.802875,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 202.777,
+          "scanWallMilliseconds": 118.913375,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 156.432,
+          "scanWallMilliseconds": 113.297583,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 39,
+      "fullName": "xorbitsai/inference",
+      "revision": "f89b0d072d184c6ff3d2a9f4dca3ed76c02a0dea",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 3366.918041,
+      "bytesTransferred": 24767365,
+      "peakDiskKilobytes": 161540,
+      "inventory": {
+        "trackedPaths": 3148,
+        "regularFiles": 3147,
+        "deniedPath": 0,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 202,
+        "d2ToD5AnalyzedFiles": 169,
+        "d1ExcludedExtension": 2945,
+        "d2ToD5ExcludedExtension": 2978,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 351.941,
+          "scanWallMilliseconds": 191.416833,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 265.474,
+          "scanWallMilliseconds": 171.962,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 253.848,
+          "scanWallMilliseconds": 175.0665,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 309.101,
+          "scanWallMilliseconds": 182.780167,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 250.039,
+          "scanWallMilliseconds": 167.630834,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 40,
+      "fullName": "titanwings/colleague-skill",
+      "revision": "47039d08fcf0330794caea14efdb5e183348f7bb",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1281.462625,
+      "bytesTransferred": 7780434,
+      "peakDiskKilobytes": 10444,
+      "inventory": {
+        "trackedPaths": 108,
+        "regularFiles": 108,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 57,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 51,
+        "d2ToD5ExcludedExtension": 108,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1.777,
+          "scanWallMilliseconds": 1.778041,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.103,
+          "scanWallMilliseconds": 0.103584,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.081,
+          "scanWallMilliseconds": 0.08075,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.089,
+          "scanWallMilliseconds": 0.086666,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.072,
+          "scanWallMilliseconds": 0.071791,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 41,
+      "fullName": "wshobson/agents",
+      "revision": "c4b82b0ad771190355eb8e204b1329732a18449a",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1516.598833,
+      "bytesTransferred": 3900703,
+      "peakDiskKilobytes": 13080,
+      "inventory": {
+        "trackedPaths": 1160,
+        "regularFiles": 1159,
+        "deniedPath": 0,
+        "nonRegular": 1,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 762,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 397,
+        "d2ToD5ExcludedExtension": 1159,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 47.79,
+          "scanWallMilliseconds": 21.907083,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.274,
+          "scanWallMilliseconds": 0.285542,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.175,
+          "scanWallMilliseconds": 0.175833,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.141,
+          "scanWallMilliseconds": 0.141625,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.134,
+          "scanWallMilliseconds": 0.133792,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 42,
+      "fullName": "pallets/click",
+      "revision": "00e592cea702e0b2caa0dee42489fdb1c22cd845",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1090.612083,
+      "bytesTransferred": 1405092,
+      "peakDiskKilobytes": 2604,
+      "inventory": {
+        "trackedPaths": 165,
+        "regularFiles": 165,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 42,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 123,
+        "d2ToD5ExcludedExtension": 165,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1.32,
+          "scanWallMilliseconds": 1.10275,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.158,
+          "scanWallMilliseconds": 0.109417,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.07,
+          "scanWallMilliseconds": 0.070958,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.063,
+          "scanWallMilliseconds": 0.062042,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.058,
+          "scanWallMilliseconds": 0.058333,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 43,
+      "fullName": "myshell-ai/OpenVoice",
+      "revision": "74a1d147b17a8c3092dd5430504bd83ef6c7eb23",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1048.569958,
+      "bytesTransferred": null,
+      "peakDiskKilobytes": 6804,
+      "inventory": {
+        "trackedPaths": 37,
+        "regularFiles": 37,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 3,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 34,
+        "d2ToD5ExcludedExtension": 37,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.264,
+          "scanWallMilliseconds": 0.263083,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.07,
+          "scanWallMilliseconds": 0.069542,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.072,
+          "scanWallMilliseconds": 0.056666,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.168,
+          "scanWallMilliseconds": 0.065625,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.052,
+          "scanWallMilliseconds": 0.052375,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 44,
+      "fullName": "kedro-org/kedro",
+      "revision": "84be5310f2906609b91c135b953f9d702e518d36",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 3219.038833,
+      "bytesTransferred": 34791752,
+      "peakDiskKilobytes": 173724,
+      "inventory": {
+        "trackedPaths": 718,
+        "regularFiles": 710,
+        "deniedPath": 8,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 179,
+        "d2ToD5AnalyzedFiles": 2,
+        "d1ExcludedExtension": 531,
+        "d2ToD5ExcludedExtension": 708,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 232.352,
+          "scanWallMilliseconds": 127.517042,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 168.986,
+          "scanWallMilliseconds": 111.5795,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 164.306,
+          "scanWallMilliseconds": 110.151167,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 169.307,
+          "scanWallMilliseconds": 110.76925,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 223.352,
+          "scanWallMilliseconds": 116.00575,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 45,
+      "fullName": "amueller/word_cloud",
+      "revision": "93c5e4cd50c5f2c56ec7eb624a620790dab5df6c",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1695.770625,
+      "bytesTransferred": 27179090,
+      "peakDiskKilobytes": 61928,
+      "inventory": {
+        "trackedPaths": 94,
+        "regularFiles": 94,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 6,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 88,
+        "d2ToD5ExcludedExtension": 94,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.318,
+          "scanWallMilliseconds": 0.319333,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.078,
+          "scanWallMilliseconds": 0.078792,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.059,
+          "scanWallMilliseconds": 0.058958,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.051,
+          "scanWallMilliseconds": 0.05175,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.048,
+          "scanWallMilliseconds": 0.048291,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 46,
+      "fullName": "datawhalechina/hello-agents",
+      "revision": "943491640fcf09abd8898bda10efcf8328d694c4",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 8141.00025,
+      "bytesTransferred": 28374467,
+      "peakDiskKilobytes": 350672,
+      "inventory": {
+        "trackedPaths": 1775,
+        "regularFiles": 1775,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 272,
+        "d2ToD5AnalyzedFiles": 49,
+        "d1ExcludedExtension": 1503,
+        "d2ToD5ExcludedExtension": 1726,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 317.886,
+          "scanWallMilliseconds": 162.854791,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 194.014,
+          "scanWallMilliseconds": 127.721375,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 181.137,
+          "scanWallMilliseconds": 125.208708,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 189.018,
+          "scanWallMilliseconds": 127.06625,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 191.953,
+          "scanWallMilliseconds": 126.362416,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 47,
+      "fullName": "fishaudio/Bert-VITS2",
+      "revision": "3e710e996f03d52476490c435899e76d688dcbf1",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1366.066084,
+      "bytesTransferred": 10643046,
+      "peakDiskKilobytes": 56200,
+      "inventory": {
+        "trackedPaths": 272,
+        "regularFiles": 272,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 10,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 262,
+        "d2ToD5ExcludedExtension": 272,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.452,
+          "scanWallMilliseconds": 0.45325,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.091,
+          "scanWallMilliseconds": 0.091959,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.078,
+          "scanWallMilliseconds": 0.078125,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.064,
+          "scanWallMilliseconds": 0.063959,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.062,
+          "scanWallMilliseconds": 0.061958,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 48,
+      "fullName": "huggingface/datasets",
+      "revision": "b7cb10b0e38ab8bbefdb142d0279bc85ac8c7ab8",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1814.289083,
+      "bytesTransferred": 26403144,
+      "peakDiskKilobytes": 94208,
+      "inventory": {
+        "trackedPaths": 364,
+        "regularFiles": 364,
+        "deniedPath": 0,
+        "nonRegular": 0,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 70,
+        "d2ToD5AnalyzedFiles": 0,
+        "d1ExcludedExtension": 294,
+        "d2ToD5ExcludedExtension": 364,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 1.73,
+          "scanWallMilliseconds": 1.562292,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.108,
+          "scanWallMilliseconds": 0.109209,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.079,
+          "scanWallMilliseconds": 0.07925,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.072,
+          "scanWallMilliseconds": 0.071666,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 0.066,
+          "scanWallMilliseconds": 0.066833,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 49,
+      "fullName": "netdata/netdata",
+      "revision": "f9710c05c982e5bcc783e85854668802fc257d01",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 7253.193375,
+      "bytesTransferred": 9164554,
+      "peakDiskKilobytes": 259480,
+      "inventory": {
+        "trackedPaths": 11774,
+        "regularFiles": 11577,
+        "deniedPath": 8,
+        "nonRegular": 189,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 2522,
+        "d2ToD5AnalyzedFiles": 4,
+        "d1ExcludedExtension": 9055,
+        "d2ToD5ExcludedExtension": 11573,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 283.744,
+          "scanWallMilliseconds": 181.705917,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 167.616,
+          "scanWallMilliseconds": 113.592875,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 157.958,
+          "scanWallMilliseconds": 112.440042,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 167.246,
+          "scanWallMilliseconds": 114.69675,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 163.042,
+          "scanWallMilliseconds": 111.680416,
+          "errored": false
+        }
+      }
+    },
+    {
+      "index": 50,
+      "fullName": "actix/actix-web",
+      "revision": "bf2c859d4c9e16a3f74d3d5d363e06b95d98bf6f",
+      "cohort": "fresh",
+      "attempts": 1,
+      "cloneWallMilliseconds": 1055.153541,
+      "bytesTransferred": 1971323,
+      "peakDiskKilobytes": 4980,
+      "inventory": {
+        "trackedPaths": 444,
+        "regularFiles": 420,
+        "deniedPath": 0,
+        "nonRegular": 24,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 35,
+        "d2ToD5AnalyzedFiles": 1,
+        "d1ExcludedExtension": 385,
+        "d2ToD5ExcludedExtension": 419,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 0,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 187.104,
+          "scanWallMilliseconds": 115.678041,
+          "errored": false
+        },
+        "D2": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 211.173,
+          "scanWallMilliseconds": 122.753625,
+          "errored": false
+        },
+        "D3": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 201.696,
+          "scanWallMilliseconds": 119.123542,
+          "errored": false
+        },
+        "D4": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 175.488,
+          "scanWallMilliseconds": 112.544917,
+          "errored": false
+        },
+        "D5": {
+          "findingCount": 0,
+          "scanCpuMilliseconds": 162.325,
+          "scanWallMilliseconds": 110.523625,
+          "errored": false
+        }
+      }
+    }
+  ],
+  "totals": {
+    "repositoryCount": 50,
+    "d1AnalyzedFiles": 27778,
+    "d2ToD5AnalyzedFiles": 13510,
+    "skippedBoundaryOrFileErrors": 873,
+    "peakDiskKilobytes": 350672,
+    "cloneWallMilliseconds": 91591.663748,
+    "bytesTransferred": 426028606,
+    "unknownTransferRows": 15,
+    "rules": {
+      "D1": {
+        "findings": 0,
+        "errors": 0,
+        "scanCpuMilliseconds": 21053.147999999994
+      },
+      "D2": {
+        "findings": 0,
+        "errors": 0,
+        "scanCpuMilliseconds": 10829.719999999998
+      },
+      "D3": {
+        "findings": 0,
+        "errors": 0,
+        "scanCpuMilliseconds": 10527.918
+      },
+      "D4": {
+        "findings": 0,
+        "errors": 0,
+        "scanCpuMilliseconds": 10712.904
+      },
+      "D5": {
+        "findings": 0,
+        "errors": 0,
+        "scanCpuMilliseconds": 10448.799000000003
+      }
+    }
+  },
+  "completedAt": "2026-08-02T15:16:34.971Z",
+  "streamedDeleteConfirmed": true
+}
