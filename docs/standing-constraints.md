@@ -1,7 +1,7 @@
 <!-- CANONICAL LOWERCASE FILE. Alfred and Cejel share a point-in-time copy. -->
 <!-- Each repo pins only its local bytes; cross-repo parity requires an explicit comparison. -->
 
-**CONSTRAINTS-VERSION: 2026-08-01.2**
+**CONSTRAINTS-VERSION: 2026-08-01.3**
 
 > Every agent report must echo the exact CONSTRAINTS-VERSION line above. This is an
 > observable delivery handshake: omission flags non-delivery or non-compliance, but
@@ -111,14 +111,16 @@ origin is legible is harder to argue away later.
 ## Open at the close of this session — historical snapshot
 
 The bullets below preserve the state at the close of the 2026-07-31/08-01 session. They are not
-current repository facts. Current resolution notes as of the later 2026-08-01 review:
+current repository facts. Historical counts and open-item labels must be mechanically reverified
+against current repository state before action. Current resolution notes as of the later 2026-08-01
+review:
 
 - ADR-0013 now records D1–D5 as exact signatures rather than demonstrated semantic-class
   detectors; that correction merged in Alfred [#794](https://github.com/BargLabs/alfred/pull/794)
   at `a33579f`.
-- The old count of 23 `REPLACE_WITH_40_HEX_FIX_COMMIT` values is historical. An Alfred-side
-  mechanical guard now verifies zero such values and two Alfred `PENDING_` files containing 16
-  total entries.
+- The old count of 23 `REPLACE_WITH_40_HEX_FIX_COMMIT` values is historical. Placeholder and
+  `PENDING_` inventories change as seeds are anchored or added; re-run the mechanical inventory
+  checks against the current tree before action.
 
 - 23 of the alfred lesson seeds carry `REPLACE_WITH_40_HEX_FIX_COMMIT`. They are held out of
   candidate storage by the `PENDING_` filename prefix — a real protection with no test

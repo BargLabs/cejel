@@ -8,10 +8,22 @@ Canonical instructions for Claude Code in this repository. Non-Claude agents rea
 **[`docs/standing-constraints.md`](docs/standing-constraints.md)**
 
 Safety-relevant constraints on secrets, guards, experiment integrity and evidence
-discipline. Several were earned from specific production incidents and the file names them.
+discipline. The canonical lowercase file is a historical snapshot written at the close of the
+2026-08-01 session; its final open-items section records that point in time, not current repo state.
+Current resolution note: ADR-0013 now records D1–D5 as exact signatures, merged in #794 at
+`a33579f`. Historical counts and open-item labels must be mechanically reverified against current
+repository state before action.
 
-**Echo the `CONSTRAINTS-VERSION` line from that file in your report.** A report without it
-did not read the constraints, and nothing else about the report will reveal that.
+The Alfred and Cejel copies share a point-in-time SHA-256 pin. Each repository pins only its local
+file. This is a shared point-in-time parity record and local immutability guard; neither test proves
+current cross-repository byte equality. The current local SHA-256 pin is
+`118d4ea48d299d8a12e7e31c1a334e694121c63c4d7ee3345ae2d36dd3c84063`. Cross-repo parity must be
+checked explicitly on every change: compare both files, copy the canonical bytes, bump
+`CONSTRAINTS-VERSION`, and update both local pins.
+
+**Echo the exact `CONSTRAINTS-VERSION` line from that file in every report.** This is an observable
+delivery handshake: omission flags non-delivery or non-compliance, but does not logically prove the
+whole file was unread.
 
 ## What Cejel is
 
