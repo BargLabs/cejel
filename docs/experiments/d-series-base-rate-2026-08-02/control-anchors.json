@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-controls-v1",
+  "ruleRepositoryCommit": "05d5d9fca79ea9cb1d34e64fa795f9713b6d1bf1",
+  "ruleSources": {
+    "src/packs/d-series/declared-but-unread-config.ts": "efae630dcbab4ffe4ed997f80c5ac50bf7fead59b94c4e3f47d85bdb1c229192",
+    "src/packs/d-series/swallowed-error.ts": "10f9edd7507a57b19365dde4095ff2069f4ff0364583941d38aba1660b5ce244",
+    "src/packs/d-series/unasserted-set-transform.ts": "12cfa7550b549456b0f2c5e0db95dc2101ca2a8770b2c5978bca43555f224896",
+    "src/packs/d-series/empty-failure-conflation.ts": "418393eb1fcf7b9cffaeb24b9ce86e97b87e61770faf83d1b9c22459ec38f4ae",
+    "src/packs/d-series/self-referential-verification.ts": "5059b890768d45b4c0cbc20a9b1a6c17b81055670e3d152ba51427f6be8c6b23"
+  },
+  "adjudication": {
+    "capPerRule": 200,
+    "uniformSampleSeed": "cejel-d-series-adjudication-2026-08-02-5b9cccf65cf79915",
+    "sampleMethod": "Sort finding identities by SHA-256(seed + NUL + finding identity) and take the first 200."
+  },
+  "redactor": {
+    "repository": "BargLabs/alfred",
+    "commit": "5a8e496c33e783b2271827e78096e5f515f656a0",
+    "path": "packages/operator-trace/src/redactor.ts",
+    "sha256": "c8719d54bf2f7b9571b8a1bde26320ff7c1789c1694a6ea967e5e3f643829a90"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-preregistration-integrity-v1",
+  "files": {
+    "preregistration.md": "4716594437727647e6a9fbb2956a8a2c28a2accc668a825e677809be85c1d4c8",
+    "control-anchors.json": "2cea090e8c88918124ded7f6a269d0e317732ed466dd0470648f7d82d3ba3b89",
+    "owned-corpus.json": "47bdbd664746c691134c7225279d7fc7858ed12b2a436a9410a3dad6cc596b51",
+    "prior-exposure-exclusions.json": "8e03652cc88d8a27dc746cb842b8101e9a5599fb70f3659c8d04fb5b8b0f6656",
+    "stage0-selection-spec.json": "6723ed468fe7d5503b9dbfe84a5d400296fcb7c7065d0b20acaba2d5f2041860",
+    "stage0-manifest.json": "2865d453daed2332730661bf5be37591804af4f21e64b65bc562bc27f9784dcc",
+    "stage0-manifest.order.jsonl": "42d4124908b75678a6cc2f291304d5ae96a231c5b08b8e3b20e36c6615118ad8",
+    "stage0-manifest.universe.jsonl": "a4199147f42323b5379e55b0924046689bd91658cb6aaa103b0154e5c5bafa81",
+    "tier2-selection-spec.json": "700fb1a2f8492ed2fbdbd826a5b9fde0d4191a988c0cb651a9868f5871d7f3b2",
+    "tier2-fresh-manifest.json": "4ed7c8381de3b7a55e3d84eebdce4d04b379ca193ea079141285603145a36d48",
+    "tier2-fresh-manifest.order.jsonl": "0ca9706407c28d1d2cbe1ac8b91d54a83510d102677d411764718a06a0079ef8",
+    "tier2-fresh-manifest.universe.jsonl": "759b01de0fc1f00bb543c6e53504023354c2b94f086bc1e5c85ccbecb1b6af9b",
+    "tier2-corpus.json": "2b01b4ba74b27de9e3946bde6fff0da1a2be67646874a4507141311c1a4636ff"
+  },
+  "scripts": {
+    "scripts/d-series-base-rate-prepare.mjs": "f87d976e7c471ce041815f44d3df44eecb42a432130aae355591b5455ff7cbe7",
+    "scripts/d-series-base-rate-scan.ts": "edc070f74dbd4758994b02cbedf1b8efbd9211cfa8c378285a797c91ee250c18"
+  }
+}
