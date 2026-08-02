@@ -167,10 +167,17 @@ memory before inspection; raw diffs and credential-shaped values were not retain
 | A1 exact inverse-patch anchors | 0 | 0 | none |
 | A2 check red→green anchors | 2 | 3 | Therasyn: neither passes source+test; site: two pass file gate |
 | A2 deployment transitions | 8 / 4 fix SHAs | 0 | one Therasyn fix passes source+test |
+| Atomic-fix proxy within off-default A2 | 1 / 6 (16.7%) | 2 / 3 (66.7%) | one-commit source+test anchor / deduplicated A2 fix anchors |
 | A3 structured comments on new history | 0 | 0 | none |
 | Exact per-commit B named transitions | 3 | 1 | causal/provenance adjudication below |
 | New mechanical qualifier | **0** | **0** | frozen 18 unchanged |
 | New B2 catalog entry | **0** | **0** | frozen 18 unchanged |
+
+The target-only off-default atomic-fix proxy uses exactly the preregistered structural denominator.
+Therasyn has two check anchors plus four unique deployment fix SHAs; one is a non-merge anchor touching
+source and tests, so the result is `1 / 6 = 16.7%`. Site-machine has three check anchors, two of which
+are non-merge source-plus-test anchors, so the result is `2 / 3 = 66.7%`. These rates are reported
+separately from the common frozen-default baseline below rather than silently mixing populations.
 
 ### Why the candidates did not qualify
 
@@ -251,8 +258,8 @@ shape measure; it is not called fix atomicity.
 “Atomic-fix proxy” restores the preregistered denominator from the frozen-default Strata A A2
 population: the numerator is a non-merge fix anchor touching both source and tests in that one
 commit, and the denominator is all structurally selected red-to-green A2 candidates after the same
-fix-SHA deduplication. It is kept separate from the off-default funnel above. B2 share uses the
-preregistered real-defect denominator: B2 divided by replayable A + B1 + B2.
+fix-SHA deduplication. The target-only off-default form of the same proxy is reported in the funnel
+above. B2 share uses the preregistered real-defect denominator: B2 divided by replayable A + B1 + B2.
 
 | Repository | Primary language | Test framework(s) | Source+test PRs | Median commits / PR | Single-commit PRs | Atomic-fix proxy | Named CI oracle | B2-shaped real defects |
 |---|---|---|---:|---:|---:|---:|---|---:|
@@ -318,7 +325,9 @@ comments on the new history.
 The atomic-fix numerators were recomputed from the frozen Strata A A2 candidate records after the
 same fix-SHA deduplication, counting records with `isMerge = false`, `hasSource = true`, and
 `hasTest = true`. Their denominators are the per-repository A2 structural-anchor counts in
-`strata-a-yield-2026-08-01.md`. No result-stage prose or defect adjudication enters that proxy.
+`strata-a-yield-2026-08-01.md`. The off-default target-only proxy applies the identical predicate to
+the two check-anchor sets and the deduplicated deployment fix SHAs reported in the structural funnel.
+No result-stage prose or defect adjudication enters either proxy.
 
 All diff inspection passed through the prior Stratum B complete-value scrubber before output.
 Credential helper material stayed in memory and was never printed or written. Raw diffs and raw job
