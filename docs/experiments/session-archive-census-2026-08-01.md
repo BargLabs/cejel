@@ -1,6 +1,6 @@
 # Session archive census — 2026-08-01
 
-Status: initial metadata-only census; transcript ingestion has not started
+Status: scope correction complete; corpus ingestion has not started
 
 Snapshot time: `2026-08-01T17:18:11.396Z`
 
@@ -13,34 +13,61 @@ types)**. Filename-visible identity collapses those paths to a provisional popul
 - **833 Claude Code session IDs**; and
 - **110 Cowork transcript IDs**, alongside **101 `local_<UUID>` Cowork workspace IDs**.
 
-The provider-total filename census is therefore **3,542 visible transcript IDs**, but it is not
-yet a denominator. Provider parsing may merge or reject IDs, subagent traces are present, and
-definitive content deduplication has not run.
+The provider-total filename census therefore remains **3,542 visible transcript IDs**. The six
+previously uncovered home-level directories contribute **zero** transcript identities: this scope
+correction changes the provisional population by **+0**. Provider parsing may still merge or reject
+IDs and subagent traces remain present, so 3,542 is provisional rather than a recall denominator.
 
-The migrated stores are real but predominantly mirrors, not an additive population. Of the
-visible IDs, 1,945 Codex IDs, 452 Claude Code IDs, and 35 Cowork transcript IDs occur in more than
-one root. Ninety-five of the 101 Cowork workspace IDs occur in more than one root. The census did
-not find a separately labelled Mac mini archive root. It did find nine live Claude project keys
-encoding legacy `/Users/houman/...` paths, so some migrated history has been folded into the live
-store without retaining a machine label.
+Content identity confirms that the migrated stores are predominantly, but not wholly, mirrors.
+Ignoring directory and machine labels, **2,426 family-scoped scrubbed content hashes occur in more
+than one root**: 1,941 Codex, 452 Claude Code, and 33 Cowork hashes. Of 2,718 distinct identities in
+the migration roots, 2,425 have an exact scrubbed-content match in a live/base root, seven have only
+an earlier clean prefix under the same base ID, and 286 exist only in migration roots. Those 286
+identities were already included in the original 3,542 union; they are not newly discovered by this
+correction.
+
+The reachability-scoped machine finding is: **no Mac mini archive is reachable from this host**.
+`/Volumes/Macintosh HD` is the only mounted volume. An archive on another machine or an unattached
+drive is outside this census and may still exist.
 
 This is broader than repository history. It includes Codex, Claude Code, Cowork, shell-recovery
 metadata, and secondary document exports. Later defect qualification remains repository-anchored:
 non-code sessions can aid discovery, but only a resolvable fix commit that passes the independent
 mechanical replay bar can become a recall seed.
 
-## Content-blind method
+## Metadata census and scrub-first overlap method
 
-The census inspected directory entries, filenames, byte sizes, modification times, and filename-
-visible UUIDs. It did **not** open, read, or hash transcript or shell-history bodies. The generated
-JSON is written mode `0600` to `/tmp/session-archive-census.json` and contains aggregate metadata,
-not path lists.
+The census scanner inspects directory entries, filenames, byte sizes, modification times, and
+filename-visible UUIDs. It does **not** open, read, or hash transcript or shell-history bodies. The
+generated JSON is written mode `0600` to `/tmp/session-archive-census.json` and contains aggregate
+metadata, not path lists.
+
+A separate one-off overlap pass read only filename-identified transcript JSONL files whose
+filesystem birth time was at or before the frozen snapshot boundary. It routed shell leaves through
+Alfred's `classifyCommand`, routed non-shell leaves through `redactText(raw, 64_000)`, dropped and
+counted oversized leaves, normalized operator home and machine labels, canonicalized the scrubbed
+event maps, and hashed only that canonical scrubbed stream. It used Alfred redactor commit
+`76abe1a45752dd1e59a7e1390bf75b40a0985603`. No raw transcript body was hashed or persisted; no
+shell history or denied-path file was read or hashed. The pass dropped 16,771 oversized leaves and
+recorded only category/count telemetry.
 
 This supersedes the raw-body hashing method for future ingestion. The existing 2026-08-01 trace
 experiment's raw SHA-256 manifest remains historical evidence for that completed experiment, but
 must not be reused as the ingestion boundary for the expanded census. Content hashing and
 content-based deduplication may occur only after an in-memory scrubber has removed credential and
 sensitive-history material.
+
+## Enforced denied root
+
+`~/Library/Caches/claude-cli-nodejs/**` is denied in `scripts/session-archive-census.mjs`. These are
+MCP connector caches, not agent transcripts, and their Gmail/database/tool results may contain
+third-party content. The decision is path-based: the scanner never opens a file below that root.
+`scripts/session-archive-census.node-test.mjs` asserts both the real cache-path shape and that the
+metadata walker skips a denied subtree instead of reading its file.
+
+At validation time the denied tree contained **69,461 files**, all with `.jsonl` names, in **3,880
+directories**, totalling **64,293,011 bytes**. These are excluded files, not corpus candidates. The
+counts come from directory traversal and `lstat` metadata only.
 
 ## Enumerated transcript roots
 
@@ -64,36 +91,87 @@ Gross Cowork file counts are intentionally omitted from the session denominator:
 contain source snapshots, outputs, images, and tool artifacts. `local_<UUID>` directories are only
 provisional workspace units, not proven user sessions.
 
-## Metadata-visible overlap
+## Content-hash overlap
+
+Identity buckets below are mutually exclusive and use session ID **or** scrubbed canonical hash
+before deciding that a migration identity is additive to its family base. Root names identify where
+the bytes were reachable; they are not part of the hash input.
 
 ### Codex
 
-The five roots contain 5,526 filename-visible session-ID participations but only 2,599 distinct
-IDs. Pairwise overlap is not mutually exclusive:
+The five roots contain 5,526 session-ID participations, 2,599 distinct IDs, and 2,608 distinct
+scrubbed hashes. The migration roots contain 1,998 IDs: 1,941 have an exact base-store hash, four
+reuse a base ID with different content, and 53 occur in neither base IDs nor base hashes. Pairwise
+hash overlap is not mutually exclusive:
 
-| Root pair | Shared IDs |
+| Root pair | Shared scrubbed hashes |
 |---|---:|
 | current archived ↔ MacBook archived | 1,133 |
-| Air ↔ current archived | 798 |
-| Air ↔ MacBook archived | 677 |
-| current archived ↔ MacBook active | 434 |
-| current active ↔ MacBook active | 378 |
+| Air ↔ current archived | 793 |
+| Air ↔ MacBook archived | 672 |
+| current archived ↔ MacBook active | 431 |
+| current active ↔ MacBook active | 377 |
 | Air ↔ MacBook active | 305 |
 | current active ↔ Air | 184 |
 
 ### Claude Code
 
-The live and MacBook roots contain 1,285 visible session-ID participations but 833 distinct IDs;
-452 IDs occur in both roots. The live project-key directory names comprise 340 `/Users/bargs/...`
-keys, nine `/Users/houman/...` legacy keys, 14 `/private/...` keys, and three other keys.
+The live and migration roots contain 1,285 session-ID participations, 833 distinct IDs, and 833
+distinct scrubbed hashes. The migration root contains 685 IDs: 452 have an exact live-store hash
+and 233 occur in neither live IDs nor live hashes. Thus the migration is majority mirror by content
+but contains a material additive subset that the 3,542 union already counted. The live project-key
+directory names comprise 340 `/Users/bargs/...` keys, nine `/Users/houman/...` legacy keys, 14
+`/private/...` keys, and three other keys; those labels do not determine content identity.
 
 ### Cowork
 
-The live and partial roots expose 101 distinct `local_<UUID>` workspaces. All 88 workspace IDs in
-the non-empty partial migration are present in the live root. All seven workspace IDs in each
-Alfred/MacBook archive are present in live, and the two seven-workspace archives mirror each other.
-Filename-visible transcript IDs give 110 distinct IDs; this is a second, structurally different
-identity signal and must not be conflated with workspace IDs before provider parsing.
+The roots expose 110 distinct transcript IDs and 115 distinct scrubbed hashes. The migration roots
+contain 35 IDs: 32 have an exact live-store hash, three reuse a live ID with different content, and
+none is additive by both ID and hash. Thirty-three scrubbed hashes occur in more than one root.
+Separately, the roots expose 101 distinct `local_<UUID>` workspaces; workspace IDs remain a
+structurally different identity signal and are not conflated with transcript IDs.
+
+### Same-ID content variants
+
+All seven identities in the mutually exclusive same-ID/different-hash bucket are **partial sync
+snapshots**, not divergent edits. In every case the shorter scrubbed event sequence is an exact
+line-for-line prefix of the longer sequence, the shorter file has the earlier modification time,
+and both files end on complete valid JSON records. There is no evidence of a corrupt mid-record
+truncation. Session-ID deduplication is therefore correct and the 3,542 population does not change.
+
+| Family | Transcript ID | Earlier copy → later copy (scrubbed event lines) | Finding |
+|---|---|---:|---|
+| Codex | `019ee3f1-0faa-7f13-b679-90ea9a88be90` | 1,574 → 1,675 | MacBook active copy is a clean earlier prefix |
+| Codex | `019f33cc-c477-7660-b3f3-242540e27611` | 11,723 → 15,546 | MacBook active copy is a clean earlier prefix |
+| Codex | `019f33af-a75b-74c1-ab06-fe5823d1b25c` | 10,128 → 14,218 | MacBook active copy is a clean earlier prefix |
+| Codex | `019ebf4f-03cf-7501-bbc8-b265d8a3fdb1` | 209 → 274 | MacBook active copy is a clean earlier prefix |
+| Cowork | `ac336392-da5b-4f68-abf1-ce796161ec2f` | 7,098 → 8,596 | both archive copies are the same clean earlier prefix of live |
+| Cowork | `edf47778-d31d-4eab-ada7-e3b0637f44aa` | 23,918 / 23,929 → 26,944 | two successive archive snapshots are clean prefixes of live |
+| Cowork | `0cd010c8-ee13-4fc2-81da-1282a4dde5f2` | 33,493 / 33,508 → 38,335 | two successive archive snapshots are clean prefixes of live |
+
+Five additional Codex IDs have a shorter Air prefix **and** an exact full MacBook-archived copy, so
+they remain in the exact-match identity bucket: `019eb434-08ff-7172-a01a-8cb981e67ded` (936/946
+lines), `019eaf08-b742-7ee1-9de3-ca573fe281f3` (41,636/44,812),
+`019ea388-291b-7613-ab2f-dbd4ac7e4902` (49,319/50,163),
+`019ea021-b9e4-7d30-8ad8-b24d3f3ec5a5` (227/237), and
+`019e8b6f-7974-70f2-b6c6-1f669e68b78d` (87,621/93,260). This is why “seven” is the mutually
+exclusive no-exact-copy bucket, not the total number of roots containing an earlier prefix.
+
+## Six previously uncovered home directories
+
+None was in the original census roots. Archive member names were inspected where necessary, but
+no transcript body was opened merely to classify a path. The content-hash input rule requires a
+provider-shaped JSONL file with a visible non-subagent transcript UUID; none of the six directories
+produced a candidate, so each contributes zero hashes and zero additive IDs.
+
+| Directory | Metadata/member-name classification | Hash/additivity result |
+|---|---|---:|
+| `~/backups` | 2 files; one small Alfred/Maeve untracked-files tarball; no JSONL members | no candidate; +0 |
+| `~/reps` | 6,842 files; an Express source/dependency checkout; no JSONL files | no candidate; +0 |
+| `~/_stash-triage` | 7 Markdown/TypeScript goal and schema files; no JSONL files | no candidate; +0 |
+| `~/egbert-archive-inspect` | 118 Git-object/patch files; no JSONL files | no candidate; +0 |
+| `~/egbert-backup-2026-07-21` | 18 backup files; three archive-member JSONLs are Egbert trading data by path, not agent transcripts | no candidate; +0 |
+| `~/alfred-stash-2026-07-27` | 27 presentation/audit files; two `.inspect.ndjson` presentation inspection outputs; no transcript UUIDs | no candidate; +0 |
 
 ## Shell recovery and secondary exports
 
@@ -115,17 +193,29 @@ cannot establish red, green, or an oracle.
 
 ## What this changes
 
-The earlier session experiment reported 3,517 provider/session IDs. This filename-only census finds
-3,542 provisional IDs across the now-visible roots. Because the identity methods differ, the
-25-record difference is **not** a claim of 25 new sessions. It does show that the Air and MacBook
-migrations do not supply hundreds or thousands of additional independent sessions: most of their
-IDs already occur in the live/archived roots used by the earlier parser.
+The earlier session experiment reported 3,517 provider/session IDs. This census finds 3,542
+provisional IDs across the frozen roots. Because the identity methods differ, the 25-record
+difference is **not** a claim of 25 new sessions. The scope correction in this document adds **zero**
+to 3,542. A live rerun later on 2026-08-01 saw 18 post-snapshot Codex IDs; those are new activity
+after the frozen boundary, not archive discoveries, and are not folded into this result.
+
+Those 18 IDs are durably recorded in
+`docs/experiments/session-archive-census-post-snapshot-ids-2026-08-01.json`, with the frozen cutoff,
+capture time, source, and filesystem birth time. The scanner now emits the frozen 3,542 population
+separately from post-snapshot IDs, and its test asserts both the ledger's 18 unique entries and that
+the live filesystem still re-derives 3,542 IDs at the frozen boundary. Later activity can increase
+the live count without silently changing this result.
+
+Content hashing also narrows the earlier mirror statement. Most migration identities have exact
+base-store content, but 53 Codex and 233 Claude Code IDs exist only in migration roots. They were
+already present in the 3,542 union. The machine labels attached to those roots provide no evidence
+about which physical Mac produced them and are not used in the conclusion.
 
 The next recall gain must therefore come from one or more of:
 
 1. a scrub-first parser that recovers event shapes the earlier Codex and Cowork parsers missed;
 2. new sessions created after the previous frozen boundary;
-3. a separately located Mac mini store, if one still exists outside the enumerated roots; or
+3. a Mac mini store reachable only from another machine or an unattached drive; or
 4. a separately preregistered recovery channel for non-JSONL exports.
 
 It must not come from counting machine copies as independent sessions or accepting transcript prose
@@ -185,7 +275,7 @@ any transcript body is read.
 
 ## Next gate
 
-Before any transcript content is ingested:
+Before any transcript content is retained as corpus material:
 
 1. expose the Alfred redactor through a shared/pinned import and implement the structured adapter
    above, including the explicit corpus text-length contract, without duplicating its credential-
