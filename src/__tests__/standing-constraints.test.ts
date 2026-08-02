@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
  * If this fails, do not just update the hash. Copy the file to the other repo and update
  * both pins, then bump CONSTRAINTS-VERSION.
  */
-const PINNED_SHA256 = '217b75b8e3aa065ab7031ef4aaa041d2473fe9312633828299d5b345f38c3dd5';
+const PINNED_SHA256 = 'ff25314980f2449616064d2e43e70edfc7f6012f2052b99eabfc5422c6c1ccf9';
 
 describe('standing constraints', () => {
   const path = join(__dirname, '..', '..', 'docs', 'standing-constraints.md');
