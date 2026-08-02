@@ -31,7 +31,7 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   const insufficientDataSummaryLines =
     insufficientDataCriteria.length > 0
       ? [
-          `- Insufficient data: ${insufficientDataCriteria.map((c) => c.id).join(', ')} — no measurable signal for the scorer to read; excluded from composite. Unmeasured, not inapplicable, and not a measured zero.`,
+          `- Insufficient data: ${insufficientDataCriteria.map((c) => c.id).join(', ')} — no measurable signal for the scorer to read. Read-failure abstentions remain in the composite denominator with a conservative zero contribution so evidence loss cannot improve the score; other unmeasured criteria are excluded. Unmeasured, not inapplicable, and not a measured criterion zero.`,
         ]
       : [];
 

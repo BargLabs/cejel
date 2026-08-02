@@ -7,9 +7,12 @@ rule did not match.
 
 When a criterion attempts to read a relevant file and the filesystem refuses the read, Cejel
 discards that criterion's partial evidence and publishes it as `insufficient_data`. The criterion
-is excluded from the composite exactly like Cejel's existing unmeasured criteria. It does not
-receive a zero, pass, or fail score. If every free-core criterion is unmeasured, the existing
-whole-report insufficient-evidence abstention applies.
+does not receive a pass or fail verdict. Unlike an ordinarily absent signal, however, a
+read-failure abstention remains in its category's composite denominator with a conservative zero
+contribution. That zero is arithmetic for the headline only, not a measured criterion result. It
+enforces the invariant that losing readable evidence can never improve a certificate. If every
+free-core criterion is unmeasured, the existing whole-report insufficient-evidence abstention
+applies.
 
 Expected filesystem failures are caught at the individual read boundary and classified by errno.
 Unexpected non-filesystem exceptions are rethrown, so the guard cannot hide detector bugs.
@@ -31,9 +34,16 @@ The summary also names affected criterion IDs. It never includes skipped reposit
 already emitted as ordinary certificate evidence remain governed by the existing evidence schema.
 
 Directory-inventory exclusions do not automatically invalidate every criterion. A criterion
-abstains only when its collector actually reaches content that cannot be read. This keeps expected
-boundary exclusions (for example `node_modules` and non-regular filesystem objects) visible without
-claiming they were evidence for an unrelated criterion.
+abstains only when its collector actually attempts a content read and receives a filesystem errno,
+or the entry ceases to be a regular file at that read boundary. Size bounds, extension exclusions,
+denied directories, and non-regular entries found during inventory remain visible in the counts but
+do not by themselves imply that a criterion lost evidence. This keeps expected boundary exclusions
+(for example `node_modules` and non-regular filesystem objects) visible without claiming they were
+evidence for an unrelated criterion.
+
+The fallback directory walk stays on the filesystem device containing the requested scan root.
+Mounted filesystems are counted as denied paths rather than traversed. This makes a filesystem-root
+scan finite and prevents virtual trees such as `/proc` and `/sys` from becoming repository evidence.
 
 ## Why the closure matters
 

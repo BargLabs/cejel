@@ -1090,12 +1090,12 @@ function readRepresentativeSourceText(repoPath: string, file: string): string | 
     const size = statSync(absolutePath).size;
     if (size === 0) return null;
     if (size > READABLE_SOURCE_REPRESENTATION_FILE_BYTES_V13) {
-      recordContentSkip(absolutePath, 'too_large', ['A1', 'A2', 'A3', 'A5', 'B6']);
+      recordContentSkip(absolutePath, 'too_large', true);
       return null;
     }
     return readRepoText(absolutePath, 'utf8');
   } catch (error: unknown) {
-    recordFilesystemSkip(absolutePath, error);
+    recordFilesystemSkip(absolutePath, error, false, true);
     return null;
   }
 }
@@ -3773,20 +3773,20 @@ function parseGitTrackedFiles(
     if (file.length === 0) continue;
     const fullPath = join(repoPath, file);
     if (!includeHardExcluded && isHardExcludedPath(file)) {
-      recordContentSkip(fullPath, 'denied_path');
+      recordContentSkip(fullPath, 'denied_path', true);
       continue;
     }
     try {
       if (!lstatSync(fullPath).isFile()) {
-        recordContentSkip(fullPath, 'non_regular_file');
+        recordContentSkip(fullPath, 'non_regular_file', true);
         continue;
       }
     } catch (error: unknown) {
-      recordFilesystemSkip(fullPath, error);
+      recordFilesystemSkip(fullPath, error, false, true);
       continue;
     }
     if (!isPotentialContentPath(file)) {
-      recordContentSkip(fullPath, 'excluded_by_extension');
+      recordContentSkip(fullPath, 'excluded_by_extension', true);
     }
     files.push(file);
   }
@@ -3795,7 +3795,8 @@ function parseGitTrackedFiles(
 
 function directoryInventory(repoPath: string): string[] {
   const files: string[] = [];
-  visitRepoDir(repoPath, repoPath, files);
+  const rootDevice = statSync(repoPath).dev;
+  visitRepoDir(repoPath, repoPath, files, rootDevice);
   return files.filter((file) => !isHardExcludedPath(file)).sort();
 }
 
@@ -3913,7 +3914,12 @@ function listGitTrackedFiles(
   return null;
 }
 
-function visitRepoDir(repoPath: string, dirPath: string, files: string[]): void {
+function visitRepoDir(
+  repoPath: string,
+  dirPath: string,
+  files: string[],
+  rootDevice: number | bigint,
+): void {
   // M1 (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3): a non-git repo can have
   // an unreadable subdirectory (e.g. chmod 000) or a broken symlink entry; readdirSync/
   // statSync throw EACCES/ENOENT in those cases, which previously crashed the whole scan.
@@ -3933,7 +3939,16 @@ function visitRepoDir(repoPath: string, dirPath: string, files: string[]): void 
       continue;
     }
     if (entry.isDirectory()) {
-      visitRepoDir(repoPath, fullPath, files);
+      try {
+        if (lstatSync(fullPath, { bigint: true }).dev !== BigInt(rootDevice)) {
+          recordContentSkip(fullPath, 'denied_path');
+          continue;
+        }
+      } catch (error: unknown) {
+        recordFilesystemSkip(fullPath, error);
+        continue;
+      }
+      visitRepoDir(repoPath, fullPath, files, rootDevice);
       continue;
     }
     if (!entry.isFile()) {
@@ -3949,7 +3964,7 @@ function visitRepoDir(repoPath: string, dirPath: string, files: string[]): void 
     }
     const repoRelativePath = relative(repoPath, fullPath);
     if (size > 512_000) {
-      recordContentSkip(fullPath, 'too_large', contentCriteriaForPath(repoRelativePath));
+      recordContentSkip(fullPath, 'too_large');
       continue;
     }
     if (!isPotentialContentPath(repoRelativePath)) {
@@ -3974,21 +3989,6 @@ function isPotentialContentPath(path: string): boolean {
     /^(?:Dockerfile|Makefile|Rakefile|Gemfile|Pipfile|Procfile|CMakeLists\.txt)$/i.test(name) ||
     /^\.(?:env|gitignore|npmrc|nvmrc|prettierrc|eslintrc)(?:\.|$)/i.test(name)
   );
-}
-
-function contentCriteriaForPath(path: string): WitanCriterionId[] {
-  const criteria = new Set<WitanCriterionId>();
-  if (/test|spec|coverage/i.test(path)) criteria.add('A1');
-  if (/\.(?:c|cc|cpp|cs|go|java|js|jsx|kt|php|py|rb|rs|swift|ts|tsx)$/i.test(path)) {
-    for (const criterion of ['A1', 'A2', 'A3', 'A5', 'B6'] as const) criteria.add(criterion);
-  }
-  if (isDependencyManifest(path) || isLockfile(path)) criteria.add('A4');
-  if (/\.github\/workflows\/|(?:^|\/)Dockerfile$/i.test(path)) {
-    for (const criterion of ['A1', 'A3', 'B3', 'B6'] as const) criteria.add(criterion);
-  }
-  if (isAuditFile(path)) criteria.add('B4');
-  if (/README|claim|reconcil/i.test(path)) criteria.add('A5');
-  return [...criteria];
 }
 
 function shouldSkipDir(name: string): boolean {

@@ -11,7 +11,9 @@ export type ContentReadSkipReason =
   | 'non_regular_file';
 
 interface ContentReadSession {
-  readonly skips: Map<string, { reason: ContentReadSkipReason; errno?: string }>;
+  readonly counts: Record<ContentReadSkipReason, number>;
+  readonly unreadableByErrno: Map<string, number>;
+  readonly deduplicatedSkips: Set<string>;
   readonly affectedCriteria: Set<WitanCriterionId>;
   criterion?: WitanCriterionId;
 }
@@ -38,52 +40,37 @@ function recordSkip(
   reason: ContentReadSkipReason,
   errno?: string,
   affectsCurrentCriterion = false,
-  affectedCriteria: readonly WitanCriterionId[] = [],
+  deduplicate = false,
 ): void {
   const session = activeSession;
   if (!session) return;
-  const key = `${resolve(path)}\u0000${reason}\u0000${errno ?? ''}`;
-  session.skips.set(key, { reason, ...(errno ? { errno } : {}) });
   if (affectsCurrentCriterion && session.criterion) {
     session.affectedCriteria.add(session.criterion);
   }
-  for (const criterion of affectedCriteria) session.affectedCriteria.add(criterion);
+  if (deduplicate) {
+    const key = `${resolve(path)}\u0000${reason}\u0000${errno ?? ''}`;
+    if (session.deduplicatedSkips.has(key)) return;
+    session.deduplicatedSkips.add(key);
+  }
+  session.counts[reason] += 1;
+  if (reason === 'unreadable' && errno) {
+    session.unreadableByErrno.set(errno, (session.unreadableByErrno.get(errno) ?? 0) + 1);
+  }
 }
 
 function summaryFor(session: ContentReadSession): WitanContentReadSummary {
   const byReason = {
-    unreadable: 0,
-    tooLarge: 0,
-    excludedByExtension: 0,
-    deniedPath: 0,
-    nonRegularFile: 0,
+    unreadable: session.counts.unreadable,
+    tooLarge: session.counts.too_large,
+    excludedByExtension: session.counts.excluded_by_extension,
+    deniedPath: session.counts.denied_path,
+    nonRegularFile: session.counts.non_regular_file,
   };
-  const unreadableByErrno: Record<string, number> = {};
-  for (const skip of session.skips.values()) {
-    switch (skip.reason) {
-      case 'unreadable':
-        byReason.unreadable += 1;
-        if (skip.errno) unreadableByErrno[skip.errno] = (unreadableByErrno[skip.errno] ?? 0) + 1;
-        break;
-      case 'too_large':
-        byReason.tooLarge += 1;
-        break;
-      case 'excluded_by_extension':
-        byReason.excludedByExtension += 1;
-        break;
-      case 'denied_path':
-        byReason.deniedPath += 1;
-        break;
-      case 'non_regular_file':
-        byReason.nonRegularFile += 1;
-        break;
-    }
-  }
   const sortedErrnos = Object.fromEntries(
-    Object.entries(unreadableByErrno).sort(([left], [right]) => left.localeCompare(right)),
+    [...session.unreadableByErrno.entries()].sort(([left], [right]) => left.localeCompare(right)),
   );
   return {
-    skipped: session.skips.size,
+    skipped: Object.values(session.counts).reduce((total, count) => total + count, 0),
     byReason,
     unreadableByErrno: sortedErrnos,
     affectedCriteria: [...session.affectedCriteria].sort(),
@@ -100,7 +87,15 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
     };
   }
   const session: ContentReadSession = {
-    skips: new Map(),
+    counts: {
+      unreadable: 0,
+      too_large: 0,
+      excluded_by_extension: 0,
+      denied_path: 0,
+      non_regular_file: 0,
+    },
+    unreadableByErrno: new Map(),
+    deduplicatedSkips: new Set(),
     affectedCriteria: new Set(),
   };
   activeSession = session;
@@ -134,23 +129,24 @@ export function withContentReadCriterion<T>(
 export function recordContentSkip(
   path: string,
   reason: Exclude<ContentReadSkipReason, 'unreadable'>,
-  affectedCriteria: readonly WitanCriterionId[] = [],
+  deduplicate = false,
 ): void {
-  recordSkip(path, reason, undefined, false, affectedCriteria);
+  recordSkip(path, reason, undefined, false, deduplicate);
 }
 
 export function recordFilesystemSkip(
   path: string,
   error: unknown,
   deniedContext = false,
+  deduplicate = true,
 ): void {
   const errno = errnoClass(error);
   if (!errno) throw error;
   if (deniedContext && (errno === 'EACCES' || errno === 'EPERM')) {
-    recordSkip(path, 'denied_path', errno);
+    recordSkip(path, 'denied_path', errno, false, deduplicate);
     return;
   }
-  recordSkip(path, 'unreadable', errno, true);
+  recordSkip(path, 'unreadable', errno, true, deduplicate);
 }
 
 /**
@@ -162,7 +158,7 @@ export function readRepoText(path: string, encoding: BufferEncoding = 'utf8'): s
   try {
     const stat = lstatSync(path);
     if (!stat.isFile()) {
-      recordSkip(path, 'non_regular_file', undefined, true);
+      recordSkip(path, 'non_regular_file', undefined, true, true);
       return '';
     }
   } catch (error: unknown) {
@@ -182,7 +178,7 @@ export function readRepoTextPrefix(path: string, byteLimit: number): string {
   try {
     const stat = lstatSync(path);
     if (!stat.isFile()) {
-      recordSkip(path, 'non_regular_file', undefined, true);
+      recordSkip(path, 'non_regular_file', undefined, true, true);
       return '';
     }
   } catch (error: unknown) {
