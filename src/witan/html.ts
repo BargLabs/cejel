@@ -114,6 +114,8 @@ export function renderWitanHtmlReport(
         : ''
     }
 
+    ${renderContentReadSummary(report)}
+
     <section class="trust-grid" aria-label="Rubric criteria">
       ${renderCriterionColumn('Code trust', codeCriteria, gitHistoryUnavailable)}
       ${renderCriterionColumn('Process trust', processCriteria, gitHistoryUnavailable)}
@@ -145,6 +147,30 @@ export function renderWitanHtmlReport(
 </body>
 </html>
 `;
+}
+
+function renderContentReadSummary(report: WitanReport): string {
+  const summary = report.contentReadSummary;
+  if (!summary || summary.skipped === 0) return '';
+  const errnoCounts = Object.entries(summary.unreadableByErrno)
+    .map(([errno, count]) => `${errno}: ${count}`)
+    .join(', ');
+  const affected =
+    summary.affectedCriteria.length > 0
+      ? `<p>Affected criteria abstained as <code>insufficient_data</code>: ${escapeHtml(summary.affectedCriteria.join(', '))}.</p>`
+      : '';
+  return `<section class="scan-limitations-section evidence-section" aria-label="Skipped content reads">
+      <h2>Skipped content reads</h2>
+      <p>${summary.skipped} content entr${summary.skipped === 1 ? 'y was' : 'ies were'} skipped. Counts only; repository paths are intentionally omitted.</p>
+      <ul>
+        <li>Unreadable: ${summary.byReason.unreadable}${errnoCounts ? ` (${escapeHtml(errnoCounts)})` : ''}</li>
+        <li>Too large: ${summary.byReason.tooLarge}</li>
+        <li>Excluded by extension: ${summary.byReason.excludedByExtension}</li>
+        <li>Denied path: ${summary.byReason.deniedPath}</li>
+        <li>Non-regular file: ${summary.byReason.nonRegularFile}</li>
+      </ul>
+      ${affected}
+    </section>`;
 }
 
 interface ProvenanceSourceSummary {

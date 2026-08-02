@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +33,68 @@ function writeFixtureFile(repoPath: string, relativePath: string, contents: stri
   mkdirSync(dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, `${contents}\n`);
 }
+
+describe('content-read failures', () => {
+  it('counts skipped entries and makes every affected criterion abstain', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-content-read-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-content-read-output-'));
+    writeFixtureFile(
+      repoPath,
+      'package.json',
+      JSON.stringify({ name: 'content-read-fixture', version: '1.0.0' }),
+    );
+    writeFixtureFile(repoPath, 'src/app.ts', "export const app = process.env.API_TOKEN ?? 'unset';");
+    const unreadablePath = join(repoPath, 'src', 'unsafe.test.ts');
+    writeFixtureFile(repoPath, 'src/unsafe.test.ts', "it('runs', () => expect(true).toBe(true));");
+    chmodSync(unreadablePath, 0o000);
+    execFileSync('mkfifo', [join(repoPath, 'src', 'input.fifo')]);
+    symlinkSync('/dev/null', join(repoPath, 'src', 'device-link'));
+    writeFileSync(join(repoPath, 'asset.bin'), Buffer.from([0, 1, 2, 3]));
+    writeFileSync(join(repoPath, 'src', 'oversized.ts'), Buffer.alloc(512_001));
+    writeFixtureFile(repoPath, 'node_modules/ignored.ts', 'export const ignored = true;');
+
+    let exitCode: number;
+    try {
+      exitCode = await runWitanFreeCli([repoPath, '--out-dir', outDir, '--quiet']);
+    } finally {
+      chmodSync(unreadablePath, 0o600);
+    }
+    expect(exitCode).toBe(0);
+
+    const summaryText = readFileSync(join(outDir, 'summary.json'), 'utf8');
+    const summary = JSON.parse(summaryText) as {
+      contentReadSummary: {
+        skipped: number;
+        byReason: Record<string, number>;
+        unreadableByErrno: Record<string, number>;
+        affectedCriteria: string[];
+      };
+    };
+    expect(summary.contentReadSummary).toEqual({
+      skipped: 6,
+      byReason: {
+        unreadable: 1,
+        tooLarge: 1,
+        excludedByExtension: 1,
+        deniedPath: 1,
+        nonRegularFile: 2,
+      },
+      unreadableByErrno: { EACCES: 1 },
+      affectedCriteria: expect.arrayContaining(['A1']),
+    });
+    expect(summaryText).not.toContain('unsafe.test.ts');
+
+    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8')) as {
+      criteria: { id: string; status: string }[];
+    };
+    expect(report.criteria.find((criterion) => criterion.id === 'A1')?.status).toBe(
+      'insufficient_data',
+    );
+    expect(readFileSync(join(outDir, 'certificate.html'), 'utf8')).not.toContain(
+      'unsafe.test.ts',
+    );
+  });
+});
 
 describe('witan CLI arg parsing', () => {
   it('defaults to the current directory, .cejel out-dir, no threshold', () => {

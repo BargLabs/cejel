@@ -1,11 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   type Dirent,
-  closeSync,
   lstatSync,
-  openSync,
-  readFileSync,
-  readSync,
   readdirSync,
   realpathSync,
   statSync,
@@ -15,6 +11,7 @@ import { basename, dirname, extname, join, relative, resolve, sep } from 'node:p
 import { WITAN_RUBRIC_VERSION, WITAN_RUBRIC_VERSION_V8 } from './schemas.js';
 import type {
   WitanCriterionMetric,
+  WitanCriterionId,
   WitanCriterionSignal,
   WitanCriterionSignalPayload,
   WitanEvidencePointer,
@@ -22,6 +19,15 @@ import type {
   WitanRepoArchetype,
   WitanReportInputPayload,
 } from './schemas.js';
+
+import {
+  readRepoText,
+  readRepoTextPrefix,
+  recordContentSkip,
+  recordFilesystemSkip,
+  trackContentReads,
+  withContentReadCriterion,
+} from './content-reads.js';
 
 import {
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
@@ -75,6 +81,38 @@ export interface BuildWitanInputOptions {
 }
 
 export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanReportInputPayload {
+  const tracked = trackContentReads(options.repoPath, () => buildWitanInputFromRepoUntracked(options));
+  const affectedCriteria = tracked.affectedCriteria;
+  const signals = (tracked.value.signals ?? []).map((signal) => {
+    if (!affectedCriteria.has(signal.criterionId)) return signal;
+    return {
+      criterionId: signal.criterionId,
+      positiveEvidence: [],
+      findings: [],
+      metrics: [],
+      insufficientData: true as const,
+      notes:
+        'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+    };
+  });
+  const affectedCount = affectedCriteria.size;
+  const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
+  if (affectedCount > 0 && scanLimitations.length < 16) {
+    scanLimitations.push(
+      `${affectedCount} ${affectedCount === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+    );
+  }
+  return {
+    ...tracked.value,
+    signals,
+    ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
+    contentReadSummary: tracked.summary,
+  };
+}
+
+function buildWitanInputFromRepoUntracked(
+  options: BuildWitanInputOptions,
+): WitanReportInputPayload {
   assertRepoPathExists(options.repoPath);
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const rubricVersion = options.rubricVersion ?? WITAN_RUBRIC_VERSION;
@@ -1042,18 +1080,7 @@ function isRubyPackageRecipeMetadataSource(repoPath: string, file: string): bool
 function readSemanticMetadataPrefix(repoPath: string, file: string): string | null {
   const absolutePath = join(repoPath, file);
   if (!isRegularFile(absolutePath)) return null;
-
-  let descriptor: number | null = null;
-  try {
-    descriptor = openSync(absolutePath, 'r');
-    const buffer = Buffer.allocUnsafe(SEMANTIC_METADATA_PREFIX_BYTES_V14);
-    const bytesRead = readSync(descriptor, buffer, 0, SEMANTIC_METADATA_PREFIX_BYTES_V14, 0);
-    return buffer.subarray(0, bytesRead).toString('utf8');
-  } catch {
-    return null;
-  } finally {
-    if (descriptor !== null) closeSync(descriptor);
-  }
+  return readRepoTextPrefix(absolutePath, SEMANTIC_METADATA_PREFIX_BYTES_V14);
 }
 
 function readRepresentativeSourceText(repoPath: string, file: string): string | null {
@@ -1061,9 +1088,14 @@ function readRepresentativeSourceText(repoPath: string, file: string): string | 
   try {
     if (!isRegularFile(absolutePath)) return null;
     const size = statSync(absolutePath).size;
-    if (size === 0 || size > READABLE_SOURCE_REPRESENTATION_FILE_BYTES_V13) return null;
-    return readFileSync(absolutePath, 'utf8');
-  } catch {
+    if (size === 0) return null;
+    if (size > READABLE_SOURCE_REPRESENTATION_FILE_BYTES_V13) {
+      recordContentSkip(absolutePath, 'too_large', ['A1', 'A2', 'A3', 'A5', 'B6']);
+      return null;
+    }
+    return readRepoText(absolutePath, 'utf8');
+  } catch (error: unknown) {
+    recordFilesystemSkip(absolutePath, error);
     return null;
   }
 }
@@ -1256,40 +1288,54 @@ function collectRepoSignals(
   // Monorepo root shared-config (lockfile/CI/dep-update) that governs a sub-package
   // scan; null when scanning a standalone repo or the git root (byte-identical there).
   const mono = resolveMonorepoContext(repoPath, scanLimitations);
-  const a1Signal = collectA1TestIntegrityEvidence(
-    repoPath,
-    repoFiles,
-    useV27Detectors,
-    useV33Detectors,
-    useV36Detectors,
-    reviewableSourceProof,
+  const collectCriterion = <T>(criterionId: WitanCriterionId, collect: () => T): T =>
+    withContentReadCriterion(criterionId, collect);
+  const a1Signal = collectCriterion('A1', () =>
+    collectA1TestIntegrityEvidence(
+      repoPath,
+      repoFiles,
+      useV27Detectors,
+      useV33Detectors,
+      useV36Detectors,
+      reviewableSourceProof,
+    ),
   );
-  const a2Signal = collectA2IsolationEvidence(
-    repoPath,
-    repoFiles,
-    useV27Detectors,
-    useV33Detectors,
-    useV36Detectors,
-    useV39Detectors,
-    useV47Detectors,
-    useV18NativeRls,
-    scanLimitations,
+  const a2Signal = collectCriterion('A2', () =>
+    collectA2IsolationEvidence(
+      repoPath,
+      repoFiles,
+      useV27Detectors,
+      useV33Detectors,
+      useV36Detectors,
+      useV39Detectors,
+      useV47Detectors,
+      useV18NativeRls,
+      scanLimitations,
+    ),
   );
-  const a3Signal = collectA3ProdReadinessEvidence(repoPath, repoFiles, useV27Detectors);
-  const a4Signal = collectA4DependencyEvidence(
-    repoPath,
-    repoFiles,
-    mono,
-    useV27Detectors,
-    useV47Detectors,
+  const a3Signal = collectCriterion('A3', () =>
+    collectA3ProdReadinessEvidence(repoPath, repoFiles, useV27Detectors),
   );
-  const a5Signal = collectA5ClaimRealityEvidence(repoPath, repoFiles, useV27Detectors);
+  const a4Signal = collectCriterion('A4', () =>
+    collectA4DependencyEvidence(
+      repoPath,
+      repoFiles,
+      mono,
+      useV27Detectors,
+      useV47Detectors,
+    ),
+  );
+  const a5Signal = collectCriterion('A5', () =>
+    collectA5ClaimRealityEvidence(repoPath, repoFiles, useV27Detectors),
+  );
   const b1Signal = buildNotApplicableSignal(
     'B1',
     'Repository scans do not evaluate the dispatch-trace process dimension.',
   );
-  const b2Signal = collectB2PrTraceEvidence(repoPath, repoFiles);
-  const b3Signal = collectB3CiDisciplineEvidence(repoPath, repoFiles, mono);
+  const b2Signal = collectCriterion('B2', () => collectB2PrTraceEvidence(repoPath, repoFiles));
+  const b3Signal = collectCriterion('B3', () =>
+    collectB3CiDisciplineEvidence(repoPath, repoFiles, mono),
+  );
   // B4 measures generic audit-trail hygiene (CHANGELOG/SECURITY/AUDIT/STATUS + docs
   // runbooks/incident/security notes) via collectB4AuditEvidence — this is NOT
   // substrate-specific, so it runs on external code too (found 2026-06-30: external
@@ -1306,13 +1352,17 @@ function collectRepoSignals(
   // Substrate repos hit the exact same collector, so their B4 score is unchanged.
   // The Alfred-only "report-up completeness" half is not yet a distinct signal; when it
   // is added, gate ONLY that half to substrate repos — never the generic audit-trail half.
-  const b4Signal = collectB4AuditEvidence(repoPath, repoFiles, generatedAt);
+  const b4Signal = collectCriterion('B4', () =>
+    collectB4AuditEvidence(repoPath, repoFiles, generatedAt),
+  );
   const b5Signal = buildNotApplicableSignal(
     'B5',
     'Repository scans do not evaluate the learning-trace process dimension.',
   );
   // B6 is a generic governance signal (not Alfred-specific) — runs on every repo archetype.
-  const b6Signal = collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles, useV39Detectors);
+  const b6Signal = collectCriterion('B6', () =>
+    collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles, useV39Detectors),
+  );
 
   for (const signal of [
     a1Signal,
@@ -3550,7 +3600,7 @@ function findInsecureSecretCompareLine(
 ): number | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
-  const lines = readFileSync(fullPath, 'utf8').split('\n');
+  const lines = readRepoText(fullPath, 'utf8').split('\n');
   const index = lines.findIndex((line) => lineHasInsecureSecretCompare(line, useV39Detectors));
   return index === -1 ? null : index + 1;
 }
@@ -3561,7 +3611,7 @@ function findInsecureSecretCompareLine(
 function findFirstMatchingLine(repoPath: string, file: string, pattern: RegExp): number | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
-  const lines = readFileSync(fullPath, 'utf8').split('\n');
+  const lines = readRepoText(fullPath, 'utf8').split('\n');
   const index = lines.findIndex((line) => pattern.test(line));
   return index === -1 ? null : index + 1;
 }
@@ -3570,7 +3620,7 @@ function lineAt(repoPath: string, file: string, line: number): string | null {
   if (line < 1) return null;
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
-  return readFileSync(fullPath, 'utf8').split('\n')[line - 1] ?? null;
+  return readRepoText(fullPath, 'utf8').split('\n')[line - 1] ?? null;
 }
 // Signing/HMAC-ing a bare JSON.stringify(...) call with no canonicalization step in the same
 // file — the "sign-over-unsorted-JSON" gap named in the goal.
@@ -3585,7 +3635,7 @@ const JSON_STRINGIFY_ASSIGNMENT_PATTERN =
 function findUnsortedJsonHmacLine(repoPath: string, file: string): number | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
-  const contents = readFileSync(fullPath, 'utf8');
+  const contents = readRepoText(fullPath, 'utf8');
   const directSign = findFirstMatchingLine(repoPath, file, UNSORTED_JSON_DIRECT_SIGN_PATTERN);
   if (directSign !== null) return directSign;
   const directConstructorUpdate = findFirstMatchingLine(
@@ -3718,16 +3768,29 @@ function parseGitTrackedFiles(
   output: string,
   includeHardExcluded: boolean,
 ): string[] {
-  return output
-    .trim()
-    .split('\n')
-    .filter(
-      (file) =>
-        file.length > 0 &&
-        (includeHardExcluded || !isHardExcludedPath(file)) &&
-        isRegularFile(join(repoPath, file)),
-    )
-    .sort();
+  const files: string[] = [];
+  for (const file of output.trim().split('\n')) {
+    if (file.length === 0) continue;
+    const fullPath = join(repoPath, file);
+    if (!includeHardExcluded && isHardExcludedPath(file)) {
+      recordContentSkip(fullPath, 'denied_path');
+      continue;
+    }
+    try {
+      if (!lstatSync(fullPath).isFile()) {
+        recordContentSkip(fullPath, 'non_regular_file');
+        continue;
+      }
+    } catch (error: unknown) {
+      recordFilesystemSkip(fullPath, error);
+      continue;
+    }
+    if (!isPotentialContentPath(file)) {
+      recordContentSkip(fullPath, 'excluded_by_extension');
+    }
+    files.push(file);
+  }
+  return files.sort();
 }
 
 function directoryInventory(repoPath: string): string[] {
@@ -3859,26 +3922,73 @@ function visitRepoDir(repoPath: string, dirPath: string, files: string[]): void 
   let entries: Dirent[];
   try {
     entries = readdirSync(dirPath, { withFileTypes: true });
-  } catch {
+  } catch (error: unknown) {
+    recordFilesystemSkip(dirPath, error, true);
     return;
   }
   for (const entry of entries) {
-    if (shouldSkipDir(entry.name)) continue;
     const fullPath = join(dirPath, entry.name);
+    if (shouldSkipDir(entry.name)) {
+      recordContentSkip(fullPath, 'denied_path');
+      continue;
+    }
     if (entry.isDirectory()) {
       visitRepoDir(repoPath, fullPath, files);
       continue;
     }
-    if (!entry.isFile()) continue;
+    if (!entry.isFile()) {
+      recordContentSkip(fullPath, 'non_regular_file');
+      continue;
+    }
     let size: number;
     try {
       size = statSync(fullPath).size;
-    } catch {
+    } catch (error: unknown) {
+      recordFilesystemSkip(fullPath, error);
       continue;
     }
-    if (size > 512_000) continue;
-    files.push(relative(repoPath, fullPath));
+    const repoRelativePath = relative(repoPath, fullPath);
+    if (size > 512_000) {
+      recordContentSkip(fullPath, 'too_large', contentCriteriaForPath(repoRelativePath));
+      continue;
+    }
+    if (!isPotentialContentPath(repoRelativePath)) {
+      recordContentSkip(fullPath, 'excluded_by_extension');
+    }
+    files.push(repoRelativePath);
   }
+}
+
+const CONTENT_FILE_EXTENSIONS = new Set([
+  '.c', '.cc', '.cfg', '.cjs', '.cmake', '.conf', '.cpp', '.cs', '.css', '.cts', '.cxx',
+  '.env', '.go', '.gradle', '.graphql', '.h', '.hpp', '.html', '.ini', '.java', '.js', '.json',
+  '.json5', '.jsx', '.kt', '.kts', '.lua', '.md', '.mdx', '.mjs', '.mts', '.php', '.properties',
+  '.proto', '.py', '.rb', '.rs', '.rst', '.scss', '.sh', '.sql', '.swift', '.toml', '.ts', '.tsx',
+  '.txt', '.xml', '.yaml', '.yml',
+]);
+
+function isPotentialContentPath(path: string): boolean {
+  const name = basename(path);
+  if (CONTENT_FILE_EXTENSIONS.has(extname(name).toLowerCase())) return true;
+  return (
+    /^(?:Dockerfile|Makefile|Rakefile|Gemfile|Pipfile|Procfile|CMakeLists\.txt)$/i.test(name) ||
+    /^\.(?:env|gitignore|npmrc|nvmrc|prettierrc|eslintrc)(?:\.|$)/i.test(name)
+  );
+}
+
+function contentCriteriaForPath(path: string): WitanCriterionId[] {
+  const criteria = new Set<WitanCriterionId>();
+  if (/test|spec|coverage/i.test(path)) criteria.add('A1');
+  if (/\.(?:c|cc|cpp|cs|go|java|js|jsx|kt|php|py|rb|rs|swift|ts|tsx)$/i.test(path)) {
+    for (const criterion of ['A1', 'A2', 'A3', 'A5', 'B6'] as const) criteria.add(criterion);
+  }
+  if (isDependencyManifest(path) || isLockfile(path)) criteria.add('A4');
+  if (/\.github\/workflows\/|(?:^|\/)Dockerfile$/i.test(path)) {
+    for (const criterion of ['A1', 'A3', 'B3', 'B6'] as const) criteria.add(criterion);
+  }
+  if (isAuditFile(path)) criteria.add('B4');
+  if (/README|claim|reconcil/i.test(path)) criteria.add('A5');
+  return [...criteria];
 }
 
 function shouldSkipDir(name: string): boolean {
@@ -3912,7 +4022,7 @@ function collectContentBasedCppTestFiles(repoPath: string, repoFiles: readonly s
   return candidates.filter((file) => {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) return false;
-    const contents = readFileSync(fullPath, 'utf8');
+    const contents = readRepoText(fullPath, 'utf8');
     return CPP_TEST_FRAMEWORK_PATTERN.test(contents) || CPP_TEST_MACRO_PATTERN.test(contents);
   });
 }
@@ -3970,7 +4080,7 @@ function measureNonHollowTestShare(
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
-    const contents = readFileSync(fullPath, 'utf8');
+    const contents = readRepoText(fullPath, 'utf8');
     const nonHollow =
       (JS_TEST_ASSERTION_PATTERN.test(contents) ||
         CPP_TEST_ASSERTION_PATTERN.test(contents) ||
@@ -4001,7 +4111,7 @@ function countPatternMatches(repoPath: string, files: readonly string[], pattern
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
-    count += [...readFileSync(fullPath, 'utf8').matchAll(matcher)].length;
+    count += [...readRepoText(fullPath, 'utf8').matchAll(matcher)].length;
   }
 
   return count;
@@ -4011,7 +4121,7 @@ function readCoveragePercent(repoPath: string, files: readonly string[]): number
   for (const file of files) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
-    const contents = readFileSync(fullPath, 'utf8');
+    const contents = readRepoText(fullPath, 'utf8');
     const summaryPercent = parseCoverageSummaryPercent(contents);
     if (summaryPercent !== null) return summaryPercent;
     const thresholdPercent = parseCoverageThresholdPercent(contents);
@@ -4130,7 +4240,7 @@ function readDependencySpecs(repoPath: string, manifests: readonly string[]): De
 
 function readGoModDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   // Match both block and single-line require statements
   const blockPattern = /require\s*\(([^)]+)\)/gs;
   const singlePattern = /^require\s+(\S+)\s+(\S+)/gm;
@@ -4156,7 +4266,7 @@ function readGoModDependencySpecs(path: string): DependencySpec[] {
 
 function readCargoTomlDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   // Find [dependencies] section
   const depSectionPattern =
     /^\[(?:dependencies|dev-dependencies|build-dependencies)\]([\s\S]*?)(?=^\[|(?![\s\S]))/gm;
@@ -4184,7 +4294,7 @@ function readCargoTomlDependencySpecs(path: string): DependencySpec[] {
 
 function readPyprojectDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   // (?![\s\S]) is a JS-compatible end-of-string anchor (no char follows).
   // \z is not valid in JS regex (treated as literal 'z'), so we use this instead.
 
@@ -4225,7 +4335,7 @@ function readPyprojectDependencySpecs(path: string): DependencySpec[] {
 
 function readPipfileDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   const sectionPattern = /^\[(?:packages|dev-packages)\]([\s\S]*?)(?=^\[|$(?![\s\S]))/gm;
   for (const sectionMatch of contents.matchAll(sectionPattern)) {
     for (const line of (sectionMatch[1] ?? '').split('\n')) {
@@ -4239,7 +4349,7 @@ function readPipfileDependencySpecs(path: string): DependencySpec[] {
 }
 
 function readVcpkgJsonDependencySpecs(path: string): DependencySpec[] {
-  const parsed = parseJsonObject(readFileSync(path, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(path, 'utf8'));
   if (!parsed) return [];
   const rawDeps = Array.isArray(parsed.dependencies) ? parsed.dependencies : [];
   const specs: DependencySpec[] = [];
@@ -4259,7 +4369,7 @@ function readVcpkgJsonDependencySpecs(path: string): DependencySpec[] {
 
 function readConanfileTxtDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   const requiresMatch = /^\[requires\]([\s\S]*?)(?=^\[|$(?![\s\S]))/m.exec(contents);
   if (!requiresMatch) return specs;
   for (const line of (requiresMatch[1] ?? '').split('\n')) {
@@ -4274,7 +4384,7 @@ function readConanfileTxtDependencySpecs(path: string): DependencySpec[] {
 
 function readConanfilePyDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   // self.requires("name/version") or self.requires("name/version@user/channel")
   for (const match of contents.matchAll(/self\.requires\s*\(\s*["']([\w.\-]+)\/([\w.\-]+)["']/g)) {
     specs.push({ name: match[1] ?? '', version: match[2] ?? '' });
@@ -4291,7 +4401,7 @@ function readConanfilePyDependencySpecs(path: string): DependencySpec[] {
 
 function readCMakeDependencySpecs(path: string): DependencySpec[] {
   const specs: DependencySpec[] = [];
-  const contents = readFileSync(path, 'utf8');
+  const contents = readRepoText(path, 'utf8');
   // find_package(Name [version] [REQUIRED ...])
   for (const match of contents.matchAll(/find_package\s*\(\s*([\w]+)(?:\s+([\d.]+))?/gi)) {
     const name = match[1];
@@ -4310,7 +4420,7 @@ function readCMakeDependencySpecs(path: string): DependencySpec[] {
 }
 
 function readPackageJsonDependencySpecs(packageJsonPath: string): DependencySpec[] {
-  const parsed = parseJsonObject(readFileSync(packageJsonPath, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(packageJsonPath, 'utf8'));
   if (!parsed) return [];
 
   // Peer deps marked optional via peerDependenciesMeta are a declared compatibility range,
@@ -4344,7 +4454,7 @@ function readPackageJsonDependencySpecs(packageJsonPath: string): DependencySpec
 }
 
 function readRequirementsDependencySpecs(path: string): DependencySpec[] {
-  return readFileSync(path, 'utf8')
+  return readRepoText(path, 'utf8')
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith('#'))
@@ -4371,7 +4481,7 @@ function isPinnedDependencyVersion(version: string): boolean {
 function workflowTargetsDefaultBranch(repoPath: string, file: string): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  const contents = readFileSync(fullPath, 'utf8').toLowerCase();
+  const contents = readRepoText(fullPath, 'utf8').toLowerCase();
   return (
     /\bpull_request\b/.test(contents) ||
     /\bbranches:\s*\[[^\]]*\b(main|master)\b[^\]]*\]/.test(contents) ||
@@ -4617,7 +4727,7 @@ export function deriveRlsPolicyScopeInventory(
   for (const file of candidatePolicyFiles) {
     let content: string;
     try {
-      content = readFileSync(join(repoPath, file), 'utf8');
+      content = readRepoText(join(repoPath, file), 'utf8');
     } catch {
       continue;
     }
@@ -4793,7 +4903,7 @@ export function findClaimRealityReconciliationArtifacts(
 function isAuthenticatedClaimRealityArtifact(repoPath: string, file: string): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  const contents = readFileSync(fullPath, 'utf8');
+  const contents = readRepoText(fullPath, 'utf8');
   if (/\.json$/i.test(file)) {
     return parseJsonObject(contents)?.artifactKind === 'claim_reality_reconciliation';
   }
@@ -4839,7 +4949,7 @@ function isCoverageConfig(repoPath: string, file: string): boolean {
 function packageJsonHasCoverageTooling(repoPath: string, file: string): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  const parsed = parseJsonObject(readFileSync(fullPath, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(fullPath, 'utf8'));
   if (!parsed) return false;
 
   const scripts = parsed.scripts;
@@ -5514,7 +5624,7 @@ function findRuntimeContainerEntrypointFile(
       .find((file) => {
         const fullPath = join(repoPath, file);
         if (!isRegularFile(fullPath)) return false;
-        const lines = readFileSync(fullPath, 'utf8').split(/\r?\n/);
+        const lines = readRepoText(fullPath, 'utf8').split(/\r?\n/);
         const finalStageStart = lines.reduce(
           (last, line, index) => (/^\s*FROM\b/i.test(line) ? index : last),
           0,
@@ -5579,7 +5689,7 @@ function packageJsonHasAuditScript(repoPath: string, manifest: string): boolean 
 function packageJsonHasHeavyTestDependency(repoPath: string, manifest: string): boolean {
   const fullPath = join(repoPath, manifest);
   if (!isRegularFile(fullPath)) return false;
-  const parsed = parseJsonObject(readFileSync(fullPath, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(fullPath, 'utf8'));
   if (!parsed) return false;
   const names = [
     ...Object.keys(isRecord(parsed.dependencies) ? parsed.dependencies : {}),
@@ -5595,7 +5705,7 @@ function packageJsonDescribesPackagedApplication(
 ): boolean {
   const fullPath = join(repoPath, manifest);
   if (!isRegularFile(fullPath)) return false;
-  const parsed = parseJsonObject(readFileSync(fullPath, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(fullPath, 'utf8'));
   if (!parsed) return false;
   const scripts = isRecord(parsed.scripts) ? Object.values(parsed.scripts) : [];
   const dependencies = {
@@ -5631,7 +5741,7 @@ function findTauriApplicationMetadata(
     if (!repoFiles.includes(file)) return false;
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) return false;
-    const config = parseJsonObject(readFileSync(fullPath, 'utf8'));
+    const config = parseJsonObject(readRepoText(fullPath, 'utf8'));
     const packageMetadata = isRecord(config?.package) ? config.package : null;
     return (
       isNonEmptyString(config?.productName) ||
@@ -5710,7 +5820,7 @@ export function isRegularFile(path: string): boolean {
 export function fileContains(repoPath: string, file: string, pattern: RegExp): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  return pattern.test(readFileSync(fullPath, 'utf8'));
+  return pattern.test(readRepoText(fullPath, 'utf8'));
 }
 
 function findCommittedSecretInFile(
@@ -5722,7 +5832,7 @@ function findCommittedSecretInFile(
 ): RealSecretAssignmentMatch | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
-  const contents = readFileSync(fullPath, 'utf8');
+  const contents = readRepoText(fullPath, 'utf8');
   const isTestCredentialConfiguration =
     useV39Detectors && isLikelyTestCredentialConfiguration(file, contents);
   const secretScanContents = prepareCredentialScanContents(
@@ -5854,7 +5964,7 @@ function isLikelyTestCredentialConfiguration(file: string, contents: string): bo
 function hasTemplateOnlyEnvContent(repoPath: string, file: string): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  const substantiveLines = readFileSync(fullPath, 'utf8')
+  const substantiveLines = readRepoText(fullPath, 'utf8')
     .split(/\r?\n/)
     .filter((line) => line.trim().length > 0 && !/^\s*#/.test(line));
   if (substantiveLines.length === 0) return true;
@@ -5878,7 +5988,7 @@ function findSecretFingerprintsInFile(
 ): string[] {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return [];
-  const contents = readFileSync(fullPath, 'utf8');
+  const contents = readRepoText(fullPath, 'utf8');
   const scanContents = prepareCredentialScanContents(
     contents,
     file,
@@ -6484,7 +6594,7 @@ function hasSuspiciousDependencies(
   const fullPath = join(repoPath, manifest);
   if (!isRegularFile(fullPath)) return false;
   // A malformed/BOM'd package.json must skip this check, never abort the scan.
-  const parsed = parseJsonObject(readFileSync(fullPath, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(fullPath, 'utf8'));
   if (!parsed) return false;
   const dependencies = isRecord(parsed.dependencies) ? parsed.dependencies : {};
   const devDependencies = isRecord(parsed.devDependencies) ? parsed.devDependencies : {};
@@ -6536,7 +6646,7 @@ function readRecentCommits(repoPath: string): GitCommitSummary[] {
 function readPackageScripts(packageJsonPath: string): Map<string, string> {
   if (!isRegularFile(packageJsonPath)) return new Map();
   // A malformed/BOM'd package.json must skip this check, never abort the scan.
-  const parsed = parseJsonObject(readFileSync(packageJsonPath, 'utf8'));
+  const parsed = parseJsonObject(readRepoText(packageJsonPath, 'utf8'));
   const scripts = parsed?.scripts;
   if (!isRecord(scripts)) return new Map();
   return new Map(
@@ -6553,7 +6663,7 @@ export function evidenceForRelative(
   label: string,
 ): WitanEvidencePointer {
   const fullPath = join(repoPath, path);
-  const contents = isRegularFile(fullPath) ? readFileSync(fullPath, 'utf8') : '';
+  const contents = isRegularFile(fullPath) ? readRepoText(fullPath, 'utf8') : '';
   return {
     kind,
     label,
@@ -6580,7 +6690,7 @@ export function evidenceForRelativeAtLine(
   line: number | null,
 ): WitanEvidencePointer {
   const fullPath = join(repoPath, path);
-  const contents = isRegularFile(fullPath) ? readFileSync(fullPath, 'utf8') : '';
+  const contents = isRegularFile(fullPath) ? readRepoText(fullPath, 'utf8') : '';
   return {
     kind,
     label,

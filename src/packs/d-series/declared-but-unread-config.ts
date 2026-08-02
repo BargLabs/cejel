@@ -1,7 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 
 import ts from 'typescript';
+
+import { readRepoText } from '../../witan/content-reads.js';
 
 import { listCejelLlmPackFiles } from '../llm/files.js';
 import {
@@ -250,7 +252,7 @@ function objectFindings(
 function parseFrontmatter(repoRoot: string, path: string): FrontmatterCandidate | null {
   const absolute = resolve(repoRoot, path);
   if (!existsSync(absolute)) return null;
-  const contents = readFileSync(absolute, 'utf8');
+  const contents = readRepoText(absolute);
   const lines = contents.split(/\r?\n/);
   if (lines[0] !== '---') return null;
   const properties = new Map<string, { line: number; value: string }>();

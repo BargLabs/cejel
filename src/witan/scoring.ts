@@ -216,6 +216,9 @@ export function createWitanReport(
     ...(parsedInput.scanLimitations.length > 0
       ? { scanLimitations: parsedInput.scanLimitations }
       : {}),
+    ...(parsedInput.contentReadSummary
+      ? { contentReadSummary: parsedInput.contentReadSummary }
+      : {}),
     // Only surface the full per-category map for rubrics with more than two buckets —
     // the default two-category rubric is fully represented by codeTrustScore/processTrustScore.
     ...(!abstained && categoryOrder.length > 2 ? { categoryScores: categoryScoreMap } : {}),
@@ -415,6 +418,16 @@ function scoreCriterion(
   metrics: WitanCriterionMetric[];
 } {
   if (!signal) {
+    return {
+      score: 0,
+      status: unmeasuredStatus(rubricVersion),
+      evidence: [],
+      findings: [],
+      metrics: [],
+    };
+  }
+
+  if (signal.insufficientData === true) {
     return {
       score: 0,
       status: unmeasuredStatus(rubricVersion),

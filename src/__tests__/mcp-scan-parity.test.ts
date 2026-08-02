@@ -84,7 +84,8 @@ describe('cejel MCP scan tool parity with the CLI', () => {
 
   beforeAll(async () => {
     fixtureRepo = writeFixtureRepo();
-    const outDir = join(fixtureRepo, '.cejel-cli-run');
+    // Keep generated artifacts outside the target so the second scan sees byte-identical input.
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-mcp-parity-output-'));
     const exitCode = await runWitanFreeCli([fixtureRepo, '--out-dir', outDir, '--quiet']);
     expect(exitCode).toBe(0);
     cliSummary = JSON.parse(readFileSync(join(outDir, 'summary.json'), 'utf8'));

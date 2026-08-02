@@ -61,6 +61,22 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
     );
   }
 
+  if (summary.contentReadSummary && summary.contentReadSummary.skipped > 0) {
+    const reads = summary.contentReadSummary;
+    const errnoCounts = Object.entries(reads.unreadableByErrno)
+      .map(([errno, count]) => `${errno}: ${count}`)
+      .join(', ');
+    lines.push(
+      `Skipped content entries: ${reads.skipped} (unreadable: ${reads.byReason.unreadable}${errnoCounts ? ` [${errnoCounts}]` : ''}; too large: ${reads.byReason.tooLarge}; excluded by extension: ${reads.byReason.excludedByExtension}; denied path: ${reads.byReason.deniedPath}; non-regular file: ${reads.byReason.nonRegularFile}).`,
+    );
+    if (reads.affectedCriteria.length > 0) {
+      lines.push(
+        `Criteria abstaining as insufficient_data: ${reads.affectedCriteria.join(', ')}.`,
+      );
+    }
+    lines.push('');
+  }
+
   if (summary.contributingSources.length > 0) {
     lines.push(`Incorporates findings from: ${summary.contributingSources.join(', ')}`);
     for (const source of summary.externalSources) {

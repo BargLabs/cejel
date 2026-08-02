@@ -1,8 +1,13 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync } from 'node:fs';
+import { lstatSync } from 'node:fs';
 import { extname, resolve, sep } from 'node:path';
 
 import { CEJEL_LLM_ACTION_RULES } from './action-rules.js';
+import {
+  readRepoText,
+  recordContentSkip,
+  recordFilesystemSkip,
+} from '../../witan/content-reads.js';
 import {
   CEJEL_LLM_EVALUATION_RULES,
   detectCejelLlmEvaluationRules,
@@ -86,15 +91,27 @@ function supportedSourcePath(path: string): boolean {
 function readSourceFile(repoPath: string, relativePath: string): LlmSourceFile | null {
   const root = resolve(repoPath);
   const fullPath = resolve(root, relativePath);
-  if (fullPath !== root && !fullPath.startsWith(`${root}${sep}`)) return null;
-
-  try {
-    const stat = lstatSync(fullPath);
-    if (!stat.isFile() || stat.size > MAX_SOURCE_BYTES) return null;
-    return { path: relativePath, contents: readFileSync(fullPath, 'utf8') };
-  } catch {
+  if (fullPath !== root && !fullPath.startsWith(`${root}${sep}`)) {
+    recordContentSkip(fullPath, 'denied_path');
     return null;
   }
+
+  let stat: ReturnType<typeof lstatSync>;
+  try {
+    stat = lstatSync(fullPath);
+  } catch (error: unknown) {
+    recordFilesystemSkip(fullPath, error);
+    return null;
+  }
+  if (!stat.isFile()) {
+    recordContentSkip(fullPath, 'non_regular_file');
+    return null;
+  }
+  if (stat.size > MAX_SOURCE_BYTES) {
+    recordContentSkip(fullPath, 'too_large');
+    return null;
+  }
+  return { path: relativePath, contents: readRepoText(fullPath) };
 }
 
 function detectedIntegrations(files: readonly LlmSourceFile[]): readonly string[] {
