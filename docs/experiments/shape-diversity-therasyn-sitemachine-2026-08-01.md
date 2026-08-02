@@ -13,22 +13,39 @@ anchor was already measured, so they are shape evidence and **not new inventory 
 Site-machine has no honest B2 percentage: its newly reachable candidates contain zero real defects
 after causal adjudication (`0 / 0`, not 0%).
 
-The replacement model is:
+For any fixed structural-candidate channel, the replacement model is:
 
-`qualifying-defect yield = defect density × replayability`
+`qualifying-defect yield rate = defect density × replayability`
+
+The terms are operational rather than labels:
+
+- `defect density = causally adjudicated real defects / structural candidates`; and
+- `replayability = mechanically replayable real defects / causally adjudicated real defects`.
+
+Their product is the mechanically qualifying defects divided by structural candidates. It is
+reported within a selection channel, not pooled across unlike A and B candidate denominators. When
+the real-defect denominator is zero, replayability is not estimable even though the yield rate is
+zero.
 
 The original hypothesis attributed Alfred's yield to co-located tests and atomic fixes. Site-machine
 falsifies that account: `87 / 96 = 90.6%` of its merged PRs touch source and tests together and
 `87 / 96 = 90.6%` are single-commit PRs—the ideal shape under that hypothesis—yet it produced zero
-new qualifying defects. Layout and atomicity do not predict yield. Site-machine has excellent
-replayability, but its changes are small and usually right first time, so defect density is low.
+new qualifying defects. The preregistered candidate-level atomic-fix proxy points the same way:
+site-machine is `5 / 13 = 38.5%`, above Alfred's `19 / 87 = 21.8%`. Layout and atomicity measures do
+not predict yield by themselves. Site-machine's observed defect density is zero in the measured
+candidate population: the selected changes are small features, cross-PR artifacts, or noncausal
+workflow changes rather than real fixes. Its co-located tests, single-commit changes, and local named
+CI job make strong replayability plausible, but with zero real defects its replayability rate is not
+estimable; “excellent replayability” is a repository-shape inference, not a measured result.
 
-The portfolio is coherent under the replacement model. Egbert has high defect density but poor
-replayability because market data, time, and external state make failures hard to reconstruct.
-Alfred has both defect density and replayability, so it yields. Therasyn's 50% B2-shaped rate is the
-positive cross-product evidence that the two terms vary independently. Co-located tests, atomic
-commits, and similar shape measures were only ever proxies for replayability, the second term; they
-cannot supply the first.
+The portfolio is coherent under the replacement model, with repository assignments stated as the
+interpretation rather than as separately identified coefficients. Egbert is the high-defect-density,
+poor-replayability case because market data, time, and external state make failures hard to
+reconstruct. Alfred has both terms and therefore yields. Therasyn's 50% B2-shaped rate—one locally
+replayable defect and one external-state-bound defect—directly supports treating replayability as a
+separate term, but the `n = 2` result does not establish statistical independence from defect
+density. Co-located tests, atomic commits, and similar shape measures were only ever proxies for
+replayability, the second term; they cannot supply the first.
 
 **The frozen 18 are therefore not representative of customer repositories in general. They are
 representative of a narrower population: merged, patch-applicable defects with structured red-to-
@@ -228,27 +245,35 @@ manifest—Cejel, Egbert, Alfred, Edwin, and Knut—plus the two targets.
 
 PR metrics use the original Strata extraction population cutoff
 `2026-08-01T08:00:44.894Z`. Complete paginated file lists were used. Primary language is the largest
-non-vendored tracked source-byte total at the frozen tip. “Atomic” is the share of merged PRs with one
-commit. B2 share uses the preregistered real-defect denominator: B2 divided by replayable A + B1 + B2.
+non-vendored tracked source-byte total at the frozen tip. “Single-commit PRs” is the all-merged-PR
+shape measure; it is not called fix atomicity.
 
-| Repository | Primary language | Test framework(s) | Source+test PRs | Median commits / PR | Atomic PRs | Named CI oracle | B2-shaped real defects |
-|---|---|---|---:|---:|---:|---|---:|
-| Cejel | TypeScript | Vitest | 25 / 53 (47.2%) | 1 | 31 / 53 (58.5%) | `build-test` | 1 / 1 (100%)* |
-| Egbert | Python (mixed TS) | pytest; Playwright | 490 / 823 (59.5%) | 1 | 479 / 823 (58.2%) | `CI Fast passed`; `CI Full passed` | 2 / 5 (40.0%)* |
-| **site-machine** | TypeScript | Vitest | **87 / 96 (90.6%)** | **1** | **87 / 96 (90.6%)** | `Typecheck, Test & Build` | **0 / 0 (not estimable)** |
-| Alfred | TypeScript | Vitest | 375 / 664 (56.5%) | 1 | 448 / 664 (67.5%) | `Test (affected)` | 0 / 8 (0%) |
-| Edwin | Python (mixed TS) | pytest; Playwright | 285 / 417 (68.3%) | 1 | 248 / 417 (59.5%) | `Test evidence` | 2 / 6 (33.3%)* |
-| **Therasyn** | Python / TypeScript | pytest; Jest; Playwright; Vitest | **40 / 56 (71.4%)** | **1** | **49 / 56 (87.5%)** | `Test (Backend)`; `Perf Smoke (k6)` | **1 / 2 (50.0%)*†** |
-| Knut | Python | pytest | 0 / 0 (—) | — | 0 / 0 (—) | `lint-and-test` | 0 / 0 (not estimable) |
+“Atomic-fix proxy” restores the preregistered denominator from the frozen-default Strata A A2
+population: the numerator is a non-merge fix anchor touching both source and tests in that one
+commit, and the denominator is all structurally selected red-to-green A2 candidates after the same
+fix-SHA deduplication. It is kept separate from the off-default funnel above. B2 share uses the
+preregistered real-defect denominator: B2 divided by replayable A + B1 + B2.
+
+| Repository | Primary language | Test framework(s) | Source+test PRs | Median commits / PR | Single-commit PRs | Atomic-fix proxy | Named CI oracle | B2-shaped real defects |
+|---|---|---|---:|---:|---:|---:|---|---:|
+| Cejel | TypeScript | Vitest | 25 / 53 (47.2%) | 1 | 31 / 53 (58.5%) | 0 / 1 (0%) | `build-test` | 1 / 1 (100%)* |
+| Egbert | Python (mixed TS) | pytest; Playwright | 490 / 823 (59.5%) | 1 | 479 / 823 (58.2%) | 12 / 163 (7.4%) | `CI Fast passed`; `CI Full passed` | 2 / 5 (40.0%)* |
+| **site-machine** | TypeScript | Vitest | **87 / 96 (90.6%)** | **1** | **87 / 96 (90.6%)** | **5 / 13 (38.5%)** | `Typecheck, Test & Build` | **0 / 0 (not estimable)** |
+| Alfred | TypeScript | Vitest | 375 / 664 (56.5%) | 1 | 448 / 664 (67.5%) | 19 / 87 (21.8%) | `Test (affected)` | 0 / 8 (0%) |
+| Edwin | Python (mixed TS) | pytest; Playwright | 285 / 417 (68.3%) | 1 | 248 / 417 (59.5%) | 6 / 55 (10.9%) | `Test evidence` | 2 / 6 (33.3%)* |
+| **Therasyn** | Python / TypeScript | pytest; Jest; Playwright; Vitest | **40 / 56 (71.4%)** | **1** | **49 / 56 (87.5%)** | **2 / 6 (33.3%)** | `Test (Backend)`; `Perf Smoke (k6)` | **1 / 2 (50.0%)*†** |
+| Knut | Python | pytest | 0 / 0 (—) | — | 0 / 0 (—) | 0 / 0 (not estimable) | `lint-and-test` | 0 / 0 (not estimable) |
 
 `*` Denominator below ten; descriptive only. `†` The two Therasyn defects are shape-only subcommit
 evidence from already-measured PR #243, not additions to the frozen inventory.
 
 All seven repositories define a named CI test/check job. Named-job existence therefore does not
 separate high-yield from low-yield repositories. Nor do source/test co-location, primary language,
-or single-commit PR share. The useful separator in this sample is **causal local replayability**:
-whether reversing the fix at the admissible unit makes the repaired test/job fail without depending
-on a provider, market/data feed, production secret, hosted database, or rewritten historical state.
+single-commit PR share, or the preregistered atomic-fix proxy: site-machine exceeds Alfred on all
+three change-shape measures and still yields zero real branch-only defects. Replayability remains the
+second required term, but it is estimable only after a real defect exists: reversing the fix at the
+admissible unit must make the repaired test/job fail without depending on a provider, market/data
+feed, production secret, hosted database, or rewritten historical state.
 
 ## Representativeness conclusion
 
@@ -289,6 +314,11 @@ file pagination, then bounded to the original extraction timestamp. Off-default 
 `statusCheckRollup` plus named check contexts. A1 used stable forward/reverse patch IDs; deployments
 were grouped by exact environment; A3 loaded only structured comment path/line metadata and found no
 comments on the new history.
+
+The atomic-fix numerators were recomputed from the frozen Strata A A2 candidate records after the
+same fix-SHA deduplication, counting records with `isMerge = false`, `hasSource = true`, and
+`hasTest = true`. Their denominators are the per-repository A2 structural-anchor counts in
+`strata-a-yield-2026-08-01.md`. No result-stage prose or defect adjudication enters that proxy.
 
 All diff inspection passed through the prior Stratum B complete-value scrubber before output.
 Credential helper material stayed in memory and was never printed or written. Raw diffs and raw job
