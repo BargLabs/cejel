@@ -74,6 +74,14 @@ export function createWitanReport(
 ): WitanReport {
   const parsedInput = WitanReportInputSchema.parse(input);
   const signalsByCriterion = mergeSignalsByCriterion(parsedInput.signals);
+  // A read-failure abstention is different from an ordinarily absent signal. It remains
+  // unmeasured in the criterion output, but retains its zero contribution in the category
+  // denominator so losing evidence can never improve the certificate's composite.
+  const readFailureAbstentions = new Set(
+    [...signalsByCriterion.values()]
+      .filter((signal) => signal.insufficientData === true)
+      .map((signal) => signal.criterionId),
+  );
   const hasInputSignals = inputSignals != null && inputSignals.length > 0;
 
   // Group input signals by dimension for O(1) lookup.
@@ -151,6 +159,7 @@ export function createWitanReport(
   for (const category of categoryOrder) {
     categoryScoreMap[category] = averageScore(
       criteria.filter((criterion) => criterion.category === category),
+      readFailureAbstentions,
     );
   }
 
@@ -215,6 +224,9 @@ export function createWitanReport(
     ...(consumedSignals.length > 0 ? { consumedSignals } : {}),
     ...(parsedInput.scanLimitations.length > 0
       ? { scanLimitations: parsedInput.scanLimitations }
+      : {}),
+    ...(parsedInput.contentReadSummary
+      ? { contentReadSummary: parsedInput.contentReadSummary }
       : {}),
     // Only surface the full per-category map for rubrics with more than two buckets —
     // the default two-category rubric is fully represented by codeTrustScore/processTrustScore.
@@ -346,10 +358,13 @@ function mergeSignalsByCriterion(
       findings: [...existing.findings, ...signal.findings],
       metrics: [...(existing.metrics ?? []), ...(signal.metrics ?? [])],
       notes: signal.notes ?? existing.notes,
-      // N/A wins on merge: if either signal is N/A, the criterion is N/A.
-      ...(existing.notApplicable === true || signal.notApplicable === true
-        ? { notApplicable: true as const }
-        : {}),
+      // Read-failure abstention wins on merge: partial sibling evidence cannot turn an
+      // incomplete criterion into a score. Otherwise N/A retains its historical precedence.
+      ...(existing.insufficientData === true || signal.insufficientData === true
+        ? { insufficientData: true as const }
+        : existing.notApplicable === true || signal.notApplicable === true
+          ? { notApplicable: true as const }
+          : {}),
     });
   }
 
@@ -415,6 +430,16 @@ function scoreCriterion(
   metrics: WitanCriterionMetric[];
 } {
   if (!signal) {
+    return {
+      score: 0,
+      status: unmeasuredStatus(rubricVersion),
+      evidence: [],
+      findings: [],
+      metrics: [],
+    };
+  }
+
+  if (signal.insufficientData === true) {
     return {
       score: 0,
       status: unmeasuredStatus(rubricVersion),
@@ -954,14 +979,20 @@ function ensureFindingsExplainStatus(
   ];
 }
 
-function averageScore(criteria: readonly WitanCriterionScore[]): number {
+function averageScore(
+  criteria: readonly WitanCriterionScore[],
+  readFailureAbstentions: ReadonlySet<WitanCriterionId> = new Set(),
+): number {
   // 'insufficient_data' (a measurement gap — nothing to read) is excluded from the composite
-  // exactly like 'not_applicable'. 'unverified' stays INCLUDED at 0: it is the deliberate
-  // fail-closed zero for the caller-supplied trading rubric, and the legacy value carried by
-  // pre-2026-07-10 committed reports — see unmeasuredStatus above.
+  // exactly like 'not_applicable', except when the gap was forced by a repository read failure.
+  // A read-failure abstention stays in the denominator with its schema-mandated score 0. That
+  // score is conservative composite arithmetic, not a measured criterion verdict: evidence loss
+  // must never flatter a certificate. 'unverified' likewise stays included at 0 for the trading
+  // rubric and legacy reports — see unmeasuredStatus above.
   const applicable = criteria.filter(
     (criterion) =>
-      criterion.status !== 'not_applicable' && criterion.status !== 'insufficient_data',
+      criterion.status !== 'not_applicable' &&
+      (criterion.status !== 'insufficient_data' || readFailureAbstentions.has(criterion.id)),
   );
   if (applicable.length === 0) return 0;
   const total = applicable.reduce((sum, criterion) => sum + criterion.score, 0);

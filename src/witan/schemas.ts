@@ -186,8 +186,52 @@ export const WitanCriterionSignalSchema = z
     metrics: z.array(WitanCriterionMetricSchema).default([]),
     notes: z.string().min(1).max(1000).optional(),
     notApplicable: z.literal(true).optional(),
+    // A collector reached relevant files but could not read their contents. This is a
+    // measurement gap, never negative evidence: scoreCriterion maps it to insufficient_data.
+    insufficientData: z.literal(true).optional(),
   })
-  .strict();
+  .strict()
+  .refine((signal) => !(signal.notApplicable && signal.insufficientData), {
+    message: 'A criterion cannot be both not applicable and insufficient data.',
+  });
+
+export const WitanContentReadSummarySchema = z
+  .object({
+    skipped: z.number().int().nonnegative(),
+    byReason: z
+      .object({
+        unreadable: z.number().int().nonnegative(),
+        tooLarge: z.number().int().nonnegative(),
+        excludedByExtension: z.number().int().nonnegative(),
+        deniedPath: z.number().int().nonnegative(),
+        nonRegularFile: z.number().int().nonnegative(),
+      })
+      .strict(),
+    unreadableByErrno: z.record(z.string().min(1).max(32), z.number().int().positive()),
+    affectedCriteria: z.array(WitanCriterionIdSchema),
+  })
+  .strict()
+  .superRefine((summary, context) => {
+    const reasonTotal = Object.values(summary.byReason).reduce((sum, count) => sum + count, 0);
+    if (reasonTotal !== summary.skipped) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Content-read reason counts must sum to skipped.',
+        path: ['byReason'],
+      });
+    }
+    const errnoTotal = Object.values(summary.unreadableByErrno).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    if (errnoTotal !== summary.byReason.unreadable) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Unreadable errno counts must sum to the unreadable count.',
+        path: ['unreadableByErrno'],
+      });
+    }
+  });
 
 export const WitanRepoRefSchema = z
   .object({
@@ -211,6 +255,7 @@ export const WitanReportInputSchema = z
     archetype: WitanRepoArchetypeSchema.optional(),
     insufficientSourceReason: z.string().min(1).max(2000).optional(),
     scanLimitations: z.array(z.string().min(1).max(1000)).max(16).default([]),
+    contentReadSummary: WitanContentReadSummarySchema.optional(),
   })
   .strict();
 
@@ -310,6 +355,7 @@ const WitanReportCommonSchema = z.object({
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
   archetype: WitanRepoArchetypeSchema.optional(),
   scanLimitations: z.array(z.string().min(1).max(1000)).max(16).optional(),
+  contentReadSummary: WitanContentReadSummarySchema.optional(),
 });
 
 const WitanScoredReportSchema = WitanReportCommonSchema.extend({
@@ -467,6 +513,7 @@ export type WitanEvidencePointer = z.infer<typeof WitanEvidencePointerSchema>;
 export type WitanFinding = z.infer<typeof WitanFindingSchema>;
 export type WitanCriterionMetric = z.infer<typeof WitanCriterionMetricSchema>;
 export type WitanCriterionSignal = z.infer<typeof WitanCriterionSignalSchema>;
+export type WitanContentReadSummary = z.infer<typeof WitanContentReadSummarySchema>;
 export type WitanCriterionSignalPayload = z.input<typeof WitanCriterionSignalSchema>;
 export type WitanRepoRef = z.infer<typeof WitanRepoRefSchema>;
 export type WitanScoredVerdict = z.infer<typeof WitanScoredVerdictSchema>;

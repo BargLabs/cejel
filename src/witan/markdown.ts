@@ -31,7 +31,7 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   const insufficientDataSummaryLines =
     insufficientDataCriteria.length > 0
       ? [
-          `- Insufficient data: ${insufficientDataCriteria.map((c) => c.id).join(', ')} — no measurable signal for the scorer to read; excluded from composite. Unmeasured, not inapplicable, and not a measured zero.`,
+          `- Insufficient data: ${insufficientDataCriteria.map((c) => c.id).join(', ')} — no measurable signal for the scorer to read. Read-failure abstentions remain in the composite denominator with a conservative zero contribution so evidence loss cannot improve the score; other unmeasured criteria are excluded. Unmeasured, not inapplicable, and not a measured criterion zero.`,
         ]
       : [];
 
@@ -95,6 +95,22 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
           ...(report.scanLimitations ?? []).map((limitation) => `- ${limitation}`),
         ]
       : []),
+    ...(report.contentReadSummary && report.contentReadSummary.skipped > 0
+      ? [
+          '',
+          '## Skipped content reads',
+          '',
+          `- Total skipped: ${report.contentReadSummary.skipped}`,
+          `- Unreadable: ${report.contentReadSummary.byReason.unreadable}${formatErrnoCounts(report.contentReadSummary.unreadableByErrno)}`,
+          `- Too large: ${report.contentReadSummary.byReason.tooLarge}`,
+          `- Excluded by extension: ${report.contentReadSummary.byReason.excludedByExtension}`,
+          `- Denied path: ${report.contentReadSummary.byReason.deniedPath}`,
+          `- Non-regular file: ${report.contentReadSummary.byReason.nonRegularFile}`,
+          `- Affected criteria: ${report.contentReadSummary.affectedCriteria.length > 0 ? `${report.contentReadSummary.affectedCriteria.join(', ')} (insufficient_data)` : 'none'}`,
+          '',
+          '_Counts only; skipped repository paths are intentionally omitted._',
+        ]
+      : []),
     '',
     '## Criterion Profile',
     '',
@@ -149,6 +165,11 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   ];
 
   return `${lines.join('\n')}`;
+}
+
+function formatErrnoCounts(counts: Readonly<Record<string, number>>): string {
+  const members = Object.entries(counts).map(([errno, count]) => `${errno}: ${count}`);
+  return members.length > 0 ? ` (${members.join(', ')})` : '';
 }
 
 function renderCriterionRow(criterion: WitanCriterionScore, showNative: boolean): string {
