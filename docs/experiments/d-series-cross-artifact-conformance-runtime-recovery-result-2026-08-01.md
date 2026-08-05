@@ -60,3 +60,5 @@ It does not establish semantic D1 recall, performance on unstructured claims, or
 unselected repository population. It does not alter the frozen dual-control `0 / 16`, D1 semantic
 `0 / 3`, D1-config exact-signature `3 / 3`, or public precision `0 / 23` results. No D1–D5 matcher,
 A1–B6 criterion, rubric version, score, dependency declaration, or leaderboard artifact changed.
+
+See [the dual-control downstream-labelling erratum](dual-control-downstream-labelling-erratum-2026-08-05.md) for the scope correction to the historical dual-control citation.
