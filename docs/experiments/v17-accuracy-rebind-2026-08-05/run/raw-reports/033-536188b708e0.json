@@ -1,0 +1,297 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "Cejel",
+  "repo": {
+    "path": "/private/tmp/cejel-v17-rebind-corpus/033-awesome-python-typing",
+    "headSha": "8407aa965dcfe409c69c7974f8dfb3f8ed3b4c03"
+  },
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 3.2,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "secret_scan",
+          "label": ".env files are gitignored",
+          "path": ".gitignore",
+          "line": 1,
+          "contentHash": "a2ebfecdb6c1b58267fbe97e6e2ac02c2b963df7673fc1047270f0f0cff16732"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.7,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 1,
+          "max": 3,
+          "weight": 0.3,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 3.6,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "02504852351ad828a73896a5a3e574e16fc5dc316a178475796228f093034863"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile",
+          "path": "package-lock.json",
+          "line": 1,
+          "contentHash": "9d1663f92fc573cbe0f1f038bad9745e48bc4beae58817be7287d23ce0b76aef"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency update config",
+          "path": ".github/dependabot.yml",
+          "line": 1,
+          "contentHash": "510d185c2b2c47c398bf3ae99858f72456a4e05c599ffba7fb4345124643203e"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 1,
+          "max": 1,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 1,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 1,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "B1",
+      "title": "Dispatch trace completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the dispatch-trace process dimension."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 2.3,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/linter.yml",
+          "line": 1,
+          "contentHash": "288d0272dbbf9627d583c110c7d5b820fd0049843894da47d62bdd026f6be68f"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 1,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 11,
+          "max": 12,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 1,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Test script",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "02504852351ad828a73896a5a3e574e16fc5dc316a178475796228f093034863"
+        },
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/linter.yml",
+          "line": 1,
+          "contentHash": "288d0272dbbf9627d583c110c7d5b820fd0049843894da47d62bdd026f6be68f"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo."
+    },
+    {
+      "id": "B5",
+      "title": "Verified learning trace",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the learning-trace process dimension."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "docs_only",
+  "contentReadSummary": {
+    "skipped": 1,
+    "byReason": {
+      "unreadable": 0,
+      "tooLarge": 0,
+      "excludedByExtension": 1,
+      "deniedPath": 0,
+      "nonRegularFile": 0
+    },
+    "unreadableByErrno": {},
+    "affectedCriteria": []
+  },
+  "verdict": "insufficient_source",
+  "codeTrustScore": null,
+  "processTrustScore": null,
+  "overallScore": null,
+  "insufficientSourceReason": "0 source file(s) found among 8 tracked file(s); repo appears to be a docs/distribution tree (README/markdown/media), not a source tree — cejel rates source, not docs. To assess a closed/bundled tool, ingest its scanner output via --ingest <sarif|scorecard>."
+}

@@ -1,0 +1,254 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "Cejel",
+  "repo": {
+    "path": "/private/tmp/cejel-v17-rebind-corpus/054-lxjs-chat",
+    "headSha": "b77905286f955dbc33e47a222ff0344933141372"
+  },
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 0,
+      "status": "critical",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "Reviewable source anchor (5/5 sampled files readable; 5/5 source-shaped files criterion-ratable)",
+          "path": "app.js",
+          "line": 1,
+          "contentHash": "8cd209f5877e88eaab0b2c276e213b9062c8a8527ccbc9ce64fa24b8c3bfda74"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "critical",
+          "summary": "Reviewable source is present, but the complete tracked inventory contains no concrete test file, configured test runner, CI test command, or coverage configuration.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "Reviewable source anchor (5/5 sampled files readable; 5/5 source-shaped files criterion-ratable)",
+            "path": "app.js",
+            "line": 1,
+            "contentHash": "8cd209f5877e88eaab0b2c276e213b9062c8a8527ccbc9ce64fa24b8c3bfda74"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 5,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to criterion-ratable implementation source."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "No concrete test files were present to establish non-hollow test behavior."
+        }
+      ],
+      "notes": "V17 authenticated absence: 5 criterion-ratable of 5 source-shaped files; sampled 5; 5 representative-text files."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 2.8,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "f27d93d075f5d89c542fe24d716dcce62620f42b8bee00f87ce5a4cff574bf33"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 2.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "f27d93d075f5d89c542fe24d716dcce62620f42b8bee00f87ce5a4cff574bf33"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 10,
+          "max": 10,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 0,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 1,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "B1",
+      "title": "Dispatch trace completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the dispatch-trace process dimension."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo."
+    },
+    {
+      "id": "B5",
+      "title": "Verified learning trace",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the learning-trace process dimension."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "source",
+  "contentReadSummary": {
+    "skipped": 1,
+    "byReason": {
+      "unreadable": 0,
+      "tooLarge": 0,
+      "excludedByExtension": 1,
+      "deniedPath": 0,
+      "nonRegularFile": 0
+    },
+    "unreadableByErrno": {},
+    "affectedCriteria": []
+  },
+  "verdict": "unverified",
+  "codeTrustScore": 1.4,
+  "processTrustScore": 0,
+  "overallScore": 0.7
+}

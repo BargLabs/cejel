@@ -1,0 +1,12 @@
+{
+  "resolvedHead": "d53066e0073de66d32b7e4aa58286c7c7354fedb",
+  "manifestSha256": "b277944058f558066f762ebcbe45dc69f6e043ee3fc4f8dceae211c07164a7a3",
+  "command": "node docs/experiments/v17-accuracy-rebind-2026-08-05/run.mjs",
+  "scannerCommand": "sandbox-exec -p \"(version 1) (deny network*) (allow default)\" node --import tsx docs/experiments/v17-accuracy-rebind-2026-08-05/scan-one.mjs <checkout> 2026-07-24T21:39:19.000Z",
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "node": "v26.5.0",
+  "os": "darwin 25.5.0",
+  "arch": "arm64",
+  "offlineBoundary": "Each scoring child runs under sandbox-exec deny network* after its Git remote is removed.",
+  "startedAt": "2026-08-05T17:44:14.950Z"
+}

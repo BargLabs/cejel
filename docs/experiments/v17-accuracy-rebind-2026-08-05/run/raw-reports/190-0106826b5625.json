@@ -1,0 +1,393 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "Cejel",
+  "repo": {
+    "path": "/private/tmp/cejel-v17-rebind-corpus/190-Quick",
+    "headSha": "2b4547b230e94d84320724fd6df65e418b058be2"
+  },
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 1.8,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/LintFixtures/Nesting/Nesting.swift",
+          "line": 1,
+          "contentHash": "1a31303fc8d4afebf7514ed46de632221f1359c896011c4261464c05a889c238"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/LintFixtures/SampleSpec.swift",
+          "line": 1,
+          "contentHash": "6fde5dafdd298e3e7efd6873317bacb40927b6c3782a97d33cd833e741ff7b46"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/LinuxMain.swift",
+          "line": 1,
+          "contentHash": "2e8e6259d49deacf183edb961ed5ee21f81c05c328550f3a3abaea131af20c8e"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/QuickIssue853RegressionTests/SubclassOfSubclassWithStructPropertyTests.swift",
+          "line": 1,
+          "contentHash": "684516a7d149aa9b9fcced396263dc16f235b75e21e1ca6e54c220c089924e89"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/QuickLintTests/DefocusCommandSpec.swift",
+          "line": 1,
+          "contentHash": "753f7e4f1fdaf7bf84949b357ebc0dc4bc0e1b7d1f41710ff47a5075eb48fdc6"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/QuickLintTests/DefocusFormatterSpec.swift",
+          "line": 1,
+          "contentHash": "c2e7fb691609ddd0628bb6f6070dc9ad9019106269abe2e7e86cad524dc33626"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/QuickLintTests/Fakes/FakeFileDetector.swift",
+          "line": 1,
+          "contentHash": "fd003f0dd1953488c17a5b3ab291d330134aa9bf9ea0747fbd02cfeaf7570cc7"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "Tests/QuickLintTests/Fakes/FakeFileInterface.swift",
+          "line": 1,
+          "contentHash": "4676871938e1b6090a94c6a3728433b38de8280f5db6e14e4679cdb771711df1"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A1 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "Tests/LintFixtures/Nesting/Nesting.swift",
+            "line": 1,
+            "contentHash": "1a31303fc8d4afebf7514ed46de632221f1359c896011c4261464c05a889c238"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 77,
+          "max": 45,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 52,
+          "max": 52,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 0,
+      "status": "insufficient_data",
+      "evidence": [],
+      "findings": [],
+      "metrics": []
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2.2,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "path": "README.md",
+          "line": 1,
+          "contentHash": "e5ff83f257f88f84c2066cdc779f467063bd5a79af8201ed435f50ccc3a9c5ce"
+        },
+        {
+          "kind": "artifact",
+          "label": "Code presence for claim reconciliation",
+          "path": "Sources/Quick/Async/AsyncBehavior.swift",
+          "line": 1,
+          "contentHash": "6293a6c57b872f7cdd4bf39a268c27776b23b00e91956a5d20b157e124ffc6e7"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "path": "README.md",
+            "line": 1,
+            "contentHash": "e5ff83f257f88f84c2066cdc779f467063bd5a79af8201ed435f50ccc3a9c5ce"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 12,
+          "max": 13,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
+        },
+        {
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Requires a specific claim-reality artifact to reach full depth."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Dispatch trace completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the dispatch-trace process dimension."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 3.6,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/ci-swiftpm.yml",
+          "line": 1,
+          "contentHash": "676f54b0e82e641c4097cbfa5ef266f91b6cb5a9dea9160c7ad856932b588496"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/ci-xcode.yml",
+          "line": 1,
+          "contentHash": "a9fb7ea80662d3550d896584cd5a13b241a289a49d5f666e05c1934a29348205"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/cocoapods.yml",
+          "line": 1,
+          "contentHash": "8888cfb6f059465652aeb3dea11a948d6f742b4bfe53b456dcc6c75206e7ccd6"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 6,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 6,
+          "max": 12,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 2.2,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/ci-swiftpm.yml",
+          "line": 1,
+          "contentHash": "676f54b0e82e641c4097cbfa5ef266f91b6cb5a9dea9160c7ad856932b588496"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 2.2/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/ci-swiftpm.yml",
+            "line": 1,
+            "contentHash": "676f54b0e82e641c4097cbfa5ef266f91b6cb5a9dea9160c7ad856932b588496"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 5,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No audit-trail artifact detected (CHANGELOG/CHANGES/HISTORY/NEWS/SECURITY/AUDIT/STATUS/ release-notes/runbook/provenance file) — B4 not applicable to this repo."
+    },
+    {
+      "id": "B5",
+      "title": "Verified learning trace",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the learning-trace process dimension."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "source",
+  "contentReadSummary": {
+    "skipped": 60,
+    "byReason": {
+      "unreadable": 0,
+      "tooLarge": 0,
+      "excludedByExtension": 59,
+      "deniedPath": 0,
+      "nonRegularFile": 1
+    },
+    "unreadableByErrno": {},
+    "affectedCriteria": []
+  },
+  "verdict": "conditional",
+  "codeTrustScore": 2,
+  "processTrustScore": 2.9,
+  "overallScore": 2.5
+}

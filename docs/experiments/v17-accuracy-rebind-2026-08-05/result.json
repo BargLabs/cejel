@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "status": "complete-not-comparable-for-accuracy",
+  "detectorRevision": "d53066e0073de66d32b7e4aa58286c7c7354fedb",
+  "preregistrationMergeCommit": "4ca24bbf53e6f465984831f2dc2645d3cf0bd32c",
+  "manifestSha256": "b277944058f558066f762ebcbe45dc69f6e043ee3fc4f8dceae211c07164a7a3",
+  "repositories": { "completed": 200, "total": 200, "failure": null },
+  "reportSurfaceComparison": {
+    "criteriaExactlyMatchBaseline": 176,
+    "criteriaDiffer": 24,
+    "findingsExactlyMatchBaseline": 193,
+    "findingsDiffer": 7,
+    "verdictsExactlyMatchBaseline": 200
+  },
+  "skipTotals": {
+    "unreadable": 0,
+    "tooLarge": 35,
+    "excludedByExtension": 47495,
+    "deniedPath": 1708,
+    "nonRegularFile": 137
+  },
+  "abstention": {
+    "decisiveDenominator": 195,
+    "abstained": 37,
+    "scored": 158,
+    "rate": 0.18974358974358974,
+    "baselineRate": 0.18974358974358974,
+    "directionPrediction": "failed-no-change",
+    "inappropriateScoring": 0,
+    "inappropriateAbstention": 0
+  },
+  "metrics": {
+    "findingPrecision": "not_comparable",
+    "findingWorstCaseRecall": "not_comparable",
+    "findingWorstCaseFpr": "not_comparable",
+    "criterionApplicabilityExact": "not_comparable",
+    "criterionStateExact": "not_comparable",
+    "criterionStateWithinOne": "not_comparable",
+    "criterionStateTwoOrMoreError": "not_comparable"
+  },
+  "reason": "The stored labels bind the baseline finding and criterion surfaces. d530 produced changed finding surfaces in seven repositories and changed criterion surfaces in 24. The preregistration permits not comparable where the changed denominator or estimator would make a comparison unsound; no post-run relabeling or substitution was performed."
+}

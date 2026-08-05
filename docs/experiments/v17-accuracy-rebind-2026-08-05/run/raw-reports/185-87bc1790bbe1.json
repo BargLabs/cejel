@@ -1,0 +1,534 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "Cejel",
+  "repo": {
+    "path": "/private/tmp/cejel-v17-rebind-corpus/185-mybatis-plus",
+    "headSha": "db0b3c4bb58a38bad9c3d78b7269d8a477cc6a63"
+  },
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 1.7,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/code/Overwrite.java",
+          "line": 1,
+          "contentHash": "efc145b582472f75f48d76d2e58e6e48243d229f381de417ceffe75c5301b0f7"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/code/OverwriteFile.java",
+          "line": 1,
+          "contentHash": "47d3191a428c031191a81c7298208af14b1381e5ef759ca6db3932ca5a68c519"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/code/OverwriteRunner.java",
+          "line": 1,
+          "contentHash": "69e85be091a19c5aa4da50991b5dd2a7981862491389bbe33d25278b27993b96"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/code/sub/MapperMethod.java",
+          "line": 1,
+          "contentHash": "c6c62ebff9fb55706b58941207e23bfdfa11cf9677323036b5b0bb137dd2c78a"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/core/MethodTest.java",
+          "line": 1,
+          "contentHash": "c6df65c634d4cb6f48daa210eec30a4d1d82bd5baf074cdcfa4ad51d0e3a3f63"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/core/MybatisMapperAnnotationBuilderTest.java",
+          "line": 1,
+          "contentHash": "923f78a1aeadabd7643e56bebb369dfaface1a1097d41daa33e872655c20cdc2"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/core/MybatisXMLConfigBuilderTest.java",
+          "line": 1,
+          "contentHash": "590df25a81b109d70cbadd67fd8bb5ed34fc78e341df5213fc09c0d2b827d9c6"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/core/MybatisXMLLanguageDriverTest.java",
+          "line": 1,
+          "contentHash": "0531a7aefa4b533c4c64c3b315cd459d6576e1850a6973a07aa6f250ad384c14"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A1 metric-derived score is 1.7/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "mybatis-plus-core/src/test/java/com/baomidou/mybatisplus/code/Overwrite.java",
+            "line": 1,
+            "contentHash": "efc145b582472f75f48d76d2e58e6e48243d229f381de417ceffe75c5301b0f7"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 517,
+          "max": 498,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 195,
+          "max": 235,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 1,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "artifact",
+          "label": "DB client import",
+          "path": "mybatis-plus-annotation/src/main/java/com/baomidou/mybatisplus/annotation/DbType.java",
+          "line": 1,
+          "contentHash": "e0b6c75b2a13821580e503bebab6b62eaa62dfd4c7d73bce7bcdd3cf4022d289"
+        },
+        {
+          "kind": "artifact",
+          "label": "Tenant scoping signal",
+          "path": "mybatis-plus/src/test/resources/tenant/init.ddl.sql",
+          "line": 1,
+          "contentHash": "d40d74ef471643ac9a57177e117fa67dadc9f4a4dbaf584717e38d66f7fc52e6"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Tenant-scoped schema detected but no row-level-security policies found — isolation gap.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "Tenant schema without RLS policies",
+            "path": "mybatis-plus/src/test/resources/tenant/init.ddl.sql",
+            "line": 1,
+            "contentHash": "d40d74ef471643ac9a57177e117fa67dadc9f4a4dbaf584717e38d66f7fc52e6"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.25,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.1,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        },
+        {
+          "name": "rls_policy_count",
+          "label": "RLS policy count",
+          "value": 0,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.4,
+          "unit": "policies",
+          "description": "Counts static row-level-security enables, forced-RLS statements, and policy definitions."
+        },
+        {
+          "name": "tenant_scope_ratio",
+          "label": "Tenant-scoped schema ratio",
+          "value": 0,
+          "max": 1,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures tenant/studio/workspace scoping evidence across data-layer files."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 1.1,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "build.gradle",
+          "line": 1,
+          "contentHash": "c4646c6e2701c5b269206787f08513a981af7e881fd73fb948680f8f697c1665"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency update config",
+          "path": ".github/dependabot.yml",
+          "line": 1,
+          "contentHash": "68cea0874c1cb712fbc16a02040b3e6964b8919c12b19546253fde37f91663ce"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 1.1/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "build.gradle",
+            "line": 1,
+            "contentHash": "c4646c6e2701c5b269206787f08513a981af7e881fd73fb948680f8f697c1665"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 0,
+          "max": 1,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 1,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 1,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2.2,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "path": "README.md",
+          "line": 1,
+          "contentHash": "c3955a9c781252ef158a45d8b87dd875368a4b03d58edc92746af2a9156cb8c0"
+        },
+        {
+          "kind": "artifact",
+          "label": "Code presence for claim reconciliation",
+          "path": "mybatis-plus-annotation/src/main/java/com/baomidou/mybatisplus/annotation/DbType.java",
+          "line": 1,
+          "contentHash": "e0b6c75b2a13821580e503bebab6b62eaa62dfd4c7d73bce7bcdd3cf4022d289"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "path": "README.md",
+            "line": 1,
+            "contentHash": "c3955a9c781252ef158a45d8b87dd875368a4b03d58edc92746af2a9156cb8c0"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 12,
+          "max": 13,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
+        },
+        {
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Requires a specific claim-reality artifact to reach full depth."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Dispatch trace completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the dispatch-trace process dimension."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 3.4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/gradle.yml",
+          "line": 1,
+          "contentHash": "00630455f6440c37b1e3ae42fa2015768bc0c5077b28fcee5460ae2130d0234f"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/publish.yml",
+          "line": 1,
+          "contentHash": "360163c3dd32ab7f601614d3ee97b67da98dcea58f18070adb805ca50cb9632e"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 2,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 3,
+          "max": 12,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 0.6,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/gradle.yml",
+          "line": 1,
+          "contentHash": "00630455f6440c37b1e3ae42fa2015768bc0c5077b28fcee5460ae2130d0234f"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "B3 metric-derived score is 0.6/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/gradle.yml",
+            "line": 1,
+            "contentHash": "00630455f6440c37b1e3ae42fa2015768bc0c5077b28fcee5460ae2130d0234f"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 1.9,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "CHANGELOG.md",
+          "line": 1,
+          "contentHash": "93bbe277ee095ade91f72cf66abd84606ebd836e27fd9398eb8674c9344b779f"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "audit_artifact_depth",
+          "label": "Audit artifact depth",
+          "value": 1,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "files",
+          "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts."
+        },
+        {
+          "name": "audit_freshness_depth",
+          "label": "Audit freshness depth",
+          "value": 1,
+          "max": 1,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Credits audit artifacts that carry freshness/current-state markers."
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "title": "Verified learning trace",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the learning-trace process dimension."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "source",
+  "contentReadSummary": {
+    "skipped": 60,
+    "byReason": {
+      "unreadable": 0,
+      "tooLarge": 0,
+      "excludedByExtension": 60,
+      "deniedPath": 0,
+      "nonRegularFile": 0
+    },
+    "unreadableByErrno": {},
+    "affectedCriteria": []
+  },
+  "verdict": "at_risk",
+  "codeTrustScore": 1.5,
+  "processTrustScore": 2,
+  "overallScore": 1.8
+}

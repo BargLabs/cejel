@@ -1,0 +1,1425 @@
+{
+  "resolvedHead": "d53066e0073de66d32b7e4aa58286c7c7354fedb",
+  "manifestSha256": "b277944058f558066f762ebcbe45dc69f6e043ee3fc4f8dceae211c07164a7a3",
+  "command": "node docs/experiments/v17-accuracy-rebind-2026-08-05/run.mjs",
+  "scannerCommand": "sandbox-exec -p \"(version 1) (deny network*) (allow default)\" node --import tsx docs/experiments/v17-accuracy-rebind-2026-08-05/scan-one.mjs <checkout> 2026-07-24T21:39:19.000Z",
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "node": "v26.5.0",
+  "os": "darwin 25.5.0",
+  "arch": "arm64",
+  "offlineBoundary": "Each scoring child runs under sandbox-exec deny network* after its Git remote is removed.",
+  "startedAt": "2026-08-05T17:44:14.950Z",
+  "endedAt": "2026-08-05T18:00:07.897Z",
+  "completed": 200,
+  "total": 200,
+  "failure": null,
+  "rows": [
+    {
+      "index": 1,
+      "repository": "stax76/awesome-mpv",
+      "revision": "53c6c186f55b380924ce4fc9f6035a12267f00c0",
+      "status": "scanned",
+      "reportPath": "raw-reports/001-7ea5f44a0877.json"
+    },
+    {
+      "index": 2,
+      "repository": "yissachar/awesome-dart",
+      "revision": "116107d93b8bd5afe467728ee1f59f0b79e94d87",
+      "status": "scanned",
+      "reportPath": "raw-reports/002-b6b223296342.json"
+    },
+    {
+      "index": 3,
+      "repository": "jbranchaud/awesome-react-design-systems",
+      "revision": "23041e1e5b697ead69dc4127509ea02fb5378e99",
+      "status": "scanned",
+      "reportPath": "raw-reports/003-f03e959b1062.json"
+    },
+    {
+      "index": 4,
+      "repository": "mezod/awesome-indie",
+      "revision": "de8dab3f6668fab08a169d8904e3fca447c56f1d",
+      "status": "scanned",
+      "reportPath": "raw-reports/004-fb4925a4ccd8.json"
+    },
+    {
+      "index": 5,
+      "repository": "klaufel/awesome-design-systems",
+      "revision": "b3430a94d33f0189fa6e770709a79ab1fa73210b",
+      "status": "scanned",
+      "reportPath": "raw-reports/005-a669fd1c01ee.json"
+    },
+    {
+      "index": 6,
+      "repository": "leomaurodesenv/game-datasets",
+      "revision": "bada0406219b624c1427ed5f2459366939534318",
+      "status": "scanned",
+      "reportPath": "raw-reports/006-433057215810.json"
+    },
+    {
+      "index": 7,
+      "repository": "liuchong/awesome-roadmaps",
+      "revision": "eef56f927116c468f4276cd3c89026d61a33d64f",
+      "status": "scanned",
+      "reportPath": "raw-reports/007-03187ab3f292.json"
+    },
+    {
+      "index": 8,
+      "repository": "linsa-io/books",
+      "revision": "d08c699579b113ee6e9b6d8773d96ca6093fb530",
+      "status": "scanned",
+      "reportPath": "raw-reports/008-f81af9f9abea.json"
+    },
+    {
+      "index": 9,
+      "repository": "zemmsoares/awesome-rices",
+      "revision": "8e3fd966a4a9a3efa7199daee28d43dfd24f8ef8",
+      "status": "scanned",
+      "reportPath": "raw-reports/009-6bbf839c8c60.json"
+    },
+    {
+      "index": 10,
+      "repository": "sonicoder86/awesome-vue-3",
+      "revision": "175616ad1e432a6c2fca6e02b61fedbc456617ba",
+      "status": "scanned",
+      "reportPath": "raw-reports/010-953e80d6adb1.json"
+    },
+    {
+      "index": 11,
+      "repository": "zacharywhitley/awesome-ocr",
+      "revision": "36ae290728eb5a14f1d3db6035119a027f0a7a39",
+      "status": "scanned",
+      "reportPath": "raw-reports/011-d3dac95fd34f.json"
+    },
+    {
+      "index": 12,
+      "repository": "phanan/htaccess",
+      "revision": "72179f90f0bef880768c2aa6da14f90826ed3b17",
+      "status": "scanned",
+      "reportPath": "raw-reports/012-69efeedb6ed4.json"
+    },
+    {
+      "index": 13,
+      "repository": "fabacab/awesome-lockpicking",
+      "revision": "508b99f6bfdaa945be5144f8a6e72feb2e9ac592",
+      "status": "scanned",
+      "reportPath": "raw-reports/013-d13a37fa3e08.json"
+    },
+    {
+      "index": 14,
+      "repository": "abhisheknaiidu/awesome-github-profile-readme",
+      "revision": "7cb2691619d0b8bb3017289c699f3a0d16dc9c70",
+      "status": "scanned",
+      "reportPath": "raw-reports/014-fbdf69ec177c.json"
+    },
+    {
+      "index": 15,
+      "repository": "decalage2/awesome-security-hardening",
+      "revision": "11b15e279de65ac31bdef88d443390945e935cce",
+      "status": "scanned",
+      "reportPath": "raw-reports/015-e26d125189ba.json"
+    },
+    {
+      "index": 16,
+      "repository": "kdeldycke/awesome-engineering-team-management",
+      "revision": "73acd826fade09d647e154919da9f5185609c44e",
+      "status": "scanned",
+      "reportPath": "raw-reports/016-874d2cf13fa0.json"
+    },
+    {
+      "index": 17,
+      "repository": "webfuse-com/awesome-autoresearch",
+      "revision": "2dc7dfa9ba826bcfaf63ac7f8849eae433141c89",
+      "status": "scanned",
+      "reportPath": "raw-reports/017-46b056fc46c0.json"
+    },
+    {
+      "index": 18,
+      "repository": "VoltAgent/awesome-openclaw-skills",
+      "revision": "6afb5d4e3e6f36ff181a33b3b6f88054348bc70a",
+      "status": "scanned",
+      "reportPath": "raw-reports/018-98a866588784.json"
+    },
+    {
+      "index": 19,
+      "repository": "EinGuterWaran/awesome-opensource-boilerplates",
+      "revision": "6003f4058c8fcd892ebcb0038ce2ab64c6a08f62",
+      "status": "scanned",
+      "reportPath": "raw-reports/019-0465657d1500.json"
+    },
+    {
+      "index": 20,
+      "repository": "tmcw/awesome-geojson",
+      "revision": "2feacc5f65d814a868ab61ec5ae31c21109f1f3a",
+      "status": "scanned",
+      "reportPath": "raw-reports/020-65a53a28d1a5.json"
+    },
+    {
+      "index": 21,
+      "repository": "XiaomingX/indie-hacker-tools-plus",
+      "revision": "db8b986f1dbd92b9fa7c0832d8c04a4132598fc1",
+      "status": "scanned",
+      "reportPath": "raw-reports/021-2d90dba2e099.json"
+    },
+    {
+      "index": 22,
+      "repository": "BasixKOR/awesome-activitypub",
+      "revision": "b1591f93ded26168c6baf38501588fd30b96143b",
+      "status": "scanned",
+      "reportPath": "raw-reports/022-fa7ee4a7d57b.json"
+    },
+    {
+      "index": 23,
+      "repository": "fabacab/awesome-cybersecurity-blueteam",
+      "revision": "d2231996bf67d4b5f86f09825a128b951324f915",
+      "status": "scanned",
+      "reportPath": "raw-reports/023-3c0bc6049d59.json"
+    },
+    {
+      "index": 24,
+      "repository": "WangRongsheng/awesome-LLM-resources",
+      "revision": "d0fca3041ecca2659e81a57b01b8b94aef90136f",
+      "status": "scanned",
+      "reportPath": "raw-reports/024-882de96ecd94.json"
+    },
+    {
+      "index": 25,
+      "repository": "awesome-mqtt/awesome-mqtt",
+      "revision": "375e2844ae8383042db7b4a4ef5a078cb9b9d6ed",
+      "status": "scanned",
+      "reportPath": "raw-reports/025-773006ca5d86.json"
+    },
+    {
+      "index": 26,
+      "repository": "redhuntlabs/Awesome-Asset-Discovery",
+      "revision": "ec8ef35b3b7ccffd50905af1088a451de6ce9257",
+      "status": "scanned",
+      "reportPath": "raw-reports/026-1b56fc628899.json"
+    },
+    {
+      "index": 27,
+      "repository": "editor-js/awesome-editorjs",
+      "revision": "7453310ed4f90ad4c4efc02a848846c26bd58ffb",
+      "status": "scanned",
+      "reportPath": "raw-reports/027-57c72c6fcede.json"
+    },
+    {
+      "index": 28,
+      "repository": "FancyGrid/awesome-grid",
+      "revision": "bfedbc9a1b11e8d92af270b8033f4bcbb93ef06e",
+      "status": "scanned",
+      "reportPath": "raw-reports/028-a69df61849ef.json"
+    },
+    {
+      "index": 29,
+      "repository": "Anil-matcha/awesome-openclaw",
+      "revision": "120be4b88c23bf40d4f4b24f7ddd170c9a94d5e2",
+      "status": "scanned",
+      "reportPath": "raw-reports/029-7e8f02d205b5.json"
+    },
+    {
+      "index": 30,
+      "repository": "wq2012/awesome-diarization",
+      "revision": "9e284d76f983b922183beb0f7bd6cc68c99fa062",
+      "status": "scanned",
+      "reportPath": "raw-reports/030-b8e757ca5cde.json"
+    },
+    {
+      "index": 31,
+      "repository": "lauragift21/awesome-learning-resources",
+      "revision": "0e9afa0c8b67df6f8ffa0a8d46847476a56ccd1b",
+      "status": "scanned",
+      "reportPath": "raw-reports/031-4c1091c018e5.json"
+    },
+    {
+      "index": 32,
+      "repository": "DeepTecher/awesome-autonomous-vehicle",
+      "revision": "67e1d837d0277ffbaadb28867f19e58bdb4f0ff2",
+      "status": "scanned",
+      "reportPath": "raw-reports/032-48df430d3758.json"
+    },
+    {
+      "index": 33,
+      "repository": "typeddjango/awesome-python-typing",
+      "revision": "8407aa965dcfe409c69c7974f8dfb3f8ed3b4c03",
+      "status": "scanned",
+      "reportPath": "raw-reports/033-536188b708e0.json"
+    },
+    {
+      "index": 34,
+      "repository": "testthedocs/awesome-docs",
+      "revision": "592759461424797d2605b5a48678089461c254a5",
+      "status": "scanned",
+      "reportPath": "raw-reports/034-827addef12d3.json"
+    },
+    {
+      "index": 35,
+      "repository": "codingknite/frontend-development",
+      "revision": "e8d886ee79dec315ac592d1700056ab09711802f",
+      "status": "scanned",
+      "reportPath": "raw-reports/035-4c3516ca0791.json"
+    },
+    {
+      "index": 36,
+      "repository": "ansible-community/awesome-ansible",
+      "revision": "a9aede5266ab7933e1be53ea87ab173cc3cb6949",
+      "status": "scanned",
+      "reportPath": "raw-reports/036-c6221ed2b67e.json"
+    },
+    {
+      "index": 37,
+      "repository": "opendatadiscovery/awesome-data-catalogs",
+      "revision": "35af5ab0779df32623a219ef73f69e15440ce742",
+      "status": "scanned",
+      "reportPath": "raw-reports/037-5838a49538b7.json"
+    },
+    {
+      "index": 38,
+      "repository": "oz123/awesome-c",
+      "revision": "b0ee2cfbc085a5eec84fe41efd2b1576c5f59887",
+      "status": "scanned",
+      "reportPath": "raw-reports/038-6c4e9bef827a.json"
+    },
+    {
+      "index": 39,
+      "repository": "lmammino/awesome-learn-by-playing",
+      "revision": "eba22584d739227c8908e6de549b1aeff8c01372",
+      "status": "scanned",
+      "reportPath": "raw-reports/039-b29a9c814d1f.json"
+    },
+    {
+      "index": 40,
+      "repository": "DyegoCosta/trabalhando-remoto",
+      "revision": "ec904b6b9716be2d8a510a123e4eeb2df968b6ab",
+      "status": "scanned",
+      "reportPath": "raw-reports/040-5ac85d4d26c2.json"
+    },
+    {
+      "index": 41,
+      "repository": "Nek5000/Nek5000",
+      "revision": "41d17942b3f4ef4e045665d30adc81a167611122",
+      "status": "scanned",
+      "reportPath": "raw-reports/041-29f322d783b9.json"
+    },
+    {
+      "index": 42,
+      "repository": "damask-multiphysics/DAMASK",
+      "revision": "28b38afc0cba4f132763bb0e665f3d7771e92ffd",
+      "status": "scanned",
+      "reportPath": "raw-reports/042-68f9d24bd300.json"
+    },
+    {
+      "index": 43,
+      "repository": "tspeterkim/flash-attention-minimal",
+      "revision": "00f8f46712d493665c900c32fa3a261c8ef3e20c",
+      "status": "scanned",
+      "reportPath": "raw-reports/043-a8fa27024887.json"
+    },
+    {
+      "index": 44,
+      "repository": "PatrickJS/awesome-angular",
+      "revision": "4f460c30fdb2f32ba37c3e4e36eca8cd9206f726",
+      "status": "scanned",
+      "reportPath": "raw-reports/044-9e144ea22757.json"
+    },
+    {
+      "index": 45,
+      "repository": "uvdesk/community-skeleton",
+      "revision": "6f35040f447f7fe1dcd254e259e7b7e0a9f7a79f",
+      "status": "scanned",
+      "reportPath": "raw-reports/045-1adcd0b5a135.json"
+    },
+    {
+      "index": 46,
+      "repository": "d-kitamura/ILRMA",
+      "revision": "71a285b10ef6177738c46a173b9afb1623febcca",
+      "status": "scanned",
+      "reportPath": "raw-reports/046-089dc749186c.json"
+    },
+    {
+      "index": 47,
+      "repository": "xiaoyuyang0901/Simulation-platform",
+      "revision": "e485176717c8ee79539895024ec950980474a7bb",
+      "status": "scanned",
+      "reportPath": "raw-reports/047-6aa2fe883671.json"
+    },
+    {
+      "index": 48,
+      "repository": "anilbas/3DMMasSTN",
+      "revision": "c6562b5fda5c2f742a27dc1b4a7ff15ec5e83837",
+      "status": "scanned",
+      "reportPath": "raw-reports/048-30dba254390f.json"
+    },
+    {
+      "index": 49,
+      "repository": "klis87/redux-requests",
+      "revision": "36eff89a778f0d61ce6da6cfb977d3f1023aef23",
+      "status": "scanned",
+      "reportPath": "raw-reports/049-6c615578d057.json"
+    },
+    {
+      "index": 50,
+      "repository": "documize/community",
+      "revision": "e19bcd02ab20750a904fc2e3815cd453e877fa54",
+      "status": "scanned",
+      "reportPath": "raw-reports/050-03fdcd1ed248.json"
+    },
+    {
+      "index": 51,
+      "repository": "greyshirtguy/ProPresenter7-Proto",
+      "revision": "1b63dda196eb7e079721a8a4a7e7773520cb5ad2",
+      "status": "scanned",
+      "reportPath": "raw-reports/051-ed716ae38d44.json"
+    },
+    {
+      "index": 52,
+      "repository": "mohi-devhub/antivibe",
+      "revision": "5fa8933b18bad20568396c0067397e0ce3d8dce9",
+      "status": "scanned",
+      "reportPath": "raw-reports/052-d6a952fc5967.json"
+    },
+    {
+      "index": 53,
+      "repository": "15r10nk/inline-snapshot",
+      "revision": "9ec2ed9862ac263ff0506e1eaba098ef686c6f14",
+      "status": "scanned",
+      "reportPath": "raw-reports/053-a32b788dee88.json"
+    },
+    {
+      "index": 54,
+      "repository": "feross/lxjs-chat",
+      "revision": "b77905286f955dbc33e47a222ff0344933141372",
+      "status": "scanned",
+      "reportPath": "raw-reports/054-7fbc6754d4f4.json"
+    },
+    {
+      "index": 55,
+      "repository": "divScorp/Java-Programs",
+      "revision": "f56d6112ac921bd644beecb92e5a9e6ac9ab50e7",
+      "status": "scanned",
+      "reportPath": "raw-reports/055-848aaf2ef2ec.json"
+    },
+    {
+      "index": 56,
+      "repository": "EutropicAI/Final2x",
+      "revision": "0a8cf13bae9fa026f1ee8692735d68cca8e6dac3",
+      "status": "scanned",
+      "reportPath": "raw-reports/056-5fe09d2f27a1.json"
+    },
+    {
+      "index": 57,
+      "repository": "freemocap/freemocap",
+      "revision": "3dd269dc0d0e29198845aa15dd96d16a616600fe",
+      "status": "scanned",
+      "reportPath": "raw-reports/057-0c8d28a43d89.json"
+    },
+    {
+      "index": 58,
+      "repository": "NanmiCoder/cc-haha",
+      "revision": "27901ee3110c7007dd090af0ce28041110378a8c",
+      "status": "scanned",
+      "reportPath": "raw-reports/058-ad43c869016f.json"
+    },
+    {
+      "index": 59,
+      "repository": "modelcontextprotocol/inspector",
+      "revision": "ac3c1a122a5e072a200c99869fc0cd8bfa660ece",
+      "status": "scanned",
+      "reportPath": "raw-reports/059-80ace4b5adc0.json"
+    },
+    {
+      "index": 60,
+      "repository": "garrytan/gbrain",
+      "revision": "1f319e6d5aff7674d8f48f289768ff75911a9ea8",
+      "status": "scanned",
+      "reportPath": "raw-reports/060-6640bb4e1425.json"
+    },
+    {
+      "index": 61,
+      "repository": "kern/filepizza",
+      "revision": "3258673e790145ba86637114a35388165a651ff3",
+      "status": "scanned",
+      "reportPath": "raw-reports/061-60224bb0253f.json"
+    },
+    {
+      "index": 62,
+      "repository": "Dokploy/dokploy",
+      "revision": "73e4fdd757da90fb1fe347a92b92237e6712f98d",
+      "status": "scanned",
+      "reportPath": "raw-reports/062-f294d4f2e8c6.json"
+    },
+    {
+      "index": 63,
+      "repository": "craft-ai-agents/craft-agents-oss",
+      "revision": "a60ebc1a5a7cb0a6af7a77d5eed0512c5fc07658",
+      "status": "scanned",
+      "reportPath": "raw-reports/063-7827639e5820.json"
+    },
+    {
+      "index": 64,
+      "repository": "openreplay/openreplay",
+      "revision": "dbb68105e865052d6ec0d49c9d2d13cf5d5f4aef",
+      "status": "scanned",
+      "reportPath": "raw-reports/064-080a3f569e45.json"
+    },
+    {
+      "index": 65,
+      "repository": "akveo/ngx-admin",
+      "revision": "dc6a442704bfef34b776b5eb15faf852d9e2f75c",
+      "status": "scanned",
+      "reportPath": "raw-reports/065-c80d27890338.json"
+    },
+    {
+      "index": 66,
+      "repository": "ag-ui-protocol/ag-ui",
+      "revision": "1a78c2701e44afbb12337c5de6c3be832efaad74",
+      "status": "scanned",
+      "reportPath": "raw-reports/066-2cea992e444a.json"
+    },
+    {
+      "index": 67,
+      "repository": "TanStack/table",
+      "revision": "ba45ea109f559f79e44dca19409747e330be8a84",
+      "status": "scanned",
+      "reportPath": "raw-reports/067-5fdacaea081f.json"
+    },
+    {
+      "index": 68,
+      "repository": "CopyTranslator/CopyTranslator",
+      "revision": "5b73e4262625cdcd0b4621d0e6d5f59ed08de4ef",
+      "status": "scanned",
+      "reportPath": "raw-reports/068-dc27076ec817.json"
+    },
+    {
+      "index": 69,
+      "repository": "remix-run/remix",
+      "revision": "593e568f1b3ca9bac861f3f86a69dda1d2b836b3",
+      "status": "scanned",
+      "reportPath": "raw-reports/069-06c06478439f.json"
+    },
+    {
+      "index": 70,
+      "repository": "ethers-io/ethers.js",
+      "revision": "3ea4c226dd0b3a074abf90748de9d11192027f4f",
+      "status": "scanned",
+      "reportPath": "raw-reports/070-72ad09967e55.json"
+    },
+    {
+      "index": 71,
+      "repository": "every-app/open-seo",
+      "revision": "f56972639f14e7e766498a8a2f6441913eb83c0c",
+      "status": "scanned",
+      "reportPath": "raw-reports/071-1d00f2307226.json"
+    },
+    {
+      "index": 72,
+      "repository": "dyad-sh/dyad",
+      "revision": "74acfeeaf69f57e427080e97d7293c09f349c38e",
+      "status": "scanned",
+      "reportPath": "raw-reports/072-2f6ae5bad1f8.json"
+    },
+    {
+      "index": 73,
+      "repository": "graphql/graphql-js",
+      "revision": "c31db12474208c522abdee1768a652b522bfd635",
+      "status": "scanned",
+      "reportPath": "raw-reports/073-cb14418a1650.json"
+    },
+    {
+      "index": 74,
+      "repository": "wix/react-native-ui-lib",
+      "revision": "5110454db9304b433f2e8d67a17d0b2e94b3a327",
+      "status": "scanned",
+      "reportPath": "raw-reports/074-4806a51fe968.json"
+    },
+    {
+      "index": 75,
+      "repository": "papermark/papermark",
+      "revision": "1f810ab832b58e8e260c605f137f1101029e9194",
+      "status": "scanned",
+      "reportPath": "raw-reports/075-0e1096b82859.json"
+    },
+    {
+      "index": 76,
+      "repository": "virattt/dexter",
+      "revision": "823052ed687a6f3ef0e48b5e7025c73e86d95775",
+      "status": "scanned",
+      "reportPath": "raw-reports/076-8c46eab055b7.json"
+    },
+    {
+      "index": 77,
+      "repository": "garethgeorge/backrest",
+      "revision": "626156cd8e15745b84bfe86099457d9db8372c5d",
+      "status": "scanned",
+      "reportPath": "raw-reports/077-ea59601b90be.json"
+    },
+    {
+      "index": 78,
+      "repository": "Project-DARC/DARC",
+      "revision": "482bd1acfcf3dfde617189461ea7ce90c2f924ed",
+      "status": "scanned",
+      "reportPath": "raw-reports/078-5f44d4b7fc70.json"
+    },
+    {
+      "index": 79,
+      "repository": "ant-design/ant-design-mobile",
+      "revision": "6823d807f0f8857b894ac60d188b228082ab0277",
+      "status": "scanned",
+      "reportPath": "raw-reports/079-bf6f599acf7b.json"
+    },
+    {
+      "index": 80,
+      "repository": "fabricjs/fabric.js",
+      "revision": "e009409980c199ee2c1bcbc42ef1a3689105f1db",
+      "status": "scanned",
+      "reportPath": "raw-reports/080-09ea77847c9b.json"
+    },
+    {
+      "index": 81,
+      "repository": "lissy93/web-check",
+      "revision": "9154bd43e8276c0310c29c86ac70648e1ed4eda5",
+      "status": "scanned",
+      "reportPath": "raw-reports/081-6745faa1174f.json"
+    },
+    {
+      "index": 82,
+      "repository": "inversify/InversifyJS",
+      "revision": "fdd9186891e777884012984c64c271e576155f08",
+      "status": "scanned",
+      "reportPath": "raw-reports/082-790838d96412.json"
+    },
+    {
+      "index": 83,
+      "repository": "Kilo-Org/kilocode",
+      "revision": "f80ebff83b32550333da7c50c91c4755e4524d0d",
+      "status": "scanned",
+      "reportPath": "raw-reports/083-19a6a7ba1082.json"
+    },
+    {
+      "index": 84,
+      "repository": "get-convex/convex-backend",
+      "revision": "d6825caac38e9e1cd9a78b90a01bf52e4c3edc97",
+      "status": "scanned",
+      "reportPath": "raw-reports/084-fcfcd6f5a74c.json"
+    },
+    {
+      "index": 85,
+      "repository": "wg-easy/wg-easy",
+      "revision": "94a9967dd11759ae3e971966e90e0b52d5b463b8",
+      "status": "scanned",
+      "reportPath": "raw-reports/085-891a78aeadda.json"
+    },
+    {
+      "index": 86,
+      "repository": "boardgameio/boardgame.io",
+      "revision": "65ca73beb62ef2afd980bb9f569b10dabfc60075",
+      "status": "scanned",
+      "reportPath": "raw-reports/086-9be5422a583c.json"
+    },
+    {
+      "index": 87,
+      "repository": "howtographql/howtographql",
+      "revision": "bdec337878fe66cab3ec2868630a7eab72dfa34e",
+      "status": "scanned",
+      "reportPath": "raw-reports/087-4d2f8c3f1e59.json"
+    },
+    {
+      "index": 88,
+      "repository": "cs01/gdbgui",
+      "revision": "773b9161729e75a6de57fb47bd084576e31de59a",
+      "status": "scanned",
+      "reportPath": "raw-reports/088-e5fa65b95dbf.json"
+    },
+    {
+      "index": 89,
+      "repository": "alibaba/lowcode-engine",
+      "revision": "f6305c2284950d79b9729781f081f24f113de345",
+      "status": "scanned",
+      "reportPath": "raw-reports/089-9833615205d3.json"
+    },
+    {
+      "index": 90,
+      "repository": "AnInsomniacy/motrix-next",
+      "revision": "9f5ba37bf8403f219399f5593ee7b711839fdb0f",
+      "status": "scanned",
+      "reportPath": "raw-reports/090-ad9b6329ed3a.json"
+    },
+    {
+      "index": 91,
+      "repository": "katspaugh/wavesurfer.js",
+      "revision": "ae8d3cd32ebb27273051935c01fc6e4001cde3af",
+      "status": "scanned",
+      "reportPath": "raw-reports/091-dd7da1fc7bb6.json"
+    },
+    {
+      "index": 92,
+      "repository": "astrid-runtime/sdk-js",
+      "revision": "229401ba8b48d0c2fba205646a980f475e9f3916",
+      "status": "scanned",
+      "reportPath": "raw-reports/092-7f85494cc115.json"
+    },
+    {
+      "index": 93,
+      "repository": "vercel/swr",
+      "revision": "fc7ac116b2a2bfdfa43ec8b08753a77d6c3de93e",
+      "status": "scanned",
+      "reportPath": "raw-reports/093-abbd3861b8e9.json"
+    },
+    {
+      "index": 94,
+      "repository": "kepano/defuddle",
+      "revision": "6152604f54593bd05fc4dc401810069882658340",
+      "status": "scanned",
+      "reportPath": "raw-reports/094-e03ae5cc01ee.json"
+    },
+    {
+      "index": 95,
+      "repository": "7kms/react-illustration-series",
+      "revision": "1e71a14310bcb92cd29ef98dddb45f462df4b546",
+      "status": "scanned",
+      "reportPath": "raw-reports/095-ab04d433d2c8.json"
+    },
+    {
+      "index": 96,
+      "repository": "a2ui-project/a2ui",
+      "revision": "fc4e91d7e95cfaeae58ac70a54f9a22a1c5ddeac",
+      "status": "scanned",
+      "reportPath": "raw-reports/096-48d36cb7d29f.json"
+    },
+    {
+      "index": 97,
+      "repository": "CapSoftware/Cap",
+      "revision": "5b81ee5b0e807b37a0df1cd59ff4eaf2a20aa102",
+      "status": "scanned",
+      "reportPath": "raw-reports/097-4d655c2974f9.json"
+    },
+    {
+      "index": 98,
+      "repository": "emberjs/ember.js",
+      "revision": "0da747613f85bfd8b92e05cb894cf0d5df5a5180",
+      "status": "scanned",
+      "reportPath": "raw-reports/098-eb3989dec3aa.json"
+    },
+    {
+      "index": 99,
+      "repository": "any86/any-rule",
+      "revision": "43abe0f89526d0bfd4e53c2c83bb176216ab5645",
+      "status": "scanned",
+      "reportPath": "raw-reports/099-f7f21d3a2bfa.json"
+    },
+    {
+      "index": 100,
+      "repository": "sindresorhus/modern-normalize",
+      "revision": "27c3f5fe3109b4041a835a0fa569e09c77022bf8",
+      "status": "scanned",
+      "reportPath": "raw-reports/100-aec986885558.json"
+    },
+    {
+      "index": 101,
+      "repository": "redux-utilities/redux-actions",
+      "revision": "3fa4c50dfeab54fa1f2110764757ee4c10c8e3ac",
+      "status": "scanned",
+      "reportPath": "raw-reports/101-f9c5caa9b753.json"
+    },
+    {
+      "index": 102,
+      "repository": "pa7/heatmap.js",
+      "revision": "4e64f5ae5754c84fea363f0fcf24bea4795405ff",
+      "status": "scanned",
+      "reportPath": "raw-reports/102-a0cfda307aa4.json"
+    },
+    {
+      "index": 103,
+      "repository": "adobe-webplatform/Snap.svg",
+      "revision": "c8e483c9694517e24b282f8f59f985629f4994ce",
+      "status": "scanned",
+      "reportPath": "raw-reports/103-74ce2554f108.json"
+    },
+    {
+      "index": 104,
+      "repository": "openstf/stf",
+      "revision": "2b9649009722794dee9efd32b71bccbcbfe9d794",
+      "status": "scanned",
+      "reportPath": "raw-reports/104-5ce8fb7c1d10.json"
+    },
+    {
+      "index": 105,
+      "repository": "Kenshin/simpread",
+      "revision": "d6534a7d67ab606e0390ff7172360fac88af4422",
+      "status": "scanned",
+      "reportPath": "raw-reports/105-11ad6642db95.json"
+    },
+    {
+      "index": 106,
+      "repository": "tuupola/lazyload",
+      "revision": "d3ad81c12332a0f950c6c703ff975b60350405a4",
+      "status": "scanned",
+      "reportPath": "raw-reports/106-530557541643.json"
+    },
+    {
+      "index": 107,
+      "repository": "typicode/lowdb",
+      "revision": "8a6fce9b72f769b22533f0979fbc2e73180f8112",
+      "status": "scanned",
+      "reportPath": "raw-reports/107-1471606222a9.json"
+    },
+    {
+      "index": 108,
+      "repository": "sveltejs/kit",
+      "revision": "2c08533799212e4bf9d63f40ea352dd56ab1876d",
+      "status": "scanned",
+      "reportPath": "raw-reports/108-ab1bcef7b257.json"
+    },
+    {
+      "index": 109,
+      "repository": "SillyTavern/SillyTavern",
+      "revision": "8172dcd0ee672d3cd9a5e5f7af134f91a45cd2b8",
+      "status": "scanned",
+      "reportPath": "raw-reports/109-89b759458f2c.json"
+    },
+    {
+      "index": 110,
+      "repository": "FredrikNoren/ungit",
+      "revision": "b1df1a168b9208766342070ebd42782036dfd18d",
+      "status": "scanned",
+      "reportPath": "raw-reports/110-5b66eeea6a07.json"
+    },
+    {
+      "index": 111,
+      "repository": "luin/medis",
+      "revision": "12c87a5a2cc3fd7fa616beb2eaed79413538769a",
+      "status": "scanned",
+      "reportPath": "raw-reports/111-a4e638f7b8cc.json"
+    },
+    {
+      "index": 112,
+      "repository": "metafizzy/zdog",
+      "revision": "dde8684be686bc6d3cbedb6be49875c0a03a14c0",
+      "status": "scanned",
+      "reportPath": "raw-reports/112-5db54f0bfb11.json"
+    },
+    {
+      "index": 113,
+      "repository": "firecrawl/firecrawl-mcp-server",
+      "revision": "7232b6d1cdd80335107d53a33b80c902b515a334",
+      "status": "scanned",
+      "reportPath": "raw-reports/113-2c7f423ae1e2.json"
+    },
+    {
+      "index": 114,
+      "repository": "automerge/automerge-classic",
+      "revision": "0605308926a03353eb1072c3afa2a3a8580fcef9",
+      "status": "scanned",
+      "reportPath": "raw-reports/114-a9c77489fb69.json"
+    },
+    {
+      "index": 115,
+      "repository": "pdone/lx-music-source",
+      "revision": "e9ba570a8a04518cd1928a12d5e56823f7252cd8",
+      "status": "scanned",
+      "reportPath": "raw-reports/115-6d06fa333bd9.json"
+    },
+    {
+      "index": 116,
+      "repository": "coryhouse/react-slingshot",
+      "revision": "a7b0c6111cceaf88ffa4c24df3b38401f045a3d1",
+      "status": "scanned",
+      "reportPath": "raw-reports/116-5472574311e7.json"
+    },
+    {
+      "index": 117,
+      "repository": "yaronn/blessed-contrib",
+      "revision": "45a7db64c81f179327b1edb5d4d662bcf661ff2b",
+      "status": "scanned",
+      "reportPath": "raw-reports/117-7ba6d670910c.json"
+    },
+    {
+      "index": 118,
+      "repository": "ganeshrvel/openmtp",
+      "revision": "ac02705fa9bcb81715ae328fb6c7324e126b2483",
+      "status": "scanned",
+      "reportPath": "raw-reports/118-60b58a528a4d.json"
+    },
+    {
+      "index": 119,
+      "repository": "yemount/pose-animator",
+      "revision": "cb2be70a3501e57e66fe185daca44cc2afe18ce8",
+      "status": "scanned",
+      "reportPath": "raw-reports/119-b26937f9d966.json"
+    },
+    {
+      "index": 120,
+      "repository": "hyperapp/hyperapp",
+      "revision": "5a113fa00450302be9234e0a74ee634ed5574243",
+      "status": "scanned",
+      "reportPath": "raw-reports/120-ec9c68268ad4.json"
+    },
+    {
+      "index": 121,
+      "repository": "Piebald-AI/claude-code-system-prompts",
+      "revision": "b9895f5556e962e6aec60aba7cccfc18790ace3a",
+      "status": "scanned",
+      "reportPath": "raw-reports/121-0d82e8cb7f71.json"
+    },
+    {
+      "index": 122,
+      "repository": "open-gsd/gsd-core",
+      "revision": "0f46fa366f8b5807c51c627832c2129ea9e140b7",
+      "status": "scanned",
+      "reportPath": "raw-reports/122-210207c3bd5e.json"
+    },
+    {
+      "index": 123,
+      "repository": "WebGoat/WebGoat",
+      "revision": "5142935bf7c279882c3b0fc0ecec42c447de6fd5",
+      "status": "scanned",
+      "reportPath": "raw-reports/123-6f8a7c4f1756.json"
+    },
+    {
+      "index": 124,
+      "repository": "nodejs/undici",
+      "revision": "21a8e1ed1843e74c3004a2926c12bb0ceaca6b71",
+      "status": "scanned",
+      "reportPath": "raw-reports/124-36556e57d2b0.json"
+    },
+    {
+      "index": 125,
+      "repository": "markodenic/web-development-resources",
+      "revision": "672b380ba41e45d286d2ef9521646ca8662341ce",
+      "status": "scanned",
+      "reportPath": "raw-reports/125-f8f9225a324d.json"
+    },
+    {
+      "index": 126,
+      "repository": "terkelg/prompts",
+      "revision": "58771d2911fc2a9c3751a0143ed66cf4321c8514",
+      "status": "scanned",
+      "reportPath": "raw-reports/126-e0e9b8d5341e.json"
+    },
+    {
+      "index": 127,
+      "repository": "wekan/wekan",
+      "revision": "4e18400faa3fb73a314d5519157c7dd2720f0f3b",
+      "status": "scanned",
+      "reportPath": "raw-reports/127-186c443a98ea.json"
+    },
+    {
+      "index": 128,
+      "repository": "pomber/didact",
+      "revision": "bb72345b2300dd4658b4736b65843e05dac39643",
+      "status": "scanned",
+      "reportPath": "raw-reports/128-37d840e1b4ad.json"
+    },
+    {
+      "index": 129,
+      "repository": "pure-css/pure",
+      "revision": "d35fb6fcbcd888da11a7215fe61d1efeda374699",
+      "status": "scanned",
+      "reportPath": "raw-reports/129-54ab1af74d3c.json"
+    },
+    {
+      "index": 130,
+      "repository": "decaporg/decap-cms",
+      "revision": "e50c1b16fb22421adaaea6aa104cf68045ebdbbf",
+      "status": "scanned",
+      "reportPath": "raw-reports/130-8afd64911955.json"
+    },
+    {
+      "index": 131,
+      "repository": "zarazhangrui/frontend-slides",
+      "revision": "9906a34d640d2111f724544cbc50f7f130569ae1",
+      "status": "scanned",
+      "reportPath": "raw-reports/131-847868eba7fa.json"
+    },
+    {
+      "index": 132,
+      "repository": "AMAI-GmbH/AI-Expert-Roadmap",
+      "revision": "a4c66c2670d9004385ed0faa4fb2a729aa6b18d4",
+      "status": "scanned",
+      "reportPath": "raw-reports/132-bc8183c03fc1.json"
+    },
+    {
+      "index": 133,
+      "repository": "1j01/jspaint",
+      "revision": "53be67ab8c47cc0d2168899e7481bc04839c4c81",
+      "status": "scanned",
+      "reportPath": "raw-reports/133-5e4e4d773a56.json"
+    },
+    {
+      "index": 134,
+      "repository": "locomotivemtl/locomotive-scroll",
+      "revision": "b6bcc569e8035334face5c1f88684590bc4d567f",
+      "status": "scanned",
+      "reportPath": "raw-reports/134-2e0b89028122.json"
+    },
+    {
+      "index": 135,
+      "repository": "soumyajit4419/Portfolio",
+      "revision": "60c3c08f5f5c25ca4a3a85d795a6d1450a947f40",
+      "status": "scanned",
+      "reportPath": "raw-reports/135-eec423d9fc34.json"
+    },
+    {
+      "index": 136,
+      "repository": "dimsemenov/PhotoSwipe",
+      "revision": "cd41cb587a460634e4cae53134f3d01d06e284a6",
+      "status": "scanned",
+      "reportPath": "raw-reports/136-e5d57981259d.json"
+    },
+    {
+      "index": 137,
+      "repository": "winstonjs/winston",
+      "revision": "ff0b79de8562bb322c390fbc82fe71c11f373428",
+      "status": "scanned",
+      "reportPath": "raw-reports/137-48d80168e753.json"
+    },
+    {
+      "index": 138,
+      "repository": "upgundecha/howtheysre",
+      "revision": "4fd5a3a05bcc69cef122842714fd9bbd60041d32",
+      "status": "scanned",
+      "reportPath": "raw-reports/138-4069a2ac4e61.json"
+    },
+    {
+      "index": 139,
+      "repository": "electron/minimal-repro",
+      "revision": "9e596ffbcc4cec5715aa015e1a3c50a2cfc58b01",
+      "status": "scanned",
+      "reportPath": "raw-reports/139-0d70b7994e87.json"
+    },
+    {
+      "index": 140,
+      "repository": "deepseek-ai/DeepSeek-OCR",
+      "revision": "09eaf526153e7a01ed16c9dea8c96282aaea29c0",
+      "status": "scanned",
+      "reportPath": "raw-reports/140-3910bc1647f8.json"
+    },
+    {
+      "index": 141,
+      "repository": "zai-org/ChatGLM2-6B",
+      "revision": "cb8e8b43c0951b32614f25c03e1ab593a0603a1c",
+      "status": "scanned",
+      "reportPath": "raw-reports/141-5b31e9e92120.json"
+    },
+    {
+      "index": 142,
+      "repository": "NVIDIA/personaplex",
+      "revision": "3428dfd95309a7f3c84fd93259ded0f810d1ff91",
+      "status": "scanned",
+      "reportPath": "raw-reports/142-99b6cda9223f.json"
+    },
+    {
+      "index": 143,
+      "repository": "benbusby/whoogle-search",
+      "revision": "5580d07311a81067ddb90b9abe6d6547080984b9",
+      "status": "scanned",
+      "reportPath": "raw-reports/143-f82349b68ea3.json"
+    },
+    {
+      "index": 144,
+      "repository": "wifiphisher/wifiphisher",
+      "revision": "4ae336518bf29eed13d3b09f2ee6a16e7973c997",
+      "status": "scanned",
+      "reportPath": "raw-reports/144-d872f05ba005.json"
+    },
+    {
+      "index": 145,
+      "repository": "dottxt-ai/outlines",
+      "revision": "be2cd151855c64a81262c4daace2428400b109ff",
+      "status": "scanned",
+      "reportPath": "raw-reports/145-9e241387b790.json"
+    },
+    {
+      "index": 146,
+      "repository": "modelscope/FunASR",
+      "revision": "a28ee6b39dde8319edcc977a8994abf2bcab9ce2",
+      "status": "scanned",
+      "reportPath": "raw-reports/146-ec30b4d2fbde.json"
+    },
+    {
+      "index": 147,
+      "repository": "HKUDS/CLI-Anything",
+      "revision": "bc536c9bebb7c3d9f7bb2736a732609139c1acdb",
+      "status": "scanned",
+      "reportPath": "raw-reports/147-72817d9918bc.json"
+    },
+    {
+      "index": 148,
+      "repository": "pypa/pip",
+      "revision": "6a4aad81b1aa692974b9eedb12a02689f2fff6ba",
+      "status": "scanned",
+      "reportPath": "raw-reports/148-17ae4663750a.json"
+    },
+    {
+      "index": 149,
+      "repository": "malwaredllc/byob",
+      "revision": "b4946908b8a3691f75a7e15ffe6883ef509afc91",
+      "status": "scanned",
+      "reportPath": "raw-reports/149-b492d5392290.json"
+    },
+    {
+      "index": 150,
+      "repository": "trekhleb/learn-python",
+      "revision": "5e4fad5903ce5a76cc1f90838d69a220968e1494",
+      "status": "scanned",
+      "reportPath": "raw-reports/150-097a79b37970.json"
+    },
+    {
+      "index": 151,
+      "repository": "deepseek-ai/DeepSeek-Coder",
+      "revision": "2f9fd85927c669dae3c0fbb2d607274023af243e",
+      "status": "scanned",
+      "reportPath": "raw-reports/151-a93fe2a1f065.json"
+    },
+    {
+      "index": 152,
+      "repository": "MrS0m30n3/youtube-dl-gui",
+      "revision": "c5c18e55cb7e04fb6d6d8e64024a7dbac1f6b431",
+      "status": "scanned",
+      "reportPath": "raw-reports/152-9e1fe5dbb606.json"
+    },
+    {
+      "index": 153,
+      "repository": "bmaltais/kohya_ss",
+      "revision": "45088f04af78e11cec5407ff4652ea3ed2c14422",
+      "status": "scanned",
+      "reportPath": "raw-reports/153-6608b8ea4c5c.json"
+    },
+    {
+      "index": 154,
+      "repository": "lucidrains/denoising-diffusion-pytorch",
+      "revision": "d93647ad3cf97d786a064ef80429ee6c3e5ebd55",
+      "status": "scanned",
+      "reportPath": "raw-reports/154-5267b86ec12b.json"
+    },
+    {
+      "index": 155,
+      "repository": "coderamp-labs/gitingest",
+      "revision": "4e259a02fe72115bee538271622f1234a81c8e1a",
+      "status": "scanned",
+      "reportPath": "raw-reports/155-fcc2400a5401.json"
+    },
+    {
+      "index": 156,
+      "repository": "letta-ai/letta",
+      "revision": "b76da9092518cbaa2d09042e52fdcbde69243e18",
+      "status": "scanned",
+      "reportPath": "raw-reports/156-d5ee88327043.json"
+    },
+    {
+      "index": 157,
+      "repository": "instaloader/instaloader",
+      "revision": "ad03b392db9a965d1ece316ececab82b242cdad6",
+      "status": "scanned",
+      "reportPath": "raw-reports/157-b610c713f839.json"
+    },
+    {
+      "index": 158,
+      "repository": "OctoPrint/OctoPrint",
+      "revision": "6aa63dad10ae51ddd95885a2eeba76d2578c8406",
+      "status": "scanned",
+      "reportPath": "raw-reports/158-04a5e7e6b88a.json"
+    },
+    {
+      "index": 159,
+      "repository": "bojieli/ai-agent-book",
+      "revision": "c2ed3c18a6ee7539e83ccb25cf5beaecc28cb0ec",
+      "status": "scanned",
+      "reportPath": "raw-reports/159-6ca4c8460400.json"
+    },
+    {
+      "index": 160,
+      "repository": "QuivrHQ/quivr",
+      "revision": "947a785415c6c35ab2ae8157222b4720b0710b4d",
+      "status": "scanned",
+      "reportPath": "raw-reports/160-ced2c7bbbae8.json"
+    },
+    {
+      "index": 161,
+      "repository": "cool-RR/PySnooper",
+      "revision": "4be5c156ffc3315011c42ba521c4d8487052d289",
+      "status": "scanned",
+      "reportPath": "raw-reports/161-a077f3ae3afa.json"
+    },
+    {
+      "index": 162,
+      "repository": "mikf/gallery-dl",
+      "revision": "d93587c8e10b98b02af06c407c6be22d13e51f8d",
+      "status": "scanned",
+      "reportPath": "raw-reports/162-7e2afcee5b6c.json"
+    },
+    {
+      "index": 163,
+      "repository": "lucidrains/DALLE2-pytorch",
+      "revision": "680dfc4d93b70f9ab23c814a22ca18017a738ef6",
+      "status": "scanned",
+      "reportPath": "raw-reports/163-8b15dc7e5555.json"
+    },
+    {
+      "index": 164,
+      "repository": "microsoft/agent-framework",
+      "revision": "d0a0d5a3df680ee1d6ee59258cd95cfd2f7b426e",
+      "status": "scanned",
+      "reportPath": "raw-reports/164-74351f5daec6.json"
+    },
+    {
+      "index": 165,
+      "repository": "huggingface/lerobot",
+      "revision": "0d383d09f2051444de211739196a28cc94736861",
+      "status": "scanned",
+      "reportPath": "raw-reports/165-cfa30953116b.json"
+    },
+    {
+      "index": 166,
+      "repository": "sczhou/CodeFormer",
+      "revision": "b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b",
+      "status": "scanned",
+      "reportPath": "raw-reports/166-a1c2a547111e.json"
+    },
+    {
+      "index": 167,
+      "repository": "langchain-ai/local-deep-researcher",
+      "revision": "38f769f84380f2065de76021ac7c5215f88aa39e",
+      "status": "scanned",
+      "reportPath": "raw-reports/167-49709b0c581c.json"
+    },
+    {
+      "index": 168,
+      "repository": "luongnv89/claude-howto",
+      "revision": "97fc961a8cc68ade7e74f2dbd5c9dc5491ce55bb",
+      "status": "scanned",
+      "reportPath": "raw-reports/168-c6f449cd862a.json"
+    },
+    {
+      "index": 169,
+      "repository": "allenai/olmocr",
+      "revision": "f7cfe4c22098b154c76b6ec950d1c0a464eecf8d",
+      "status": "scanned",
+      "reportPath": "raw-reports/169-9cc5fce77680.json"
+    },
+    {
+      "index": 170,
+      "repository": "pytube/pytube",
+      "revision": "a32fff39058a6f7e5e59ecd06a7467b71197ce35",
+      "status": "scanned",
+      "reportPath": "raw-reports/170-1b73282652b2.json"
+    },
+    {
+      "index": 171,
+      "repository": "yizhiyanhua-ai/fireworks-tech-graph",
+      "revision": "50c819d68fd4fee330b3010988cd13e98b678d44",
+      "status": "scanned",
+      "reportPath": "raw-reports/171-b070024fe2af.json"
+    },
+    {
+      "index": 172,
+      "repository": "RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "revision": "4338f12c3c28c80b3ac015e2d0df66c41592746d",
+      "status": "scanned",
+      "reportPath": "raw-reports/172-ee18b6a44f85.json"
+    },
+    {
+      "index": 173,
+      "repository": "facefusion/facefusion",
+      "revision": "3f81a8a78454089d720b8f318a12ae1702c4633b",
+      "status": "scanned",
+      "reportPath": "raw-reports/173-de13fbc6c28a.json"
+    },
+    {
+      "index": 174,
+      "repository": "SWivid/F5-TTS",
+      "revision": "9c614e9657089213efc6a7421b30630be138a3f5",
+      "status": "scanned",
+      "reportPath": "raw-reports/174-7bafb753d1fd.json"
+    },
+    {
+      "index": 175,
+      "repository": "python/mypy",
+      "revision": "3d657d66915fe8b12bebb7ce12a44e5dc59d66f8",
+      "status": "scanned",
+      "reportPath": "raw-reports/175-73184692bb5d.json"
+    },
+    {
+      "index": 176,
+      "repository": "microsoft/pyright",
+      "revision": "93ea6468a40c7c8cdab5643f66411da5e0414742",
+      "status": "scanned",
+      "reportPath": "raw-reports/176-d18e54a5bbf1.json"
+    },
+    {
+      "index": 177,
+      "repository": "blacklanternsecurity/bbot",
+      "revision": "eabac72a46fa50897ef3f3dc5a19ad57f029c33f",
+      "status": "scanned",
+      "reportPath": "raw-reports/177-bb87f409c85d.json"
+    },
+    {
+      "index": 178,
+      "repository": "ultrafunkamsterdam/undetected-chromedriver",
+      "revision": "757ed6a22052f0674bb7c9f765ca884d15dcb780",
+      "status": "scanned",
+      "reportPath": "raw-reports/178-20066b2457af.json"
+    },
+    {
+      "index": 179,
+      "repository": "rclone/rclone",
+      "revision": "c99b2d11edb0986cd2b1190e9fa25a58a3f12661",
+      "status": "scanned",
+      "reportPath": "raw-reports/179-09a3a6ebcdaf.json"
+    },
+    {
+      "index": 180,
+      "repository": "glanceapp/glance",
+      "revision": "91324e8de762702e97b0ac5c8e36271d644d8642",
+      "status": "scanned",
+      "reportPath": "raw-reports/180-3e0923415648.json"
+    },
+    {
+      "index": 181,
+      "repository": "goharbor/harbor",
+      "revision": "89dbf8fbf7a60f2843f64ed7af11cf3d07be0bc8",
+      "status": "scanned",
+      "reportPath": "raw-reports/181-f2f8b2633bc2.json"
+    },
+    {
+      "index": 182,
+      "repository": "emilk/egui",
+      "revision": "e6eb00a31c7089d4458c55fcbe5f1253311a7176",
+      "status": "scanned",
+      "reportPath": "raw-reports/182-d87c42c06796.json"
+    },
+    {
+      "index": 183,
+      "repository": "spacedriveapp/spacedrive",
+      "revision": "60369e9f00b5abe07f4518626bf36f6a7453476f",
+      "status": "scanned",
+      "reportPath": "raw-reports/183-853617c037e5.json"
+    },
+    {
+      "index": 184,
+      "repository": "yewstack/yew",
+      "revision": "0e4a05472fac4e5fce1befe60fa4a1e43a36b6a3",
+      "status": "scanned",
+      "reportPath": "raw-reports/184-fdf692830a97.json"
+    },
+    {
+      "index": 185,
+      "repository": "baomidou/mybatis-plus",
+      "revision": "db0b3c4bb58a38bad9c3d78b7269d8a477cc6a63",
+      "status": "scanned",
+      "reportPath": "raw-reports/185-87bc1790bbe1.json"
+    },
+    {
+      "index": 186,
+      "repository": "busyloop/lolcat",
+      "revision": "f4cca5601ea57df2b5b3c98feea8ad05f4421039",
+      "status": "scanned",
+      "reportPath": "raw-reports/186-8a79972e5b08.json"
+    },
+    {
+      "index": 187,
+      "repository": "pterodactyl/panel",
+      "revision": "c39a7be8f55a4537a4eaa4a134be6a3b975b14ec",
+      "status": "scanned",
+      "reportPath": "raw-reports/187-dfbd01b3f216.json"
+    },
+    {
+      "index": 188,
+      "repository": "BCUninstaller/Bulk-Crap-Uninstaller",
+      "revision": "f39663316ad5d593c4d160b0445841ce7eb6a35f",
+      "status": "scanned",
+      "reportPath": "raw-reports/188-fa298db69fad.json"
+    },
+    {
+      "index": 189,
+      "repository": "duckdb/duckdb",
+      "revision": "5cd70f2c703e8d65b8559c0607d9eb711215c76a",
+      "status": "scanned",
+      "reportPath": "raw-reports/189-5bcd67b0e51c.json"
+    },
+    {
+      "index": 190,
+      "repository": "Quick/Quick",
+      "revision": "2b4547b230e94d84320724fd6df65e418b058be2",
+      "status": "scanned",
+      "reportPath": "raw-reports/190-0106826b5625.json"
+    },
+    {
+      "index": 191,
+      "repository": "javalin/javalin",
+      "revision": "6600d23a36eca699d57cca14110c3fb181222ed9",
+      "status": "scanned",
+      "reportPath": "raw-reports/191-a4602aefcca9.json"
+    },
+    {
+      "index": 192,
+      "repository": "simolus3/drift",
+      "revision": "461e8fa45b553f5dbc3fe0ffc6abfbd4facf8b17",
+      "status": "scanned",
+      "reportPath": "raw-reports/192-b0809d437138.json"
+    },
+    {
+      "index": 193,
+      "repository": "akira/exq",
+      "revision": "ffa446eb3992fa22dea2db3d4f7bd594f5326952",
+      "status": "scanned",
+      "reportPath": "raw-reports/193-ffc5c6b20229.json"
+    },
+    {
+      "index": 194,
+      "repository": "linkerd/linkerd",
+      "revision": "ea82499d386e44e8958be58e0386f593e639645b",
+      "status": "scanned",
+      "reportPath": "raw-reports/194-a605a4b34d55.json"
+    },
+    {
+      "index": 195,
+      "repository": "spaceship-prompt/spaceship-prompt",
+      "revision": "fd0d6653a134fe28f498eae1784fbb46d27f20f3",
+      "status": "scanned",
+      "reportPath": "raw-reports/195-670c60e25260.json"
+    },
+    {
+      "index": 196,
+      "repository": "robjhyndman/forecast",
+      "revision": "10d097e82da5e4b5d0360f745081c3588a8528cc",
+      "status": "scanned",
+      "reportPath": "raw-reports/196-b116c9ba9699.json"
+    },
+    {
+      "index": 197,
+      "repository": "ThePrimeagen/vim-be-good",
+      "revision": "0ae3de14eb8efc6effe7704b5e46495e91931cc5",
+      "status": "scanned",
+      "reportPath": "raw-reports/197-9ca4b13772b1.json"
+    },
+    {
+      "index": 198,
+      "repository": "JuliaPy/PyCall.jl",
+      "revision": "e5dfc313d701391d4965871c832a88fe27309ccd",
+      "status": "scanned",
+      "reportPath": "raw-reports/198-1ce06c7b4777.json"
+    },
+    {
+      "index": 199,
+      "repository": "ghcjs/ghcjs",
+      "revision": "b7711fbca7c3f43a61f1dba526e6f2a2656ef44c",
+      "status": "scanned",
+      "reportPath": "raw-reports/199-61d61e52d1a2.json"
+    },
+    {
+      "index": 200,
+      "repository": "terraform-aws-modules/terraform-aws-security-group",
+      "revision": "58d8e895915f5573767081142d063b7caf7a2b47",
+      "status": "scanned",
+      "reportPath": "raw-reports/200-02457baa27cb.json"
+    }
+  ],
+  "skipTotals": {
+    "unreadable": 0,
+    "tooLarge": 35,
+    "excludedByExtension": 47495,
+    "deniedPath": 1708,
+    "nonRegularFile": 137
+  }
+}

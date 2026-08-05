@@ -1,0 +1,3995 @@
+{
+  "schemaVersion": 2,
+  "benchmarkId": "cejel-free-core-untouched-v50-2026-07-24-wave-1",
+  "generatedAt": "2026-07-24T17:17:09.988Z",
+  "detectorRevision": "8eff810a44014d06e257faa06cc2286e8ce639ae",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "transportRecoveryPolicy": {
+    "policyId": "transient-network-v1",
+    "maximumAttempts": 3
+  },
+  "selectionSeed": "cejel-free-core-untouched-2026-07-24-v50-1fbd945e833c8e2019720c820cd851f8f5d4419be1dfa93b",
+  "selectionStrategy": "stratified-hash",
+  "waveSize": 200,
+  "waveCount": 1,
+  "selectedWave": 1,
+  "plannedRepositoryCount": 200,
+  "selectedRepositoryCount": 200,
+  "queryCount": 34,
+  "candidateUniverseCount": 7831,
+  "eligibleCandidateUniverseCount": 4482,
+  "selectionEligibility": {
+    "revisionRequired": true,
+    "excludedIdentityRejected": true,
+    "repositorySizeKb": {
+      "operator": "less-than",
+      "limit": 500000,
+      "unknownSizeDisposition": "ineligible"
+    }
+  },
+  "exclusions": {
+    "normalizedIdentityCount": 4553,
+    "explicit": [
+      "BargLabs/alfred",
+      "BargLabs/cejel",
+      "BargLabs/egbert",
+      "houman44/edwin",
+      "brokermr810/QuantDinger",
+      "aws-samples/aws-mainframe-modernization-carddemo"
+    ],
+    "sources": [
+      "docs/leaderboard/corpus.json",
+      "docs/commercial/quant-20-repo-calibration-2026-07-17/cohort.md",
+      "docs/commercial/quant-100-repo-holdout-2026-07-17/preregistration.md",
+      "docs/commercial/quant-100-repo-holdout-2026-07-17/preregistration-waves-2-3.md",
+      "docs/calibration/invalidated-v17-exposed-repositories-2026-07-18.json",
+      "docs/calibration/invalidated-v20-exposed-repositories-2026-07-19.json",
+      "docs/calibration/invalidated-v21-exposed-repositories-2026-07-19.json",
+      "docs/calibration/invalidated-v22-free-exposed-repositories-2026-07-19.json",
+      "docs/calibration/invalidated-v23-free-exposed-repositories-2026-07-19.json",
+      "docs/calibration/invalidated-v24-free-exposed-repositories-2026-07-20.json",
+      "docs/calibration/free-core-untouched-holdout-v26-2026-07-21/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v26-2026-07-21/wave-1/sealed/scoring-failure.md",
+      "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/wave-1/terminal-no-go.md",
+      "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/manifest-wave-1.json",
+      "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/wave-1/terminal-go.md"
+    ],
+    "orderSources": [
+      {
+        "manifestPath": "docs/commercial/quant-untouched-holdout-2026-07-18/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "25315ef542393779932fbdb13de5baaa1435501dc2cbeed8e064ce656eb05d8c",
+        "expectedSelectionSeed": "cejel-quant-untouched-2026-07-18-v22",
+        "expectedDetectorRevision": "5aafe46e19a5f1d030c1fc1bf36073bc149c6c02"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-2026-07-18/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "34f522d1bcea14c2ff420628c1c6d972ce3eb7b464b4c9d5ce205f1abc95a536",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-18-v25",
+        "expectedDetectorRevision": "66ad93777eb7514bd8b21ad02d8b2121ce42961e"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v26-2026-07-21/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "05761c2580356d15126002c4ca0d4eb7dcc8b45031412021efb0d4be655984e6",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-21-v26",
+        "expectedDetectorRevision": "b608b99223366a336373352587ee5b124fe7867c"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v27-2026-07-22/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "c4089418005f0fb0e9525c866a12ca4d983684ff1c898ff9e08826415050fa2f",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-22-v27",
+        "expectedDetectorRevision": "fecc4d313b69e178ce5e092675f448946666ee45"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v30-2026-07-22/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "03ab74b19dac78a3df4a8be3b4c44c6ed361e1facc3c3242662ace95c335d241",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-22-v30",
+        "expectedDetectorRevision": "fecc4d313b69e178ce5e092675f448946666ee45"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v32-2026-07-22/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "c0e1b03e9a249947ec1cdb8712b490af1b3d9ab2946f494542767353b0a81659",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-22-v32",
+        "expectedDetectorRevision": "246b7b6e1c0a7a855439af3df3e5871158a4f6a0"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v33-2026-07-22/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "ea75e2ac644ff7878492e6d3eaaaa97384edb8f3aeb5f794df8398c512832c4e",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-22-v33",
+        "expectedDetectorRevision": "91d4c5be477368a41162ab28ef62fede65e83c92"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v35-2026-07-22/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "b8542743e5b6bc92dff521d5211f696df5227aecedc10433008a5215c9da7d73",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-22-v35",
+        "expectedDetectorRevision": "ad7e7553cefa50a3febd60a7055cb392b1cec83a"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "d0d0af6ad595dacf7f511dddd208bbffa1a9dfd93054b76ceb747c703487b5a6",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v38",
+        "expectedDetectorRevision": "2a254b28674079ac931e1e2ceab5d9f8cbdd5ab2"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "4a0e0d0d18f7cc55e589f529ee88e822347dbfe7d469937c8deb92564092fd87",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v39",
+        "expectedDetectorRevision": "6200109c191e44c6397d206fe3d658c88feee012"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "6e8bae2aaa4f53d2700d776757bec1d4e0556554b0cb773fdb3579d8c45c0d72",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v40",
+        "expectedDetectorRevision": "f65af1ce2786788fd0f530a810ae79a75a71e643"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "5c1ae0d8fa56a48be5b6326a04c4849d70f3bf3996cd5e24b70d2b5fbfc41211",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v42",
+        "expectedDetectorRevision": "6e07a6b7b2bfb6b1ee4c5c86feaaaf1455ac4dc8"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "ff2212198db8f3d02996baa34646afe95c7831157f8e2341bb2570c5029edb3e",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v44",
+        "expectedDetectorRevision": "20329e623b739fcb5c694b9bf87edfe6bb070262"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "01f2be44311051e888db0459ad51746987bd6b3721ac26da3f90a3aef49461a7",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v45",
+        "expectedDetectorRevision": "862a46c9685f8b83a4d0744f7251f738c783b808"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "4dbf6b9900b849984b70f722f04ad26952489c5bc2e2b7c732b89445701a8b4e",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-23-v46",
+        "expectedDetectorRevision": "0c44beae26407a17a21fc2f978c5777f72d6ab03"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "508e49bef6c2aa234ed2569dfce38d13653b5fa7fde0b2bf0810cf78f5cc449d",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-24-v47-39c65932be5e35f50f676e9c043b836f7898cb0deea9dfcf",
+        "expectedDetectorRevision": "c52aa100f7e3f7b5086c19a7d948a2a2fe1fba37"
+      },
+      {
+        "manifestPath": "docs/calibration/free-core-untouched-holdout-v49-2026-07-24/manifest-wave-1.json",
+        "hashesPath": "hashes.json",
+        "expectedHashesSha256": "1b1c9a2942f97457c394115012d5652b22f1a397441f06e80258384b7c50e171",
+        "expectedSelectionSeed": "cejel-free-core-untouched-2026-07-24-v49-ef33aa63e0c70f91cadfad4388e6d476a075f8add56119a3",
+        "expectedDetectorRevision": "4df15392110fb8298354c5c6bb67f61d17c4defe"
+      }
+    ]
+  },
+  "framePolicy": "Before any GitHub query, require every stratum search to declare an explicit size:<N upper bound no greater than 500000 KiB. For each stratum query, take GitHub's first min(repositoryCount, pages*perPage) results in stars-desc order at the order-freeze cutoff; record repositoryCount, retrievedCount, the cap, truncation, and the last retrieved repository. Reject unknown-size and >=500000 KiB rows locally before first-match assignment and hash ranking. Apply each search's declared primaryLanguageEligibility predicate before first-match assignment. Assign every remaining exact repository identity to its first matching stratum before hash ranking. This is a single terminal 200-repository wave: no later-wave membership exists.",
+  "invalidationEvidence": [
+    {
+      "path": "docs/leaderboard/corpus.json",
+      "sha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00"
+    },
+    {
+      "path": "docs/commercial/quant-20-repo-calibration-2026-07-17/cohort.md",
+      "sha256": "2bac04e6feb7ff79712c024c8dd0754bebd84108a53be7bd5af62432a10a2fba"
+    },
+    {
+      "path": "docs/commercial/quant-100-repo-holdout-2026-07-17/preregistration.md",
+      "sha256": "cdc7033ca32ecf8e316aa07a74caec59038569d750134bda2a488eabcc66a6d3"
+    },
+    {
+      "path": "docs/commercial/quant-100-repo-holdout-2026-07-17/preregistration-waves-2-3.md",
+      "sha256": "451ee450f92e31e3dbcfa336886d8358903de1357ce763b230122d65dc50e387"
+    },
+    {
+      "path": "docs/calibration/invalidated-v17-exposed-repositories-2026-07-18.json",
+      "sha256": "c39c642e8cd52ceb8b8e1acdb01b0cbf4d4764a18a76713419b85e10f420faf9"
+    },
+    {
+      "path": "docs/calibration/invalidated-v20-exposed-repositories-2026-07-19.json",
+      "sha256": "175a93b5869e862bf3960351b8e5035105e56a2b3ffa8fb5750217d3cec3d554"
+    },
+    {
+      "path": "docs/calibration/invalidated-v21-exposed-repositories-2026-07-19.json",
+      "sha256": "3ef5ba9edc5183abf7c93b3de8bffefa81fdbad9f3891c40190e9a165dcee04e"
+    },
+    {
+      "path": "docs/calibration/invalidated-v22-free-exposed-repositories-2026-07-19.json",
+      "sha256": "a51ac981d803d8810e151afb20227e7317601cefea8049ede2e18d77d1857408"
+    },
+    {
+      "path": "docs/calibration/untouched-v23-wave-1-scan-run-2026-07-19.md",
+      "sha256": "a26f7c6b2ebaf28adc93ce4669c6739a9fc9209b7116d6fd459251d3fa1a4078"
+    },
+    {
+      "path": "docs/calibration/invalidated-v23-free-exposed-repositories-2026-07-19.json",
+      "sha256": "9d3b06b358e50bf49de43c9cf9cf96211e1cc986512a10d84ab73e578124f1f3"
+    },
+    {
+      "path": "docs/calibration/untouched-v24-wave-1-scan-run-2026-07-20.md",
+      "sha256": "6e995d2ecac702bf5e46fa08ca7b04375d60aadb7e72167400722d009e946a29"
+    },
+    {
+      "path": "docs/calibration/invalidated-v24-free-exposed-repositories-2026-07-20.json",
+      "sha256": "e62d055b6a56aad4d9f3d7f3ebfad04f4f7b0e3561289978ed81aed01b82be8c"
+    },
+    {
+      "path": "docs/calibration/free-core-v25-wave-1-score-2026-07-21.md",
+      "sha256": "fb7dc3d884fc51c4138f4264ea18f63078c37dc0ee0d474bf62c7b5d164c40c2"
+    },
+    {
+      "path": "docs/calibration/untouched-v25-wave-2-scan-run-2026-07-21.md",
+      "sha256": "525b1b24293381dcde25bf483267a34d17b31ef61061ebc23622c372fd669e15"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v26-2026-07-21/hashes.json",
+      "sha256": "05761c2580356d15126002c4ca0d4eb7dcc8b45031412021efb0d4be655984e6"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v26-2026-07-21/wave-1/sealed/scoring-failure.md",
+      "sha256": "b4a8b2a97f359e472f4ef1655376315a55c391aa6c13b2f0b8a682f257bc2adb"
+    },
+    {
+      "path": "docs/calibration/free-core-v27-training-analysis-2026-07-21.md",
+      "sha256": "afc14443c855dc15fef892e41a6f281494f5c500b0f983fca5425b764f34b44c"
+    },
+    {
+      "path": "docs/calibration/free-core-v27-detector-remediation-2026-07-21.md",
+      "sha256": "935c147d6b93ec33158357013082f16d0eb0a44cd6cccf8f7e71e11422530a0f"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v27-2026-07-22/hashes.json",
+      "sha256": "c4089418005f0fb0e9525c866a12ca4d983684ff1c898ff9e08826415050fa2f"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v27-2026-07-22/wave-1/terminal-no-go.md",
+      "sha256": "0de53ff8473691780b5b0d9dadfb600443244501758c2c258fdb061dd2fccf4c"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v28-2026-07-22/terminal-no-go.md",
+      "sha256": "c579180536c4ab150c2f2d57e241762a57764be32b5303a2ced8e68010471341"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v29-2026-07-22/terminal-no-go.md",
+      "sha256": "e08d4d95fe70122761fac33696f30df873a069794417ce63429c2772f564f5d4"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v30-2026-07-22/wave-1/terminal-no-go.md",
+      "sha256": "a4fee0c5b583c5c2fcd0f67253dd5852a890d41bdbcbd79499e2f313a2248c38"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v31-2026-07-22/terminal-no-go.md",
+      "sha256": "381f75d2d9f7887fdff9219affd5d6e2f3ffc0e7e5e77b288d768c9233e6f3d9"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v32-2026-07-22/hashes.json",
+      "sha256": "c0e1b03e9a249947ec1cdb8712b490af1b3d9ab2946f494542767353b0a81659"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v32-2026-07-22/wave-1/sealed/results-v2.json",
+      "sha256": "6056135bcd5e7d345907edd1bfb82071a7aef43e14edbaa7cd0e20e2c17750ad"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v33-2026-07-22/hashes.json",
+      "sha256": "ea75e2ac644ff7878492e6d3eaaaa97384edb8f3aeb5f794df8398c512832c4e"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v33-2026-07-22/wave-1/packet-identity-audit.json",
+      "sha256": "d38cbc9b583563329ca00ab150ebeaf3669a1af5a351ef73b4cee1f88415e71e"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v33-2026-07-22/wave-1/terminal-no-go.md",
+      "sha256": "662516a388c46d8334bd414d55fb8532aee1b037280f10ba669fa23cceef1e59"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v34-2026-07-22/terminal-no-go.md",
+      "sha256": "907f81ee1722e0f6d67bcf5444a3e29e999d98d8fcfdbdf795518b5ad0d965b0"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v35-2026-07-22/hashes.json",
+      "sha256": "b8542743e5b6bc92dff521d5211f696df5227aecedc10433008a5215c9da7d73"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v35-2026-07-22/wave-1/sealed/results-v2.json",
+      "sha256": "a4d00a4fc957c00f943556c28905bc3a596902afaaf445fe24f2475579fc1936"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v35-2026-07-22/wave-1/terminal-no-go.md",
+      "sha256": "b25625e3938ab070a12028950eef87f4a7bedfce667201d182276c26a1dc379a"
+    },
+    {
+      "path": "docs/calibration/free-core-v36-remediation-spec-2026-07-23.md",
+      "sha256": "6fd4f750b893a590dc9d088befa4504361e6375fa0b8fe1ee1b8e3459f7640c1"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v36-2026-07-23/terminal-no-go.md",
+      "sha256": "629a5a65534151949446b3a6355b68c446cb2c68857170c9148895d267858ce2"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v37-2026-07-23/terminal-no-go.md",
+      "sha256": "19dc9a9b5091fab893882f2e8a54586a71819e133e955e01d2d56cfdb7ebce50"
+    },
+    {
+      "path": "docs/calibration/free-core-v39-remediation-2026-07-23.md",
+      "sha256": "f7ada229a45fbc76c99537490ee61a6b4b2683037102c88b6837c67f68eab6af"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/hashes.json",
+      "sha256": "d0d0af6ad595dacf7f511dddd208bbffa1a9dfd93054b76ceb747c703487b5a6"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/manifest-wave-1.json",
+      "sha256": "837145d3671c0edcb045915ea5e7a0ab0fe02ada5708b9eb74335f4f690f43ea"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/wave-1/sealed/results-v2.json",
+      "sha256": "7322ac366b1bc5e439cf2e84c23265a424305827f6dc09ec97489beacd602ec0"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v38-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "a20f0f4e989ecd906e485f5e70e9ee76ecadad720c7896ba088ba72afa375e15"
+    },
+    {
+      "path": "docs/calibration/free-core-v41-remediation-2026-07-23.md",
+      "sha256": "077dd6cae4445062b2716456d1279a17037fb329e8561c61c29f37f513bdd8bb"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/hashes.json",
+      "sha256": "4a0e0d0d18f7cc55e589f529ee88e822347dbfe7d469937c8deb92564092fd87"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/manifest-wave-1.json",
+      "sha256": "6bb15e6ad6e30a8a96e82afda67c8f19d905f472b94b731b5901ee121027a157"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/wave-1/clone-log.json",
+      "sha256": "1fca2c60bad2d38f975901dae26fdbb6d47f7ce6b140134b3c71ac7c0e82cda2"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/wave-1/scan-results.json",
+      "sha256": "d00b26b78bdeef30b5af7ab488ada7d2ac465132f7f459edad912ec9d2ba1a89"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v39-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "333f5de29ae1d9a2dadee1276461d2fa2956c1f89f4cd989aaaa4857581cd387"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/hashes.json",
+      "sha256": "6e8bae2aaa4f53d2700d776757bec1d4e0556554b0cb773fdb3579d8c45c0d72"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/manifest-wave-1.json",
+      "sha256": "d8981a7bf4154405c9e46738d0f31c4d4ce4d619a95ec11f0ed31a9dd8670359"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/wave-1/sealed/results-v2.json",
+      "sha256": "fd23fad949bbfcff6c3fa17238a4ee553dd847aac4723a2ec81b1826ec53f5e2"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v40-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "5063be6e5770b122107d34230bd8c8a5d2f91e246504195bf423eb1b1a5492ee"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v41-2026-07-23/preregistration.md",
+      "sha256": "b0a8d910fa5d943b0f0648a48b217eb7c04c5286fb4a1e52dc951e9dbf2bcf34"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v41-2026-07-23/selection-spec.json",
+      "sha256": "52ce756eaa33a1e25ff7e1913514782e3d7e1bc5fda0a05e84c62640d0cc3659"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v41-2026-07-23/control-anchors.json",
+      "sha256": "1c6e5aa435ae96c5cfacaf016fc93cf2efe38d573d51d2c23e2f33a05140c6f2"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v41-2026-07-23/terminal-no-go.md",
+      "sha256": "a531b9b2f09bb275c3ee0ea5ae78adc6b5ec8990e1e482ba4f3ba30b8ad349ec"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/hashes.json",
+      "sha256": "5c1ae0d8fa56a48be5b6326a04c4849d70f3bf3996cd5e24b70d2b5fbfc41211"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/manifest-wave-1.json",
+      "sha256": "7e2169d9c267285c0cb304e147eb7740e35468be3b8a6f0811e2d1ab029d3f78"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/wave-1/sealed/results-v2.json",
+      "sha256": "c8c3e5201e1ec49b2206c92fabe0830bd46d4b907b6332c4dc3d8efa79cddfc6"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v42-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "2730d54f4cc0f00b832c5b83eb7118a89adea591fa0851cac86e950a13e1fa60"
+    },
+    {
+      "path": "docs/calibration/free-core-v43-representativeness-remediation-2026-07-23.md",
+      "sha256": "04fef03c1bfde29c000f39a3dba439ae420f0bb336b07a79da4f72850fbe6c1c"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v43-2026-07-23/preregistration.md",
+      "sha256": "ac01d24cdd7496778e05eb34ee5d82c5f44cae23f842be3576c9484471241191"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v43-2026-07-23/selection-spec.json",
+      "sha256": "5a135bbe872d1994ce446b4ba100309de2250e46deb2d3205dc8b1b863d2d6a0"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v43-2026-07-23/control-anchors.json",
+      "sha256": "64aae797d2fe5dcb31b174c99f659702054390104477b66ecaeb6f5fc456e052"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v43-2026-07-23/terminal-no-go.md",
+      "sha256": "6690ea7a40364fd2f3e91f4f1f8520a0d8d03bd44b2cc5120da4b544d904d6d8"
+    },
+    {
+      "path": "docs/calibration/free-core-v45-semantic-representation-remediation-2026-07-23.md",
+      "sha256": "dfe9205e3977807879d70cda3b41fb7ff9c4532759c2554461466b19bf400e22"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/hashes.json",
+      "sha256": "ff2212198db8f3d02996baa34646afe95c7831157f8e2341bb2570c5029edb3e"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/manifest-wave-1.json",
+      "sha256": "1f0f39781789a521ff6398a3c427ccd7be2bbd89a9ab24137008282c96812b99"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/wave-1/sealed/results-v2.json",
+      "sha256": "c2a18b6264f5e646dafb059f93b4c781156045401394ae87281dc31781124dfe"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v44-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "f0b6069c5cb69a8f545e561e6e314389e3d258a01b5df74e25ebcc5f050fd945"
+    },
+    {
+      "path": "docs/calibration/free-core-v46-transport-recovery-red-2026-07-23.md",
+      "sha256": "f3b5ea31f612fd767144be0485811ca2f735fac6877f43f5e19fa5219aaac149"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/hashes.json",
+      "sha256": "01f2be44311051e888db0459ad51746987bd6b3721ac26da3f90a3aef49461a7"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/manifest-wave-1.json",
+      "sha256": "6e66a17ecccee1f1bd68d21508cc9153cc6303be17b9a6a6a98d3efb0b584026"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/freeze-record.md",
+      "sha256": "9bb686569db6129974461a585cbb85357555d3707f29c826ae82c5ba89ea663d"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v45-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "a1dfb38b82918bea8f5976ac7541881fadb758c84d4f75b1c69402a7e45e5f87"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/hashes.json",
+      "sha256": "4dbf6b9900b849984b70f722f04ad26952489c5bc2e2b7c732b89445701a8b4e"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/manifest-wave-1.json",
+      "sha256": "17c729a447f28356e94788f2c9c30d98969fbc92d3556049703d7720c502f757"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/wave-1/sealed/results-v2.json",
+      "sha256": "03d4d8c4c01674a5ffcd2623d726066e64cef62a078742fd9765793bd1613d79"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v46-2026-07-23/wave-1/terminal-no-go.md",
+      "sha256": "c30338367b032ff73f755d74bf02adf743686b2f169db3a19f79f96cea34dcee"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/hashes.json",
+      "sha256": "508e49bef6c2aa234ed2569dfce38d13653b5fa7fde0b2bf0810cf78f5cc449d"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/manifest-wave-1.json",
+      "sha256": "967046e945ac94d6f415f4c575977bb37d271f322ec39ccfc79db16080c66160"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/wave-1/sealed/results-v2.json",
+      "sha256": "cc4e03f910acf095c7ce0f3b85afbed5da47c4b8140434526eed5798d21556e2"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v47-2026-07-24/wave-1/terminal-go.md",
+      "sha256": "85b058354dc6b80a15d08d9746abcd83f7b746bd306233a6c53094c65cd62be4"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v48-2026-07-24/preregistration.md",
+      "sha256": "10d134ed405813e8697de4db6d52933256d17cff38b368ad02d6365bf7eb4027"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v48-2026-07-24/selection-spec.json",
+      "sha256": "3e823287b68af7c087b65b433fd4ad1dc6507e011647c2c39f5c19f58e795834"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v48-2026-07-24/control-anchors.json",
+      "sha256": "c720603074a676b59e3aa347440016e4df27fa8bb57855945e75d56d8887d4e6"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v48-2026-07-24/terminal-no-go.md",
+      "sha256": "488194b7125049fc66c618bad461f2e4f325d76f636efd1d86bf7c5e612a1b65"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v49-2026-07-24/hashes.json",
+      "sha256": "1b1c9a2942f97457c394115012d5652b22f1a397441f06e80258384b7c50e171"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v49-2026-07-24/manifest-wave-1.json",
+      "sha256": "ce87bf79d38cea18bf40a762c5c0776f1bd99645dd834c3aff710cbfb421d711"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v49-2026-07-24/wave-1/sealed/results-v2.json",
+      "sha256": "d6000c165b30b7ccb54846b1564f4a5afcd70a200a8b9c596b8180941d639130"
+    },
+    {
+      "path": "docs/calibration/free-core-untouched-holdout-v49-2026-07-24/wave-1/terminal-no-go.md",
+      "sha256": "1dcbdb08abf12035ceb7a05a3a7098529dbcd2437ed9326fd3cafa244bec401f"
+    },
+    {
+      "path": "docs/calibration/free-core-v50-abstention-remediation-2026-07-24.md",
+      "sha256": "bac0830ecfd23addafaf7d43c6080988baf18dc8b7615c1785561caa9d9280bc"
+    }
+  ],
+  "searchResults": [
+    {
+      "id": "stress-no-primary-language",
+      "repositoryCount": 5396,
+      "retrievedCount": 1000,
+      "maximumResults": 1000,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "ZhiningLiu1998/awesome-machine-learning-resources",
+        "stars": 818
+      }
+    },
+    {
+      "id": "stress-recognized-fortran",
+      "repositoryCount": 1191,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "horses-framework/horses3d",
+        "stars": 163
+      }
+    },
+    {
+      "id": "stress-unmodelled-cuda",
+      "repositoryCount": 1049,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "carlinds/splatad",
+        "stars": 407
+      }
+    },
+    {
+      "id": "stress-unmodelled-html",
+      "repositoryCount": 18958,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "qiye45/wechatDownload",
+        "stars": 8626
+      }
+    },
+    {
+      "id": "stress-unmodelled-css",
+      "repositoryCount": 7443,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "vicky002/AlgoWiki",
+        "stars": 4228
+      }
+    },
+    {
+      "id": "stress-recognized-matlab",
+      "repositoryCount": 7756,
+      "retrievedCount": 1000,
+      "maximumResults": 1000,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "lucasanguinetti/Deep-Learning-Power-Allocation-in-Massive-MIMO",
+        "stars": 99
+      }
+    },
+    {
+      "id": "stress-recognized-cobol",
+      "repositoryCount": 196,
+      "retrievedCount": 196,
+      "maximumResults": 200,
+      "truncated": false,
+      "lastRetrieved": {
+        "fullName": "Rafaelmdcarneiro/cobol-examples",
+        "stars": 5
+      }
+    },
+    {
+      "id": "stress-notebook",
+      "repositoryCount": 4257,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "spark-notebook/spark-notebook",
+        "stars": 3142
+      }
+    },
+    {
+      "id": "stress-monorepo",
+      "repositoryCount": 659,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "Quramy/npm-ts-workspaces-example",
+        "stars": 332
+      }
+    },
+    {
+      "id": "stress-documentation",
+      "repositoryCount": 2222,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "adr/madr",
+        "stars": 2345
+      }
+    },
+    {
+      "id": "stress-binary-distribution",
+      "repositoryCount": 55,
+      "retrievedCount": 55,
+      "maximumResults": 100,
+      "truncated": false,
+      "lastRetrieved": {
+        "fullName": "stackotter/dawn-builds",
+        "stars": 5
+      }
+    },
+    {
+      "id": "stress-generated-code",
+      "repositoryCount": 586,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "noahsark769/NGSystemColorComparison",
+        "stars": 63
+      }
+    },
+    {
+      "id": "stress-sparse",
+      "repositoryCount": 528721,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "NetworkCats/Merged-IP-Data",
+        "stars": 100
+      }
+    },
+    {
+      "id": "deep-typescript",
+      "repositoryCount": 31700,
+      "retrievedCount": 1000,
+      "maximumResults": 1000,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "webclipper/web-clipper",
+        "stars": 6816
+      }
+    },
+    {
+      "id": "deep-javascript",
+      "repositoryCount": 48666,
+      "retrievedCount": 1000,
+      "maximumResults": 1000,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "bookshelf/bookshelf",
+        "stars": 6353
+      }
+    },
+    {
+      "id": "deep-python",
+      "repositoryCount": 84766,
+      "retrievedCount": 1000,
+      "maximumResults": 1000,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "bentoml/BentoML",
+        "stars": 8734
+      }
+    },
+    {
+      "id": "partial-go",
+      "repositoryCount": 18839,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "yeasy/docker_practice",
+        "stars": 26171
+      }
+    },
+    {
+      "id": "partial-rust",
+      "repositoryCount": 12057,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "RustPython/RustPython",
+        "stars": 22218
+      }
+    },
+    {
+      "id": "partial-java",
+      "repositoryCount": 23472,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "heibaiying/BigData-Notes",
+        "stars": 16930
+      }
+    },
+    {
+      "id": "partial-ruby",
+      "repositoryCount": 6563,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "square/maximum-awesome",
+        "stars": 5702
+      }
+    },
+    {
+      "id": "partial-php",
+      "repositoryCount": 10393,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "solidtime-io/solidtime",
+        "stars": 8815
+      }
+    },
+    {
+      "id": "partial-csharp",
+      "repositoryCount": 13400,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "SignalR/SignalR",
+        "stars": 9396
+      }
+    },
+    {
+      "id": "partial-cpp",
+      "repositoryCount": 22741,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "NixOS/nix",
+        "stars": 17388
+      }
+    },
+    {
+      "id": "partial-swift",
+      "repositoryCount": 7459,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "kishikawakatsumi/KeychainAccess",
+        "stars": 8252
+      }
+    },
+    {
+      "id": "partial-kotlin",
+      "repositoryCount": 5922,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "SukiSU-Ultra/SukiSU-Ultra",
+        "stars": 5945
+      }
+    },
+    {
+      "id": "partial-dart",
+      "repositoryCount": 3429,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "serverpod/serverpod",
+        "stars": 3231
+      }
+    },
+    {
+      "id": "partial-elixir",
+      "repositoryCount": 1086,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "technomancy-dev/00",
+        "stars": 1244
+      }
+    },
+    {
+      "id": "partial-scala",
+      "repositoryCount": 1467,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "guardian/grid",
+        "stars": 1458
+      }
+    },
+    {
+      "id": "stress-unmodelled-shell",
+      "repositoryCount": 19115,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "super-linter/super-linter",
+        "stars": 10531
+      }
+    },
+    {
+      "id": "stress-unmodelled-r",
+      "repositoryCount": 3744,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "workflowr/workflowr",
+        "stars": 903
+      }
+    },
+    {
+      "id": "stress-unmodelled-lua",
+      "repositoryCount": 5335,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "gaboolic/rime-frost",
+        "stars": 3485
+      }
+    },
+    {
+      "id": "stress-unmodelled-julia",
+      "repositoryCount": 1616,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "JuliaGraphs/Graphs.jl",
+        "stars": 537
+      }
+    },
+    {
+      "id": "stress-unmodelled-haskell",
+      "repositoryCount": 1888,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "AccelerateHS/accelerate",
+        "stars": 1015
+      }
+    },
+    {
+      "id": "stress-unmodelled-terraform",
+      "repositoryCount": 1098,
+      "retrievedCount": 100,
+      "maximumResults": 100,
+      "truncated": true,
+      "lastRetrieved": {
+        "fullName": "sethvargo/vault-on-gke",
+        "stars": 496
+      }
+    }
+  ],
+  "searches": [
+    {
+      "id": "stress-no-primary-language",
+      "query": "topic:awesome-list stars:>=10 size:<500000 fork:false archived:false sort:stars-desc",
+      "primaryLanguageEligibility": "none",
+      "allocation": 40,
+      "pages": 10,
+      "perPage": 100
+    },
+    {
+      "id": "stress-recognized-fortran",
+      "query": "language:Fortran stars:>=20 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 2,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-cuda",
+      "query": "language:CUDA stars:>=20 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-html",
+      "query": "language:HTML stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-css",
+      "query": "language:CSS stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-recognized-matlab",
+      "query": "language:MATLAB stars:>=20 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 3,
+      "pages": 10,
+      "perPage": 100
+    },
+    {
+      "id": "stress-recognized-cobol",
+      "query": "language:COBOL stars:>=5 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 0,
+      "pages": 2,
+      "perPage": 100
+    },
+    {
+      "id": "stress-notebook",
+      "query": "language:Jupyter Notebook stars:>=20 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 0,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-monorepo",
+      "query": "topic:monorepo stars:>=20 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-documentation",
+      "query": "topic:documentation stars:>=20 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-binary-distribution",
+      "query": "\"prebuilt binaries\" in:description stars:>=5 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 0,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-generated-code",
+      "query": "\"generated code\" in:description stars:>=5 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 3,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-sparse",
+      "query": "stars:10..100 size:<100 fork:false archived:false sort:stars-desc",
+      "allocation": 2,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "deep-typescript",
+      "query": "language:TypeScript stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 45,
+      "pages": 10,
+      "perPage": 100
+    },
+    {
+      "id": "deep-javascript",
+      "query": "language:JavaScript stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 39,
+      "pages": 10,
+      "perPage": 100
+    },
+    {
+      "id": "deep-python",
+      "query": "language:Python stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 39,
+      "pages": 10,
+      "perPage": 100
+    },
+    {
+      "id": "partial-go",
+      "query": "language:Go stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 3,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-rust",
+      "query": "language:Rust stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 3,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-java",
+      "query": "language:Java stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-ruby",
+      "query": "language:Ruby stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-php",
+      "query": "language:PHP stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-csharp",
+      "query": "language:C# stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-cpp",
+      "query": "language:C++ stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-swift",
+      "query": "language:Swift stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-kotlin",
+      "query": "language:Kotlin stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-dart",
+      "query": "language:Dart stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-elixir",
+      "query": "language:Elixir stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "partial-scala",
+      "query": "language:Scala stars:>=100 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-shell",
+      "query": "language:Shell stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-r",
+      "query": "language:R stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-lua",
+      "query": "language:Lua stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-julia",
+      "query": "language:Julia stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-haskell",
+      "query": "language:Haskell stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    },
+    {
+      "id": "stress-unmodelled-terraform",
+      "query": "language:HCL stars:>=50 size:<500000 fork:false archived:false sort:stars-desc",
+      "allocation": 1,
+      "pages": 1,
+      "perPage": 100
+    }
+  ],
+  "safetyEnvelope": {
+    "githubMetadataOnly": true,
+    "repositorySourceRead": false,
+    "repositoryCodeExecuted": false,
+    "strategyConfigured": false,
+    "modelTrainedOrPromoted": false
+  },
+  "selected": [
+    {
+      "overallIndex": 1,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "stax76/awesome-mpv",
+      "url": "https://github.com/stax76/awesome-mpv",
+      "stars": 2203,
+      "sizeKb": 423,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "53c6c186f55b380924ce4fc9f6035a12267f00c0",
+      "revisionCommittedAt": "2026-02-04T06:50:20Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 2,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "yissachar/awesome-dart",
+      "url": "https://github.com/yissachar/awesome-dart",
+      "stars": 2488,
+      "sizeKb": 184,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "116107d93b8bd5afe467728ee1f59f0b79e94d87",
+      "revisionCommittedAt": "2026-05-24T14:37:45Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 3,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "jbranchaud/awesome-react-design-systems",
+      "url": "https://github.com/jbranchaud/awesome-react-design-systems",
+      "stars": 929,
+      "sizeKb": 18,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "23041e1e5b697ead69dc4127509ea02fb5378e99",
+      "revisionCommittedAt": "2018-10-29T02:17:18Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 4,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "mezod/awesome-indie",
+      "url": "https://github.com/mezod/awesome-indie",
+      "stars": 11626,
+      "sizeKb": 135,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "de8dab3f6668fab08a169d8904e3fca447c56f1d",
+      "revisionCommittedAt": "2024-06-12T21:23:53Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 5,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "klaufel/awesome-design-systems",
+      "url": "https://github.com/klaufel/awesome-design-systems",
+      "stars": 875,
+      "sizeKb": 165,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "b3430a94d33f0189fa6e770709a79ab1fa73210b",
+      "revisionCommittedAt": "2026-07-06T11:56:12Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 6,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "leomaurodesenv/game-datasets",
+      "url": "https://github.com/leomaurodesenv/game-datasets",
+      "stars": 1095,
+      "sizeKb": 8974,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "bada0406219b624c1427ed5f2459366939534318",
+      "revisionCommittedAt": "2026-06-09T00:26:12Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 7,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "liuchong/awesome-roadmaps",
+      "url": "https://github.com/liuchong/awesome-roadmaps",
+      "stars": 7171,
+      "sizeKb": 98,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "eef56f927116c468f4276cd3c89026d61a33d64f",
+      "revisionCommittedAt": "2026-07-19T16:54:10Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 8,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "linsa-io/books",
+      "url": "https://github.com/linsa-io/books",
+      "stars": 7529,
+      "sizeKb": 509,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "d08c699579b113ee6e9b6d8773d96ca6093fb530",
+      "revisionCommittedAt": "2026-03-04T15:38:20Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 9,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "zemmsoares/awesome-rices",
+      "url": "https://github.com/zemmsoares/awesome-rices",
+      "stars": 1333,
+      "sizeKb": 189,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "8e3fd966a4a9a3efa7199daee28d43dfd24f8ef8",
+      "revisionCommittedAt": "2026-03-27T15:35:07Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 10,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "sonicoder86/awesome-vue-3",
+      "url": "https://github.com/sonicoder86/awesome-vue-3",
+      "stars": 1646,
+      "sizeKb": 336,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "175616ad1e432a6c2fca6e02b61fedbc456617ba",
+      "revisionCommittedAt": "2024-07-12T15:01:27Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 11,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "zacharywhitley/awesome-ocr",
+      "url": "https://github.com/zacharywhitley/awesome-ocr",
+      "stars": 1011,
+      "sizeKb": 141,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "36ae290728eb5a14f1d3db6035119a027f0a7a39",
+      "revisionCommittedAt": "2026-06-29T13:16:29Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 12,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "phanan/htaccess",
+      "url": "https://github.com/phanan/htaccess",
+      "stars": 13185,
+      "sizeKb": 248,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "72179f90f0bef880768c2aa6da14f90826ed3b17",
+      "revisionCommittedAt": "2026-03-06T06:31:25Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 13,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "fabacab/awesome-lockpicking",
+      "url": "https://github.com/fabacab/awesome-lockpicking",
+      "stars": 1898,
+      "sizeKb": 58,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "508b99f6bfdaa945be5144f8a6e72feb2e9ac592",
+      "revisionCommittedAt": "2021-03-06T20:30:27Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 14,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "abhisheknaiidu/awesome-github-profile-readme",
+      "url": "https://github.com/abhisheknaiidu/awesome-github-profile-readme",
+      "stars": 30608,
+      "sizeKb": 12647,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "7cb2691619d0b8bb3017289c699f3a0d16dc9c70",
+      "revisionCommittedAt": "2026-03-03T07:35:24Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 15,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "decalage2/awesome-security-hardening",
+      "url": "https://github.com/decalage2/awesome-security-hardening",
+      "stars": 6476,
+      "sizeKb": 186,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "11b15e279de65ac31bdef88d443390945e935cce",
+      "revisionCommittedAt": "2026-05-05T21:38:04Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 16,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "kdeldycke/awesome-engineering-team-management",
+      "url": "https://github.com/kdeldycke/awesome-engineering-team-management",
+      "stars": 2564,
+      "sizeKb": 1791,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "73acd826fade09d647e154919da9f5185609c44e",
+      "revisionCommittedAt": "2026-04-27T19:04:20Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 17,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "webfuse-com/awesome-autoresearch",
+      "url": "https://github.com/webfuse-com/awesome-autoresearch",
+      "stars": 2332,
+      "sizeKb": 49,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "2dc7dfa9ba826bcfaf63ac7f8849eae433141c89",
+      "revisionCommittedAt": "2026-07-16T10:16:09Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 18,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "VoltAgent/awesome-openclaw-skills",
+      "url": "https://github.com/VoltAgent/awesome-openclaw-skills",
+      "stars": 51492,
+      "sizeKb": 2042,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "6afb5d4e3e6f36ff181a33b3b6f88054348bc70a",
+      "revisionCommittedAt": "2026-07-16T06:17:12Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 19,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "EinGuterWaran/awesome-opensource-boilerplates",
+      "url": "https://github.com/EinGuterWaran/awesome-opensource-boilerplates",
+      "stars": 1932,
+      "sizeKb": 365,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "6003f4058c8fcd892ebcb0038ce2ab64c6a08f62",
+      "revisionCommittedAt": "2026-07-17T22:06:46Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 20,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "tmcw/awesome-geojson",
+      "url": "https://github.com/tmcw/awesome-geojson",
+      "stars": 2516,
+      "sizeKb": 120,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "2feacc5f65d814a868ab61ec5ae31c21109f1f3a",
+      "revisionCommittedAt": "2026-07-23T13:51:39Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 21,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "XiaomingX/indie-hacker-tools-plus",
+      "url": "https://github.com/XiaomingX/indie-hacker-tools-plus",
+      "stars": 1751,
+      "sizeKb": 3026,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "db8b986f1dbd92b9fa7c0832d8c04a4132598fc1",
+      "revisionCommittedAt": "2026-07-24T00:00:40Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 22,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "BasixKOR/awesome-activitypub",
+      "url": "https://github.com/BasixKOR/awesome-activitypub",
+      "stars": 1190,
+      "sizeKb": 61,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "b1591f93ded26168c6baf38501588fd30b96143b",
+      "revisionCommittedAt": "2024-12-17T04:20:29Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 23,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "fabacab/awesome-cybersecurity-blueteam",
+      "url": "https://github.com/fabacab/awesome-cybersecurity-blueteam",
+      "stars": 5473,
+      "sizeKb": 288,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "d2231996bf67d4b5f86f09825a128b951324f915",
+      "revisionCommittedAt": "2024-06-17T15:11:53Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 24,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "WangRongsheng/awesome-LLM-resources",
+      "url": "https://github.com/WangRongsheng/awesome-LLM-resources",
+      "stars": 8737,
+      "sizeKb": 68337,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "d0fca3041ecca2659e81a57b01b8b94aef90136f",
+      "revisionCommittedAt": "2026-07-22T12:48:15Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 25,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "awesome-mqtt/awesome-mqtt",
+      "url": "https://github.com/awesome-mqtt/awesome-mqtt",
+      "stars": 2371,
+      "sizeKb": 455,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "375e2844ae8383042db7b4a4ef5a078cb9b9d6ed",
+      "revisionCommittedAt": "2026-07-13T09:22:51Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 26,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "redhuntlabs/Awesome-Asset-Discovery",
+      "url": "https://github.com/redhuntlabs/Awesome-Asset-Discovery",
+      "stars": 2776,
+      "sizeKb": 58,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "ec8ef35b3b7ccffd50905af1088a451de6ce9257",
+      "revisionCommittedAt": "2025-01-22T10:48:27Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 27,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "editor-js/awesome-editorjs",
+      "url": "https://github.com/editor-js/awesome-editorjs",
+      "stars": 2857,
+      "sizeKb": 235,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "7453310ed4f90ad4c4efc02a848846c26bd58ffb",
+      "revisionCommittedAt": "2026-03-03T16:57:05Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 28,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "FancyGrid/awesome-grid",
+      "url": "https://github.com/FancyGrid/awesome-grid",
+      "stars": 1623,
+      "sizeKb": 134,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "bfedbc9a1b11e8d92af270b8033f4bcbb93ef06e",
+      "revisionCommittedAt": "2025-07-11T13:44:36Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 29,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Anil-matcha/awesome-openclaw",
+      "url": "https://github.com/Anil-matcha/awesome-openclaw",
+      "stars": 982,
+      "sizeKb": 626,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "120be4b88c23bf40d4f4b24f7ddd170c9a94d5e2",
+      "revisionCommittedAt": "2026-07-21T08:08:17Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 30,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "wq2012/awesome-diarization",
+      "url": "https://github.com/wq2012/awesome-diarization",
+      "stars": 1886,
+      "sizeKb": 116,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "9e284d76f983b922183beb0f7bd6cc68c99fa062",
+      "revisionCommittedAt": "2026-07-07T17:59:33Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 31,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "lauragift21/awesome-learning-resources",
+      "url": "https://github.com/lauragift21/awesome-learning-resources",
+      "stars": 5752,
+      "sizeKb": 456,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "0e9afa0c8b67df6f8ffa0a8d46847476a56ccd1b",
+      "revisionCommittedAt": "2025-07-16T10:29:00Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 32,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "DeepTecher/awesome-autonomous-vehicle",
+      "url": "https://github.com/DeepTecher/awesome-autonomous-vehicle",
+      "stars": 906,
+      "sizeKb": 87,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "67e1d837d0277ffbaadb28867f19e58bdb4f0ff2",
+      "revisionCommittedAt": "2021-10-04T13:47:16Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 33,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "typeddjango/awesome-python-typing",
+      "url": "https://github.com/typeddjango/awesome-python-typing",
+      "stars": 1969,
+      "sizeKb": 500,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "8407aa965dcfe409c69c7974f8dfb3f8ed3b4c03",
+      "revisionCommittedAt": "2026-06-19T06:03:02Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 34,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "testthedocs/awesome-docs",
+      "url": "https://github.com/testthedocs/awesome-docs",
+      "stars": 881,
+      "sizeKb": 409,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "592759461424797d2605b5a48678089461c254a5",
+      "revisionCommittedAt": "2026-06-17T16:10:55Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 35,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "codingknite/frontend-development",
+      "url": "https://github.com/codingknite/frontend-development",
+      "stars": 2321,
+      "sizeKb": 2122,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "e8d886ee79dec315ac592d1700056ab09711802f",
+      "revisionCommittedAt": "2023-07-29T17:15:57Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 36,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ansible-community/awesome-ansible",
+      "url": "https://github.com/ansible-community/awesome-ansible",
+      "stars": 1920,
+      "sizeKb": 134,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "a9aede5266ab7933e1be53ea87ab173cc3cb6949",
+      "revisionCommittedAt": "2026-06-02T08:28:40Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 37,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "opendatadiscovery/awesome-data-catalogs",
+      "url": "https://github.com/opendatadiscovery/awesome-data-catalogs",
+      "stars": 1053,
+      "sizeKb": 319,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "35af5ab0779df32623a219ef73f69e15440ce742",
+      "revisionCommittedAt": "2025-08-14T14:10:59Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 38,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "oz123/awesome-c",
+      "url": "https://github.com/oz123/awesome-c",
+      "stars": 11428,
+      "sizeKb": 579,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "b0ee2cfbc085a5eec84fe41efd2b1576c5f59887",
+      "revisionCommittedAt": "2025-12-27T08:35:04Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 39,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "lmammino/awesome-learn-by-playing",
+      "url": "https://github.com/lmammino/awesome-learn-by-playing",
+      "stars": 877,
+      "sizeKb": 33,
+      "primaryLanguage": null,
+      "defaultBranch": "main",
+      "revision": "eba22584d739227c8908e6de549b1aeff8c01372",
+      "revisionCommittedAt": "2025-08-11T10:07:03Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 40,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "DyegoCosta/trabalhando-remoto",
+      "url": "https://github.com/DyegoCosta/trabalhando-remoto",
+      "stars": 2778,
+      "sizeKb": 205,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "ec904b6b9716be2d8a510a123e4eeb2df968b6ab",
+      "revisionCommittedAt": "2026-04-02T14:14:30Z",
+      "selectionStratum": "stress-no-primary-language"
+    },
+    {
+      "overallIndex": 41,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Nek5000/Nek5000",
+      "url": "https://github.com/Nek5000/Nek5000",
+      "stars": 478,
+      "sizeKb": 22958,
+      "primaryLanguage": "Fortran",
+      "defaultBranch": "master",
+      "revision": "41d17942b3f4ef4e045665d30adc81a167611122",
+      "revisionCommittedAt": "2026-06-03T19:27:19Z",
+      "selectionStratum": "stress-recognized-fortran"
+    },
+    {
+      "overallIndex": 42,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "damask-multiphysics/DAMASK",
+      "url": "https://github.com/damask-multiphysics/DAMASK",
+      "stars": 178,
+      "sizeKb": 323330,
+      "primaryLanguage": "Fortran",
+      "defaultBranch": "master",
+      "revision": "28b38afc0cba4f132763bb0e665f3d7771e92ffd",
+      "revisionCommittedAt": "2026-07-22T19:08:38Z",
+      "selectionStratum": "stress-recognized-fortran"
+    },
+    {
+      "overallIndex": 43,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "tspeterkim/flash-attention-minimal",
+      "url": "https://github.com/tspeterkim/flash-attention-minimal",
+      "stars": 1172,
+      "sizeKb": 15,
+      "primaryLanguage": "Cuda",
+      "defaultBranch": "main",
+      "revision": "00f8f46712d493665c900c32fa3a261c8ef3e20c",
+      "revisionCommittedAt": "2024-12-30T02:37:33Z",
+      "selectionStratum": "stress-unmodelled-cuda"
+    },
+    {
+      "overallIndex": 44,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "PatrickJS/awesome-angular",
+      "url": "https://github.com/PatrickJS/awesome-angular",
+      "stars": 10042,
+      "sizeKb": 4800,
+      "primaryLanguage": "HTML",
+      "defaultBranch": "gh-pages",
+      "revision": "4f460c30fdb2f32ba37c3e4e36eca8cd9206f726",
+      "revisionCommittedAt": "2026-07-23T23:21:16Z",
+      "selectionStratum": "stress-unmodelled-html"
+    },
+    {
+      "overallIndex": 45,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "uvdesk/community-skeleton",
+      "url": "https://github.com/uvdesk/community-skeleton",
+      "stars": 19423,
+      "sizeKb": 35697,
+      "primaryLanguage": "CSS",
+      "defaultBranch": "master",
+      "revision": "6f35040f447f7fe1dcd254e259e7b7e0a9f7a79f",
+      "revisionCommittedAt": "2025-10-01T07:16:13Z",
+      "selectionStratum": "stress-unmodelled-css"
+    },
+    {
+      "overallIndex": 46,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "d-kitamura/ILRMA",
+      "url": "https://github.com/d-kitamura/ILRMA",
+      "stars": 122,
+      "sizeKb": 18561,
+      "primaryLanguage": "MATLAB",
+      "defaultBranch": "master",
+      "revision": "71a285b10ef6177738c46a173b9afb1623febcca",
+      "revisionCommittedAt": "2024-04-23T00:26:35Z",
+      "selectionStratum": "stress-recognized-matlab"
+    },
+    {
+      "overallIndex": 47,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "xiaoyuyang0901/Simulation-platform",
+      "url": "https://github.com/xiaoyuyang0901/Simulation-platform",
+      "stars": 145,
+      "sizeKb": 73,
+      "primaryLanguage": "MATLAB",
+      "defaultBranch": "master",
+      "revision": "e485176717c8ee79539895024ec950980474a7bb",
+      "revisionCommittedAt": "2019-07-17T02:00:03Z",
+      "selectionStratum": "stress-recognized-matlab"
+    },
+    {
+      "overallIndex": 48,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "anilbas/3DMMasSTN",
+      "url": "https://github.com/anilbas/3DMMasSTN",
+      "stars": 285,
+      "sizeKb": 2721,
+      "primaryLanguage": "MATLAB",
+      "defaultBranch": "master",
+      "revision": "c6562b5fda5c2f742a27dc1b4a7ff15ec5e83837",
+      "revisionCommittedAt": "2018-04-15T13:53:27Z",
+      "selectionStratum": "stress-recognized-matlab"
+    },
+    {
+      "overallIndex": 49,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "klis87/redux-requests",
+      "url": "https://github.com/klis87/redux-requests",
+      "stars": 366,
+      "sizeKb": 22403,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "36eff89a778f0d61ce6da6cfb977d3f1023aef23",
+      "revisionCommittedAt": "2025-08-13T17:59:40Z",
+      "selectionStratum": "stress-monorepo"
+    },
+    {
+      "overallIndex": 50,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "documize/community",
+      "url": "https://github.com/documize/community",
+      "stars": 2414,
+      "sizeKb": 205398,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "e19bcd02ab20750a904fc2e3815cd453e877fa54",
+      "revisionCommittedAt": "2026-05-18T16:18:57Z",
+      "selectionStratum": "stress-documentation"
+    },
+    {
+      "overallIndex": 51,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "greyshirtguy/ProPresenter7-Proto",
+      "url": "https://github.com/greyshirtguy/ProPresenter7-Proto",
+      "stars": 111,
+      "sizeKb": 375,
+      "primaryLanguage": null,
+      "defaultBranch": "master",
+      "revision": "1b63dda196eb7e079721a8a4a7e7773520cb5ad2",
+      "revisionCommittedAt": "2026-06-30T01:30:17Z",
+      "selectionStratum": "stress-generated-code"
+    },
+    {
+      "overallIndex": 52,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "mohi-devhub/antivibe",
+      "url": "https://github.com/mohi-devhub/antivibe",
+      "stars": 663,
+      "sizeKb": 39,
+      "primaryLanguage": "Shell",
+      "defaultBranch": "main",
+      "revision": "5fa8933b18bad20568396c0067397e0ce3d8dce9",
+      "revisionCommittedAt": "2026-06-06T09:09:41Z",
+      "selectionStratum": "stress-generated-code"
+    },
+    {
+      "overallIndex": 53,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "15r10nk/inline-snapshot",
+      "url": "https://github.com/15r10nk/inline-snapshot",
+      "stars": 745,
+      "sizeKb": 15021,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "9ec2ed9862ac263ff0506e1eaba098ef686c6f14",
+      "revisionCommittedAt": "2026-07-19T09:17:05Z",
+      "selectionStratum": "stress-generated-code"
+    },
+    {
+      "overallIndex": 54,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "feross/lxjs-chat",
+      "url": "https://github.com/feross/lxjs-chat",
+      "stars": 100,
+      "sizeKb": 49,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "b77905286f955dbc33e47a222ff0344933141372",
+      "revisionCommittedAt": "2017-06-23T23:02:36Z",
+      "selectionStratum": "stress-sparse"
+    },
+    {
+      "overallIndex": 55,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "divScorp/Java-Programs",
+      "url": "https://github.com/divScorp/Java-Programs",
+      "stars": 100,
+      "sizeKb": 88,
+      "primaryLanguage": "Java",
+      "defaultBranch": "master",
+      "revision": "f56d6112ac921bd644beecb92e5a9e6ac9ab50e7",
+      "revisionCommittedAt": "2023-04-08T07:30:00Z",
+      "selectionStratum": "stress-sparse"
+    },
+    {
+      "overallIndex": 56,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "EutropicAI/Final2x",
+      "url": "https://github.com/EutropicAI/Final2x",
+      "stars": 7221,
+      "sizeKb": 2030,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "0a8cf13bae9fa026f1ee8692735d68cca8e6dac3",
+      "revisionCommittedAt": "2026-06-15T21:35:16Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 57,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "freemocap/freemocap",
+      "url": "https://github.com/freemocap/freemocap",
+      "stars": 9696,
+      "sizeKb": 291598,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "3dd269dc0d0e29198845aa15dd96d16a616600fe",
+      "revisionCommittedAt": "2026-07-24T14:09:54Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 58,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "NanmiCoder/cc-haha",
+      "url": "https://github.com/NanmiCoder/cc-haha",
+      "stars": 13567,
+      "sizeKb": 134308,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "27901ee3110c7007dd090af0ce28041110378a8c",
+      "revisionCommittedAt": "2026-07-23T20:53:17Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 59,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "modelcontextprotocol/inspector",
+      "url": "https://github.com/modelcontextprotocol/inspector",
+      "stars": 10459,
+      "sizeKb": 23337,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "ac3c1a122a5e072a200c99869fc0cd8bfa660ece",
+      "revisionCommittedAt": "2026-07-18T02:54:09Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 60,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "garrytan/gbrain",
+      "url": "https://github.com/garrytan/gbrain",
+      "stars": 27014,
+      "sizeKb": 70620,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "1f319e6d5aff7674d8f48f289768ff75911a9ea8",
+      "revisionCommittedAt": "2026-07-24T01:48:34Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 61,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "kern/filepizza",
+      "url": "https://github.com/kern/filepizza",
+      "stars": 10124,
+      "sizeKb": 8307,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "3258673e790145ba86637114a35388165a651ff3",
+      "revisionCommittedAt": "2026-01-31T21:48:51Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 62,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Dokploy/dokploy",
+      "url": "https://github.com/Dokploy/dokploy",
+      "stars": 36063,
+      "sizeKb": 31068,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "canary",
+      "revision": "73e4fdd757da90fb1fe347a92b92237e6712f98d",
+      "revisionCommittedAt": "2026-07-22T20:33:42Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 63,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "craft-ai-agents/craft-agents-oss",
+      "url": "https://github.com/craft-ai-agents/craft-agents-oss",
+      "stars": 6940,
+      "sizeKb": 96451,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "a60ebc1a5a7cb0a6af7a77d5eed0512c5fc07658",
+      "revisionCommittedAt": "2026-07-22T17:50:55Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 64,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "openreplay/openreplay",
+      "url": "https://github.com/openreplay/openreplay",
+      "stars": 12285,
+      "sizeKb": 215342,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "dbb68105e865052d6ec0d49c9d2d13cf5d5f4aef",
+      "revisionCommittedAt": "2026-07-23T11:33:09Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 65,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "akveo/ngx-admin",
+      "url": "https://github.com/akveo/ngx-admin",
+      "stars": 25710,
+      "sizeKb": 69011,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "dc6a442704bfef34b776b5eb15faf852d9e2f75c",
+      "revisionCommittedAt": "2024-09-25T09:40:43Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 66,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ag-ui-protocol/ag-ui",
+      "url": "https://github.com/ag-ui-protocol/ag-ui",
+      "stars": 14890,
+      "sizeKb": 46378,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "1a78c2701e44afbb12337c5de6c3be832efaad74",
+      "revisionCommittedAt": "2026-07-24T06:07:17Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 67,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "TanStack/table",
+      "url": "https://github.com/TanStack/table",
+      "stars": 28225,
+      "sizeKb": 45438,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "beta",
+      "revision": "ba45ea109f559f79e44dca19409747e330be8a84",
+      "revisionCommittedAt": "2026-07-24T16:45:15Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 68,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "CopyTranslator/CopyTranslator",
+      "url": "https://github.com/CopyTranslator/CopyTranslator",
+      "stars": 17995,
+      "sizeKb": 10964,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "5b73e4262625cdcd0b4621d0e6d5f59ed08de4ef",
+      "revisionCommittedAt": "2026-02-23T12:57:15Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 69,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "remix-run/remix",
+      "url": "https://github.com/remix-run/remix",
+      "stars": 33235,
+      "sizeKb": 91477,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "593e568f1b3ca9bac861f3f86a69dda1d2b836b3",
+      "revisionCommittedAt": "2026-07-23T21:36:20Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 70,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ethers-io/ethers.js",
+      "url": "https://github.com/ethers-io/ethers.js",
+      "stars": 8702,
+      "sizeKb": 181307,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "3ea4c226dd0b3a074abf90748de9d11192027f4f",
+      "revisionCommittedAt": "2026-06-18T03:56:18Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 71,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "every-app/open-seo",
+      "url": "https://github.com/every-app/open-seo",
+      "stars": 7666,
+      "sizeKb": 19928,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "f56972639f14e7e766498a8a2f6441913eb83c0c",
+      "revisionCommittedAt": "2026-07-23T21:39:56Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 72,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "dyad-sh/dyad",
+      "url": "https://github.com/dyad-sh/dyad",
+      "stars": 21039,
+      "sizeKb": 45194,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "74acfeeaf69f57e427080e97d7293c09f349c38e",
+      "revisionCommittedAt": "2026-07-24T16:32:08Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 73,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "graphql/graphql-js",
+      "url": "https://github.com/graphql/graphql-js",
+      "stars": 20351,
+      "sizeKb": 33924,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "17.x.x",
+      "revision": "c31db12474208c522abdee1768a652b522bfd635",
+      "revisionCommittedAt": "2026-07-20T21:03:32Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 74,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "wix/react-native-ui-lib",
+      "url": "https://github.com/wix/react-native-ui-lib",
+      "stars": 7149,
+      "sizeKb": 222074,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "5110454db9304b433f2e8d67a17d0b2e94b3a327",
+      "revisionCommittedAt": "2026-07-19T14:10:56Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 75,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "papermark/papermark",
+      "url": "https://github.com/papermark/papermark",
+      "stars": 8827,
+      "sizeKb": 37284,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "1f810ab832b58e8e260c605f137f1101029e9194",
+      "revisionCommittedAt": "2026-07-22T15:22:40Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 76,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "virattt/dexter",
+      "url": "https://github.com/virattt/dexter",
+      "stars": 27449,
+      "sizeKb": 1240,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "823052ed687a6f3ef0e48b5e7025c73e86d95775",
+      "revisionCommittedAt": "2026-07-14T04:26:24Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 77,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "garethgeorge/backrest",
+      "url": "https://github.com/garethgeorge/backrest",
+      "stars": 6979,
+      "sizeKb": 8063,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "626156cd8e15745b84bfe86099457d9db8372c5d",
+      "revisionCommittedAt": "2026-07-13T06:07:12Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 78,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Project-DARC/DARC",
+      "url": "https://github.com/Project-DARC/DARC",
+      "stars": 9168,
+      "sizeKb": 4494,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "482bd1acfcf3dfde617189461ea7ce90c2f924ed",
+      "revisionCommittedAt": "2024-04-13T04:16:04Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 79,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ant-design/ant-design-mobile",
+      "url": "https://github.com/ant-design/ant-design-mobile",
+      "stars": 12022,
+      "sizeKb": 169787,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "6823d807f0f8857b894ac60d188b228082ab0277",
+      "revisionCommittedAt": "2026-07-03T09:02:12Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 80,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "fabricjs/fabric.js",
+      "url": "https://github.com/fabricjs/fabric.js",
+      "stars": 31339,
+      "sizeKb": 248717,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "e009409980c199ee2c1bcbc42ef1a3689105f1db",
+      "revisionCommittedAt": "2026-07-23T18:31:05Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 81,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "lissy93/web-check",
+      "url": "https://github.com/lissy93/web-check",
+      "stars": 34260,
+      "sizeKb": 28233,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "9154bd43e8276c0310c29c86ac70648e1ed4eda5",
+      "revisionCommittedAt": "2026-07-11T07:28:40Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 82,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "inversify/InversifyJS",
+      "url": "https://github.com/inversify/InversifyJS",
+      "stars": 12073,
+      "sizeKb": 3475,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "fdd9186891e777884012984c64c271e576155f08",
+      "revisionCommittedAt": "2025-11-19T13:18:33Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 83,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Kilo-Org/kilocode",
+      "url": "https://github.com/Kilo-Org/kilocode",
+      "stars": 26502,
+      "sizeKb": 489178,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "f80ebff83b32550333da7c50c91c4755e4524d0d",
+      "revisionCommittedAt": "2026-07-24T15:55:31Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 84,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "get-convex/convex-backend",
+      "url": "https://github.com/get-convex/convex-backend",
+      "stars": 12242,
+      "sizeKb": 168067,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "d6825caac38e9e1cd9a78b90a01bf52e4c3edc97",
+      "revisionCommittedAt": "2026-07-24T06:45:47Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 85,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "wg-easy/wg-easy",
+      "url": "https://github.com/wg-easy/wg-easy",
+      "stars": 26483,
+      "sizeKb": 9720,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "94a9967dd11759ae3e971966e90e0b52d5b463b8",
+      "revisionCommittedAt": "2026-07-23T05:55:04Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 86,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "boardgameio/boardgame.io",
+      "url": "https://github.com/boardgameio/boardgame.io",
+      "stars": 12379,
+      "sizeKb": 13742,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "65ca73beb62ef2afd980bb9f569b10dabfc60075",
+      "revisionCommittedAt": "2026-07-21T13:20:10Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 87,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "howtographql/howtographql",
+      "url": "https://github.com/howtographql/howtographql",
+      "stars": 8703,
+      "sizeKb": 15528,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "bdec337878fe66cab3ec2868630a7eab72dfa34e",
+      "revisionCommittedAt": "2024-01-20T11:35:42Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 88,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "cs01/gdbgui",
+      "url": "https://github.com/cs01/gdbgui",
+      "stars": 10349,
+      "sizeKb": 48092,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "773b9161729e75a6de57fb47bd084576e31de59a",
+      "revisionCommittedAt": "2025-06-29T22:34:16Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 89,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "alibaba/lowcode-engine",
+      "url": "https://github.com/alibaba/lowcode-engine",
+      "stars": 15872,
+      "sizeKb": 53319,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "f6305c2284950d79b9729781f081f24f113de345",
+      "revisionCommittedAt": "2024-06-11T13:12:45Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 90,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "AnInsomniacy/motrix-next",
+      "url": "https://github.com/AnInsomniacy/motrix-next",
+      "stars": 8961,
+      "sizeKb": 440881,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "9f5ba37bf8403f219399f5593ee7b711839fdb0f",
+      "revisionCommittedAt": "2026-07-23T16:38:37Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 91,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "katspaugh/wavesurfer.js",
+      "url": "https://github.com/katspaugh/wavesurfer.js",
+      "stars": 10351,
+      "sizeKb": 53552,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "ae8d3cd32ebb27273051935c01fc6e4001cde3af",
+      "revisionCommittedAt": "2026-07-17T07:28:24Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 92,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "astrid-runtime/sdk-js",
+      "url": "https://github.com/astrid-runtime/sdk-js",
+      "stars": 8186,
+      "sizeKb": 260,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "229401ba8b48d0c2fba205646a980f475e9f3916",
+      "revisionCommittedAt": "2026-07-13T00:21:59Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 93,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "vercel/swr",
+      "url": "https://github.com/vercel/swr",
+      "stars": 32437,
+      "sizeKb": 8372,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "fc7ac116b2a2bfdfa43ec8b08753a77d6c3de93e",
+      "revisionCommittedAt": "2026-07-15T10:00:48Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 94,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "kepano/defuddle",
+      "url": "https://github.com/kepano/defuddle",
+      "stars": 8543,
+      "sizeKb": 3797,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "6152604f54593bd05fc4dc401810069882658340",
+      "revisionCommittedAt": "2026-07-21T18:40:02Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 95,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "7kms/react-illustration-series",
+      "url": "https://github.com/7kms/react-illustration-series",
+      "stars": 7933,
+      "sizeKb": 32710,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "1e71a14310bcb92cd29ef98dddb45f462df4b546",
+      "revisionCommittedAt": "2023-07-29T17:14:05Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 96,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "a2ui-project/a2ui",
+      "url": "https://github.com/a2ui-project/a2ui",
+      "stars": 15886,
+      "sizeKb": 162992,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "fc4e91d7e95cfaeae58ac70a54f9a22a1c5ddeac",
+      "revisionCommittedAt": "2026-07-24T16:59:41Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 97,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "CapSoftware/Cap",
+      "url": "https://github.com/CapSoftware/Cap",
+      "stars": 20322,
+      "sizeKb": 364873,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "5b81ee5b0e807b37a0df1cd59ff4eaf2a20aa102",
+      "revisionCommittedAt": "2026-07-24T06:45:09Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 98,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "emberjs/ember.js",
+      "url": "https://github.com/emberjs/ember.js",
+      "stars": 22570,
+      "sizeKb": 110781,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "0da747613f85bfd8b92e05cb894cf0d5df5a5180",
+      "revisionCommittedAt": "2026-07-24T02:48:57Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 99,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "any86/any-rule",
+      "url": "https://github.com/any86/any-rule",
+      "stars": 8661,
+      "sizeKb": 3654,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "master",
+      "revision": "43abe0f89526d0bfd4e53c2c83bb176216ab5645",
+      "revisionCommittedAt": "2023-11-30T00:57:37Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 100,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "sindresorhus/modern-normalize",
+      "url": "https://github.com/sindresorhus/modern-normalize",
+      "stars": 7372,
+      "sizeKb": 303,
+      "primaryLanguage": "TypeScript",
+      "defaultBranch": "main",
+      "revision": "27c3f5fe3109b4041a835a0fa569e09c77022bf8",
+      "revisionCommittedAt": "2026-06-25T12:14:32Z",
+      "selectionStratum": "deep-typescript"
+    },
+    {
+      "overallIndex": 101,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "redux-utilities/redux-actions",
+      "url": "https://github.com/redux-utilities/redux-actions",
+      "stars": 6459,
+      "sizeKb": 599,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "3fa4c50dfeab54fa1f2110764757ee4c10c8e3ac",
+      "revisionCommittedAt": "2024-07-21T16:45:26Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 102,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pa7/heatmap.js",
+      "url": "https://github.com/pa7/heatmap.js",
+      "stars": 6378,
+      "sizeKb": 1732,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "4e64f5ae5754c84fea363f0fcf24bea4795405ff",
+      "revisionCommittedAt": "2017-02-02T12:31:55Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 103,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "adobe-webplatform/Snap.svg",
+      "url": "https://github.com/adobe-webplatform/Snap.svg",
+      "stars": 14014,
+      "sizeKb": 3791,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "c8e483c9694517e24b282f8f59f985629f4994ce",
+      "revisionCommittedAt": "2022-03-13T07:11:15Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 104,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "openstf/stf",
+      "url": "https://github.com/openstf/stf",
+      "stars": 13921,
+      "sizeKb": 71754,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "2b9649009722794dee9efd32b71bccbcbfe9d794",
+      "revisionCommittedAt": "2020-08-15T12:22:39Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 105,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Kenshin/simpread",
+      "url": "https://github.com/Kenshin/simpread",
+      "stars": 8673,
+      "sizeKb": 34009,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "d6534a7d67ab606e0390ff7172360fac88af4422",
+      "revisionCommittedAt": "2025-09-16T07:04:10Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 106,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "tuupola/lazyload",
+      "url": "https://github.com/tuupola/lazyload",
+      "stars": 8717,
+      "sizeKb": 5053,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "2.x",
+      "revision": "d3ad81c12332a0f950c6c703ff975b60350405a4",
+      "revisionCommittedAt": "2019-04-11T16:02:33Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 107,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "typicode/lowdb",
+      "url": "https://github.com/typicode/lowdb",
+      "stars": 22569,
+      "sizeKb": 1103,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "8a6fce9b72f769b22533f0979fbc2e73180f8112",
+      "revisionCommittedAt": "2026-03-27T22:36:44Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 108,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "sveltejs/kit",
+      "url": "https://github.com/sveltejs/kit",
+      "stars": 20683,
+      "sizeKb": 39370,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "version-3",
+      "revision": "2c08533799212e4bf9d63f40ea352dd56ab1876d",
+      "revisionCommittedAt": "2026-07-24T14:14:28Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 109,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "SillyTavern/SillyTavern",
+      "url": "https://github.com/SillyTavern/SillyTavern",
+      "stars": 31085,
+      "sizeKb": 214814,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "release",
+      "revision": "8172dcd0ee672d3cd9a5e5f7af134f91a45cd2b8",
+      "revisionCommittedAt": "2026-07-07T17:36:20Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 110,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "FredrikNoren/ungit",
+      "url": "https://github.com/FredrikNoren/ungit",
+      "stars": 10596,
+      "sizeKb": 21387,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "b1df1a168b9208766342070ebd42782036dfd18d",
+      "revisionCommittedAt": "2026-06-25T15:41:43Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 111,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "luin/medis",
+      "url": "https://github.com/luin/medis",
+      "stars": 11735,
+      "sizeKb": 52877,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "12c87a5a2cc3fd7fa616beb2eaed79413538769a",
+      "revisionCommittedAt": "2024-02-21T05:21:54Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 112,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "metafizzy/zdog",
+      "url": "https://github.com/metafizzy/zdog",
+      "stars": 10633,
+      "sizeKb": 659,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "dde8684be686bc6d3cbedb6be49875c0a03a14c0",
+      "revisionCommittedAt": "2022-01-22T14:59:25Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 113,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "firecrawl/firecrawl-mcp-server",
+      "url": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "stars": 7032,
+      "sizeKb": 3855,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "7232b6d1cdd80335107d53a33b80c902b515a334",
+      "revisionCommittedAt": "2026-07-24T09:42:55Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 114,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "automerge/automerge-classic",
+      "url": "https://github.com/automerge/automerge-classic",
+      "stars": 14697,
+      "sizeKb": 4047,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "0605308926a03353eb1072c3afa2a3a8580fcef9",
+      "revisionCommittedAt": "2023-03-09T11:11:27Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 115,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pdone/lx-music-source",
+      "url": "https://github.com/pdone/lx-music-source",
+      "stars": 7373,
+      "sizeKb": 311,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "e9ba570a8a04518cd1928a12d5e56823f7252cd8",
+      "revisionCommittedAt": "2026-01-22T07:55:54Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 116,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "coryhouse/react-slingshot",
+      "url": "https://github.com/coryhouse/react-slingshot",
+      "stars": 9641,
+      "sizeKb": 4359,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "a7b0c6111cceaf88ffa4c24df3b38401f045a3d1",
+      "revisionCommittedAt": "2020-03-30T12:04:16Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 117,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "yaronn/blessed-contrib",
+      "url": "https://github.com/yaronn/blessed-contrib",
+      "stars": 15754,
+      "sizeKb": 5313,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "45a7db64c81f179327b1edb5d4d662bcf661ff2b",
+      "revisionCommittedAt": "2026-05-01T06:16:27Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 118,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ganeshrvel/openmtp",
+      "url": "https://github.com/ganeshrvel/openmtp",
+      "stars": 7040,
+      "sizeKb": 118034,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "ac02705fa9bcb81715ae328fb6c7324e126b2483",
+      "revisionCommittedAt": "2025-08-12T18:50:09Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 119,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "yemount/pose-animator",
+      "url": "https://github.com/yemount/pose-animator",
+      "stars": 8847,
+      "sizeKb": 34017,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "cb2be70a3501e57e66fe185daca44cc2afe18ce8",
+      "revisionCommittedAt": "2020-05-13T01:49:58Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 120,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "hyperapp/hyperapp",
+      "url": "https://github.com/hyperapp/hyperapp",
+      "stars": 19201,
+      "sizeKb": 6946,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "5a113fa00450302be9234e0a74ee634ed5574243",
+      "revisionCommittedAt": "2025-03-20T01:04:37Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 121,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Piebald-AI/claude-code-system-prompts",
+      "url": "https://github.com/Piebald-AI/claude-code-system-prompts",
+      "stars": 11977,
+      "sizeKb": 2062,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "b9895f5556e962e6aec60aba7cccfc18790ace3a",
+      "revisionCommittedAt": "2026-07-22T21:24:54Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 122,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "open-gsd/gsd-core",
+      "url": "https://github.com/open-gsd/gsd-core",
+      "stars": 7147,
+      "sizeKb": 41692,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "next",
+      "revision": "0f46fa366f8b5807c51c627832c2129ea9e140b7",
+      "revisionCommittedAt": "2026-07-24T17:00:34Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 123,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "WebGoat/WebGoat",
+      "url": "https://github.com/WebGoat/WebGoat",
+      "stars": 9243,
+      "sizeKb": 108228,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "5142935bf7c279882c3b0fc0ecec42c447de6fd5",
+      "revisionCommittedAt": "2026-07-18T07:34:43Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 124,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "nodejs/undici",
+      "url": "https://github.com/nodejs/undici",
+      "stars": 7650,
+      "sizeKb": 16633,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "21a8e1ed1843e74c3004a2926c12bb0ceaca6b71",
+      "revisionCommittedAt": "2026-07-24T12:31:50Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 125,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "markodenic/web-development-resources",
+      "url": "https://github.com/markodenic/web-development-resources",
+      "stars": 8071,
+      "sizeKb": 719,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "672b380ba41e45d286d2ef9521646ca8662341ce",
+      "revisionCommittedAt": "2026-06-09T05:31:42Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 126,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "terkelg/prompts",
+      "url": "https://github.com/terkelg/prompts",
+      "stars": 9306,
+      "sizeKb": 8703,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "58771d2911fc2a9c3751a0143ed66cf4321c8514",
+      "revisionCommittedAt": "2025-05-14T16:42:31Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 127,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "wekan/wekan",
+      "url": "https://github.com/wekan/wekan",
+      "stars": 21000,
+      "sizeKb": 196663,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "4e18400faa3fb73a314d5519157c7dd2720f0f3b",
+      "revisionCommittedAt": "2026-07-24T16:32:24Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 128,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pomber/didact",
+      "url": "https://github.com/pomber/didact",
+      "stars": 6759,
+      "sizeKb": 237,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "bb72345b2300dd4658b4736b65843e05dac39643",
+      "revisionCommittedAt": "2026-01-31T14:12:18Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 129,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pure-css/pure",
+      "url": "https://github.com/pure-css/pure",
+      "stars": 23724,
+      "sizeKb": 8552,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "d35fb6fcbcd888da11a7215fe61d1efeda374699",
+      "revisionCommittedAt": "2025-04-07T17:06:21Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 130,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "decaporg/decap-cms",
+      "url": "https://github.com/decaporg/decap-cms",
+      "stars": 19254,
+      "sizeKb": 99342,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "e50c1b16fb22421adaaea6aa104cf68045ebdbbf",
+      "revisionCommittedAt": "2026-07-24T07:25:45Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 131,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "zarazhangrui/frontend-slides",
+      "url": "https://github.com/zarazhangrui/frontend-slides",
+      "stars": 26284,
+      "sizeKb": 582,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "9906a34d640d2111f724544cbc50f7f130569ae1",
+      "revisionCommittedAt": "2026-06-23T20:08:18Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 132,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "AMAI-GmbH/AI-Expert-Roadmap",
+      "url": "https://github.com/AMAI-GmbH/AI-Expert-Roadmap",
+      "stars": 31159,
+      "sizeKb": 414,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "a4c66c2670d9004385ed0faa4fb2a729aa6b18d4",
+      "revisionCommittedAt": "2025-09-12T14:59:27Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 133,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "1j01/jspaint",
+      "url": "https://github.com/1j01/jspaint",
+      "stars": 7832,
+      "sizeKb": 36131,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "53be67ab8c47cc0d2168899e7481bc04839c4c81",
+      "revisionCommittedAt": "2026-04-10T03:03:15Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 134,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "locomotivemtl/locomotive-scroll",
+      "url": "https://github.com/locomotivemtl/locomotive-scroll",
+      "stars": 8836,
+      "sizeKb": 13532,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "b6bcc569e8035334face5c1f88684590bc4d567f",
+      "revisionCommittedAt": "2026-04-01T19:34:44Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 135,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "soumyajit4419/Portfolio",
+      "url": "https://github.com/soumyajit4419/Portfolio",
+      "stars": 6420,
+      "sizeKb": 24497,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "60c3c08f5f5c25ca4a3a85d795a6d1450a947f40",
+      "revisionCommittedAt": "2025-10-17T18:32:18Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 136,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "dimsemenov/PhotoSwipe",
+      "url": "https://github.com/dimsemenov/PhotoSwipe",
+      "stars": 25222,
+      "sizeKb": 30495,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "cd41cb587a460634e4cae53134f3d01d06e284a6",
+      "revisionCommittedAt": "2025-12-04T07:31:42Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 137,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "winstonjs/winston",
+      "url": "https://github.com/winstonjs/winston",
+      "stars": 24505,
+      "sizeKb": 4429,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "master",
+      "revision": "ff0b79de8562bb322c390fbc82fe71c11f373428",
+      "revisionCommittedAt": "2026-07-16T01:01:13Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 138,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "upgundecha/howtheysre",
+      "url": "https://github.com/upgundecha/howtheysre",
+      "stars": 9760,
+      "sizeKb": 458,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "4fd5a3a05bcc69cef122842714fd9bbd60041d32",
+      "revisionCommittedAt": "2025-09-08T00:54:21Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 139,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "electron/minimal-repro",
+      "url": "https://github.com/electron/minimal-repro",
+      "stars": 11447,
+      "sizeKb": 1384,
+      "primaryLanguage": "JavaScript",
+      "defaultBranch": "main",
+      "revision": "9e596ffbcc4cec5715aa015e1a3c50a2cfc58b01",
+      "revisionCommittedAt": "2026-07-22T14:57:04Z",
+      "selectionStratum": "deep-javascript"
+    },
+    {
+      "overallIndex": 140,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "deepseek-ai/DeepSeek-OCR",
+      "url": "https://github.com/deepseek-ai/DeepSeek-OCR",
+      "stars": 23668,
+      "sizeKb": 7978,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "09eaf526153e7a01ed16c9dea8c96282aaea29c0",
+      "revisionCommittedAt": "2026-01-27T03:45:14Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 141,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "zai-org/ChatGLM2-6B",
+      "url": "https://github.com/zai-org/ChatGLM2-6B",
+      "stars": 15540,
+      "sizeKb": 7469,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "cb8e8b43c0951b32614f25c03e1ab593a0603a1c",
+      "revisionCommittedAt": "2024-06-27T04:05:08Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 142,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "NVIDIA/personaplex",
+      "url": "https://github.com/NVIDIA/personaplex",
+      "stars": 10258,
+      "sizeKb": 1355,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "3428dfd95309a7f3c84fd93259ded0f810d1ff91",
+      "revisionCommittedAt": "2026-03-02T16:07:09Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 143,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "benbusby/whoogle-search",
+      "url": "https://github.com/benbusby/whoogle-search",
+      "stars": 11584,
+      "sizeKb": 2892,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "5580d07311a81067ddb90b9abe6d6547080984b9",
+      "revisionCommittedAt": "2026-06-25T13:47:17Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 144,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "wifiphisher/wifiphisher",
+      "url": "https://github.com/wifiphisher/wifiphisher",
+      "stars": 14708,
+      "sizeKb": 12887,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "4ae336518bf29eed13d3b09f2ee6a16e7973c997",
+      "revisionCommittedAt": "2026-05-22T17:42:02Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 145,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "dottxt-ai/outlines",
+      "url": "https://github.com/dottxt-ai/outlines",
+      "stars": 15310,
+      "sizeKb": 120612,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "be2cd151855c64a81262c4daace2428400b109ff",
+      "revisionCommittedAt": "2026-07-22T14:00:12Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 146,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "modelscope/FunASR",
+      "url": "https://github.com/modelscope/FunASR",
+      "stars": 19459,
+      "sizeKb": 115487,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "a28ee6b39dde8319edcc977a8994abf2bcab9ce2",
+      "revisionCommittedAt": "2026-07-24T16:04:08Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 147,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "HKUDS/CLI-Anything",
+      "url": "https://github.com/HKUDS/CLI-Anything",
+      "stars": 46000,
+      "sizeKb": 39710,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "bc536c9bebb7c3d9f7bb2736a732609139c1acdb",
+      "revisionCommittedAt": "2026-07-09T13:05:56Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 148,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pypa/pip",
+      "url": "https://github.com/pypa/pip",
+      "stars": 10233,
+      "sizeKb": 74999,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "6a4aad81b1aa692974b9eedb12a02689f2fff6ba",
+      "revisionCommittedAt": "2026-07-23T20:25:02Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 149,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "malwaredllc/byob",
+      "url": "https://github.com/malwaredllc/byob",
+      "stars": 9495,
+      "sizeKb": 39475,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "b4946908b8a3691f75a7e15ffe6883ef509afc91",
+      "revisionCommittedAt": "2024-07-05T20:22:32Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 150,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "trekhleb/learn-python",
+      "url": "https://github.com/trekhleb/learn-python",
+      "stars": 18146,
+      "sizeKb": 48,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "5e4fad5903ce5a76cc1f90838d69a220968e1494",
+      "revisionCommittedAt": "2026-04-06T16:03:15Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 151,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "deepseek-ai/DeepSeek-Coder",
+      "url": "https://github.com/deepseek-ai/DeepSeek-Coder",
+      "stars": 23951,
+      "sizeKb": 12694,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "2f9fd85927c669dae3c0fbb2d607274023af243e",
+      "revisionCommittedAt": "2025-11-11T06:44:55Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 152,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "MrS0m30n3/youtube-dl-gui",
+      "url": "https://github.com/MrS0m30n3/youtube-dl-gui",
+      "stars": 9424,
+      "sizeKb": 2329,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "c5c18e55cb7e04fb6d6d8e64024a7dbac1f6b431",
+      "revisionCommittedAt": "2018-10-11T08:12:40Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 153,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "bmaltais/kohya_ss",
+      "url": "https://github.com/bmaltais/kohya_ss",
+      "stars": 12494,
+      "sizeKb": 25351,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "45088f04af78e11cec5407ff4652ea3ed2c14422",
+      "revisionCommittedAt": "2026-07-10T19:08:38Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 154,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "lucidrains/denoising-diffusion-pytorch",
+      "url": "https://github.com/lucidrains/denoising-diffusion-pytorch",
+      "stars": 10659,
+      "sizeKb": 2636,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "d93647ad3cf97d786a064ef80429ee6c3e5ebd55",
+      "revisionCommittedAt": "2026-02-11T19:55:57Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 155,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "coderamp-labs/gitingest",
+      "url": "https://github.com/coderamp-labs/gitingest",
+      "stars": 15218,
+      "sizeKb": 1489,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "4e259a02fe72115bee538271622f1234a81c8e1a",
+      "revisionCommittedAt": "2025-08-16T01:30:46Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 156,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "letta-ai/letta",
+      "url": "https://github.com/letta-ai/letta",
+      "stars": 23943,
+      "sizeKb": 293608,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "b76da9092518cbaa2d09042e52fdcbde69243e18",
+      "revisionCommittedAt": "2026-07-03T18:53:39Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 157,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "instaloader/instaloader",
+      "url": "https://github.com/instaloader/instaloader",
+      "stars": 12965,
+      "sizeKb": 2014,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "ad03b392db9a965d1ece316ececab82b242cdad6",
+      "revisionCommittedAt": "2026-07-13T18:48:06Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 158,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "OctoPrint/OctoPrint",
+      "url": "https://github.com/OctoPrint/OctoPrint",
+      "stars": 9047,
+      "sizeKb": 61020,
+      "primaryLanguage": "Python",
+      "defaultBranch": "dev",
+      "revision": "6aa63dad10ae51ddd95885a2eeba76d2578c8406",
+      "revisionCommittedAt": "2026-07-14T08:17:23Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 159,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "bojieli/ai-agent-book",
+      "url": "https://github.com/bojieli/ai-agent-book",
+      "stars": 19015,
+      "sizeKb": 294511,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "c2ed3c18a6ee7539e83ccb25cf5beaecc28cb0ec",
+      "revisionCommittedAt": "2026-07-24T16:28:34Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 160,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "QuivrHQ/quivr",
+      "url": "https://github.com/QuivrHQ/quivr",
+      "stars": 39332,
+      "sizeKb": 130685,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "947a785415c6c35ab2ae8157222b4720b0710b4d",
+      "revisionCommittedAt": "2025-06-19T13:02:37Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 161,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "cool-RR/PySnooper",
+      "url": "https://github.com/cool-RR/PySnooper",
+      "stars": 16580,
+      "sizeKb": 447,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "4be5c156ffc3315011c42ba521c4d8487052d289",
+      "revisionCommittedAt": "2026-06-08T19:44:59Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 162,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "mikf/gallery-dl",
+      "url": "https://github.com/mikf/gallery-dl",
+      "stars": 18964,
+      "sizeKb": 11878,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "d93587c8e10b98b02af06c407c6be22d13e51f8d",
+      "revisionCommittedAt": "2026-07-18T08:31:48Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 163,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "lucidrains/DALLE2-pytorch",
+      "url": "https://github.com/lucidrains/DALLE2-pytorch",
+      "stars": 11306,
+      "sizeKb": 3946,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "680dfc4d93b70f9ab23c814a22ca18017a738ef6",
+      "revisionCommittedAt": "2023-10-19T14:40:57Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 164,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "microsoft/agent-framework",
+      "url": "https://github.com/microsoft/agent-framework",
+      "stars": 12368,
+      "sizeKb": 130072,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "d0a0d5a3df680ee1d6ee59258cd95cfd2f7b426e",
+      "revisionCommittedAt": "2026-07-24T12:57:10Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 165,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "huggingface/lerobot",
+      "url": "https://github.com/huggingface/lerobot",
+      "stars": 26102,
+      "sizeKb": 232258,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "0d383d09f2051444de211739196a28cc94736861",
+      "revisionCommittedAt": "2026-07-24T16:51:35Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 166,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "sczhou/CodeFormer",
+      "url": "https://github.com/sczhou/CodeFormer",
+      "stars": 18066,
+      "sizeKb": 17633,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b",
+      "revisionCommittedAt": "2025-11-18T12:03:26Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 167,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "langchain-ai/local-deep-researcher",
+      "url": "https://github.com/langchain-ai/local-deep-researcher",
+      "stars": 9285,
+      "sizeKb": 763,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "38f769f84380f2065de76021ac7c5215f88aa39e",
+      "revisionCommittedAt": "2026-07-14T08:45:03Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 168,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "luongnv89/claude-howto",
+      "url": "https://github.com/luongnv89/claude-howto",
+      "stars": 40478,
+      "sizeKb": 14495,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "97fc961a8cc68ade7e74f2dbd5c9dc5491ce55bb",
+      "revisionCommittedAt": "2026-07-22T15:18:15Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 169,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "allenai/olmocr",
+      "url": "https://github.com/allenai/olmocr",
+      "stars": 19171,
+      "sizeKb": 357497,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "f7cfe4c22098b154c76b6ec950d1c0a464eecf8d",
+      "revisionCommittedAt": "2026-03-25T17:52:36Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 170,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pytube/pytube",
+      "url": "https://github.com/pytube/pytube",
+      "stars": 13152,
+      "sizeKb": 19412,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "a32fff39058a6f7e5e59ecd06a7467b71197ce35",
+      "revisionCommittedAt": "2023-05-20T10:08:41Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 171,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "yizhiyanhua-ai/fireworks-tech-graph",
+      "url": "https://github.com/yizhiyanhua-ai/fireworks-tech-graph",
+      "stars": 9358,
+      "sizeKb": 13094,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "50c819d68fd4fee330b3010988cd13e98b678d44",
+      "revisionCommittedAt": "2026-07-17T04:24:15Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 172,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "stars": 36654,
+      "sizeKb": 15365,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "4338f12c3c28c80b3ac015e2d0df66c41592746d",
+      "revisionCommittedAt": "2026-07-23T14:48:34Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 173,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "facefusion/facefusion",
+      "url": "https://github.com/facefusion/facefusion",
+      "stars": 29386,
+      "sizeKb": 29739,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "3f81a8a78454089d720b8f318a12ae1702c4633b",
+      "revisionCommittedAt": "2026-07-05T14:43:36Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 174,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "SWivid/F5-TTS",
+      "url": "https://github.com/SWivid/F5-TTS",
+      "stars": 14997,
+      "sizeKb": 2238,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "9c614e9657089213efc6a7421b30630be138a3f5",
+      "revisionCommittedAt": "2026-07-23T09:19:55Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 175,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "python/mypy",
+      "url": "https://github.com/python/mypy",
+      "stars": 20553,
+      "sizeKb": 85069,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "3d657d66915fe8b12bebb7ce12a44e5dc59d66f8",
+      "revisionCommittedAt": "2026-07-21T12:57:20Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 176,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "microsoft/pyright",
+      "url": "https://github.com/microsoft/pyright",
+      "stars": 15548,
+      "sizeKb": 132111,
+      "primaryLanguage": "Python",
+      "defaultBranch": "main",
+      "revision": "93ea6468a40c7c8cdab5643f66411da5e0414742",
+      "revisionCommittedAt": "2026-07-15T21:08:39Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 177,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "blacklanternsecurity/bbot",
+      "url": "https://github.com/blacklanternsecurity/bbot",
+      "stars": 10210,
+      "sizeKb": 106423,
+      "primaryLanguage": "Python",
+      "defaultBranch": "stable",
+      "revision": "eabac72a46fa50897ef3f3dc5a19ad57f029c33f",
+      "revisionCommittedAt": "2026-07-21T15:04:57Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 178,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ultrafunkamsterdam/undetected-chromedriver",
+      "url": "https://github.com/ultrafunkamsterdam/undetected-chromedriver",
+      "stars": 12767,
+      "sizeKb": 348,
+      "primaryLanguage": "Python",
+      "defaultBranch": "master",
+      "revision": "757ed6a22052f0674bb7c9f765ca884d15dcb780",
+      "revisionCommittedAt": "2025-07-05T10:42:02Z",
+      "selectionStratum": "deep-python"
+    },
+    {
+      "overallIndex": 179,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "rclone/rclone",
+      "url": "https://github.com/rclone/rclone",
+      "stars": 58673,
+      "sizeKb": 248957,
+      "primaryLanguage": "Go",
+      "defaultBranch": "master",
+      "revision": "c99b2d11edb0986cd2b1190e9fa25a58a3f12661",
+      "revisionCommittedAt": "2026-07-24T14:00:09Z",
+      "selectionStratum": "partial-go"
+    },
+    {
+      "overallIndex": 180,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "glanceapp/glance",
+      "url": "https://github.com/glanceapp/glance",
+      "stars": 35940,
+      "sizeKb": 20153,
+      "primaryLanguage": "Go",
+      "defaultBranch": "main",
+      "revision": "91324e8de762702e97b0ac5c8e36271d644d8642",
+      "revisionCommittedAt": "2026-05-30T20:35:16Z",
+      "selectionStratum": "partial-go"
+    },
+    {
+      "overallIndex": 181,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "goharbor/harbor",
+      "url": "https://github.com/goharbor/harbor",
+      "stars": 29011,
+      "sizeKb": 264550,
+      "primaryLanguage": "Go",
+      "defaultBranch": "main",
+      "revision": "89dbf8fbf7a60f2843f64ed7af11cf3d07be0bc8",
+      "revisionCommittedAt": "2026-07-24T09:39:17Z",
+      "selectionStratum": "partial-go"
+    },
+    {
+      "overallIndex": 182,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "emilk/egui",
+      "url": "https://github.com/emilk/egui",
+      "stars": 29819,
+      "sizeKb": 93558,
+      "primaryLanguage": "Rust",
+      "defaultBranch": "main",
+      "revision": "e6eb00a31c7089d4458c55fcbe5f1253311a7176",
+      "revisionCommittedAt": "2026-07-24T08:24:33Z",
+      "selectionStratum": "partial-rust"
+    },
+    {
+      "overallIndex": 183,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "spacedriveapp/spacedrive",
+      "url": "https://github.com/spacedriveapp/spacedrive",
+      "stars": 38636,
+      "sizeKb": 271488,
+      "primaryLanguage": "Rust",
+      "defaultBranch": "main",
+      "revision": "60369e9f00b5abe07f4518626bf36f6a7453476f",
+      "revisionCommittedAt": "2026-04-19T01:56:51Z",
+      "selectionStratum": "partial-rust"
+    },
+    {
+      "overallIndex": 184,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "yewstack/yew",
+      "url": "https://github.com/yewstack/yew",
+      "stars": 32749,
+      "sizeKb": 22246,
+      "primaryLanguage": "Rust",
+      "defaultBranch": "master",
+      "revision": "0e4a05472fac4e5fce1befe60fa4a1e43a36b6a3",
+      "revisionCommittedAt": "2026-07-24T16:30:09Z",
+      "selectionStratum": "partial-rust"
+    },
+    {
+      "overallIndex": 185,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "baomidou/mybatis-plus",
+      "url": "https://github.com/baomidou/mybatis-plus",
+      "stars": 17416,
+      "sizeKb": 32474,
+      "primaryLanguage": "Java",
+      "defaultBranch": "3.0",
+      "revision": "db0b3c4bb58a38bad9c3d78b7269d8a477cc6a63",
+      "revisionCommittedAt": "2026-07-08T15:03:44Z",
+      "selectionStratum": "partial-java"
+    },
+    {
+      "overallIndex": 186,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "busyloop/lolcat",
+      "url": "https://github.com/busyloop/lolcat",
+      "stars": 6554,
+      "sizeKb": 533,
+      "primaryLanguage": "Ruby",
+      "defaultBranch": "master",
+      "revision": "f4cca5601ea57df2b5b3c98feea8ad05f4421039",
+      "revisionCommittedAt": "2021-12-03T11:34:06Z",
+      "selectionStratum": "partial-ruby"
+    },
+    {
+      "overallIndex": 187,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "pterodactyl/panel",
+      "url": "https://github.com/pterodactyl/panel",
+      "stars": 9049,
+      "sizeKb": 29751,
+      "primaryLanguage": "PHP",
+      "defaultBranch": "1.0-develop",
+      "revision": "c39a7be8f55a4537a4eaa4a134be6a3b975b14ec",
+      "revisionCommittedAt": "2026-06-28T21:52:34Z",
+      "selectionStratum": "partial-php"
+    },
+    {
+      "overallIndex": 188,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "BCUninstaller/Bulk-Crap-Uninstaller",
+      "url": "https://github.com/BCUninstaller/Bulk-Crap-Uninstaller",
+      "stars": 20364,
+      "sizeKb": 12242,
+      "primaryLanguage": "C#",
+      "defaultBranch": "master",
+      "revision": "f39663316ad5d593c4d160b0445841ce7eb6a35f",
+      "revisionCommittedAt": "2026-06-18T13:42:01Z",
+      "selectionStratum": "partial-csharp"
+    },
+    {
+      "overallIndex": 189,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "duckdb/duckdb",
+      "url": "https://github.com/duckdb/duckdb",
+      "stars": 39680,
+      "sizeKb": 470719,
+      "primaryLanguage": "C++",
+      "defaultBranch": "main",
+      "revision": "5cd70f2c703e8d65b8559c0607d9eb711215c76a",
+      "revisionCommittedAt": "2026-07-24T13:52:08Z",
+      "selectionStratum": "partial-cpp"
+    },
+    {
+      "overallIndex": 190,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "Quick/Quick",
+      "url": "https://github.com/Quick/Quick",
+      "stars": 9830,
+      "sizeKb": 3491,
+      "primaryLanguage": "Swift",
+      "defaultBranch": "main",
+      "revision": "2b4547b230e94d84320724fd6df65e418b058be2",
+      "revisionCommittedAt": "2026-03-17T03:36:30Z",
+      "selectionStratum": "partial-swift"
+    },
+    {
+      "overallIndex": 191,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "javalin/javalin",
+      "url": "https://github.com/javalin/javalin",
+      "stars": 8316,
+      "sizeKb": 5852,
+      "primaryLanguage": "Kotlin",
+      "defaultBranch": "master",
+      "revision": "6600d23a36eca699d57cca14110c3fb181222ed9",
+      "revisionCommittedAt": "2026-06-29T22:05:56Z",
+      "selectionStratum": "partial-kotlin"
+    },
+    {
+      "overallIndex": 192,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "simolus3/drift",
+      "url": "https://github.com/simolus3/drift",
+      "stars": 3249,
+      "sizeKb": 36804,
+      "primaryLanguage": "Dart",
+      "defaultBranch": "develop",
+      "revision": "461e8fa45b553f5dbc3fe0ffc6abfbd4facf8b17",
+      "revisionCommittedAt": "2026-07-22T21:23:54Z",
+      "selectionStratum": "partial-dart"
+    },
+    {
+      "overallIndex": 193,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "akira/exq",
+      "url": "https://github.com/akira/exq",
+      "stars": 1530,
+      "sizeKb": 3051,
+      "primaryLanguage": "Elixir",
+      "defaultBranch": "master",
+      "revision": "ffa446eb3992fa22dea2db3d4f7bd594f5326952",
+      "revisionCommittedAt": "2026-03-13T16:24:36Z",
+      "selectionStratum": "partial-elixir"
+    },
+    {
+      "overallIndex": 194,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "linkerd/linkerd",
+      "url": "https://github.com/linkerd/linkerd",
+      "stars": 5313,
+      "sizeKb": 19129,
+      "primaryLanguage": "Scala",
+      "defaultBranch": "main",
+      "revision": "ea82499d386e44e8958be58e0386f593e639645b",
+      "revisionCommittedAt": "2022-05-24T21:50:24Z",
+      "selectionStratum": "partial-scala"
+    },
+    {
+      "overallIndex": 195,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "spaceship-prompt/spaceship-prompt",
+      "url": "https://github.com/spaceship-prompt/spaceship-prompt",
+      "stars": 20546,
+      "sizeKb": 12924,
+      "primaryLanguage": "Shell",
+      "defaultBranch": "master",
+      "revision": "fd0d6653a134fe28f498eae1784fbb46d27f20f3",
+      "revisionCommittedAt": "2026-07-01T13:03:14Z",
+      "selectionStratum": "stress-unmodelled-shell"
+    },
+    {
+      "overallIndex": 196,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "robjhyndman/forecast",
+      "url": "https://github.com/robjhyndman/forecast",
+      "stars": 1169,
+      "sizeKb": 243369,
+      "primaryLanguage": "R",
+      "defaultBranch": "master",
+      "revision": "10d097e82da5e4b5d0360f745081c3588a8528cc",
+      "revisionCommittedAt": "2026-07-22T21:58:46Z",
+      "selectionStratum": "stress-unmodelled-r"
+    },
+    {
+      "overallIndex": 197,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ThePrimeagen/vim-be-good",
+      "url": "https://github.com/ThePrimeagen/vim-be-good",
+      "stars": 4512,
+      "sizeKb": 353,
+      "primaryLanguage": "Lua",
+      "defaultBranch": "master",
+      "revision": "0ae3de14eb8efc6effe7704b5e46495e91931cc5",
+      "revisionCommittedAt": "2024-12-05T02:01:17Z",
+      "selectionStratum": "stress-unmodelled-lua"
+    },
+    {
+      "overallIndex": 198,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "JuliaPy/PyCall.jl",
+      "url": "https://github.com/JuliaPy/PyCall.jl",
+      "stars": 1511,
+      "sizeKb": 1514,
+      "primaryLanguage": "Julia",
+      "defaultBranch": "master",
+      "revision": "e5dfc313d701391d4965871c832a88fe27309ccd",
+      "revisionCommittedAt": "2026-07-01T18:13:21Z",
+      "selectionStratum": "stress-unmodelled-julia"
+    },
+    {
+      "overallIndex": 199,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "ghcjs/ghcjs",
+      "url": "https://github.com/ghcjs/ghcjs",
+      "stars": 2622,
+      "sizeKb": 6831,
+      "primaryLanguage": "Haskell",
+      "defaultBranch": "ghc-8.10",
+      "revision": "b7711fbca7c3f43a61f1dba526e6f2a2656ef44c",
+      "revisionCommittedAt": "2022-09-25T08:48:25Z",
+      "selectionStratum": "stress-unmodelled-haskell"
+    },
+    {
+      "overallIndex": 200,
+      "wave": 1,
+      "availability": "available",
+      "fullName": "terraform-aws-modules/terraform-aws-security-group",
+      "url": "https://github.com/terraform-aws-modules/terraform-aws-security-group",
+      "stars": 592,
+      "sizeKb": 706,
+      "primaryLanguage": "HCL",
+      "defaultBranch": "master",
+      "revision": "58d8e895915f5573767081142d063b7caf7a2b47",
+      "revisionCommittedAt": "2026-06-03T13:53:43Z",
+      "selectionStratum": "stress-unmodelled-terraform"
+    }
+  ],
+  "candidateUniverseArtifact": {
+    "path": "manifest-wave-1.universe.jsonl",
+    "recordCount": 7831,
+    "sha256": "04e5e408021cd18443139b25ae37bed18fb6489818df8f63a1b023755f5542d5"
+  },
+  "plannedOrderArtifact": {
+    "path": "manifest-wave-1.order.jsonl",
+    "recordCount": 200,
+    "sha256": "a6c02f333917ae5b52aacdf78f37958b277d5540f96be7e61133a6298b39efcf"
+  }
+}

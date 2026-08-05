@@ -1,0 +1,619 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "Cejel",
+  "repo": {
+    "path": "/private/tmp/cejel-v17-rebind-corpus/146-FunASR",
+    "headSha": "a28ee6b39dde8319edcc977a8994abf2bcab9ce2"
+  },
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 1.8,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "examples/mcp_server/test_funasr_mcp.py",
+          "line": 1,
+          "contentHash": "a3488581775ec4ae41706ce05e77c6a1a818be267c9e83a3f4bae79ed8748595"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "examples/mcp_server/test_registry_metadata.py",
+          "line": 1,
+          "contentHash": "309fb22f6096916779c8de89a485996948e33c1ca4b3b96dd5961e03aabf2795"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "runtime/android/AndroidClient/app/src/androidTest/java/com/yeyupiaoling/androidclient/ExampleInstrumentedTest.kt",
+          "line": 1,
+          "contentHash": "b3a998c3998742814bad7efc690ce3d2c8b816b3268dcee73a2d20e78bff6c29"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "runtime/android/AndroidClient/app/src/test/java/com/yeyupiaoling/androidclient/ExampleUnitTest.kt",
+          "line": 1,
+          "contentHash": "67272bb63aa38b6a64a7a7694c88ebfe3ff065c297d85daea0ea08d17a36582f"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "runtime/java/tests/FunasrWsClientTest.java",
+          "line": 1,
+          "contentHash": "0fd15b387500a32a125efb1158db6a180456db3416f76abf3bd6e67f7568860c"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "runtime/llama.cpp/tests/run_regression.sh",
+          "line": 1,
+          "contentHash": "f87ea5e6b0f4755259b8ef6153539a00a5e7342d8634e8eecd500289ec4ee922"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "runtime/llama.cpp/tests/test_backend_flags.py",
+          "line": 1,
+          "contentHash": "dab191c75f8d8edb1b18c46645dd05c583d8c6bd02c19b71a64170d3b4360784"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "runtime/llama.cpp/tests/test_download_funasr_model.sh",
+          "line": 1,
+          "contentHash": "b81da299eeea8e57276193a22b4e9154a42c9838812b7d293de812d8762572a4"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "runtime/java/Makefile",
+          "line": 2,
+          "contentHash": "ec2d00d216aa22523b5c55c4eaff8d21c46b5963187d3e4dbac30ce69bfc87ff"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "runtime/onnxruntime/third_party/glog/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "4ef021ea0e5ea870b9f22006ae6c1fa2700ed6488ea71b927238f605fadc05cc"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "runtime/onnxruntime/third_party/kaldi-native-fbank/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "c20dd34069959d38da609f4479c6af94aace2ca20713bb35039e7f1e609aa990"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "runtime/onnxruntime/third_party/openfst/src/CMakeLists.txt",
+          "line": 2,
+          "contentHash": "caa67c63d9829479fb43415121d5066e7aba896c0533b711e8b2aa4df8638c39"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "runtime/onnxruntime/third_party/yaml-cpp/CMakeLists.txt",
+          "line": 1,
+          "contentHash": "ebd0fa358eb23abfe51081cc0101e359970ef2f0ad38e8aa4e2768104f0c34ce"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "info",
+          "summary": "Test suite files are present, but no coverage configuration was detected.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Detected test file",
+            "path": "examples/mcp_server/test_funasr_mcp.py",
+            "line": 1,
+            "contentHash": "a3488581775ec4ae41706ce05e77c6a1a818be267c9e83a3f4bae79ed8748595"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 89,
+          "max": 288,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 5,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 63,
+          "max": 84,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 3.6,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "secret_scan",
+          "label": ".env path detected in git history",
+          "path": ".git",
+          "contentHash": "a28ee6b39dde8319edcc977a8994abf2bcab9ce2"
+        },
+        {
+          "kind": "secret_scan",
+          "label": "Environment template",
+          "path": "examples/openai_api/.env.example",
+          "line": 1,
+          "contentHash": "dce1ec2ce9703c2201599766f13b4650ee200149a5eba9d895fbf4fed0632241"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "secret_cleanliness",
+          "label": "Secret cleanliness",
+          "value": 1,
+          "max": 1,
+          "weight": 0.7,
+          "unit": "clean",
+          "description": "Credits absence of committed or recent-history secret findings in the static scan."
+        },
+        {
+          "name": "env_handling_depth",
+          "label": "Environment handling depth",
+          "value": 2,
+          "max": 3,
+          "weight": 0.3,
+          "unit": "practices",
+          "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language."
+        }
+      ],
+      "notes": "History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 2.4,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/build-llamacpp-binaries.yml",
+          "line": 1,
+          "contentHash": "777223420b0028600256d1ed54895c25c0d2655b97ffed427b660c794fe3fb37"
+        },
+        {
+          "kind": "prod_check",
+          "label": "Release deploy configuration",
+          "path": "runtime/triton_gpu/docker-compose.yml",
+          "line": 1,
+          "contentHash": "0d7c2de7647173e600c0ec5b997268b8ac17bbb032709d8ed42eb14e78891aef"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A3 metric-derived score is 2.4/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "ci_run",
+            "label": "CI workflow",
+            "path": ".github/workflows/build-llamacpp-binaries.yml",
+            "line": 1,
+            "contentHash": "777223420b0028600256d1ed54895c25c0d2655b97ffed427b660c794fe3fb37"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "prod_readiness_primitives",
+          "label": "Production-readiness primitive coverage",
+          "value": 2,
+          "max": 6,
+          "weight": 0.55,
+          "unit": "primitives",
+          "description": "Counts distinct static production-readiness primitives instead of treating presence as enough."
+        },
+        {
+          "name": "prod_workflow_depth",
+          "label": "Production workflow depth",
+          "value": 7,
+          "max": 6,
+          "kind": "saturating_count",
+          "weight": 0.2,
+          "unit": "signals",
+          "description": "Measures CI/deploy configuration depth instead of a single CI-present bit."
+        },
+        {
+          "name": "observability_depth",
+          "label": "Observability depth",
+          "value": 4,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.1,
+          "unit": "signals",
+          "description": "Counts static observability/logging/metrics implementation signals."
+        },
+        {
+          "name": "rollback_safety_depth",
+          "label": "Rollback and migration-safety depth",
+          "value": 3,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.15,
+          "unit": "signals",
+          "description": "Counts static rollback or migration-safety artifacts."
+        }
+      ]
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 2.3,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "web-pages/package.json",
+          "line": 1,
+          "contentHash": "ca6cf1b51031771a028298c8be82d8d09909a40972e5f57c682f3f4f6d6fb906"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile",
+          "path": "runtime/golang/websocket/go.sum",
+          "line": 1,
+          "contentHash": "3a035ab8246b8834d360d39161c61b6bd4f5f93a7f4aecea00d0e4aa4346a228"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 2.3/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "web-pages/package.json",
+            "line": 1,
+            "contentHash": "ca6cf1b51031771a028298c8be82d8d09909a40972e5f57c682f3f4f6d6fb906"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "pinned_dependency_ratio",
+          "label": "Pinned dependency ratio",
+          "value": 32,
+          "max": 70,
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures exact/static dependency versions in manifests; lower weight because a lockfile is the primary reproducibility guarantee."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.45,
+          "unit": "present",
+          "description": "Credits presence of at least one lockfile; one root lockfile covering a monorepo is sufficient."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 0,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        }
+      ],
+      "notes": "A4 scored against app/service norms (deploy surface detected): pinned dependencies and a lockfile are required for reproducible installs."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2.4,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "path": "README.md",
+          "line": 1,
+          "contentHash": "92b295001792036f86b08279e41bbc8df1e873a23033b1641836d0e117002ee4"
+        },
+        {
+          "kind": "artifact",
+          "label": "Code presence for claim reconciliation",
+          "path": "runtime/android/AndroidClient/app/src/androidTest/java/com/yeyupiaoling/androidclient/ExampleInstrumentedTest.kt",
+          "line": 1,
+          "contentHash": "b3a998c3998742814bad7efc690ce3d2c8b816b3268dcee73a2d20e78bff6c29"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "path": "README.md",
+            "line": 1,
+            "contentHash": "92b295001792036f86b08279e41bbc8df1e873a23033b1641836d0e117002ee4"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 12,
+          "max": 20,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
+        },
+        {
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 26,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Requires a specific claim-reality artifact to reach full depth."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Dispatch trace completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the dispatch-trace process dimension."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/build-llamacpp-binaries.yml",
+          "line": 1,
+          "contentHash": "777223420b0028600256d1ed54895c25c0d2655b97ffed427b660c794fe3fb37"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/publish-mcp-server.yml",
+          "line": 1,
+          "contentHash": "35a11a31899190a336bd530b6678ccefbcc08bf68e1be98e5bbc7edd63693577"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/release-on-tag.yml",
+          "line": 1,
+          "contentHash": "364a58521194cc85fe0d1e39a5a2342580a869f530cde316e5a9efc1c066916c"
+        },
+        {
+          "kind": "pull_request",
+          "label": "Pull request template",
+          "path": ".github/PULL_REQUEST_TEMPLATE.md",
+          "line": 1,
+          "contentHash": "1f075613127e10fe34acedaa36ecd24c21d533ddda8d45352d08647d72f7478b"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 7,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 12,
+          "max": 12,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 2.7,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/build-llamacpp-binaries.yml",
+          "line": 1,
+          "contentHash": "777223420b0028600256d1ed54895c25c0d2655b97ffed427b660c794fe3fb37"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 4,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 3.5,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "SECURITY.md",
+          "line": 1,
+          "contentHash": "343ea12b760bcfb8adda117d93ad24c2f741c73dbf752c29c1a680e1048ac414"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "examples/openai_api/SECURITY.md",
+          "line": 1,
+          "contentHash": "ed93ca0b88de80a4be1121de4d2ad4861ccf81f8479369b74508f7fa1f34f516"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "runtime/onnxruntime/third_party/gflags/ChangeLog.txt",
+          "line": 1,
+          "contentHash": "fe62e4e6b2965d0e4776daeec9c9647a16052816f7318db7355df48614b2bced"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "audit_artifact_depth",
+          "label": "Audit artifact depth",
+          "value": 3,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "files",
+          "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts."
+        },
+        {
+          "name": "audit_freshness_depth",
+          "label": "Audit freshness depth",
+          "value": 1,
+          "max": 3,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Credits audit artifacts that carry freshness/current-state markers."
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "title": "Verified learning trace",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the learning-trace process dimension."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "source",
+  "contentReadSummary": {
+    "skipped": 779,
+    "byReason": {
+      "unreadable": 0,
+      "tooLarge": 0,
+      "excludedByExtension": 752,
+      "deniedPath": 0,
+      "nonRegularFile": 27
+    },
+    "unreadableByErrno": {},
+    "affectedCriteria": []
+  },
+  "verdict": "conditional",
+  "codeTrustScore": 2.5,
+  "processTrustScore": 3.4,
+  "overallScore": 3
+}

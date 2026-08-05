@@ -1,0 +1,503 @@
+{
+  "productSlug": "cejel",
+  "productDisplayName": "Cejel",
+  "repo": {
+    "path": "/private/tmp/cejel-v17-rebind-corpus/149-byob",
+    "headSha": "b4946908b8a3691f75a7e15ffe6883ef509afc91"
+  },
+  "generatedAt": "2026-07-24T21:39:19.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "criteria": [
+    {
+      "id": "A1",
+      "title": "Test integrity and regression signal",
+      "category": "code_trust",
+      "score": 2.6,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/mode/rpm/spec/index.html",
+          "line": 1,
+          "contentHash": "51c84cb0ebd85d688c6ffa079b14a6bffb282f46e7bca8b001d60385c3941c51"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/mode/rpm/spec/spec.css",
+          "line": 1,
+          "contentHash": "a658c13d29fe972da4a5179b39fbb864e756c773f084e3b68c0f1c97c1e5e87b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/mode/rpm/spec/spec.js",
+          "line": 1,
+          "contentHash": "c6ec0c9abda607243696fca668cacc2687c786375a081061f0cb4c69e77152f6"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/test/comment_test.js",
+          "line": 1,
+          "contentHash": "16e70d784d0f5cb668d666cc5a7339dd921652a37d85f77f7b44390c5419c3ed"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/test/doc_test.js",
+          "line": 1,
+          "contentHash": "a2954dd8ec0ee93ab6bf8901b222cf6deb8936a468536737a42fde61c3b50ef5"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/test/driver.js",
+          "line": 1,
+          "contentHash": "7549e8e8e2668d495ab8ab6bd7f53b49472606dfefa8d3218e5e2aa66621a47a"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/test/emacs_test.js",
+          "line": 1,
+          "contentHash": "967102a5a4e8dd021fc69b12f7be6b66816e67cba6c96b96ac8cf14885a706cf"
+        },
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/test/index.html",
+          "line": 1,
+          "contentHash": "93413da7a4c8ffdd44600c607b7d2d2ae9181783fb243b71dfeb76a75f473e2e"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "web-gui/buildyourownbotnet/assets/js/jquery-terminal/Makefile",
+          "line": 1,
+          "contentHash": "63ff336e40b3321d526a35f0f6d42a68961d1ea5b32acfef73732b62400fde25"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": ".coveragerc",
+          "line": 1,
+          "contentHash": "b758be42c02f6bcad1a7dd60ef4dc4c721949d0fb1958dacc8429e9cf1a5c47f"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "web-gui/.coveragerc",
+          "line": 1,
+          "contentHash": "03a3e27c9376359b7b8b5ee35788224f7292b0e55a764a2eb7ce21a89bf1883e"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "web-gui/.coveralls.yml",
+          "line": 1,
+          "contentHash": "6fb58c56f48cb7f57fad536a6c3a88158c9914b3c5c2a9e6e93e88e710ea9516"
+        },
+        {
+          "kind": "test_run",
+          "label": "CI workflow runs the test suite",
+          "path": ".github/workflows/python-app.yml",
+          "line": 1,
+          "contentHash": "b7a58c9e985318f001e9932c8b47f6921310dcff6396f0784991927000e5c24c"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 33,
+          "max": 11,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 3,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration."
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 12,
+          "max": 12,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    {
+      "id": "A2",
+      "title": "Data-layer isolation and secrets posture",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify."
+    },
+    {
+      "id": "A3",
+      "title": "Production readiness",
+      "category": "code_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No deployable-service surface detected — production-readiness not applicable to this library/CLI archetype. Signals checked: production server entrypoint (HTTP/RPC port binding in main/server/app files, outside examples/tests/demo dirs), deploy config (vercel.json, render.yaml, fly.toml, Procfile, app.yaml, serverless.yml, docker-compose, k8s/helm manifests), CI deploy job (fly deploy, kubectl apply, helm install/upgrade, docker push). A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify."
+    },
+    {
+      "id": "A4",
+      "title": "Dependency hygiene",
+      "category": "code_trust",
+      "score": 3,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "dependency_report",
+          "label": "Dependency manifest",
+          "path": "byob/requirements.txt",
+          "line": 1,
+          "contentHash": "08e1641fb7426f4848d298b1d74bd4f73c024a061fb8c768fe61187a1ac2cfa5"
+        },
+        {
+          "kind": "dependency_report",
+          "label": "Dependency lockfile",
+          "path": "web-gui/buildyourownbotnet/assets/js/jquery-terminal/package-lock.json",
+          "line": 1,
+          "contentHash": "4f1aeffb378d380f499ee37371e3565f23f6560e0a2ccd0a47fc326a505bd9d3"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A4 metric-derived score is 3.0/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.",
+          "evidence": {
+            "kind": "dependency_report",
+            "label": "Dependency manifest",
+            "path": "byob/requirements.txt",
+            "line": 1,
+            "contentHash": "08e1641fb7426f4848d298b1d74bd4f73c024a061fb8c768fe61187a1ac2cfa5"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "declared_version_range_ratio",
+          "label": "Declared version range ratio",
+          "value": 98,
+          "max": 106,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Measures dependencies declared with an explicit version constraint (range or exact); a library correctly ships ranges, so ranges earn full credit here."
+        },
+        {
+          "name": "lockfile_coverage",
+          "label": "Lockfile coverage",
+          "value": 1,
+          "max": 1,
+          "weight": 0.3,
+          "unit": "present",
+          "description": "Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees."
+        },
+        {
+          "name": "dependency_automation_ratio",
+          "label": "Dependency automation ratio",
+          "value": 0,
+          "max": 2,
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Credits automated dependency updates and package-manager audit hooks."
+        },
+        {
+          "name": "dependency_count_sanity",
+          "label": "Dependency count sanity",
+          "value": 1,
+          "max": 1,
+          "weight": 0.1,
+          "unit": "sane",
+          "description": "Credits a sane direct-dependency count for a library (full credit up to 120 declared specs across manifests, declining beyond)."
+        }
+      ],
+      "notes": "A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required."
+    },
+    {
+      "id": "A5",
+      "title": "Claim-vs-reality reconciliation",
+      "category": "code_trust",
+      "score": 2.1,
+      "status": "warning",
+      "evidence": [
+        {
+          "kind": "claim_reconciliation",
+          "label": "Repository claim source",
+          "path": "README.md",
+          "line": 1,
+          "contentHash": "867d1f175292575124b8f7fb42bd66c9cb0ee5553b85421a8d405713be4b1638"
+        },
+        {
+          "kind": "artifact",
+          "label": "Code presence for claim reconciliation",
+          "path": "web-gui/buildyourownbotnet/assets/js/codemirror/lib/codemirror.js",
+          "line": 1,
+          "contentHash": "e14cce0c3b8edacb506858147a47994ca3880f7fb3b22ddd562de58c970891b3"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.",
+          "evidence": {
+            "kind": "claim_reconciliation",
+            "label": "Repository claim source",
+            "path": "README.md",
+            "line": 1,
+            "contentHash": "867d1f175292575124b8f7fb42bd66c9cb0ee5553b85421a8d405713be4b1638"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "claim_match_rate",
+          "label": "Claim match rate",
+          "value": 8,
+          "max": 9,
+          "weight": 0.5,
+          "unit": "ratio",
+          "description": "Uses bounded implementation-to-claim-source depth as a static proxy when no dedicated artifact exists."
+        },
+        {
+          "name": "claim_source_depth",
+          "label": "Claim source depth",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.35,
+          "unit": "docs",
+          "description": "Credits multiple claim-bearing documents without judging unverified prose as truth."
+        },
+        {
+          "name": "reconciliation_artifact_depth",
+          "label": "Reconciliation artifact depth",
+          "value": 0,
+          "max": 3,
+          "weight": 0.15,
+          "unit": "artifacts",
+          "description": "Requires a specific claim-reality artifact to reach full depth."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Dispatch trace completeness",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the dispatch-trace process dimension."
+    },
+    {
+      "id": "B2",
+      "title": "PR outcome traceability",
+      "category": "process_trust",
+      "score": 3.5,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/python-app.yml",
+          "line": 1,
+          "contentHash": "b7a58c9e985318f001e9932c8b47f6921310dcff6396f0784991927000e5c24c"
+        },
+        {
+          "kind": "ci_run",
+          "label": "Pull-request CI workflow",
+          "path": ".github/workflows/stale.yml",
+          "line": 1,
+          "contentHash": "6377ce5075563c14fb8ac9c6e68d957a69f1bc1250ddf563314f144da9d50337"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "pr_trace_primitives",
+          "label": "PR trace primitive coverage",
+          "value": 2,
+          "max": 2,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "signals",
+          "description": "Measures CI, PR template, and review-gate evidence for pull-request traceability."
+        },
+        {
+          "name": "pr_merge_ratio",
+          "label": "Recent PR merge ratio",
+          "value": 4,
+          "max": 12,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Uses bounded git history as a deterministic proxy for PR outcome traceability."
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "CI and QA discipline",
+      "category": "process_trust",
+      "score": 1.5,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "ci_run",
+          "label": "CI workflow",
+          "path": ".github/workflows/python-app.yml",
+          "line": 1,
+          "contentHash": "b7a58c9e985318f001e9932c8b47f6921310dcff6396f0784991927000e5c24c"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "ci_script_depth",
+          "label": "CI verification depth",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.45,
+          "unit": "signals",
+          "description": "Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file."
+        },
+        {
+          "name": "default_branch_ci_depth",
+          "label": "PR-gate CI workflow count",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.55,
+          "unit": "workflows",
+          "description": "Counts CI workflows that target pull requests or the default branch, up to 4."
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "Audit trail and report-up completeness",
+      "category": "process_trust",
+      "score": 4,
+      "status": "verified",
+      "evidence": [
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "web-gui/buildyourownbotnet/assets/js/ckeditor/CHANGES.md",
+          "line": 1,
+          "contentHash": "95c63bc149cb7d275a2219fc04f8221409da6126c8eba5daa5f8106755d89375"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "web-gui/buildyourownbotnet/assets/js/easy-pie-chart/changelog.md",
+          "line": 1,
+          "contentHash": "3d5bbf4ba22f7295828efa38ebf1d8c3de36d67c5f1134a215943cfb7c9a55e6"
+        },
+        {
+          "kind": "audit_log",
+          "label": "Audit or changelog artifact",
+          "path": "web-gui/buildyourownbotnet/assets/js/jquery-terminal/CHANGELOG.md",
+          "line": 1,
+          "contentHash": "c2ba0b7c864f64afa42db6e7a5dadcd96914a6a2dcdfae0684366d2d0ad327fd"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "audit_artifact_depth",
+          "label": "Audit artifact depth",
+          "value": 3,
+          "max": 3,
+          "kind": "saturating_count",
+          "weight": 0.8,
+          "unit": "files",
+          "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts."
+        },
+        {
+          "name": "audit_freshness_depth",
+          "label": "Audit freshness depth",
+          "value": 3,
+          "max": 3,
+          "weight": 0.2,
+          "unit": "ratio",
+          "description": "Credits audit artifacts that carry freshness/current-state markers."
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "title": "Verified learning trace",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "Repository scans do not evaluate the learning-trace process dimension."
+    },
+    {
+      "id": "B6",
+      "title": "Privileged-operation human gating",
+      "category": "process_trust",
+      "score": 0,
+      "status": "not_applicable",
+      "evidence": [],
+      "findings": [],
+      "metrics": [],
+      "notes": "No privileged-operation surface (prod DB admin GRANT/privilege DDL, role escalation, or documented human-gate governance) detected in this repo."
+    }
+  ],
+  "archetype": "monorepo",
+  "contentReadSummary": {
+    "skipped": 879,
+    "byReason": {
+      "unreadable": 0,
+      "tooLarge": 0,
+      "excludedByExtension": 866,
+      "deniedPath": 13,
+      "nonRegularFile": 0
+    },
+    "unreadableByErrno": {},
+    "affectedCriteria": []
+  },
+  "verdict": "conditional",
+  "codeTrustScore": 2.6,
+  "processTrustScore": 3,
+  "overallScore": 2.8
+}
