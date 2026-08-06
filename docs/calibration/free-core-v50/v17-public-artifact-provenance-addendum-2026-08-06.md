@@ -36,11 +36,11 @@ On that path, `buildWitanInputFromRepo` calls the pre-existing internal
 non-test caller and is not re-exported from `src/witan/index.ts`; the package
 declares CLI binaries only, not a source-subpath export.
 
-The differing `dispatch_log` and `maeve_trace` enum members, and the
-quant-integrity and healthcare-integrity criterion-ID constants, likewise have
-no non-test Witan production references in the public source. Quant and
-healthcare operation is selected separately by the private CLI's explicit
-profile path; it is not part of the free-core route above. Both frozen and public
+The differing `dispatch_log` and `maeve_trace` enum members likewise have no
+non-test Witan production references in the public source. The quant-integrity
+and healthcare-integrity criterion-ID constants have no non-test references
+anywhere in the public Witan source, and are not reachable from the public
+free-core route above. Both frozen and public
 `createWitanReport` calls default to `WITAN_RUBRIC`.
 
 **Static conclusion:** the identified source differences are not reachable from
