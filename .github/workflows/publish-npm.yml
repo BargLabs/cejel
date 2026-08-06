@@ -1,0 +1,65 @@
+name: Publish npm package with provenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing public release tag; must equal v<package version>
+        required: true
+        type: string
+
+concurrency:
+  group: cejel-npm-publish-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Require an exact, unpublished release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          package_name="$(node -p "require('./package.json').name")"
+          test "$RELEASE_TAG" = "v$package_version"
+          git cat-file -e "$RELEASE_TAG^{commit}"
+          if npm view "$package_name@$package_version" version >/dev/null 2>&1; then
+            echo "$package_name@$package_version is already published" >&2
+            exit 1
+          fi
+
+      - name: Require npm CLI with trusted-publishing support
+        run: |
+          npm install --global npm@11.5.1
+          test "$(npm --version)" = "11.5.1"
+
+      - name: Install and verify the release source
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm typecheck
+          pnpm test
+          pnpm run validate:distribution
+
+      - name: Publish with npm provenance
+        run: npm publish --access public --provenance
