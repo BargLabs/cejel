@@ -12,6 +12,17 @@ import {
   serializeWitanReport,
   verifyWitanAttestationBinding,
 } from './witan/index.js';
+import {
+  CejelLlmPackArtifactSchema,
+  collectCejelLlmPack,
+  createCejelLlmPackArtifact,
+  createCejelLlmPackAttestation,
+  renderCejelLlmPackHtml,
+  renderCejelLlmPackTerminal,
+  serializeCejelLlmPackArtifact,
+  snapshotCejelLlmPackInput,
+  verifyCejelLlmPackAttestationBinding,
+} from './packs/llm/index.js';
 
 import { runCejelScan } from './scan.js';
 import {
@@ -28,6 +39,8 @@ export interface WitanCliOptions {
   quiet: boolean;
   showHelp: boolean;
   showVersion: boolean;
+  /** Optional pack selected for an additive, separate result. */
+  pack?: 'llm';
   /** Raw --ingest values (file paths or single-level globs), in the order given. */
   ingestPatterns: string[];
 }
@@ -38,7 +51,15 @@ export type CejelCliInvocation =
 
 const DEFAULT_OUT_DIR = '.cejel';
 
-export type CliFlagKind = 'help' | 'version' | 'quiet' | 'out' | 'minScore' | 'ingest' | 'name';
+export type CliFlagKind =
+  | 'help'
+  | 'version'
+  | 'quiet'
+  | 'out'
+  | 'minScore'
+  | 'ingest'
+  | 'name'
+  | 'pack';
 
 interface CliFlagSpec {
   tokens: readonly string[];
@@ -71,6 +92,12 @@ export const CLI_FLAG_SPECS = [
     value: '<file>',
     description: 'fold in a SARIF/JSON scanner report (repeatable)',
     kind: 'ingest',
+  },
+  {
+    tokens: ['--pack'],
+    value: '<llm>',
+    description: 'run an additive, separate pack result',
+    kind: 'pack',
   },
   {
     tokens: ['--quiet'],
@@ -174,8 +201,8 @@ async function main(): Promise<void> {
 
 /**
  * Zero-config public entry: `npx @cejel/cejel .` (or `npx @cejel/cejel`, defaulting to the
- * current directory). Fully offline — reuses this package's deterministic, no-LLM scoring core
- * and repo-signal collector; this module only adds ergonomic defaults + presentation.
+ * current directory). Fully offline — reuses this package's deterministic scoring core and
+ * repo-signal collector; optional packs remain separate from the base score and verdict.
  */
 export async function runWitanFreeCli(args: readonly string[]): Promise<number> {
   const invocation = parseCliInvocation(args);
@@ -193,16 +220,21 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
     return 0;
   }
 
+  // Capture the supported pack input before the base scan. The pack's contract is to refuse its
+  // own artifacts if that source boundary moves while the base report is being read.
+  const initialLlmSnapshot = options.pack === 'llm' ? snapshotCejelLlmPackInput(options.repoPath) : null;
   const { report, summary } = runCejelScan({
     repoPath: options.repoPath,
     ...(options.productDisplayName ? { productDisplayName: options.productDisplayName } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
   });
-  const attestation = createWitanAttestation(report, { toolVersion: cliVersion() });
+  const toolVersion = cliVersion();
+  const attestation = createWitanAttestation(report, { toolVersion });
+  const serializedReport = serializeWitanReport(report);
 
   mkdirSync(options.outDir, { recursive: true });
-  writeFileSync(join(options.outDir, 'report.json'), serializeWitanReport(report), 'utf8');
+  writeFileSync(join(options.outDir, 'report.json'), serializedReport, 'utf8');
   writeFileSync(
     join(options.outDir, 'attestation.json'),
     JSON.stringify(attestation, null, 2),
@@ -221,10 +253,49 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   writeFileSync(join(options.outDir, 'badge.svg'), renderWitanBadgeSvg(report), 'utf8');
   writeFileSync(join(options.outDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
 
+  let packTerminal = '';
+  let packWrittenPaths = '';
+  if (options.pack === 'llm') {
+    if (!initialLlmSnapshot) {
+      throw new Error('Cejel: Free LLM Pack input snapshot was not initialized.');
+    }
+    const beforePackSnapshot = snapshotCejelLlmPackInput(options.repoPath);
+    assertUnchangedLlmPackInput(initialLlmSnapshot, beforePackSnapshot);
+
+    const packResult = collectCejelLlmPack(options.repoPath, beforePackSnapshot.repoFiles);
+    const afterPackSnapshot = snapshotCejelLlmPackInput(options.repoPath);
+    assertUnchangedLlmPackInput(beforePackSnapshot, afterPackSnapshot);
+
+    const packArtifact = createCejelLlmPackArtifact(packResult, {
+      generatedAt: new Date().toISOString(),
+      repoPath: options.repoPath,
+      ...(report.repo.headSha ? { headSha: report.repo.headSha } : {}),
+      baseReportSha256: createHash('sha256').update(serializedReport).digest('hex'),
+      inputSourceSha256: beforePackSnapshot.sourceSha256,
+      toolVersion,
+    });
+    const serializedPackArtifact = serializeCejelLlmPackArtifact(packArtifact);
+    const packAttestation = createCejelLlmPackAttestation(packArtifact, serializedPackArtifact);
+    writeFileSync(join(options.outDir, 'llm-report.json'), serializedPackArtifact, 'utf8');
+    writeFileSync(
+      join(options.outDir, 'llm-attestation.json'),
+      JSON.stringify(packAttestation, null, 2),
+      'utf8',
+    );
+    writeFileSync(
+      join(options.outDir, 'llm-certificate.html'),
+      renderCejelLlmPackHtml(packArtifact),
+      'utf8',
+    );
+    packTerminal = renderCejelLlmPackTerminal(packArtifact);
+    packWrittenPaths = `\n  ${options.outDir}/llm-report.json\n  ${options.outDir}/llm-attestation.json\n  ${options.outDir}/llm-certificate.html`;
+  }
+
   if (!options.quiet) {
     process.stdout.write(renderTerminalCertificate(summary));
+    if (packTerminal) process.stdout.write(`\n${packTerminal}`);
     process.stdout.write(
-      `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/attestation.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg\n`,
+      `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/attestation.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg${packWrittenPaths}\n`,
     );
   }
 
@@ -279,6 +350,27 @@ export function parseCliInvocation(args: readonly string[]): CejelCliInvocation 
 
 function runVerifyBinding(reportPath: string, attestationPath: string): number {
   const reportArtifact = readJsonArtifact(reportPath, 'report');
+  const statement = readJsonArtifact(attestationPath, 'attestation');
+  const llmReportResult = CejelLlmPackArtifactSchema.safeParse(reportArtifact.value);
+  if (llmReportResult.success) {
+    const result = verifyCejelLlmPackAttestationBinding(
+      statement.value,
+      llmReportResult.data,
+      reportArtifact.contents,
+    );
+    if (!result.valid) {
+      process.stderr.write(
+        `Cejel: LLM pack report/attestation binding verification failed:\n${result.errors
+          .map((error) => `  - ${error}`)
+          .join('\n')}\n`,
+      );
+      return 1;
+    }
+    process.stdout.write('Cejel: LLM pack report/attestation binding verified.\n');
+    process.stdout.write('Cejel: signature and signer identity were not verified.\n');
+    return 0;
+  }
+
   const reportResult = WitanReportSchema.safeParse(reportArtifact.value);
   if (!reportResult.success) {
     const members = reportResult.error.issues.map(
@@ -290,7 +382,6 @@ function runVerifyBinding(reportPath: string, attestationPath: string): number {
     return 1;
   }
 
-  const statement = readJsonArtifact(attestationPath, 'attestation');
   const reportSha256 = createHash('sha256').update(reportArtifact.contents).digest('hex');
   const result = verifyWitanAttestationBinding(statement.value, reportResult.data, {
     reportSha256,
@@ -338,6 +429,7 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
   let quiet = false;
   let showHelp = false;
   let showVersion = false;
+  let pack: 'llm' | undefined;
   const ingestPatterns: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -400,6 +492,17 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
           index += 1;
           break;
         }
+        case 'pack': {
+          const value = args[index + 1];
+          if (value !== 'llm') {
+            throw new Error(
+              value ? `Unsupported Cejel pack: ${value}` : 'Missing value for --pack',
+            );
+          }
+          pack = value;
+          index += 1;
+          break;
+        }
       }
       continue;
     }
@@ -417,11 +520,23 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
     outDir,
     ...(minScore != null ? { minScore } : {}),
     ...(productDisplayName ? { productDisplayName } : {}),
+    ...(pack ? { pack } : {}),
     quiet,
     showHelp,
     showVersion,
     ingestPatterns,
   };
+}
+
+function assertUnchangedLlmPackInput(
+  before: ReturnType<typeof snapshotCejelLlmPackInput>,
+  after: ReturnType<typeof snapshotCejelLlmPackInput>,
+): void {
+  if (before.sourceSha256 !== after.sourceSha256) {
+    throw new Error(
+      'Cejel: supported source changed while preparing the Free LLM Pack; no pack artifacts were emitted.',
+    );
+  }
 }
 
 function hasUnsafeDisplayNameCharacter(value: string): boolean {

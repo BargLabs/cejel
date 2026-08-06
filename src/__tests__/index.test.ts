@@ -176,6 +176,12 @@ describe('witan CLI arg parsing', () => {
     expect(options.ingestPatterns).toEqual(['a.sarif', 'b.json']);
   });
 
+  it('accepts the only supported additive pack and rejects every other value', () => {
+    expect(parseArgs(['--pack', 'llm']).pack).toBe('llm');
+    expect(() => parseArgs(['--pack'])).toThrow(/Missing value for --pack/);
+    expect(() => parseArgs(['--pack', 'unknown'])).toThrow(/Unsupported Cejel pack: unknown/);
+  });
+
   it('defaults ingestPatterns to an empty array', () => {
     expect(parseArgs([]).ingestPatterns).toEqual([]);
   });
@@ -298,6 +304,44 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
 
     expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet'])).toBe(0);
     expect(readFileSync(join(outDir, 'report.json'), 'utf8')).toContain('"productSlug"');
+  });
+
+  it('writes and verifies the separate Free LLM Pack artifacts', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-llm-pack-cli-'));
+    const outDir = join(repoPath, '.cejel');
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'llm-app', scripts: {} }));
+    writeFixtureFile(
+      repoPath,
+      'src/index.ts',
+      "import OpenAI from 'openai';\nconst client = new OpenAI();\nvoid client.chat.completions.create({ model: 'gpt-test', messages: [] });",
+    );
+
+    expect(
+      await runWitanFreeCli(['scan', repoPath, '--pack', 'llm', '--out', outDir, '--quiet']),
+    ).toBe(0);
+
+    const llmReport = JSON.parse(readFileSync(join(outDir, 'llm-report.json'), 'utf8'));
+    expect(llmReport).toMatchObject({
+      schemaVersion: 'cejel-free-llm-artifact-v1',
+      assurance: { status: 'unsigned', issuer: 'self-generated' },
+    });
+    expect(readFileSync(join(outDir, 'llm-certificate.html'), 'utf8')).toContain('Free LLM Pack');
+
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      expect(
+        await runWitanFreeCli([
+          'verify',
+          join(outDir, 'llm-report.json'),
+          join(outDir, 'llm-attestation.json'),
+        ]),
+      ).toBe(0);
+      expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
+        'LLM pack report/attestation binding verified',
+      );
+    } finally {
+      stdoutSpy.mockRestore();
+    }
   });
 
   it('verifies an emitted report/attestation binding and states the assurance boundary', async () => {
