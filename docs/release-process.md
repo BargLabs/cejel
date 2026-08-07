@@ -25,8 +25,8 @@ Git ref update alone is not evidence of what consumers receive.
 
 ## Required site binary-link step
 
-After the GitHub Release is published, update Cejel's site download links to the new immutable
-GitHub Release tag. The site must link to the canonical release assets rather than host copied
-binaries. Update the links for every binary, `SHA256SUMS`, and the signed provenance bundle, then
-run the published download-and-checksum snippet end to end against those release URLs before the
-site change is merged.
+After the GitHub Release is published, update the single current-release record in the site source
+and run its release-state check. The site derives its current download links, currency table, source
+verification record, checksums, and provenance link from that record, and must link to canonical
+GitHub Release assets rather than host copied binaries. Run the published download-and-checksum
+snippet end to end against those release URLs before the site change is merged.
