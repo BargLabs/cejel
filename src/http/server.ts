@@ -64,7 +64,6 @@ const summaryOutputSchema = z
   .object({
     productSlug: z.string().describe('Stable slug identifying the scanned repository.'),
     productDisplayName: z.string().describe('Display name derived from the scanned repository.'),
-    generatedAt: z.string().datetime().describe('UTC timestamp at which the certificate was generated.'),
     overallScore: z.number().min(0).max(4).describe('Overall Cejel trust score from 0 to 4.'),
     codeTrustScore: z.number().min(0).max(4).describe('Code-trust score from 0 to 4.'),
     processTrustScore: z.number().min(0).max(4).describe('Process-trust score from 0 to 4.'),
@@ -235,7 +234,10 @@ export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpSer
           {
             uri: uri.href,
             mimeType: 'text/html',
-            text: renderWitanHtmlReport(lastScan.report, { cliVersion: identity.version }),
+            text: renderWitanHtmlReport(lastScan.report, {
+              cliVersion: identity.version,
+              generatedAt: lastScan.generatedAt,
+            }),
           },
         ],
       };

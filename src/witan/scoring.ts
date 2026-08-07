@@ -214,7 +214,6 @@ export function createWitanReport(
     productSlug: parsedInput.productSlug,
     productDisplayName: parsedInput.productDisplayName,
     repo: parsedInput.repo,
-    generatedAt: parsedInput.generatedAt,
     rubricVersion: parsedInput.rubricVersion,
     verdict: abstained ? 'insufficient_source' : witanVerdictForScore(overallScore),
     codeTrustScore: abstained ? null : codeTrustScore,

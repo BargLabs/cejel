@@ -28,7 +28,6 @@ function reportFixture(
       path: '/tmp/certificate-fixture',
       ...(options.headSha ? { headSha: options.headSha } : {}),
     },
-    generatedAt: '2026-07-28T00:00:00.000Z',
     rubricVersion: 'witan-rubric-v17-2026-07-24',
     verdict: 'conditional',
     codeTrustScore: 3,

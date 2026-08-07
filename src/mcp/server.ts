@@ -93,7 +93,10 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
           {
             uri: uri.href,
             mimeType: 'text/html',
-            text: renderWitanHtmlReport(lastScan.report, { cliVersion: identity.version }),
+            text: renderWitanHtmlReport(lastScan.report, {
+              cliVersion: identity.version,
+              generatedAt: lastScan.generatedAt,
+            }),
           },
         ],
       };

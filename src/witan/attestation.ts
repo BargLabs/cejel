@@ -10,6 +10,8 @@ import {
 
 export interface CreateWitanAttestationOptions {
   toolVersion: string;
+  /** UTC timestamp describing this scan invocation, not the repository report. */
+  generatedAt: string;
 }
 
 export interface WitanAttestationBindingVerification {
@@ -78,7 +80,7 @@ export function createWitanAttestation(
     predicateType: WITAN_ATTESTATION_PREDICATE_TYPE,
     predicate: {
       tool: { name: 'cejel', version: options.toolVersion },
-      generatedAt: report.generatedAt,
+      generatedAt: options.generatedAt,
       rubricVersion: report.rubricVersion,
       repository: {
         productSlug: report.productSlug,
@@ -132,9 +134,6 @@ export function verifyWitanAttestationBinding(
   }
   if (parsed.data.predicate.rubricVersion !== report.rubricVersion) {
     errors.push('rubric version does not match report.json');
-  }
-  if (parsed.data.predicate.generatedAt !== report.generatedAt) {
-    errors.push('generated timestamp does not match report.json');
   }
   if (parsed.data.predicate.repository.headSha !== report.repo.headSha) {
     errors.push('repository revision does not match report.json');

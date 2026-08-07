@@ -7,6 +7,9 @@ import {
   verifyWitanAttestationBinding,
 } from '../attestation.js';
 
+const GENERATED_AT = '2026-07-16T12:00:00.000Z';
+const ATTESTATION_OPTIONS = { toolVersion: '0.1.4', generatedAt: GENERATED_AT };
+
 type ScoredWitanReport = Exclude<WitanReport, { verdict: 'insufficient_source' }>;
 
 function fixtureReport(): ScoredWitanReport {
@@ -18,7 +21,6 @@ function fixtureReport(): ScoredWitanReport {
       url: 'https://github.com/example/sample-repo',
       headSha: 'abcdef1234567890',
     },
-    generatedAt: '2026-07-16T12:00:00.000Z',
     rubricVersion: 'witan-rubric-v3-2026-07-13',
     verdict: 'conditional',
     codeTrustScore: 3.1,
@@ -42,19 +44,33 @@ function fixtureReport(): ScoredWitanReport {
 describe('Cejel scan attestation', () => {
   it('is deterministic and binds the report without publishing its local filesystem path', () => {
     const report = fixtureReport();
-    const first = createWitanAttestation(report, { toolVersion: '0.1.4' });
-    const second = createWitanAttestation(report, { toolVersion: '0.1.4' });
+    const first = createWitanAttestation(report, ATTESTATION_OPTIONS);
+    const second = createWitanAttestation(report, ATTESTATION_OPTIONS);
 
     expect(first).toEqual(second);
     expect(first.subject[0]?.digest.sha256).toBe(hashWitanReport(report));
     expect(first.predicate.report.sha256).toBe(hashWitanReport(report));
+    expect(first.predicate.generatedAt).toBe(GENERATED_AT);
     expect(JSON.stringify(first)).not.toContain('/private/local/path');
     expect(verifyWitanAttestationBinding(first, report)).toEqual({ valid: true, errors: [] });
   });
 
+  it('records each run timestamp in the attestation without changing the report digest', () => {
+    const report = fixtureReport();
+    const first = createWitanAttestation(report, ATTESTATION_OPTIONS);
+    const second = createWitanAttestation(report, {
+      ...ATTESTATION_OPTIONS,
+      generatedAt: '2026-07-16T12:00:01.000Z',
+    });
+
+    expect(first.predicate.generatedAt).not.toBe(second.predicate.generatedAt);
+    expect(first.subject[0]?.digest.sha256).toBe(second.subject[0]?.digest.sha256);
+    expect(first.predicate.report.sha256).toBe(second.predicate.report.sha256);
+  });
+
   it('fails binding verification when report contents change', () => {
     const report = fixtureReport();
-    const statement = createWitanAttestation(report, { toolVersion: '0.1.4' });
+    const statement = createWitanAttestation(report, ATTESTATION_OPTIONS);
     const changed: WitanReport = { ...report, overallScore: 1.2, verdict: 'unverified' };
 
     const result = verifyWitanAttestationBinding(statement, changed);
@@ -64,7 +80,7 @@ describe('Cejel scan attestation', () => {
 
   it('fails binding verification when attested repository identity changes', () => {
     const report = fixtureReport();
-    const statement = createWitanAttestation(report, { toolVersion: '0.1.4' });
+    const statement = createWitanAttestation(report, ATTESTATION_OPTIONS);
     const changed = structuredClone(statement);
     const subject = changed.subject[0];
     if (!subject) throw new Error('Expected an attestation subject.');
@@ -94,7 +110,7 @@ describe('Cejel scan attestation', () => {
       archetype: 'unrecognised_ecosystem',
       insufficientSourceReason: 'Recognised source is below the calibrated dominance floor.',
     };
-    const statement = createWitanAttestation(report, { toolVersion: '0.1.4' });
+    const statement = createWitanAttestation(report, ATTESTATION_OPTIONS);
 
     expect(statement.predicate.outcome).toEqual({
       status: 'abstained',
@@ -105,7 +121,7 @@ describe('Cejel scan attestation', () => {
   });
 
   it('states that the generated envelope is unsigned and self-generated', () => {
-    const statement = createWitanAttestation(fixtureReport(), { toolVersion: '0.1.4' });
+    const statement = createWitanAttestation(fixtureReport(), ATTESTATION_OPTIONS);
     expect(statement.predicate.assurance).toMatchObject({
       status: 'unsigned',
       issuer: 'self-generated',

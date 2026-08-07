@@ -24,7 +24,6 @@ export interface WitanCliFinding {
 export interface WitanCliSummary {
   productSlug: string;
   productDisplayName: string;
-  generatedAt: string;
   overallScore: number | null;
   codeTrustScore: number | null;
   processTrustScore: number | null;
@@ -96,7 +95,6 @@ export function buildWitanCliSummary(report: WitanReport): WitanCliSummary {
   const common = {
     productSlug: report.productSlug,
     productDisplayName: report.productDisplayName,
-    generatedAt: report.generatedAt,
     findingCount: allFindings.length,
     topFindings: sorted.slice(0, TOP_FINDINGS_LIMIT),
     contributingSources,

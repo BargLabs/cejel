@@ -122,7 +122,10 @@ describe('ingest provenance integrity', () => {
     expect(markdown).not.toContain('<script>forge()</script>');
     expect(markdown).toContain('\\<script\\>forge()\\</script\\>');
 
-    const attestation = createWitanAttestation(report, { toolVersion: 'test' });
+    const attestation = createWitanAttestation(report, {
+      toolVersion: 'test',
+      generatedAt: '2026-07-06T00:00:00.000Z',
+    });
     expect(attestation.predicate.externalSignalProvenance).toEqual([
       { source: consumed?.source, provenance: 'auto_discovered' },
     ]);
