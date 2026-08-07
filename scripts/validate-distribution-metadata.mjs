@@ -209,6 +209,47 @@ requireIncludes(
   'artifact-metadata: write',
   'distribution workflow artifact metadata permission',
 );
+requireIncludes(
+  distributionWorkflow,
+  'verify_only:',
+  'distribution workflow verify-only input',
+);
+requireIncludes(
+  distributionWorkflow,
+  'default: true',
+  'distribution workflow verify-only default',
+);
+requireIncludes(
+  distributionWorkflow,
+  'test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"',
+  'distribution workflow dispatch-ref assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'test "$GITHUB_SHA" = "$tag_commit"',
+  'distribution workflow dispatch-SHA assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'test "$checked_out_head" = "$tag_commit"',
+  'distribution workflow checkout assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
+  'distribution workflow main-ancestry assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'if: ${{ inputs.verify_only == false }}',
+  'distribution workflow OCI publication gate',
+);
+if (distributionWorkflow.includes('ref: ${{ inputs.release_tag }}')) {
+  throw new Error('distribution workflow checkout must use the dispatch ref, not release_tag.');
+}
+if (distributionWorkflow.includes('ref: ${{ github.sha }}')) {
+  throw new Error('distribution workflow checkout must not override the dispatch ref.');
+}
 requireIncludes(releaseWorkflow, 'runner: windows-latest', 'Windows release runner');
 requireIncludes(
   releaseWorkflow,
@@ -265,10 +306,11 @@ if (mcpPublishJobStart < 0) {
   throw new Error('distribution workflow must define the MCP registry publish job.');
 }
 const mcpPublishJob = distributionWorkflow.slice(mcpPublishJobStart);
-requireIncludes(mcpPublishJob, 'ref: ${{ inputs.release_tag }}', 'MCP registry publish checkout');
-if (mcpPublishJob.includes('ref: ${{ github.sha }}')) {
-  throw new Error('MCP registry publish checkout must not use the dispatch commit.');
-}
+requireIncludes(
+  mcpPublishJob,
+  'if: ${{ inputs.verify_only == false && inputs.publish_mcp_registry }}',
+  'MCP registry publication gate',
+);
 requireIncludes(mcpPublishJob, 'MCP_PUBLISHER_VERSION: v1.8.0', 'pinned MCP publisher version');
 requireIncludes(
   mcpPublishJob,
