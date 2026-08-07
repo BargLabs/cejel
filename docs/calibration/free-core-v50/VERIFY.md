@@ -19,6 +19,7 @@ sealed payloads is not included.
 | `terminal-go.md` | `bcc763ecec030a8ec4babcb4cd0f0d743dc97d4a144d3189a68de7b45c25eeaa` | Binds the exact bytes of the redacted public terminal GO record. |
 | `v17-public-artifact-provenance-addendum-2026-08-06.md` | `43aeab6fcf108b8a7fdbd3441c199c7d20a378aa94319a1bbe89a2e426ca7a04` | Binds the exact bytes of the separate source-reachability and npm-artifact-provenance addendum. |
 | `v0.3.0-tag-correction-2026-08-06.md` | `a810a17b045ccb94c692aff4af1143bf3d7ec91808b25a5b88d48a9cfff98b92` | Binds the exact bytes of the pre-publication v0.3.0 tag-correction event record. |
+| `v0.3.0-orphaned-provenance-2026-08-07.md` | `06a62d60bb2eece438c580432406ade9c0aaf187bbc505ab4f65ca792b61884f` | Binds the exact bytes of the v0.3.0 detached-provenance and v0.3.1 first-published-provenance record. |
 
 ## Verification meaning
 
