@@ -54,6 +54,14 @@ jobs:
           fi
           echo "_authToken absence assertion passed for user and project npmrc"
 
+      - name: Diagnose trusted-publishing OIDC environment
+        if: ${{ inputs.verify_only }}
+        run: |
+          echo "request URL set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+          echo "request token length: ${#ACTIONS_ID_TOKEN_REQUEST_TOKEN}"
+          npm --version
+          npm config get registry
+
       - name: Require an exact, dispatched, unpublished release tag
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
