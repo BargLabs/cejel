@@ -22,3 +22,11 @@ Checklist:
 
 If the runner does not report the new release version, revert the `v1` move and investigate; a
 Git ref update alone is not evidence of what consumers receive.
+
+## Required site binary-link step
+
+After the GitHub Release is published, update Cejel's site download links to the new immutable
+GitHub Release tag. The site must link to the canonical release assets rather than host copied
+binaries. Update the links for every binary, `SHA256SUMS`, and the signed provenance bundle, then
+run the published download-and-checksum snippet end to end against those release URLs before the
+site change is merged.
