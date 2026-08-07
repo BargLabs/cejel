@@ -2,6 +2,9 @@ name: action-consumer-version-probe
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/action-consumer-version
 
 permissions:
   contents: read
