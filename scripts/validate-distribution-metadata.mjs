@@ -272,6 +272,21 @@ for (const [workflowName, workflow] of [
   );
 }
 requireIncludes(
+  npmPublishWorkflow,
+  "sed -i '/_authToken/d' \"$config\"",
+  'npm publish workflow setup-node auth-placeholder removal',
+);
+requireIncludes(
+  npmPublishWorkflow,
+  "grep -rl '_authToken' \"$npmrc\" .npmrc",
+  'npm publish workflow user-and-project auth-placeholder assertion',
+);
+requireIncludes(
+  npmPublishWorkflow,
+  '_authToken absence assertion passed for user and project npmrc',
+  'npm publish workflow auth-placeholder assertion evidence',
+);
+requireIncludes(
   distributionWorkflow,
   'if: ${{ inputs.verify_only == false }}',
   'distribution workflow OCI publication gate',
