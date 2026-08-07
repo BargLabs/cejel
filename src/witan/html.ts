@@ -28,6 +28,8 @@ import { renderFindingSummary } from './finding-presentation.js';
 export interface WitanHtmlReportOptions {
   /** Version of the Cejel CLI/server that produced this certificate. */
   cliVersion?: string;
+  /** UTC timestamp for the scan invocation, displayed without entering report.json. */
+  generatedAt?: string;
 }
 
 export function renderWitanHtmlReport(
@@ -68,7 +70,7 @@ export function renderWitanHtmlReport(
           <p class="eyebrow">Trust Certificate</p>
           <h1>${escapeHtml(report.productDisplayName)}</h1>
           <dl class="meta">
-            <div><dt>Date</dt><dd>${escapeHtml(formatDate(report.generatedAt))}</dd></div>
+            ${options.generatedAt ? `<div><dt>Date</dt><dd>${escapeHtml(formatDate(options.generatedAt))}</dd></div>` : ''}
             <div><dt>Run</dt><dd>${escapeHtml(renderRepo(report))}</dd></div>
             <div><dt>CLI</dt><dd>${escapeHtml(options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded')}</dd></div>
             <div><dt>Rubric</dt><dd>${escapeHtml(report.rubricVersion)}</dd></div>

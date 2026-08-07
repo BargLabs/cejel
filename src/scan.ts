@@ -18,6 +18,8 @@ export interface CejelScanOptions {
 export interface CejelScanResult {
   report: WitanReport;
   summary: WitanCliSummary;
+  /** UTC timestamp for this invocation; retained for provenance artifacts only. */
+  generatedAt: string;
 }
 
 /**
@@ -29,10 +31,12 @@ export interface CejelScanResult {
  */
 export function runCejelScan(options: CejelScanOptions): CejelScanResult {
   const identity = deriveProductIdentity(options.repoPath);
+  const generatedAt = new Date().toISOString();
   const report = scoreRepoWithPublicCejel({
     productSlug: identity.productSlug,
     productDisplayName: options.productDisplayName ?? identity.productDisplayName,
     repoPath: options.repoPath,
+    generatedAt,
     ingestPatterns: options.ingestPatterns,
     // Local CLI/MCP scans retain the documented convenience default: their operator controls
     // the repository. Direct public/leaderboard scans default this off because their targets
@@ -42,5 +46,5 @@ export function runCejelScan(options: CejelScanOptions): CejelScanResult {
   });
   const summary = buildWitanCliSummary(report);
 
-  return { report, summary };
+  return { report, summary, generatedAt };
 }

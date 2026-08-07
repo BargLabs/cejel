@@ -348,7 +348,6 @@ const WitanReportCommonSchema = z.object({
   productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),
   productDisplayName: z.string().min(1).max(120),
   repo: WitanRepoRefSchema,
-  generatedAt: z.string().datetime({ offset: true }),
   rubricVersion: z.string().min(1).max(120),
   // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
   criteria: z.array(WitanCriterionScoreSchema).min(1),

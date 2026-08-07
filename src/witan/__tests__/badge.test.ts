@@ -8,7 +8,6 @@ function fixtureReport(overallScore: number): WitanReport {
     productSlug: 'witan',
     productDisplayName: 'Witan',
     repo: { path: '/tmp/example-repo' },
-    generatedAt: '2026-07-05T00:00:00.000Z',
     rubricVersion: 'witan-rubric-v1-2026-06-24',
     verdict: witanVerdictForScore(overallScore),
     codeTrustScore: overallScore,

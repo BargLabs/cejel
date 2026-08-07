@@ -74,7 +74,6 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
     '',
     `- Product: ${report.productSlug}`,
     `- Rubric: ${report.rubricVersion}`,
-    `- Generated: ${report.generatedAt}`,
     `- Repository: ${renderRepo(report.repo.path ?? report.repo.url ?? 'unknown', report.repo.headSha)}`,
     ...(hasSignals
       ? [

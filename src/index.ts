@@ -193,13 +193,13 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
     return 0;
   }
 
-  const { report, summary } = runCejelScan({
+  const { report, summary, generatedAt } = runCejelScan({
     repoPath: options.repoPath,
     ...(options.productDisplayName ? { productDisplayName: options.productDisplayName } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
   });
-  const attestation = createWitanAttestation(report, { toolVersion: cliVersion() });
+  const attestation = createWitanAttestation(report, { toolVersion: cliVersion(), generatedAt });
 
   mkdirSync(options.outDir, { recursive: true });
   writeFileSync(join(options.outDir, 'report.json'), serializeWitanReport(report), 'utf8');
@@ -210,7 +210,7 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   );
   writeFileSync(
     join(options.outDir, 'certificate.html'),
-    renderWitanHtmlReport(report, { cliVersion: cliVersion() }),
+    renderWitanHtmlReport(report, { cliVersion: cliVersion(), generatedAt }),
     'utf8',
   );
   writeFileSync(

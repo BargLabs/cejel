@@ -235,6 +235,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     const reportJson = readFileSync(join(outDir, 'report.json'), 'utf8');
     const report = JSON.parse(reportJson);
     expect(report.productSlug).toBe('sample-app');
+    expect(report).not.toHaveProperty('generatedAt');
     const attestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8'));
     expect(attestation).toMatchObject({
       _type: 'https://in-toto.io/Statement/v1',
@@ -244,6 +245,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
         outcome: { status: 'scored' },
       },
     });
+    expect(attestation.predicate.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(attestation.subject[0].digest.sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(attestation.subject[0].digest.sha256).toBe(
       createHash('sha256').update(reportJson, 'utf8').digest('hex'),
@@ -261,6 +263,33 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(badgeSvg).toContain('<svg');
     const summary = JSON.parse(readFileSync(join(outDir, 'summary.json'), 'utf8'));
     expect(summary.verdict).toBeDefined();
+    expect(summary).not.toHaveProperty('generatedAt');
+  });
+
+  it('writes byte-identical report and summary artifacts for two scans of the same input', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-deterministic-'));
+    const outDir = join(repoPath, '.cejel');
+    writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    execFileSync('git', ['init', '--quiet'], { cwd: repoPath });
+    execFileSync('git', ['add', 'src/index.ts'], { cwd: repoPath });
+
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet'])).toBe(0);
+    const firstArtifacts = new Map(
+      ['report.json', 'summary.json', 'attestation.json'].map((artifact) => [
+        artifact,
+        readFileSync(join(outDir, artifact), 'utf8'),
+      ]),
+    );
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--quiet'])).toBe(0);
+
+    for (const artifact of ['report.json', 'summary.json']) {
+      expect(firstArtifacts.get(artifact)).toBe(readFileSync(join(outDir, artifact), 'utf8'));
+    }
+
+    const firstAttestation = JSON.parse(firstArtifacts.get('attestation.json') ?? '');
+    const secondAttestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8'));
+    expect(firstAttestation.subject[0].digest.sha256).toBe(secondAttestation.subject[0].digest.sha256);
+    expect(firstAttestation.predicate.report.sha256).toBe(secondAttestation.predicate.report.sha256);
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {
@@ -323,7 +352,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     }
   });
 
-  it('fails verification with every reported binding error after report tampering', async () => {
+  it('rejects a report carrying the removed generatedAt field', async () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-verify-tampered-'));
     const outDir = join(repoPath, '.witan');
     writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
@@ -340,10 +369,8 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
         1,
       );
       const output = stderrSpy.mock.calls.map((call) => String(call[0])).join('');
-      expect(output).toContain('report/attestation binding verification failed');
-      expect(output).toContain('subject digest does not match report.json');
-      expect(output).toContain('predicate report digest does not match report.json');
-      expect(output).toContain('generated timestamp does not match report.json');
+      expect(output).toContain('report validation failed');
+      expect(output).toContain("Unrecognized key(s) in object: 'generatedAt'");
     } finally {
       stderrSpy.mockRestore();
     }

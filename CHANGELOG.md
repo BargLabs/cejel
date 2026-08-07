@@ -16,6 +16,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Breaking
+
+- `report.json` and `summary.json` no longer include `generatedAt`. The machine-readable scan
+  time is provenance for the run, not a repository finding, and now lives in
+  `attestation.json`; the certificate retains its existing human-readable date. Re-running the
+  same input now produces byte-identical report and summary artifacts; consumers that read
+  `generatedAt` from either artifact must instead read `attestation.json`.
+
 ### Added
 
 - A separate opt-in D-series pack entrypoint adds the high-confidence D1

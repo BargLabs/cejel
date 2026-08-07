@@ -7,7 +7,6 @@ function summary(overrides: Partial<WitanCliSummary> = {}): WitanCliSummary {
   return {
     productSlug: 'witan',
     productDisplayName: 'Witan',
-    generatedAt: '2026-07-05T00:00:00.000Z',
     overallScore: 3.2,
     codeTrustScore: 3.4,
     processTrustScore: 3.0,
