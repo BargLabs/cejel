@@ -1,0 +1,36 @@
+name: action-consumer-version-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tagged-consumer:
+    name: Consumer resolves v0.3.1
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Run the public tagged Action exactly as a consumer does
+        uses: BargLabs/cejel@v0.3.1
+        with:
+          out-dir: .cejel/action-v031
+      - name: Print the version executed by the tagged Action
+        run: >-
+          node -e "const a=require('./.cejel/action-v031/attestation.json');
+          console.log('TAGGED_ACTION_VERSION=' + a.predicate.tool.version)"
+
+  main-consumer:
+    name: Consumer resolves main
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Run the public main Action exactly as a consumer does
+        uses: BargLabs/cejel@main
+        with:
+          out-dir: .cejel/action-main
+      - name: Print the version executed by the main Action
+        run: >-
+          node -e "const a=require('./.cejel/action-main/attestation.json');
+          console.log('MAIN_ACTION_VERSION=' + a.predicate.tool.version)"
