@@ -7,52 +7,14 @@ The Free LLM Pack is an opt-in, deterministic static scan for observable applica
 evaluation-hygiene weaknesses in supported LLM application code. It runs alongside the ordinary
 Cejel scan but produces a separate result.
 
-## Run the pack
+## Availability
 
-From a development build or release that contains the pack:
+The Free LLM Pack is not yet exposed through the public CLI or package exports. In particular,
+`--pack llm` is not a supported Cejel flag and the CLI rejects it. Do not expect the released CLI
+to write `llm-report.json`, `llm-attestation.json`, or `llm-certificate.html`.
 
-```bash
-./cejel scan . --pack llm
-```
-
-With the npm CLI:
-
-```bash
-npx @cejel/cejel scan . --pack llm
-```
-
-Use `--out <dir>` to change the default `.cejel` output directory. `--quiet` suppresses both
-terminal summaries but still writes every artifact.
-
-The ordinary scan writes its usual `report.json`, `attestation.json`, `certificate.html`, badge,
-and summary files. Selecting the pack adds:
-
-- `llm-report.json` — the strict, machine-readable pack result, including status, coverage,
-  limitations, rule results, findings, evidence locations, a digest of the pack's source snapshot,
-  and a digest of the base report;
-- `llm-attestation.json` — an in-toto statement binding the exact `llm-report.json` bytes to the
-  pack version, generation time, and base-report digest; and
-- `llm-certificate.html` — a self-contained rendering of the pack result.
-
-The pack artifact and attestation say `assurance.status: "unsigned"` and
-`issuer: "self-generated"`. Cejel binds the files together but is not an independent signer.
-
-Verify the pack artifact binding with:
-
-```bash
-./cejel verify .cejel/llm-report.json .cejel/llm-attestation.json
-```
-
-or:
-
-```bash
-npx @cejel/cejel verify .cejel/llm-report.json .cejel/llm-attestation.json
-```
-
-Successful verification confirms the artifact schema and digest, pack identity and version,
-generation time, input-source digest, and base-report digest binding. It does not verify a
-signature or signer identity. The CLI refuses to emit the pair if supported source changes between
-the base and pack reads.
+This page documents the alpha detector's coverage and assurance boundary, not a currently
+supported invocation. A public CLI API requires a separate design and release decision.
 
 ## Current alpha coverage
 
@@ -112,9 +74,10 @@ The pack does not:
 - send source, prompts, labels, or findings over the network; or
 - inspect provider-side configuration, policies, logs, or middleware that is absent locally.
 
-`--pack llm` is additive. It does not add criteria to the base rubric, alter the base score or
-verdict, or convert pack findings into generic Cejel findings. For the same repository and scanner
-version, the serialized base `report.json` is unchanged whether or not the pack is selected.
+When a future public API exposes the pack, it must not add criteria to the base rubric, alter the
+base score or verdict, or convert pack findings into generic Cejel findings. For the same
+repository and scanner version, the serialized base `report.json` must remain unchanged whether
+or not the pack is selected.
 
 ## Claim and assurance boundary
 
