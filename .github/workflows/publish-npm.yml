@@ -69,6 +69,14 @@ jobs:
             echo "$RELEASE_TAG is not an ancestor of origin/main" >&2
             exit 1
           fi
+          if ! git merge-base --is-ancestor e4283ba "$GITHUB_SHA"; then
+            echo "$RELEASE_TAG does not contain #96 (remove timestamps)" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor e50f531 "$GITHUB_SHA"; then
+            echo "$RELEASE_TAG does not contain #98 (--pack llm docs)" >&2
+            exit 1
+          fi
 
           if ! npm view "$package_name" version >/dev/null 2>&1; then
             echo "unable to query npm registry for $package_name" >&2

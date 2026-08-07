@@ -11,6 +11,7 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
   '../.github/workflows/publish-distribution.yml',
   import.meta.url,
 );
+const NPM_PUBLISH_WORKFLOW_PATH = new URL('../.github/workflows/publish-npm.yml', import.meta.url);
 const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml', import.meta.url);
 const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
 const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
@@ -33,6 +34,7 @@ const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
 const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf8');
 const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
 const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
+const npmPublishWorkflow = readFileSync(NPM_PUBLISH_WORKFLOW_PATH, 'utf8');
 const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
 const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
 const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
@@ -209,6 +211,62 @@ requireIncludes(
   'artifact-metadata: write',
   'distribution workflow artifact metadata permission',
 );
+requireIncludes(
+  distributionWorkflow,
+  'verify_only:',
+  'distribution workflow verify-only input',
+);
+requireIncludes(
+  distributionWorkflow,
+  'default: true',
+  'distribution workflow verify-only default',
+);
+requireIncludes(
+  distributionWorkflow,
+  'test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"',
+  'distribution workflow dispatch-ref assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'test "$GITHUB_SHA" = "$tag_commit"',
+  'distribution workflow dispatch-SHA assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'test "$checked_out_head" = "$tag_commit"',
+  'distribution workflow checkout assertion',
+);
+requireIncludes(
+  distributionWorkflow,
+  'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
+  'distribution workflow main-ancestry assertion',
+);
+for (const [workflowName, workflow] of [
+  ['npm publish workflow', npmPublishWorkflow],
+  ['distribution workflow', distributionWorkflow],
+]) {
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor e4283ba "$GITHUB_SHA"',
+    `${workflowName} #96 containment assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor e50f531 "$GITHUB_SHA"',
+    `${workflowName} #98 containment assertion`,
+  );
+}
+requireIncludes(
+  distributionWorkflow,
+  'if: ${{ inputs.verify_only == false }}',
+  'distribution workflow OCI publication gate',
+);
+if (distributionWorkflow.includes('ref: ${{ inputs.release_tag }}')) {
+  throw new Error('distribution workflow checkout must use the dispatch ref, not release_tag.');
+}
+if (distributionWorkflow.includes('ref: ${{ github.sha }}')) {
+  throw new Error('distribution workflow checkout must not override the dispatch ref.');
+}
 requireIncludes(releaseWorkflow, 'runner: windows-latest', 'Windows release runner');
 requireIncludes(
   releaseWorkflow,
@@ -265,10 +323,11 @@ if (mcpPublishJobStart < 0) {
   throw new Error('distribution workflow must define the MCP registry publish job.');
 }
 const mcpPublishJob = distributionWorkflow.slice(mcpPublishJobStart);
-requireIncludes(mcpPublishJob, 'ref: ${{ inputs.release_tag }}', 'MCP registry publish checkout');
-if (mcpPublishJob.includes('ref: ${{ github.sha }}')) {
-  throw new Error('MCP registry publish checkout must not use the dispatch commit.');
-}
+requireIncludes(
+  mcpPublishJob,
+  'if: ${{ inputs.verify_only == false && inputs.publish_mcp_registry }}',
+  'MCP registry publication gate',
+);
 requireIncludes(mcpPublishJob, 'MCP_PUBLISHER_VERSION: v1.8.0', 'pinned MCP publisher version');
 requireIncludes(
   mcpPublishJob,
