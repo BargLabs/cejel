@@ -1,0 +1,101 @@
+name: Publish npm package with provenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing public release tag; must be the tag this workflow is dispatched from and equal v<package version>
+        required: true
+        type: string
+      verify_only:
+        description: Verify the tag, source, and release build without publishing to npm
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: cejel-npm-publish-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout the dispatched release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Require an exact, dispatched, unpublished release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          package_name="$(node -p "require('./package.json').name")"
+          if [ "$RELEASE_TAG" != "v$package_version" ]; then
+            echo "release tag $RELEASE_TAG does not match package version $package_version" >&2
+            exit 1
+          fi
+          git cat-file -e "$RELEASE_TAG^{commit}"
+          tag_commit="$(git rev-parse "$RELEASE_TAG^{commit}")"
+          checked_out_head="$(git rev-parse HEAD)"
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          echo "release_tag_commit=$tag_commit"
+          echo "checked_out_HEAD=$checked_out_head"
+          test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG" \
+            || { echo "dispatch ref $GITHUB_REF is not refs/tags/$RELEASE_TAG" >&2; exit 1; }
+          echo "dispatch-ref assertion passed"
+          test "$GITHUB_SHA" = "$tag_commit" \
+            || { echo "GITHUB_SHA does not identify $RELEASE_TAG" >&2; exit 1; }
+          echo "dispatch-SHA assertion passed"
+          test "$checked_out_head" = "$tag_commit" \
+            || { echo "checked-out HEAD does not identify $RELEASE_TAG" >&2; exit 1; }
+          echo "checkout assertion passed"
+          git fetch --quiet origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "$RELEASE_TAG is not an ancestor of origin/main" >&2
+            exit 1
+          fi
+
+          if ! npm view "$package_name" version >/dev/null 2>&1; then
+            echo "unable to query npm registry for $package_name" >&2
+            exit 1
+          fi
+          if npm view "$package_name@$package_version" version >/dev/null 2>&1; then
+            echo "$package_name@$package_version is already published" >&2
+            exit 1
+          fi
+
+      - name: Require npm CLI with trusted-publishing support
+        run: |
+          npm install --global npm@11.5.1
+          test "$(npm --version)" = "11.5.1"
+
+      - name: Install and verify the release source
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm typecheck
+          pnpm test
+          pnpm run validate:distribution
+
+      - name: Publish with npm provenance
+        if: ${{ inputs.verify_only == false }}
+        run: npm publish --access public --provenance
+
+      - name: Confirm verify-only run
+        if: ${{ inputs.verify_only }}
+        run: echo "verify_only=true; npm publish was skipped"
