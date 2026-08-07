@@ -247,6 +247,11 @@ for (const [workflowName, workflow] of [
 ]) {
   requireIncludes(
     workflow,
+    'fetch-depth: 0',
+    `${workflowName} complete release-history checkout`,
+  );
+  requireIncludes(
+    workflow,
     'git merge-base --is-ancestor e4283ba "$GITHUB_SHA"',
     `${workflowName} #96 containment assertion`,
   );
