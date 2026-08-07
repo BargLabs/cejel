@@ -11,6 +11,7 @@ const DISTRIBUTION_WORKFLOW_PATH = new URL(
   '../.github/workflows/publish-distribution.yml',
   import.meta.url,
 );
+const NPM_PUBLISH_WORKFLOW_PATH = new URL('../.github/workflows/publish-npm.yml', import.meta.url);
 const RELEASE_WORKFLOW_PATH = new URL('../.github/workflows/release-binaries.yml', import.meta.url);
 const CLA_WORKFLOW_PATH = new URL('../.github/workflows/cla.yml', import.meta.url);
 const CI_WORKFLOW_PATH = new URL('../.github/workflows/ci.yml', import.meta.url);
@@ -33,6 +34,7 @@ const serverManifest = JSON.parse(readFileSync(SERVER_PATH, 'utf8'));
 const dockerfile = readFileSync(DOCKERFILE_PATH, 'utf8');
 const dockerEntrypoint = readFileSync(DOCKER_ENTRYPOINT_PATH, 'utf8');
 const distributionWorkflow = readFileSync(DISTRIBUTION_WORKFLOW_PATH, 'utf8');
+const npmPublishWorkflow = readFileSync(NPM_PUBLISH_WORKFLOW_PATH, 'utf8');
 const releaseWorkflow = readFileSync(RELEASE_WORKFLOW_PATH, 'utf8');
 const claWorkflow = readFileSync(CLA_WORKFLOW_PATH, 'utf8');
 const ciWorkflow = readFileSync(CI_WORKFLOW_PATH, 'utf8');
@@ -239,6 +241,21 @@ requireIncludes(
   'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
   'distribution workflow main-ancestry assertion',
 );
+for (const [workflowName, workflow] of [
+  ['npm publish workflow', npmPublishWorkflow],
+  ['distribution workflow', distributionWorkflow],
+]) {
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor e4283ba "$GITHUB_SHA"',
+    `${workflowName} #96 containment assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor e50f531 "$GITHUB_SHA"',
+    `${workflowName} #98 containment assertion`,
+  );
+}
 requireIncludes(
   distributionWorkflow,
   'if: ${{ inputs.verify_only == false }}',
