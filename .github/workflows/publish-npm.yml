@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout the dispatched release tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -69,8 +71,16 @@ jobs:
             echo "$RELEASE_TAG is not an ancestor of origin/main" >&2
             exit 1
           fi
+          if ! git cat-file -e "e4283ba^{commit}"; then
+            echo "required #96 commit e4283ba is unavailable in checkout" >&2
+            exit 1
+          fi
           if ! git merge-base --is-ancestor e4283ba "$GITHUB_SHA"; then
             echo "$RELEASE_TAG does not contain #96 (remove timestamps)" >&2
+            exit 1
+          fi
+          if ! git cat-file -e "e50f531^{commit}"; then
+            echo "required #98 commit e50f531 is unavailable in checkout" >&2
             exit 1
           fi
           if ! git merge-base --is-ancestor e50f531 "$GITHUB_SHA"; then
