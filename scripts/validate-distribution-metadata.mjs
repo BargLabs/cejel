@@ -257,8 +257,18 @@ for (const [workflowName, workflow] of [
   );
   requireIncludes(
     workflow,
+    'git cat-file -e "e4283ba^{commit}"',
+    `${workflowName} #96 containment-object assertion`,
+  );
+  requireIncludes(
+    workflow,
     'git merge-base --is-ancestor e50f531 "$GITHUB_SHA"',
     `${workflowName} #98 containment assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git cat-file -e "e50f531^{commit}"',
+    `${workflowName} #98 containment-object assertion`,
   );
 }
 requireIncludes(
