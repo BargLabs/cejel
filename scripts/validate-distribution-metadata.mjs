@@ -27,6 +27,8 @@ const SEA_BUILD_PATH = new URL('./sea-build-cejel.mjs', import.meta.url);
 const BINARY_VERIFY_PATH = new URL('./verify-cejel-binary.mjs', import.meta.url);
 const OFFLINE_VERIFY_PATH = new URL('./verify-cejel-binary-offline.mjs', import.meta.url);
 const RELEASE_SET_VERIFY_PATH = new URL('./verify-cejel-release-set.mjs', import.meta.url);
+const MCP_METADATA_PREPARATION_PATH = new URL('./prepare-mcp-server-metadata.mjs', import.meta.url);
+const RELEASE_IDENTITY_ASSERTION_PATH = new URL('./assert-release-identity.sh', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
 const publishedVersions = JSON.parse(readFileSync(PUBLISHED_VERSIONS_PATH, 'utf8'));
@@ -52,6 +54,8 @@ const seaBuild = readFileSync(SEA_BUILD_PATH, 'utf8');
 const binaryVerify = readFileSync(BINARY_VERIFY_PATH, 'utf8');
 const offlineVerify = readFileSync(OFFLINE_VERIFY_PATH, 'utf8');
 const releaseSetVerify = readFileSync(RELEASE_SET_VERIFY_PATH, 'utf8');
+const mcpMetadataPreparation = readFileSync(MCP_METADATA_PREPARATION_PATH, 'utf8');
+const releaseIdentityAssertion = readFileSync(RELEASE_IDENTITY_ASSERTION_PATH, 'utf8');
 const ACTION_USE_PATTERN = /^\s*(?:-\s*)?uses:\s*([^#\s]+)(?:\s+#.*)?$/gm;
 
 function requireEqual(actual, expected, field) {
@@ -163,9 +167,14 @@ if ('version' in ociPackage) {
 }
 requireEqual(
   ociPackage.identifier,
-  `ghcr.io/barglabs/cejel:${publishedVersions.oci}`,
+  process.env.MCP_OCI_DIGEST
+    ? `ghcr.io/barglabs/cejel@${process.env.MCP_OCI_DIGEST}`
+    : `ghcr.io/barglabs/cejel:${publishedVersions.oci}`,
   'OCI identifier',
 );
+if (process.env.MCP_OCI_DIGEST && !/^sha256:[a-f0-9]{64}$/.test(process.env.MCP_OCI_DIGEST)) {
+  throw new Error('MCP_OCI_DIGEST must be an OCI sha256 digest.');
+}
 requireEqual(ociPackage.transport?.type, 'stdio', 'OCI transport');
 
 requireIncludes(dockerfile, `ARG VERSION=${publishedVersions.oci}`, 'Dockerfile default version');
@@ -221,30 +230,7 @@ requireIncludes(
   'default: true',
   'distribution workflow verify-only default',
 );
-requireIncludes(
-  distributionWorkflow,
-  'test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"',
-  'distribution workflow dispatch-ref assertion',
-);
-requireIncludes(
-  distributionWorkflow,
-  'test "$GITHUB_SHA" = "$tag_commit"',
-  'distribution workflow dispatch-SHA assertion',
-);
-requireIncludes(
-  distributionWorkflow,
-  'test "$checked_out_head" = "$tag_commit"',
-  'distribution workflow checkout assertion',
-);
-requireIncludes(
-  distributionWorkflow,
-  'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
-  'distribution workflow main-ancestry assertion',
-);
-for (const [workflowName, workflow] of [
-  ['npm publish workflow', npmPublishWorkflow],
-  ['distribution workflow', distributionWorkflow],
-]) {
+for (const [workflowName, workflow] of [['npm publish workflow', npmPublishWorkflow]]) {
   requireIncludes(
     workflow,
     'fetch-depth: 0',
@@ -271,6 +257,16 @@ for (const [workflowName, workflow] of [
     `${workflowName} #98 containment-object assertion`,
   );
 }
+for (const [needle, field] of [
+  ['test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"', 'dispatch-ref assertion'],
+  ['test "$GITHUB_SHA" = "$tag_commit"', 'dispatch-SHA assertion'],
+  ['test "$checked_out_head" = "$tag_commit"', 'checkout assertion'],
+  ['git merge-base --is-ancestor "$GITHUB_SHA" origin/main', 'main-ancestry assertion'],
+  ['git merge-base --is-ancestor "$commit" "$GITHUB_SHA"', 'required-commit containment assertion'],
+  ['git cat-file -e "${commit}^{commit}"', 'required-commit object-absence assertion'],
+]) {
+  requireIncludes(releaseIdentityAssertion, needle, `release identity ${field}`);
+}
 requireIncludes(
   npmPublishWorkflow,
   "sed -i '/_authToken/d' \"$config\"",
@@ -288,7 +284,7 @@ requireIncludes(
 );
 requireIncludes(
   distributionWorkflow,
-  'if: ${{ inputs.verify_only == false }}',
+  'if: ${{ inputs.verify_only == false && inputs.reuse_published_oci_tag == false }}',
   'distribution workflow OCI publication gate',
 );
 if (distributionWorkflow.includes('ref: ${{ inputs.release_tag }}')) {
@@ -297,6 +293,36 @@ if (distributionWorkflow.includes('ref: ${{ inputs.release_tag }}')) {
 if (distributionWorkflow.includes('ref: ${{ github.sha }}')) {
   throw new Error('distribution workflow checkout must not override the dispatch ref.');
 }
+requireIncludes(
+  distributionWorkflow,
+  'reuse_published_oci_tag:',
+  'distribution workflow republish-without-rebuild input',
+);
+requireIncludes(
+  distributionWorkflow,
+  'docker buildx imagetools inspect "$IMAGE_NAME:${RELEASE_TAG#v}"',
+  'distribution workflow existing OCI tag digest resolution',
+);
+requireIncludes(
+  distributionWorkflow,
+  'scripts/assert-oci-tag-unpublished.sh',
+  'distribution workflow OCI overwrite refusal',
+);
+requireIncludes(
+  distributionWorkflow,
+  'scripts/assert-release-identity.sh',
+  'distribution workflow per-job release identity assertions',
+);
+requireIncludes(
+  distributionWorkflow,
+  'node scripts/prepare-mcp-server-metadata.mjs "$MCP_OCI_DIGEST"',
+  'distribution workflow digest-pinned MCP metadata',
+);
+requireIncludes(
+  mcpMetadataPreparation,
+  'ghcr.io/barglabs/cejel@${digest}',
+  'MCP metadata preparation digest identifier',
+);
 requireIncludes(releaseWorkflow, 'runner: windows-latest', 'Windows release runner');
 requireIncludes(
   releaseWorkflow,
@@ -355,8 +381,13 @@ if (mcpPublishJobStart < 0) {
 const mcpPublishJob = distributionWorkflow.slice(mcpPublishJobStart);
 requireIncludes(
   mcpPublishJob,
-  'if: ${{ inputs.verify_only == false && inputs.publish_mcp_registry }}',
+  "if: ${{ always() && inputs.verify_only == false && needs.resolve-mcp-oci-digest.result == 'success' }}",
   'MCP registry publication gate',
+);
+requireIncludes(
+  mcpPublishJob,
+  'MCP_OCI_DIGEST: ${{ needs.resolve-mcp-oci-digest.outputs.digest }}',
+  'MCP registry resolved OCI digest input',
 );
 requireIncludes(mcpPublishJob, 'MCP_PUBLISHER_VERSION: v1.8.0', 'pinned MCP publisher version');
 requireIncludes(

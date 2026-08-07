@@ -16,6 +16,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-08-07
+
+### Changed
+
+- MCP Registry publication now writes an immutable `ghcr.io/barglabs/cejel@sha256:…` image
+  reference, bound to the OCI image attestation. A later tag movement cannot change the artifact
+  named by the MCP record; the workflow can also republish that record from an existing image tag
+  without rebuilding it.
+- OCI publication now refuses to overwrite an already-published release tag, and the OCI and MCP
+  jobs independently assert the dispatched tag, commit, checkout, required-object availability,
+  and commit containment before acting.
+
+No scoring, rubric, detector, criterion, threshold, or certificate behaviour changed in this
+distribution-only release.
+
 ## [0.3.1] — 2026-08-06
 
 ### Fixed

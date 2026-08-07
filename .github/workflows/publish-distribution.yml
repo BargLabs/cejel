@@ -8,7 +8,12 @@ on:
         required: true
         type: string
       publish_mcp_registry:
-        description: Publish server.json to the Official MCP Registry after the OCI image is available
+        description: Publish server.json to the Official MCP Registry with an immutable OCI digest reference
+        required: true
+        default: false
+        type: boolean
+      reuse_published_oci_tag:
+        description: Resolve an existing release OCI tag for MCP publication or verification; do not rebuild the image
         required: true
         default: false
         type: boolean
@@ -53,43 +58,7 @@ jobs:
             echo "release tag $RELEASE_TAG does not match package version $version" >&2
             exit 1
           fi
-          git cat-file -e "$RELEASE_TAG^{commit}"
-          tag_commit="$(git rev-parse "$RELEASE_TAG^{commit}")"
-          checked_out_head="$(git rev-parse HEAD)"
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "GITHUB_SHA=$GITHUB_SHA"
-          echo "release_tag_commit=$tag_commit"
-          echo "checked_out_HEAD=$checked_out_head"
-          test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG" \
-            || { echo "dispatch ref $GITHUB_REF is not refs/tags/$RELEASE_TAG" >&2; exit 1; }
-          echo "dispatch-ref assertion passed"
-          test "$GITHUB_SHA" = "$tag_commit" \
-            || { echo "GITHUB_SHA does not identify $RELEASE_TAG" >&2; exit 1; }
-          echo "dispatch-SHA assertion passed"
-          test "$checked_out_head" = "$tag_commit" \
-            || { echo "checked-out HEAD does not identify $RELEASE_TAG" >&2; exit 1; }
-          echo "checkout assertion passed"
-          git fetch --quiet origin main:refs/remotes/origin/main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "$RELEASE_TAG is not an ancestor of origin/main" >&2
-            exit 1
-          fi
-          if ! git cat-file -e "e4283ba^{commit}"; then
-            echo "required #96 commit e4283ba is unavailable in checkout" >&2
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor e4283ba "$GITHUB_SHA"; then
-            echo "$RELEASE_TAG does not contain #96 (remove timestamps)" >&2
-            exit 1
-          fi
-          if ! git cat-file -e "e50f531^{commit}"; then
-            echo "required #98 commit e50f531 is unavailable in checkout" >&2
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor e50f531 "$GITHUB_SHA"; then
-            echo "$RELEASE_TAG does not contain #98 (--pack llm docs)" >&2
-            exit 1
-          fi
+          scripts/assert-release-identity.sh
           test "$(npm view "@cejel/cejel@$version" version)" = "$version"
           test "$(npm view "@cejel/cejel@$version" mcpName)" = "io.github.BargLabs/cejel"
           pnpm install --frozen-lockfile
@@ -97,7 +66,7 @@ jobs:
 
   publish-oci:
     needs: preflight
-    if: ${{ inputs.verify_only == false }}
+    if: ${{ inputs.verify_only == false && inputs.reuse_published_oci_tag == false }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -110,6 +79,13 @@ jobs:
     steps:
       - name: Checkout the dispatched release tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -123,6 +99,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Refuse to overwrite a published OCI release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-oci-tag-unpublished.sh
 
       - name: Generate image tags and labels
         id: metadata
@@ -153,9 +134,56 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+  resolve-mcp-oci-digest:
+    needs: [preflight, publish-oci]
+    if: ${{ always() && inputs.publish_mcp_registry && needs.preflight.result == 'success' && (inputs.reuse_published_oci_tag || (inputs.verify_only == false && needs.publish-oci.result == 'success')) }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      digest: ${{ steps.resolve.outputs.digest }}
+    steps:
+      - name: Checkout the dispatched release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
+
+      - name: Login to GitHub Container Registry
+        if: ${{ inputs.reuse_published_oci_tag }}
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve immutable OCI manifest digest
+        id: resolve
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PUBLISHED_OCI_DIGEST: ${{ needs.publish-oci.outputs.digest }}
+          REUSE_PUBLISHED_OCI_TAG: ${{ inputs.reuse_published_oci_tag }}
+        run: |
+          if [ "$REUSE_PUBLISHED_OCI_TAG" = true ]; then
+            digest="$(docker buildx imagetools inspect "$IMAGE_NAME:${RELEASE_TAG#v}" --format '{{.Manifest.Digest}}')"
+          else
+            digest="$PUBLISHED_OCI_DIGEST"
+          fi
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "OCI digest is missing or malformed: $digest" >&2
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Resolved OCI digest $digest"
+
   publish-mcp-registry:
-    needs: publish-oci
-    if: ${{ inputs.verify_only == false && inputs.publish_mcp_registry }}
+    needs: resolve-mcp-oci-digest
+    if: ${{ always() && inputs.verify_only == false && needs.resolve-mcp-oci-digest.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -163,6 +191,13 @@ jobs:
     steps:
       - name: Checkout the dispatched release tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
 
       - name: Install the Official MCP Registry publisher
         env:
@@ -187,10 +222,39 @@ jobs:
         run: ./mcp-publisher login github-oidc
 
       - name: Validate registry metadata
-        run: node scripts/validate-distribution-metadata.mjs
+        env:
+          MCP_OCI_DIGEST: ${{ needs.resolve-mcp-oci-digest.outputs.digest }}
+        run: |
+          node scripts/prepare-mcp-server-metadata.mjs "$MCP_OCI_DIGEST"
+          node scripts/validate-distribution-metadata.mjs
 
       - name: Publish server metadata
         run: ./mcp-publisher publish
+
+  verify-mcp-registry-republish-path:
+    needs: resolve-mcp-oci-digest
+    if: ${{ always() && inputs.verify_only && inputs.publish_mcp_registry && inputs.reuse_published_oci_tag && needs.resolve-mcp-oci-digest.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the dispatched release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
+
+      - name: Validate republish-without-rebuild metadata
+        env:
+          MCP_OCI_DIGEST: ${{ needs.resolve-mcp-oci-digest.outputs.digest }}
+        run: |
+          node scripts/prepare-mcp-server-metadata.mjs "$MCP_OCI_DIGEST"
+          node scripts/validate-distribution-metadata.mjs
+          echo "verify_only=true; MCP Registry publication was skipped after resolving the published OCI digest"
 
   confirm-verify-only:
     needs: preflight
