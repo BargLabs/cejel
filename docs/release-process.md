@@ -22,3 +22,11 @@ Checklist:
 
 If the runner does not report the new release version, revert the `v1` move and investigate; a
 Git ref update alone is not evidence of what consumers receive.
+
+## Required site binary-link step
+
+After the GitHub Release is published, update the single current-release record in the site source
+and run its release-state check. The site derives its current download links, currency table, source
+verification record, checksums, and provenance link from that record, and must link to canonical
+GitHub Release assets rather than host copied binaries. Run the published download-and-checksum
+snippet end to end against those release URLs before the site change is merged.
