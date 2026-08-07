@@ -16,6 +16,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-06
+
+### Fixed
+
+- The npm trusted-publishing workflow removes the `_authToken` placeholder written by
+  `actions/setup-node` from both user and project `.npmrc` files, then fails if it remains.
+  That leaves npm's GitHub OIDC exchange available for trusted publishing.
+
+### Release provenance
+
+- `0.3.0` was tagged and built but was never published: the registry rejected its upload after
+  a detached transparency-log provenance entry was created for that real build. The `v0.3.0`
+  tag remains in place; `0.3.1` is the successor release rather than a retagged retry.
+
 ## [0.3.0] — 2026-08-06
 
 ### Breaking

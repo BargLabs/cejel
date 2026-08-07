@@ -40,6 +40,20 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
+      - name: Remove setup-node auth placeholder for npm trusted publishing
+        run: |
+          npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          for config in "$npmrc" .npmrc; do
+            if [ -f "$config" ]; then
+              sed -i '/_authToken/d' "$config"
+            fi
+          done
+          if grep -rl '_authToken' "$npmrc" .npmrc 2>/dev/null | grep -q .; then
+            echo "_authToken present after strip; OIDC exchange would be skipped" >&2
+            exit 1
+          fi
+          echo "_authToken absence assertion passed for user and project npmrc"
+
       - name: Require an exact, dispatched, unpublished release tag
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
