@@ -10,6 +10,20 @@ permissions:
   contents: read
 
 jobs:
+  site-v1-consumer:
+    name: Consumer resolves site v1 reference
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Run the Action reference published on cejel.dev
+        uses: BargLabs/cejel/action@v1
+        with:
+          out-dir: .cejel/action-site-v1
+      - name: Print the version executed by the site v1 Action
+        run: >-
+          node -e "const a=require('./.cejel/action-site-v1/attestation.json');
+          console.log('SITE_V1_ACTION_VERSION=' + a.predicate.tool.version)"
+
   tagged-consumer:
     name: Consumer resolves v0.3.1
     runs-on: ubuntu-24.04
