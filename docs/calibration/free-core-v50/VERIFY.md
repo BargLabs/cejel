@@ -17,7 +17,7 @@ sealed payloads is not included.
 | Freeze record | `0a800ae75e7e453508f09376dc96d5cf3f9133fc15abe67d0e581a30b515ef75` | Binds the record that selection and revision freezing completed before scanning. |
 | Final sealed artifact tree | `567fa34cb2c3e2f40a6fd363da6827352c653662b469589073c14f8813c10bae` | Binds the complete sealed pre-terminal artifact tree under its documented filename-and-file-hash closure procedure. |
 | `terminal-go.md` | `bcc763ecec030a8ec4babcb4cd0f0d743dc97d4a144d3189a68de7b45c25eeaa` | Binds the exact bytes of the redacted public terminal GO record. |
-| `terminal-go.md` with 2026-08-06 addendum | `b1927c5306b35d67a720fabd1752b36db0149b6d4f81b369ea2228734d2c266c` | Binds the exact bytes of the redacted public terminal GO record after its additive source-and-npm-provenance disclosure. |
+| `v17-public-artifact-provenance-addendum-2026-08-06.md` | `43aeab6fcf108b8a7fdbd3441c199c7d20a378aa94319a1bbe89a2e426ca7a04` | Binds the exact bytes of the separate source-reachability and npm-artifact-provenance addendum. |
 
 ## Verification meaning
 
