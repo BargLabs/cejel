@@ -22,11 +22,11 @@ import {
 import type { CejelLlmFinding, CejelLlmRuleState } from '../../../src/packs/llm/index.js';
 import { canonicalize, hashManifest } from './freeze-cohorts.mjs';
 
-export const PR51_PAIRED_PROTOCOL_ID = 'cejel-pr51-paired-golden-v1';
+export const PR51_PAIRED_PROTOCOL_ID = 'cejel-pr51-paired-golden-v2';
 const PR51_BINDINGS_PATH =
-  'docs/experiments/pr51-paired-measurement-2026-08-08/preregistration-bindings.json';
+  'docs/experiments/pr51-paired-measurement-v2-2026-08-08/preregistration-bindings.json';
 const PR51_COMMITMENT_PATH =
-  'docs/experiments/pr51-paired-measurement-2026-08-08/pre-result-commitment.json';
+  'docs/experiments/pr51-paired-measurement-v2-2026-08-08/pre-result-commitment.json';
 
 declare const __CEJEL_PR51_ARM_COMMIT__: string;
 
@@ -81,6 +81,7 @@ export interface PreregistrationBindings {
     original_head_commit: string;
     original_stable_patch_id: string;
     expected_commit_count: 1;
+    application_method: 'git-merge-tree-write-tree';
   };
   network_isolation: {
     wrapper: { path: string; byte_sha256: string };
@@ -94,6 +95,7 @@ export interface RuntimeBinding {
   version: string;
   platform: string;
   architecture: string;
+  git_version: string;
 }
 
 export interface PreResultCommitment {
@@ -229,6 +231,7 @@ function currentRuntime(): RuntimeBinding {
     version: process.version,
     platform: process.platform,
     architecture: process.arch,
+    git_version: execFileSync('git', ['--version'], { encoding: 'utf8' }).trim(),
   };
 }
 
@@ -240,7 +243,8 @@ function isCanonicalUtcTimestamp(value: unknown): value is string {
 function assertRuntime(actual: RuntimeBinding, expected: RuntimeBinding, label: string): void {
   if (
     actual?.name !== expected.name || actual.version !== expected.version ||
-    actual.platform !== expected.platform || actual.architecture !== expected.architecture
+    actual.platform !== expected.platform || actual.architecture !== expected.architecture ||
+    actual.git_version !== expected.git_version
   ) {
     throw new Error(`${label} runtime does not match the pre-result commitment`);
   }
@@ -269,7 +273,8 @@ function validateCommitmentDocument(
   if (
     commitment.runtime?.name !== 'node' ||
     !/^v\d+\.\d+\.\d+/.test(commitment.runtime.version) ||
-    !commitment.runtime.platform || !commitment.runtime.architecture
+    !commitment.runtime.platform || !commitment.runtime.architecture ||
+    !/^git version \d+\.\d+/.test(commitment.runtime.git_version)
   ) {
     throw new Error('pre-result commitment runtime binding is invalid');
   }
@@ -338,6 +343,7 @@ function validateBindings(
     bindings.candidate_source?.repository !== 'BargLabs/cejel' ||
     bindings.candidate_source?.pull_request !== 51 ||
     bindings.candidate_source?.expected_commit_count !== 1 ||
+    bindings.candidate_source?.application_method !== 'git-merge-tree-write-tree' ||
     bindings.network_isolation?.wrapper?.path !== 'calibration/llm/scripts/no-egress-wrapper.sh' ||
     bindings.network_isolation?.hook?.path !== 'calibration/llm/scripts/no-egress-hook.cjs' ||
     bindings.network_isolation?.probe?.path !== 'calibration/llm/scripts/no-egress-probe.mjs'
@@ -423,14 +429,44 @@ function validateDetectorHistory(
   if (commitCount !== bindings.candidate_source.expected_commit_count) {
     throw new Error('candidate is not the preregistered one-commit change');
   }
-  const patchId = execFileSync('git', ['patch-id', '--stable'], {
-    input: diff,
-    encoding: 'utf8',
-  }).trim().split(/\s+/)[0];
-  if (patchId !== bindings.candidate_source.original_stable_patch_id) {
-    throw new Error('candidate patch identity differs from the original PR #51 patch');
+  const expectedTree = expectedCandidateTree(
+    detectorRoot,
+    commitment.baseline_commit,
+    bindings.candidate_source.original_base_commit,
+    bindings.candidate_source.original_head_commit,
+  );
+  if (git(detectorRoot, ['rev-parse', `${commitment.candidate_commit}^{tree}`]) !== expectedTree) {
+    throw new Error('candidate tree differs from Git’s conflict-free application of original PR #51');
   }
   return head;
+}
+
+export function expectedCandidateTree(
+  detectorRoot: string,
+  baselineCommit: string,
+  originalBaseCommit: string,
+  originalHeadCommit: string,
+): string {
+  const originalLine = git(detectorRoot, ['rev-list', '--parents', '-n', '1', originalHeadCommit]).split(' ');
+  if (originalLine.length !== 2 || originalLine[1] !== originalBaseCommit) {
+    throw new Error('bound original PR #51 head is not exactly one commit above its bound base');
+  }
+  try {
+    git(detectorRoot, ['merge-base', '--is-ancestor', originalBaseCommit, baselineCommit]);
+  } catch {
+    throw new Error('measurement baseline does not descend from the original PR #51 base');
+  }
+  let output: string;
+  try {
+    output = execFileSync('git', [
+      '-C', detectorRoot, 'merge-tree', '--write-tree', '--messages', baselineCommit, originalHeadCommit,
+    ], { encoding: 'utf8' });
+  } catch {
+    throw new Error('original PR #51 does not apply conflict-free to the measurement baseline');
+  }
+  const tree = output.trim().split(/\s+/)[0];
+  if (!/^[a-f0-9]{40}$/.test(tree)) throw new Error('Git did not produce an expected candidate tree');
+  return tree;
 }
 
 function validateCommitment(

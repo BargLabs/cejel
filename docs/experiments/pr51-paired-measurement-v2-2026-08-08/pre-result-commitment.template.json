@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-pr51-paired-golden-v2",
+  "status": "frozen_pre_result",
+  "created_at": "REPLACE_WITH_UTC_TIMESTAMP_BEFORE_EITHER_ARM_RUNS",
+  "detector_results_seen_before_commitment": false,
+  "preregistration_commit": "REPLACE_WITH_FULL_V2_PREREGISTRATION_MERGE_COMMIT",
+  "baseline_commit": "REPLACE_WITH_FULL_CURRENT_ORIGIN_MAIN_COMMIT",
+  "candidate_commit": "REPLACE_WITH_FULL_CONFLICT_FREE_PR_51_COMMIT",
+  "candidate_pr": 51,
+  "candidate_diff_sha256": "REPLACE_WITH_SHA256_OF_GIT_DIFF_BINARY_BASELINE_CANDIDATE",
+  "execution_bundles": {
+    "baseline_sha256": "REPLACE_WITH_SHA256_OF_BASELINE_RUNNER_BUNDLE",
+    "candidate_sha256": "REPLACE_WITH_SHA256_OF_CANDIDATE_RUNNER_BUNDLE"
+  },
+  "runtime": {
+    "name": "node",
+    "version": "REPLACE_WITH_PROCESS_VERSION",
+    "platform": "REPLACE_WITH_PROCESS_PLATFORM",
+    "architecture": "REPLACE_WITH_PROCESS_ARCHITECTURE",
+    "git_version": "REPLACE_WITH_GIT_VERSION_OUTPUT"
+  },
+  "execution_order": [
+    "baseline",
+    "candidate"
+  ],
+  "bindings_byte_sha256": "REPLACE_WITH_SHA256_OF_V2_PREREGISTRATION_BINDINGS_JSON"
+}
