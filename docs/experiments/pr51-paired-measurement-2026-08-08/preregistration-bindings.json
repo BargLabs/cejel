@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-pr51-paired-golden-v1",
+  "status": "preregistered_before_measurement",
+  "written_at": "2026-08-08T00:00:00.000Z",
+  "authoring_base_commit": "ea1a894dbf8c58bac1de21c687f85fb2e645da50",
+  "candidate_source": {
+    "repository": "BargLabs/cejel",
+    "pull_request": 51,
+    "original_head_commit": "025f1016d121a13545ad557e3e2843d808f2c7f4"
+  },
+  "inputs": {
+    "golden_manifest": {
+      "path": "calibration/llm/cohorts/golden-manifest-v1.9.json",
+      "byte_sha256": "60ac025d4f3db93576dedb67a5fadcc9ce87d0b19d0b129c02750187912b9982",
+      "canonical_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2",
+      "repositories": 24
+    },
+    "opportunity_manifest": {
+      "path": "calibration/llm/results/v1.9-golden-opportunity-manifest.json",
+      "byte_sha256": "dc8b06a57ae7cd6644323efecd19b399e5eb48b2de0302b08589ab9a759d38ba",
+      "canonical_sha256": "3f8bfe9276bb1e371b5e90eabfce079a5676b3dc03553b48f2f9667deaae6555",
+      "opportunities": 4199,
+      "present": 34,
+      "absent": 4165,
+      "not_applicable": 317
+    }
+  },
+  "harness": {
+    "path": "calibration/llm/scripts/pr51-paired-measurement.ts",
+    "byte_sha256": "81cf074e2fcfeb0ff825d3d7dc5d16feb3606f30d379ede46eeb8588e6f13a3f"
+  },
+  "claim_boundary": "Paired diagnostic on the retired v1.9 golden cohort; not a new calibration, release gate, published-figure correction, or external claim."
+}
