@@ -7,3 +7,4 @@ coverage/
 *.tsbuildinfo
 .pnpm-store/
 notes.md
+.worktrees/
