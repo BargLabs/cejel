@@ -52,16 +52,20 @@ seen and bind:
 - the then-current `origin/main` full SHA as `baseline_commit`;
 - the full SHA produced by rebasing #51 unchanged onto that baseline as `candidate_commit`;
 - SHA-256 of `git diff --binary <baseline> <candidate>`;
-- SHA-256 of the baseline and candidate execution bundles built by the command below;
+- the original #51 base/head, one-commit count, and stable patch ID already frozen in the bindings;
+- SHA-256 of the baseline and candidate execution bundles built by the bound builder below;
+- the exact Node version, platform, and architecture shared by both arms;
 - execution order `["baseline", "candidate"]`; and
 - the raw SHA-256 of `preregistration-bindings.json`.
 
 The baseline must contain the preregistration commit. The candidate must be a clean rebase of #51
 onto the baseline. If the rebase conflicts in an evaluation fixture, rubric, frozen input, or
 measurement file, abort without resolving the conflict. If any other conflict would require a
-semantic change to #51, supersede this protocol before measuring. The harness rejects dirty tracked
-files, wrong revisions, a missing preregistration ancestor, changed input bytes, a changed harness,
-or a candidate diff different from the commitment.
+semantic change to #51, supersede this protocol before measuring. The harness rejects any tracked or
+untracked checkout change, wrong revision, bundle built from a different arm commit, missing
+preregistration ancestor, changed input or isolation bytes, runtime mismatch, changed harness, a
+candidate diff different from the commitment, or a candidate whose stable patch identity differs
+from the original one-commit #51 patch.
 
 The baseline arm runs first and the candidate arm second. Candidate execution requires the baseline
 arm artifact. Running the scorer requires both artifacts to share the same pre-result commitment
@@ -75,17 +79,20 @@ use the network; detector execution may not. Use fresh, non-nested directories o
 repository for the checkout matrix and both arm outputs.
 
 Before creating the pre-result commitment, build one self-contained runner per exact clean arm
-worktree, outside the repository. This compiles the detector but does not read or scan the cohort:
+worktree, outside the repository. The bound builder refuses a dirty checkout or in-repository output
+and embeds the exact arm commit into the bundle. It compiles the detector but does not read or scan
+the cohort:
 
 ```bash
-pnpm exec tsup calibration/llm/scripts/pr51-paired-measurement.ts \
-  --format esm --platform node --target node18 --out-dir /private/path/baseline-bundle
+node calibration/llm/scripts/build-pr51-paired-bundle.mjs \
+  --output-dir /private/path/baseline-bundle
 ```
 
 Repeat from the candidate worktree into a separate directory. Record the raw SHA-256 of both
-generated `pr51-paired-measurement.js` files in the pre-result commitment, then commit that document.
-Do not rebuild either bundle afterward. `tsx` must not be used inside the no-egress wrapper because
-its compiler starts a subprocess that the wrapper correctly denies.
+generated `pr51-paired-measurement.js` files and the exact `process.version`, `process.platform`, and
+`process.arch` in the pre-result commitment, then commit that document. Do not rebuild either bundle
+afterward. `tsx` must not be used inside the no-egress wrapper because its compiler starts a
+subprocess that the wrapper correctly denies.
 
 Run each arm from its exact clean Cejel worktree with plain `node` and its bound bundle:
 
@@ -109,8 +116,12 @@ calibration/llm/scripts/no-egress-wrapper.sh \
 Use the same command for `candidate`, add
 `--prior-arm /private/path/baseline-arm.json`, use the candidate bundle and detector root, and write
 a new candidate output. Then run the committed source harness outside the wrapper with
-`node --import tsx ... --mode score-pair`, passing `--baseline`, `--candidate`, `--opportunities`,
-and `--bindings`. The scorer writes only the aggregate comparison to standard output.
+`node --import tsx ... --mode score-pair`, passing `--detector-root`, `--baseline`, `--candidate`,
+`--manifest`, `--opportunities`, `--bindings`, `--commitment`, and the same three
+`--commitment-git-*` arguments. The scorer revalidates both complete arm artifacts, the committed
+pre-result blob, runtime, bundle hashes, all 24 ordered frozen repositories, and identical source
+digests before writing only the aggregate comparison and raw-artifact SHA-256 audit references to
+standard output.
 
 If the current environment cannot execute this exact procedure, record the incompatibility and
 stop. Do not change the harness, inputs, detector, fixtures, matching rule, or invocation after an
@@ -133,9 +144,9 @@ issue #4; that item is not part of this experiment.
 
 Stop without interpreting a result if any of the following occurs:
 
-- either frozen checkout differs from its committed SHA or tree;
+- either frozen or detector checkout differs from its committed bytes, including an untracked file;
 - the two arms do not share identical input source digests;
-- the no-egress wrapper or its probe is not active;
+- the exact byte-bound no-egress wrapper, hook, or probe differs, or all five probe surfaces are not denied;
 - an input, label, harness byte, or committed arm SHA differs from its binding;
 - an arm is executed before the pre-result commitment is committed;
 - a raw third-party-derived result is staged for commit; or

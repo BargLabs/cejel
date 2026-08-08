@@ -13,6 +13,12 @@
     "baseline_sha256": "REPLACE_WITH_SHA256_OF_BASELINE_RUNNER_BUNDLE",
     "candidate_sha256": "REPLACE_WITH_SHA256_OF_CANDIDATE_RUNNER_BUNDLE"
   },
+  "runtime": {
+    "name": "node",
+    "version": "REPLACE_WITH_PROCESS_VERSION",
+    "platform": "REPLACE_WITH_PROCESS_PLATFORM",
+    "architecture": "REPLACE_WITH_PROCESS_ARCHITECTURE"
+  },
   "execution_order": [
     "baseline",
     "candidate"
