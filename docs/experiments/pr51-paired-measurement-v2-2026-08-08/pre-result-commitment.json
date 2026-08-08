@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-pr51-paired-golden-v2",
+  "status": "frozen_pre_result",
+  "created_at": "2026-08-08T23:31:24.540Z",
+  "detector_results_seen_before_commitment": false,
+  "preregistration_commit": "e3c1ba1db2cb9058098b278fa8dd30d303465b2f",
+  "baseline_commit": "e3c1ba1db2cb9058098b278fa8dd30d303465b2f",
+  "candidate_commit": "c3d82a10b112d92a6d88915d2116d06a843edb3e",
+  "candidate_pr": 51,
+  "candidate_diff_sha256": "f3c0cd704e30117e77ff484d9a96b0a570e5f4a2779a258add8293d0f1f8e66a",
+  "execution_bundles": {
+    "baseline_sha256": "d5e7632153f81b90fb6f12dced5e9c9b22d8b42ca1cc132724bb74d4a093effc",
+    "candidate_sha256": "467caf5aae4785aed4d6bad47aa15ad26aea39afbc6ab9549d1d1fd96d278e36"
+  },
+  "runtime": {
+    "name": "node",
+    "version": "v26.5.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "git_version": "git version 2.50.1 (Apple Git-155)"
+  },
+  "execution_order": [
+    "baseline",
+    "candidate"
+  ],
+  "bindings_byte_sha256": "a98a40b69f7acb183b678a88bed9ef02ec85ec6698470a06e5502149f1798a8f"
+}
