@@ -17,7 +17,8 @@
     "name": "node",
     "version": "REPLACE_WITH_PROCESS_VERSION",
     "platform": "REPLACE_WITH_PROCESS_PLATFORM",
-    "architecture": "REPLACE_WITH_PROCESS_ARCHITECTURE"
+    "architecture": "REPLACE_WITH_PROCESS_ARCHITECTURE",
+    "git_version": "REPLACE_WITH_GIT_VERSION_OUTPUT"
   },
   "execution_order": [
     "baseline",

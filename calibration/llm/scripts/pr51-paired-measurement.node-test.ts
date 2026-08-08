@@ -37,7 +37,10 @@ function arm(findings: ArmMeasurement['repositories'][number]['findings']): ArmM
     pre_result_commitment_byte_sha256: 'e'.repeat(64),
     harness_byte_sha256: 'f'.repeat(64),
     execution_bundle_sha256: '0'.repeat(64),
-    runtime: { name: 'node', version: 'v24.0.0', platform: 'darwin', architecture: 'arm64' },
+    runtime: {
+      name: 'node', version: 'v24.0.0', platform: 'darwin', architecture: 'arm64',
+      git_version: 'git version 2.50.1',
+    },
     prior_arm_byte_sha256: null,
     completed_at: '2026-08-08T00:00:00.000Z',
     repositories: [{
@@ -203,7 +206,10 @@ describe('PR #51 paired measurement integrity guards', () => {
   it('rejects a structurally valid arm with changed bound metadata', () => {
     const bindingBytes = Buffer.from('synthetic bindings\n');
     const commitmentBytes = Buffer.from('synthetic commitment\n');
-    const runtime = { name: 'node', version: 'v24.0.0', platform: 'darwin', architecture: 'arm64' };
+    const runtime = {
+      name: 'node', version: 'v24.0.0', platform: 'darwin', architecture: 'arm64',
+      git_version: 'git version 2.50.1',
+    };
     const manifest = {
       schema_version: '1.0.0', protocol_id: 'cejel-llm-calibration-v1', status: 'frozen', cohort: 'golden',
       manifest_sha256: 'b'.repeat(64),

@@ -95,6 +95,7 @@ export interface RuntimeBinding {
   version: string;
   platform: string;
   architecture: string;
+  git_version: string;
 }
 
 export interface PreResultCommitment {
@@ -230,6 +231,7 @@ function currentRuntime(): RuntimeBinding {
     version: process.version,
     platform: process.platform,
     architecture: process.arch,
+    git_version: execFileSync('git', ['--version'], { encoding: 'utf8' }).trim(),
   };
 }
 
@@ -241,7 +243,8 @@ function isCanonicalUtcTimestamp(value: unknown): value is string {
 function assertRuntime(actual: RuntimeBinding, expected: RuntimeBinding, label: string): void {
   if (
     actual?.name !== expected.name || actual.version !== expected.version ||
-    actual.platform !== expected.platform || actual.architecture !== expected.architecture
+    actual.platform !== expected.platform || actual.architecture !== expected.architecture ||
+    actual.git_version !== expected.git_version
   ) {
     throw new Error(`${label} runtime does not match the pre-result commitment`);
   }
@@ -270,7 +273,8 @@ function validateCommitmentDocument(
   if (
     commitment.runtime?.name !== 'node' ||
     !/^v\d+\.\d+\.\d+/.test(commitment.runtime.version) ||
-    !commitment.runtime.platform || !commitment.runtime.architecture
+    !commitment.runtime.platform || !commitment.runtime.architecture ||
+    !/^git version \d+\.\d+/.test(commitment.runtime.git_version)
   ) {
     throw new Error('pre-result commitment runtime binding is invalid');
   }

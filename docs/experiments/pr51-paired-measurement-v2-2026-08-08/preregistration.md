@@ -42,7 +42,7 @@ After this v2 preregistration merges, create clean baseline and candidate worktr
 outside Git with the bound builder, which embeds the exact clean detector commit. Before opening a
 frozen checkout or running either arm, commit a separate pre-result document from the template. It
 must bind the v2 preregistration merge commit, then-current `origin/main` baseline, conflict-free
-candidate commit, raw candidate diff SHA-256, both bundle SHA-256 values, exact Node runtime,
+candidate commit, raw candidate diff SHA-256, both bundle SHA-256 values, exact Node and Git runtime,
 baseline-first order, and raw v2 bindings SHA-256.
 
 The pre-result commit must strictly descend from the v2 preregistration. Raw arm artifacts must be
