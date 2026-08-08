@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-pr51-paired-golden-v1",
+  "status": "preregistered_before_measurement",
+  "written_at": "2026-08-08T00:00:00.000Z",
+  "authoring_base_commit": "ea1a894dbf8c58bac1de21c687f85fb2e645da50",
+  "candidate_source": {
+    "repository": "BargLabs/cejel",
+    "pull_request": 51,
+    "original_base_commit": "c1f76ddb0454aa9f3326102efaeb766ad5446eea",
+    "original_head_commit": "025f1016d121a13545ad557e3e2843d808f2c7f4",
+    "original_stable_patch_id": "3c9f05a6a704ed54ab1338f20a75f07bfedc256f",
+    "expected_commit_count": 1
+  },
+  "inputs": {
+    "golden_manifest": {
+      "path": "calibration/llm/cohorts/golden-manifest-v1.9.json",
+      "byte_sha256": "60ac025d4f3db93576dedb67a5fadcc9ce87d0b19d0b129c02750187912b9982",
+      "canonical_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2",
+      "repositories": 24
+    },
+    "opportunity_manifest": {
+      "path": "calibration/llm/results/v1.9-golden-opportunity-manifest.json",
+      "byte_sha256": "dc8b06a57ae7cd6644323efecd19b399e5eb48b2de0302b08589ab9a759d38ba",
+      "canonical_sha256": "3f8bfe9276bb1e371b5e90eabfce079a5676b3dc03553b48f2f9667deaae6555",
+      "opportunities": 4199,
+      "present": 34,
+      "absent": 4165,
+      "not_applicable": 317
+    }
+  },
+  "harness": {
+    "path": "calibration/llm/scripts/pr51-paired-measurement.ts",
+    "byte_sha256": "a13bcd06fa321320bbe42e18f65ccd365544e2eb1b7b0b15c179c13761ce11f1"
+  },
+  "builder": {
+    "path": "calibration/llm/scripts/build-pr51-paired-bundle.mjs",
+    "byte_sha256": "04328e8329a93e6f672bf83d0a73c3921ba85f77fa6fa2f65d28688058b4e6f0"
+  },
+  "network_isolation": {
+    "wrapper": {
+      "path": "calibration/llm/scripts/no-egress-wrapper.sh",
+      "byte_sha256": "4109874614ba82a97176467458050c18aa2457c4e81b649e62cf85cc9dc99094"
+    },
+    "hook": {
+      "path": "calibration/llm/scripts/no-egress-hook.cjs",
+      "byte_sha256": "49962e1e1459431004b6c7a8e0c74a1b9cebb2539711f316882d6b39f20a5860"
+    },
+    "probe": {
+      "path": "calibration/llm/scripts/no-egress-probe.mjs",
+      "byte_sha256": "2b453e35eec2e0767151b97c7231c8542b09ec8984fa2375e1fb90cbbf5bbec6"
+    }
+  },
+  "claim_boundary": "Paired diagnostic on the retired v1.9 golden cohort; not a new calibration, release gate, published-figure correction, or external claim."
+}
