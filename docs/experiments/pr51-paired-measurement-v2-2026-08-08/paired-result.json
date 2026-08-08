@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-pr51-paired-golden-v2",
+  "status": "paired_diagnostic_complete",
+  "evidence": {
+    "baseline_arm_byte_sha256": "5997db33990c2db3072cfa44ccd250fa8675154647d9a8449bbd55016d399803",
+    "candidate_arm_byte_sha256": "804f69a310acc975e6bfc3206d8684e2d982601f97046ccd4b98be46de57f450",
+    "pre_result_commitment_byte_sha256": "9ed92267536d8fe3ed5dc576d3783a105017ff4a99b1d27c8c9e15684be98bc8",
+    "bindings_byte_sha256": "a98a40b69f7acb183b678a88bed9ef02ec85ec6698470a06e5502149f1798a8f"
+  },
+  "runtime": {
+    "name": "node",
+    "version": "v26.5.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "git_version": "git version 2.50.1 (Apple Git-155)"
+  },
+  "baseline": {
+    "findings": 3,
+    "true_positives": 0,
+    "false_positives": 3,
+    "abstentions": 0,
+    "recall": 0
+  },
+  "candidate": {
+    "findings": 3,
+    "true_positives": 0,
+    "false_positives": 3,
+    "abstentions": 0,
+    "recall": 0
+  },
+  "delta": {
+    "findings": 0,
+    "true_positives": 0,
+    "false_positives": 0,
+    "abstentions": 0,
+    "recall": 0
+  },
+  "disposition": "close",
+  "claim_boundary": "Paired diagnostic on the retired v1.9 golden cohort; not a new calibration or release claim."
+}
