@@ -12,6 +12,7 @@ import {
   armOutputPath,
   assertArmBundleCommit,
   decidePair,
+  expectedCandidateTree,
   PR51_PAIRED_PROTOCOL_ID,
   scoreArm,
   validateArmMeasurement,
@@ -228,6 +229,7 @@ describe('PR #51 paired measurement integrity guards', () => {
       candidate_source: {
         repository: 'BargLabs/cejel', pull_request: 51, original_base_commit: '3'.repeat(40),
         original_head_commit: '4'.repeat(40), original_stable_patch_id: '5'.repeat(40), expected_commit_count: 1,
+        application_method: 'git-merge-tree-write-tree',
       },
       network_isolation: {
         wrapper: { path: 'wrapper', byte_sha256: '6'.repeat(64) },
@@ -265,5 +267,34 @@ describe('PR #51 paired measurement integrity guards', () => {
       measurement, 'baseline', manifest, opportunityManifest, bindings, bindingBytes,
       commitment, commitmentBytes, null,
     ), /does not share the commitment/);
+  });
+
+  it('derives the rebased candidate tree from Git without relying on context-sensitive patch IDs', () => {
+    const root = mkdtempSync(join(tmpdir(), 'cejel-pr51-tree-'));
+    try {
+      execFileSync('git', ['init', '-q', root]);
+      execFileSync('git', ['-C', root, 'config', 'user.name', 'Cejel Test']);
+      execFileSync('git', ['-C', root, 'config', 'user.email', 'test@cejel.invalid']);
+      writeFileSync(resolve(root, 'context.txt'), 'before\nafter\n');
+      execFileSync('git', ['-C', root, 'add', 'context.txt']);
+      execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'base']);
+      const originalBase = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+      execFileSync('git', ['-C', root, 'switch', '-q', '-c', 'original']);
+      writeFileSync(resolve(root, 'feature.txt'), 'original change\n');
+      execFileSync('git', ['-C', root, 'add', 'feature.txt']);
+      execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'feature']);
+      const originalHead = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+      execFileSync('git', ['-C', root, 'switch', '-q', '-c', 'baseline', originalBase]);
+      writeFileSync(resolve(root, 'context.txt'), 'new preface\nbefore\nafter\n');
+      execFileSync('git', ['-C', root, 'add', 'context.txt']);
+      execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'later context']);
+      const baseline = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+      const expectedTree = expectedCandidateTree(root, baseline, originalBase, originalHead);
+      execFileSync('git', ['-C', root, 'cherry-pick', originalHead], { stdio: 'ignore' });
+      const candidateTree = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim();
+      assert.equal(candidateTree, expectedTree);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
