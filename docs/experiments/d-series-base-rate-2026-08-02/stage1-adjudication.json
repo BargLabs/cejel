@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-adjudication-v1",
+  "stage": "stage1-owned",
+  "sourceResult": "stage1-result.json",
+  "sourceResultSha256": "82568bfbd7d787626f76503798129486a8e483e908749f209f7399f3f312ba2c",
+  "rawFindingCount": 5,
+  "sampleCapPerRule": 200,
+  "sampleSeed": "cejel-d-series-adjudication-2026-08-02-5b9cccf65cf79915",
+  "samplingInvoked": false,
+  "counts": {
+    "genuineUnconstructed": 0,
+    "falsePositive": 0,
+    "constructedControl": 5
+  },
+  "entries": [
+    {
+      "ruleId": "D1",
+      "repository": "BargLabs/cejel",
+      "classification": "constructed-control",
+      "declarationKind": "schema",
+      "key": "requireNamedApprover",
+      "line": 3,
+      "rationale": "The finding is the preregistered D1 acceptance-schema positive control in Cejel."
+    },
+    {
+      "ruleId": "D2",
+      "repository": "BargLabs/cejel",
+      "classification": "constructed-control",
+      "binding": "error",
+      "line": 5,
+      "rationale": "The finding is the preregistered D2 acceptance positive control in Cejel."
+    },
+    {
+      "ruleId": "D3",
+      "repository": "BargLabs/cejel",
+      "classification": "constructed-control",
+      "sourceBinding": "rows",
+      "outputBinding": "published",
+      "explanationBinding": "explained",
+      "line": 2,
+      "rationale": "The finding is the preregistered D3 acceptance positive control in Cejel."
+    },
+    {
+      "ruleId": "D4",
+      "repository": "BargLabs/cejel",
+      "classification": "constructed-control",
+      "callee": "readQueue",
+      "resultBinding": "result",
+      "collection": "entries",
+      "line": 12,
+      "rationale": "The finding is the preregistered D4 acceptance positive control in Cejel."
+    },
+    {
+      "ruleId": "D5",
+      "repository": "BargLabs/cejel",
+      "classification": "constructed-control",
+      "assertionKind": "node-assert",
+      "expectedImport": "EXPECTED_REVIEW_REQUIRED",
+      "line": 8,
+      "rationale": "The finding is the preregistered D5 acceptance positive control in Cejel."
+    }
+  ]
+}

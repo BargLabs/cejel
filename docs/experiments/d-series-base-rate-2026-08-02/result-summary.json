@@ -1,0 +1,668 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-summary-v1",
+  "generatedAt": "2026-08-02T17:30:22.811Z",
+  "manifestPath": "docs/experiments/d-series-base-rate-2026-08-02/tier2-corpus.json",
+  "manifestSha256": "2b01b4ba74b27de9e3946bde6fff0da1a2be67646874a4507141311c1a4636ff",
+  "rawResultPath": "docs/experiments/d-series-base-rate-2026-08-02/stage2-result.json",
+  "rawResultSha256": "d73d21915a48ab1c97cded7271da44fb28783b2c7e05a01dd2b64bfc1ad167d6",
+  "rawCompletedAt": "2026-08-02T17:30:22.811Z",
+  "streamedDeleteConfirmed": true,
+  "canonicalization": {
+    "key": "frozen manifest index plus revision",
+    "selection": "first recorded outcome for each frozen index",
+    "rawRows": 2092,
+    "canonicalRows": 2023,
+    "excessDuplicateAttempts": 69,
+    "duplicateIndexCount": 18,
+    "duplicateIndexes": [
+      {
+        "index": 19,
+        "fullName": "Jason2Brownlee/awesome-llm-books",
+        "attempts": 6
+      },
+      {
+        "index": 26,
+        "fullName": "sudhakar3697/awesome-electron-alternatives",
+        "attempts": 6
+      },
+      {
+        "index": 177,
+        "fullName": "wuwenjie1992/StarryDivineSky",
+        "attempts": 6
+      },
+      {
+        "index": 252,
+        "fullName": "matthewvowels1/Awesome-VAEs",
+        "attempts": 6
+      },
+      {
+        "index": 325,
+        "fullName": "JordanSchuetz/LearnCS8-Resume",
+        "attempts": 6
+      },
+      {
+        "index": 344,
+        "fullName": "qxr777/NumericalAnalysis",
+        "attempts": 6
+      },
+      {
+        "index": 405,
+        "fullName": "sjh37/EntityFramework-Reverse-POCO-Code-First-Generator",
+        "attempts": 6
+      },
+      {
+        "index": 532,
+        "fullName": "felixrieseberg/windows95",
+        "attempts": 6
+      },
+      {
+        "index": 543,
+        "fullName": "richards199999/Thinking-Claude",
+        "attempts": 6
+      },
+      {
+        "index": 635,
+        "fullName": "tonyantony300/dashbeam",
+        "attempts": 6
+      },
+      {
+        "index": 653,
+        "fullName": "sinclairzx81/typebox",
+        "attempts": 6
+      },
+      {
+        "index": 1088,
+        "fullName": "framework7io/framework7",
+        "attempts": 3
+      },
+      {
+        "index": 1151,
+        "fullName": "OwlCarousel2/OwlCarousel2",
+        "attempts": 3
+      },
+      {
+        "index": 1176,
+        "fullName": "menzi11/BullshitGenerator",
+        "attempts": 3
+      },
+      {
+        "index": 1185,
+        "fullName": "sweetalert2/sweetalert2",
+        "attempts": 3
+      },
+      {
+        "index": 1282,
+        "fullName": "bgstaal/multipleWindow3dScene",
+        "attempts": 3
+      },
+      {
+        "index": 1332,
+        "fullName": "scutan90/DeepLearning-500-questions",
+        "attempts": 3
+      },
+      {
+        "index": 1447,
+        "fullName": "threat9/routersploit",
+        "attempts": 3
+      }
+    ],
+    "inconsistentDuplicateIndexes": [],
+    "cause": "On resume, redacted stored fullName values did not equal unredacted manifest fullName values, so those indexes were re-attempted. Outcomes were identical and duplicate attempts are excluded from all canonical denominators."
+  },
+  "cohorts": {
+    "fresh": {
+      "corpusEntries": 2000,
+      "inventoriedRepositories": 1999,
+      "repositoryErrors": [
+        {
+          "index": 928,
+          "fullName": "polyfillpolyfill/polyfill-service",
+          "revision": "41a4cfc259d371ce8055d3e0702f230019bc7731",
+          "error": {
+            "name": "WorkerOutOfMemory",
+            "message": "Exact whole-repository rule evaluation did not complete after isolated attempts at 4 GiB, 12 GiB, and 48 GiB V8 heap ceilings; D1 exhausted memory before producing a result, and D2-D5 were not attempted. This row is an explicit error and must not be counted as a zero or in analyzed-file denominators.",
+            "attemptedHeapMiB": [
+              4096,
+              12288,
+              49152
+            ],
+            "eligibleFileCount": 150560,
+            "eligibleBytes": 1975278356,
+            "maximumEligibleFileBytes": 4993443
+          }
+        }
+      ],
+      "ruleErrors": [
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D1",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D2",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D3",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D4",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D5",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D1",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D2",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D3",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D4",
+          "error": "Maximum call stack size exceeded"
+        }
+      ],
+      "inventory": {
+        "trackedPaths": 1824947,
+        "regularFiles": 1774850,
+        "deniedPath": 45399,
+        "nonRegular": 4697,
+        "missingOrStatError": 1,
+        "d1AnalyzedFiles": 713645,
+        "d2ToD5AnalyzedFiles": 542770,
+        "d1ExcludedExtension": 1061205,
+        "d2ToD5ExcludedExtension": 1232080,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 812,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "successfulRepositories": 1997,
+          "errorRepositories": 3,
+          "analyzedFiles": 660676,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000005814402952286169
+          },
+          "positiveFileWilson95UpperPer1000": 0.005814402952286169,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0019199216428463554
+          }
+        },
+        "D2": {
+          "successfulRepositories": 1997,
+          "errorRepositories": 3,
+          "analyzedFiles": 490103,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007838002851092397
+          },
+          "positiveFileWilson95UpperPer1000": 0.007838002851092398,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0019199216428463554
+          }
+        },
+        "D3": {
+          "successfulRepositories": 1997,
+          "errorRepositories": 3,
+          "analyzedFiles": 490103,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007838002851092397
+          },
+          "positiveFileWilson95UpperPer1000": 0.007838002851092398,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0019199216428463554
+          }
+        },
+        "D4": {
+          "successfulRepositories": 1997,
+          "errorRepositories": 3,
+          "analyzedFiles": 490103,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007838002851092397
+          },
+          "positiveFileWilson95UpperPer1000": 0.007838002851092398,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0019199216428463554
+          }
+        },
+        "D5": {
+          "successfulRepositories": 1998,
+          "errorRepositories": 2,
+          "analyzedFiles": 536635,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007158368951176454
+          },
+          "positiveFileWilson95UpperPer1000": 0.0071583689511764545,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0019189625650760421
+          }
+        }
+      }
+    },
+    "legacy23": {
+      "corpusEntries": 23,
+      "inventoriedRepositories": 23,
+      "repositoryErrors": [],
+      "ruleErrors": [],
+      "inventory": {
+        "trackedPaths": 65040,
+        "regularFiles": 64800,
+        "deniedPath": 208,
+        "nonRegular": 32,
+        "missingOrStatError": 0,
+        "d1AnalyzedFiles": 21183,
+        "d2ToD5AnalyzedFiles": 15608,
+        "d1ExcludedExtension": 43617,
+        "d2ToD5ExcludedExtension": 49192,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 4,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "successfulRepositories": 23,
+          "errorRepositories": 0,
+          "analyzedFiles": 21183,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.0001813134264567225
+          },
+          "positiveFileWilson95UpperPer1000": 0.1813134264567225,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.14311661845042686
+          }
+        },
+        "D2": {
+          "successfulRepositories": 23,
+          "errorRepositories": 0,
+          "analyzedFiles": 15608,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.00024606058361704026
+          },
+          "positiveFileWilson95UpperPer1000": 0.24606058361704025,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.14311661845042686
+          }
+        },
+        "D3": {
+          "successfulRepositories": 23,
+          "errorRepositories": 0,
+          "analyzedFiles": 15608,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.00024606058361704026
+          },
+          "positiveFileWilson95UpperPer1000": 0.24606058361704025,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.14311661845042686
+          }
+        },
+        "D4": {
+          "successfulRepositories": 23,
+          "errorRepositories": 0,
+          "analyzedFiles": 15608,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.00024606058361704026
+          },
+          "positiveFileWilson95UpperPer1000": 0.24606058361704025,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.14311661845042686
+          }
+        },
+        "D5": {
+          "successfulRepositories": 23,
+          "errorRepositories": 0,
+          "analyzedFiles": 15608,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.00024606058361704026
+          },
+          "positiveFileWilson95UpperPer1000": 0.24606058361704025,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.14311661845042686
+          }
+        }
+      }
+    },
+    "allStage2": {
+      "corpusEntries": 2023,
+      "inventoriedRepositories": 2022,
+      "repositoryErrors": [
+        {
+          "index": 928,
+          "fullName": "polyfillpolyfill/polyfill-service",
+          "revision": "41a4cfc259d371ce8055d3e0702f230019bc7731",
+          "error": {
+            "name": "WorkerOutOfMemory",
+            "message": "Exact whole-repository rule evaluation did not complete after isolated attempts at 4 GiB, 12 GiB, and 48 GiB V8 heap ceilings; D1 exhausted memory before producing a result, and D2-D5 were not attempted. This row is an explicit error and must not be counted as a zero or in analyzed-file denominators.",
+            "attemptedHeapMiB": [
+              4096,
+              12288,
+              49152
+            ],
+            "eligibleFileCount": 150560,
+            "eligibleBytes": 1975278356,
+            "maximumEligibleFileBytes": 4993443
+          }
+        }
+      ],
+      "ruleErrors": [
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D1",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D2",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D3",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D4",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 968,
+          "fullName": "facebook/hermes",
+          "revision": "07596004f035bee428496aae8222eaff0a4803a7",
+          "ruleId": "D5",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D1",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D2",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D3",
+          "error": "Maximum call stack size exceeded"
+        },
+        {
+          "index": 1810,
+          "fullName": "swc-project/swc",
+          "revision": "5b758ed173292dccf4d97d372a36a4086a820a7c",
+          "ruleId": "D4",
+          "error": "Maximum call stack size exceeded"
+        }
+      ],
+      "inventory": {
+        "trackedPaths": 1889987,
+        "regularFiles": 1839650,
+        "deniedPath": 45607,
+        "nonRegular": 4729,
+        "missingOrStatError": 1,
+        "d1AnalyzedFiles": 734828,
+        "d2ToD5AnalyzedFiles": 558378,
+        "d1ExcludedExtension": 1104822,
+        "d2ToD5ExcludedExtension": 1281272,
+        "tooLargeSkipped": 0,
+        "analyzedOver512000Bytes": 816,
+        "unparseableSkipped": 0
+      },
+      "rules": {
+        "D1": {
+          "successfulRepositories": 2020,
+          "errorRepositories": 3,
+          "analyzedFiles": 681859,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000005633770587168916
+          },
+          "positiveFileWilson95UpperPer1000": 0.005633770587168916,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0018981026423544902
+          }
+        },
+        "D2": {
+          "successfulRepositories": 2020,
+          "errorRepositories": 3,
+          "analyzedFiles": 505711,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007596096665094468
+          },
+          "positiveFileWilson95UpperPer1000": 0.007596096665094468,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0018981026423544902
+          }
+        },
+        "D3": {
+          "successfulRepositories": 2020,
+          "errorRepositories": 3,
+          "analyzedFiles": 505711,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007596096665094468
+          },
+          "positiveFileWilson95UpperPer1000": 0.007596096665094468,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0018981026423544902
+          }
+        },
+        "D4": {
+          "successfulRepositories": 2020,
+          "errorRepositories": 3,
+          "analyzedFiles": 505711,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.000007596096665094468
+          },
+          "positiveFileWilson95UpperPer1000": 0.007596096665094468,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 0,
+            "upper": 0.0018981026423544902
+          }
+        },
+        "D5": {
+          "successfulRepositories": 2021,
+          "errorRepositories": 2,
+          "analyzedFiles": 552243,
+          "findings": 0,
+          "positiveFiles": 0,
+          "positiveRepositories": 0,
+          "findingDensityPer1000Files": 0,
+          "positiveFilePrevalence": 0,
+          "positiveFileWilson95": {
+            "lower": 0,
+            "upper": 0.00000695605394599721
+          },
+          "positiveFileWilson95UpperPer1000": 0.00695605394599721,
+          "positiveRepositoryPrevalence": 0,
+          "positiveRepositoryWilson95": {
+            "lower": 1.0842021724855044e-19,
+            "upper": 0.0018971652343247967
+          }
+        }
+      }
+    }
+  },
+  "cost": {
+    "canonicalRecordedRows": {
+      "rows": 2022,
+      "peakDiskKilobytes": 2291644,
+      "cloneWallMilliseconds": 3526808.6548119956,
+      "bytesTransferred": 12546135784,
+      "unknownTransferRows": 665
+    },
+    "rawRecordedAttempts": {
+      "rows": 2091,
+      "peakDiskKilobytes": 2291644,
+      "cloneWallMilliseconds": 3631576.7652709964,
+      "bytesTransferred": 12875181761,
+      "unknownTransferRows": 689
+    },
+    "hardFailureAttemptsNotRepresentedInRecordedCostRows": {
+      "index": 928,
+      "heapsMiB": [
+        4096,
+        12288,
+        49152
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "cejel-d-series-base-rate-adjudication-v1",
+  "stage": "stage2-public",
+  "sourceResult": "stage2-result.json",
+  "sourceResultSha256": "d73d21915a48ab1c97cded7271da44fb28783b2c7e05a01dd2b64bfc1ad167d6",
+  "canonicalSummary": "result-summary.json",
+  "canonicalSummarySha256": "2d37f0002c6d6fac8354b75b78c5e7cc1b359fcba0a72c9a1c8b3e5e4cd12f4f",
+  "rawFindingCount": 0,
+  "sampleCapPerRule": 200,
+  "sampleSeed": "cejel-d-series-adjudication-2026-08-02-5b9cccf65cf79915",
+  "samplingInvoked": false,
+  "counts": {
+    "genuineUnconstructed": 0,
+    "falsePositive": 0,
+    "constructedControl": 0
+  },
+  "entries": [],
+  "note": "Repository and rule execution errors are reported separately in result-summary.json. They are not findings and are not counted as clean zeros."
+}
