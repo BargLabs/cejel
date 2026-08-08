@@ -31,7 +31,7 @@
   },
   "harness": {
     "path": "calibration/llm/scripts/pr51-paired-measurement.ts",
-    "byte_sha256": "0274f4e7d280430975ad59cc30002f590a2038d50c9b95beba6154011724f4bb"
+    "byte_sha256": "a13bcd06fa321320bbe42e18f65ccd365544e2eb1b7b0b15c179c13761ce11f1"
   },
   "builder": {
     "path": "calibration/llm/scripts/build-pr51-paired-bundle.mjs",

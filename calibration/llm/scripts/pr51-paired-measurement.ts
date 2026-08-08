@@ -388,40 +388,15 @@ function validateBindings(
   }
 }
 
-function validateCommitment(
-  commitment: PreResultCommitment,
-  commitmentBytes: Buffer,
+function validateDetectorHistory(
   arm: ArmName,
   detectorRoot: string,
+  commitment: PreResultCommitment,
   bindings: PreregistrationBindings,
-  bindingBytes: Buffer,
-  commitmentGitRepo: string,
-  commitmentGitCommit: string,
-  commitmentGitPath: string,
 ): string {
-  validateCommitmentDocument(commitment, bindingBytes);
-  validateCommitmentGitAnchor(
-    commitment,
-    commitmentBytes,
-    bindingBytes,
-    commitmentGitRepo,
-    commitmentGitCommit,
-    commitmentGitPath,
-  );
   const head = git(detectorRoot, ['rev-parse', 'HEAD^{commit}']);
   const expected = arm === 'baseline' ? commitment.baseline_commit : commitment.candidate_commit;
   if (head !== expected) throw new Error(`${arm} checkout is not at its committed detector revision`);
-  const embeddedCommit = typeof __CEJEL_PR51_ARM_COMMIT__ === 'string'
-    ? __CEJEL_PR51_ARM_COMMIT__
-    : '';
-  assertArmBundleCommit(embeddedCommit, head, expected);
-  assertRuntime(currentRuntime(), commitment.runtime, 'measurement');
-  const expectedBundle = arm === 'baseline'
-    ? commitment.execution_bundles.baseline_sha256
-    : commitment.execution_bundles.candidate_sha256;
-  if (sha256(readFileSync(fileURLToPath(import.meta.url))) !== expectedBundle) {
-    throw new Error(`${arm} execution bundle does not match the pre-result commitment`);
-  }
   assertCleanCheckout(detectorRoot, `${arm} detector`);
   try {
     git(detectorRoot, ['merge-base', '--is-ancestor', commitment.preregistration_commit, head]);
@@ -454,6 +429,42 @@ function validateCommitment(
   }).trim().split(/\s+/)[0];
   if (patchId !== bindings.candidate_source.original_stable_patch_id) {
     throw new Error('candidate patch identity differs from the original PR #51 patch');
+  }
+  return head;
+}
+
+function validateCommitment(
+  commitment: PreResultCommitment,
+  commitmentBytes: Buffer,
+  arm: ArmName,
+  detectorRoot: string,
+  bindings: PreregistrationBindings,
+  bindingBytes: Buffer,
+  commitmentGitRepo: string,
+  commitmentGitCommit: string,
+  commitmentGitPath: string,
+): string {
+  validateCommitmentDocument(commitment, bindingBytes);
+  validateCommitmentGitAnchor(
+    commitment,
+    commitmentBytes,
+    bindingBytes,
+    commitmentGitRepo,
+    commitmentGitCommit,
+    commitmentGitPath,
+  );
+  const head = validateDetectorHistory(arm, detectorRoot, commitment, bindings);
+  const expected = arm === 'baseline' ? commitment.baseline_commit : commitment.candidate_commit;
+  const embeddedCommit = typeof __CEJEL_PR51_ARM_COMMIT__ === 'string'
+    ? __CEJEL_PR51_ARM_COMMIT__
+    : '';
+  assertArmBundleCommit(embeddedCommit, head, expected);
+  assertRuntime(currentRuntime(), commitment.runtime, 'measurement');
+  const expectedBundle = arm === 'baseline'
+    ? commitment.execution_bundles.baseline_sha256
+    : commitment.execution_bundles.candidate_sha256;
+  if (sha256(readFileSync(fileURLToPath(import.meta.url))) !== expectedBundle) {
+    throw new Error(`${arm} execution bundle does not match the pre-result commitment`);
   }
   return head;
 }
@@ -799,6 +810,20 @@ function scorePair(options: Record<string, string | boolean>): void {
     required(options, 'commitment_git_commit'),
     required(options, 'commitment_git_path'),
   );
+  const baselineDetectorRoot = realpathSync(resolve(required(options, 'baseline_detector_root')));
+  const candidateDetectorRoot = realpathSync(resolve(required(options, 'candidate_detector_root')));
+  validateDetectorHistory(
+    'baseline', baselineDetectorRoot, commitmentEvidence.document, bindingEvidence.document,
+  );
+  validateDetectorHistory(
+    'candidate', candidateDetectorRoot, commitmentEvidence.document, bindingEvidence.document,
+  );
+  if (
+    sha256(readFileSync(realpathSync(resolve(required(options, 'baseline_bundle'))))) !==
+      commitmentEvidence.document.execution_bundles.baseline_sha256 ||
+    sha256(readFileSync(realpathSync(resolve(required(options, 'candidate_bundle'))))) !==
+      commitmentEvidence.document.execution_bundles.candidate_sha256
+  ) throw new Error('scored execution bundle bytes do not match the pre-result commitment');
   validateArmMeasurement(
     baselineEvidence.document,
     'baseline',

@@ -118,10 +118,12 @@ Use the same command for `candidate`, add
 a new candidate output. Then run the committed source harness outside the wrapper with
 `node --import tsx ... --mode score-pair`, passing `--detector-root`, `--baseline`, `--candidate`,
 `--manifest`, `--opportunities`, `--bindings`, `--commitment`, and the same three
-`--commitment-git-*` arguments. The scorer revalidates both complete arm artifacts, the committed
-pre-result blob, runtime, bundle hashes, all 24 ordered frozen repositories, and identical source
-digests before writing only the aggregate comparison and raw-artifact SHA-256 audit references to
-standard output.
+`--commitment-git-*` arguments. Also pass the two original worktrees as `--baseline-detector-root`
+and `--candidate-detector-root`, and the two runner files as `--baseline-bundle` and
+`--candidate-bundle`. The scorer directly revalidates those clean exact-commit worktrees and bundle
+bytes, both complete arm artifacts, the committed pre-result blob, runtime, all 24 ordered frozen
+repositories, and identical source digests before writing only the aggregate comparison and
+raw-artifact SHA-256 audit references to standard output.
 
 If the current environment cannot execute this exact procedure, record the incompatibility and
 stop. Do not change the harness, inputs, detector, fixtures, matching rule, or invocation after an
