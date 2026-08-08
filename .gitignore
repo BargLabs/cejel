@@ -5,3 +5,5 @@ dist/
 coverage/
 *.log
 *.tsbuildinfo
+.pnpm-store/
+notes.md
