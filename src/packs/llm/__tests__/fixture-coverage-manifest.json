@@ -181,6 +181,13 @@
           "structural_signature": "one responses.create producer and one explicit judge resolve to the same literal model before local result emission; a distinct Anthropic judge model is negative",
           "positive_fixture": "llm-evaluation-self-judge.positive.fixture",
           "negative_fixture": "llm-evaluation-self-judge.negative.fixture"
+        },
+        {
+          "pattern_id": "javascript-openai-scope-bound-self-judge",
+          "detector": "evaluation",
+          "structural_signature": "one same-scope responses.create producer and explicit judge resolve to the same literal model before that scope emits its result; an otherwise identical producer in a sibling function must abstain",
+          "positive_fixture": "llm-evaluation-self-judge-scope.positive.fixture",
+          "negative_fixture": "llm-evaluation-self-judge-scope.negative.fixture"
         }
       ]
     }

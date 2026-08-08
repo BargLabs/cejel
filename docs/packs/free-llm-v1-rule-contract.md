@@ -295,6 +295,9 @@ configuration.
 **Required evidence.** The producer model/configuration; judge model/configuration; equality of the
 resolved configured system identity; and the absence of any additional adjudicator on the result-
 acceptance path. Evidence points to the judge invocation and identifies the shared configuration.
+For the file-local JavaScript/TypeScript contract, the bound producer result must flow directly into
+the explicit judge call and the bound judge result must flow directly into the emitted evaluation
+within the same local result-producing scope.
 
 **Recognized independent checks.** Deterministic exact/schema/property checks appropriate to the
 declared criterion; evidence-source verification; recorded human review/adjudication; or a distinct
