@@ -34,6 +34,41 @@ function validUtc(value) {
   return typeof value === 'string' && value.endsWith('Z') && Number.isFinite(Date.parse(value));
 }
 
+export async function verifyGitHubCommitmentAnchor(
+  commitment,
+  { fetchImpl = globalThis.fetch } = {},
+) {
+  if (
+    !commitment || !/^[a-f0-9]{40}$/.test(commitment.git_commit || '') ||
+    !/^[a-f0-9]{64}$/.test(commitment.document_sha256 || '') ||
+    !Number.isSafeInteger(commitment.comment_id) || commitment.comment_id < 1
+  ) throw new Error('GitHub commitment anchor is malformed');
+  const commentApiUrl = `${API_ROOT}/issues/comments/${commitment.comment_id}`;
+  if (commitment.comment_api_url !== undefined && commitment.comment_api_url !== commentApiUrl) {
+    throw new Error('GitHub commitment anchor is malformed');
+  }
+  const commentResponse = await fetchJson(commentApiUrl, fetchImpl);
+  const comment = commentResponse.document;
+  const expectedBody = expectedCommitmentCommentBody(
+    commitment.git_commit,
+    commitment.document_sha256,
+  );
+  if (
+    comment.id !== commitment.comment_id || comment.url !== commentApiUrl ||
+    comment.body !== expectedBody || comment.updated_at !== comment.created_at ||
+    !validUtc(comment.created_at) || Date.parse(comment.created_at) > commentResponse.serverDate ||
+    (commitment.created_at !== undefined && commitment.created_at !== comment.created_at)
+  ) throw new Error('GitHub commitment comment does not verify as an immutable public timestamp');
+  return {
+    git_commit: commitment.git_commit,
+    document_sha256: commitment.document_sha256,
+    comment_id: commitment.comment_id,
+    comment_api_url: commentApiUrl,
+    created_at: comment.created_at,
+    comment_body_sha256: sha256Bytes(Buffer.from(expectedBody, 'utf8')),
+  };
+}
+
 export async function verifyGitHubExecutionProof(
   proof,
   {
@@ -47,25 +82,10 @@ export async function verifyGitHubExecutionProof(
     !proof || proof.schema_version !== '1.0.0' ||
     proof.protocol_id !== 'cejel-llm-calibration-v1' ||
     proof.provider !== 'github_actions_public_v1' || proof.repository !== REPOSITORY ||
-    !/^[a-f0-9]{40}$/.test(proof.commitment?.git_commit || '') ||
-    !/^[a-f0-9]{64}$/.test(proof.commitment?.document_sha256 || '') ||
-    !Number.isSafeInteger(proof.commitment?.comment_id) ||
-    proof.commitment.comment_api_url !== `${API_ROOT}/issues/comments/${proof.commitment.comment_id}` ||
     !Array.isArray(proof.runs) || proof.runs.length < 1
   ) throw new Error('GitHub execution proof is malformed');
 
-  const commentResponse = await fetchJson(proof.commitment.comment_api_url, fetchImpl);
-  const comment = commentResponse.document;
-  const expectedBody = expectedCommitmentCommentBody(
-    proof.commitment.git_commit,
-    proof.commitment.document_sha256,
-  );
-  if (
-    comment.id !== proof.commitment.comment_id || comment.url !== proof.commitment.comment_api_url ||
-    comment.body !== expectedBody || comment.created_at !== proof.commitment.created_at ||
-    comment.updated_at !== comment.created_at || !validUtc(comment.created_at) ||
-    Date.parse(comment.created_at) > commentResponse.serverDate
-  ) throw new Error('GitHub commitment comment does not verify as an immutable public timestamp');
+  const commitmentAnchor = await verifyGitHubCommitmentAnchor(proof.commitment, { fetchImpl });
 
   const seenRuns = new Set();
   const verifiedRuns = [];
@@ -102,7 +122,7 @@ export async function verifyGitHubExecutionProof(
       run.event !== 'workflow_dispatch' ||
       run.path !== '.github/workflows/llm-calibration.yml' ||
       !validUtc(run.created_at) || !validUtc(run.run_started_at) ||
-      Date.parse(comment.created_at) >= Date.parse(run.run_started_at) ||
+      Date.parse(commitmentAnchor.created_at) >= Date.parse(run.run_started_at) ||
       (requireCompleted && (run.status !== 'completed' || run.conclusion !== 'success')) ||
       (!requireCompleted && !['queued', 'in_progress', 'completed'].includes(run.status)) ||
       !['ahead', 'identical'].includes(comparison.status) ||
@@ -140,8 +160,8 @@ export async function verifyGitHubExecutionProof(
   return {
     proof_document_sha256: sha256Bytes(Buffer.from(canonicalize(proof), 'utf8')),
     commitment_git_commit: proof.commitment.git_commit,
-    commitment_created_at: comment.created_at,
-    commitment_comment_sha256: sha256Bytes(Buffer.from(expectedBody, 'utf8')),
+    commitment_created_at: commitmentAnchor.created_at,
+    commitment_comment_sha256: commitmentAnchor.comment_body_sha256,
     runs: verifiedRuns,
   };
 }
