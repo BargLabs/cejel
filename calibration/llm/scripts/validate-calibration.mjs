@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { canonicalize, sha256Canonical } from './freeze-cohorts.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const read = (relative) => JSON.parse(readFileSync(resolve(root, relative), 'utf8'));
@@ -30,15 +32,6 @@ const development = read('development-corpus-v1.3.json');
 const retiredUntouched = read('cohorts/untouched-candidates.json');
 const reserve = read('cohorts/reserve-candidates.json');
 const errors = [];
-
-const canonicalize = (value) => {
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-};
-const sha256Canonical = (value) => createHash('sha256').update(canonicalize(value)).digest('hex');
 
 const repoPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const allowedLanguages = new Set(policy.strata.language);
