@@ -29,6 +29,14 @@ const calibrationRoot = resolve(here, '..');
 export const CALIBRATION_WORKFLOW_PATH = '.github/workflows/llm-calibration.yml';
 export const NO_EGRESS_WRAPPER_PATH = 'calibration/llm/scripts/no-egress-wrapper.sh';
 export const NO_EGRESS_PROBE_PATH = 'calibration/llm/scripts/no-egress-probe.mjs';
+export const CURRENT_NO_EGRESS_POLICY = 'node-runtime-deny-hook-v2';
+export const CURRENT_NO_EGRESS_PROBE_ATTEMPTS = 12;
+
+function expectedNoEgressProbeAttempts(mode) {
+  if (mode === 'node-runtime-deny-hook-v1') return 5;
+  if (mode === CURRENT_NO_EGRESS_POLICY) return CURRENT_NO_EGRESS_PROBE_ATTEMPTS;
+  return null;
+}
 
 export const FROZEN_LLM_RULE_IDS = [
   'LLM-IOH-001',
@@ -601,7 +609,7 @@ export function createDetectorFreezeRecord(input) {
     throw new Error('detector freeze requires network-isolation mode and evidence reference');
   }
   if (
-    input.networkIsolation.mode !== 'node-runtime-deny-hook-v1' ||
+    input.networkIsolation.mode !== CURRENT_NO_EGRESS_POLICY ||
     input.networkIsolation.argvPrefix.length !== 1 ||
     input.networkIsolation.argvPrefix[0] !== NO_EGRESS_WRAPPER_PATH ||
     input.networkIsolation.probePath !== NO_EGRESS_PROBE_PATH ||
@@ -609,8 +617,8 @@ export function createDetectorFreezeRecord(input) {
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.hookSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeOutputSha256 || '') ||
-    input.networkIsolation.probeDenied !== 5 ||
-    input.networkIsolation.probeAttempted !== 5
+    input.networkIsolation.probeDenied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
+    input.networkIsolation.probeAttempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS
   ) throw new Error('detector freeze requires a hash-bound passing no-egress probe');
   if (
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.byteSha256 || '') ||
@@ -768,6 +776,7 @@ export function validateDetectorFreezeRecord(record) {
     throw new Error('detector freeze command template is not the calibration command');
   }
   const isolation = record.execution?.network_isolation;
+  const expectedProbeAttempts = expectedNoEgressProbeAttempts(isolation?.mode);
   if (
     record.execution?.workflow?.path !== CALIBRATION_WORKFLOW_PATH ||
     !/^[a-f0-9]{64}$/.test(record.execution.workflow.sha256 || '')
@@ -778,12 +787,13 @@ export function validateDetectorFreezeRecord(record) {
     isolation.argv_prefix.length !== 1 ||
     isolation.argv_prefix[0] !== NO_EGRESS_WRAPPER_PATH ||
     isolation.probe_path !== NO_EGRESS_PROBE_PATH ||
-    isolation.mode !== 'node-runtime-deny-hook-v1' ||
+    expectedProbeAttempts === null ||
     !/^[a-f0-9]{64}$/.test(isolation.wrapper_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(isolation.hook_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(isolation.probe_sha256 || '') ||
     !/^[a-f0-9]{64}$/.test(isolation.probe_output_sha256 || '') ||
-    isolation.probe_denied !== 5 || isolation.probe_attempted !== 5
+    isolation.probe_denied !== expectedProbeAttempts ||
+    isolation.probe_attempted !== expectedProbeAttempts
   ) {
     throw new Error('detector freeze lacks confirmed no-egress execution');
   }
@@ -974,8 +984,8 @@ export async function main(argv, commandRunner = run) {
   if (!options.confirmNetworkIsolation) {
     throw new Error('--confirm-network-isolation is required');
   }
-  if (options.isolationArgs.length > 0 || options.isolationMode !== 'node-runtime-deny-hook-v1') {
-    throw new Error('detector freeze accepts only node-runtime-deny-hook-v1 without extra argv');
+  if (options.isolationArgs.length > 0 || options.isolationMode !== CURRENT_NO_EGRESS_POLICY) {
+    throw new Error(`detector freeze accepts only ${CURRENT_NO_EGRESS_POLICY} without extra argv`);
   }
   if (options.goldenLabelRecords.length < 1) {
     throw new Error('--golden-label-record is required at least once');
@@ -1051,8 +1061,9 @@ export async function main(argv, commandRunner = run) {
   const probeOutput = await commandRunner(wrapperPath, [probePath]);
   const probeDocument = JSON.parse(probeOutput);
   if (
-    probeDocument.policy !== 'node-runtime-deny-hook-v1' ||
-    probeDocument.denied !== 5 || probeDocument.attempted !== 5
+    probeDocument.policy !== CURRENT_NO_EGRESS_POLICY ||
+    probeDocument.denied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
+    probeDocument.attempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS
   ) throw new Error('network-isolation probe did not deny every tested egress path');
   const record = createDetectorFreezeRecord({
     gitCommit,

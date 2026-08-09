@@ -128,7 +128,7 @@ jobs:
           )
           if [ "$COHORT" = golden ]; then
             node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \
-              --network-isolation-mode node-runtime-deny-hook-v1 \
+              --network-isolation-mode node-runtime-deny-hook-v2 \
               --network-isolation-command "$GITHUB_WORKSPACE/calibration/llm/scripts/no-egress-wrapper.sh" \
               --confirm-network-isolation
           else
