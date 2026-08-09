@@ -264,6 +264,36 @@ for (const [workflowName, workflow] of [['npm publish workflow', npmPublishWorkf
     'git cat-file -e "e50f531^{commit}"',
     `${workflowName} #98 containment-object assertion`,
   );
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor 60e1356 "$GITHUB_SHA"',
+    `${workflowName} #95 containment assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git cat-file -e "60e1356^{commit}"',
+    `${workflowName} #95 containment-object assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor 197817b "$GITHUB_SHA"',
+    `${workflowName} #36 containment assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git cat-file -e "197817b^{commit}"',
+    `${workflowName} #36 containment-object assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git merge-base --is-ancestor 7ae5935 "$GITHUB_SHA"',
+    `${workflowName} #106 containment assertion`,
+  );
+  requireIncludes(
+    workflow,
+    'git cat-file -e "7ae5935^{commit}"',
+    `${workflowName} #106 containment-object assertion`,
+  );
 }
 for (const [needle, field] of [
   ['test "$GITHUB_REF" = "refs/tags/$RELEASE_TAG"', 'dispatch-ref assertion'],
@@ -274,6 +304,13 @@ for (const [needle, field] of [
   ['git cat-file -e "${commit}^{commit}"', 'required-commit object-absence assertion'],
 ]) {
   requireIncludes(releaseIdentityAssertion, needle, `release identity ${field}`);
+}
+for (const [needle, field] of [
+  ["require_contained_commit 60e1356 '#95 (B4 v19 authorized recovery result)'", '#95'],
+  ["require_contained_commit 197817b '#36 (resource-bounded discovery collector v2)'", '#36'],
+  ["require_contained_commit 7ae5935 '#106 (MCP/OCI release-chain verification)'", '#106'],
+]) {
+  requireIncludes(releaseIdentityAssertion, needle, `release identity ${field} containment`);
 }
 requireIncludes(
   npmPublishWorkflow,
