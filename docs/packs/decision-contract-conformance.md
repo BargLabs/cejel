@@ -32,9 +32,11 @@ Place the exact manifest at `.cejel/decision-contracts.json`:
 ```
 
 Each source path must remain inside the scanned repository. Contract IDs and required premises
-must be unique. A required premise must be a direct immutable local binding or a statically named
-property of an object-literal binding. The returned decision may depend on that premise through a
-chain of direct immutable local expressions. Calls are not interpreted.
+must be unique, and a returned decision property cannot name itself as a premise. A required
+premise must be a direct immutable local binding or a statically named property of a plain
+object-literal binding. The returned decision may depend on that premise through a chain of direct
+immutable local expressions. Calls, object aliases, getters, whole-object flow, and other ambiguous
+semantics are not interpreted.
 
 The package entrypoint is `@cejel/cejel/decision-contracts`. `scanDecisionContracts(repoRoot)`
 uses only the fixed manifest path. `evaluateDecisionContracts(repoRoot, manifest)` accepts an

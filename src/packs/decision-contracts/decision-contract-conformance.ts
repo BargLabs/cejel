@@ -18,7 +18,16 @@ export const decisionContractSchema = z
     decisionProperty: z.string().regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/),
     requiredPremises: z.array(referenceSchema).min(1),
   })
-  .strict();
+  .strict()
+  .superRefine((contract, context) => {
+    if (contract.requiredPremises.includes(contract.decisionProperty)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `decision_property_cannot_be_its_own_premise:${contract.decisionProperty}`,
+        path: ['requiredPremises'],
+      });
+    }
+  });
 
 export const decisionContractManifestSchema = z
   .object({
@@ -146,10 +155,13 @@ function directFunctionShape(
         bindings.set(variable.name.text, variable.initializer);
         declaredPremises.add(variable.name.text);
         if (ts.isObjectLiteralExpression(variable.initializer)) {
+          const propertyNames = new Set<string>();
           for (const property of variable.initializer.properties) {
-            if (!property.name) continue;
+            if (!ts.isPropertyAssignment(property)) return 'unsupported_object_binding';
             const name = literalPropertyName(property.name);
-            if (name !== null) declaredPremises.add(`${variable.name.text}.${name}`);
+            if (name === null || propertyNames.has(name)) return 'unsupported_object_binding';
+            propertyNames.add(name);
+            declaredPremises.add(`${variable.name.text}.${name}`);
           }
         }
       }
@@ -223,6 +235,15 @@ function transitiveDecisionReferences(
     state.unsupported ||= local.unsupported;
     for (const reference of local.references) {
       state.references.add(reference);
+      const [base, ...propertySegments] = reference.split('.');
+      if (
+        base &&
+        propertySegments.length > 0 &&
+        shape.bindings.has(base) &&
+        !requiredPremises.some((premise) => premise === base || premise.startsWith(`${base}.`))
+      ) {
+        state.unsupported = true;
+      }
       const initializer = shape.bindings.get(reference);
       if (
         initializer &&
@@ -288,6 +309,19 @@ function evaluateContract(
     return {
       findings: [],
       abstention: { contractId: contract.id, reason: 'unsupported_decision_expression' },
+    };
+  }
+  const ambiguousWholeObject = contract.requiredPremises.find((premise) => {
+    const separator = premise.indexOf('.');
+    return separator > 0 && dependencies.references.has(premise.slice(0, separator));
+  });
+  if (ambiguousWholeObject) {
+    return {
+      findings: [],
+      abstention: {
+        contractId: contract.id,
+        reason: `whole_premise_object_dependency:${ambiguousWholeObject}`,
+      },
     };
   }
   const missing = contract.requiredPremises.filter(

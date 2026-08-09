@@ -96,6 +96,70 @@ describe('decision-contract conformance', () => {
     );
   });
 
+  it('rejects a tautological contract that names its returned decision as the premise', () => {
+    const root = repository(`export function observe() {
+  const released = true;
+  return { released };
+}`);
+
+    expect(() => evaluateDecisionContracts(root, manifest('released'))).toThrow(
+      /decision_property_cannot_be_its_own_premise:released/,
+    );
+  });
+
+  it('abstains when a property read may flow through a local object alias', () => {
+    const root = repository(`export function observe() {
+  const approval = { status: 'pending' };
+  const alias = approval;
+  const released = alias.status === 'approved';
+  return { approval, released };
+}`);
+
+    expect(evaluateDecisionContracts(root, manifest())).toEqual(
+      expect.objectContaining({
+        findings: [],
+        abstentions: [
+          { contractId: 'release-approval', reason: 'unsupported_decision_expression' },
+        ],
+      }),
+    );
+  });
+
+  it('abstains when the decision consumes a whole object rather than the named property', () => {
+    const root = repository(`export function observe() {
+  const approval = { status: 'pending' };
+  const released = approval === null;
+  return { approval, released };
+}`);
+
+    expect(evaluateDecisionContracts(root, manifest())).toEqual(
+      expect.objectContaining({
+        findings: [],
+        abstentions: [
+          {
+            contractId: 'release-approval',
+            reason: 'whole_premise_object_dependency:approval.status',
+          },
+        ],
+      }),
+    );
+  });
+
+  it('abstains on object getters instead of assuming their dependency closure', () => {
+    const root = repository(`export function observe() {
+  const approval = { get status() { return 'pending'; } };
+  const released = false;
+  return { approval, released };
+}`);
+
+    expect(evaluateDecisionContracts(root, manifest())).toEqual(
+      expect.objectContaining({
+        findings: [],
+        abstentions: [{ contractId: 'release-approval', reason: 'unsupported_object_binding' }],
+      }),
+    );
+  });
+
   it('abstains when the manifest names a premise the function does not declare', () => {
     const root = repository(`export function observe() {
   const released = false;
