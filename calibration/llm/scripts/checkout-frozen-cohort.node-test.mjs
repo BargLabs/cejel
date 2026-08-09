@@ -68,11 +68,10 @@ test('frozen checkout permits a canonical GitHub HTTPS repository', async (t) =>
   let exactCommitFetched = false;
   const gitExecutor = async (command, args, options) => {
     calls.push({ command, args, options });
-    const gitArgs = args.slice(8);
-    if (gitArgs.includes('checkout')) {
+    if (args.includes('checkout')) {
       assert.equal(exactCommitFetched, true, 'exact frozen commit must be fetched before checkout');
     }
-    if (gitArgs.includes('fetch')) exactCommitFetched = true;
+    if (args.includes('fetch')) exactCommitFetched = true;
     const operation = args.at(-1);
     if (operation === 'HEAD') return { stdout: `${COMMIT_SHA}\n` };
     if (operation === 'HEAD^{tree}') return { stdout: `${TREE_SHA}\n` };
@@ -88,7 +87,7 @@ test('frozen checkout permits a canonical GitHub HTTPS repository', async (t) =>
   assert.equal(result.repositories.length, 1);
   assert.equal(result.repositories[0].commit_sha, COMMIT_SHA);
   assert.equal(calls.length, 5);
-  assert.deepEqual(calls[1].args.slice(8), [
+  assert.deepEqual(calls[1].args.slice(-6), [
     '-C',
     result.repositories[0].source_root,
     'fetch',
