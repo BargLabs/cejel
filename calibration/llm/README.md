@@ -55,6 +55,33 @@ remain outside Git.
   `templates/finding-review.template.json` for post-run finding matches. Validate each record
   against `schemas/label.schema.json`.
 
+## Resource-bounded discovery collector v2
+
+`scripts/collect-discovery-hits-v2.mjs` is the collector surface for a future, separately governed
+cycle. It does not replace `scripts/collect-discovery-hits.mjs`: the latter remains byte-pinned by
+the historical v1.9 contract and must not be edited or rebound.
+
+V2 requires a `schema_version: 2.0.0` contract created from
+`templates/discovery-anchor-contract-v2.template.json`. The contract must lock the v2 collector's
+byte SHA-256 and `maximum_regex_scan_milliseconds_per_file` before source access. Regex evaluation
+runs in a disposable worker. If one file exhausts its budget, the worker is terminated, the entire
+file's partial matches are discarded, and the file path, content digest, limit, and affected query
+IDs are written to `resource_exhaustions`. All affected query rows and repository resource usage
+are marked `ceiling_reached`, the top-level result is `complete: false`, and the CLI writes that
+evidence before exiting with status 2. Such an artifact is diagnostic only and must not enter a
+candidate ledger or measurement as a complete collection.
+
+Wall-time exhaustion is necessarily an observed resource outcome; it is not incorporated as a
+duration measurement or used to rank candidates. Runs with no exhaustion remain deterministic for
+the same locked contract and repository bytes.
+
+```bash
+node calibration/llm/scripts/collect-discovery-hits-v2.mjs \
+  --contract /absolute/path/to/locked-v2-contract.json \
+  --repositories /absolute/path/to/repository-matrix.json \
+  --output /absolute/path/to/discovery-result-v2.json
+```
+
 ## Commands
 
 The validation commands remain applicable. The v1.4 assembly example below is retained as historical
@@ -67,6 +94,7 @@ node --test calibration/llm/scripts/freeze-cohorts.node-test.mjs
 node --test calibration/llm/scripts/compute-metrics.node-test.mjs
 node --test calibration/llm/scripts/detector-execution.node-test.mjs
 node --test calibration/llm/scripts/private-evidence-bundle.node-test.mjs
+node --test calibration/llm/scripts/collect-discovery-hits-v2.node-test.mjs
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort golden --resolve-only
 node calibration/llm/scripts/freeze-cohorts.mjs --cohort untouched --resolve-only
 # After two blind labelers have independently reviewed every repository/rule cell and reconciled
