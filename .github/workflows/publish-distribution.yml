@@ -231,6 +231,57 @@ jobs:
       - name: Publish server metadata
         run: ./mcp-publisher publish
 
+  verify-mcp-oci-release-chain:
+    needs: [resolve-mcp-oci-digest, publish-mcp-registry]
+    if: ${{ always() && inputs.verify_only == false && needs.publish-mcp-registry.result == 'success' && needs.resolve-mcp-oci-digest.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+      attestations: read
+    steps:
+      - name: Checkout the dispatched release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read back Registry record and verify signed OCI source
+        env:
+          MCP_OCI_DIGEST: ${{ needs.resolve-mcp-oci-digest.outputs.digest }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          source_commit="$(git rev-parse HEAD)"
+          registry_record="$RUNNER_TEMP/mcp-registry-record.json"
+          attestation_results="$RUNNER_TEMP/oci-attestation-results.json"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 12 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 15 \
+            "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs%2Fcejel/versions/$version" \
+            --output "$registry_record"
+          gh attestation verify "oci://$IMAGE_NAME@$MCP_OCI_DIGEST" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish-distribution.yml" \
+            --source-digest "$source_commit" \
+            --source-ref "refs/tags/$RELEASE_TAG" \
+            --format json > "$attestation_results"
+          node scripts/verify-mcp-oci-release-chain.mjs \
+            "$registry_record" "$attestation_results" "$version" \
+            "$MCP_OCI_DIGEST" "$source_commit" "$RELEASE_TAG"
+          printf 'Verified MCP Registry readback, OCI attestation subject %s, and tagged-source commit %s.\n' \
+            "$MCP_OCI_DIGEST" "$source_commit" >> "$GITHUB_STEP_SUMMARY"
+
   verify-mcp-registry-republish-path:
     needs: resolve-mcp-oci-digest
     if: ${{ always() && inputs.verify_only && inputs.publish_mcp_registry && inputs.reuse_published_oci_tag && needs.resolve-mcp-oci-digest.result == 'success' }}
