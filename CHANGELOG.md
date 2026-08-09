@@ -16,6 +16,37 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-09
+
+### Added
+
+- Carries the prospective rubric `witan-rubric-v19-prospective-2026-08-09` for explicit
+  evaluation harnesses. It inherits v18 and changes only B4 numeric freshness: the scanned HEAD
+  commit's committer year replaces scan wall clock. Expected Git absence or a bounded Git-read
+  failure omits the numeric year and retains only static freshness markers. No public CLI flag or
+  package export selects it; the public default remains `witan-rubric-v17-2026-07-24`, and
+  historical rubrics and reports are unchanged.
+- Adds a separate resource-bounded v2 discovery collector for future Free LLM calibration. It
+  enforces per-file regex time limits and deterministic continuation without changing the
+  SHA-pinned v1.9 collector, its historical contracts, the public CLI, or the release claim.
+
+### Changed
+
+- After MCP Registry publication, the distribution workflow now reads the exact version back,
+  requires its OCI identifier to equal the workflow-derived immutable digest, cryptographically
+  verifies that digest's GitHub SLSA attestation against the exact release tag and source commit,
+  and reports the signed tagged-source commit. The MCP-only retry path still reuses the published
+  digest without rebuilding or overwriting the OCI version tag.
+
+### Evidence boundary
+
+- The preregistered v19 paired rescore completed 24/24 rows after the separately preregistered
+  Alfred recovery: 0 raw freshness, B4 score/status, headline/coverage, placement, or non-B4
+  changes. That GO authorizes the prospective implementation and published delta only; it does
+  not promote v19 to the public default.
+- The reserved Free LLM command family remains unshipped. `--pack llm` and `cejel llm` continue
+  to fail until the accepted release gate reaches GO.
+
 ## [0.3.2] — 2026-08-07
 
 ### Changed

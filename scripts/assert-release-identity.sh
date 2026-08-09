@@ -52,3 +52,6 @@ require_contained_commit() {
 
 require_contained_commit e4283ba '#96 (remove timestamps)'
 require_contained_commit e50f531 '#98 (--pack llm docs)'
+require_contained_commit 60e1356 '#95 (B4 v19 authorized recovery result)'
+require_contained_commit 197817b '#36 (resource-bounded discovery collector v2)'
+require_contained_commit 7ae5935 '#106 (MCP/OCI release-chain verification)'

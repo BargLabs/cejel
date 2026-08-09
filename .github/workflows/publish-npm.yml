@@ -101,6 +101,30 @@ jobs:
             echo "$RELEASE_TAG does not contain #98 (--pack llm docs)" >&2
             exit 1
           fi
+          if ! git cat-file -e "60e1356^{commit}"; then
+            echo "required #95 commit 60e1356 is unavailable in checkout" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor 60e1356 "$GITHUB_SHA"; then
+            echo "$RELEASE_TAG does not contain #95 (B4 v19 authorized recovery result)" >&2
+            exit 1
+          fi
+          if ! git cat-file -e "197817b^{commit}"; then
+            echo "required #36 commit 197817b is unavailable in checkout" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor 197817b "$GITHUB_SHA"; then
+            echo "$RELEASE_TAG does not contain #36 (resource-bounded discovery collector v2)" >&2
+            exit 1
+          fi
+          if ! git cat-file -e "7ae5935^{commit}"; then
+            echo "required #106 commit 7ae5935 is unavailable in checkout" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor 7ae5935 "$GITHUB_SHA"; then
+            echo "$RELEASE_TAG does not contain #106 (MCP/OCI release-chain verification)" >&2
+            exit 1
+          fi
 
           if ! npm view "$package_name" version >/dev/null 2>&1; then
             echo "unable to query npm registry for $package_name" >&2
