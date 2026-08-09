@@ -21,6 +21,8 @@ import {
 } from './freeze-cohorts.mjs';
 import {
   CALIBRATION_WORKFLOW_PATH,
+  CURRENT_NO_EGRESS_POLICY,
+  CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
   NO_EGRESS_PROBE_PATH,
   NO_EGRESS_WRAPPER_PATH,
   validateDetectorFreezeRecord,
@@ -477,7 +479,7 @@ export async function main(argv, commandRunner = defaultRunner) {
     } else {
       isolationPrefix = [realpathSync(resolve(options.isolationCommand)), ...options.isolationArgs];
       isolationMode = options.isolationMode;
-      if (isolationMode !== 'node-runtime-deny-hook-v1' || isolationPrefix.length !== 1) {
+      if (isolationMode !== CURRENT_NO_EGRESS_POLICY || isolationPrefix.length !== 1) {
         throw new Error('golden execution requires the repository no-egress wrapper without extra argv');
       }
       const hookPath = realpathSync(resolve(dirname(isolationPrefix[0]), 'no-egress-hook.cjs'));
@@ -486,7 +488,11 @@ export async function main(argv, commandRunner = defaultRunner) {
         throw new Error('golden network-isolation hook is not the Cejel deny hook');
       }
       const probe = JSON.parse(await commandRunner(isolationPrefix[0], [probePath]));
-      if (probe.policy !== isolationMode || probe.denied !== 5 || probe.attempted !== 5) {
+      if (
+        probe.policy !== isolationMode ||
+        probe.denied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
+        probe.attempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS
+      ) {
         throw new Error('golden network-isolation probe did not deny every tested egress path');
       }
     }

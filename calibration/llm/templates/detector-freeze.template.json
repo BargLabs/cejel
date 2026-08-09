@@ -31,7 +31,7 @@
     },
     "command_template": ["{network_isolation_argv_prefix...}", "{cejel_binary}", "scan", "{source}", "--out", "{output}", "--pack", "llm", "--quiet"],
     "network_isolation": {
-      "mode": "node-runtime-deny-hook-v1",
+      "mode": "node-runtime-deny-hook-v2",
       "argv_prefix": ["calibration/llm/scripts/no-egress-wrapper.sh"],
       "evidence_reference": "internal-witness:replace-with-isolation-proof",
       "wrapper_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -39,8 +39,8 @@
       "probe_path": "calibration/llm/scripts/no-egress-probe.mjs",
       "probe_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "probe_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "probe_denied": 5,
-      "probe_attempted": 5,
+      "probe_denied": 12,
+      "probe_attempted": 12,
       "explicitly_confirmed": true
     }
   },

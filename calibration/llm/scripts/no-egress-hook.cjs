@@ -19,6 +19,7 @@ for (const name of ['node:http', 'node:https', 'node:http2']) {
 const dns = require('node:dns');
 for (const method of ['lookup', 'resolve', 'resolve4', 'resolve6']) {
   dns[method] = () => deny(`dns.${method}`);
+  dns.promises[method] = () => deny(`dns.promises.${method}`);
 }
 
 const tls = require('node:tls');
@@ -28,7 +29,7 @@ const dgram = require('node:dgram');
 dgram.createSocket = () => deny('dgram.createSocket');
 
 const childProcess = require('node:child_process');
-for (const method of ['exec', 'execFile', 'fork', 'spawn']) {
+for (const method of ['exec', 'execFile', 'execFileSync', 'execSync', 'fork', 'spawn', 'spawnSync']) {
   childProcess[method] = () => deny(`child_process.${method}`);
 }
 

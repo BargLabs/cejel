@@ -40,7 +40,7 @@ one-way untouched evaluation is complete.
 
 Calibration uses the committed `no-egress-wrapper.sh` and `no-egress-hook.cjs`. The wrapper injects
 a Node runtime policy that denies `net`, HTTP/HTTPS/HTTP2, DNS, `fetch`, and child-process escape
-paths. The runner executes the committed probe before any clone or scan and requires all five
+paths. The runner executes the committed probe before any clone or scan and requires all twelve
 independent probe paths to be denied:
 
 ```bash
@@ -57,7 +57,7 @@ node calibration/llm/scripts/run-frozen-cohort.mjs \
   --cejel /absolute/path/to/local/built/cejel \
   --work-root /absolute/path/to/golden-checkouts \
   --output-root /absolute/path/to/golden-results \
-  --network-isolation-mode node-runtime-deny-hook-v1 \
+  --network-isolation-mode node-runtime-deny-hook-v2 \
   --network-isolation-command /absolute/path/to/calibration/llm/scripts/no-egress-wrapper.sh \
   --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
   --commitment-git-repo /absolute/path/to/cejel \
@@ -139,7 +139,7 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --golden-label-record /absolute/path/to/golden-primary-label.json \
   --golden-label-record /absolute/path/to/golden-finding-review.json \
-  --network-isolation-mode node-runtime-deny-hook-v1 \
+  --network-isolation-mode node-runtime-deny-hook-v2 \
   --network-isolation-command /absolute/path/to/calibration/llm/scripts/no-egress-wrapper.sh \
   --network-isolation-evidence internal-witness:isolation-proof-id \
   --confirm-network-isolation \

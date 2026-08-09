@@ -167,7 +167,7 @@ function goldenExecutionEvidence(includeFinding = true) {
   };
 }
 
-function detectorFreeze() {
+function detectorFreeze({ isolationMode = 'node-runtime-deny-hook-v2', probeAttempts = 12 } = {}) {
   const execution = goldenExecutionEvidence();
   const goldenLedger = validateGoldenCorrectionLedger(
     ledger(execution.manifest.manifest_sha256), BUILD_SHA, execution.manifest.manifest_sha256, execution.validated,
@@ -193,13 +193,13 @@ function detectorFreeze() {
     runtime: { name: 'node', version: 'v24.0.0', platform: 'linux', architecture: 'x64' },
     workflow: { path: '.github/workflows/llm-calibration.yml', sha256: '5'.repeat(64) },
     networkIsolation: {
-      mode: 'node-runtime-deny-hook-v1',
+      mode: isolationMode,
       argvPrefix: ['calibration/llm/scripts/no-egress-wrapper.sh'],
       evidenceReference: 'internal-witness:test-isolation',
       wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
       probePath: 'calibration/llm/scripts/no-egress-probe.mjs',
       probeSha256: '3'.repeat(64), probeOutputSha256: '4'.repeat(64),
-      probeDenied: 5, probeAttempted: 5,
+      probeDenied: probeAttempts, probeAttempted: probeAttempts,
       confirmed: true,
     },
     ledger: goldenLedger,
@@ -262,6 +262,20 @@ test('detector freeze binds build, runtime, rules, support, isolation, and close
     () => validateDetectorFreezeRecord({ ...record, frozen_at: '2026-07-23T00:00:00Z' }),
     /SHA-256/,
   );
+});
+
+test('new detector freezes require v2 while historical v1 5/5 records remain valid', () => {
+  assert.throws(
+    () => detectorFreeze({ isolationMode: 'node-runtime-deny-hook-v1', probeAttempts: 5 }),
+    /hash-bound passing no-egress probe/,
+  );
+
+  const historical = structuredClone(detectorFreeze());
+  historical.execution.network_isolation.mode = 'node-runtime-deny-hook-v1';
+  historical.execution.network_isolation.probe_denied = 5;
+  historical.execution.network_isolation.probe_attempted = 5;
+  historical.record_sha256 = hashDetectorFreezeRecord(historical);
+  assert.equal(validateDetectorFreezeRecord(historical), historical);
 });
 
 test('detector build provenance executes twice and rejects unrelated or nondeterministic output', async () => {

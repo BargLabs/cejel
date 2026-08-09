@@ -65,7 +65,7 @@
           "additionalProperties": false,
           "required": ["mode", "argv_prefix", "evidence_reference", "wrapper_sha256", "hook_sha256", "probe_path", "probe_sha256", "probe_output_sha256", "probe_denied", "probe_attempted", "explicitly_confirmed"],
           "properties": {
-            "mode": {"type": "string", "minLength": 3},
+            "mode": {"enum": ["node-runtime-deny-hook-v1", "node-runtime-deny-hook-v2"]},
             "argv_prefix": {"const": ["calibration/llm/scripts/no-egress-wrapper.sh"]},
             "evidence_reference": {"type": "string", "minLength": 8},
             "wrapper_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
@@ -73,10 +73,26 @@
             "probe_path": {"const": "calibration/llm/scripts/no-egress-probe.mjs"},
             "probe_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "probe_output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-            "probe_denied": {"const": 5},
-            "probe_attempted": {"const": 5},
+            "probe_denied": {"type": "integer"},
+            "probe_attempted": {"type": "integer"},
             "explicitly_confirmed": {"const": true}
-          }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "mode": {"const": "node-runtime-deny-hook-v1"},
+                "probe_denied": {"const": 5},
+                "probe_attempted": {"const": 5}
+              }
+            },
+            {
+              "properties": {
+                "mode": {"const": "node-runtime-deny-hook-v2"},
+                "probe_denied": {"const": 12},
+                "probe_attempted": {"const": 12}
+              }
+            }
+          ]
         }
       }
     },
