@@ -32,6 +32,7 @@ import {
   validateGoldenOpportunityEvidence,
   validateGoldenCorrectionLedger,
 } from './freeze-detector.mjs';
+import { verifyGitHubCommitmentAnchor } from './github-execution-proof.mjs';
 import { verifyGitCommittedPreResult } from './pre-result-commitment.mjs';
 import {
   assertCanonicalRepositoryReference,
@@ -210,6 +211,20 @@ export async function resolveGoldenIsolationBindings(input, commandRunner = defa
     }
   }
   return { isolationPrefix: [wrapperPath], probePath };
+}
+
+export async function verifyExternallyAnchoredPreResult(
+  input,
+  commandRunner = defaultRunner,
+  fetchImpl = globalThis.fetch,
+) {
+  const commitment = await verifyGitCommittedPreResult(input, commandRunner);
+  const githubAnchor = await verifyGitHubCommitmentAnchor({
+    git_commit: commitment.git_commit,
+    document_sha256: commitment.canonical_sha256,
+    comment_id: input.githubCommentId,
+  }, { fetchImpl });
+  return { ...commitment, github_anchor: githubAnchor };
 }
 
 export function assertSeparatedRoots(workRoot, outputRoot) {
@@ -430,6 +445,14 @@ function parseArgs(argv) {
       case '--commitment-git-repo': options.commitmentGitRepo = take(); break;
       case '--commitment-git-commit': options.commitmentGitCommit = take(); break;
       case '--commitment-git-path': options.commitmentGitPath = take(); break;
+      case '--commitment-github-comment-id': {
+        const value = take();
+        if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value))) {
+          throw new Error('--commitment-github-comment-id requires a positive safe integer');
+        }
+        options.commitmentGitHubCommentId = Number(value);
+        break;
+      }
       case '--cejel': options.cejel = take(); break;
       case '--work-root': options.workRoot = take(); break;
       case '--output-root': options.outputRoot = take(); break;
@@ -452,6 +475,7 @@ function usage() {
     --work-root <checkout-root> --output-root <separate-output-root> \\
     --pre-result-commitment <commitment.json> --commitment-git-repo <repo> \\
     --commitment-git-commit <full-sha> --commitment-git-path <repository-relative-path> \\
+    --commitment-github-comment-id <public-comment-id> \\
     [--detector-freeze <record.json> --golden-correction-ledger <ledger.json> \\
      --golden-manifest <golden-manifest.json> --golden-execution-evidence <evidence.json> \\
      --opportunity-manifest <opportunities.json>] \\
@@ -462,7 +486,11 @@ the isolation command bound into a valid detector-freeze record and require the 
 `;
 }
 
-export async function main(argv, commandRunner = defaultRunner) {
+export async function main(
+  argv,
+  commandRunner = defaultRunner,
+  { fetchImpl = globalThis.fetch } = {},
+) {
   const options = parseArgs(argv);
   if (options.help) {
     console.log(usage());
@@ -579,16 +607,18 @@ export async function main(argv, commandRunner = defaultRunner) {
     ['--commitment-git-repo', options.commitmentGitRepo],
     ['--commitment-git-commit', options.commitmentGitCommit],
     ['--commitment-git-path', options.commitmentGitPath],
+    ['--commitment-github-comment-id', options.commitmentGitHubCommentId],
   ]) {
     if (!value) throw new Error(`${flag} is required before cohort execution`);
   }
-  const preResultCommitment = await verifyGitCommittedPreResult({
+  const preResultCommitment = await verifyExternallyAnchoredPreResult({
     documentPath: options.preResultCommitment,
     gitRepo: options.commitmentGitRepo,
     gitCommit: options.commitmentGitCommit,
     gitPath: options.commitmentGitPath,
     manifestSha256: manifest.manifest_sha256,
-  }, commandRunner);
+    githubCommentId: options.commitmentGitHubCommentId,
+  }, commandRunner, fetchImpl);
   if (!isolationPrefix) throw new Error('no network-isolation execution prefix is available');
   mkdirSync(roots.work, { recursive: true });
   mkdirSync(roots.output, { recursive: true });

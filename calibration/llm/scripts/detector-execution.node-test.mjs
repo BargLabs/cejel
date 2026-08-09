@@ -27,7 +27,9 @@ import {
   resolveGoldenIsolationBindings,
   runFrozenRepository,
   validateImmutableManifest,
+  verifyExternallyAnchoredPreResult,
 } from './run-frozen-cohort.mjs';
+import { expectedCommitmentCommentBody } from './github-execution-proof.mjs';
 import { validatePreResultCommitment, verifyGitCommittedPreResult } from './pre-result-commitment.mjs';
 import { withHttpsOnlyGitTransport } from './git-transport-policy.mjs';
 
@@ -623,6 +625,34 @@ test('pre-result commitment is verified against exact Git blob bytes before exec
   }, runner);
   assert.equal(verified.git_commit, commitOid);
   assert.equal(verified.git_proof.blob_oid, blobOid);
+  const commentId = 42;
+  const commentUrl = `https://api.github.com/repos/BargLabs/cejel/issues/comments/${commentId}`;
+  const commentCreatedAt = '2026-07-22T19:01:00Z';
+  const anchored = await verifyExternallyAnchoredPreResult({
+    documentPath: path, gitRepo: root, gitCommit: commitOid,
+    gitPath: 'calibration/llm/pre-result-commitment.json',
+    manifestSha256: immutableManifest('golden').manifest_sha256,
+    githubCommentId: commentId,
+  }, runner, async (url) => ({
+    ok: url === commentUrl,
+    status: url === commentUrl ? 200 : 404,
+    headers: new Map([['date', 'Wed, 22 Jul 2026 20:00:00 GMT']]),
+    json: async () => ({
+      id: commentId,
+      url: commentUrl,
+      body: expectedCommitmentCommentBody(commitOid, canonicalSha(document)),
+      created_at: commentCreatedAt,
+      updated_at: commentCreatedAt,
+    }),
+  }));
+  assert.equal(anchored.github_anchor.created_at, commentCreatedAt);
+
+  await assert.rejects(() => verifyExternallyAnchoredPreResult({
+    documentPath: path, gitRepo: root, gitCommit: commitOid,
+    gitPath: 'calibration/llm/pre-result-commitment.json',
+    manifestSha256: immutableManifest('golden').manifest_sha256,
+  }, runner, async () => { throw new Error('must not fetch without a valid anchor'); }),
+  /GitHub commitment anchor is malformed/);
   await assert.rejects(() => verifyGitCommittedPreResult({
     documentPath: path, gitRepo: root, gitCommit: commitOid,
     gitPath: 'calibration/llm/pre-result-commitment.json',
@@ -811,6 +841,55 @@ test('golden isolation assets must equal their exact preregistration-commit blob
     const result = await commandRunner(command, args, options);
     return args.includes(objectIds.get(paths[1])) ? Buffer.from('tampered') : result;
   }), /differs from the committed repository assets/);
+});
+
+test('runner requires the public commitment anchor before any cohort clone', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-public-anchor-required-'));
+  const manifestPath = join(root, 'golden-manifest.json');
+  const cejelPath = join(root, 'cejel');
+  const commitmentPath = join(root, 'commitment.json');
+  const commit = 'a'.repeat(40);
+  const assetPaths = [
+    'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-hook.cjs',
+    'calibration/llm/scripts/no-egress-probe.mjs',
+  ];
+  const objectIds = new Map(assetPaths.map((path, index) => [path, String(index + 1).repeat(40)]));
+  writeFileSync(manifestPath, `${JSON.stringify(immutableManifest('golden'))}\n`, 'utf8');
+  writeFileSync(cejelPath, '# synthetic detector\n', 'utf8');
+  writeFileSync(commitmentPath, '{}\n', 'utf8');
+  const commands = [];
+
+  await assert.rejects(() => runCohortMain([
+    '--manifest', manifestPath,
+    '--cejel', cejelPath,
+    '--work-root', join(root, 'work'),
+    '--output-root', join(root, 'output'),
+    '--network-isolation-mode', 'node-runtime-deny-hook-v2',
+    '--network-isolation-command', join(DETECTOR_REPO, assetPaths[0]),
+    '--confirm-network-isolation',
+    '--pre-result-commitment', commitmentPath,
+    '--commitment-git-repo', DETECTOR_REPO,
+    '--commitment-git-commit', commit,
+    '--commitment-git-path', 'calibration/llm/pre-result-commitment.json',
+  ], async (command, args, options = {}) => {
+    commands.push([command, args]);
+    if (command === join(DETECTOR_REPO, assetPaths[0])) {
+      return JSON.stringify({ policy: 'node-runtime-deny-hook-v2', denied: 12, attempted: 12 });
+    }
+    const operation = args.slice(2);
+    if (operation.join(' ') === `rev-parse ${commit}^{commit}`) return commit;
+    if (operation[0] === 'rev-parse') {
+      return objectIds.get(operation[1].slice(commit.length + 1));
+    }
+    if (operation[0] === 'cat-file' && operation[1] === 'blob' && options.preserveBuffer) {
+      const path = assetPaths.find((candidate) => objectIds.get(candidate) === operation[2]);
+      return readFileSync(join(DETECTOR_REPO, path));
+    }
+    throw new Error(`unexpected command: ${command} ${args.join(' ')}`);
+  }), /--commitment-github-comment-id is required before cohort execution/);
+
+  assert.equal(commands.some(([_command, args]) => args.includes('clone')), false);
 });
 
 test('immutable manifest validation rejects mutable or tampered repository identities', () => {

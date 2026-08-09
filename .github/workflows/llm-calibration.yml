@@ -24,6 +24,10 @@ on:
         description: Full commit containing the exact pre-result commitment bytes
         required: true
         type: string
+      commitment_github_comment_id:
+        description: Immutable public GitHub comment anchoring that commit and commitment digest
+        required: true
+        type: string
       free_core_baseline_commit:
         description: Pre-result-committed approved free-core baseline commit
         required: true
@@ -114,6 +118,7 @@ jobs:
           MANIFEST: ${{ inputs.manifest }}
           PRE_RESULT: ${{ inputs.pre_result_commitment }}
           COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
+          COMMITMENT_COMMENT_ID: ${{ inputs.commitment_github_comment_id }}
         run: |
           chmod +x dist/index.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
           common=(
@@ -125,6 +130,7 @@ jobs:
             --commitment-git-repo "$GITHUB_WORKSPACE"
             --commitment-git-commit "$COMMITMENT_COMMIT"
             --commitment-git-path "$PRE_RESULT"
+            --commitment-github-comment-id "$COMMITMENT_COMMENT_ID"
           )
           if [ "$COHORT" = golden ]; then
             node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \

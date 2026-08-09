@@ -16,7 +16,11 @@ select repositories, alter manifests, adjudicate findings, or tune rules.
    every public document covered by the prohibited-claims check. Commit that exact file to Git and record the
    immutable commit and repository-relative path. The runner embeds and verifies the commit object,
    every raw tree object from the root to the path, and the committed blob bytes, and
-   refuses either cohort without this commitment.
+   refuses either cohort without this commitment. Publish the exact machine-readable body produced
+   by `expectedCommitmentCommentBody()` as a GitHub issue or pull-request comment, leave it unedited,
+   and record its numeric comment ID. Before any cohort clone or detector invocation, the runner
+   fetches that public comment live and requires its server timestamp, commit, and canonical
+   commitment digest to match.
 3. Keep the detector revision clean. The freeze tool builds it twice from the exact committed
    source tree and accepts only byte-identical repository-contained outputs.
 4. Run the golden manifest with `run-frozen-cohort.mjs`, using an operating-system or container
@@ -66,6 +70,7 @@ node calibration/llm/scripts/run-frozen-cohort.mjs \
   --commitment-git-repo /absolute/path/to/cejel \
   --commitment-git-commit <full-40-character-commit> \
   --commitment-git-path calibration/llm/pre-result-commitment.json \
+  --commitment-github-comment-id <numeric-public-comment-id> \
   --confirm-network-isolation
 ```
 
@@ -173,6 +178,11 @@ node calibration/llm/scripts/run-frozen-cohort.mjs \
   --cejel /absolute/path/to/the-same-built-cejel \
   --work-root /absolute/path/to/untouched-checkouts \
   --output-root /absolute/path/to/untouched-results \
+  --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
+  --commitment-git-repo /absolute/path/to/cejel \
+  --commitment-git-commit <full-40-character-commit> \
+  --commitment-git-path calibration/llm/pre-result-commitment.json \
+  --commitment-github-comment-id <numeric-public-comment-id> \
   --confirm-untouched-after-freeze
 ```
 
