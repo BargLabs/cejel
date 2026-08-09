@@ -136,11 +136,16 @@ async function generateLoopbackCertificate(directory) {
 
 function spawnCanaryServer(certPath, keyPath, mode) {
   const child = spawn(process.execPath, [CANARY_SERVER_PATH, certPath, keyPath, mode], {
-    stdio: ['ignore', 'pipe', 'inherit'],
+    stdio: ['ignore', 'pipe', 'ignore'],
   });
   const requests = [];
   let resolvePort;
-  const portPromise = new Promise((resolve) => { resolvePort = resolve; });
+  let rejectPort;
+  let ready = false;
+  const portPromise = new Promise((resolve, reject) => {
+    resolvePort = resolve;
+    rejectPort = reject;
+  });
   const lines = createInterface({ input: child.stdout });
   lines.on('line', (line) => {
     let message;
@@ -149,18 +154,85 @@ function spawnCanaryServer(certPath, keyPath, mode) {
     } catch {
       return;
     }
-    if (message.type === 'ready') resolvePort(message.port);
+    if (message.type === 'ready') {
+      ready = true;
+      resolvePort(message.port);
+    }
     if (message.type === 'request') requests.push(message);
+  });
+  child.once('error', (error) => {
+    if (!ready) rejectPort(new Error(`canary server failed to start: ${error.message}`));
+  });
+  child.once('exit', (code, signal) => {
+    if (!ready) {
+      rejectPort(new Error(
+        `canary server exited before reporting readiness (code=${code}, signal=${signal})`,
+      ));
+    }
   });
   return {
     requests,
     portPromise,
-    close() {
+    async close() {
       lines.close();
-      child.kill('SIGTERM');
+      if (child.exitCode === null && child.signalCode === null) {
+        await new Promise((resolve, reject) => {
+          let forced = false;
+          const onExit = () => {
+            clearTimeout(forceKill);
+            child.off('error', onError);
+            if (forced) {
+              reject(new Error('canary server did not exit after SIGTERM'));
+            } else {
+              resolve();
+            }
+          };
+          const onError = (error) => {
+            clearTimeout(forceKill);
+            child.off('exit', onExit);
+            reject(error);
+          };
+          const forceKill = setTimeout(() => {
+            forced = true;
+            child.kill('SIGKILL');
+          }, 2_000);
+          child.once('exit', onExit);
+          child.once('error', onError);
+          if (!child.kill('SIGTERM')) {
+            clearTimeout(forceKill);
+            child.off('exit', onExit);
+            child.off('error', onError);
+            resolve();
+          }
+        });
+      }
+      child.stdout.destroy();
     },
   };
 }
+
+test('canary startup failure rejects instead of leaving the test process pending', async () => {
+  const missingPath = join(tmpdir(), `cejel-missing-canary-cert-${process.pid}`);
+  const server = spawnCanaryServer(missingPath, missingPath, 'advertise');
+  let timeout;
+  try {
+    await assert.rejects(
+      Promise.race([
+        server.portPromise,
+        new Promise((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error('canary startup remained pending')),
+            500,
+          );
+        }),
+      ]),
+      /canary server (?:failed to start|exited before reporting readiness)/,
+    );
+  } finally {
+    clearTimeout(timeout);
+    await server.close();
+  }
+});
 
 // Runs `run` against one loopback TLS server. The server is a separate OS process from this test
 // process: sharing an event loop between an in-process HTTPS server and a blocking Git invocation
@@ -175,7 +247,7 @@ async function withCanaryServer(mode, run) {
       const port = await server.portPromise;
       return await run({ port, certPath, requests: server.requests });
     } finally {
-      server.close();
+      await server.close();
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -267,8 +339,7 @@ async function withRewriteCanaryPair(run) {
         attacker: { port: attackerPort, requests: attacker.requests },
       });
     } finally {
-      target.close();
-      attacker.close();
+      await Promise.all([target.close(), attacker.close()]);
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
