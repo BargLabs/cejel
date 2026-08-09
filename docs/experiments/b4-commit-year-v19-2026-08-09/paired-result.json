@@ -1,0 +1,2536 @@
+{
+  "bindings": {
+    "baselineRubric": "witan-rubric-v18-prospective-2026-07-25",
+    "candidateRubric": "witan-rubric-v19-prospective-2026-08-09",
+    "candidateSources": {
+      "scripts/b4-commit-year-v19-paired-rescore.mjs": {
+        "gitBlob": "5ca0e8421bee3c7600988518d8b6879457787c8e",
+        "sha256": "49b662763a9df18b99dad6997f41be9926d4737d0d9557eff64a2f50d9aba1c6"
+      },
+      "src/witan/git-exec.ts": {
+        "gitBlob": "6d3ec3ca5668bc69d776238bc078bc62839decc6",
+        "sha256": "8098ce538178a1529c5caa768ceaa1ed8a627287094e16bfc9a4c0d818c8b5f2"
+      },
+      "src/witan/public-scan.ts": {
+        "gitBlob": "1067bcca7c5f5cb619d896c72e57f1996251ac41",
+        "sha256": "7ac4fe5de965675501a54234619435c822721bc2f21767c502594d1aad631a4f"
+      },
+      "src/witan/repo-signals.ts": {
+        "gitBlob": "f954c0c5244fa3a786911901025c6c7048b945b7",
+        "sha256": "9aef090cc413ed7011a88e84d10de7da5315c61838b87e6ec2d1fb61fd9e819f"
+      },
+      "src/witan/rubric-version.ts": {
+        "gitBlob": "7c488b58af8cff46fd42057df66a78d170390f65",
+        "sha256": "ae0c13bf6bc459a840452c5342209568ede2946f48bc0bccd505ab2b6c732bab"
+      },
+      "src/witan/scoring.ts": {
+        "gitBlob": "6ce79f72e1ea6f4a99c3f1e43a8a65c0bba839b9",
+        "sha256": "da2a6aa92ff07d5e59cb29f54c9b28b673ee832f92ffa7ec9509f6b07a360c97"
+      }
+    },
+    "corpus": {
+      "gitBlob": "d563653c6f1d7ee733693c0e9612fa52c323b162",
+      "rows": 24,
+      "sha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00"
+    },
+    "executionCommit": "ce6af76376264540a4d12494a8ac8d4ab92082ee",
+    "generatedAt": "2026-08-09T00:00:00.000Z",
+    "preregistrationCommit": "9eefecbc1c7f83ec2ba795ea823a3edb43b12bf1",
+    "privateAlfredCommit": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+    "reportsTree": "2658da4382b8219d3208902c050878890975ff85"
+  },
+  "decision": {
+    "changedRows": {
+      "b4ScoreOrStatus": [],
+      "headline": [],
+      "nonB4": [],
+      "placement": [],
+      "rawFreshness": []
+    },
+    "counts": {
+      "b4ScoreOrStatusChanges": 0,
+      "completed": 23,
+      "errors": 1,
+      "headlineChanges": 0,
+      "nonB4Changes": 0,
+      "placementChanges": 0,
+      "rawFreshnessChanges": 0,
+      "rows": 24
+    },
+    "protocolDecision": "NO-GO"
+  },
+  "protocol": {
+    "autoDiscoveredIngest": false,
+    "explicitIngest": false,
+    "privateSourcePathsPublished": false,
+    "repositoryCodeExecuted": false,
+    "retriedRows": 0,
+    "sealedPublicScoring": true
+  },
+  "rows": [
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 5,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 5,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 4,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.8,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "9",
+        "processTrustScore": 3.9,
+        "reportSha256": "77cfcdbdef50d23cc3e06bd462f7104ce63107a84b22266b3dff2c992cc9351b",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 5,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 5,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 4,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.8,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "9",
+        "processTrustScore": 3.9,
+        "reportSha256": "0c03df18feb692be05ef0ac2ead76a374b87c5a5618d4ef9f1672f931d0959c2",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "react",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "6e2474673bc8e0a46bcd10515e1a4ce437daca0bd9d1db8849bd94161633e579",
+        "candidate": "6e2474673bc8e0a46bcd10515e1a4ce437daca0bd9d1db8849bd94161633e579"
+      },
+      "sourceCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "sourceTree": "5feee59c5eb284826c6ab6e695aa0cfd4947e9c7",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "11",
+        "processTrustScore": 3.4,
+        "reportSha256": "899f950f39c6926766b6e1ae9b95ff14647ac093e8de451c50d9c5faf022dbb8",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "11",
+        "processTrustScore": 3.4,
+        "reportSha256": "2a73a9d9681dbcc81cd4b30da6ba6530d9e0ad38f07f24dd2467d353ab7e7a9c",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "vue",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "b8d07517bae7235aa773f707926586856048dd659a1325561743b17473a90324",
+        "candidate": "b8d07517bae7235aa773f707926586856048dd659a1325561743b17473a90324"
+      },
+      "sourceCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "sourceTree": "b96a1cb7a81f0f00765fc10d45fd74ec2471a9a5",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "4",
+        "processTrustScore": 3.3,
+        "reportSha256": "655e5e83d388af6c111d41cd4b3ba8da21ae8341e33e9abcf680d55059e23336",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "4",
+        "processTrustScore": 3.3,
+        "reportSha256": "994618ff522dfa9527a95e560129f7773d10cea0bb892337640ddb7f4e4f24bf",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "svelte",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "b7bfcb4994f6b4186c1bba993fbf54fa3b9aef43419914939b2f47c4993afe23",
+        "candidate": "b7bfcb4994f6b4186c1bba993fbf54fa3b9aef43419914939b2f47c4993afe23"
+      },
+      "sourceCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "sourceTree": "89780f9df819197ff266edbc632305ac9f048447",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "unranked",
+        "processTrustScore": 3.8,
+        "reportSha256": "9a599d4adebf65984b61cb3aac13e22bd8dd2aba2d829c913ad9fd7069f0cc24",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "unranked",
+        "processTrustScore": 3.8,
+        "reportSha256": "6498cb7753fe90782a3068469761c7cd44c908f03fd149636ef1f46e36d8b5f5",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "django",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "86dbd511a494aa6bc4ebc37fc38dd70a7a65d652ff2e3b8e73b367740108191f",
+        "candidate": "86dbd511a494aa6bc4ebc37fc38dd70a7a65d652ff2e3b8e73b367740108191f"
+      },
+      "sourceCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "sourceTree": "d4ef089e5923b3e50d4095e9b94aec929f93f911",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 3,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 3,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.7,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.7,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "8",
+        "processTrustScore": 3,
+        "reportSha256": "2fcfddd36e940604986b0174ec23751750e7ffde807a0685ffb7515f253286b6",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 3,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 3,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.7,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.7,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "8",
+        "processTrustScore": 3,
+        "reportSha256": "894f9e4a28e9e52f73efca18b4e91e24eb145cead944066cf448adec9021e337",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "flask",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "c6d8f5f1c1d6ad54c3c6e763739ee443e3efc18a48f19357db7f20279e6914c5",
+        "candidate": "c6d8f5f1c1d6ad54c3c6e763739ee443e3efc18a48f19357db7f20279e6914c5"
+      },
+      "sourceCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "sourceTree": "ad6f20e03ec7f7229e1d05b7c14d10b2c67e467e",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 99,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 99,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 48,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.6,
+          "status": "verified"
+        },
+        "codeTrustScore": 3,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "79b3bb903039aefaec220eb7a234f5bc0a246d3b1c4f6c18614748be570729c4",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 99,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 99,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 48,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.6,
+          "status": "verified"
+        },
+        "codeTrustScore": 3,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "1f276c39ee168faa374d9f267135edad62a784a6c60550074bb34cb02ee34114",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "fastapi",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "9cc1d00efa59e08c1fe9f43f91c5b5bb0905ffb8a7d26ef5507f0033181b85f2",
+        "candidate": "9cc1d00efa59e08c1fe9f43f91c5b5bb0905ffb8a7d26ef5507f0033181b85f2"
+      },
+      "sourceCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "sourceTree": "9d9053486a95090819b81193464c551b396d7aa5",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "69c2f510b6ee8d65e53971696c2fba387bbd7e3084b0ea1a3046bcc0e15e0566",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "5e97c18a4499f27f66dadc7cba89b738456f06a59ac610c4dcab40ea0debc08f",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "express",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "6e2d3c384235eb26a9420b4330c4c7a23b7a793b274ea253b1d1eeb74cba259c",
+        "candidate": "6e2d3c384235eb26a9420b4330c4c7a23b7a793b274ea253b1d1eeb74cba259c"
+      },
+      "sourceCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "sourceTree": "f7dd008ae4b9fdd1c40507a9b9fd8749320be0bf",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 5,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 5,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 5,
+              "weight": 0.2
+            }
+          ],
+          "score": 4,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3.4,
+        "placement": "1",
+        "processTrustScore": 4,
+        "reportSha256": "f6d21abe9868372d860ab25d576d5c30968de478d4be8a7fe0499cd575008b35",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 5,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 5,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 5,
+              "weight": 0.2
+            }
+          ],
+          "score": 4,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3.4,
+        "placement": "1",
+        "processTrustScore": 4,
+        "reportSha256": "1679c2e0a3fe35b7439244566baaa0503d6867fd95746e875b3654e40e59e274",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "vite",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "2e9766d0ce80b2fb36ed845ba624ab84ff4edbd8e32639dd3d50b35c555cebb1",
+        "candidate": "2e9766d0ce80b2fb36ed845ba624ab84ff4edbd8e32639dd3d50b35c555cebb1"
+      },
+      "sourceCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "sourceTree": "aba733d02f1fc6c672e9b4472fd5a74ead522b13",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "13",
+        "processTrustScore": 2.4,
+        "reportSha256": "3da645ea4acea2800d7b58277a48098756adee313bdd6f8b508cfba9d54d11aa",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "13",
+        "processTrustScore": 2.4,
+        "reportSha256": "3b7e91e388bca1914a062ee3514ca84f44d5fbe1cb0c3f268ffbf3dbc465732c",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "esbuild",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "ad5f817c3a50c5020cfdca8722a394918e07f10ff2c80e095342ee080be0f141",
+        "candidate": "ad5f817c3a50c5020cfdca8722a394918e07f10ff2c80e095342ee080be0f141"
+      },
+      "sourceCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "sourceTree": "68df3a2f84f0594c49a6302f8ab1f5a2dfa74b25",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 16,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 16,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.3,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "6",
+        "processTrustScore": 3,
+        "reportSha256": "111b620de8092fd46987d049c70d91156611a57a0b72f6c0bd7772ccd2b69603",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 16,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 16,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.3,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "6",
+        "processTrustScore": 3,
+        "reportSha256": "1f34a4a343b8e35bbd486ce856d8afcde1025344d965da01eba0196239a44247",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "biomejs",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "a1fd76da48e27e6dc4f09e78906d669a3c9faf20b3d3af94cfd17f97ddfb29dc",
+        "candidate": "a1fd76da48e27e6dc4f09e78906d669a3c9faf20b3d3af94cfd17f97ddfb29dc"
+      },
+      "sourceCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "sourceTree": "d6a3bb5f63cf471a2ca9c8e39bb3b73500141c2f",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "7",
+        "processTrustScore": 3.4,
+        "reportSha256": "33c7eb808910870669d926e4e000b71de2b83ea42c3dc84dfac45c47c850976d",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "7",
+        "processTrustScore": 3.4,
+        "reportSha256": "3d14f6eae190477610be369aab7ad26252c1fb411156462e8697b2342f514aae",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "requests",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "dd971661707070b6e29b785968f7a3f81f65cb7337baac04f5db23f763cbb2f4",
+        "candidate": "dd971661707070b6e29b785968f7a3f81f65cb7337baac04f5db23f763cbb2f4"
+      },
+      "sourceCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "sourceTree": "c8ba688b7e493f85ee6feae91278baf4b881fed7",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "3",
+        "processTrustScore": 3.5,
+        "reportSha256": "78a7862f90823f757524be95289c0ff250fe8a436e28db5f66f248864d280868",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "3",
+        "processTrustScore": 3.5,
+        "reportSha256": "c32c9b1d57d5c45773c8fa2838d311316063e76f110a0a1a6aa46f52cf3e83c7",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "pydantic",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "acc145bf4f467b1cdaddf4f69bece119690f37f4105b6dac6ef19b57ed9a3a7b",
+        "candidate": "acc145bf4f467b1cdaddf4f69bece119690f37f4105b6dac6ef19b57ed9a3a7b"
+      },
+      "sourceCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "sourceTree": "b5c23e6c0172aad0095af3e06042de79990a81e5",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 6,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 6,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 3,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.6,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 9,
+            "total": 11
+          }
+        },
+        "overallScore": 3.3,
+        "placement": "2",
+        "processTrustScore": 3.9,
+        "reportSha256": "732b6e33a68f140ef6dc906d27b199d705dfaed3c7316b4ac9c91178e0f135b1",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 6,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 6,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 3,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.6,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 9,
+            "total": 11
+          }
+        },
+        "overallScore": 3.3,
+        "placement": "2",
+        "processTrustScore": 3.9,
+        "reportSha256": "db6d8b369bb7601e89cc96c9a9bb5f54f730c0d420be7c037e0f199fe661bc48",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "axios",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "dd6ec409879642f55f56f572029958d4b12104c625b67e5d8dde036904247de3",
+        "candidate": "dd6ec409879642f55f56f572029958d4b12104c625b67e5d8dde036904247de3"
+      },
+      "sourceCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "sourceTree": "45fb3f456b870e5c2ab5a5489a484af0336488eb",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 3.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "5",
+        "processTrustScore": 3.2,
+        "reportSha256": "05b9049fbac09f75a604a603ab092af848d41c0f1ee62d8dcc08f1f94480b274",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 2,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 3.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "5",
+        "processTrustScore": 3.2,
+        "reportSha256": "b2b9dcec694a69b94417092b84166a042923d4cea906a050c3e1e52d044ee562",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "zod",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "8e83ce44ce591bf9253b3736035bdb2e409a5024a582d703d34c90f5313df894",
+        "candidate": "8e83ce44ce591bf9253b3736035bdb2e409a5024a582d703d34c90f5313df894"
+      },
+      "sourceCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "sourceTree": "aa57882b5c03f77cdfc84ee44a7967f2c9c210b6",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "10",
+        "processTrustScore": 3.6,
+        "reportSha256": "dff4babf5d10b8f577e8b1771cd499a282cf4d19fb22f2d28628f263d5eac6e3",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "10",
+        "processTrustScore": 3.6,
+        "reportSha256": "9faa87a80eff9ea714c79e7258f7224ac72bc4812b8330c89c0bb7f76ebedad8",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "scorecard",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "02addee4a82fe8fbacbea15866856c95e0368ee794f1ddd4cd996e15f164b3b4",
+        "candidate": "02addee4a82fe8fbacbea15866856c95e0368ee794f1ddd4cd996e15f164b3b4"
+      },
+      "sourceCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "sourceTree": "1addbd1e8716566388747e838605c64bd3aeaffc",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.1,
+        "placement": "14",
+        "processTrustScore": 2,
+        "reportSha256": "8c52fb3fca3cf351874084b609a39f910ef74e86f84333bb3f3ad1decc7eae3d",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 1,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 1,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 1.9,
+          "status": "verified"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.1,
+        "placement": "14",
+        "processTrustScore": 2,
+        "reportSha256": "42cf9f5c02bb547033336efac38bb1cb9bb2fdc33a703fd0b5e8f9e0f284828f",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "ripgrep",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "2590f959888578a7818422f8a25e7eba95863f15333e6dfd50d610957e34a0c8",
+        "candidate": "2590f959888578a7818422f8a25e7eba95863f15333e6dfd50d610957e34a0c8"
+      },
+      "sourceCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "sourceTree": "a862c646434a2d00f245a5b1e0187b67cd20c018",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 1.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 1.9,
+        "placement": "unranked",
+        "processTrustScore": 2.2,
+        "reportSha256": "a477f13124ffde73a2803a09e5b4602df6fcacd47f9c1fa28622b085fb1bf37e",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 1.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 1.9,
+        "placement": "unranked",
+        "processTrustScore": 2.2,
+        "reportSha256": "82ddf9bbae78cf15c57471d4facb15051d969aa9652f90704c164f2f6878d59d",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "guava",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "79c94bbd1b849275e549684727a14814d1d4d756ff26db282a0cf13f49c0252e",
+        "candidate": "79c94bbd1b849275e549684727a14814d1d4d756ff26db282a0cf13f49c0252e"
+      },
+      "sourceCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "sourceTree": "493bb50a916237c1cf9f8f441d415f770d6eb207",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 4,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "17441d7719f874927667cb430a55f7d6e11d916b54069e910d184b2c56bfc350",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 4,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "e2e4fc1dd341eed42cbe0bd820686fe256192939e855361de1284ec0721cbb6f",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "cobra",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "af81a16c09e0e6ff4afaf4c0afe10b80216329f6873affea59313a875a82adb7",
+        "candidate": "af81a16c09e0e6ff4afaf4c0afe10b80216329f6873affea59313a875a82adb7"
+      },
+      "sourceCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "sourceTree": "5a3b2c8e9af4c74e607a0a55e7910c1edb5d266f",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.5,
+          "status": "verified"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.4,
+        "placement": "unranked",
+        "processTrustScore": 2.8,
+        "reportSha256": "6862cecc2981fb56f3af68a066e7c9a1928194dbaa9047ad32e192c6acce3b13",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.5,
+          "status": "verified"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.4,
+        "placement": "unranked",
+        "processTrustScore": 2.8,
+        "reportSha256": "f9f6eb4a59831b39da3792271391bced5378ae6b4483fd26c2e3c9a7d8c6c6c3",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "sinatra",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "ae5fdb35452106021360c386bbba2528d064074de1b938de2d8678e293309413",
+        "candidate": "ae5fdb35452106021360c386bbba2528d064074de1b938de2d8678e293309413"
+      },
+      "sourceCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "sourceTree": "02574d8fa1b8355333edf3c856c5952e752b0cde",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 2.2,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "c02638c5796e25b718b810ff380af4deee84a44b3ede028fd48c18b6c0213e8a",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 2.2,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "d3018b17c72a011c24fd17580613d0c57aa6e9f246e6b0f9beb8f662c9cc8cfe",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "automapper",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "166b61f12367c4bef6497e0d0be80f9a3a9e503f10b0b62808c8e61b251c4616",
+        "candidate": "166b61f12367c4bef6497e0d0be80f9a3a9e503f10b0b62808c8e61b251c4616"
+      },
+      "sourceCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "sourceTree": "ca68ce69dc4f7d081e903ecdaade773cacc45758",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.5,
+          "status": "verified"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.6,
+        "placement": "12",
+        "processTrustScore": 3.2,
+        "reportSha256": "f8100d5f3ac00dbdf2b34ea12fd60b8d69ee64d0c0d64741ba2f31ba0d2c8296",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [
+            {
+              "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+              "kind": "saturating_count",
+              "label": "Audit artifact depth",
+              "max": 3,
+              "name": "audit_artifact_depth",
+              "unit": "files",
+              "value": 2,
+              "weight": 0.8
+            },
+            {
+              "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+              "label": "Audit freshness depth",
+              "max": 2,
+              "name": "audit_freshness_depth",
+              "unit": "ratio",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 2.5,
+          "status": "verified"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.6,
+        "placement": "12",
+        "processTrustScore": 3.2,
+        "reportSha256": "02cd538d646cffb7bbcf887222e569c2e9677fdb4ee3f7d68b122f6eb393df46",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "fmt",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "8a4eb70af6a0935d0a286678765542fd84a3dca432068a17464c84b08b6bf3de",
+        "candidate": "8a4eb70af6a0935d0a286678765542fd84a3dca432068a17464c84b08b6bf3de"
+      },
+      "sourceCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "sourceTree": "5878ab01aa6a0c014e7258039520c7874807a6cf",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": null,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 0,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 0,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 0,
+            "total": 11
+          }
+        },
+        "overallScore": null,
+        "placement": "unrated",
+        "processTrustScore": null,
+        "reportSha256": "114fc69ef30b3396b470526ed288892fa043b5d1e2be9d6712663be7a353652c",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "insufficient_source"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": null,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 0,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 0,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 0,
+            "total": 11
+          }
+        },
+        "overallScore": null,
+        "placement": "unrated",
+        "processTrustScore": null,
+        "reportSha256": "216815dcff402f905fa482a4e82d829651ad4022d30b9a700bfce744d9aba9c3",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "insufficient_source"
+      },
+      "name": "carddemo",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "06c4bcabf7c825b61754267b87253a1f7a5861c84fc74ac07b73afb630b9d043",
+        "candidate": "06c4bcabf7c825b61754267b87253a1f7a5861c84fc74ac07b73afb630b9d043"
+      },
+      "sourceCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "sourceTree": "a1253e31c839f78d1f185b01771ba956da63b005",
+      "visibility": "public"
+    },
+    {
+      "error": "Command failed: git --no-pager -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.pager= -c core.editor=false -c core.sshCommand=false -c diff.external=false -c credential.helper= -c log.showSignature=false -c gpg.program=false -c gpg.openpgp.program=false -c gpg.x509.program=false -c gpg.ssh.program=false -c protocol.allow=never -c protocol.https.allow=always -c protocol.file.allow=never -c protocol.ext.allow=never clone --quiet --local --no-hardlinks --no-checkout [private-source] [checkout-root]/alfred\nfatal: transport 'file' not allowed\n",
+      "expectedSourceCommit": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+      "name": "alfred",
+      "visibility": "private"
+    },
+    {
+      "baseline": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.3,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 2.8,
+        "placement": "transparency",
+        "processTrustScore": 3.2,
+        "reportSha256": "4ebf4c6b07e34146a85aff294c0aee4eca5aa2ea1846db348451aaf421dd3f3e",
+        "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "b4": {
+          "metrics": [],
+          "score": 0,
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.3,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 2.8,
+        "placement": "transparency",
+        "processTrustScore": 3.2,
+        "reportSha256": "5102c8f0a6733501e5f477e667e3ab8d2a97c6c602f1bc42021d6555348795c0",
+        "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "cejel",
+      "nonB4CriteriaByteIdentical": true,
+      "nonB4CriteriaSha256": {
+        "baseline": "17e1e2bb7a9eb4af335440a90a121aa6d4a719c9f50890daa9d1db72482c2b75",
+        "candidate": "17e1e2bb7a9eb4af335440a90a121aa6d4a719c9f50890daa9d1db72482c2b75"
+      },
+      "sourceCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "sourceTree": "283905b4564076c32900da5c5c0bd6fafe416d65",
+      "visibility": "public"
+    }
+  ],
+  "schemaVersion": "cejel-b4-commit-year-v19-paired-rescore-v1"
+}
