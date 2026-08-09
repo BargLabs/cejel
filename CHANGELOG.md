@@ -16,6 +16,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Public-distribution validation now rejects location fields and private-path-shaped text in the
+  checked-in Alfred transparency JSON, Markdown, and HTML artifacts. Scores and content hashes
+  remain public, while every evidence and finding location must retain the uniform
+  `path withheld — private repository` marker.
+
 ## [0.4.0] — 2026-08-09
 
 ### Added
