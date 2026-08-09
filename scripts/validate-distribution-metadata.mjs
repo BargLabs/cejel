@@ -28,6 +28,10 @@ const BINARY_VERIFY_PATH = new URL('./verify-cejel-binary.mjs', import.meta.url)
 const OFFLINE_VERIFY_PATH = new URL('./verify-cejel-binary-offline.mjs', import.meta.url);
 const RELEASE_SET_VERIFY_PATH = new URL('./verify-cejel-release-set.mjs', import.meta.url);
 const MCP_METADATA_PREPARATION_PATH = new URL('./prepare-mcp-server-metadata.mjs', import.meta.url);
+const MCP_OCI_RELEASE_CHAIN_VERIFICATION_PATH = new URL(
+  './verify-mcp-oci-release-chain.mjs',
+  import.meta.url,
+);
 const RELEASE_IDENTITY_ASSERTION_PATH = new URL('./assert-release-identity.sh', import.meta.url);
 
 const packageManifest = JSON.parse(readFileSync(PACKAGE_PATH, 'utf8'));
@@ -55,6 +59,10 @@ const binaryVerify = readFileSync(BINARY_VERIFY_PATH, 'utf8');
 const offlineVerify = readFileSync(OFFLINE_VERIFY_PATH, 'utf8');
 const releaseSetVerify = readFileSync(RELEASE_SET_VERIFY_PATH, 'utf8');
 const mcpMetadataPreparation = readFileSync(MCP_METADATA_PREPARATION_PATH, 'utf8');
+const mcpOciReleaseChainVerification = readFileSync(
+  MCP_OCI_RELEASE_CHAIN_VERIFICATION_PATH,
+  'utf8',
+);
 const releaseIdentityAssertion = readFileSync(RELEASE_IDENTITY_ASSERTION_PATH, 'utf8');
 const ACTION_USE_PATTERN = /^\s*(?:-\s*)?uses:\s*([^#\s]+)(?:\s+#.*)?$/gm;
 
@@ -323,6 +331,15 @@ requireIncludes(
   'ghcr.io/barglabs/cejel@${digest}',
   'MCP metadata preparation digest identifier',
 );
+for (const [needle, field] of [
+  ['sourceRepositoryDigest === expectedCommit', 'certificate source-commit binding'],
+  ['sourceRepositoryRef === expectedRef', 'certificate source-ref binding'],
+  ["statement?.predicateType === 'https://slsa.dev/provenance/v1'", 'SLSA predicate binding'],
+  ['subject?.digest?.sha256 === expectedDigest.slice(7)', 'attestation subject binding'],
+  ['dependency?.digest?.gitCommit === expectedCommit', 'provenance dependency binding'],
+]) {
+  requireIncludes(mcpOciReleaseChainVerification, needle, `MCP/OCI verifier ${field}`);
+}
 requireIncludes(releaseWorkflow, 'runner: windows-latest', 'Windows release runner');
 requireIncludes(
   releaseWorkflow,
@@ -402,6 +419,42 @@ requireIncludes(
 );
 if (mcpPublishJob.includes('/releases/latest/')) {
   throw new Error('MCP publisher download must use a pinned release, not releases/latest.');
+}
+
+const mcpVerificationJobStart = distributionWorkflow.indexOf(
+  '  verify-mcp-oci-release-chain:',
+);
+const mcpVerificationJobEnd = distributionWorkflow.indexOf(
+  '  verify-mcp-registry-republish-path:',
+  mcpVerificationJobStart,
+);
+if (mcpVerificationJobStart < 0 || mcpVerificationJobEnd < 0) {
+  throw new Error('distribution workflow must define the MCP/OCI release-chain verification job.');
+}
+const mcpVerificationJob = distributionWorkflow.slice(
+  mcpVerificationJobStart,
+  mcpVerificationJobEnd,
+);
+for (const [needle, field] of [
+  [
+    'needs: [resolve-mcp-oci-digest, publish-mcp-registry]',
+    'post-publication dependency',
+  ],
+  ['attestations: read', 'attestation read permission'],
+  ['packages: read', 'OCI package read permission'],
+  ['scripts/assert-release-identity.sh', 'per-job release identity assertion'],
+  [
+    'registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs%2Fcejel/versions/$version',
+    'exact-version Registry readback',
+  ],
+  ['--retry 12 --retry-delay 5 --retry-all-errors', 'bounded Registry propagation retry'],
+  ['gh attestation verify "oci://$IMAGE_NAME@$MCP_OCI_DIGEST"', 'exact OCI attestation fetch'],
+  ['--source-digest "$source_commit"', 'trusted source commit enforcement'],
+  ['--source-ref "refs/tags/$RELEASE_TAG"', 'trusted release-tag enforcement'],
+  ['node scripts/verify-mcp-oci-release-chain.mjs', 'release-chain verifier invocation'],
+  ['tagged-source commit', 'tagged-source commit report'],
+]) {
+  requireIncludes(mcpVerificationJob, needle, `MCP/OCI verification ${field}`);
 }
 
 requireEqual(leaderboardIndex, leaderboard, 'deployed leaderboard index/leaderboard artifact');
