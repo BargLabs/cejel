@@ -72,16 +72,19 @@ outcome evaluation. A different evaluator must perform the run.
 The order is fixed:
 
 1. merge this successor preregistration;
-2. create a deterministic private Alfred harness that embeds this document's **merged commit**
-   and every immutable binding above;
+2. create a deterministic private Alfred harness that embeds this document's **merged Cejel
+   commit**, the Git blob of this document at that commit, and every immutable binding above;
 3. test the harness only with separately authored synthetic self-tests that do not materialize or
    scan any of the 66 frozen corpus entries;
 4. commit and push the harness before the first frozen-corpus materialization;
 5. execute one run comprising the six controls followed by all 60 evaluation seeds; and
 6. commit the raw result and its human rendering separately after the harness commit.
 
-The successor-preregistration merge commit and harness commit must both be strict ancestors of
-the result commit. Commit timestamps are not ancestry evidence.
+Git ancestry does not cross repository boundaries. The merged Cejel preregistration commit and
+its document blob are immutable cross-repository content bindings recorded by the Alfred harness
+and result; neither is described as an Alfred ancestor. Within Alfred, corpus merge
+`d4f6f0dfa0721d2e35b40b14f43f227e5ec79dbc` and the pushed harness commit must both be strict
+ancestors of the result commit. Commit timestamps are not ancestry evidence.
 
 The harness may not contain a detector, seed-specific exception, marker-string catch path, or
 alternate finding source. It may only materialize, invoke the frozen scanner, apply the frozen
