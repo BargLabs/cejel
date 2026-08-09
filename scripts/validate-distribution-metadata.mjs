@@ -98,7 +98,7 @@ function requirePrivateReportLocationWithheld(evidence, field) {
   );
 }
 
-function requireNoPrivateLocationFields(value, field, allowRepoPath = false) {
+function requireNoPrivateLocationFields(value, field) {
   if (Array.isArray(value)) {
     value.forEach((entry, index) => requireNoPrivateLocationFields(entry, `${field}[${index}]`));
     return;
@@ -107,7 +107,7 @@ function requireNoPrivateLocationFields(value, field, allowRepoPath = false) {
 
   for (const [key, child] of Object.entries(value)) {
     if (['path', 'line', 'file', 'filename'].includes(key)) {
-      if (allowRepoPath && key === 'path' && child === '.') continue;
+      if (field === 'report.repo' && key === 'path' && child === '.') continue;
       throw new Error(`Alfred public report must not include location field ${field}.${key}.`);
     }
     requireNoPrivateLocationFields(child, `${field}.${key}`);
@@ -544,8 +544,7 @@ for (const [needle, field] of [
 
 requireEqual(leaderboardIndex, leaderboard, 'deployed leaderboard index/leaderboard artifact');
 requireEqual(alfredReport.repo?.path, '.', 'Alfred public repository placeholder');
-requireNoPrivateLocationFields(alfredReport.repo, 'report.repo', true);
-requireNoPrivateLocationFields(alfredReport.criteria, 'report.criteria');
+requireNoPrivateLocationFields(alfredReport, 'report');
 for (const criterion of alfredReport.criteria ?? []) {
   for (const [index, evidence] of (criterion.evidence ?? []).entries()) {
     requirePrivateReportLocationWithheld(evidence, `${criterion.id}.evidence[${index}]`);
