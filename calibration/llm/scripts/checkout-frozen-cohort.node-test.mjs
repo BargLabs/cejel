@@ -65,8 +65,14 @@ test('frozen checkout permits a canonical GitHub HTTPS repository', async (t) =>
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'cejel-checkout-boundary-'));
   t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }));
   const calls = [];
+  let exactCommitFetched = false;
   const gitExecutor = async (command, args, options) => {
     calls.push({ command, args, options });
+    const gitArgs = args.slice(8);
+    if (gitArgs.includes('checkout')) {
+      assert.equal(exactCommitFetched, true, 'exact frozen commit must be fetched before checkout');
+    }
+    if (gitArgs.includes('fetch')) exactCommitFetched = true;
     const operation = args.at(-1);
     if (operation === 'HEAD') return { stdout: `${COMMIT_SHA}\n` };
     if (operation === 'HEAD^{tree}') return { stdout: `${TREE_SHA}\n` };
@@ -81,7 +87,15 @@ test('frozen checkout permits a canonical GitHub HTTPS repository', async (t) =>
 
   assert.equal(result.repositories.length, 1);
   assert.equal(result.repositories[0].commit_sha, COMMIT_SHA);
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 5);
+  assert.deepEqual(calls[1].args.slice(8), [
+    '-C',
+    result.repositories[0].source_root,
+    'fetch',
+    '--no-tags',
+    'origin',
+    COMMIT_SHA,
+  ]);
   for (const call of calls) {
     assert.equal(call.command, 'git');
     assert.deepEqual(call.args.slice(0, 4), [

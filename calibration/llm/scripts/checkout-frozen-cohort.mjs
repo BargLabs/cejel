@@ -70,6 +70,11 @@ export async function checkoutFrozenCohort({ manifest, workRoot, gitExecutor = e
       const repositoryUrl = assertCanonicalRepositoryReference(repository);
       await runGit(['clone', '--no-checkout', repositoryUrl, sourceRoot], {}, gitExecutor);
       await runGit(
+        ['-C', sourceRoot, 'fetch', '--no-tags', 'origin', repository.commit_sha],
+        {},
+        gitExecutor,
+      );
+      await runGit(
         ['-C', sourceRoot, '-c', 'advice.detachedHead=false', 'checkout', '--detach', repository.commit_sha],
         {},
         gitExecutor,
