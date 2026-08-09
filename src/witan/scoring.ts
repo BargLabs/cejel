@@ -39,11 +39,16 @@ import {
   WITAN_RUBRIC_VERSION_V16,
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V18,
+  WITAN_RUBRIC_VERSION_V19,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
-  return rubricVersion === WITAN_RUBRIC_VERSION_V17 || rubricVersion === WITAN_RUBRIC_VERSION_V18;
+  return (
+    rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V19
+  );
 }
 
 // ---- Signal bounding cap (documented for operator review) --------------------
@@ -310,7 +315,8 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V18
+    rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V19
   ) {
     return statusForScore(roundScore(Math.max(0, nativeScore - adjustment)));
   }
@@ -401,6 +407,7 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }
@@ -950,6 +957,7 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     findings.length > 0
   ) {
     return [...findings];

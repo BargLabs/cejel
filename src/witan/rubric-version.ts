@@ -44,3 +44,9 @@ export const WITAN_RUBRIC_VERSION_V17 = 'witan-rubric-v17-2026-07-24';
 // The shared/public default remains v17 until a fresh authenticated untouched holdout clears
 // every gate; callers must opt in explicitly.
 export const WITAN_RUBRIC_VERSION_V18 = 'witan-rubric-v18-prospective-2026-07-25';
+
+// Prospective B4 determinism correction. V19 inherits v18 and changes only audit-freshness
+// year selection: the scanned HEAD commit's committer year replaces scan wall clock. It remains
+// explicit-only until a separately preregistered authenticated untouched holdout permits default
+// promotion.
+export const WITAN_RUBRIC_VERSION_V19 = 'witan-rubric-v19-prospective-2026-08-09';
