@@ -6,6 +6,7 @@ import {
   hashManifest,
   hashRepositoryEntry,
   resolveRepository,
+  sha256Canonical,
   validateReviewBindings,
   validateReviewers,
 } from './freeze-cohorts.mjs';
@@ -15,6 +16,12 @@ test('canonicalize sorts object keys recursively without sorting arrays', () => 
     canonicalize({ z: 1, a: { d: true, b: ['z', 'a'] } }),
     '{"a":{"b":["z","a"],"d":true},"z":1}',
   );
+});
+
+test('canonical JSON hashing rejects values outside the JSON data model', () => {
+  assert.throws(() => canonicalize(Number.NaN), /non-finite number/);
+  assert.throws(() => canonicalize(undefined), /cannot contain undefined/);
+  assert.equal(sha256Canonical({ b: 2, a: 1 }), sha256Canonical({ a: 1, b: 2 }));
 });
 
 test('entry hash excludes only entry_sha256', () => {
