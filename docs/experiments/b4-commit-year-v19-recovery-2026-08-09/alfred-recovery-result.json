@@ -1,0 +1,190 @@
+{
+  "bindings": {
+    "alfredCommit": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+    "baselineRubric": "witan-rubric-v18-prospective-2026-07-25",
+    "candidateRubric": "witan-rubric-v19-prospective-2026-08-09",
+    "executionCommit": "7c498ef3c7ac4fefcc08b8f03d2be31bde3476eb",
+    "firstRunCommit": "0edfe067813593292d4ba67f8f640cf71d05f0ec",
+    "firstRunExecutionCommit": "ce6af76376264540a4d12494a8ac8d4ab92082ee",
+    "firstRunJson": {
+      "gitBlob": "2e6bd9c707a8ff3410e8737d71fa49c06feee97c",
+      "sha256": "65e2229f2252c246af0023e764fed718ef2dc5ccd4795c70678e0f457279497b"
+    },
+    "generatedAt": "2026-08-09T00:00:00.000Z",
+    "recoveryHarness": {
+      "gitBlob": "e8325d493c38935f243797c937615f887ec403c7",
+      "sha256": "cec5bdb5c822dc87b42e901fb603c04be54d720d373ef27861a27bcf76045f64"
+    },
+    "recoveryPreregistrationCommit": "8f937a6d326d9aacc1c0fd607f79f815e148c165",
+    "scoringSources": {
+      "src/witan/git-exec.ts": {
+        "gitBlob": "6d3ec3ca5668bc69d776238bc078bc62839decc6",
+        "sha256": "8098ce538178a1529c5caa768ceaa1ed8a627287094e16bfc9a4c0d818c8b5f2"
+      },
+      "src/witan/public-scan.ts": {
+        "gitBlob": "1067bcca7c5f5cb619d896c72e57f1996251ac41",
+        "sha256": "7ac4fe5de965675501a54234619435c822721bc2f21767c502594d1aad631a4f"
+      },
+      "src/witan/repo-signals.ts": {
+        "gitBlob": "f954c0c5244fa3a786911901025c6c7048b945b7",
+        "sha256": "9aef090cc413ed7011a88e84d10de7da5315c61838b87e6ec2d1fb61fd9e819f"
+      },
+      "src/witan/rubric-version.ts": {
+        "gitBlob": "7c488b58af8cff46fd42057df66a78d170390f65",
+        "sha256": "ae0c13bf6bc459a840452c5342209568ede2946f48bc0bccd505ab2b6c732bab"
+      },
+      "src/witan/scoring.ts": {
+        "gitBlob": "6ce79f72e1ea6f4a99c3f1e43a8a65c0bba839b9",
+        "sha256": "da2a6aa92ff07d5e59cb29f54c9b28b673ee832f92ffa7ec9509f6b07a360c97"
+      }
+    }
+  },
+  "decision": {
+    "changedRows": {
+      "b4ScoreOrStatus": [],
+      "headline": [],
+      "nonB4": [],
+      "placement": [],
+      "rawFreshness": []
+    },
+    "counts": {
+      "b4ScoreOrStatusChanges": 0,
+      "completed": 24,
+      "errors": 0,
+      "headlineChanges": 0,
+      "nonB4Changes": 0,
+      "placementChanges": 0,
+      "rawFreshnessChanges": 0,
+      "rows": 24
+    },
+    "protocolDecision": "GO"
+  },
+  "protocol": {
+    "autoDiscoveredIngest": false,
+    "explicitIngest": false,
+    "privateSourcePathsPublished": false,
+    "repositoryCodeExecuted": false,
+    "retriedFirstRunRows": 0,
+    "sealedPublicScoring": true
+  },
+  "row": {
+    "baseline": {
+      "b4": {
+        "metrics": [
+          {
+            "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+            "kind": "saturating_count",
+            "label": "Audit artifact depth",
+            "max": 3,
+            "name": "audit_artifact_depth",
+            "unit": "files",
+            "value": 81,
+            "weight": 0.8
+          },
+          {
+            "description": "Credits audit artifacts that carry freshness/current-state markers.",
+            "label": "Audit freshness depth",
+            "max": 81,
+            "name": "audit_freshness_depth",
+            "unit": "ratio",
+            "value": 73,
+            "weight": 0.2
+          }
+        ],
+        "score": 3.9,
+        "status": "verified"
+      },
+      "codeTrustScore": 2.8,
+      "coverage": {
+        "byCategory": [
+          {
+            "category": "code_trust",
+            "measured": 5,
+            "total": 5
+          },
+          {
+            "category": "process_trust",
+            "measured": 4,
+            "total": 6
+          }
+        ],
+        "lowConfidence": false,
+        "overall": {
+          "measured": 9,
+          "total": 11
+        }
+      },
+      "overallScore": 3.4,
+      "placement": "transparency",
+      "processTrustScore": 3.9,
+      "reportSha256": "487917e25938e33c7e793c61d5c909a0247ca4800abfc5c87aadef4e7d5738d5",
+      "rubricVersion": "witan-rubric-v18-prospective-2026-07-25",
+      "scanLimitations": [],
+      "verdict": "conditional"
+    },
+    "candidate": {
+      "b4": {
+        "metrics": [
+          {
+            "description": "Measures quantity of audit, security, runbook, incident, status, and changelog artifacts.",
+            "kind": "saturating_count",
+            "label": "Audit artifact depth",
+            "max": 3,
+            "name": "audit_artifact_depth",
+            "unit": "files",
+            "value": 81,
+            "weight": 0.8
+          },
+          {
+            "description": "Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.",
+            "label": "Audit freshness depth",
+            "max": 81,
+            "name": "audit_freshness_depth",
+            "unit": "ratio",
+            "value": 73,
+            "weight": 0.2
+          }
+        ],
+        "score": 3.9,
+        "status": "verified"
+      },
+      "codeTrustScore": 2.8,
+      "coverage": {
+        "byCategory": [
+          {
+            "category": "code_trust",
+            "measured": 5,
+            "total": 5
+          },
+          {
+            "category": "process_trust",
+            "measured": 4,
+            "total": 6
+          }
+        ],
+        "lowConfidence": false,
+        "overall": {
+          "measured": 9,
+          "total": 11
+        }
+      },
+      "overallScore": 3.4,
+      "placement": "transparency",
+      "processTrustScore": 3.9,
+      "reportSha256": "06387a7fe36312eba7ec16c286a17e838a8000b5aee8eaa28dd81d20b24c259e",
+      "rubricVersion": "witan-rubric-v19-prospective-2026-08-09",
+      "scanLimitations": [],
+      "verdict": "conditional"
+    },
+    "name": "alfred",
+    "nonB4CriteriaByteIdentical": true,
+    "nonB4CriteriaSha256": {
+      "baseline": "e0e7e50ab94260fd59fd23b3b6631ce74c64ac11e3e5ec19382ee08391be57f8",
+      "candidate": "e0e7e50ab94260fd59fd23b3b6631ce74c64ac11e3e5ec19382ee08391be57f8"
+    },
+    "sourceCommit": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+    "sourceTree": "e9eba8710eea1857a32e00f43a15a44cbb2b7ca4",
+    "visibility": "private"
+  },
+  "schemaVersion": "cejel-b4-commit-year-v19-alfred-recovery-v1"
+}

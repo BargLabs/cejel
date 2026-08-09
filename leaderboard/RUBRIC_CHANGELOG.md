@@ -12,6 +12,59 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## witan-rubric-v19-prospective-2026-08-09 — recovery GO
+
+**Status.** Prospective only; recovery protocol **GO**. V19 is available only by explicit
+selection. The calibrated public default remains `witan-rubric-v17-2026-07-24`; this result does
+not authorize default promotion or rewrite the preserved first-run NO-GO below.
+
+**What changed.** V19 inherits prospective v18 and changes only B4's numeric freshness marker:
+the scanned `HEAD` commit's committer year replaces the scan wall clock. Static
+`recent|latest|current` markers remain. V17 and v18 retain their historical generated-at-year
+behavior.
+
+**Result.** The separately preregistered recovery measured only the missing private Alfred row at
+its frozen commit and combined it with the original run's 23 successful rows byte-for-byte. All
+24 rows completed. No row changed raw B4 freshness, B4 score or status, headline score, verdict,
+coverage, board placement, or any non-B4 criterion. The recovery preregistration merged at
+`8f937a6d326d9aacc1c0fd607f79f815e148c165`; the frozen recovery harness merged later at
+`7c498ef3c7ac4fefcc08b8f03d2be31bde3476eb`, which is the execution commit.
+
+Canonical recovery evidence:
+`docs/experiments/b4-commit-year-v19-recovery-2026-08-09/alfred-recovery-result.json`; canonical
+combined evidence:
+`docs/experiments/b4-commit-year-v19-recovery-2026-08-09/combined-result.json`; human renderings
+are beside those files.
+
+**Full prospective-v18 to prospective-v19 combined delta (all 24 rows):**
+
+| Repository | Raw B4 freshness | B4 score/status | Overall | Code trust | Process trust | Verdict | Coverage | Board placement | Non-B4 criteria |
+|---|---:|---|---:|---:|---:|---|---|---|---|
+| react | 4 to 4 | 3.8/verified to 3.8/verified | 3.0 to 3.0 | 2.1 to 2.1 | 3.9 to 3.9 | Conditional to Conditional | code 5/5; process 3/6 to code 5/5; process 3/6 | 9 to 9 | identical |
+| vue | 2 to 2 | 2.9/verified to 2.9/verified | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | code 4/5; process 3/6 to code 4/5; process 3/6 | 11 to 11 | identical |
+| svelte | 1 to 1 | 1.9/verified to 1.9/verified | 3.1 to 3.1 | 2.9 to 2.9 | 3.3 to 3.3 | Conditional to Conditional | code 4/5; process 3/6 to code 4/5; process 3/6 | 4 to 4 | identical |
+| django | n/a to n/a | 0/not applicable to 0/not applicable | 3.2 to 3.2 | 2.6 to 2.6 | 3.8 to 3.8 | Conditional to Conditional | code 3/5; process 2/6 to code 3/5; process 2/6 | unranked to unranked | identical |
+| flask | 2 to 2 | 3.7/verified to 3.7/verified | 2.9 to 2.9 | 2.7 to 2.7 | 3.0 to 3.0 | Conditional to Conditional | code 4/5; process 3/6 to code 4/5; process 3/6 | 8 to 8 | identical |
+| fastapi | 48 to 48 | 3.6/verified to 3.6/verified | 3.1 to 3.1 | 3.0 to 3.0 | 3.2 to 3.2 | Conditional to Conditional | code 2/5; process 3/6 to code 2/5; process 3/6 | unranked to unranked | identical |
+| express | 1 to 1 | 1.9/verified to 1.9/verified | 3.0 to 3.0 | 2.8 to 2.8 | 3.2 to 3.2 | Conditional to Conditional | code 2/5; process 3/6 to code 2/5; process 3/6 | unranked to unranked | identical |
+| vite | 5 to 5 | 4.0/verified to 4.0/verified | 3.4 to 3.4 | 2.8 to 2.8 | 4.0 to 4.0 | Conditional to Conditional | code 5/5; process 3/6 to code 5/5; process 3/6 | 1 to 1 | identical |
+| esbuild | 1 to 1 | 1.9/verified to 1.9/verified | 2.5 to 2.5 | 2.6 to 2.6 | 2.4 to 2.4 | Conditional to Conditional | code 3/5; process 3/6 to code 3/5; process 3/6 | 13 to 13 | identical |
+| biomejs | 2 to 2 | 3.3/verified to 3.3/verified | 3.0 to 3.0 | 2.9 to 2.9 | 3.0 to 3.0 | Conditional to Conditional | code 3/5; process 4/6 to code 3/5; process 4/6 | 6 to 6 | identical |
+| requests | 2 to 2 | 2.9/verified to 2.9/verified | 2.9 to 2.9 | 2.4 to 2.4 | 3.4 to 3.4 | Conditional to Conditional | code 3/5; process 4/6 to code 3/5; process 4/6 | 7 to 7 | identical |
+| pydantic | 2 to 2 | 2.9/verified to 2.9/verified | 3.2 to 3.2 | 2.9 to 2.9 | 3.5 to 3.5 | Conditional to Conditional | code 3/5; process 3/6 to code 3/5; process 3/6 | 3 to 3 | identical |
+| axios | 3 to 3 | 3.6/verified to 3.6/verified | 3.3 to 3.3 | 2.6 to 2.6 | 3.9 to 3.9 | Conditional to Conditional | code 5/5; process 4/6 to code 5/5; process 4/6 | 2 to 2 | identical |
+| zod | 2 to 2 | 2.9/verified to 2.9/verified | 3.2 to 3.2 | 3.1 to 3.1 | 3.2 to 3.2 | Conditional to Conditional | code 3/5; process 3/6 to code 3/5; process 3/6 | 5 to 5 | identical |
+| scorecard | n/a to n/a | 0/not applicable to 0/not applicable | 2.9 to 2.9 | 2.2 to 2.2 | 3.6 to 3.6 | Conditional to Conditional | code 4/5; process 3/6 to code 4/5; process 3/6 | 10 to 10 | identical |
+| ripgrep | 1 to 1 | 1.9/verified to 1.9/verified | 2.1 to 2.1 | 2.1 to 2.1 | 2.0 to 2.0 | At risk to At risk | code 3/5; process 3/6 to code 3/5; process 3/6 | 14 to 14 | identical |
+| guava | n/a to n/a | 0/not applicable to 0/not applicable | 1.9 to 1.9 | 1.6 to 1.6 | 2.2 to 2.2 | At risk to At risk | code 3/5; process 2/6 to code 3/5; process 2/6 | unranked to unranked | identical |
+| cobra | n/a to n/a | 0/not applicable to 0/not applicable | 2.5 to 2.5 | 2.6 to 2.6 | 2.3 to 2.3 | Conditional to Conditional | code 2/5; process 2/6 to code 2/5; process 2/6 | unranked to unranked | identical |
+| sinatra | 1 to 1 | 2.5/verified to 2.5/verified | 2.4 to 2.4 | 2.0 to 2.0 | 2.8 to 2.8 | At risk to At risk | code 2/5; process 4/6 to code 2/5; process 4/6 | unranked to unranked | identical |
+| automapper | n/a to n/a | 0/not applicable to 0/not applicable | 2.2 to 2.2 | 2.0 to 2.0 | 2.3 to 2.3 | At risk to At risk | code 3/5; process 2/6 to code 3/5; process 2/6 | unranked to unranked | identical |
+| fmt | 1 to 1 | 2.5/verified to 2.5/verified | 2.6 to 2.6 | 2.0 to 2.0 | 3.2 to 3.2 | Conditional to Conditional | code 3/5; process 4/6 to code 3/5; process 4/6 | 12 to 12 | identical |
+| carddemo | n/a to n/a | 0/not applicable to 0/not applicable | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | Insufficient source to Insufficient source | code 0/5; process 0/6 to code 0/5; process 0/6 | unrated to unrated | identical |
+| alfred | 73 to 73 | 3.9/verified to 3.9/verified | 3.4 to 3.4 | 2.8 to 2.8 | 3.9 to 3.9 | Conditional to Conditional | code 5/5; process 4/6 to code 5/5; process 4/6 | transparency to transparency | identical |
+| cejel | n/a to n/a | 0/not applicable to 0/not applicable | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | Conditional to Conditional | code 5/5; process 3/6 to code 5/5; process 3/6 | transparency to transparency | identical |
+
 ## witan-rubric-v19-prospective-2026-08-09 — first paired run NO-GO
 
 **Status.** Prospective only; protocol **NO-GO**. The calibrated public default remains
