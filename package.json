@@ -38,7 +38,8 @@
     "cejel-mcp": "dist/mcp/index.js"
   },
   "exports": {
-    "./d-series": "./dist/packs/d-series/index.js"
+    "./d-series": "./dist/packs/d-series/index.js",
+    "./decision-contracts": "./dist/packs/decision-contracts/index.js"
   },
   "files": [
     "dist",
