@@ -4,7 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { buildWitanInputFromRepo } from '../repo-signals.js';
+import {
+  auditFreshnessCommitterYearFromGitResult,
+  buildWitanInputFromRepo,
+} from '../repo-signals.js';
+import {
+  WITAN_RUBRIC_VERSION_V17,
+  WITAN_RUBRIC_VERSION_V18,
+  WITAN_RUBRIC_VERSION_V19,
+} from '../rubric-version.js';
 import { createWitanReport } from '../scoring.js';
 
 // Rubric calibration v2 for external repos — goal_cejel_launch_hardening_combined_2026-07-06,
@@ -27,9 +35,38 @@ function writeFile(dir: string, rel: string, content: string): void {
   writeFileSync(full, content, 'utf8');
 }
 
-function commitAll(dir: string, message: string): void {
+function commitAll(dir: string, message: string, date?: string): void {
   execFileSync('git', ['add', '-A'], { cwd: dir });
-  execFileSync('git', ['commit', '-m', message], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['commit', '-m', message], {
+    cwd: dir,
+    stdio: 'ignore',
+    ...(date
+      ? {
+          env: {
+            ...process.env,
+            GIT_AUTHOR_DATE: date,
+            GIT_COMMITTER_DATE: date,
+          },
+        }
+      : {}),
+  });
+}
+
+function auditFreshnessValue(
+  dir: string,
+  rubricVersion: string,
+  generatedAt: string,
+): number | undefined {
+  const input = buildWitanInputFromRepo({
+    productSlug: 'freshness-repo',
+    productDisplayName: 'Freshness Repo',
+    repoPath: dir,
+    generatedAt,
+    rubricVersion,
+  });
+  return (input.signals ?? [])
+    .find((signal) => signal.criterionId === 'B4')
+    ?.metrics?.find((metric) => metric.name === 'audit_freshness_depth')?.value;
 }
 
 describe('H1 — a well-run ordinary library no longer lands "At risk"', () => {
@@ -160,6 +197,100 @@ describe('H3 — audit_freshness_depth derives the year from generatedAt, not a 
     const b4 = (input.signals ?? []).find((s) => s.criterionId === 'B4');
     const freshness = b4?.metrics?.find((m) => m.name === 'audit_freshness_depth');
     expect(freshness?.value).toBeGreaterThan(0);
+  });
+});
+
+describe('v19 B4 freshness is bound to immutable HEAD committer metadata', () => {
+  it('leaves v17 and v18 byte-compatible on a fixture outside v18 native-RLS scope', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'CHANGELOG.md', '# Changelog\n\n## 1.0.0 - 2031-03-01\n\nRelease notes.\n');
+    commitAll(dir, 'add changelog', '2031-04-05T12:00:00+00:00');
+    const score = (rubricVersion: string) =>
+      createWitanReport(
+        buildWitanInputFromRepo({
+          productSlug: 'historical-compatibility',
+          productDisplayName: 'Historical Compatibility',
+          repoPath: dir,
+          generatedAt: '2031-06-01T00:00:00.000Z',
+          rubricVersion,
+        }),
+      );
+    const v17 = score(WITAN_RUBRIC_VERSION_V17);
+    const v18 = score(WITAN_RUBRIC_VERSION_V18);
+
+    expect({ ...v17, rubricVersion: 'historical-normalized' }).toEqual({
+      ...v18,
+      rubricVersion: 'historical-normalized',
+    });
+  });
+
+  it('is invariant to generatedAt while v18 retains its historical run-year behavior', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'CHANGELOG.md', '# Changelog\n\n## 1.0.0 - 2031-03-01\n\nRelease notes.\n');
+    commitAll(dir, 'add changelog', '2031-04-05T12:00:00+00:00');
+
+    expect(auditFreshnessValue(dir, WITAN_RUBRIC_VERSION_V18, '2031-06-01T00:00:00.000Z')).toBe(1);
+    expect(auditFreshnessValue(dir, WITAN_RUBRIC_VERSION_V18, '2040-06-01T00:00:00.000Z')).toBe(0);
+    expect(auditFreshnessValue(dir, WITAN_RUBRIC_VERSION_V19, '2040-01-01T00:00:00.000Z')).toBe(1);
+    expect(auditFreshnessValue(dir, WITAN_RUBRIC_VERSION_V19, '2050-01-01T00:00:00.000Z')).toBe(1);
+  });
+
+  it('changes only with the committer year when repository bytes are identical', () => {
+    const makeDatedRepo = (date: string): string => {
+      const dir = makeTmpRepo();
+      writeFile(dir, 'CHANGELOG.md', '# Changelog\n\n## 1.0.0 - 2031-03-01\n\nRelease notes.\n');
+      commitAll(dir, 'add changelog', date);
+      return dir;
+    };
+    const matching = makeDatedRepo('2031-04-05T12:00:00+00:00');
+    const nonMatching = makeDatedRepo('2040-04-05T12:00:00+00:00');
+
+    expect(execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: matching, encoding: 'utf8' }))
+      .toBe(execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: nonMatching, encoding: 'utf8' }));
+    expect(auditFreshnessValue(matching, WITAN_RUBRIC_VERSION_V19, '2050-01-01T00:00:00.000Z')).toBe(1);
+    expect(auditFreshnessValue(nonMatching, WITAN_RUBRIC_VERSION_V19, '2050-01-01T00:00:00.000Z')).toBe(0);
+  });
+
+  it('uses only static markers for a non-Git directory', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'witan-v19-non-git-'));
+    writeFile(dir, 'CHANGELOG.md', '# Changelog\n\n## 1.0.0 - 2050-03-01\n');
+
+    expect(auditFreshnessValue(dir, WITAN_RUBRIC_VERSION_V19, '2050-01-01T00:00:00.000Z')).toBe(0);
+    writeFile(dir, 'CHANGELOG.md', '# Latest changelog\n\n## 1.0.0 - 2050-03-01\n');
+    expect(auditFreshnessValue(dir, WITAN_RUBRIC_VERSION_V19, '2100-01-01T00:00:00.000Z')).toBe(1);
+  });
+
+  it('surfaces unexpected or malformed Git results without manufacturing a year', () => {
+    const unexpectedLimitations = new Set<string>();
+    expect(
+      auditFreshnessCommitterYearFromGitResult(
+        { ok: false, reason: 'exec_failed' },
+        unexpectedLimitations,
+      ),
+    ).toBeNull();
+    expect([...unexpectedLimitations]).toEqual([
+      expect.stringContaining('HEAD committer-date discovery'),
+    ]);
+
+    const expectedAbsenceLimitations = new Set<string>();
+    expect(
+      auditFreshnessCommitterYearFromGitResult(
+        { ok: false, reason: 'not_a_repo' },
+        expectedAbsenceLimitations,
+      ),
+    ).toBeNull();
+    expect(expectedAbsenceLimitations.size).toBe(0);
+
+    const malformedLimitations = new Set<string>();
+    expect(
+      auditFreshnessCommitterYearFromGitResult(
+        { ok: true, stdout: 'not-a-date\n' },
+        malformedLimitations,
+      ),
+    ).toBeNull();
+    expect([...malformedLimitations]).toEqual([
+      expect.stringContaining('malformed date'),
+    ]);
   });
 });
 

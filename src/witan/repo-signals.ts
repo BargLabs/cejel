@@ -51,10 +51,15 @@ import {
   WITAN_RUBRIC_VERSION_V16,
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V18,
+  WITAN_RUBRIC_VERSION_V19,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
-  return rubricVersion === WITAN_RUBRIC_VERSION_V17 || rubricVersion === WITAN_RUBRIC_VERSION_V18;
+  return (
+    rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V19
+  );
 }
 
 // Additive domain-signal extension point (goal_cejel_public_extraction_ip_scrub_2026-07-10):
@@ -123,7 +128,9 @@ function buildWitanInputFromRepoUntracked(
   const ignoredTargetReason =
     repoFiles.length === 0 ? explainIgnoredScanTarget(options.repoPath) : undefined;
   const usesV17Detectors = usesV17DetectorClosure(rubricVersion);
-  const usesV18NativeRls = rubricVersion === WITAN_RUBRIC_VERSION_V18;
+  const usesV18NativeRls =
+    rubricVersion === WITAN_RUBRIC_VERSION_V18 || rubricVersion === WITAN_RUBRIC_VERSION_V19;
+  const usesV19CommitYear = rubricVersion === WITAN_RUBRIC_VERSION_V19;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -207,6 +214,7 @@ function buildWitanInputFromRepoUntracked(
     usesV39Detectors,
     usesV47Detectors,
     usesV18NativeRls,
+    usesV19CommitYear,
     reviewableSourceProof,
     scanLimitations,
   );
@@ -1281,6 +1289,7 @@ function collectRepoSignals(
   useV39Detectors: boolean,
   useV47Detectors: boolean,
   useV18NativeRls: boolean,
+  useV19CommitYear: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload[] {
@@ -1353,7 +1362,13 @@ function collectRepoSignals(
   // The Alfred-only "report-up completeness" half is not yet a distinct signal; when it
   // is added, gate ONLY that half to substrate repos — never the generic audit-trail half.
   const b4Signal = collectCriterion('B4', () =>
-    collectB4AuditEvidence(repoPath, repoFiles, generatedAt),
+    collectB4AuditEvidence(
+      repoPath,
+      repoFiles,
+      generatedAt,
+      useV19CommitYear,
+      scanLimitations,
+    ),
   );
   const b5Signal = buildNotApplicableSignal(
     'B5',
@@ -3029,10 +3044,44 @@ function collectB3CiDisciplineEvidence(
   };
 }
 
+export function auditFreshnessCommitterYearFromGitResult(
+  result: GitExecResult,
+  scanLimitations: Set<string>,
+): string | null {
+  if (!result.ok) {
+    if (!isExpectedGitAbsence(result)) {
+      scanLimitations.add(
+        `${describeGitFailure(result.reason, 'HEAD committer-date discovery')} Cejel omitted the numeric B4 freshness year and retained only static freshness markers.`,
+      );
+    }
+    return null;
+  }
+  const year = /^([0-9]{4})-/.exec(result.stdout.trim())?.[1];
+  if (!year) {
+    scanLimitations.add(
+      'Cejel: local git HEAD committer-date discovery returned a malformed date. Cejel omitted the numeric B4 freshness year and retained only static freshness markers.',
+    );
+    return null;
+  }
+  return year;
+}
+
+function readAuditFreshnessCommitterYear(
+  repoPath: string,
+  scanLimitations: Set<string>,
+): string | null {
+  return auditFreshnessCommitterYearFromGitResult(
+    execGit(['show', '-s', '--format=%cI', 'HEAD'], { cwd: repoPath }),
+    scanLimitations,
+  );
+}
+
 function collectB4AuditEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   generatedAt: string,
+  useV19CommitYear = false,
+  scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const auditFiles = repoFiles.filter(isAuditFile);
@@ -3075,9 +3124,16 @@ function collectB4AuditEvidence(
         'rather than scored.',
     );
   }
-  // Run-year, not a literal — a hardcoded year is a time bomb (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3 H3).
-  const runYear = new Date(generatedAt).getFullYear();
-  const freshnessPattern = new RegExp(`${runYear}|recent|latest|current`, 'i');
+  // Historical rubrics retain their exact scan-year behavior. Prospective v19 instead binds
+  // numeric freshness to immutable HEAD committer metadata. If Git is expectedly absent or its
+  // bounded read fails, v19 uses only static markers and never consults wall clock or file mtimes.
+  const referenceYear = useV19CommitYear
+    ? readAuditFreshnessCommitterYear(repoPath, scanLimitations)
+    : String(new Date(generatedAt).getFullYear());
+  const freshnessPattern = new RegExp(
+    `${referenceYear ? `${referenceYear}|` : ''}recent|latest|current`,
+    'i',
+  );
   return {
     criterionId: 'B4',
     positiveEvidence: evidence,
@@ -3108,7 +3164,9 @@ function collectB4AuditEvidence(
         Math.max(auditFiles.length, 1),
         0.2,
         'ratio',
-        'Credits audit artifacts that carry freshness/current-state markers.',
+        useV19CommitYear
+          ? 'Credits audit artifacts that carry the scanned HEAD committer year or static freshness/current-state markers.'
+          : 'Credits audit artifacts that carry freshness/current-state markers.',
       ),
     ],
   };
