@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   canonicalize,
@@ -23,6 +23,7 @@ import {
   CALIBRATION_WORKFLOW_PATH,
   CURRENT_NO_EGRESS_POLICY,
   CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+  NO_EGRESS_HOOK_PATH,
   NO_EGRESS_PROBE_PATH,
   NO_EGRESS_WRAPPER_PATH,
   validateDetectorFreezeRecord,
@@ -39,6 +40,9 @@ import {
 } from './git-transport-policy.mjs';
 
 const execFile = promisify(execFileCallback);
+const detectorRepositoryRoot = realpathSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../../..'),
+);
 
 async function runHardenedGit(commandRunner, args, options = {}) {
   const { env = process.env, ...execOptions } = options;
@@ -138,6 +142,74 @@ export function resolveFrozenExecutionBindings(freezeRecord, cejelPath) {
     isolationPrefix: [wrapperPath],
     probePath,
   };
+}
+
+export async function resolveGoldenIsolationBindings(input, commandRunner = defaultRunner) {
+  if (
+    input.isolationMode !== CURRENT_NO_EGRESS_POLICY ||
+    input.isolationArgs.length !== 0 ||
+    !/^[a-f0-9]{40}$/.test(input.commitmentGitCommit || '')
+  ) {
+    throw new Error('golden execution requires committed repository assets under the current isolation policy');
+  }
+  const commitmentRepo = realpathSync(resolve(input.commitmentGitRepo || '.'));
+  if (commitmentRepo !== detectorRepositoryRoot) {
+    throw new Error('golden execution requires committed repository assets from the detector repository');
+  }
+  const wrapperPath = resolveFrozenFile(
+    detectorRepositoryRoot,
+    NO_EGRESS_WRAPPER_PATH,
+    NO_EGRESS_WRAPPER_PATH,
+    'network-isolation wrapper',
+  );
+  if (realpathSync(resolve(input.isolationCommand)) !== wrapperPath) {
+    throw new Error('golden execution requires committed repository assets at their canonical paths');
+  }
+  const hookPath = resolveFrozenFile(
+    detectorRepositoryRoot,
+    NO_EGRESS_HOOK_PATH,
+    NO_EGRESS_HOOK_PATH,
+    'network-isolation hook',
+  );
+  const probePath = resolveFrozenFile(
+    detectorRepositoryRoot,
+    NO_EGRESS_PROBE_PATH,
+    NO_EGRESS_PROBE_PATH,
+    'network-isolation probe',
+  );
+  const resolvedCommit = (await commandRunner('git', [
+    '-C',
+    commitmentRepo,
+    'rev-parse',
+    `${input.commitmentGitCommit}^{commit}`,
+  ])).trim();
+  if (resolvedCommit !== input.commitmentGitCommit) {
+    throw new Error('golden execution isolation commit does not resolve exactly');
+  }
+  for (const [relativePath, localPath] of [
+    [NO_EGRESS_WRAPPER_PATH, wrapperPath],
+    [NO_EGRESS_HOOK_PATH, hookPath],
+    [NO_EGRESS_PROBE_PATH, probePath],
+  ]) {
+    const blobOid = (await commandRunner('git', [
+      '-C',
+      commitmentRepo,
+      'rev-parse',
+      `${input.commitmentGitCommit}:${relativePath}`,
+    ])).trim();
+    if (!/^[a-f0-9]{40,64}$/.test(blobOid)) {
+      throw new Error(`golden execution ${relativePath} does not resolve to a Git blob`);
+    }
+    const committedBytes = await commandRunner(
+      'git',
+      ['-C', commitmentRepo, 'cat-file', 'blob', blobOid],
+      { preserveBuffer: true },
+    );
+    if (!Buffer.from(committedBytes).equals(readFileSync(localPath))) {
+      throw new Error(`golden execution ${relativePath} differs from the committed repository assets`);
+    }
+  }
+  return { isolationPrefix: [wrapperPath], probePath };
 }
 
 export function assertSeparatedRoots(workRoot, outputRoot) {
@@ -477,17 +549,16 @@ export async function main(argv, commandRunner = defaultRunner) {
         throw new Error('golden execution requires an explicitly confirmed network-isolation command');
       }
     } else {
-      isolationPrefix = [realpathSync(resolve(options.isolationCommand)), ...options.isolationArgs];
       isolationMode = options.isolationMode;
-      if (isolationMode !== CURRENT_NO_EGRESS_POLICY || isolationPrefix.length !== 1) {
-        throw new Error('golden execution requires the repository no-egress wrapper without extra argv');
-      }
-      const hookPath = realpathSync(resolve(dirname(isolationPrefix[0]), 'no-egress-hook.cjs'));
-      const probePath = realpathSync(resolve(dirname(isolationPrefix[0]), 'no-egress-probe.mjs'));
-      if (!readFileSync(hookPath).includes(Buffer.from('Cejel calibration no-egress policy denied'))) {
-        throw new Error('golden network-isolation hook is not the Cejel deny hook');
-      }
-      const probe = JSON.parse(await commandRunner(isolationPrefix[0], [probePath]));
+      const bindings = await resolveGoldenIsolationBindings({
+        isolationMode,
+        isolationArgs: options.isolationArgs,
+        isolationCommand: options.isolationCommand,
+        commitmentGitRepo: options.commitmentGitRepo,
+        commitmentGitCommit: options.commitmentGitCommit,
+      }, commandRunner);
+      isolationPrefix = bindings.isolationPrefix;
+      const probe = JSON.parse(await commandRunner(isolationPrefix[0], [bindings.probePath]));
       if (
         probe.policy !== isolationMode ||
         probe.denied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
