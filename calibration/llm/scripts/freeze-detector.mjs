@@ -28,6 +28,7 @@ const calibrationRoot = resolve(here, '..');
 
 export const CALIBRATION_WORKFLOW_PATH = '.github/workflows/llm-calibration.yml';
 export const NO_EGRESS_WRAPPER_PATH = 'calibration/llm/scripts/no-egress-wrapper.sh';
+export const NO_EGRESS_HOOK_PATH = 'calibration/llm/scripts/no-egress-hook.cjs';
 export const NO_EGRESS_PROBE_PATH = 'calibration/llm/scripts/no-egress-probe.mjs';
 export const CURRENT_NO_EGRESS_POLICY = 'node-runtime-deny-hook-v2';
 export const CURRENT_NO_EGRESS_PROBE_ATTEMPTS = 12;

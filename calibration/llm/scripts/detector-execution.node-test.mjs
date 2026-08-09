@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
@@ -23,6 +24,7 @@ import {
   buildScanInvocation,
   main as runCohortMain,
   resolveFrozenExecutionBindings,
+  resolveGoldenIsolationBindings,
   runFrozenRepository,
   validateImmutableManifest,
 } from './run-frozen-cohort.mjs';
@@ -32,6 +34,7 @@ import { withHttpsOnlyGitTransport } from './git-transport-policy.mjs';
 const BUILD_SHA = 'b'.repeat(64);
 const COMMIT_SHA = 'c'.repeat(40);
 const TREE_SHA = 'd'.repeat(40);
+const DETECTOR_REPO = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../..'));
 const REVIEW_BINDINGS = {
   selection_policy_sha256: '1'.repeat(64),
   golden_candidates_sha256: '2'.repeat(64),
@@ -721,6 +724,93 @@ test('runner CLI refuses untouched before any clone when detector freeze is abse
     /detector-freeze/,
   );
   assert.deepEqual(commands, []);
+});
+
+test('golden execution never runs a caller-supplied lookalike isolation probe', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-golden-isolation-lookalike-'));
+  const fakeAssets = join(root, 'fake-assets');
+  const manifestPath = join(root, 'golden-manifest.json');
+  const cejelPath = join(root, 'cejel');
+  const commitmentPath = join(root, 'commitment.json');
+  const wrapperPath = join(fakeAssets, 'no-egress-wrapper.sh');
+  mkdirSync(fakeAssets, { recursive: true });
+  writeFileSync(manifestPath, `${JSON.stringify(immutableManifest('golden'))}\n`, 'utf8');
+  writeFileSync(cejelPath, '# synthetic local build\n', 'utf8');
+  writeFileSync(commitmentPath, '{}\n', 'utf8');
+  writeFileSync(wrapperPath, '#!/bin/sh\n', 'utf8');
+  writeFileSync(
+    join(fakeAssets, 'no-egress-hook.cjs'),
+    '// Cejel calibration no-egress policy denied\n',
+    'utf8',
+  );
+  writeFileSync(join(fakeAssets, 'no-egress-probe.mjs'), '// fake probe\n', 'utf8');
+  const commands = [];
+
+  await assert.rejects(() => runCohortMain([
+    '--manifest', manifestPath,
+    '--cejel', cejelPath,
+    '--work-root', join(root, 'work'),
+    '--output-root', join(root, 'output'),
+    '--network-isolation-mode', 'node-runtime-deny-hook-v2',
+    '--network-isolation-command', wrapperPath,
+    '--confirm-network-isolation',
+    '--pre-result-commitment', commitmentPath,
+    '--commitment-git-repo', DETECTOR_REPO,
+    '--commitment-git-commit', 'a'.repeat(40),
+    '--commitment-git-path', 'calibration/llm/pre-result-commitment.json',
+  ], async (command, args) => {
+    commands.push([command, args]);
+    if (command === wrapperPath) {
+      return JSON.stringify({ policy: 'node-runtime-deny-hook-v2', denied: 12, attempted: 12 });
+    }
+    throw new Error('unexpected command after lookalike probe');
+  }), /committed repository assets/);
+
+  assert.deepEqual(commands, [], 'caller-supplied isolation probes must be rejected before execution');
+});
+
+test('golden isolation assets must equal their exact preregistration-commit blobs', async () => {
+  const commit = 'a'.repeat(40);
+  const paths = [
+    'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-hook.cjs',
+    'calibration/llm/scripts/no-egress-probe.mjs',
+  ];
+  const objectIds = new Map(paths.map((path, index) => [path, String(index + 1).repeat(40)]));
+  const commandRunner = async (_command, args, options = {}) => {
+    const operation = args.slice(2);
+    if (operation.join(' ') === `rev-parse ${commit}^{commit}`) return commit;
+    if (operation[0] === 'rev-parse') {
+      const path = operation[1].slice(commit.length + 1);
+      return objectIds.get(path);
+    }
+    if (operation[0] === 'cat-file' && operation[1] === 'blob' && options.preserveBuffer) {
+      const path = paths.find((candidate) => objectIds.get(candidate) === operation[2]);
+      return readFileSync(join(DETECTOR_REPO, path));
+    }
+    throw new Error(`unexpected Git command: ${operation.join(' ')}`);
+  };
+
+  const bindings = await resolveGoldenIsolationBindings({
+    isolationMode: 'node-runtime-deny-hook-v2',
+    isolationArgs: [],
+    isolationCommand: join(DETECTOR_REPO, paths[0]),
+    commitmentGitRepo: DETECTOR_REPO,
+    commitmentGitCommit: commit,
+  }, commandRunner);
+  assert.equal(bindings.isolationPrefix[0], realpathSync(join(DETECTOR_REPO, paths[0])));
+  assert.equal(bindings.probePath, realpathSync(join(DETECTOR_REPO, paths[2])));
+
+  await assert.rejects(() => resolveGoldenIsolationBindings({
+    isolationMode: 'node-runtime-deny-hook-v2',
+    isolationArgs: [],
+    isolationCommand: join(DETECTOR_REPO, paths[0]),
+    commitmentGitRepo: DETECTOR_REPO,
+    commitmentGitCommit: commit,
+  }, async (command, args, options) => {
+    const result = await commandRunner(command, args, options);
+    return args.includes(objectIds.get(paths[1])) ? Buffer.from('tampered') : result;
+  }), /differs from the committed repository assets/);
 });
 
 test('immutable manifest validation rejects mutable or tampered repository identities', () => {

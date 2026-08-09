@@ -49,7 +49,10 @@ calibration/llm/scripts/no-egress-wrapper.sh \
 ```
 
 This is application-runtime isolation for the Node detector, not a claim of host or kernel
-isolation. The detector-freeze record binds the exact wrapper, hook, probe, and probe-output hashes.
+isolation. Before a golden probe runs, the runner requires the canonical wrapper path in its own
+detector repository and verifies the wrapper, hook, and probe bytes against their exact Git blobs
+at the preregistration commit. The later detector-freeze record also binds those assets and the
+probe-output hash for untouched execution.
 
 ```bash
 node calibration/llm/scripts/run-frozen-cohort.mjs \
