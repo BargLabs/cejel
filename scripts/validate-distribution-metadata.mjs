@@ -480,6 +480,7 @@ for (const [needle, field] of [
   ['attestations: read', 'attestation read permission'],
   ['packages: read', 'OCI package read permission'],
   ['scripts/assert-release-identity.sh', 'per-job release identity assertion'],
+  ['GH_TOKEN: ${{ github.token }}', 'GitHub CLI authentication'],
   [
     'registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs%2Fcejel/versions/$version',
     'exact-version Registry readback',

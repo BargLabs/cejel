@@ -56,6 +56,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The reserved Free LLM command family remains unshipped. `--pack llm` and `cejel llm` continue
   to fail until the accepted release gate reaches GO.
 
+### Release provenance
+
+- The first v0.4.0 distribution run published the OCI image, its signed provenance, and the MCP
+  Registry record, then the new final readback job stopped before attestation verification because
+  `GH_TOKEN` was not exported to GitHub CLI. The Registry record had already read back successfully.
+  An authenticated independent execution of the same verifier confirmed the exact published chain:
+  `ghcr.io/barglabs/cejel@sha256:63bd4342c2006c823b0283313036109040651741078e1a0e38677d605a2849ee`
+  is bound to tagged-source commit `03ef74bd05274ff079c8dcd09dcdfaa8a6f1e3ff` at
+  `refs/tags/v0.4.0`. The workflow now exports only the job-scoped GitHub token to the verifier;
+  the immutable v0.4.0 tag and published artifacts were not changed or rebuilt.
+
 ## [0.3.2] — 2026-08-07
 
 ### Changed
