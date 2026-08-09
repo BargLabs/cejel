@@ -580,6 +580,25 @@ describe('Free LLM evaluation and provenance rules', () => {
     expect(findings[0]?.confidence).toBe('high');
   });
 
+  it('documents the Python multiline aggregate assignment detection boundary', () => {
+    const source: LlmSourceFile = {
+      path: 'src/evaluation/benchmarks.py',
+      contents: [
+        'def run_benchmark(judge, cases):',
+        '    scores = [judge.evaluate(case).score for case in cases]',
+        '    average_score = (',
+        '        sum(scores) / len(scores)',
+        '    )',
+        '    return {"average_score": average_score}',
+      ].join('\n'),
+    };
+    expect(
+      detectCejelLlmEvaluationRules([source]).filter(
+        (finding) => finding.ruleId === 'LLM-EVL-001',
+      ),
+    ).toEqual([]);
+  });
+
   it('recognizes an import-resolved official Python SDK evaluation invocation', () => {
     const source: LlmSourceFile = {
       path: 'src/evaluation/benchmarks.py',

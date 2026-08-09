@@ -283,6 +283,12 @@ evaluation platforms whose raw result schema is unavailable locally.
 **Applicability.** `not_applicable` without an aggregate LLM evaluation result. Unresolved external
 reporters and dynamically selected filters yield `insufficient_data`.
 
+**Current Python detection boundary.** Aggregate assignments are recognized only when the complete
+aggregate expression is on the assignment's physical line. A parenthesized division continued
+onto later lines, such as `average_score = (` followed by `sum(scores) / len(scores)`, is not
+recognized and does not produce this finding. This is a detector-coverage limitation, not evidence
+that the eligible denominator or excluded outcomes were retained.
+
 **Default severity/confidence.** `warning`; `high` for a complete local aggregation/emission path and
 `medium` for a fully resolved supported helper chain.
 
