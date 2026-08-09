@@ -146,6 +146,15 @@ describe('witan CLI arg parsing', () => {
     });
   });
 
+  it('keeps the reserved Free LLM interface unavailable until its release gate reaches GO', () => {
+    expect(() => parseCliInvocation(['scan', '.', '--pack', 'llm'])).toThrow(
+      /Unknown Cejel CLI flag: --pack/,
+    );
+    expect(() => parseCliInvocation(['llm', 'scan', '.'])).toThrow(
+      /Unexpected positional argument: scan/,
+    );
+  });
+
   it('requires exactly a report and attestation for verify', () => {
     expect(() => parseCliInvocation(['verify'])).toThrow(
       /verify <report\.json> <attestation\.json>/,
