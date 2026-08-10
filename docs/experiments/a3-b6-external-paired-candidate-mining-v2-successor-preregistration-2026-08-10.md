@@ -122,7 +122,8 @@ The harness issues these exact GitHub Issues Search API queries:
 For each query request `sort=created`, `order=asc`, `per_page=100`, and pages 1 through 10 or until
 GitHub returns an empty page. The 1,000-result cap is part of the frame, not a population census.
 Every request sends `Accept: application/vnd.github+json` and
-`X-GitHub-Api-Version: 2022-11-28`.
+`X-GitHub-Api-Version: 2022-11-28`. Live search requests begin at least 2.1 seconds apart so the
+fixed 50-page maximum cannot intentionally exceed 30 search requests per minute.
 
 Raw live responses, request kinds, response timestamps, status codes, and byte SHA-256 values are
 retained privately. Request URLs containing candidate identities remain private. Before decoding a
@@ -136,6 +137,13 @@ substituted.
 Each search page and candidate metadata/object request may receive at most three attempts with fixed
 delays of 0, 10, and 30 seconds. Only transport failures and HTTP 429, 500, 502, 503, or 504 are
 retryable. Exhaustion is terminal `ACQUISITION_ERROR`.
+
+Immediately before the sole invocation, the authenticated GitHub rate-limit response must report at
+least 4,800 remaining core requests and 30 remaining search requests. That rate-limit check is not a
+candidate request. The invocation has a global ceiling of 4,500 live request attempts, including
+failed attempts and retries but excluding the rate-limit check. The harness must refuse before an
+attempt that would exceed the ceiling and record `ACQUISITION_ERROR`; it may not wait for a reset and
+continue as a second run.
 
 Mechanical non-error exclusions are endpoint-specific:
 
@@ -169,22 +177,33 @@ Also reject:
   `2026-08-09T23:59:59.999Z`;
 - a merge commit unavailable through the frozen Git commit-object endpoint or without a first
   parent;
-- a PR with more than 3,000 changed files or an incomplete changed-file listing; or
+- a PR with more than 100 changed files or an incomplete changed-file listing; or
 - a repository already selected for either class.
 
 An exclusion is final, mechanically counted, and cannot be overridden by manual judgment.
 
-## Deterministic order and inspection bound
+## Deterministic order and resource bounds
 
-Rank each class independently by ascending lowercase hexadecimal:
+Apply registry and publisher-owned repository exclusions locally to the entire normalized class,
+without a network request. Rank the remaining class independently by ascending lowercase
+hexadecimal using only fields present in the frozen A3 archive or live B6 search pages:
 
-`SHA-256("cejel-a3-b6-external-v2\\0" + class + "\\0" + ownerRepo + "\\0" + prNumber + "\\0" + mergeCommit)`
+`SHA-256("cejel-a3-b6-external-v2\\0" + class + "\\0" + ownerRepo + "\\0" + prNumber)`
 
-Prequalification completes for the entire discovered class before ranking. Inspect at most the first
-200 ranked candidates for A3, then at most the first 200 for B6. Selection stops for a class after
-six candidates qualify. At most one PR from a repository may be selected across both classes; A3 is
-processed first. Rejected candidates advance to the next precomputed rank; there is no manual
-replacement or replacement query.
+Do not authenticate or prequalify the rest of a class before ranking. Walk at most the first 400
+ranked candidates for A3, then at most the first 400 for B6. Each walked candidate counts toward the
+400-candidate consideration bound whether it is excluded by live metadata or reaches source
+qualification. At most 200 candidates per class may reach changed-file/source qualification.
+Selection stops for a class after six candidates qualify. At most one PR from a repository may be
+selected across both classes; A3 is processed first. Rejected candidates advance to the next
+precomputed rank; there is no manual replacement or replacement query.
+
+For B6, same-path authored candidates are ordered by ascending
+`SHA-256("cejel-a3-b6-external-v2-path\\0" + ownerRepo + "\\0" + prNumber + "\\0" + path)`.
+At most 12 such paths may be considered from one PR, and at most 200 before/after B6 file pairs may
+be read across the class. Each attempted pair consumes the global pair bound even when content is
+unavailable or the oracle rejects it. A3 retains at most two paths at two revisions and therefore
+needs no additional per-candidate path bound.
 
 If either class has fewer than six qualifying candidates within its bound, the terminal state is
 `INSUFFICIENT_CANDIDATE_POOL`. Publish only archive/query, exclusion, inspected, and qualified counts
@@ -236,6 +255,15 @@ One same-path changed authored `.sql`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.t
 Retain only that exact file at both revisions.
 
 Qualification does not inspect or emulate Cejel output.
+
+## Preregistered yield prediction
+
+Before acquisition, the prediction is three to six A3 pairs and two to six B6 pairs within the fixed
+bounds. The modal joint outcome is `INSUFFICIENT_CANDIDATE_POOL`, not `COHORT_FROZEN`, because the
+search expressions identify relevant prose while the qualification bar requires same-path authored
+before/after constructions and a detector-independent false/true oracle. This prediction is fixed
+before the archive-derived pool is normalized or any B6 query is issued; it cannot be revised after
+counts are observed.
 
 ## Private outputs and publication boundary
 
