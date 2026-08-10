@@ -54,6 +54,7 @@ import {
   WITAN_RUBRIC_VERSION_V19,
   WITAN_RUBRIC_VERSION_V20,
   WITAN_RUBRIC_VERSION_V21,
+  WITAN_RUBRIC_VERSION_V22,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -62,7 +63,8 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V21
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22
   );
 }
 
@@ -136,14 +138,20 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V21;
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22;
   const usesV19CommitYear =
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V21;
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22;
   const usesV20A3ExplicitGaps =
-    rubricVersion === WITAN_RUBRIC_VERSION_V20 || rubricVersion === WITAN_RUBRIC_VERSION_V21;
-  const usesV21ExecutedEscalations = rubricVersion === WITAN_RUBRIC_VERSION_V21;
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+  const usesV21ExecutedEscalations =
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 || rubricVersion === WITAN_RUBRIC_VERSION_V22;
+  const usesV22PackageStartEntrypoint = rubricVersion === WITAN_RUBRIC_VERSION_V22;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -230,6 +238,7 @@ function buildWitanInputFromRepoUntracked(
     usesV19CommitYear,
     usesV20A3ExplicitGaps,
     usesV21ExecutedEscalations,
+    usesV22PackageStartEntrypoint,
     reviewableSourceProof,
     scanLimitations,
   );
@@ -1307,6 +1316,7 @@ function collectRepoSignals(
   useV19CommitYear: boolean,
   useV20A3ExplicitGaps: boolean,
   useV21ExecutedEscalations: boolean,
+  useV22PackageStartEntrypoint: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload[] {
@@ -1345,6 +1355,7 @@ function collectRepoSignals(
       repoFiles,
       useV27Detectors,
       useV20A3ExplicitGaps,
+      useV22PackageStartEntrypoint,
     ),
   );
   const a4Signal = collectCriterion('A4', () =>
@@ -2341,9 +2352,13 @@ function collectA3ProdReadinessEvidence(
   repoFiles: readonly string[],
   useV27Detectors: boolean,
   useV20ExplicitGaps = false,
+  useV22PackageStartEntrypoint = false,
 ): WitanCriterionSignalPayload | null {
   const v20DirectHttpEntrypoint = useV20ExplicitGaps
     ? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles)
+    : null;
+  const v22PackageStartHttpEntrypoint = useV22PackageStartEntrypoint
+    ? findV22PackageStartHttpServerEntrypointFile(repoPath, repoFiles)
     : null;
   const v20RuntimeContainer = useV20ExplicitGaps
     ? findRuntimeContainerEntrypointFile(repoPath, repoFiles, true)
@@ -2358,6 +2373,7 @@ function collectA3ProdReadinessEvidence(
   if (
     !isDeployableService(repoPath, repoFiles, useV27Detectors) &&
     !v20DirectHttpEntrypoint &&
+    !v22PackageStartHttpEntrypoint &&
     !v20RuntimeContainer
   ) {
     const dockerApplicabilityNote = useV27Detectors
@@ -2406,8 +2422,18 @@ function collectA3ProdReadinessEvidence(
         isImplementationFile(file) &&
         fileContains(repoPath, file, V20_HEALTH_OR_READINESS_ROUTE_PATTERN),
     );
+  const hasV22PackageStartHealthOrReadinessRoute =
+    v22PackageStartHttpEntrypoint !== null &&
+    fileContains(
+      repoPath,
+      v22PackageStartHttpEntrypoint,
+      V20_HEALTH_OR_READINESS_ROUTE_PATTERN,
+    );
   const serverEntrypoint =
-    findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ?? v20DirectHttpEntrypoint;
+    v22PackageStartHttpEntrypoint ??
+    findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
+    v20DirectHttpEntrypoint ??
+    null;
   const runtimeContainer = useV27Detectors
     ? findRuntimeContainerEntrypointFile(repoPath, repoFiles, useV20ExplicitGaps)
     : null;
@@ -2528,7 +2554,8 @@ function collectA3ProdReadinessEvidence(
         /\b(?:request|req)\.(?:url|path|pathname|method)\b/i,
       ) &&
       healthChecks.length === 0 &&
-      !hasV20HealthOrReadinessRoute
+      !hasV20HealthOrReadinessRoute &&
+      !hasV22PackageStartHealthOrReadinessRoute
     ) {
       findings.push({
         severity: 'info',
@@ -5841,6 +5868,33 @@ function findV20DirectHttpServerEntrypointFile(
       .slice(0, 30)
       .find((file) => fileContains(repoPath, file, V20_DIRECT_HTTP_SERVER_PATTERN)) ?? null
   );
+}
+
+const V22_SIMPLE_PACKAGE_START_PATTERN =
+  /^(?:node|tsx)\s+(\.?\/?[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*\.[cm]?[jt]s)$/;
+
+function findV22PackageStartHttpServerEntrypointFile(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string | null {
+  const packageJson = findRootPackageJson(repoFiles);
+  if (!packageJson) return null;
+  const start = readPackageScripts(join(repoPath, packageJson)).get('start')?.trim();
+  if (!start) return null;
+  const declaredPath = V22_SIMPLE_PACKAGE_START_PATTERN.exec(start)?.[1];
+  if (!declaredPath) return null;
+  const normalizedPath = declaredPath.replace(/^\.\//, '');
+  if (
+    normalizedPath.startsWith('/') ||
+    normalizedPath.split('/').includes('..') ||
+    !repoFiles.includes(normalizedPath) ||
+    !isAuthoredProductionPath(normalizedPath)
+  ) {
+    return null;
+  }
+  return fileContains(repoPath, normalizedPath, V20_DIRECT_HTTP_SERVER_PATTERN)
+    ? normalizedPath
+    : null;
 }
 
 function findRuntimeContainerEntrypointFile(

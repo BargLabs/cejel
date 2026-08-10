@@ -60,3 +60,8 @@ export const WITAN_RUBRIC_VERSION_V20 = 'witan-rubric-v20-prospective-2026-08-10
 // recognition of administrative SQL contained in authored migration files or executed by
 // direct database-driver string literals. The public default remains v17.
 export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10';
+
+// Prospective A3 package-start entrypoint closure. V22 inherits v21 and adds only bounded
+// recognition of direct Node HTTP entrypoints whose authored file is named by a simple root
+// package start command. The public default remains v17.
+export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10';
