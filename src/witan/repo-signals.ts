@@ -53,6 +53,7 @@ import {
   WITAN_RUBRIC_VERSION_V18,
   WITAN_RUBRIC_VERSION_V19,
   WITAN_RUBRIC_VERSION_V20,
+  WITAN_RUBRIC_VERSION_V21,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -60,7 +61,8 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V20
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21
   );
 }
 
@@ -133,10 +135,15 @@ function buildWitanInputFromRepoUntracked(
   const usesV18NativeRls =
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V20;
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21;
   const usesV19CommitYear =
-    rubricVersion === WITAN_RUBRIC_VERSION_V19 || rubricVersion === WITAN_RUBRIC_VERSION_V20;
-  const usesV20A3ExplicitGaps = rubricVersion === WITAN_RUBRIC_VERSION_V20;
+    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21;
+  const usesV20A3ExplicitGaps =
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 || rubricVersion === WITAN_RUBRIC_VERSION_V21;
+  const usesV21ExecutedEscalations = rubricVersion === WITAN_RUBRIC_VERSION_V21;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -222,6 +229,7 @@ function buildWitanInputFromRepoUntracked(
     usesV18NativeRls,
     usesV19CommitYear,
     usesV20A3ExplicitGaps,
+    usesV21ExecutedEscalations,
     reviewableSourceProof,
     scanLimitations,
   );
@@ -1298,6 +1306,7 @@ function collectRepoSignals(
   useV18NativeRls: boolean,
   useV19CommitYear: boolean,
   useV20A3ExplicitGaps: boolean,
+  useV21ExecutedEscalations: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload[] {
@@ -1389,7 +1398,12 @@ function collectRepoSignals(
   );
   // B6 is a generic governance signal (not Alfred-specific) — runs on every repo archetype.
   const b6Signal = collectCriterion('B6', () =>
-    collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles, useV39Detectors),
+    collectB6PrivilegedOpsGatingEvidence(
+      repoPath,
+      repoFiles,
+      useV39Detectors,
+      useV21ExecutedEscalations,
+    ),
   );
 
   for (const signal of [
@@ -3265,6 +3279,7 @@ function collectB6PrivilegedOpsGatingEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV39Detectors = false,
+  useV21ExecutedEscalations = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -3308,7 +3323,7 @@ function collectB6PrivilegedOpsGatingEvidence(
   const executableFiles = implFiles.filter((file) =>
     fileContains(repoPath, file, SQL_EXEC_PATTERN),
   );
-  const ungatedEscalationFiles = executableFiles.filter((file) => {
+  const historicalUngatedEscalationFiles = executableFiles.filter((file) => {
     if (useV39Detectors && !fileHasExecutedPrivilegeEscalation(repoPath, file)) return false;
     const hasEscalation =
       fileContains(repoPath, file, ROLE_MEMBERSHIP_GRANT_PATTERN) ||
@@ -3316,6 +3331,18 @@ function collectB6PrivilegedOpsGatingEvidence(
     if (!hasEscalation) return false;
     return !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN);
   });
+  const v21ExecutedEscalationFiles = useV21ExecutedEscalations
+    ? repoFiles.filter(
+        (file) =>
+          isV39AuthoredProductionPath(file) &&
+          (fileHasV21RawSqlEscalation(repoPath, file) ||
+            (isImplementationFile(file) && fileHasV21DriverEscalation(repoPath, file))),
+      )
+    : [];
+  const v21ExecutedEscalationFileSet = new Set(v21ExecutedEscalationFiles);
+  const ungatedEscalationFiles = [
+    ...new Set([...historicalUngatedEscalationFiles, ...v21ExecutedEscalationFiles]),
+  ].filter((file) => !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN));
   // A GRANT statement asserted inside a test file exercises the detector itself, not a
   // production self-execution path — exclude it from both the finding set and the
   // production cleanliness metric.
@@ -3364,15 +3391,19 @@ function collectB6PrivilegedOpsGatingEvidence(
     );
   }
   for (const file of productionUngatedEscalationFiles.slice(0, 5)) {
+    const isV21ExecutedShape = v21ExecutedEscalationFileSet.has(file);
     findings.push({
       severity: 'critical',
-      summary:
-        'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
+      summary: isV21ExecutedShape
+        ? 'An authored SQL artifact contains, or a direct database-driver call executes, an administrative role grant, SUPERUSER escalation, or schema-wide table privilege grant with no documented human gate.'
+        : 'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
       evidence: evidenceForRelative(
         repoPath,
         file,
         'artifact',
-        'Ungated privilege-escalation statement',
+        isV21ExecutedShape
+          ? 'Ungated authored or directly executed administrative SQL statement'
+          : 'Ungated privilege-escalation statement',
       ),
     });
   }
@@ -3411,7 +3442,10 @@ function collectB6PrivilegedOpsGatingEvidence(
   // the two metrics that remain meaningful (cleanliness — vacuously true with nothing to be
   // unclean — and the general protected-path review-gate proxy).
   const hasPrivilegedOpsSurface =
-    humanGateDoc != null || gatedPrivilegeCheckFile != null || executableFiles.length > 0;
+    humanGateDoc != null ||
+    gatedPrivilegeCheckFile != null ||
+    executableFiles.length > 0 ||
+    v21ExecutedEscalationFiles.length > 0;
 
   return {
     criterionId: 'B6',
@@ -3447,7 +3481,9 @@ function collectB6PrivilegedOpsGatingEvidence(
         1,
         hasPrivilegedOpsSurface ? 0.3 : 0.4,
         'clean',
-        'Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement).',
+        useV21ExecutedEscalations
+          ? 'Penalizes authored SQL containing, and direct database-driver literals executing, an administrative role grant, SUPERUSER escalation, or schema-wide table privilege grant with no documented human gate; docs, tests, and fixtures are excluded.'
+          : 'Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement).',
       ),
       metric(
         'protected_path_review_gate',
@@ -3461,9 +3497,9 @@ function collectB6PrivilegedOpsGatingEvidence(
       ),
       ...killSwitchMetrics,
     ],
-    notes:
-      'B6 rewards documented, fail-closed human gating of privileged/credentialed operations and ' +
-      'penalizes ungated privilege-escalation code paths.',
+    notes: useV21ExecutedEscalations
+      ? 'B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated administrative SQL contained in authored migrations or executed from direct database-driver literals.'
+      : 'B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths.',
   };
 }
 
@@ -3636,13 +3672,42 @@ const HUMAN_GATE_MARKER_PATTERN =
 const ROLE_MEMBERSHIP_GRANT_PATTERN =
   /\bGRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b/i;
 const SUPERUSER_ESCALATION_PATTERN = /\b(ALTER|CREATE)\s+(ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b/i;
+const BROAD_SCHEMA_TABLE_GRANT_PATTERN =
+  /\bGRANT\s+ALL\s+PRIVILEGES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\b/i;
 // Marks a file that actually executes SQL (vs. one that only documents or references it).
 const SQL_EXEC_PATTERN = /\.execute\s*\(|sql\.raw\s*\(/;
 const EXECUTED_ESCALATION_LITERAL_PATTERN =
   /(?:\.execute|sql\.raw)\s*\(\s*(?:[rubf]+)?["'`][^"'`]{0,500}(?:GRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b|(?:ALTER|CREATE)\s+(?:ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b)/i;
+const V21_DRIVER_EXECUTED_ESCALATION_PATTERN =
+  /\.(?:query|execute)\s*\(\s*(?:[rubf]+)?["'`]\s*(?:GRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b|(?:ALTER|CREATE)\s+(?:ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b|GRANT\s+ALL\s+PRIVILEGES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\b)/i;
+const V21_RAW_SQL_ESCALATION_PATTERN = new RegExp(
+  `(?:^|[;\\n])\\s*(?:${ROLE_MEMBERSHIP_GRANT_PATTERN.source}|${SUPERUSER_ESCALATION_PATTERN.source}|${BROAD_SCHEMA_TABLE_GRANT_PATTERN.source})`,
+  'i',
+);
 
 function fileHasExecutedPrivilegeEscalation(repoPath: string, file: string): boolean {
   return fileContains(repoPath, file, EXECUTED_ESCALATION_LITERAL_PATTERN);
+}
+
+function fileHasV21DriverEscalation(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const withoutComments = stripCommentAndDocumentationExamples(
+    readRepoText(fullPath, 'utf8'),
+  )
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\r\n]*/g, '');
+  return V21_DRIVER_EXECUTED_ESCALATION_PATTERN.test(withoutComments);
+}
+
+function fileHasV21RawSqlEscalation(repoPath: string, file: string): boolean {
+  if (!/\.sql$/i.test(file)) return false;
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const withoutComments = readRepoText(fullPath, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--[^\r\n]*/g, '');
+  return V21_RAW_SQL_ESCALATION_PATTERN.test(withoutComments);
 }
 // Fail-closed privilege-membership check ahead of a role elevation (see verifyAsAppRole).
 const GATED_PRIVILEGE_CHECK_PATTERN = /pg_has_role\s*\(|has_role\s*\(|is not a member of/i;
