@@ -50,3 +50,8 @@ export const WITAN_RUBRIC_VERSION_V18 = 'witan-rubric-v18-prospective-2026-07-25
 // explicit-only until a separately preregistered authenticated untouched holdout permits default
 // promotion.
 export const WITAN_RUBRIC_VERSION_V19 = 'witan-rubric-v19-prospective-2026-08-09';
+
+// Prospective A3 explicit-gap closure. V20 inherits v19 detector/scoring behavior and adds
+// only narrowly worded, path-anchored findings for directly observable production-readiness
+// omissions. The public default remains v17; callers must opt in explicitly.
+export const WITAN_RUBRIC_VERSION_V20 = 'witan-rubric-v20-prospective-2026-08-10';
