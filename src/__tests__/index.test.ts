@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -299,6 +300,48 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     const secondAttestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8'));
     expect(firstAttestation.subject[0].digest.sha256).toBe(secondAttestation.subject[0].digest.sha256);
     expect(firstAttestation.predicate.report.sha256).toBe(secondAttestation.predicate.report.sha256);
+  });
+
+  it('writes byte-identical report artifacts for identical checkouts at different paths', async () => {
+    const seed = mkdtempSync(join(tmpdir(), 'witan-free-cli-cross-path-seed-'));
+    writeFixtureFile(
+      seed,
+      'package.json',
+      JSON.stringify({ name: 'cross-path-determinism-fixture', version: '1.0.0' }),
+    );
+    writeFixtureFile(seed, 'src/index.ts', 'export const value = 42;');
+    writeFixtureFile(seed, 'src/index.test.ts', "it('is stable', () => expect(42).toBe(42));");
+    execFileSync('git', ['init', '--quiet'], { cwd: seed });
+    execFileSync('git', ['add', '.'], { cwd: seed });
+
+    const firstRepo = join(mkdtempSync(join(tmpdir(), 'witan-free-cli-cross-path-a-')), 'repo');
+    const secondRepo = join(mkdtempSync(join(tmpdir(), 'witan-free-cli-cross-path-b-')), 'repo');
+    cpSync(seed, firstRepo, { recursive: true });
+    cpSync(seed, secondRepo, { recursive: true });
+    const firstOut = mkdtempSync(join(tmpdir(), 'witan-free-cli-cross-path-output-a-'));
+    const secondOut = mkdtempSync(join(tmpdir(), 'witan-free-cli-cross-path-output-b-'));
+
+    expect(await runWitanFreeCli(['scan', firstRepo, '--out', firstOut, '--quiet'])).toBe(0);
+    expect(await runWitanFreeCli(['scan', secondRepo, '--out', secondOut, '--quiet'])).toBe(0);
+
+    const firstReportJson = readFileSync(join(firstOut, 'report.json'), 'utf8');
+    const secondReportJson = readFileSync(join(secondOut, 'report.json'), 'utf8');
+    const firstReport = JSON.parse(firstReportJson) as { repo: { path?: string } };
+    const secondReport = JSON.parse(secondReportJson) as { repo: { path?: string } };
+    const withoutPath = ({ path: _path, ...repo }: { path?: string }) => repo;
+
+    expect({ ...firstReport, repo: withoutPath(firstReport.repo) }).toEqual({
+      ...secondReport,
+      repo: withoutPath(secondReport.repo),
+    });
+    expect(firstReport.repo).not.toHaveProperty('path');
+    expect(secondReport.repo).not.toHaveProperty('path');
+    expect(firstReportJson).toBe(secondReportJson);
+    // Origin/main's RED report normalized by deleting only repo.path. This locks every score,
+    // verdict, criterion, finding, evidence hash, and remaining byte of the report.
+    expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
+      '5e9824f5b2339145d24fec72df8a149efbbb2030402d3e129dec1f7411df1af3',
+    );
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {
