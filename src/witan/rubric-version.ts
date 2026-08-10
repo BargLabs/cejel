@@ -55,3 +55,8 @@ export const WITAN_RUBRIC_VERSION_V19 = 'witan-rubric-v19-prospective-2026-08-09
 // only narrowly worded, path-anchored findings for directly observable production-readiness
 // omissions. The public default remains v17; callers must opt in explicitly.
 export const WITAN_RUBRIC_VERSION_V20 = 'witan-rubric-v20-prospective-2026-08-10';
+
+// Prospective B6 executed-escalation closure. V21 inherits v20 and adds only bounded
+// recognition of administrative SQL contained in authored migration files or executed by
+// direct database-driver string literals. The public default remains v17.
+export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10';
