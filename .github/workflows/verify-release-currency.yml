@@ -1,0 +1,53 @@
+name: Verify release currency
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver to verify; defaults to the latest published GitHub release
+        required: false
+        type: string
+      commit:
+        description: Full release commit SHA; defaults to the remote version tag target
+        required: false
+        type: string
+  schedule:
+    - cron: '17 16 * * 1'
+  workflow_run:
+    workflows:
+      - Publish npm package with provenance
+      - Publish OCI image and MCP Registry metadata
+      - cejel-release-binaries
+    types: [completed]
+
+concurrency:
+  group: verify-release-currency-${{ github.event_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout independent verifier
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Read release surfaces back
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_COMMIT: ${{ inputs.commit }}
+        run: |
+          args=()
+          if [ -n "$REQUESTED_VERSION" ]; then args+=(--version "$REQUESTED_VERSION"); fi
+          if [ -n "$REQUESTED_COMMIT" ]; then args+=(--commit "$REQUESTED_COMMIT"); fi
+          node scripts/verify-release-currency.mjs "${args[@]}"
