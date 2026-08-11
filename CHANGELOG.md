@@ -16,6 +16,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Codifies the rubric calibration-claim policy: v17 remains the public default and the sole owner
+  of its published calibration figures; v18-v22 remain explicit-only prospective rubrics with no
+  inherited calibration claim. A future default promotion requires a fresh authenticated untouched
+  holdout and a separate recorded decision.
+
 ### Fixed
 
 - `report.json` no longer embeds the absolute checkout path, so identical repository content and

@@ -65,3 +65,16 @@ export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10
 // recognition of direct Node HTTP entrypoints whose authored file is named by a simple root
 // package start command. The public default remains v17.
 export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10';
+
+// Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
+// iteration: prospective rubrics are available only to explicit evaluation harnesses and inherit
+// no precision, recall, false-positive-rate, or other calibration claim from v17. Promotion
+// requires a fresh authenticated untouched holdout and a separately recorded default decision.
+export const WITAN_LAST_CALIBRATED_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V17;
+export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
+  WITAN_RUBRIC_VERSION_V18,
+  WITAN_RUBRIC_VERSION_V19,
+  WITAN_RUBRIC_VERSION_V20,
+  WITAN_RUBRIC_VERSION_V21,
+  WITAN_RUBRIC_VERSION_V22,
+] as const);
