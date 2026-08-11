@@ -235,14 +235,13 @@ export const WitanContentReadSummarySchema = z
 
 export const WitanRepoRefSchema = z
   .object({
+    // Retained for backward-compatible verification of reports emitted through v0.4.0.
+    // New reports omit the checkout path so their bytes are independent of run location.
     path: z.string().min(1).max(700).optional(),
     url: z.string().url().optional(),
     headSha: z.string().min(7).max(64).optional(),
   })
-  .strict()
-  .refine((value) => Boolean(value.path ?? value.url), {
-    message: 'Witan repo reference must include a path or url.',
-  });
+  .strict();
 
 export const WitanReportInputSchema = z
   .object({

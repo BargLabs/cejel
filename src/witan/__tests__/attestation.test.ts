@@ -6,6 +6,8 @@ import {
   hashWitanReport,
   verifyWitanAttestationBinding,
 } from '../attestation.js';
+import { renderWitanHtmlReport } from '../html.js';
+import { renderWitanMarkdownReport } from '../markdown.js';
 
 const GENERATED_AT = '2026-07-16T12:00:00.000Z';
 const ATTESTATION_OPTIONS = { toolVersion: '0.1.4', generatedAt: GENERATED_AT };
@@ -53,6 +55,38 @@ describe('Cejel scan attestation', () => {
     expect(first.predicate.generatedAt).toBe(GENERATED_AT);
     expect(JSON.stringify(first)).not.toContain('/private/local/path');
     expect(verifyWitanAttestationBinding(first, report)).toEqual({ valid: true, errors: [] });
+  });
+
+  it.each(['0.3.2', '0.4.0'])(
+    'continues to verify a legacy v%s report/attestation pair that contains repo.path',
+    (toolVersion) => {
+      const report = fixtureReport();
+      const statement = createWitanAttestation(report, {
+        ...ATTESTATION_OPTIONS,
+        toolVersion,
+      });
+
+      expect(report.repo.path).toBe('/private/local/path');
+      expect(statement.predicate.tool.version).toBe(toolVersion);
+      expect(JSON.stringify(statement)).not.toContain('/private/local/path');
+      expect(verifyWitanAttestationBinding(statement, report)).toEqual({
+        valid: true,
+        errors: [],
+      });
+    },
+  );
+
+  it('renders a path-free report with its stable slug and revision instead of unknown', () => {
+    const report = fixtureReport();
+    report.repo = { headSha: 'abcdef1234567890' };
+
+    const markdown = renderWitanMarkdownReport(report);
+    const html = renderWitanHtmlReport(report);
+
+    expect(markdown).toContain('- Repository: sample-repo @ abcdef1234567890');
+    expect(html).toContain('sample-repo @ abcdef1234567890');
+    expect(markdown).not.toContain('Repository: unknown');
+    expect(html).not.toContain('unknown @ abcdef1234567890');
   });
 
   it('records each run timestamp in the attestation without changing the report digest', () => {

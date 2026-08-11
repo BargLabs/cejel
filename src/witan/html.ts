@@ -430,7 +430,7 @@ function renderPathEvidenceTarget(evidence: WitanEvidencePointer): string {
 }
 
 function renderRepo(report: WitanReport): string {
-  const repo = report.repo.path ?? report.repo.url ?? 'unknown';
+  const repo = report.repo.path ?? report.repo.url ?? report.productSlug;
   return report.repo.headSha ? `${repo} @ ${report.repo.headSha}` : repo;
 }
 
