@@ -74,6 +74,7 @@ These per-criterion counts are descriptive. They have no per-class pass/fail thr
 | Private v3-control SHA-256 | `0955e77b47e5da5d8010da29359cc9aa1e27b3fa85969405cdff199fc39e07d4` |
 | Pushed private harness | `BargLabs/alfred@39d0a8e0f50136896dc1f4f0200e30dc5850ca95` |
 | Private result commit | `BargLabs/alfred@2c5bf2daaffe1d5ad11f620d04147f9a49778384` |
+| Private result merge | `BargLabs/alfred@d0dec9f9a5aa67442fb155d309cdc10c2fc19c35` ([#894](https://github.com/BargLabs/alfred/pull/894)) |
 
 The private evaluation-corpus merge, v3-control merge, and pushed harness are strict ancestors of
 the private result commit. Cejel objects are content bindings across repositories, not described as
