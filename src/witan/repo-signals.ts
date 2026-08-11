@@ -234,7 +234,6 @@ function buildWitanInputFromRepoUntracked(
     productSlug: options.productSlug,
     productDisplayName: options.productDisplayName,
     repo: {
-      path: options.repoPath,
       ...(headSha ? { headSha } : {}),
     },
     generatedAt,

@@ -16,6 +16,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-12
+
+### Fixed
+
+- `report.json` no longer embeds the absolute checkout path, so identical repository content and
+  revision scanned in different directories can produce byte-identical report artifacts. Reports
+  emitted by v0.4.0 and earlier include that run-environment path and therefore do not have this
+  cross-path reproducibility property; those existing report/attestation pairs remain verifiable.
+
 ## [0.4.0] — 2026-08-09
 
 ### Added

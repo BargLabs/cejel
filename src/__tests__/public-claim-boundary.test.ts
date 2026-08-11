@@ -26,6 +26,14 @@ const publicClaimSurfaces = [
   { path: 'src/http/server.ts', contents: readRepoFile('src/http/server.ts') },
 ] as const;
 
+const crossPathDeterminismGuard = readRepoFile('src/__tests__/index.test.ts');
+const reportReproducibilityClaimSurfaces = [
+  ...publicClaimSurfaces,
+  { path: 'README.md', contents: readRepoFile('README.md') },
+] as const;
+const unqualifiedReportReproducibilityClaim =
+  /\b(?:report(?:\.json)?|report artifact|report digest)\b.{0,160}\b(?:byte-identical|any machine|same digest|reproduc(?:e|ible))\b|\b(?:byte-identical|any machine|same digest|reproduc(?:e|ible))\b.{0,160}\b(?:report(?:\.json)?|report artifact|report digest)\b/is;
+
 describe('public product claim boundary', () => {
   it('states that the free-core product scores trust signals rather than detecting defects', () => {
     expect(normalizeClaimCopy(publicClaimSurfaces[0]?.contents ?? '')).toContain(CLAIM_BOUNDARY);
@@ -44,4 +52,19 @@ describe('public product claim boundary', () => {
       );
     },
   );
+
+  it('allows unqualified report reproducibility claims only while cross-path determinism is guarded', () => {
+    const surfacesWithClaim = reportReproducibilityClaimSurfaces.filter(({ contents }) =>
+      unqualifiedReportReproducibilityClaim.test(normalizeClaimCopy(contents)),
+    );
+
+    if (surfacesWithClaim.length === 0) return;
+
+    expect(crossPathDeterminismGuard).toContain(
+      'writes byte-identical report artifacts for identical checkouts at different paths',
+    );
+    expect(crossPathDeterminismGuard).toContain(
+      'expect(firstReportJson).toBe(secondReportJson)',
+    );
+  });
 });
