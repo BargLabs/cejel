@@ -54,6 +54,20 @@ for five native targets on GitHub releases.
 - **Preregistration commits must remain strict ancestors of result commits.** Do not edit a
   preregistration after a run; corrections go in a separate errata document.
 
+## Recording lessons
+
+When a session identifies a defect, a correction, a false claim, or a rule that would prevent a
+recurrence, record it in this repository as part of the PR you are already opening — not as a chat
+attachment, and not staged to `lab_notes/_maeve/`, which is for agents that cannot commit.
+
+Anchored records go to `docs/orchestration/maeve-lesson-batches/<product>*<topic>*<date>.json`;
+records with no qualifying fix commit go to `maeve-unanchored-lessons/`. Anchor only to a commit
+already on `origin/main` — a squash merge rewrites a branch SHA and orphans any anchor pointing at
+it — and confirm the commit's diff exhibits what the summary claims. The seed schema is a JSON
+array with `statement` (≤1000 chars), `scope[]`, `tags[]`, `anchors[]`, `lastSeenAt`; unknown fields
+are silently stripped at ingestion, so fold anything essential into `statement` before writing.
+Cite the commit, never an author.
+
 ## Before you commit
 
 - `pnpm build`, the full test suite, and the offline-boundary guard must pass.
