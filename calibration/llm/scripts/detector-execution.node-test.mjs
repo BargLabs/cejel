@@ -61,6 +61,9 @@ const currentProbeOutput = () => JSON.stringify({
   surface_ids: CURRENT_NO_EGRESS_SURFACE_IDS,
   surface_sha256: CURRENT_NO_EGRESS_SURFACE_SHA256,
   complete_for_declared_surface: true,
+  host_network_isolation: 'docker-network-none',
+  host_default_route_absent: true,
+  host_container_image: 'cejel-calibration:no-egress-test',
   allowed_local_git: true,
   denied_git_variants: 3,
 });
@@ -219,7 +222,10 @@ function detectorFreeze({
       mode: isolationMode,
       argvPrefix: ['calibration/llm/scripts/no-egress-wrapper.sh'],
       evidenceReference: 'internal-witness:test-isolation',
-      wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
+      wrapperSha256: '1'.repeat(64),
+      runtimeWrapperPath: 'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
+      runtimeWrapperSha256: '7'.repeat(64),
+      hookSha256: '2'.repeat(64),
       policyPath: 'calibration/llm/scripts/no-egress-policy.cjs',
       policySha256: '8'.repeat(64),
       probePath: 'calibration/llm/scripts/no-egress-probe.mjs',
@@ -229,6 +235,9 @@ function detectorFreeze({
       surfaceSha256: CURRENT_NO_EGRESS_SURFACE_SHA256,
       allowedLocalGit: true,
       deniedGitVariants: 3,
+      hostNetworkIsolation: 'docker-network-none',
+      hostDefaultRouteAbsent: true,
+      hostContainerImage: 'cejel-calibration:no-egress-test',
       confirmed: true,
     },
     ledger: goldenLedger,
@@ -293,7 +302,7 @@ test('detector freeze binds build, runtime, rules, support, isolation, and close
   );
 });
 
-test('new detector freezes require v3 while historical records remain archival-only', () => {
+test('new detector freezes require v4 while historical records remain archival-only', () => {
   assert.throws(
     () => detectorFreeze({ isolationMode: 'node-runtime-deny-hook-v1', probeAttempts: 5 }),
     /hash-bound passing no-egress probe/,
@@ -738,16 +747,18 @@ test('frozen execution bindings are repository-relative and verify workflow plus
   const cejelPath = join(root, 'dist/index.js');
   const workflowPath = join(root, '.github/workflows/llm-calibration.yml');
   const wrapperPath = join(root, 'calibration/llm/scripts/no-egress-wrapper.sh');
+  const runtimeWrapperPath = join(root, 'calibration/llm/scripts/no-egress-runtime-wrapper.sh');
   const hookPath = join(root, 'calibration/llm/scripts/no-egress-hook.cjs');
   const policyPath = join(root, 'calibration/llm/scripts/no-egress-policy.cjs');
   const probePath = join(root, 'calibration/llm/scripts/no-egress-probe.mjs');
-  for (const path of [cejelPath, workflowPath, wrapperPath, hookPath, policyPath, probePath]) {
+  for (const path of [cejelPath, workflowPath, wrapperPath, runtimeWrapperPath, hookPath, policyPath, probePath]) {
     mkdirSync(join(path, '..'), { recursive: true });
   }
   const bytes = {
     cejel: Buffer.from('#!/usr/bin/env node\n', 'utf8'),
     workflow: Buffer.from('name: synthetic\n', 'utf8'),
     wrapper: Buffer.from('#!/bin/sh\n', 'utf8'),
+    runtimeWrapper: Buffer.from('#!/bin/sh\n', 'utf8'),
     hook: Buffer.from('export {};\n', 'utf8'),
     policy: Buffer.from('module.exports = {};\n', 'utf8'),
     probe: Buffer.from('console.log(\"probe\");\n', 'utf8'),
@@ -755,6 +766,7 @@ test('frozen execution bindings are repository-relative and verify workflow plus
   writeFileSync(cejelPath, bytes.cejel);
   writeFileSync(workflowPath, bytes.workflow);
   writeFileSync(wrapperPath, bytes.wrapper);
+  writeFileSync(runtimeWrapperPath, bytes.runtimeWrapper);
   writeFileSync(hookPath, bytes.hook);
   writeFileSync(policyPath, bytes.policy);
   writeFileSync(probePath, bytes.probe);
@@ -773,6 +785,7 @@ test('frozen execution bindings are repository-relative and verify workflow plus
   record.golden_execution_evidence.detector_build_sha256 = buildSha;
   record.execution.workflow.sha256 = byteSha(bytes.workflow);
   record.execution.network_isolation.wrapper_sha256 = byteSha(bytes.wrapper);
+  record.execution.network_isolation.runtime_wrapper_sha256 = byteSha(bytes.runtimeWrapper);
   record.execution.network_isolation.hook_sha256 = byteSha(bytes.hook);
   record.execution.network_isolation.policy_sha256 = byteSha(bytes.policy);
   record.execution.network_isolation.probe_sha256 = byteSha(bytes.probe);
@@ -869,6 +882,7 @@ test('golden isolation assets must equal their exact preregistration-commit blob
   const commit = 'a'.repeat(40);
   const paths = [
     'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
     'calibration/llm/scripts/no-egress-hook.cjs',
     'calibration/llm/scripts/no-egress-policy.cjs',
     'calibration/llm/scripts/no-egress-probe.mjs',
@@ -896,7 +910,7 @@ test('golden isolation assets must equal their exact preregistration-commit blob
     commitmentGitCommit: commit,
   }, commandRunner);
   assert.equal(bindings.isolationPrefix[0], realpathSync(join(DETECTOR_REPO, paths[0])));
-  assert.equal(bindings.probePath, realpathSync(join(DETECTOR_REPO, paths[3])));
+  assert.equal(bindings.probePath, realpathSync(join(DETECTOR_REPO, paths[4])));
 
   await assert.rejects(() => resolveGoldenIsolationBindings({
     isolationMode: CURRENT_NO_EGRESS_POLICY,
@@ -918,6 +932,7 @@ test('runner requires the public commitment anchor before any cohort clone', asy
   const commit = 'a'.repeat(40);
   const assetPaths = [
     'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
     'calibration/llm/scripts/no-egress-hook.cjs',
     'calibration/llm/scripts/no-egress-policy.cjs',
     'calibration/llm/scripts/no-egress-probe.mjs',

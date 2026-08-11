@@ -31,10 +31,12 @@
     },
     "command_template": ["{network_isolation_argv_prefix...}", "{cejel_binary}", "scan", "{source}", "--out", "{output}", "--quiet"],
     "network_isolation": {
-      "mode": "node-runtime-deny-hook-v3",
+      "mode": "container-network-none-plus-node-runtime-deny-hook-v4",
       "argv_prefix": ["calibration/llm/scripts/no-egress-wrapper.sh"],
       "evidence_reference": "internal-witness:replace-with-isolation-proof",
       "wrapper_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "runtime_wrapper_path": "calibration/llm/scripts/no-egress-runtime-wrapper.sh",
+      "runtime_wrapper_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "hook_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "policy_path": "calibration/llm/scripts/no-egress-policy.cjs",
       "policy_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -48,6 +50,9 @@
       "probe_count_is_lower_bound_not_completeness_claim": true,
       "hardened_local_git_positive_control_passed": true,
       "hardened_local_git_negative_controls_denied": 3,
+      "host_network_isolation": "docker-network-none",
+      "host_default_route_absent": true,
+      "host_container_image": "cejel-calibration:replace-with-immutable-execution-image",
       "explicitly_confirmed": true
     }
   },

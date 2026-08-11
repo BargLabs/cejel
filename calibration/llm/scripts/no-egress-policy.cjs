@@ -2,7 +2,7 @@
 
 const { createHash } = require('node:crypto');
 
-const POLICY_ID = 'node-runtime-deny-hook-v3';
+const POLICY_ID = 'container-network-none-plus-node-runtime-deny-hook-v4';
 
 // This prefix must remain byte-for-byte aligned with src/witan/git-exec.ts. The runtime hook
 // permits only Cejel's hardened, read-only local Git boundary; every other child process is
@@ -51,6 +51,10 @@ const REQUIRED_GIT_ENVIRONMENT = Object.freeze({
   PAGER: 'cat',
 });
 const OPTIONAL_GIT_ENVIRONMENT_KEYS = new Set(['HOME', 'PATH', 'TZ']);
+const REQUIRED_SAFE_DIRECTORY_ENVIRONMENT = Object.freeze({
+  GIT_CONFIG_COUNT: '1',
+  GIT_CONFIG_KEY_0: 'safe.directory',
+});
 
 function callableNames(target, pattern) {
   return Object.getOwnPropertyNames(target)
@@ -134,8 +138,16 @@ function isAllowedGitExecFileSyncCall(file, args, options) {
   for (const [key, value] of Object.entries(REQUIRED_GIT_ENVIRONMENT)) {
     if (environment[key] !== value) return false;
   }
+  for (const [key, value] of Object.entries(REQUIRED_SAFE_DIRECTORY_ENVIRONMENT)) {
+    if (environment[key] !== value) return false;
+  }
+  if (typeof environment.GIT_CONFIG_VALUE_0 !== 'string' || !environment.GIT_CONFIG_VALUE_0.startsWith('/')) {
+    return false;
+  }
   const allowedKeys = new Set([
     ...Object.keys(REQUIRED_GIT_ENVIRONMENT),
+    ...Object.keys(REQUIRED_SAFE_DIRECTORY_ENVIRONMENT),
+    'GIT_CONFIG_VALUE_0',
     ...OPTIONAL_GIT_ENVIRONMENT_KEYS,
   ]);
   return Object.keys(environment).every((key) => allowedKeys.has(key));

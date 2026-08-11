@@ -65,10 +65,12 @@
           "additionalProperties": false,
           "required": ["mode", "argv_prefix", "evidence_reference", "wrapper_sha256", "hook_sha256", "probe_path", "probe_sha256", "probe_output_sha256", "probe_denied", "probe_attempted", "explicitly_confirmed"],
           "properties": {
-            "mode": {"enum": ["node-runtime-deny-hook-v1", "node-runtime-deny-hook-v2", "node-runtime-deny-hook-v3"]},
+            "mode": {"enum": ["node-runtime-deny-hook-v1", "node-runtime-deny-hook-v2", "node-runtime-deny-hook-v3", "container-network-none-plus-node-runtime-deny-hook-v4"]},
             "argv_prefix": {"const": ["calibration/llm/scripts/no-egress-wrapper.sh"]},
             "evidence_reference": {"type": "string", "minLength": 8},
             "wrapper_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "runtime_wrapper_path": {"const": "calibration/llm/scripts/no-egress-runtime-wrapper.sh"},
+            "runtime_wrapper_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "hook_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
             "policy_path": {"const": "calibration/llm/scripts/no-egress-policy.cjs"},
             "policy_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
@@ -82,6 +84,9 @@
             "probe_count_is_lower_bound_not_completeness_claim": {"const": true},
             "hardened_local_git_positive_control_passed": {"const": true},
             "hardened_local_git_negative_controls_denied": {"const": 3},
+            "host_network_isolation": {"const": "docker-network-none"},
+            "host_default_route_absent": {"const": true},
+            "host_container_image": {"type": "string", "minLength": 8},
             "explicitly_confirmed": {"const": true}
           },
           "oneOf": [
@@ -103,6 +108,12 @@
               "required": ["policy_path", "policy_sha256", "surface_ids", "surface_sha256", "probe_count_is_lower_bound_not_completeness_claim", "hardened_local_git_positive_control_passed", "hardened_local_git_negative_controls_denied"],
               "properties": {
                 "mode": {"const": "node-runtime-deny-hook-v3"}
+              }
+            },
+            {
+              "required": ["runtime_wrapper_path", "runtime_wrapper_sha256", "policy_path", "policy_sha256", "surface_ids", "surface_sha256", "probe_count_is_lower_bound_not_completeness_claim", "hardened_local_git_positive_control_passed", "hardened_local_git_negative_controls_denied", "host_network_isolation", "host_default_route_absent", "host_container_image"],
+              "properties": {
+                "mode": {"const": "container-network-none-plus-node-runtime-deny-hook-v4"}
               }
             }
           ]

@@ -29,7 +29,7 @@ const sha = (document) => createHash('sha256').update(canonicalize(document), 'u
 
 test('committed runtime no-egress probe denies network and process escape paths', () => {
   const result = spawnSync(
-    fileURLToPath(new URL('./no-egress-wrapper.sh', import.meta.url)),
+    fileURLToPath(new URL('./no-egress-runtime-wrapper.sh', import.meta.url)),
     [fileURLToPath(new URL('./no-egress-probe.mjs', import.meta.url))],
     { encoding: 'utf8' },
   );
@@ -46,6 +46,27 @@ test('committed runtime no-egress probe denies network and process escape paths'
   assert.ok(probe.surface_ids.includes('dns.Resolver.prototype.resolve4'));
   assert.ok(probe.surface_ids.includes('node:dns/promises.resolve4'));
   assert.ok(probe.surface_ids.includes('node:dns/promises.Resolver.prototype.resolve4'));
+});
+
+test('committed host wrapper has no default route under Docker network none', {
+  skip: !process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE,
+}, () => {
+  const result = spawnSync(
+    fileURLToPath(new URL('./no-egress-wrapper.sh', import.meta.url)),
+    [fileURLToPath(new URL('./no-egress-probe.mjs', import.meta.url))],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CEJEL_CALIBRATION_NO_EGRESS_IMAGE: process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE,
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const probe = JSON.parse(result.stdout);
+  assert.equal(probe.host_network_isolation, 'docker-network-none');
+  assert.equal(probe.host_default_route_absent, true);
+  assert.equal(probe.host_container_image, process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE);
 });
 
 test('normal Node execution keeps local DNS and child processes available outside the wrapper', () => {

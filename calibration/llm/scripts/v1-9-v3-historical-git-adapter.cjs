@@ -131,6 +131,11 @@ function hardenedEnvironment() {
     if (process.env[key] !== undefined) environment[key] = process.env[key];
   }
   Object.assign(environment, REQUIRED_GIT_ENVIRONMENT);
+  Object.assign(environment, {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'safe.directory',
+    GIT_CONFIG_VALUE_0: process.cwd(),
+  });
   return environment;
 }
 
