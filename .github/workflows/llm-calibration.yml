@@ -86,6 +86,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Build the pinned host no-egress runtime before cohort access
+        run: |
+          docker build --tag "cejel-calibration:${GITHUB_SHA}" \
+            --file calibration/llm/Dockerfile.no-egress .
       - name: Decrypt untouched private evidence bundle
         if: inputs.cohort == 'untouched'
         env:
@@ -119,8 +123,9 @@ jobs:
           PRE_RESULT: ${{ inputs.pre_result_commitment }}
           COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
           COMMITMENT_COMMENT_ID: ${{ inputs.commitment_github_comment_id }}
+          CEJEL_CALIBRATION_NO_EGRESS_IMAGE: cejel-calibration:${{ github.sha }}
         run: |
-          chmod +x dist/calibration/llm-detector.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
+          chmod +x dist/calibration/llm-detector.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-runtime-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
           common=(
             --manifest "$MANIFEST"
             --cejel "$GITHUB_WORKSPACE/dist/calibration/llm-detector.js"
@@ -134,7 +139,7 @@ jobs:
           )
           if [ "$COHORT" = golden ]; then
             node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \
-              --network-isolation-mode node-runtime-deny-hook-v3 \
+              --network-isolation-mode container-network-none-plus-node-runtime-deny-hook-v4 \
               --network-isolation-command "$GITHUB_WORKSPACE/calibration/llm/scripts/no-egress-wrapper.sh" \
               --confirm-network-isolation
           else

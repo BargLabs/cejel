@@ -35,6 +35,7 @@ const {
 
 export const CALIBRATION_WORKFLOW_PATH = '.github/workflows/llm-calibration.yml';
 export const NO_EGRESS_WRAPPER_PATH = 'calibration/llm/scripts/no-egress-wrapper.sh';
+export const NO_EGRESS_RUNTIME_WRAPPER_PATH = 'calibration/llm/scripts/no-egress-runtime-wrapper.sh';
 export const NO_EGRESS_HOOK_PATH = 'calibration/llm/scripts/no-egress-hook.cjs';
 export const NO_EGRESS_POLICY_PATH = 'calibration/llm/scripts/no-egress-policy.cjs';
 export const NO_EGRESS_PROBE_PATH = 'calibration/llm/scripts/no-egress-probe.mjs';
@@ -55,6 +56,7 @@ export const CALIBRATION_COMMAND_TEMPLATE = [
 function expectedNoEgressProbeAttempts(mode) {
   if (mode === 'node-runtime-deny-hook-v1') return 5;
   if (mode === 'node-runtime-deny-hook-v2') return 12;
+  if (mode === 'node-runtime-deny-hook-v3') return 102;
   if (mode === CURRENT_NO_EGRESS_POLICY) return CURRENT_NO_EGRESS_PROBE_ATTEMPTS;
   return null;
 }
@@ -633,9 +635,11 @@ export function createDetectorFreezeRecord(input) {
     input.networkIsolation.mode !== CURRENT_NO_EGRESS_POLICY ||
     input.networkIsolation.argvPrefix.length !== 1 ||
     input.networkIsolation.argvPrefix[0] !== NO_EGRESS_WRAPPER_PATH ||
+    input.networkIsolation.runtimeWrapperPath !== NO_EGRESS_RUNTIME_WRAPPER_PATH ||
     input.networkIsolation.probePath !== NO_EGRESS_PROBE_PATH ||
     input.networkIsolation.policyPath !== NO_EGRESS_POLICY_PATH ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.wrapperSha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(input.networkIsolation.runtimeWrapperSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.hookSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.policySha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeSha256 || '') ||
@@ -646,7 +650,11 @@ export function createDetectorFreezeRecord(input) {
     canonicalize(input.networkIsolation.surfaceIds) !==
       canonicalize(CURRENT_NO_EGRESS_SURFACE_IDS) ||
     input.networkIsolation.allowedLocalGit !== true ||
-    input.networkIsolation.deniedGitVariants !== 3
+    input.networkIsolation.deniedGitVariants !== 3 ||
+    input.networkIsolation.hostNetworkIsolation !== 'docker-network-none' ||
+    input.networkIsolation.hostDefaultRouteAbsent !== true ||
+    typeof input.networkIsolation.hostContainerImage !== 'string' ||
+    input.networkIsolation.hostContainerImage.length < 8
   ) throw new Error('detector freeze requires a hash-bound passing no-egress probe');
   if (
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.byteSha256 || '') ||
@@ -686,6 +694,8 @@ export function createDetectorFreezeRecord(input) {
         argv_prefix: input.networkIsolation.argvPrefix,
         evidence_reference: input.networkIsolation.evidenceReference,
         wrapper_sha256: input.networkIsolation.wrapperSha256,
+        runtime_wrapper_path: input.networkIsolation.runtimeWrapperPath,
+        runtime_wrapper_sha256: input.networkIsolation.runtimeWrapperSha256,
         hook_sha256: input.networkIsolation.hookSha256,
         policy_path: input.networkIsolation.policyPath,
         policy_sha256: input.networkIsolation.policySha256,
@@ -699,6 +709,9 @@ export function createDetectorFreezeRecord(input) {
         probe_count_is_lower_bound_not_completeness_claim: true,
         hardened_local_git_positive_control_passed: input.networkIsolation.allowedLocalGit,
         hardened_local_git_negative_controls_denied: input.networkIsolation.deniedGitVariants,
+        host_network_isolation: input.networkIsolation.hostNetworkIsolation,
+        host_default_route_absent: input.networkIsolation.hostDefaultRouteAbsent,
+        host_container_image: input.networkIsolation.hostContainerImage,
         explicitly_confirmed: true,
       },
     },
@@ -831,6 +844,8 @@ export function validateArchivedDetectorFreezeRecord(record) {
     isolation.mode === CURRENT_NO_EGRESS_POLICY &&
     (isolation.policy_path !== NO_EGRESS_POLICY_PATH ||
       !/^[a-f0-9]{64}$/.test(isolation.policy_sha256 || '') ||
+      isolation.runtime_wrapper_path !== NO_EGRESS_RUNTIME_WRAPPER_PATH ||
+      !/^[a-f0-9]{64}$/.test(isolation.runtime_wrapper_sha256 || '') ||
       !Array.isArray(isolation.surface_ids) ||
       isolation.surface_ids.length < 1 ||
       new Set(isolation.surface_ids).size !== isolation.surface_ids.length ||
@@ -839,7 +854,11 @@ export function validateArchivedDetectorFreezeRecord(record) {
         sha256Bytes(Buffer.from(JSON.stringify(isolation.surface_ids))) ||
       isolation.probe_count_is_lower_bound_not_completeness_claim !== true ||
       isolation.hardened_local_git_positive_control_passed !== true ||
-      isolation.hardened_local_git_negative_controls_denied !== 3)
+      isolation.hardened_local_git_negative_controls_denied !== 3 ||
+      isolation.host_network_isolation !== 'docker-network-none' ||
+      isolation.host_default_route_absent !== true ||
+      typeof isolation.host_container_image !== 'string' ||
+      isolation.host_container_image.length < 8)
   ) {
     throw new Error('detector freeze lacks the current declared no-egress surface binding');
   }
@@ -1109,14 +1128,17 @@ export async function main(argv, commandRunner = run) {
   const releaseThresholdBytes = readFileSync(resolve(calibrationRoot, 'release-thresholds.json'));
   const releaseThresholdDocument = JSON.parse(releaseThresholdBytes.toString('utf8'));
   const wrapperPath = realpathSync(resolve(options.isolationCommand));
+  const runtimeWrapperPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-runtime-wrapper.sh'));
   const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
   const policyPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-policy.cjs'));
   const probePath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-probe.mjs'));
   const wrapperRelativePath = relative(detectorRepo, wrapperPath).replaceAll('\\', '/');
+  const runtimeWrapperRelativePath = relative(detectorRepo, runtimeWrapperPath).replaceAll('\\', '/');
   const policyRelativePath = relative(detectorRepo, policyPath).replaceAll('\\', '/');
   const probeRelativePath = relative(detectorRepo, probePath).replaceAll('\\', '/');
   if (
     wrapperRelativePath !== NO_EGRESS_WRAPPER_PATH ||
+    runtimeWrapperRelativePath !== NO_EGRESS_RUNTIME_WRAPPER_PATH ||
     policyRelativePath !== NO_EGRESS_POLICY_PATH ||
     probeRelativePath !== NO_EGRESS_PROBE_PATH
   ) {
@@ -1132,7 +1154,11 @@ export async function main(argv, commandRunner = run) {
     canonicalize(probeDocument.surface_ids) !== canonicalize(CURRENT_NO_EGRESS_SURFACE_IDS) ||
     probeDocument.complete_for_declared_surface !== true ||
     probeDocument.allowed_local_git !== true ||
-    probeDocument.denied_git_variants !== 3
+    probeDocument.denied_git_variants !== 3 ||
+    probeDocument.host_network_isolation !== 'docker-network-none' ||
+    probeDocument.host_default_route_absent !== true ||
+    typeof probeDocument.host_container_image !== 'string' ||
+    probeDocument.host_container_image.length < 8
   ) throw new Error('network-isolation probe did not deny every tested egress path');
   const record = createDetectorFreezeRecord({
     gitCommit,
@@ -1156,6 +1182,8 @@ export async function main(argv, commandRunner = run) {
       argvPrefix: [wrapperRelativePath],
       evidenceReference: options.isolationEvidence,
       wrapperSha256: sha256Bytes(readFileSync(wrapperPath)),
+      runtimeWrapperPath: runtimeWrapperRelativePath,
+      runtimeWrapperSha256: sha256Bytes(readFileSync(runtimeWrapperPath)),
       hookSha256: sha256Bytes(readFileSync(hookPath)),
       policyPath: policyRelativePath,
       policySha256: sha256Bytes(readFileSync(policyPath)),
@@ -1168,6 +1196,9 @@ export async function main(argv, commandRunner = run) {
       surfaceSha256: probeDocument.surface_sha256,
       allowedLocalGit: probeDocument.allowed_local_git,
       deniedGitVariants: probeDocument.denied_git_variants,
+      hostNetworkIsolation: probeDocument.host_network_isolation,
+      hostDefaultRouteAbsent: probeDocument.host_default_route_absent,
+      hostContainerImage: probeDocument.host_container_image,
       confirmed: true,
     },
     ledger,

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
 
 export const GIT_EXEC_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
 export const GIT_EXEC_TIMEOUT_MS = 30_000;
@@ -79,7 +80,7 @@ export interface GitExecOptions {
   readonly maxBufferBytes?: number;
 }
 
-function hardenedGitEnvironment(): NodeJS.ProcessEnv {
+function hardenedGitEnvironment(cwd: string): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {};
   for (const key of ['PATH', 'HOME', 'TZ'] as const) {
     const entry = Object.entries(process.env).find(
@@ -101,6 +102,12 @@ function hardenedGitEnvironment(): NodeJS.ProcessEnv {
     GIT_OPTIONAL_LOCKS: '0',
     GIT_PAGER: 'cat',
     PAGER: 'cat',
+    // Docker bind mounts can present the checked-out tree under a different uid. Trust only
+    // this exact, caller-supplied read-only working directory; ambient Git configuration is
+    // still excluded below.
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'safe.directory',
+    GIT_CONFIG_VALUE_0: cwd,
   };
 }
 
@@ -141,9 +148,10 @@ function classifyGitFailure(error: unknown): GitExecFailureReason {
  * Execute the local Git binary through Cejel's only production subprocess boundary.
  *
  * The caller supplies argv, never a shell command. Global Git config remains readable on
- * purpose: cross-uid Docker/CI mounts depend on user-configured safe.directory entries.
- * The child receives only PATH/HOME/TZ plus fixed hardening variables, so ambient GIT_*,
- * proxy, alternate-object, work-tree, and config-injection variables cannot cross the boundary.
+ * The exact working directory is supplied as the sole `safe.directory` entry so cross-UID
+ * Docker/CI mounts do not require ambient configuration. The child otherwise receives only
+ * PATH/HOME/TZ plus fixed hardening variables, so ambient GIT_*, proxy, alternate-object,
+ * work-tree, and config-injection variables cannot cross the boundary.
  *
  * Executable/file-valued config audit: commands reachable here can consult core.fsmonitor,
  * core.pager, core.editor, core.sshCommand, diff.external, credential.helper, log.showSignature,
@@ -154,10 +162,11 @@ function classifyGitFailure(error: unknown): GitExecFailureReason {
  */
 export function execGit(argv: readonly string[], options: GitExecOptions): GitExecResult {
   try {
+    const cwd = resolve(options.cwd);
     const stdout = execFileSync('git', [...HARDENED_GIT_ARGUMENTS, ...argv], {
-      cwd: options.cwd,
+      cwd,
       encoding: 'utf8',
-      env: hardenedGitEnvironment(),
+      env: hardenedGitEnvironment(cwd),
       input: options.input,
       maxBuffer: options.maxBufferBytes ?? GIT_EXEC_MAX_BUFFER_BYTES,
       stdio: ['pipe', 'pipe', 'pipe'],

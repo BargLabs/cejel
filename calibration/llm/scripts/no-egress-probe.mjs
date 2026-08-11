@@ -25,6 +25,9 @@ Object.assign(gitEnvironment, {
   GIT_OPTIONAL_LOCKS: '0',
   GIT_PAGER: 'cat',
   PAGER: 'cat',
+  GIT_CONFIG_COUNT: '1',
+  GIT_CONFIG_KEY_0: 'safe.directory',
+  GIT_CONFIG_VALUE_0: process.cwd(),
 });
 const localGitResult = execFileSync(
   'git',
@@ -37,6 +40,17 @@ const localGitResult = execFileSync(
   },
 ).trim();
 if (localGitResult !== 'true') throw new Error('hardened local Git positive control failed');
+
+const hostNoEgress = process.env.CEJEL_CALIBRATION_HOST_NO_EGRESS === '1';
+if (hostNoEgress) {
+  if (process.platform !== 'linux') {
+    throw new Error('host no-egress probe requires the Linux container runtime');
+  }
+  const routes = require('node:fs').readFileSync('/proc/net/route', 'utf8').trim().split('\n').slice(1);
+  if (routes.some((line) => line.split(/\s+/)[1] === '00000000')) {
+    throw new Error('host no-egress probe found a default network route');
+  }
+}
 
 let deniedGitVariants = 0;
 for (const [args, env] of [
@@ -79,6 +93,11 @@ console.log(JSON.stringify({
   surface_ids: deniedSurfaceIds,
   surface_sha256: SURFACE_SHA256,
   complete_for_declared_surface: JSON.stringify(deniedSurfaceIds) === JSON.stringify(SURFACE_IDS),
+  ...(hostNoEgress ? {
+    host_network_isolation: 'docker-network-none',
+    host_default_route_absent: true,
+    host_container_image: process.env.CEJEL_CALIBRATION_NO_EGRESS_IMAGE,
+  } : {}),
   allowed_local_git: true,
   denied_git_variants: deniedGitVariants,
 }));
