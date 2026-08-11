@@ -60,8 +60,11 @@ When a session identifies a defect, a correction, a false claim, or a rule that 
 recurrence, record it in this repository as part of the PR you are already opening — not as a chat
 attachment, and not staged to `lab_notes/_maeve/`, which is for agents that cannot commit.
 
-Anchored records go to `docs/orchestration/maeve-lesson-batches/<product>*<topic>*<date>.json`;
-records with no qualifying fix commit go to `maeve-unanchored-lessons/`. Anchor only to a commit
+Stage the record as part of the PR in this repository, then promote it: sync discovers batches
+only in alfred's `docs/orchestration/maeve-lesson-batches/`, named `cejel_<topic>_<date>.json` —
+the exact `cejel_` filename prefix is load-bearing, and a batch that exists only in this
+repository is invisible to sync. Records with no qualifying fix commit go to alfred's
+`maeve-unanchored-lessons/`. Anchor only to a commit
 already on `origin/main` — a squash merge rewrites a branch SHA and orphans any anchor pointing at
 it — and confirm the commit's diff exhibits what the summary claims. The seed schema is a JSON
 array with `statement` (≤1000 chars), `scope[]`, `tags[]`, `anchors[]`, `lastSeenAt`; unknown fields
