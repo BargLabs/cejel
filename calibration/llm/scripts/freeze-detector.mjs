@@ -11,6 +11,7 @@ import {
   realpathSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,16 +26,35 @@ import {
 const execFile = promisify(execFileCallback);
 const here = dirname(fileURLToPath(import.meta.url));
 const calibrationRoot = resolve(here, '..');
+const require = createRequire(import.meta.url);
+const {
+  POLICY_ID,
+  SURFACE_IDS,
+  SURFACE_SHA256,
+} = require('./no-egress-policy.cjs');
 
 export const CALIBRATION_WORKFLOW_PATH = '.github/workflows/llm-calibration.yml';
 export const NO_EGRESS_WRAPPER_PATH = 'calibration/llm/scripts/no-egress-wrapper.sh';
 export const NO_EGRESS_HOOK_PATH = 'calibration/llm/scripts/no-egress-hook.cjs';
+export const NO_EGRESS_POLICY_PATH = 'calibration/llm/scripts/no-egress-policy.cjs';
 export const NO_EGRESS_PROBE_PATH = 'calibration/llm/scripts/no-egress-probe.mjs';
-export const CURRENT_NO_EGRESS_POLICY = 'node-runtime-deny-hook-v2';
-export const CURRENT_NO_EGRESS_PROBE_ATTEMPTS = 12;
+export const CURRENT_NO_EGRESS_POLICY = POLICY_ID;
+export const CURRENT_NO_EGRESS_PROBE_ATTEMPTS = SURFACE_IDS.length;
+export const CURRENT_NO_EGRESS_SURFACE_IDS = SURFACE_IDS;
+export const CURRENT_NO_EGRESS_SURFACE_SHA256 = SURFACE_SHA256;
+export const CALIBRATION_COMMAND_TEMPLATE = [
+  '{network_isolation_argv_prefix...}',
+  '{cejel_binary}',
+  'scan',
+  '{source}',
+  '--out',
+  '{output}',
+  '--quiet',
+];
 
 function expectedNoEgressProbeAttempts(mode) {
   if (mode === 'node-runtime-deny-hook-v1') return 5;
+  if (mode === 'node-runtime-deny-hook-v2') return 12;
   if (mode === CURRENT_NO_EGRESS_POLICY) return CURRENT_NO_EGRESS_PROBE_ATTEMPTS;
   return null;
 }
@@ -614,12 +634,19 @@ export function createDetectorFreezeRecord(input) {
     input.networkIsolation.argvPrefix.length !== 1 ||
     input.networkIsolation.argvPrefix[0] !== NO_EGRESS_WRAPPER_PATH ||
     input.networkIsolation.probePath !== NO_EGRESS_PROBE_PATH ||
+    input.networkIsolation.policyPath !== NO_EGRESS_POLICY_PATH ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.wrapperSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.hookSha256 || '') ||
+    !/^[a-f0-9]{64}$/.test(input.networkIsolation.policySha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeSha256 || '') ||
     !/^[a-f0-9]{64}$/.test(input.networkIsolation.probeOutputSha256 || '') ||
     input.networkIsolation.probeDenied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
-    input.networkIsolation.probeAttempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS
+    input.networkIsolation.probeAttempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
+    input.networkIsolation.surfaceSha256 !== CURRENT_NO_EGRESS_SURFACE_SHA256 ||
+    canonicalize(input.networkIsolation.surfaceIds) !==
+      canonicalize(CURRENT_NO_EGRESS_SURFACE_IDS) ||
+    input.networkIsolation.allowedLocalGit !== true ||
+    input.networkIsolation.deniedGitVariants !== 3
   ) throw new Error('detector freeze requires a hash-bound passing no-egress probe');
   if (
     !/^[a-f0-9]{64}$/.test(input.releaseThresholds?.byteSha256 || '') ||
@@ -653,28 +680,25 @@ export function createDetectorFreezeRecord(input) {
     },
     execution: {
       workflow: input.workflow,
-      command_template: [
-        '{network_isolation_argv_prefix...}',
-        '{cejel_binary}',
-        'scan',
-        '{source}',
-        '--out',
-        '{output}',
-        '--pack',
-        'llm',
-        '--quiet',
-      ],
+      command_template: [...CALIBRATION_COMMAND_TEMPLATE],
       network_isolation: {
         mode: input.networkIsolation.mode,
         argv_prefix: input.networkIsolation.argvPrefix,
         evidence_reference: input.networkIsolation.evidenceReference,
         wrapper_sha256: input.networkIsolation.wrapperSha256,
         hook_sha256: input.networkIsolation.hookSha256,
+        policy_path: input.networkIsolation.policyPath,
+        policy_sha256: input.networkIsolation.policySha256,
         probe_path: input.networkIsolation.probePath,
         probe_sha256: input.networkIsolation.probeSha256,
         probe_output_sha256: input.networkIsolation.probeOutputSha256,
         probe_denied: input.networkIsolation.probeDenied,
         probe_attempted: input.networkIsolation.probeAttempted,
+        surface_ids: input.networkIsolation.surfaceIds,
+        surface_sha256: input.networkIsolation.surfaceSha256,
+        probe_count_is_lower_bound_not_completeness_claim: true,
+        hardened_local_git_positive_control_passed: input.networkIsolation.allowedLocalGit,
+        hardened_local_git_negative_controls_denied: input.networkIsolation.deniedGitVariants,
         explicitly_confirmed: true,
       },
     },
@@ -707,7 +731,7 @@ export function createDetectorFreezeRecord(input) {
   return { ...withoutHash, record_sha256: hashDetectorFreezeRecord(withoutHash) };
 }
 
-export function validateDetectorFreezeRecord(record) {
+export function validateArchivedDetectorFreezeRecord(record) {
   if (
     record?.schema_version !== '1.0.0' ||
     record?.protocol_id !== 'cejel-llm-calibration-v1' ||
@@ -760,9 +784,8 @@ export function validateDetectorFreezeRecord(record) {
   if (canonicalize(record.support_matrix) !== canonicalize(FROZEN_SUPPORT_MATRIX)) {
     throw new Error('detector freeze support matrix does not match the frozen alpha declaration');
   }
-  if (
-    canonicalize(record.execution?.command_template) !==
-    canonicalize([
+  const isolation = record.execution?.network_isolation;
+  const historicalCommandTemplate = [
       '{network_isolation_argv_prefix...}',
       '{cejel_binary}',
       'scan',
@@ -772,12 +795,18 @@ export function validateDetectorFreezeRecord(record) {
       '--pack',
       'llm',
       '--quiet',
-    ])
+  ];
+  const expectedCommandTemplate = isolation?.mode === CURRENT_NO_EGRESS_POLICY
+    ? CALIBRATION_COMMAND_TEMPLATE
+    : historicalCommandTemplate;
+  if (
+    canonicalize(record.execution?.command_template) !== canonicalize(expectedCommandTemplate)
   ) {
     throw new Error('detector freeze command template is not the calibration command');
   }
-  const isolation = record.execution?.network_isolation;
-  const expectedProbeAttempts = expectedNoEgressProbeAttempts(isolation?.mode);
+  const expectedProbeAttempts = isolation?.mode === CURRENT_NO_EGRESS_POLICY
+    ? isolation?.surface_ids?.length
+    : expectedNoEgressProbeAttempts(isolation?.mode);
   if (
     record.execution?.workflow?.path !== CALIBRATION_WORKFLOW_PATH ||
     !/^[a-f0-9]{64}$/.test(record.execution.workflow.sha256 || '')
@@ -799,6 +828,22 @@ export function validateDetectorFreezeRecord(record) {
     throw new Error('detector freeze lacks confirmed no-egress execution');
   }
   if (
+    isolation.mode === CURRENT_NO_EGRESS_POLICY &&
+    (isolation.policy_path !== NO_EGRESS_POLICY_PATH ||
+      !/^[a-f0-9]{64}$/.test(isolation.policy_sha256 || '') ||
+      !Array.isArray(isolation.surface_ids) ||
+      isolation.surface_ids.length < 1 ||
+      new Set(isolation.surface_ids).size !== isolation.surface_ids.length ||
+      isolation.surface_ids.some((id) => typeof id !== 'string' || id.length < 3) ||
+      isolation.surface_sha256 !==
+        sha256Bytes(Buffer.from(JSON.stringify(isolation.surface_ids))) ||
+      isolation.probe_count_is_lower_bound_not_completeness_claim !== true ||
+      isolation.hardened_local_git_positive_control_passed !== true ||
+      isolation.hardened_local_git_negative_controls_denied !== 3)
+  ) {
+    throw new Error('detector freeze lacks the current declared no-egress surface binding');
+  }
+  if (
     record.golden_correction_ledger?.status !== 'frozen' ||
     record.golden_correction_ledger?.open_corrections !== 0 ||
     !/^[a-f0-9]{64}$/.test(record.golden_correction_ledger?.sha256 || '') ||
@@ -811,6 +856,21 @@ export function validateDetectorFreezeRecord(record) {
   }
   if (hashDetectorFreezeRecord(record) !== record.record_sha256) {
     throw new Error('detector-freeze record SHA-256 does not match its contents');
+  }
+  return record;
+}
+
+export function validateDetectorFreezeRecord(record) {
+  validateArchivedDetectorFreezeRecord(record);
+  const isolation = record.execution.network_isolation;
+  if (
+    isolation.mode !== CURRENT_NO_EGRESS_POLICY ||
+    canonicalize(isolation.surface_ids) !== canonicalize(CURRENT_NO_EGRESS_SURFACE_IDS) ||
+    isolation.surface_sha256 !== CURRENT_NO_EGRESS_SURFACE_SHA256
+  ) {
+    throw new Error(
+      `detector freeze is archival evidence only; execution requires ${CURRENT_NO_EGRESS_POLICY}`,
+    );
   }
   return record;
 }
@@ -871,14 +931,14 @@ function usage() {
   node calibration/llm/scripts/freeze-detector.mjs \\
     --detector-repo . \\
     --build-command npm --build-arg run --build-arg build \\
-    --build-output dist/index.js \\
+    --build-output dist/calibration/llm-detector.js \\
     --golden-correction-ledger ./golden-corrections.json \\
     --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \\
     --opportunity-manifest ./opportunity-manifest.json \\
     --golden-execution-evidence ./golden-execution-evidence.json \\
     --golden-label-record ./labels/golden-primary.json \\
     --golden-label-record ./labels/golden-finding-review.json \\
-    --network-isolation-mode sandbox-no-egress \\
+    --network-isolation-mode ${CURRENT_NO_EGRESS_POLICY} \\
     --network-isolation-command /path/to/isolation-wrapper \\
     --network-isolation-evidence internal-witness:isolation-proof \\
     --confirm-network-isolation
@@ -1050,11 +1110,14 @@ export async function main(argv, commandRunner = run) {
   const releaseThresholdDocument = JSON.parse(releaseThresholdBytes.toString('utf8'));
   const wrapperPath = realpathSync(resolve(options.isolationCommand));
   const hookPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-hook.cjs'));
+  const policyPath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-policy.cjs'));
   const probePath = realpathSync(resolve(dirname(wrapperPath), 'no-egress-probe.mjs'));
   const wrapperRelativePath = relative(detectorRepo, wrapperPath).replaceAll('\\', '/');
+  const policyRelativePath = relative(detectorRepo, policyPath).replaceAll('\\', '/');
   const probeRelativePath = relative(detectorRepo, probePath).replaceAll('\\', '/');
   if (
     wrapperRelativePath !== NO_EGRESS_WRAPPER_PATH ||
+    policyRelativePath !== NO_EGRESS_POLICY_PATH ||
     probeRelativePath !== NO_EGRESS_PROBE_PATH
   ) {
     throw new Error('network-isolation files must be the committed detector-repository scripts');
@@ -1064,7 +1127,12 @@ export async function main(argv, commandRunner = run) {
   if (
     probeDocument.policy !== CURRENT_NO_EGRESS_POLICY ||
     probeDocument.denied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
-    probeDocument.attempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS
+    probeDocument.attempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
+    probeDocument.surface_sha256 !== CURRENT_NO_EGRESS_SURFACE_SHA256 ||
+    canonicalize(probeDocument.surface_ids) !== canonicalize(CURRENT_NO_EGRESS_SURFACE_IDS) ||
+    probeDocument.complete_for_declared_surface !== true ||
+    probeDocument.allowed_local_git !== true ||
+    probeDocument.denied_git_variants !== 3
   ) throw new Error('network-isolation probe did not deny every tested egress path');
   const record = createDetectorFreezeRecord({
     gitCommit,
@@ -1089,11 +1157,17 @@ export async function main(argv, commandRunner = run) {
       evidenceReference: options.isolationEvidence,
       wrapperSha256: sha256Bytes(readFileSync(wrapperPath)),
       hookSha256: sha256Bytes(readFileSync(hookPath)),
+      policyPath: policyRelativePath,
+      policySha256: sha256Bytes(readFileSync(policyPath)),
       probePath: probeRelativePath,
       probeSha256: sha256Bytes(readFileSync(probePath)),
       probeOutputSha256: sha256Bytes(Buffer.from(probeOutput, 'utf8')),
       probeDenied: probeDocument.denied,
       probeAttempted: probeDocument.attempted,
+      surfaceIds: probeDocument.surface_ids,
+      surfaceSha256: probeDocument.surface_sha256,
+      allowedLocalGit: probeDocument.allowed_local_git,
+      deniedGitVariants: probeDocument.denied_git_variants,
       confirmed: true,
     },
     ledger,

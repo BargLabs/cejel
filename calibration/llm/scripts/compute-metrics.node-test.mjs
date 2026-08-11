@@ -13,7 +13,13 @@ import {
   hashSourceEvidenceIndex,
 } from './compute-metrics.mjs';
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
-import { createDetectorFreezeRecord } from './freeze-detector.mjs';
+import {
+  CURRENT_NO_EGRESS_POLICY,
+  CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+  CURRENT_NO_EGRESS_SURFACE_IDS,
+  CURRENT_NO_EGRESS_SURFACE_SHA256,
+  createDetectorFreezeRecord,
+} from './freeze-detector.mjs';
 
 const thresholds = JSON.parse(readFileSync(new URL('../release-thresholds.json', import.meta.url), 'utf8'));
 const sha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
@@ -284,13 +290,21 @@ function fixture() {
     runtime: { name: 'node', version: 'v24', platform: 'linux', architecture: 'x64' },
     workflow: { path: '.github/workflows/llm-calibration.yml', sha256: '5'.repeat(64) },
     networkIsolation: {
-      mode: 'node-runtime-deny-hook-v2',
+      mode: CURRENT_NO_EGRESS_POLICY,
       argvPrefix: ['calibration/llm/scripts/no-egress-wrapper.sh'],
       evidenceReference: 'internal-witness:no-egress',
       wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
+      policyPath: 'calibration/llm/scripts/no-egress-policy.cjs',
+      policySha256: '8'.repeat(64),
       probePath: 'calibration/llm/scripts/no-egress-probe.mjs',
       probeSha256: '3'.repeat(64),
-      probeOutputSha256: '4'.repeat(64), probeDenied: 12, probeAttempted: 12,
+      probeOutputSha256: '4'.repeat(64),
+      probeDenied: CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+      probeAttempted: CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+      surfaceIds: CURRENT_NO_EGRESS_SURFACE_IDS,
+      surfaceSha256: CURRENT_NO_EGRESS_SURFACE_SHA256,
+      allowedLocalGit: true,
+      deniedGitVariants: 3,
       confirmed: true,
     },
     ledger, ledgerSha256: sha(ledger),
@@ -328,7 +342,7 @@ function fixture() {
       git_tree_sha: repository.git_tree_sha, manifest_sha256: current.manifest_sha256,
       detector_build_sha256: BUILD_SHA,
       detector_freeze_sha256: cohort === 'untouched' ? freeze.record_sha256 : null,
-      network_isolation_mode: 'node-runtime-deny-hook-v2', completed_at: '2026-07-22T03:00:00Z',
+      network_isolation_mode: CURRENT_NO_EGRESS_POLICY, completed_at: '2026-07-22T03:00:00Z',
       output_outside_source: true, llm_report_sha256: 'f'.repeat(64),
       llm_report_canonical_sha256: sha(report), finding_ids: findingIds,
       rule_states: ENABLED_RULE_IDS.map((rule_id) => ({ rule_id, state: 'finding' })),

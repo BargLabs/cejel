@@ -8,6 +8,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -16,6 +17,13 @@ import { fileURLToPath } from 'node:url';
 import { assembleExecutionBundle } from './assemble-execution-bundle.mjs';
 import { canonicalize } from './freeze-cohorts.mjs';
 import { retainGoldenCompatibilityEvidence } from './retain-golden-compatibility.mjs';
+
+const require = createRequire(import.meta.url);
+const {
+  POLICY_ID,
+  SURFACE_IDS,
+  SURFACE_SHA256,
+} = require('./no-egress-policy.cjs');
 
 const sha = (document) => createHash('sha256').update(canonicalize(document), 'utf8').digest('hex');
 
@@ -26,9 +34,18 @@ test('committed runtime no-egress probe denies network and process escape paths'
     { encoding: 'utf8' },
   );
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), {
-    policy: 'node-runtime-deny-hook-v2', denied: 12, attempted: 12,
-  });
+  const probe = JSON.parse(result.stdout);
+  assert.equal(probe.policy, POLICY_ID);
+  assert.equal(probe.denied, SURFACE_IDS.length);
+  assert.equal(probe.attempted, SURFACE_IDS.length);
+  assert.deepEqual(probe.surface_ids, SURFACE_IDS);
+  assert.equal(probe.surface_sha256, SURFACE_SHA256);
+  assert.equal(probe.complete_for_declared_surface, true);
+  assert.equal(probe.allowed_local_git, true);
+  assert.equal(probe.denied_git_variants, 3);
+  assert.ok(probe.surface_ids.includes('dns.Resolver.prototype.resolve4'));
+  assert.ok(probe.surface_ids.includes('node:dns/promises.resolve4'));
+  assert.ok(probe.surface_ids.includes('node:dns/promises.Resolver.prototype.resolve4'));
 });
 
 test('normal Node execution keeps local DNS and child processes available outside the wrapper', () => {
@@ -45,6 +62,16 @@ test('normal Node execution keeps local DNS and child processes available outsid
   ], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, 'available');
+});
+
+test('no-egress wrapper refuses inherited Node preload or loader options', () => {
+  const result = spawnSync(
+    fileURLToPath(new URL('./no-egress-wrapper.sh', import.meta.url)),
+    [process.execPath, '--version'],
+    { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '--require=./attacker.cjs' } },
+  );
+  assert.equal(result.status, 66);
+  assert.match(result.stderr, /refuses inherited NODE_OPTIONS/);
 });
 
 test('trusted workflow pins runtime and generates parity from the dedicated pack-free fixture', () => {

@@ -12,7 +12,7 @@ import {
   hashRepositoryEntry,
   validateReviewBindings,
 } from './freeze-cohorts.mjs';
-import { validateDetectorFreezeRecord } from './freeze-detector.mjs';
+import { validateArchivedDetectorFreezeRecord } from './freeze-detector.mjs';
 import { validateGitCommitmentProof, validatePreResultCommitment } from './pre-result-commitment.mjs';
 import { findProhibitedPublicClaims } from './public-claims.mjs';
 import { verifyGitHubExecutionProof } from './github-execution-proof.mjs';
@@ -1358,7 +1358,9 @@ export function deriveCountsFromEvidence(
   const golden = validateManifestBinding(evidence.golden_manifest, 'golden');
   const untouched = validateManifestBinding(evidence.untouched_manifest, 'untouched');
   validateCohortAnchors(golden, untouched, calibrationContract);
-  const freeze = validateDetectorFreezeRecord(unwrapBoundDocument(evidence.detector_freeze, 'detector freeze'));
+  const freeze = validateArchivedDetectorFreezeRecord(
+    unwrapBoundDocument(evidence.detector_freeze, 'detector freeze'),
+  );
   if (freeze.golden_correction_ledger?.golden_manifest_sha256 !== golden.manifest_sha256) {
     throw new Error('detector freeze is not bound to the golden manifest');
   }

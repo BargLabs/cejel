@@ -1,13 +1,22 @@
+import { createRequire } from 'node:module';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GIT_EXEC_MAX_BUFFER_BYTES,
   GIT_EXEC_TIMEOUT_MS,
+  HARDENED_GIT_ARGUMENTS,
+  HARDENED_GIT_READ_ONLY_SUBCOMMANDS,
   describeGitFailure,
   execGit,
 } from '../git-exec.js';
 
 const execFileSyncMock = vi.hoisted(() => vi.fn());
+const require = createRequire(import.meta.url);
+const calibrationPolicy = require('../../../calibration/llm/scripts/no-egress-policy.cjs') as {
+  HARDENED_GIT_ARGUMENTS: readonly string[];
+  ALLOWED_GIT_SUBCOMMANDS: readonly string[];
+};
 
 vi.mock('node:child_process', () => ({
   execFileSync: execFileSyncMock,
@@ -16,6 +25,13 @@ vi.mock('node:child_process', () => ({
 const ORIGINAL_ENVIRONMENT = { ...process.env };
 
 describe('git subprocess chokepoint', () => {
+  it('stays byte-aligned with the calibration no-egress local-Git exception', () => {
+    expect(calibrationPolicy.HARDENED_GIT_ARGUMENTS).toEqual(HARDENED_GIT_ARGUMENTS);
+    expect(calibrationPolicy.ALLOWED_GIT_SUBCOMMANDS).toEqual(
+      HARDENED_GIT_READ_ONLY_SUBCOMMANDS,
+    );
+  });
+
   beforeEach(() => {
     execFileSyncMock.mockReset();
     process.env = { ...ORIGINAL_ENVIRONMENT };
