@@ -25,3 +25,9 @@ export {
   scanEmptyFailureConflation,
   type D4Finding,
 } from './empty-failure-conflation.js';
+export {
+  detectUnobservedControls,
+  scanUnobservedControls,
+  type D6Finding,
+  type D6Mechanism,
+} from './unobserved-control.js';
