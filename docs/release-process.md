@@ -23,6 +23,16 @@ Checklist:
 If the runner does not report the new release version, revert the `v1` move and investigate; a
 Git ref update alone is not evidence of what consumers receive.
 
+## Release-control lesson
+
+**Anchor:** `7ae5935f6f65eff61763d363489eb7d2b2bc6a94` on `origin/main` (the first independent
+MCP Registry and OCI release-chain readback).
+
+A control that runs at the moment of an operation reports on the operation, not on its effect.
+A claim about state requires reading the state back from something that did not produce it. Release
+currency therefore belongs to an independent, read-only verifier: publisher outputs and the
+publisher's own record may be subjects of comparison, but never the verifier's source of truth.
+
 ## Required site binary-link step
 
 After the GitHub Release is published, update the single current-release record in the site source
