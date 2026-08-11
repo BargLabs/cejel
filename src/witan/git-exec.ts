@@ -6,7 +6,7 @@ export const GIT_EXEC_TIMEOUT_MS = 30_000;
 // The largest measured inventory in the 24-repository release corpus is Biome at
 // 2,144,483 bytes / 26,244 entries. 8 MiB leaves 6,244,125 bytes (3.91x) of headroom while
 // keeping each hostile Git response bounded. Exceeding it is a surfaced scan limitation.
-const HARDENED_GIT_ARGUMENTS = [
+export const HARDENED_GIT_ARGUMENTS = [
   '--no-pager',
   '-c',
   'core.fsmonitor=false',
@@ -46,6 +46,16 @@ const HARDENED_GIT_ARGUMENTS = [
   'protocol.https.allow=never',
   '-c',
   'protocol.ssh.allow=never',
+] as const;
+
+export const HARDENED_GIT_READ_ONLY_SUBCOMMANDS = [
+  'check-ignore',
+  'diff-tree',
+  'log',
+  'ls-files',
+  'rev-list',
+  'rev-parse',
+  'show',
 ] as const;
 
 export type GitExecFailureReason =

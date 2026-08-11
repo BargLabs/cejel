@@ -207,6 +207,32 @@ describe('witan CLI arg parsing', () => {
   });
 });
 
+describe('witan CLI output inventory', () => {
+  it('reports every file written by a scan', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-output-inventory-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-output-inventory-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'output-inventory' }));
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir])).toBe(0);
+      const rendered = stdout.mock.calls.map(([chunk]) => String(chunk)).join('');
+      for (const artifact of [
+        'report.json',
+        'summary.json',
+        'attestation.json',
+        'certificate.html',
+        'badge.json',
+        'badge.svg',
+      ]) {
+        expect(rendered).toContain(`${outDir}/${artifact}`);
+      }
+    } finally {
+      stdout.mockRestore();
+    }
+  });
+});
+
 describe('runWitanFreeCli (zero-config end-to-end)', () => {
   it('--help exits 0 and prints usage', async () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);

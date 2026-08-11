@@ -224,7 +224,7 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   if (!options.quiet) {
     process.stdout.write(renderTerminalCertificate(summary));
     process.stdout.write(
-      `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/attestation.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg\n`,
+      `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/summary.json\n  ${options.outDir}/attestation.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg\n`,
     );
   }
 

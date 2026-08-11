@@ -120,10 +120,10 @@ jobs:
           COMMITMENT_COMMIT: ${{ inputs.commitment_git_commit }}
           COMMITMENT_COMMENT_ID: ${{ inputs.commitment_github_comment_id }}
         run: |
-          chmod +x dist/index.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
+          chmod +x dist/calibration/llm-detector.js calibration/llm/scripts/no-egress-wrapper.sh calibration/llm/scripts/no-egress-probe.mjs
           common=(
             --manifest "$MANIFEST"
-            --cejel "$GITHUB_WORKSPACE/dist/index.js"
+            --cejel "$GITHUB_WORKSPACE/dist/calibration/llm-detector.js"
             --work-root "$RUNNER_TEMP/llm-work"
             --output-root "$RUNNER_TEMP/llm-output"
             --pre-result-commitment "$PRE_RESULT"
@@ -134,7 +134,7 @@ jobs:
           )
           if [ "$COHORT" = golden ]; then
             node calibration/llm/scripts/run-frozen-cohort.mjs "${common[@]}" \
-              --network-isolation-mode node-runtime-deny-hook-v2 \
+              --network-isolation-mode node-runtime-deny-hook-v3 \
               --network-isolation-command "$GITHUB_WORKSPACE/calibration/llm/scripts/no-egress-wrapper.sh" \
               --confirm-network-isolation
           else

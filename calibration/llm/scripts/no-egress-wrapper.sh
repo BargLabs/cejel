@@ -14,9 +14,9 @@ if [ ! -f "$hook" ]; then
 fi
 
 if [ -n "${NODE_OPTIONS:-}" ]; then
-  NODE_OPTIONS="--require=$hook $NODE_OPTIONS"
-else
-  NODE_OPTIONS="--require=$hook"
+  echo 'no-egress wrapper refuses inherited NODE_OPTIONS' >&2
+  exit 66
 fi
+NODE_OPTIONS="--require=$hook"
 export NODE_OPTIONS
 exec "$@"

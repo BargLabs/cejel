@@ -42,10 +42,12 @@ one-way untouched evaluation is complete.
 
 ## Golden execution
 
-Calibration uses the committed `no-egress-wrapper.sh` and `no-egress-hook.cjs`. The wrapper injects
-a Node runtime policy that denies `net`, HTTP/HTTPS/HTTP2, DNS, `fetch`, and child-process escape
-paths. The runner executes the committed probe before any clone or scan and requires all twelve
-independent probe paths to be denied:
+Calibration uses the committed wrapper, policy manifest, hook, and probe. The wrapper injects a
+Node runtime policy that denies the declared Node network, DNS, worker, and process-escape surface,
+including module-level DNS APIs, callback and promise Resolver prototypes, and the direct
+`node:dns/promises` specifier. The only subprocess exception is Cejel's exact hardened, read-only
+local Git boundary. The runner derives the declared surface and count from the policy manifest and
+requires every declared path to be denied before any clone or scan:
 
 ```bash
 calibration/llm/scripts/no-egress-wrapper.sh \
@@ -53,18 +55,28 @@ calibration/llm/scripts/no-egress-wrapper.sh \
 ```
 
 This is application-runtime isolation for the Node detector, not a claim of host or kernel
-isolation. Before a golden probe runs, the runner requires the canonical wrapper path in its own
-detector repository and verifies the wrapper, hook, and probe bytes against their exact Git blobs
+isolation. A passing probe count is a lower bound on tested coverage, never a completeness proof.
+Before a golden probe runs, the runner requires the canonical wrapper path in its own detector
+repository and verifies the wrapper, policy, hook, and probe bytes against their exact Git blobs
 at the preregistration commit. The later detector-freeze record also binds those assets and the
 probe-output hash for untouched execution.
+
+Historical detector-freeze records remain valid as archival statements about what their recorded
+v1 or v2 probes actually tested. That is a reasoned evidence-retention decision, not a validator
+branch that authorizes old isolation for a new run: execution eligibility is checked separately
+and requires the current v3 policy. Strengthening a control does not make an accurate historical
+`5/5` or `12/12` observation false, but neither count supports an inference of comprehensive
+no-egress. A historical detector may be studied under v3 only through a separately preregistered,
+cross-policy experiment with a new result record; it is never presented as a literal rerun of the
+old freeze.
 
 ```bash
 node calibration/llm/scripts/run-frozen-cohort.mjs \
   --manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
-  --cejel /absolute/path/to/local/built/cejel \
+  --cejel /absolute/path/to/dist/calibration/llm-detector.js \
   --work-root /absolute/path/to/golden-checkouts \
   --output-root /absolute/path/to/golden-results \
-  --network-isolation-mode node-runtime-deny-hook-v2 \
+  --network-isolation-mode node-runtime-deny-hook-v3 \
   --network-isolation-command /absolute/path/to/calibration/llm/scripts/no-egress-wrapper.sh \
   --pre-result-commitment /absolute/path/to/pre-result-commitment.json \
   --commitment-git-repo /absolute/path/to/cejel \
@@ -80,7 +92,7 @@ manifest's full 40-character commit in detached mode, verifies both `HEAD` and `
 then invokes the local build with:
 
 ```text
-cejel scan <source> --out <separate-output> --pack llm --quiet
+llm-detector scan <source> --out <separate-output> --quiet
 ```
 
 The detector invocation occurs behind the no-egress argv prefix. Clone and checkout happen first;
@@ -140,14 +152,14 @@ node calibration/llm/scripts/freeze-detector.mjs \
   --build-command npm \
   --build-arg run \
   --build-arg build \
-  --build-output dist/index.js \
+  --build-output dist/calibration/llm-detector.js \
   --golden-correction-ledger /absolute/path/to/golden-corrections.json \
   --golden-manifest calibration/llm/cohorts/golden-manifest-v1.2.json \
   --opportunity-manifest /absolute/path/to/opportunity-manifest.json \
   --golden-execution-evidence /absolute/path/to/golden-execution-evidence.json \
   --golden-label-record /absolute/path/to/golden-primary-label.json \
   --golden-label-record /absolute/path/to/golden-finding-review.json \
-  --network-isolation-mode node-runtime-deny-hook-v2 \
+  --network-isolation-mode node-runtime-deny-hook-v3 \
   --network-isolation-command /absolute/path/to/calibration/llm/scripts/no-egress-wrapper.sh \
   --network-isolation-evidence internal-witness:isolation-proof-id \
   --confirm-network-isolation \
@@ -155,9 +167,9 @@ node calibration/llm/scripts/freeze-detector.mjs \
 ```
 
 The record uses canonical sorted-key JSON hashing for `record_sha256`. It stores the no-egress
-wrapper and probe as fixed repository-relative paths so the same freeze can be verified on a
+wrapper, policy manifest, hook, and probe as fixed repository-relative paths so the same freeze can be verified on a
 different machine. The untouched runner derives the detector root from the frozen build-output
-path, re-hashes the workflow, wrapper, hook, and probe there, and requires the exact frozen Node
+path, re-hashes the workflow, wrapper, policy, hook, and probe there, and requires the exact frozen Node
 version, platform, and architecture. The current trusted workflow pins Node `22.23.1` on Linux
 `x64`; produce its detector freeze under that same runtime identity. Before reading golden
 evidence, the tool verifies a clean `HEAD`, records `HEAD^{tree}`, runs the declared build argv
