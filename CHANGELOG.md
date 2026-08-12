@@ -22,6 +22,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   of its published calibration figures; v18-v22 remain explicit-only prospective rubrics with no
   inherited calibration claim. A future default promotion requires a fresh authenticated untouched
   holdout and a separate recorded decision.
+- Adds an in-development, export-only D6 proposal for two exact shell signatures:
+  discarded shell control exit status and a success report independent of the operation it names.
+  It detects the motivating `git worktree remove` reaper shape, distinguishes explicit advisory
+  controls from inert ones, and records unsupported files as non-coverage rather than clean. D6 is
+  exported from `@cejel/cejel/d-series` only: `cejel scan` does not run it and no released
+  certificate includes it. It is uncalibrated, does not affect A1-B6 scoring, and does not change
+  the leaderboard.
 
 ### Fixed
 
