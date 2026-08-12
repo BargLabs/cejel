@@ -69,6 +69,81 @@ test('committed host wrapper has no default route under Docker network none', {
   assert.equal(probe.host_container_image, process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE);
 });
 
+test('committed v22 calibration launcher selects v22 under the host-plus-runtime no-egress lane', {
+  skip: !process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE,
+}, () => {
+  const wrapper = fileURLToPath(new URL('./no-egress-wrapper.sh', import.meta.url));
+  const driver = fileURLToPath(new URL('./run-v22-public-calibration.mjs', import.meta.url));
+  const detectorRoot = fileURLToPath(new URL('../../..', import.meta.url));
+  const source = mkdtempSync(join(tmpdir(), 'cejel-v22-no-egress-source-'));
+  const output = mkdtempSync(join(tmpdir(), 'cejel-v22-no-egress-output-'));
+  const publicOutput = mkdtempSync(join(tmpdir(), 'cejel-v17-public-default-output-'));
+  writeFileSync(
+    join(source, 'package.json'),
+    JSON.stringify({ name: 'v22-no-egress-driver-fixture', scripts: { start: 'node server.js' } }),
+  );
+  writeFileSync(
+    join(source, 'server.js'),
+    "import { createServer } from 'node:http'; createServer(() => {}).listen(3000);\n",
+  );
+
+  // A launcher is an immutable part of the detector candidate, not a generated file placed next
+  // to a build after preregistration. The wrapper can only invoke it from the mounted candidate.
+  const tracked = spawnSync('git', [
+    '-C',
+    detectorRoot,
+    'ls-files',
+    '--error-unmatch',
+    'calibration/llm/scripts/run-v22-public-calibration.mjs',
+  ], { encoding: 'utf8' });
+  assert.equal(tracked.status, 0, tracked.stderr);
+
+  const result = spawnSync(
+    wrapper,
+    [driver, 'scan', source, '--out', output, '--quiet'],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CEJEL_CALIBRATION_NO_EGRESS_IMAGE: process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE,
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(readFileSync(join(output, 'report.json'), 'utf8'));
+  assert.equal(report.rubricVersion, 'witan-rubric-v22-prospective-2026-08-10');
+  const manifest = JSON.parse(readFileSync(join(output, 'v22-calibration-manifest.json'), 'utf8'));
+  assert.equal(manifest.rubric_version, 'witan-rubric-v22-prospective-2026-08-10');
+
+  const verifier = fileURLToPath(
+    new URL('./v22-public-calibration-artifacts.mjs', import.meta.url),
+  );
+  const verification = spawnSync(process.execPath, [verifier, output], { encoding: 'utf8' });
+  assert.equal(verification.status, 0, verification.stderr);
+  const receipt = JSON.parse(readFileSync(join(output, 'v22-calibration-receipt.json'), 'utf8'));
+  assert.equal(receipt.rubric_version, 'witan-rubric-v22-prospective-2026-08-10');
+  assert.equal(receipt.report_attestation_binding, 'verified');
+
+  const publicCli = spawnSync(
+    process.execPath,
+    [join(detectorRoot, 'dist', 'index.js'), 'scan', source, '--out', publicOutput, '--quiet'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(publicCli.status, 0, publicCli.stderr);
+  const publicAttestation = JSON.parse(readFileSync(join(publicOutput, 'attestation.json'), 'utf8'));
+  assert.equal(publicAttestation.predicate.rubricVersion, 'witan-rubric-v17-2026-07-24');
+});
+
+test('v22 artifact verifier fails loudly when a driver output has no artifacts', () => {
+  const verifier = fileURLToPath(
+    new URL('./v22-public-calibration-artifacts.mjs', import.meta.url),
+  );
+  const emptyOutput = mkdtempSync(join(tmpdir(), 'cejel-v22-empty-driver-output-'));
+  const result = spawnSync(process.execPath, [verifier, emptyOutput], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /v22 calibration required artifact missing: v22-calibration-manifest\.json/);
+});
+
 test('normal Node execution keeps local DNS and child processes available outside the wrapper', () => {
   const result = spawnSync(process.execPath, [
     '--input-type=module',

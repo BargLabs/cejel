@@ -12,6 +12,9 @@ import {
   serializeWitanReport,
   verifyWitanAttestationBinding,
 } from './witan/index.js';
+import { WITAN_RUBRIC_VERSION_V22 } from './witan/rubric-version.js';
+
+export { WitanReportSchema, verifyWitanAttestationBinding };
 
 import { runCejelScan } from './scan.js';
 import {
@@ -178,6 +181,22 @@ async function main(): Promise<void> {
  * and repo-signal collector; this module only adds ergonomic defaults + presentation.
  */
 export async function runWitanFreeCli(args: readonly string[]): Promise<number> {
+  return runWitanCli(args);
+}
+
+/**
+ * Calibration-only entry for a committed evaluation driver. This is deliberately not a public
+ * CLI flag: product scans retain the calibrated default unless a separately reviewed driver
+ * pins an experimental rubric in its own frozen source tree.
+ */
+export async function runWitanV22CalibrationCli(args: readonly string[]): Promise<number> {
+  return runWitanCli(args, WITAN_RUBRIC_VERSION_V22);
+}
+
+async function runWitanCli(
+  args: readonly string[],
+  rubricVersion?: string,
+): Promise<number> {
   const invocation = parseCliInvocation(args);
   if (invocation.command === 'verify') {
     return runVerifyBinding(invocation.reportPath, invocation.attestationPath);
@@ -196,6 +215,7 @@ export async function runWitanFreeCli(args: readonly string[]): Promise<number> 
   const { report, summary, generatedAt } = runCejelScan({
     repoPath: options.repoPath,
     ...(options.productDisplayName ? { productDisplayName: options.productDisplayName } : {}),
+    ...(rubricVersion ? { rubricVersion } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
   });
