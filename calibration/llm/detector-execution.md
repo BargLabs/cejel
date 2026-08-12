@@ -69,6 +69,29 @@ repository and verifies the host wrapper, runtime wrapper, policy, hook, and pro
 at the preregistration commit. The later detector-freeze record also binds those assets and the
 probe-output hash for untouched execution.
 
+## Explicit prospective-rubric driver
+
+The public `cejel` CLI intentionally retains the last calibrated rubric and exposes no rubric
+selection flag. A prospective-rubric calibration must instead freeze a committed launcher that
+selects its rubric in source, then invoke that launcher through the same host-plus-runtime wrapper.
+For v22, the launcher is:
+
+```bash
+calibration/llm/scripts/no-egress-wrapper.sh \
+  calibration/llm/scripts/run-v22-public-calibration.mjs \
+  scan <source> --out <output> --quiet
+```
+
+`run-v22-public-calibration.mjs` is Git-tracked and loads the same tree's built `dist/index.js`
+through its calibration-only function, which pins
+`witan-rubric-v22-prospective-2026-08-10`. The public CLI's default remains v17. The exact
+launcher path and built candidate are part of the successor's immutable source boundary; a
+preregistration must bind both before candidate source access. The driver writes a
+`v22-calibration-manifest.json` only after every normal scan artifact exists and the report plus
+attestation name v22. A separate verifier then hashes that closure, verifies the report/attestation
+binding, and writes the non-overwritable `v22-calibration-receipt.json`; missing artifacts produce
+no receipt and a nonzero verification result.
+
 Historical detector-freeze records remain valid as archival statements about what their recorded
 v1, v2, or v3 probes actually tested. That is a reasoned evidence-retention decision, not a validator
 branch that authorizes old isolation for a new run: execution eligibility is checked separately
