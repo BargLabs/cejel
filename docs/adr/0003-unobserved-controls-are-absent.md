@@ -64,14 +64,15 @@ That is a statement Cejel can make from the bytes in front of it, which is the o
 **Accepted.**
 
 - A declared control whose failure cannot change an outcome is reportable as a finding, not as an
-  abstention. Rule D6 mechanises exactly this.
+  abstention. The D6 proposal mechanises only two exact shell signatures of this broader principle;
+  silence from those signatures is not evidence that unobserved controls are absent.
 - The reporting is *about the evidentiary state*, never about intent, competence, or whether the
   checked property in fact holds. It may hold; something else may guarantee it. Cejel does not say.
 - Subjects will occasionally receive findings on controls that are deliberately advisory. The rule's
   abstention conditions exist to keep this rare, and where purpose is genuinely unclear the rule
   abstains rather than reporting.
-- Cejel will apply this to itself, and to Alfred, before applying it to anyone else. Candidate
-  conditions in those repositories must be verified rather than assumed.
+- Any future expansion will first be applied to Cejel and Alfred before any broader claim is made.
+  Candidate conditions in those repositories must be verified rather than assumed.
 
 **Rejected as consequences.**
 
@@ -103,5 +104,5 @@ Writing the basis down is what makes a finding discussable without being relitig
 ## Notes
 
 This decision is the general form of the defect family recorded across the 2026-08-08 lesson seeds. It
-is stated here as a position rather than only as a detector because the position is prior: D6 without
-this record is a rule with no stated basis, and this record without D6 is a claim with no enforcement.
+is stated here as a position rather than only as a detector because the position is prior. The D6
+proposal implements two bounded examples of the position; it is not enforcement of the general claim.

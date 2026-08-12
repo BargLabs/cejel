@@ -1,6 +1,6 @@
-cleanup_staging_directory() {
+verify_cleanup() {
   return 1
 }
 
-cleanup_staging_directory || true
+verify_cleanup || true # advisory: best effort
 echo "cleanup is best effort"

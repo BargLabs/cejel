@@ -1,10 +1,6 @@
 {
   "schemaVersion": "cejel-d6-acceptance-v1",
   "preregisteredAt": "2026-08-11",
-  "historicalDualControlDenominator": {
-    "included": false,
-    "reason": "D6 was added after the frozen dual-control baseline. These exact-signature specimens are acceptance evidence only and do not alter, relabel, or satisfy any D1-D5 historical denominator."
-  },
   "cases": [
     {
       "id": "D6-ACCEPT-EXIT-STATUS-01",
@@ -21,12 +17,23 @@
       "defectPath": "calibration/d-series/d6/acceptance/report-independent/report.positive.fixture.sh",
       "repairedPath": "calibration/d-series/d6/acceptance/report-independent/report.negative.fixture.sh",
       "oracle": "calibration/d-series/d6/acceptance/report-independent/oracle.node-test.mjs"
+    },
+    {
+      "id": "D6-ACCEPT-GIT-WORKTREE-REAPER-01",
+      "mechanism": "report-independent-of-operation",
+      "defectPath": "calibration/d-series/d6/acceptance/report-independent/reaper.positive.fixture.sh",
+      "repairedPath": "calibration/d-series/d6/acceptance/report-independent/reaper.negative.fixture.sh",
+      "oracle": "calibration/d-series/d6/acceptance/report-independent/oracle.node-test.mjs"
     }
   ],
   "precisionGate": {
     "cohort": "leaderboard/corpus.json public entries",
     "expectedRepositories": 23,
     "maximumFindings": 0,
-    "purpose": "report only; this uncalibrated exact-signature rule does not gate this proposal"
+    "positiveControl": {
+      "path": "calibration/d-series/d6/acceptance/report-independent/reaper.positive.fixture.sh",
+      "expectedFindings": 1
+    },
+    "purpose": "The gate must first detect the seeded positive control; only then is zero on the unseeded pinned cohort evidence about false positives rather than detector silence."
   }
 }
