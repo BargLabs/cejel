@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildWitanCliSummary } from '../../summary.js';
+import { renderTerminalCertificate } from '../../terminal.js';
+import { CERTIFICATE_GLOSSARY } from '../certificate-presentation.js';
 import { renderWitanHtmlReport } from '../html.js';
+import { renderWitanMarkdownReport } from '../markdown.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
+import { serializeWitanReport } from '../attestation.js';
 
 function criterion(
   overrides: Partial<WitanCriterionScore> & Pick<WitanCriterionScore, 'id' | 'category'>,
@@ -38,6 +43,117 @@ function reportFixture(
 }
 
 describe('certificate presentation regressions', () => {
+  it('renders capped test/source counts identically in HTML, Markdown, and terminal', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A1',
+        category: 'code_trust',
+        metrics: [
+          {
+            name: 'test_to_source_ratio',
+            label: 'Test-to-source file ratio',
+            value: 73,
+            max: 57,
+            weight: 0.3,
+            unit: 'ratio',
+            kind: 'saturating_count',
+          },
+        ],
+      }),
+    ]);
+    const expected = '73 test files / 57 source files (credit capped at parity)';
+
+    expect(renderWitanHtmlReport(report)).toContain(expected);
+    expect(renderWitanMarkdownReport(report)).toContain(expected);
+    expect(renderTerminalCertificate(buildWitanCliSummary(report), report)).toContain(expected);
+  });
+
+  it('distinguishes absent coverage from a measured zero in every renderer without changing score or report bytes', () => {
+    const a1 = criterion({
+      id: 'A1',
+      category: 'code_trust',
+      score: 2.4,
+      status: 'warning',
+      metrics: [
+        {
+          name: 'coverage_percent',
+          label: 'Static coverage percentage',
+          value: 0,
+          max: 100,
+          weight: 0.3,
+          unit: 'percent',
+        },
+      ],
+    });
+    const absent = reportFixture([a1]);
+    const measuredZero = reportFixture([
+      {
+        ...a1,
+        evidence: [
+          {
+            kind: 'coverage',
+            label: 'Measured coverage report',
+            path: 'coverage/coverage-summary.json',
+          },
+        ],
+      },
+    ]);
+    const before = serializeWitanReport(absent);
+    const absentOutputs = [
+      renderWitanHtmlReport(absent),
+      renderWitanMarkdownReport(absent),
+      renderTerminalCertificate(buildWitanCliSummary(absent), absent),
+    ];
+    const measuredOutputs = [
+      renderWitanHtmlReport(measuredZero),
+      renderWitanMarkdownReport(measuredZero),
+      renderTerminalCertificate(buildWitanCliSummary(measuredZero), measuredZero),
+    ];
+
+    for (const output of absentOutputs) {
+      expect(output).toContain('no coverage report found — not measured');
+    }
+    for (const output of measuredOutputs) {
+      expect(output).toContain('0/100 percent');
+      expect(output).not.toContain('no coverage report found — not measured');
+    }
+    expect(absent.overallScore).toBe(measuredZero.overallScore);
+    expect(absent.criteria[0]?.score).toBe(measuredZero.criteria[0]?.score);
+    expect(absent.criteria[0]?.metrics[0]?.value).toBe(0);
+    expect(serializeWitanReport(absent)).toBe(before);
+  });
+
+  it('keeps relying-party sections ordered and operator-authored glossary copy verbatim', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })], {
+      headSha: '0123456789abcdef0123456789abcdef01234567',
+    });
+    const outputs = [
+      renderWitanHtmlReport(report),
+      renderWitanMarkdownReport(report),
+      renderTerminalCertificate(buildWitanCliSummary(report), report),
+    ];
+
+    for (const output of outputs) {
+      expect(output.indexOf('What was examined')).toBeLessThan(
+        output.indexOf('What was established'),
+      );
+      expect(output.indexOf('What was established')).toBeLessThan(
+        output.indexOf('What was not established'),
+      );
+      expect(output.indexOf('What was not established')).toBeLessThan(
+        output.indexOf('What to do next'),
+      );
+      expect(output).toContain(
+        'test files that actually assert something rather than being empty or skipped',
+      );
+      expect(output).toContain('credentials like API keys and tokens');
+      expect(output).toContain(
+        'the checks that run automatically: tests, linting, type-checking, build',
+      );
+    }
+    expect(CERTIFICATE_GLOSSARY).toHaveLength(33);
+  });
+
   it('records both the producing CLI version and rubric version', () => {
     const html = renderWitanHtmlReport(
       reportFixture([criterion({ id: 'A1', category: 'code_trust' })]),

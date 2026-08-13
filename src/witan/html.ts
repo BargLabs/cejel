@@ -24,6 +24,15 @@ import {
   formatExternalSourceLabel,
 } from './external-findings.js';
 import { renderFindingSummary } from './finding-presentation.js';
+import {
+  buildRelyingPartySummary,
+  CERTIFICATE_GLOSSARY,
+  formatCertificateMetricValue,
+  glossaryEntriesForReport,
+  glossaryEntryForMetric,
+  type CertificateGlossaryEntry,
+  type RelyingPartySummary,
+} from './certificate-presentation.js';
 
 export interface WitanHtmlReportOptions {
   /** Version of the Cejel CLI/server that produced this certificate. */
@@ -49,6 +58,7 @@ export function renderWitanHtmlReport(
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const coverage = computeMeasuredCoverage(report);
   const gitHistoryUnavailable = !report.repo.headSha;
+  const relyingPartySummary = buildRelyingPartySummary(report);
 
   return `<!doctype html>
 <html lang="en">
@@ -102,6 +112,8 @@ export function renderWitanHtmlReport(
       </div>
     </header>
 
+    ${renderRelyingPartySummary(relyingPartySummary)}
+
     ${
       (report.scanLimitations?.length ?? 0) > 0
         ? `<section class="scan-limitations-section evidence-section" aria-label="Scan limitations">
@@ -145,10 +157,36 @@ export function renderWitanHtmlReport(
     </section>`
         : ''
     }
+
+    ${renderGlossary(glossaryEntriesForReport(report))}
   </main>
 </body>
 </html>
 `;
+}
+
+function renderRelyingPartySummary(summary: RelyingPartySummary): string {
+  return `<section class="relying-party-summary" aria-labelledby="relying-party-heading">
+      <h2 id="relying-party-heading">How to read this certificate</h2>
+      <dl>
+        <div><dt>What was examined</dt><dd>${escapeHtml(summary.examined)}</dd></div>
+        <div><dt>What was established</dt><dd>${escapeHtml(summary.established)}</dd></div>
+        <div><dt>What was not established</dt><dd>${escapeHtml(summary.notEstablished)}</dd></div>
+        <div><dt>What to do next</dt><dd>${escapeHtml(summary.next)}</dd></div>
+      </dl>
+    </section>`;
+}
+
+function renderGlossary(entries: readonly CertificateGlossaryEntry[]): string {
+  return `<section class="glossary" aria-labelledby="glossary-heading">
+      <h2 id="glossary-heading">Plain-language glossary</h2>
+      <dl>${entries
+        .map(
+          (entry) =>
+            `<div><dt id="glossary-${escapeAttribute(entry.key)}">${escapeHtml(entry.term)}</dt><dd>${escapeHtml(entry.definition)}</dd></div>`,
+        )
+        .join('')}</dl>
+    </section>`;
 }
 
 function renderContentReadSummary(report: WitanReport): string {
@@ -296,7 +334,7 @@ function renderCriterionCard(
     ...criterion.evidence.map(renderEvidencePointer),
     ...criterion.findings.map((finding) => renderFindingEvidence(criterion, finding)),
   ];
-  const metrics = criterion.metrics.map(renderMetric);
+  const metrics = criterion.metrics.map((metric) => renderMetric(criterion, metric));
   const statusReconciliation = renderStatusReconciliation(criterion);
   const historyWarning =
     gitHistoryUnavailable && criterion.metrics.some((metric) => metric.name === 'pr_merge_ratio')
@@ -309,7 +347,7 @@ function renderCriterionCard(
                 <div class="criterion-id">${escapeHtml(criterion.id)}</div>
                 <h3>${escapeHtml(criterion.title)}</h3>
               </div>
-              ${renderStatusChip(criterion.status)}
+              ${renderStatusChip(criterion.id, criterion.status)}
             </div>
             <div class="criterion-score">${criterion.status === 'not_applicable' ? 'N/A' : criterion.status === 'insufficient_data' ? 'No data' : formatScore(criterion.score)}</div>
             ${statusReconciliation}
@@ -333,7 +371,11 @@ function renderStatusReconciliation(criterion: WitanCriterionScore): string {
   }
   const numericBand = scoreBandForPresentation(criterion.score);
   if (numericBand === criterion.status) return '';
-  return `<p class="status-explanation"><strong>Why the labels differ:</strong> the ${escapeHtml(criterion.status)} dimension band is calibrated from criterion evidence thresholds and findings, independently of the ${formatScore(criterion.score)}/4.0 weighted score (which falls in the ${numericBand} numeric band).</p>`;
+  const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'labels');
+  const help = entry
+    ? `<span class="term-help" tabindex="0" aria-describedby="tooltip-${criterion.id}-labels"><strong>Why the labels differ:</strong><span class="term-tooltip" id="tooltip-${criterion.id}-labels" role="tooltip">${escapeHtml(entry.definition)}</span></span>`
+    : '<strong>Why the labels differ:</strong>';
+  return `<p class="status-explanation">${help} the ${escapeHtml(criterion.status)} dimension band is calibrated from criterion evidence thresholds and findings, independently of the ${formatScore(criterion.score)}/4.0 weighted score (which falls in the ${numericBand} numeric band).</p>`;
 }
 
 function scoreBandForPresentation(score: number): Extract<
@@ -346,13 +388,20 @@ function scoreBandForPresentation(score: number): Extract<
   return 'critical';
 }
 
-function renderMetric(metric: WitanCriterionScore['metrics'][number]): string {
-  const unit = metric.unit ? ` ${escapeHtml(metric.unit)}` : '';
-  if (metric.kind === 'saturating_count' && metric.max !== undefined && metric.value > metric.max) {
-    return `<strong>${escapeHtml(metric.label)}</strong><span>${formatMetricValue(metric.max)}${unit} (capped; ${formatMetricValue(metric.value)} raw)</span>`;
-  }
-  const max = metric.max ? `/${formatMetricValue(metric.max)}` : '';
-  return `<strong>${escapeHtml(metric.label)}</strong><span>${formatMetricValue(metric.value)}${max}${unit}</span>`;
+function renderMetric(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionScore['metrics'][number],
+): string {
+  const entry = glossaryEntryForMetric(metric);
+  const tooltipId = `tooltip-${criterion.id}-${entry.key}`;
+  const formatted = formatCertificateMetricValue(criterion, metric);
+  const cappedEntry = formatted.includes('capped')
+    ? CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'capped')
+    : undefined;
+  const label = `<span class="term-help" tabindex="0" aria-describedby="${escapeAttribute(tooltipId)}"><strong>${escapeHtml(metric.label)}</strong><span class="term-tooltip" id="${escapeAttribute(tooltipId)}" role="tooltip">${escapeHtml(entry.definition)}</span></span>`;
+  if (!cappedEntry) return `${label}<span>${escapeHtml(formatted)}</span>`;
+  const cappedTooltipId = `${tooltipId}-capped`;
+  return `${label}<span class="term-help metric-value" tabindex="0" aria-describedby="${escapeAttribute(cappedTooltipId)}">${escapeHtml(formatted)}<span class="term-tooltip" id="${escapeAttribute(cappedTooltipId)}" role="tooltip">${escapeHtml(cappedEntry.definition)}</span></span>`;
 }
 
 function renderCategoryScore(
@@ -366,8 +415,10 @@ function renderCategoryScore(
     : formatScore(score);
 }
 
-function renderStatusChip(status: WitanCriterionStatus): string {
-  return `<span class="status" data-status="${status}">dimension band: ${status}</span>`;
+function renderStatusChip(criterionId: string, status: WitanCriterionStatus): string {
+  const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'labels');
+  const tooltipId = `tooltip-${criterionId}-status-labels`;
+  return `<span class="status term-help" data-status="${status}" tabindex="0" aria-describedby="${tooltipId}">dimension band: ${status}${entry ? `<span class="term-tooltip" id="${tooltipId}" role="tooltip">${escapeHtml(entry.definition)}</span>` : ''}</span>`;
 }
 
 function renderEvidenceListItem(
@@ -469,10 +520,6 @@ function formatScore(score: number): string {
   return score.toFixed(1);
 }
 
-function formatMetricValue(value: number): string {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(2);
-}
-
 function formatDate(value: string): string {
   return value.slice(0, 10);
 }
@@ -556,6 +603,13 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .subscores { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .coverage-note { margin-top: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
 .source-counts { margin: 8px 0 0; padding-left: 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.relying-party-summary, .glossary { margin-top: 28px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
+.relying-party-summary dl { display: grid; gap: 14px; margin: 0; }
+.relying-party-summary dl div { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
+.relying-party-summary dt, .glossary dt { color: var(--text); }
+.glossary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; margin: 0; }
+.glossary dl div { border-top: 1px solid var(--line); padding-top: 10px; }
+.glossary dd { margin-top: 4px; font-size: 13px; }
 .trust-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
 .scan-limitations-section { margin-top: 28px; border-color: rgba(231, 191, 114, .44); }
 .scan-limitations-section .scan-warning { list-style: none; margin-left: -18px; }
@@ -585,6 +639,18 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .criterion-metrics li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(238, 244, 247, .08); padding-bottom: 6px; }
 .criterion-metrics strong { color: var(--text); font-weight: 650; }
 .criterion-metrics span { white-space: nowrap; color: var(--muted); }
+.term-help { position: relative; cursor: help; outline: none; }
+.term-help:focus-visible { box-shadow: 0 0 0 2px var(--periwinkle); border-radius: 3px; }
+.term-tooltip {
+  position: absolute; z-index: 10; left: 0; bottom: calc(100% + 8px); width: min(320px, 75vw);
+  visibility: hidden; opacity: 0; pointer-events: none; white-space: normal;
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 9px 11px;
+  background: #101b2a; color: var(--text); font-family: var(--sans); font-size: 12px;
+  font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: normal;
+  transition: opacity .12s ease;
+}
+.term-help:hover > .term-tooltip, .term-help:focus-within > .term-tooltip { visibility: visible; opacity: 1; }
+.metric-value .term-tooltip { left: auto; right: 0; }
 .status { flex: none; border-radius: 999px; padding: 4px 9px; font-family: var(--mono); font-size: 11px; border: 1px solid var(--line-strong); }
 .status[data-status="verified"] { color: var(--teal); background: var(--teal-weak); border-color: rgba(47, 200, 166, .42); }
 .status[data-status="info"] { color: var(--periwinkle); background: var(--periwinkle-weak); border-color: rgba(147, 166, 218, .4); }
@@ -603,6 +669,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 840px) {
   .certificate { padding: 28px 18px 48px; }
   .hero-grid, .trust-grid, .evidence-grid { grid-template-columns: 1fr; }
+  .relying-party-summary dl div, .glossary dl { grid-template-columns: 1fr; }
   h1 { font-size: 46px; }
 }
 `;
