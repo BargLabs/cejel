@@ -165,13 +165,13 @@ distribution-only release.
   so reports created by different installed versions explain their scoring identity.
 - A calibrated dimension band that differs from the weighted numeric score now carries an
   inline explanation instead of presenting, for example, `1.9` beside `verified` with no
-  reconciliation. Reported by Hirad.
+  reconciliation. Reported by an external user.
 - A certificate produced from a source tarball now warns on B2 that Git history was
   unavailable and that a zero recent-PR proxy may undercount the criterion. Reported by
-  Hirad.
+  an external user.
 - The npm instructions force `@latest`, explain the stale `npx` cache footgun, and show how
   to print the version before comparing certificates. Rubric/CLI drift was reported by
-  Mojan (Fortinet).
+  an external enterprise security engineer.
 
 ### Included from main
 
