@@ -21,28 +21,28 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'labels',
     term: 'labels / why the labels differ',
     definition:
-      'Finding severity describes one issue, the dimension band summarizes the criterion evidence, and the numeric band comes from the weighted score; they matter because each answers a different acceptance question.',
+      'Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.',
     metricNames: [],
   },
   {
     key: 'capped',
     term: 'capped',
     definition:
-      'Credit stops increasing after the stated maximum even when the raw count is higher; this matters because extra volume must not outweigh the rest of the rubric.',
+      'Credit stops increasing after the maximum defined by the scoring rubric, even when the raw count is higher. Caps are fixed per rubric version because they are part of what was calibrated. Extra volume therefore cannot outweigh the rest of the rubric.',
     metricNames: [],
   },
   {
     key: 'test-to-source-file-ratio',
     term: 'test-to-source file ratio',
     definition:
-      'The number of detected test files compared with detected source files; it matters because a larger implementation surface needs a correspondingly visible test surface.',
+      'The number of detected test files compared with detected source files. A larger implementation surface needs a correspondingly visible test surface.',
     metricNames: ['test_to_source_ratio'],
   },
   {
     key: 'static-coverage',
     term: 'static coverage',
     definition:
-      'A coverage percentage read from an existing report or configured threshold; it matters because Cejel never runs the subject\'s tests, so an absent report is not a measured zero.',
+      'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives.',
     metricNames: ['coverage_percent'],
   },
   {
@@ -67,182 +67,182 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'environment-handling-depth',
     term: 'environment handling depth',
     definition:
-      'The visible controls for keeping environment-specific configuration and credentials out of source; it matters because unsafe configuration handling can expose production access.',
+      'The visible controls for keeping environment-specific configuration and credentials out of source. Unsafe configuration handling can expose production access.',
     metricNames: ['env_handling_depth'],
   },
   {
     key: 'rls-policy-count',
     term: 'RLS policy count',
     definition:
-      'The number of detected database row-level security policies; it matters because those policies can enforce which rows each tenant or user may reach.',
+      'The number of detected database row-level security policies. Those policies can enforce which rows each tenant or user may reach.',
     metricNames: ['rls_policy_count'],
   },
   {
     key: 'tenant-scoped-schema-ratio',
     term: 'tenant-scoped schema ratio',
     definition:
-      'The share of relevant database tables with a visible tenant boundary; it matters because missing tenant scope can allow one customer\'s data to mix with another\'s.',
+      'The share of relevant database tables with a visible tenant boundary. Missing tenant scope can allow one customer\'s data to mix with another\'s.',
     metricNames: ['tenant_scope_ratio'],
   },
   {
     key: 'crypto-comparison-hygiene',
     term: 'crypto comparison hygiene',
     definition:
-      'Whether sensitive signatures or authentication codes use timing-safe comparison patterns; it matters because ordinary comparisons can leak information through timing.',
+      'Comparisons of secret values that take the same time whether or not the values match. Attackers therefore cannot recover secrets by measuring response times.',
     metricNames: ['crypto_comparison_hygiene'],
   },
   {
-    key: 'primitive-coverage',
-    term: 'primitive coverage',
+    key: 'basic-checks',
+    term: 'basic checks',
     definition:
-      'How many expected building-block controls are visibly present, such as health checks or pull-request records; it matters because each missing primitive leaves part of the acceptance story unsupported.',
+      'In code trust, production-readiness basic checks cover build or type-check commands, automated pipelines, deployment configuration, environment templates, health checks, and error boundaries. In process trust, PR trace basic checks cover automated pipelines, pull-request templates, and review-gate records. Missing checks leave part of the acceptance path unsupported.',
     metricNames: ['prod_readiness_primitives', 'pr_trace_primitives'],
   },
   {
     key: 'workflow-depth',
     term: 'workflow depth',
     definition:
-      'How many relevant automated workflow stages Cejel can see rather than how many workflow files exist; it matters because a deeper workflow checks more of the path to a release.',
+      'Workflows here are automated build, test, or release pipelines, such as GitHub Actions, not team policy. This measures how many relevant pipeline stages Cejel can see rather than how many workflow files exist. A deeper pipeline checks more of the path to a release.',
     metricNames: ['prod_workflow_depth'],
   },
   {
     key: 'observability-depth',
     term: 'observability depth',
     definition:
-      'The visible health, logging, and error-reporting controls; it matters because operators need evidence that failures can be detected and investigated.',
+      'The visible health, logging, and error-reporting controls. Operators need evidence that failures can be detected and investigated.',
     metricNames: ['observability_depth'],
   },
   {
     key: 'rollback-and-migration-safety-depth',
     term: 'rollback and migration-safety depth',
     definition:
-      'The visible procedures and checks for reversing a release or changing stored data safely; it matters because recovery and data changes are high-risk parts of accepting software.',
+      'The visible procedures and checks for reversing a release or changing stored data safely. Recovery and data changes are high-risk parts of accepting software.',
     metricNames: ['rollback_safety_depth'],
   },
   {
     key: 'dependency-automation-ratio',
     term: 'dependency automation ratio',
     definition:
-      'The share of expected automated dependency-update and audit controls that are present; it matters because stale or vulnerable packages otherwise depend on manual discovery.',
+      'The share of expected automated dependency-update and audit controls that are present. Stale or vulnerable packages otherwise depend on manual discovery.',
     metricNames: ['dependency_automation_ratio'],
   },
   {
     key: 'pinned-dependency-ratio',
     term: 'pinned dependency ratio',
     definition:
-      'The share of application dependencies fixed to exact versions; it matters because exact inputs make deployed builds more reproducible.',
+      'The share of application dependencies fixed to exact versions. Exact inputs make deployed builds more reproducible.',
     metricNames: ['pinned_dependency_ratio'],
   },
   {
     key: 'lockfile-coverage',
     term: 'lockfile coverage',
     definition:
-      'Whether the package manifests are backed by committed lockfiles; it matters because lockfiles record the exact dependency versions selected for a build.',
+      'Whether the package manifests are backed by committed lockfiles. Lockfiles record the exact dependency versions selected for a build.',
     metricNames: ['lockfile_coverage'],
   },
   {
     key: 'declared-version-range-ratio',
     term: 'declared version range ratio',
     definition:
-      'The share of library dependencies with an explicit compatible version range; it matters because unconstrained dependencies can change without a deliberate source change.',
+      'The share of library dependencies with an explicit compatible version range. Unconstrained dependencies can change without a deliberate source change.',
     metricNames: ['declared_version_range_ratio'],
   },
   {
     key: 'dependency-count-sanity',
     term: 'dependency count sanity',
     definition:
-      'A bounded check for an unusually long list of direct dependencies in a library; it matters because every direct dependency adds maintenance and supply-chain exposure.',
+      'A bounded check for an unusually long list of direct dependencies for a library. Every direct dependency adds maintenance and supply-chain exposure.',
     metricNames: ['dependency_count_sanity'],
   },
   {
     key: 'claim-match-rate',
     term: 'claim match rate',
     definition:
-      'The share of documented product claims that match visible repository evidence; it matters because an acceptance claim should be checkable against the delivered revision.',
+      'The share of documented product claims that match visible repository evidence. An acceptance claim should be checkable against the delivered revision.',
     metricNames: ['claim_match_rate'],
   },
   {
     key: 'claim-source-depth',
     term: 'claim source depth',
     definition:
-      'How much concrete, checkable claim material is present; it matters because vague or missing claims give a relying party nothing specific to verify.',
+      'How much concrete, checkable claim material is present. Vague or missing claims give a relying party nothing specific to verify.',
     metricNames: ['claim_source_depth'],
   },
   {
     key: 'reconciliation-artifact-depth',
     term: 'reconciliation artifact depth',
     definition:
-      'The visible records connecting stated claims to evidence; it matters because a relying party needs to trace what was promised to what was inspected.',
+      'The visible records connecting stated claims to evidence. A relying party needs to trace what was promised to what was inspected.',
     metricNames: ['reconciliation_artifact_depth'],
   },
   {
     key: 'recent-pr-merge-ratio',
     term: 'recent PR merge ratio',
     definition:
-      'The share of recent visible commits associated with merged pull requests; it matters because review history helps a relying party inspect how changes reached the revision.',
+      'The share of recent visible commits associated with merged pull requests. Review history helps a relying party inspect how changes reached the revision.',
     metricNames: ['pr_merge_ratio'],
   },
   {
     key: 'ci-verification-depth',
     term: 'CI verification depth',
     definition:
-      'The number of test, lint, type-check, and build categories Cejel sees running in continuous integration; it matters because automated gates make checks repeatable for each change.',
+      'The number of test, lint, type-check, and build categories Cejel sees running in continuous integration. Automated gates make checks repeatable for each change.',
     metricNames: ['ci_script_depth'],
   },
   {
     key: 'pr-gate-ci-workflow-count',
     term: 'PR-gate CI workflow count',
     definition:
-      'The number of workflows that visibly run on pull requests or the default branch; it matters because checks that never gate changes cannot support the acceptance decision.',
+      'Workflows here are automated build and test pipelines, such as GitHub Actions, not team policy. This counts pipelines that visibly run on pull requests or the default branch. Checks that never gate changes cannot support the acceptance decision.',
     metricNames: ['default_branch_ci_depth'],
   },
   {
     key: 'audit-artifact-depth',
     term: 'audit artifact depth',
     definition:
-      'How many durable audit records such as changelogs, incident notes, or security records are present; it matters because past operational decisions should remain inspectable.',
+      'How many durable audit records such as changelogs, incident notes, or security records are present. Past operational decisions should remain inspectable.',
     metricNames: ['audit_artifact_depth'],
   },
   {
     key: 'audit-freshness-depth',
     term: 'audit freshness depth',
     definition:
-      'How recently the visible audit records were maintained; it matters because stale records may not describe the revision being accepted.',
+      'How recently the visible audit records were maintained. Stale records may not describe the revision being accepted.',
     metricNames: ['audit_freshness_depth'],
   },
   {
     key: 'un-overridable-kill-switch',
     term: 'un-overridable kill-switch',
     definition:
-      'A stop control that ordinary automation cannot bypass; it matters because operators need a dependable way to halt privileged behavior.',
+      'A stop control that ordinary automation cannot bypass. Operators need a dependable way to halt privileged behavior.',
     metricNames: ['kill_switch_fail_safe_present'],
   },
   {
     key: 'human-gate-documented',
     term: 'human gate documented',
     definition:
-      'A written requirement for a person to approve sensitive operations; it matters because high-impact actions should not rely only on unattended automation.',
+      'A written requirement for a person to approve sensitive operations. High-impact actions should not rely only on unattended automation.',
     metricNames: ['human_gate_documented'],
   },
   {
     key: 'fail-closed-privilege-check',
     term: 'fail-closed privilege check',
     definition:
-      'A permission check that refuses the operation when it cannot reach a confident allow decision; it matters because errors must not silently grant elevated access.',
+      'A permission check that refuses the operation when it cannot reach a confident allow decision. Errors must not silently grant elevated access.',
     metricNames: ['fail_closed_privilege_check'],
   },
   {
     key: 'privilege-escalation-cleanliness',
     term: 'privilege-escalation cleanliness',
     definition:
-      'The absence of detected patterns that unsafely widen permissions; it matters because unnecessary elevation increases the impact of a mistake or compromise.',
+      'The absence of detected patterns that unsafely widen permissions. Unnecessary elevation increases the impact of a mistake or compromise.',
     metricNames: ['privilege_escalation_cleanliness'],
   },
   {
     key: 'protected-path-review-gate',
     term: 'protected-path review gate',
     definition:
-      'A rule requiring review before sensitive files or directories can change; it matters because critical controls deserve an explicit second check.',
+      'A rule requiring review before sensitive files or directories can change. Critical controls deserve an explicit second check.',
     metricNames: ['protected_path_review_gate'],
   },
 ] as const;
@@ -257,13 +257,26 @@ export function glossaryEntryForMetric(metric: WitanCriterionMetric): Certificat
   return (
     GLOSSARY_BY_METRIC.get(metric.name) ?? {
       key: `metric-${metric.name.replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}`,
-      term: metric.label,
+      term: formatCertificateMetricLabel(metric),
       definition: metric.description
-        ? `${metric.description} It matters because this measurement contributes to the criterion score.`
-        : 'A measured input to this criterion; it matters because it contributes to the criterion score.',
+        ? `${metric.description} This measurement contributes to the criterion score.`
+        : 'A measured input to this criterion. This measurement contributes to the criterion score.',
       metricNames: [metric.name],
     }
   );
+}
+
+const CERTIFICATE_METRIC_LABELS: Readonly<Record<string, string>> = {
+  prod_readiness_primitives: 'Production-readiness basic checks',
+  pr_trace_primitives: 'PR trace basic checks',
+  prod_workflow_depth:
+    'Production workflow depth (automated build/test/release pipeline)',
+  default_branch_ci_depth:
+    'PR-gate CI workflow count (automated build/test pipeline)',
+};
+
+export function formatCertificateMetricLabel(metric: WitanCriterionMetric): string {
+  return CERTIFICATE_METRIC_LABELS[metric.name] ?? metric.label;
 }
 
 export function glossaryEntriesForReport(report: WitanReport): readonly CertificateGlossaryEntry[] {
@@ -299,7 +312,11 @@ export function formatCertificateMetricValue(
     const comparison = `${tests} test file${metric.value === 1 ? '' : 's'} / ${sources} source file${metric.max === 1 ? '' : 's'}`;
     return metric.value > metric.max ? `${comparison} (credit capped at parity)` : comparison;
   }
-  const unit = metric.unit ? ` ${metric.unit}` : '';
+  const displayUnit =
+    metric.name === 'prod_readiness_primitives' || metric.name === 'pr_trace_primitives'
+      ? 'checks'
+      : metric.unit;
+  const unit = displayUnit ? ` ${displayUnit}` : '';
   if (metric.max === undefined) return `${formatMetricNumber(metric.value)}${unit}`;
   if (metric.kind === 'saturating_count' && metric.value > metric.max) {
     return `${formatMetricNumber(metric.max)}${unit} (capped; ${formatMetricNumber(metric.value)} raw)`;
