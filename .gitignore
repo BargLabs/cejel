@@ -8,3 +8,10 @@ coverage/
 .pnpm-store/
 notes.md
 .worktrees/
+
+# Commercial material must never reach this repository.
+# github.com/BargLabs/cejel is PUBLIC. docs/commercial/ holds named prospects, outreach logs,
+# counterparty assessments, pricing and fundraising terms. As of 11 August 2026 it contained 55
+# untracked files with no ignore rule, so a single `git add -A` would have published all of it.
+# Version these in the private lab_notes repository instead.
+docs/commercial/

@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-v1.9-v3-cross-policy-audit-v1",
+  "status": "preregistered_before_execution",
+  "written_at": "2026-08-10T00:00:00.000Z",
+  "runtime": {
+    "node": "v26.5.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "git": "git version 2.50.1 (Apple Git-155)"
+  },
+  "historical_detector": {
+    "source_commit": "5c92625ebd89c6ee071690b7b9dc770a5ef76a3e",
+    "source_tree": "b6d5092768cc5ca3f1227a9812e457d2d8f04aff",
+    "package_version": "0.1.8",
+    "package_json_byte_sha256": "ac19e0f1e1df14f68f25daac2a8eb12cb6df40b83f4acbe0a6b59edbcfb6536a",
+    "lockfile_byte_sha256": "d0ca1e84d71efcce48aa39f35e43ce0309c17046857da341ec0e41dbc1de5136",
+    "tsup_config_byte_sha256": "a35b83ad8d7cf1b2ad9f11336d7e1cd9b4c0f12e53f0cb9e0e129c1ed59a6d2c",
+    "build_command": ["./node_modules/.bin/tsup"],
+    "build_output": "dist/index.js",
+    "build_output_byte_sha256": "d8e4fd99e1802bbd48fd71930c05efefb4fa526f6277d1f87ff82492e17cfafa",
+    "build_tree": {
+      "dist/chunk-SFEPABAX.js": "1d65c349a5fcf849d75358dbeaa2ac9d9be28b34decb4781bc0ad1a4db9ec567",
+      "dist/index.js": "d8e4fd99e1802bbd48fd71930c05efefb4fa526f6277d1f87ff82492e17cfafa",
+      "dist/mcp/index.js": "5590f8f17c333663073d00daf1ca2642868bc3ef31f99f6d8bf26de038e58b4a"
+    },
+    "scan_argv": ["scan", "{source}", "--out", "{output}", "--pack", "llm", "--quiet"]
+  },
+  "historical_inputs": {
+    "golden_manifest": {
+      "path": "calibration/llm/cohorts/golden-manifest-v1.9.json",
+      "git_blob": "923e2a12090fd710acc21f7aa555cdec0b169f44",
+      "byte_sha256": "60ac025d4f3db93576dedb67a5fadcc9ce87d0b19d0b129c02750187912b9982",
+      "canonical_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2",
+      "repositories": 24
+    },
+    "execution_evidence": {
+      "path": "calibration/llm/results/v1.9-golden-execution-evidence-v2.json",
+      "git_blob": "3d47ccf9466b092ca208658ebe2e55fdce3241df",
+      "byte_sha256": "59a6e5058cc1a882c5223b66afc17dc56f0820d96cc3ebc7f68520e0bd357081",
+      "executions": 24
+    },
+    "terminal_no_go": {
+      "path": "calibration/llm/results/v1.9-golden-gate-no-go.json",
+      "git_blob": "0cc28f4df2a95e948c38f1e50f005d2daabd1edc",
+      "byte_sha256": "d16eb7fb137cf6d1f476e4d36db5ec21b15778526bb7b0cc6b23b8490bf50a1e"
+    }
+  },
+  "v3_control": {
+    "merge_commit": "356aefe84cb43a87c324856497d4aafe8914725c",
+    "tree": "52c14fb2697b2a8b4a24bf0f84d86c94c8bc20fe",
+    "policy_id": "node-runtime-deny-hook-v3",
+    "runtime_surface_count": 102,
+    "runtime_surface_sha256": "4d90b554f5b395dc8f06b9789aadd762deb666cf8f7341c2dd384d74add6ba38",
+    "assets": {
+      "calibration/llm/scripts/no-egress-wrapper.sh": "6523de4f4321cc4ae3b2eb5e692702946409d75b6be520f8422b5b80ac798a4f",
+      "calibration/llm/scripts/no-egress-policy.cjs": "b0bf1602760a6754689d76e334080affe5a1b76e9b6f1ac2a226c78e8f2a86a1",
+      "calibration/llm/scripts/no-egress-hook.cjs": "208338d45391abf7795d9367e6925a746adc61c849bdef624e23db8de27a8903",
+      "calibration/llm/scripts/no-egress-probe.mjs": "5aab00e0f55275a753a7ba7b7cebb60438b19d13f496f90ce23745c44232b0ed"
+    }
+  },
+  "preregistration_paths": [
+    "docs/experiments/llm-v1-9-v3-cross-policy-audit-2026-08-10/preregistration.md",
+    "docs/experiments/llm-v1-9-v3-cross-policy-audit-2026-08-10/bindings.json",
+    "calibration/llm/scripts/v1-9-v3-cross-policy-audit.mjs",
+    "calibration/llm/scripts/v1-9-v3-cross-policy-audit.node-test.mjs",
+    "calibration/llm/scripts/v1-9-v3-cross-policy-wrapper.sh",
+    "calibration/llm/scripts/v1-9-v3-historical-git-adapter.cjs",
+    "calibration/llm/scripts/no-egress-policy.cjs",
+    "calibration/llm/scripts/no-egress-hook.cjs",
+    "calibration/llm/scripts/no-egress-probe.mjs"
+  ],
+  "comparison": {
+    "document": "llm-report.json",
+    "canonicalization": "RFC-8785-compatible sorted-key JSON as implemented by calibration/llm/scripts/freeze-cohorts.mjs",
+    "excluded_json_pointers": ["/generatedAt", "/repo/path", "/baseReportSha256"],
+    "all_other_fields": "exact"
+  },
+  "claim_boundary": "Retrospective cross-policy audit on the already-spent v1.9 golden cohort. Not a calibration, release gate, untouched-cohort run, correction to the v1.9 NO-GO, or evidence that the v3 declared surface is complete."
+}

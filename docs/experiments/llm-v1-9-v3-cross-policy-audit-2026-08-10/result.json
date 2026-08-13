@@ -1,0 +1,874 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "cejel-llm-v1.9-v3-cross-policy-audit-v1",
+  "status": "completed_sole_run",
+  "disposition": "MATCH_NO_DENIED_SURFACE_ATTEMPTS",
+  "generated_at": "2026-08-11T00:48:30.080Z",
+  "preregistration_commit": "395ac9259443af8df609b71b201d9649911f5ee3",
+  "remote_main_at_execution": "395ac9259443af8df609b71b201d9649911f5ee3",
+  "historical_detector": {
+    "source_commit": "5c92625ebd89c6ee071690b7b9dc770a5ef76a3e",
+    "source_tree": "b6d5092768cc5ca3f1227a9812e457d2d8f04aff",
+    "build_sha256": "d8e4fd99e1802bbd48fd71930c05efefb4fa526f6277d1f87ff82492e17cfafa",
+    "build_tree": {
+      "dist/chunk-SFEPABAX.js": "1d65c349a5fcf849d75358dbeaa2ac9d9be28b34decb4781bc0ad1a4db9ec567",
+      "dist/index.js": "d8e4fd99e1802bbd48fd71930c05efefb4fa526f6277d1f87ff82492e17cfafa",
+      "dist/mcp/index.js": "5590f8f17c333663073d00daf1ca2642868bc3ef31f99f6d8bf26de038e58b4a"
+    }
+  },
+  "v3_control": {
+    "merge_commit": "356aefe84cb43a87c324856497d4aafe8914725c",
+    "policy_id": "node-runtime-deny-hook-v3",
+    "surface_count": 102,
+    "surface_sha256": "4d90b554f5b395dc8f06b9789aadd762deb666cf8f7341c2dd384d74add6ba38",
+    "probe": {
+      "policy": "node-runtime-deny-hook-v3",
+      "denied": 102,
+      "attempted": 102,
+      "surface_ids": [
+        "child_process.exec",
+        "child_process.execFile",
+        "child_process.execFileSync",
+        "child_process.execSync",
+        "child_process.fork",
+        "child_process.spawn",
+        "child_process.spawnSync",
+        "cluster.fork",
+        "dgram.createSocket",
+        "dns.lookup",
+        "dns.lookupService",
+        "dns.promises.lookup",
+        "dns.promises.lookupService",
+        "dns.promises.resolve",
+        "dns.promises.resolve4",
+        "dns.promises.resolve6",
+        "dns.promises.resolveAny",
+        "dns.promises.resolveCaa",
+        "dns.promises.resolveCname",
+        "dns.promises.resolveMx",
+        "dns.promises.resolveNaptr",
+        "dns.promises.resolveNs",
+        "dns.promises.resolvePtr",
+        "dns.promises.resolveSoa",
+        "dns.promises.resolveSrv",
+        "dns.promises.resolveTlsa",
+        "dns.promises.resolveTxt",
+        "dns.promises.reverse",
+        "dns.resolve",
+        "dns.resolve4",
+        "dns.resolve6",
+        "dns.resolveAny",
+        "dns.resolveCaa",
+        "dns.resolveCname",
+        "dns.resolveMx",
+        "dns.resolveNaptr",
+        "dns.resolveNs",
+        "dns.resolvePtr",
+        "dns.Resolver.prototype.resolve",
+        "dns.Resolver.prototype.resolve4",
+        "dns.Resolver.prototype.resolve6",
+        "dns.Resolver.prototype.resolveAny",
+        "dns.Resolver.prototype.resolveCaa",
+        "dns.Resolver.prototype.resolveCname",
+        "dns.Resolver.prototype.resolveMx",
+        "dns.Resolver.prototype.resolveNaptr",
+        "dns.Resolver.prototype.resolveNs",
+        "dns.Resolver.prototype.resolvePtr",
+        "dns.Resolver.prototype.resolveSoa",
+        "dns.Resolver.prototype.resolveSrv",
+        "dns.Resolver.prototype.resolveTlsa",
+        "dns.Resolver.prototype.resolveTxt",
+        "dns.Resolver.prototype.reverse",
+        "dns.resolveSoa",
+        "dns.resolveSrv",
+        "dns.resolveTlsa",
+        "dns.resolveTxt",
+        "dns.reverse",
+        "globalThis.fetch",
+        "globalThis.WebSocket",
+        "http.get",
+        "http.request",
+        "http2.connect",
+        "https.get",
+        "https.request",
+        "net.connect",
+        "net.createConnection",
+        "net.Socket.prototype.connect",
+        "node:dns/promises.lookup",
+        "node:dns/promises.lookupService",
+        "node:dns/promises.resolve",
+        "node:dns/promises.resolve4",
+        "node:dns/promises.resolve6",
+        "node:dns/promises.resolveAny",
+        "node:dns/promises.resolveCaa",
+        "node:dns/promises.resolveCname",
+        "node:dns/promises.resolveMx",
+        "node:dns/promises.resolveNaptr",
+        "node:dns/promises.resolveNs",
+        "node:dns/promises.resolvePtr",
+        "node:dns/promises.Resolver.prototype.resolve",
+        "node:dns/promises.Resolver.prototype.resolve4",
+        "node:dns/promises.Resolver.prototype.resolve6",
+        "node:dns/promises.Resolver.prototype.resolveAny",
+        "node:dns/promises.Resolver.prototype.resolveCaa",
+        "node:dns/promises.Resolver.prototype.resolveCname",
+        "node:dns/promises.Resolver.prototype.resolveMx",
+        "node:dns/promises.Resolver.prototype.resolveNaptr",
+        "node:dns/promises.Resolver.prototype.resolveNs",
+        "node:dns/promises.Resolver.prototype.resolvePtr",
+        "node:dns/promises.Resolver.prototype.resolveSoa",
+        "node:dns/promises.Resolver.prototype.resolveSrv",
+        "node:dns/promises.Resolver.prototype.resolveTlsa",
+        "node:dns/promises.Resolver.prototype.resolveTxt",
+        "node:dns/promises.Resolver.prototype.reverse",
+        "node:dns/promises.resolveSoa",
+        "node:dns/promises.resolveSrv",
+        "node:dns/promises.resolveTlsa",
+        "node:dns/promises.resolveTxt",
+        "node:dns/promises.reverse",
+        "tls.connect",
+        "worker_threads.Worker"
+      ],
+      "surface_sha256": "4d90b554f5b395dc8f06b9789aadd762deb666cf8f7341c2dd384d74add6ba38",
+      "complete_for_declared_surface": true,
+      "allowed_local_git": true,
+      "denied_git_variants": 3
+    }
+  },
+  "golden_manifest_sha256": "a710db4098e88090b1f49d90a6f88f4280038e9c5443f9581138f4206885b3b2",
+  "repository_count": 24,
+  "scan_count": 24,
+  "normalized_matches": 24,
+  "denied_surface_events": 0,
+  "instrument_failure": null,
+  "comparison_exclusions": [
+    "/generatedAt",
+    "/repo/path",
+    "/baseReportSha256"
+  ],
+  "repositories": [
+    {
+      "repository_id": "EffNine/Conductor",
+      "commit_sha": "48d7bd269c4fb5114713a23bb1de44809f6c963b",
+      "git_tree_sha": "a390fb040ea4a218479bc1446ac9267bf1573bff",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "b59ebfe4ad677b247c8043fed81d22a66ed85eeb1f7394606722ad97321e75ae",
+      "expected_document_canonical_sha256": "da72ed40679a196ea2bf6c608ebbe287c83e7e7748643fce754f57c65d17b250",
+      "actual_document_canonical_sha256": "0f990c0a1f837a88730f5fff14a16f09ef1679399b64a2e956dc8dee38ba1b0d",
+      "expected_normalized_sha256": "05973bf9b996d7678655f32740e735700ffa6f363e3d1bdc8c78ae37651961af",
+      "actual_normalized_sha256": "05973bf9b996d7678655f32740e735700ffa6f363e3d1bdc8c78ae37651961af",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "pyscripter/ChatLLM",
+      "commit_sha": "1491fb0f235bb337d97002bc9fe5d9d76dca2506",
+      "git_tree_sha": "0804e65d8a7166e35e3d07a3961e5a54af721475",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "4eadc59a68237e12a316a3bae44c09582377887e463e3b01130ceabd9c18c803",
+      "expected_document_canonical_sha256": "71ca5be343e4318ddc0bf31c334739f306b8891a18a8c388cea1e0b021fabd0c",
+      "actual_document_canonical_sha256": "50db8fae418819fa5bc965567d618a7afef32e63aa5523de5577e6958b3deb79",
+      "expected_normalized_sha256": "ac4374311a1b4c7c6bb5b8fdc770c5a5069ba0d9ae813cfda3df4b9b4b89a6a5",
+      "actual_normalized_sha256": "ac4374311a1b4c7c6bb5b8fdc770c5a5069ba0d9ae813cfda3df4b9b4b89a6a5",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "RYOITABASHI/Shelly",
+      "commit_sha": "2071a00e4caf08ef0470f6e10674b5b8e26805a6",
+      "git_tree_sha": "4c73e0e2accb931dfbb1cd2912583d2b313c7215",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 14,
+        "adapter_loaded": true,
+        "historical_git_calls": 13,
+        "historical_git_subcommands": [
+          "log",
+          "ls-files",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "4bee3e424674dfac83d5d91d67a6baf660b2c14c9228cdf8e25969f5e164d565",
+      "expected_document_canonical_sha256": "d48e466f328e39c70f9f5b68955e1b168f8cf6f40224c92c707e1f86632fe7ad",
+      "actual_document_canonical_sha256": "7b9215c487744ffe2fb31b1dd2eb0af441ea861c748cb6c7b7b854552513d39b",
+      "expected_normalized_sha256": "1d8b4ea3c74834b25668edd150cab1a7446f0cbc039fdbeda7ee28aa0236a3f6",
+      "actual_normalized_sha256": "1d8b4ea3c74834b25668edd150cab1a7446f0cbc039fdbeda7ee28aa0236a3f6",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "DakshBhavsar007/Multi-Agent-Resume-Project",
+      "commit_sha": "e644f4b5ec6ace8aed8af46e8f642b3c116ac72a",
+      "git_tree_sha": "3f97cbcb2df9eea5aa966d2a2262ac2c6360b337",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 27,
+        "adapter_loaded": true,
+        "historical_git_calls": 26,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse",
+          "show"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "44e34b2a9245d450990e0cf17466cd5b2e00068efe6d6ccbddc41b4c45dfc30b",
+      "expected_document_canonical_sha256": "65e358c61d85ea328bb472cc29f1a301fd81e80bf40374c8f9f1b7b7e6404a16",
+      "actual_document_canonical_sha256": "1d0e365d05425598179d79ad2809dbf3585fa32344de3f2ed6c29df2e2c6ff4c",
+      "expected_normalized_sha256": "04e2bd535ab702231978db997c5d984288b9f640cb765963d2eaa4ae1d8e1b65",
+      "actual_normalized_sha256": "04e2bd535ab702231978db997c5d984288b9f640cb765963d2eaa4ae1d8e1b65",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "Surya-Hariharan/Velune-CLI",
+      "commit_sha": "00fa26329f3da2eb1d6af05c54458a95517ff0e4",
+      "git_tree_sha": "65a7d610e28cd309aa240581a93cd4d89ba5d188",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 22,
+        "adapter_loaded": true,
+        "historical_git_calls": 21,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse",
+          "show"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "6c3dd24e0a8046199d1d4469265f4178b58304ff9053643a3fead284c8959332",
+      "expected_document_canonical_sha256": "17c86d874bddf6aa25ab2227869a78ed6344a43a72267d25a2b6e38bb94d2436",
+      "actual_document_canonical_sha256": "3c8445c246ccf389c1591ecd8569ec9818cc6afc38bc8a4a0e9eeea912024810",
+      "expected_normalized_sha256": "6b8e57439b4259019e82c3da2687b021d9f8760bb2c0e66f58e6944dddda19d3",
+      "actual_normalized_sha256": "6b8e57439b4259019e82c3da2687b021d9f8760bb2c0e66f58e6944dddda19d3",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "tattn/LocalLLMClient",
+      "commit_sha": "cd971ffd777525b48b105acd96a84675fd9a3336",
+      "git_tree_sha": "12d4d171ab9f957e5ea5c9b64f87872272481ead",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "3c2981f230c5018ab3e6c18902159539126c54ce2f863366cad6469fb86d0669",
+      "expected_document_canonical_sha256": "be2ecb76603a14df967367c134323539b905635cfea2ac30c7deefcb570a43eb",
+      "actual_document_canonical_sha256": "4a4ddcaf975abf15de3e238d2785f601f839b609a81f6d6fd9a6c66f651e558b",
+      "expected_normalized_sha256": "eecec80ef1139cadea4e8f4c4f94ffe42105810491d2c1efb0d0f65bdde6c7a1",
+      "actual_normalized_sha256": "eecec80ef1139cadea4e8f4c4f94ffe42105810491d2c1efb0d0f65bdde6c7a1",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "vndee/local-talking-llm",
+      "commit_sha": "0f538c0e05139010f24b4835f7512c5dbc55624e",
+      "git_tree_sha": "3990308c898212499f18a2bf857d111f1902a41a",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "0d74e4f48d26570a41e29f6f1199b937e54ca3154fe3b6a1ff6974e06b1e5762",
+      "expected_document_canonical_sha256": "6714d61278fb3e88f5c2d94aff65e6f9772d5f8c73eb18bfa5d73229c6306955",
+      "actual_document_canonical_sha256": "b8cecf79d177c0665d85dfd839258e13a8e5528df0e2a39007c359b20d23bf40",
+      "expected_normalized_sha256": "2bb3aa21d565394ddc7faeb6ab3f68d45aaf682d8f2509d56ef9eb7925fe96a2",
+      "actual_normalized_sha256": "2bb3aa21d565394ddc7faeb6ab3f68d45aaf682d8f2509d56ef9eb7925fe96a2",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "Danielskry/Awesome-RAG",
+      "commit_sha": "189c9ab43de37ae70bc49fb984d06dbe614744bc",
+      "git_tree_sha": "76316ee667d0c7b77bac23d5fd5273adf000162c",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "da0e426966a157e10f75ef9908793e76349e8e689ec9d49583e5ea319a27d59d",
+      "expected_document_canonical_sha256": "1be257dc4f49e4b0f7fc66674ee222fd3f3f2db0d59dafdc42aa4b2610872e49",
+      "actual_document_canonical_sha256": "ecf2909ea2f53c2050b80282f0ab035cfb183191c05a6e5992f655293dfbd2be",
+      "expected_normalized_sha256": "986e53e109aa2b2064ac28093ba46d969d0e1d91b5ff981c86bc829686b7ba78",
+      "actual_normalized_sha256": "986e53e109aa2b2064ac28093ba46d969d0e1d91b5ff981c86bc829686b7ba78",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "Azure-Samples/rag-postgres-openai-python",
+      "commit_sha": "007bb76bf9452e959487d7c175ee19c1100f787f",
+      "git_tree_sha": "6e08f60cf16e6cacf9c2dcf09740ba3bc804b981",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 31,
+        "adapter_loaded": true,
+        "historical_git_calls": 30,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse",
+          "show"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "6c8723ed3a7358b50b7026803e89c702fe767785eed4651ec7c00224430741e5",
+      "expected_document_canonical_sha256": "30098e1976864c9536fa2502aac02bfd9b1d8e76ad0613070e785fe3f40927b2",
+      "actual_document_canonical_sha256": "e3129d47514db58cf4399a2122b431611b92666a2fff52f602381ad7b771b575",
+      "expected_normalized_sha256": "5be5bdef9f0dcbc53a765b5ca4a1556938d74081967eafb6a6aa6ae3d4611b17",
+      "actual_normalized_sha256": "5be5bdef9f0dcbc53a765b5ca4a1556938d74081967eafb6a6aa6ae3d4611b17",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "nguyenquoaca-hash/agentic-mesh",
+      "commit_sha": "0778ce84d01ff4ba1ca66ba32323640c76c39103",
+      "git_tree_sha": "5682441036914406e41a7c67f6a023412798cfd8",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "4199b7e82ab8add3e44f05efea32b2d6ce4ee58155e7831b53238d608198e65e",
+      "expected_document_canonical_sha256": "23bfb81a0e799f956b54b2dca57e9c6c1edd69dbf0c4b55353248a8b0025a570",
+      "actual_document_canonical_sha256": "c2ee2926b0f73b6b4d7af7ec22588106740a0611e06e6344eeda68cafadbb39d",
+      "expected_normalized_sha256": "8ba291a6968c2bb5b033237c466e19a69c5e8d9b41528b4f9f04a6aa610409cd",
+      "actual_normalized_sha256": "8ba291a6968c2bb5b033237c466e19a69c5e8d9b41528b4f9f04a6aa610409cd",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "Ankitha-GS/rag-qa",
+      "commit_sha": "911126b0c8bfb73c0e26107576ff112a2d8091d2",
+      "git_tree_sha": "913c45c6dc8be62ee7b3393d47a40ff459cde1fc",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "560df95327ff67509c4c266d2b9ca5453227152a08bc1d60d8c7010af11241b4",
+      "expected_document_canonical_sha256": "9426e582b4dac2ac18f4f09e56e8495f9f6980c90e6e179d1032170c7804f153",
+      "actual_document_canonical_sha256": "6f8248909a71d9f1e32e6157ee56aa991b659011ed647d0686e5222c86308b18",
+      "expected_normalized_sha256": "d38f095523ea6a0660b75d40d7210f125c1462e27f1900e30e41c8efa3cfd6a3",
+      "actual_normalized_sha256": "d38f095523ea6a0660b75d40d7210f125c1462e27f1900e30e41c8efa3cfd6a3",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "jarrodwatts/claude-hud",
+      "commit_sha": "e39bafc6d778d61f41592eced53f8aa58bf5239c",
+      "git_tree_sha": "4fcbfe47ab8780e1b11c2ddb36c18be1b24a371f",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "6759375599b19acdfc8310838054867f42df8a447e16f7a8a96abf1571520ce7",
+      "expected_document_canonical_sha256": "d3563442e6b4b379ae13f6f744a73a4a36c8e25a9c4c1417e9162d638dcab0ef",
+      "actual_document_canonical_sha256": "40d159f6317129cbeeb2aa6b0e3aa2c6419d1c72a18d52f49d69637f2ecc44f7",
+      "expected_normalized_sha256": "d0dced7c1af6f3292afd150fba69b3f7a1b6e97788e532bcd2e700572b310018",
+      "actual_normalized_sha256": "d0dced7c1af6f3292afd150fba69b3f7a1b6e97788e532bcd2e700572b310018",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "numtide/llm-agents.nix",
+      "commit_sha": "0858b2123f2a5b5f65dfde48573abf076239bed8",
+      "git_tree_sha": "e11bd59b43423eae007a19a642fca3d24b848568",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "7bf1e8a83891eb36412f90a0262795e19c6e845a19a8595cfec73b082b08f6e5",
+      "expected_document_canonical_sha256": "92c9ca968dd66071631a03aa147c734a60a559f181ac05bc9a6335db68295188",
+      "actual_document_canonical_sha256": "76696383daa61eeadc5624c742ac4fe9d98e23e631d314b7e570f4a19fe2e422",
+      "expected_normalized_sha256": "fa96bee3767b595c20de0c42885d4d76f42a307c113394d7a6b5d9f1640b0383",
+      "actual_normalized_sha256": "fa96bee3767b595c20de0c42885d4d76f42a307c113394d7a6b5d9f1640b0383",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "sreyun/aiops-monitor",
+      "commit_sha": "896319159760e7071b5875d9551da59fee7ffdbb",
+      "git_tree_sha": "112feb5da4b93639fcd50bb7e90ca18c500102a0",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 19,
+        "adapter_loaded": true,
+        "historical_git_calls": 18,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse",
+          "show"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "7d8080ac7d2c0e884439c7500223c66e789dbaac1aee01dbd88fb56ff0cc871b",
+      "expected_document_canonical_sha256": "1d04a3f2e230f6761950e00481db048eb61824a2ad513b4ef3b2d67593258c7e",
+      "actual_document_canonical_sha256": "6fbba1c10977048b09557c41af87d59ae90dfb62da300645680eb04b398a82c5",
+      "expected_normalized_sha256": "c5302185d1a2662f3dd5ba92f31271ff0c7fd1f0f11bbb2ffdecc94df37d4462",
+      "actual_normalized_sha256": "c5302185d1a2662f3dd5ba92f31271ff0c7fd1f0f11bbb2ffdecc94df37d4462",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "squesadag2000/InventoryForecastAnalysis",
+      "commit_sha": "627dd0ab75833b21ac2e3a2a1419d18b3405417c",
+      "git_tree_sha": "fb18e2365d7a2cf51051834e7e38ba12a1644ac2",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "d4cb3c21668a8c98e077e987d48d20ab0321a9372691243845706125d53b39cb",
+      "expected_document_canonical_sha256": "7d13d2a0825f8d576528ce116a4053282e53b7271fc9a4f659866d9b4caf7454",
+      "actual_document_canonical_sha256": "b8ee2ae914022c60c2cf48567fbf336439d66e286e6742ab1db0d4daa6bf7d42",
+      "expected_normalized_sha256": "a388332f92cd5375e48698495dc358c01aaf94b3abb4d234c0f5d226f777d717",
+      "actual_normalized_sha256": "a388332f92cd5375e48698495dc358c01aaf94b3abb4d234c0f5d226f777d717",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "twostraws/SwiftUI-Agent-Skill",
+      "commit_sha": "be297ff80dddec529af1f9b1f1f114aab6c9d11c",
+      "git_tree_sha": "92f757d0bfc18be7d3dd1225dfb1d66173c0d788",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "a53e1f46f5e979a72d9fb00b7c84e01ac4c2c3bfc0cacfac6e20f68bd86aae92",
+      "expected_document_canonical_sha256": "297a1edadc0df5f1eb320e738e240e431906ce1cbebdbbbcfd9450cbeb77541c",
+      "actual_document_canonical_sha256": "766979ef73644306b8a040e0227fd7d57e179cd6e8480a29b9a13f762f2ccd66",
+      "expected_normalized_sha256": "ec2b4f8810e217d82d0f1fa6b8f94a7efaa938ee3564275ce98417feeaee9608",
+      "actual_normalized_sha256": "ec2b4f8810e217d82d0f1fa6b8f94a7efaa938ee3564275ce98417feeaee9608",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "jim-schwoebel/awesome_ai_agents",
+      "commit_sha": "51b1a7ebc7ad9bfa91632ef77a315faca0bb8356",
+      "git_tree_sha": "41a7e0ad5375b9361a102272e3c57976a34abb65",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "5c99f4a3d86b1c214a4b07acc3233bbbfbc25da73ebe81c65f97a93bfb10fd37",
+      "expected_document_canonical_sha256": "ba029896373cb07f1e2bd22689366e4cfc66639ace3ca19ab94e1893e1613190",
+      "actual_document_canonical_sha256": "84ce466548527e953b37ef9993d474060ce3d64aa3162671e5216f24fd0aceca",
+      "expected_normalized_sha256": "aa187a66c76df3ca2c63e3cb19aaf089b285088abb1c69c927707fea70113dfa",
+      "actual_normalized_sha256": "aa187a66c76df3ca2c63e3cb19aaf089b285088abb1c69c927707fea70113dfa",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "SitaraLiang/llm-finmath-reasoning-eval",
+      "commit_sha": "8cb2b034e696aa942a5a871e5328a15ed3da3c5d",
+      "git_tree_sha": "6edcbde0b6db0adc9ef969bc2b531378160b0ef4",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "9e386e9372936cb205cbe38f9e4257f7b48f4b3bf5ca094681ae05acc7e00108",
+      "expected_document_canonical_sha256": "045d9be2a96ae65e291e24fd6af78aadfbf1db9fc7eac00588feb8531d7c94b2",
+      "actual_document_canonical_sha256": "4b16a3b8063f2f3d95c8c97938aef14ae400f6352df1929ce59265a37a1a57bf",
+      "expected_normalized_sha256": "e72a95974611dc7ed83ec8182e7dac504587e790be840db9094fe5badf9e0587",
+      "actual_normalized_sha256": "e72a95974611dc7ed83ec8182e7dac504587e790be840db9094fe5badf9e0587",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "harnexa/nexa-gauge",
+      "commit_sha": "d79f901d2de2a8cd7fc75b424701f66c3c769be4",
+      "git_tree_sha": "5d3b210f97e02245d382baf1e710d073bc0cce04",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 28,
+        "adapter_loaded": true,
+        "historical_git_calls": 27,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse",
+          "show"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "fdc2a44ceab5d4a1644042bfe7c0b405b1bc0bdd95fa4608b5c66f0ed337587d",
+      "expected_document_canonical_sha256": "59cf4e39fa39a5625335ea8a1b598c21f684a84043395a518054a40ba76803c6",
+      "actual_document_canonical_sha256": "cce8898b6e0da462987c751f2a6df9e37faff56800a234cce0d2e392f2806ec2",
+      "expected_normalized_sha256": "527f1dec674741e575020c56c0f9af2cad1b9facf6d4566f21d7132a3fb54613",
+      "actual_normalized_sha256": "527f1dec674741e575020c56c0f9af2cad1b9facf6d4566f21d7132a3fb54613",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "memoturn/memoturn",
+      "commit_sha": "96cdbc76de5337c1a0b7892e3569fef7da4e7028",
+      "git_tree_sha": "327651bdd2e5766fc3c4617f331a0ac3ca00abee",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 13,
+        "adapter_loaded": true,
+        "historical_git_calls": 12,
+        "historical_git_subcommands": [
+          "log",
+          "ls-files",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "51584297bba7f9efd861528185281c9d9d2b8e4c7b1ca55dccce283fcf6ad5e7",
+      "expected_document_canonical_sha256": "c715e7f147669e18cfa8894b10b3b678220616bca45773c73ffe47ce853d4153",
+      "actual_document_canonical_sha256": "e36145f1760f93295315593a8c0fd6c5445353d2211364948f49efab23926609",
+      "expected_normalized_sha256": "678a75d52f78d03b17eb149896513703c525bd4b7b4a6923e144ffa4d0814842",
+      "actual_normalized_sha256": "678a75d52f78d03b17eb149896513703c525bd4b7b4a6923e144ffa4d0814842",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "Bryancruzcb/aegis-eval-harness",
+      "commit_sha": "c8d74471856418826076dd8f31e775bc3e403f80",
+      "git_tree_sha": "c280da58c76f734b6012abd6b3af52f77a37784b",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "4b3d5b6827641b13e7719585a54d015ebfb7834e88f9d0ee825a6604f5993620",
+      "expected_document_canonical_sha256": "12655f6425dd4d8e2c22ced2e91db28ebd65fadb05a942b242811f3f41266a7c",
+      "actual_document_canonical_sha256": "087b98e36b7c694b207f056ad882c4cdf6ae75258703a73845e8d968136cd839",
+      "expected_normalized_sha256": "c6bf6d289afea3ddc4ab8fc3012f8a484a6c36f9be7c74cc2ba799a25b9c3bb9",
+      "actual_normalized_sha256": "c6bf6d289afea3ddc4ab8fc3012f8a484a6c36f9be7c74cc2ba799a25b9c3bb9",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "manuhalapeth/abundant-ai-eval-design",
+      "commit_sha": "87e6783128176c73177542c6ccdb5988dde0f13c",
+      "git_tree_sha": "e48e89f0a853d2118e188e9d335b2886b6a8ee21",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "fe48ccfed107178b88ebfc887081dfa43fce660e64d6ccb04a883cf2af813357",
+      "expected_document_canonical_sha256": "153d04fc2886069c08f436f317dcb34751445b764453c11d63b489dbc43b9f82",
+      "actual_document_canonical_sha256": "e61873138467089f7c921f10547fb941fa9ddd508eb443e9ed2f99e1406a93cc",
+      "expected_normalized_sha256": "f98839793306879e66f57dbab17216d998bf4433f0a174993bd5f1a03b100489",
+      "actual_normalized_sha256": "f98839793306879e66f57dbab17216d998bf4433f0a174993bd5f1a03b100489",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "linny006/llm-eval-tracker",
+      "commit_sha": "93241b4358ff20c361d1b12510e606bea595998b",
+      "git_tree_sha": "565d378ed066c743203567f37f101663cef84a61",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 17,
+        "adapter_loaded": true,
+        "historical_git_calls": 16,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "7ec727d0454e895515afdda64370346e6c635e7f85be1029f8f26a189fc7784d",
+      "expected_document_canonical_sha256": "7ca13aa8f73d4de4210fadaf3a52b404f6641b3c4c92eab630e83d0f4c9664ca",
+      "actual_document_canonical_sha256": "fdd769336b98b57b75a38d89eb8074328aa0920ca0ab03eae0112047babacb50",
+      "expected_normalized_sha256": "d72dc5946545e19cf13271ed6de6a4d506b48e0444afeec1981cff0709030096",
+      "actual_normalized_sha256": "d72dc5946545e19cf13271ed6de6a4d506b48e0444afeec1981cff0709030096",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    },
+    {
+      "repository_id": "ozturkoktay/insurance-llm-framework",
+      "commit_sha": "e16c7ec2e4d5db031cb63fc464a9c6f005260fd2",
+      "git_tree_sha": "43fc785deaf07468aa4816d1911771db178fc579",
+      "process": {
+        "exit_code": 0,
+        "signal": null
+      },
+      "audit": {
+        "event_count": 15,
+        "adapter_loaded": true,
+        "historical_git_calls": 14,
+        "historical_git_subcommands": [
+          "diff-tree",
+          "log",
+          "ls-files",
+          "rev-list",
+          "rev-parse"
+        ],
+        "denied_surfaces": []
+      },
+      "report_emitted": true,
+      "actual_report_byte_sha256": "002cf6631b81fa183c2e57619ba17b51e88a8e634a4ed48a664983c7353af6ca",
+      "expected_document_canonical_sha256": "2e33925bebf92075a3e9cfa58007110e6763bcf6cc2041a777d2be37d195a50c",
+      "actual_document_canonical_sha256": "208d8490432de7a450863829e81625bee41aa864f4cb3bfdaa3759e250150c84",
+      "expected_normalized_sha256": "4cf79aa17d86e2d4200a41e10c695620235179525297c74de03424c941ae40d0",
+      "actual_normalized_sha256": "4cf79aa17d86e2d4200a41e10c695620235179525297c74de03424c941ae40d0",
+      "normalized_match": true,
+      "differing_json_pointers": []
+    }
+  ],
+  "claim_boundary": "Retrospective cross-policy audit on the already-spent v1.9 golden cohort. Not a calibration, release gate, untouched-cohort run, correction to the v1.9 NO-GO, or evidence that the v3 declared surface is complete.",
+  "result_sha256": "d56e3e86f90d44307831bc8c21a28eae30e205370b5e1007e6f0c5235c2e5462"
+}

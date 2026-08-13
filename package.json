@@ -38,7 +38,8 @@
     "cejel-mcp": "dist/mcp/index.js"
   },
   "exports": {
-    "./d-series": "./dist/packs/d-series/index.js"
+    "./d-series": "./dist/packs/d-series/index.js",
+    "./decision-contracts": "./dist/packs/decision-contracts/index.js"
   },
   "files": [
     "dist",
@@ -58,6 +59,7 @@
     "gate:d3": "pnpm run build && node scripts/d3-precision-gate.mjs",
     "gate:d4": "pnpm run build && node scripts/d4-precision-gate.mjs",
     "gate:d5": "pnpm run build && node scripts/d5-precision-gate.mjs",
+    "gate:d6": "pnpm run build && node scripts/d6-precision-gate.mjs",
     "validate:distribution": "node scripts/validate-distribution-metadata.mjs",
     "pnpm:devPreinstall": "node scripts/assert-dev-environment.mjs --phase=preinstall",
     "prepublishOnly": "pnpm run build",

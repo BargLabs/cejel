@@ -259,6 +259,7 @@ jobs:
 
       - name: Read back Registry record and verify signed OCI source
         env:
+          GH_TOKEN: ${{ github.token }}
           MCP_OCI_DIGEST: ${{ needs.resolve-mcp-oci-digest.outputs.digest }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |

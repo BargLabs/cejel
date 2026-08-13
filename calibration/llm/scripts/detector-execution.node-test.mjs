@@ -8,9 +8,14 @@ import { fileURLToPath } from 'node:url';
 
 import { canonicalize, hashManifest, hashRepositoryEntry } from './freeze-cohorts.mjs';
 import {
+  CURRENT_NO_EGRESS_POLICY,
+  CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+  CURRENT_NO_EGRESS_SURFACE_IDS,
+  CURRENT_NO_EGRESS_SURFACE_SHA256,
   buildDetectorArtifact,
   createDetectorFreezeRecord,
   hashDetectorFreezeRecord,
+  validateArchivedDetectorFreezeRecord,
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
   validateGoldenCorrectionLedger,
@@ -49,6 +54,19 @@ const REVIEW_BINDINGS = {
 
 const canonicalSha = (value) => createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
 const byteSha = (value) => createHash('sha256').update(value).digest('hex');
+const currentProbeOutput = () => JSON.stringify({
+  policy: CURRENT_NO_EGRESS_POLICY,
+  denied: CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+  attempted: CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+  surface_ids: CURRENT_NO_EGRESS_SURFACE_IDS,
+  surface_sha256: CURRENT_NO_EGRESS_SURFACE_SHA256,
+  complete_for_declared_surface: true,
+  host_network_isolation: 'docker-network-none',
+  host_default_route_absent: true,
+  host_container_image: 'cejel-calibration:no-egress-test',
+  allowed_local_git: true,
+  denied_git_variants: 3,
+});
 const gitObjectSha1 = (type, bytes) => createHash('sha1')
   .update(Buffer.from(`${type} ${bytes.length}\0`, 'utf8')).update(bytes).digest('hex');
 const gitTreeEntry = (mode, name, oid) => Buffer.concat([
@@ -172,7 +190,10 @@ function goldenExecutionEvidence(includeFinding = true) {
   };
 }
 
-function detectorFreeze({ isolationMode = 'node-runtime-deny-hook-v2', probeAttempts = 12 } = {}) {
+function detectorFreeze({
+  isolationMode = CURRENT_NO_EGRESS_POLICY,
+  probeAttempts = CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+} = {}) {
   const execution = goldenExecutionEvidence();
   const goldenLedger = validateGoldenCorrectionLedger(
     ledger(execution.manifest.manifest_sha256), BUILD_SHA, execution.manifest.manifest_sha256, execution.validated,
@@ -201,10 +222,22 @@ function detectorFreeze({ isolationMode = 'node-runtime-deny-hook-v2', probeAtte
       mode: isolationMode,
       argvPrefix: ['calibration/llm/scripts/no-egress-wrapper.sh'],
       evidenceReference: 'internal-witness:test-isolation',
-      wrapperSha256: '1'.repeat(64), hookSha256: '2'.repeat(64),
+      wrapperSha256: '1'.repeat(64),
+      runtimeWrapperPath: 'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
+      runtimeWrapperSha256: '7'.repeat(64),
+      hookSha256: '2'.repeat(64),
+      policyPath: 'calibration/llm/scripts/no-egress-policy.cjs',
+      policySha256: '8'.repeat(64),
       probePath: 'calibration/llm/scripts/no-egress-probe.mjs',
       probeSha256: '3'.repeat(64), probeOutputSha256: '4'.repeat(64),
       probeDenied: probeAttempts, probeAttempted: probeAttempts,
+      surfaceIds: CURRENT_NO_EGRESS_SURFACE_IDS,
+      surfaceSha256: CURRENT_NO_EGRESS_SURFACE_SHA256,
+      allowedLocalGit: true,
+      deniedGitVariants: 3,
+      hostNetworkIsolation: 'docker-network-none',
+      hostDefaultRouteAbsent: true,
+      hostContainerImage: 'cejel-calibration:no-egress-test',
       confirmed: true,
     },
     ledger: goldenLedger,
@@ -269,18 +302,56 @@ test('detector freeze binds build, runtime, rules, support, isolation, and close
   );
 });
 
-test('new detector freezes require v2 while historical v1 5/5 records remain valid', () => {
+test('new detector freezes require v4 while historical records remain archival-only', () => {
   assert.throws(
     () => detectorFreeze({ isolationMode: 'node-runtime-deny-hook-v1', probeAttempts: 5 }),
     /hash-bound passing no-egress probe/,
   );
 
   const historical = structuredClone(detectorFreeze());
+  historical.execution.command_template.splice(-1, 0, '--pack', 'llm');
   historical.execution.network_isolation.mode = 'node-runtime-deny-hook-v1';
   historical.execution.network_isolation.probe_denied = 5;
   historical.execution.network_isolation.probe_attempted = 5;
+  delete historical.execution.network_isolation.policy_path;
+  delete historical.execution.network_isolation.policy_sha256;
+  delete historical.execution.network_isolation.surface_ids;
+  delete historical.execution.network_isolation.surface_sha256;
+  delete historical.execution.network_isolation.probe_count_is_lower_bound_not_completeness_claim;
+  delete historical.execution.network_isolation.hardened_local_git_positive_control_passed;
+  delete historical.execution.network_isolation.hardened_local_git_negative_controls_denied;
   historical.record_sha256 = hashDetectorFreezeRecord(historical);
-  assert.equal(validateDetectorFreezeRecord(historical), historical);
+  assert.equal(validateArchivedDetectorFreezeRecord(historical), historical);
+  assert.throws(() => validateDetectorFreezeRecord(historical), /archival evidence only/);
+
+  const historicalV2 = structuredClone(detectorFreeze());
+  historicalV2.execution.command_template.splice(-1, 0, '--pack', 'llm');
+  historicalV2.execution.network_isolation.mode = 'node-runtime-deny-hook-v2';
+  historicalV2.execution.network_isolation.probe_denied = 12;
+  historicalV2.execution.network_isolation.probe_attempted = 12;
+  delete historicalV2.execution.network_isolation.policy_path;
+  delete historicalV2.execution.network_isolation.policy_sha256;
+  delete historicalV2.execution.network_isolation.surface_ids;
+  delete historicalV2.execution.network_isolation.surface_sha256;
+  delete historicalV2.execution.network_isolation.probe_count_is_lower_bound_not_completeness_claim;
+  delete historicalV2.execution.network_isolation.hardened_local_git_positive_control_passed;
+  delete historicalV2.execution.network_isolation.hardened_local_git_negative_controls_denied;
+  historicalV2.record_sha256 = hashDetectorFreezeRecord(historicalV2);
+  assert.equal(validateArchivedDetectorFreezeRecord(historicalV2), historicalV2);
+  assert.throws(() => validateDetectorFreezeRecord(historicalV2), /archival evidence only/);
+});
+
+test('a self-consistent v3 surface from another runtime remains archival but cannot execute here', () => {
+  const otherRuntime = structuredClone(detectorFreeze());
+  const otherSurfaceIds = [...otherRuntime.execution.network_isolation.surface_ids, 'globalThis.FutureApi'];
+  otherRuntime.execution.network_isolation.surface_ids = otherSurfaceIds;
+  otherRuntime.execution.network_isolation.surface_sha256 = byteSha(JSON.stringify(otherSurfaceIds));
+  otherRuntime.execution.network_isolation.probe_denied = otherSurfaceIds.length;
+  otherRuntime.execution.network_isolation.probe_attempted = otherSurfaceIds.length;
+  otherRuntime.record_sha256 = hashDetectorFreezeRecord(otherRuntime);
+
+  assert.equal(validateArchivedDetectorFreezeRecord(otherRuntime), otherRuntime);
+  assert.throws(() => validateDetectorFreezeRecord(otherRuntime), /archival evidence only/);
 });
 
 test('detector build provenance executes twice and rejects unrelated or nondeterministic output', async () => {
@@ -676,22 +747,28 @@ test('frozen execution bindings are repository-relative and verify workflow plus
   const cejelPath = join(root, 'dist/index.js');
   const workflowPath = join(root, '.github/workflows/llm-calibration.yml');
   const wrapperPath = join(root, 'calibration/llm/scripts/no-egress-wrapper.sh');
+  const runtimeWrapperPath = join(root, 'calibration/llm/scripts/no-egress-runtime-wrapper.sh');
   const hookPath = join(root, 'calibration/llm/scripts/no-egress-hook.cjs');
+  const policyPath = join(root, 'calibration/llm/scripts/no-egress-policy.cjs');
   const probePath = join(root, 'calibration/llm/scripts/no-egress-probe.mjs');
-  for (const path of [cejelPath, workflowPath, wrapperPath, hookPath, probePath]) {
+  for (const path of [cejelPath, workflowPath, wrapperPath, runtimeWrapperPath, hookPath, policyPath, probePath]) {
     mkdirSync(join(path, '..'), { recursive: true });
   }
   const bytes = {
     cejel: Buffer.from('#!/usr/bin/env node\n', 'utf8'),
     workflow: Buffer.from('name: synthetic\n', 'utf8'),
     wrapper: Buffer.from('#!/bin/sh\n', 'utf8'),
+    runtimeWrapper: Buffer.from('#!/bin/sh\n', 'utf8'),
     hook: Buffer.from('export {};\n', 'utf8'),
+    policy: Buffer.from('module.exports = {};\n', 'utf8'),
     probe: Buffer.from('console.log(\"probe\");\n', 'utf8'),
   };
   writeFileSync(cejelPath, bytes.cejel);
   writeFileSync(workflowPath, bytes.workflow);
   writeFileSync(wrapperPath, bytes.wrapper);
+  writeFileSync(runtimeWrapperPath, bytes.runtimeWrapper);
   writeFileSync(hookPath, bytes.hook);
+  writeFileSync(policyPath, bytes.policy);
   writeFileSync(probePath, bytes.probe);
 
   const record = detectorFreeze();
@@ -708,7 +785,9 @@ test('frozen execution bindings are repository-relative and verify workflow plus
   record.golden_execution_evidence.detector_build_sha256 = buildSha;
   record.execution.workflow.sha256 = byteSha(bytes.workflow);
   record.execution.network_isolation.wrapper_sha256 = byteSha(bytes.wrapper);
+  record.execution.network_isolation.runtime_wrapper_sha256 = byteSha(bytes.runtimeWrapper);
   record.execution.network_isolation.hook_sha256 = byteSha(bytes.hook);
+  record.execution.network_isolation.policy_sha256 = byteSha(bytes.policy);
   record.execution.network_isolation.probe_sha256 = byteSha(bytes.probe);
   record.record_sha256 = hashDetectorFreezeRecord(record);
 
@@ -781,7 +860,7 @@ test('golden execution never runs a caller-supplied lookalike isolation probe', 
     '--cejel', cejelPath,
     '--work-root', join(root, 'work'),
     '--output-root', join(root, 'output'),
-    '--network-isolation-mode', 'node-runtime-deny-hook-v2',
+    '--network-isolation-mode', CURRENT_NO_EGRESS_POLICY,
     '--network-isolation-command', wrapperPath,
     '--confirm-network-isolation',
     '--pre-result-commitment', commitmentPath,
@@ -791,7 +870,7 @@ test('golden execution never runs a caller-supplied lookalike isolation probe', 
   ], async (command, args) => {
     commands.push([command, args]);
     if (command === wrapperPath) {
-      return JSON.stringify({ policy: 'node-runtime-deny-hook-v2', denied: 12, attempted: 12 });
+      return currentProbeOutput();
     }
     throw new Error('unexpected command after lookalike probe');
   }), /committed repository assets/);
@@ -803,7 +882,9 @@ test('golden isolation assets must equal their exact preregistration-commit blob
   const commit = 'a'.repeat(40);
   const paths = [
     'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
     'calibration/llm/scripts/no-egress-hook.cjs',
+    'calibration/llm/scripts/no-egress-policy.cjs',
     'calibration/llm/scripts/no-egress-probe.mjs',
   ];
   const objectIds = new Map(paths.map((path, index) => [path, String(index + 1).repeat(40)]));
@@ -822,17 +903,17 @@ test('golden isolation assets must equal their exact preregistration-commit blob
   };
 
   const bindings = await resolveGoldenIsolationBindings({
-    isolationMode: 'node-runtime-deny-hook-v2',
+    isolationMode: CURRENT_NO_EGRESS_POLICY,
     isolationArgs: [],
     isolationCommand: join(DETECTOR_REPO, paths[0]),
     commitmentGitRepo: DETECTOR_REPO,
     commitmentGitCommit: commit,
   }, commandRunner);
   assert.equal(bindings.isolationPrefix[0], realpathSync(join(DETECTOR_REPO, paths[0])));
-  assert.equal(bindings.probePath, realpathSync(join(DETECTOR_REPO, paths[2])));
+  assert.equal(bindings.probePath, realpathSync(join(DETECTOR_REPO, paths[4])));
 
   await assert.rejects(() => resolveGoldenIsolationBindings({
-    isolationMode: 'node-runtime-deny-hook-v2',
+    isolationMode: CURRENT_NO_EGRESS_POLICY,
     isolationArgs: [],
     isolationCommand: join(DETECTOR_REPO, paths[0]),
     commitmentGitRepo: DETECTOR_REPO,
@@ -851,7 +932,9 @@ test('runner requires the public commitment anchor before any cohort clone', asy
   const commit = 'a'.repeat(40);
   const assetPaths = [
     'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
     'calibration/llm/scripts/no-egress-hook.cjs',
+    'calibration/llm/scripts/no-egress-policy.cjs',
     'calibration/llm/scripts/no-egress-probe.mjs',
   ];
   const objectIds = new Map(assetPaths.map((path, index) => [path, String(index + 1).repeat(40)]));
@@ -865,7 +948,7 @@ test('runner requires the public commitment anchor before any cohort clone', asy
     '--cejel', cejelPath,
     '--work-root', join(root, 'work'),
     '--output-root', join(root, 'output'),
-    '--network-isolation-mode', 'node-runtime-deny-hook-v2',
+    '--network-isolation-mode', CURRENT_NO_EGRESS_POLICY,
     '--network-isolation-command', join(DETECTOR_REPO, assetPaths[0]),
     '--confirm-network-isolation',
     '--pre-result-commitment', commitmentPath,
@@ -875,7 +958,7 @@ test('runner requires the public commitment anchor before any cohort clone', asy
   ], async (command, args, options = {}) => {
     commands.push([command, args]);
     if (command === join(DETECTOR_REPO, assetPaths[0])) {
-      return JSON.stringify({ policy: 'node-runtime-deny-hook-v2', denied: 12, attempted: 12 });
+      return currentProbeOutput();
     }
     const operation = args.slice(2);
     if (operation.join(' ') === `rev-parse ${commit}^{commit}`) return commit;
@@ -921,7 +1004,7 @@ test('scan invocation preserves argv boundaries and output roots cannot contain 
     buildScanInvocation(['/usr/bin/no-egress', '--'], '/opt/cejel', '/work/repo', '/results/repo'),
     {
       command: '/usr/bin/no-egress',
-      args: ['--', '/opt/cejel', 'scan', '/work/repo', '--out', '/results/repo', '--pack', 'llm', '--quiet'],
+      args: ['--', '/opt/cejel', 'scan', '/work/repo', '--out', '/results/repo', '--quiet'],
     },
   );
   assert.throws(() => assertSeparatedRoots('/tmp/work', '/tmp/work/results'), /separate/);

@@ -1,6 +1,15 @@
 # Dual-control downstream-labelling erratum — 2026-08-05
 
-Status: **correction to downstream descriptions; the frozen experiment record is unchanged**
+Status: **RETRACTED for the PR #789 successor rerun and ADR-0013 action-item interpretation**
+
+The core downstream conclusion in this erratum is false. It correctly describes the original
+2026-07-31 two-surface baseline, but it wrongly applies that baseline scope to Alfred PR #789's
+later D-series successor rerun. PR #789 records `d_series_pack` on every seeded and paired-clean
+evaluation phase and directly invokes the frozen D1/D2/D5 adapter. The text below is retained as
+an audit trail and must not be used to characterize PR #789 or the ADR-0013 rerun action item. See
+[the 2026-08-10 retraction](dual-control-downstream-labelling-retraction-2026-08-10.md).
+
+The frozen experiment records are unchanged.
 
 ## Scope of the frozen experiment
 

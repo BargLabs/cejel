@@ -16,6 +16,27 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Codifies the rubric calibration-claim policy: v17 remains the public default and the sole owner
+  of its published calibration figures; v18-v22 remain explicit-only prospective rubrics with no
+  inherited calibration claim. A future default promotion requires a fresh authenticated untouched
+  holdout and a separate recorded decision.
+- Adds an in-development, export-only D6 proposal for two exact shell signatures:
+  discarded shell control exit status and a success report independent of the operation it names.
+  It detects the motivating `git worktree remove` reaper shape, distinguishes explicit advisory
+  controls from inert ones, and records unsupported files as non-coverage rather than clean. D6 is
+  exported from `@cejel/cejel/d-series` only: `cejel scan` does not run it and no released
+  certificate includes it. It is uncalibrated, does not affect A1-B6 scoring, and does not change
+  the leaderboard.
+
+### Fixed
+
+- Public-distribution validation now rejects location fields and private-path-shaped text in the
+  checked-in Alfred transparency JSON, Markdown, and HTML artifacts. Scores and content hashes
+  remain public, while every evidence and finding location must retain the uniform
+  `path withheld — private repository` marker.
+
 ## [0.4.1] — 2026-08-12
 
 ### Fixed
@@ -55,6 +76,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   not promote v19 to the public default.
 - The reserved Free LLM command family remains unshipped. `--pack llm` and `cejel llm` continue
   to fail until the accepted release gate reaches GO.
+
+### Release provenance
+
+- The first v0.4.0 distribution run published the OCI image, its signed provenance, and the MCP
+  Registry record, then the new final readback job stopped before attestation verification because
+  `GH_TOKEN` was not exported to GitHub CLI. The Registry record had already read back successfully.
+  An authenticated independent execution of the same verifier confirmed the exact published chain:
+  `ghcr.io/barglabs/cejel@sha256:63bd4342c2006c823b0283313036109040651741078e1a0e38677d605a2849ee`
+  is bound to tagged-source commit `03ef74bd05274ff079c8dcd09dcdfaa8a6f1e3ff` at
+  `refs/tags/v0.4.0`. The workflow now exports only the job-scoped GitHub token to the verifier;
+  the immutable v0.4.0 tag and published artifacts were not changed or rebuilt.
 
 ## [0.3.2] — 2026-08-07
 

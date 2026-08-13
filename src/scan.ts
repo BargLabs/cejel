@@ -9,6 +9,11 @@ export interface CejelScanOptions {
   repoPath: string;
   /** Optional certificate display-name override; the stable repository slug is unchanged. */
   productDisplayName?: string;
+  /**
+   * Explicit experimental rubric pin. The public CLI intentionally leaves this unset so it
+   * retains the calibrated public default; dedicated, committed calibration drivers provide it.
+   */
+  rubricVersion?: string;
   /** Raw ingest values (file paths or single-level globs), in the order given. */
   ingestPatterns?: readonly string[];
   /** Warn on stderr when an explicit ingest pattern matches no files. */
@@ -37,6 +42,7 @@ export function runCejelScan(options: CejelScanOptions): CejelScanResult {
     productDisplayName: options.productDisplayName ?? identity.productDisplayName,
     repoPath: options.repoPath,
     generatedAt,
+    ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
     ingestPatterns: options.ingestPatterns,
     // Local CLI/MCP scans retain the documented convenience default: their operator controls
     // the repository. Direct public/leaderboard scans default this off because their targets

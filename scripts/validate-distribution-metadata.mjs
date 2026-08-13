@@ -19,6 +19,8 @@ const WORKFLOWS_DIR = new URL('../.github/workflows/', import.meta.url);
 const LEADERBOARD_PATH = new URL('../leaderboard/leaderboard.html', import.meta.url);
 const LEADERBOARD_INDEX_PATH = new URL('../leaderboard/index.html', import.meta.url);
 const ALFRED_REPORT_PATH = new URL('../leaderboard/reports/alfred.json', import.meta.url);
+const ALFRED_REPORT_MARKDOWN_PATH = new URL('../leaderboard/reports/alfred.md', import.meta.url);
+const ALFRED_REPORT_HTML_PATH = new URL('../leaderboard/reports/alfred.html', import.meta.url);
 const README_PATH = new URL('../README.md', import.meta.url);
 const ROOT_ACTION_PATH = new URL('../action.yml', import.meta.url);
 const NESTED_ACTION_PATH = new URL('../action/action.yml', import.meta.url);
@@ -50,6 +52,8 @@ const workflows = readdirSync(WORKFLOWS_DIR, { withFileTypes: true })
 const leaderboard = readFileSync(LEADERBOARD_PATH, 'utf8');
 const leaderboardIndex = readFileSync(LEADERBOARD_INDEX_PATH, 'utf8');
 const alfredReport = JSON.parse(readFileSync(ALFRED_REPORT_PATH, 'utf8'));
+const alfredReportMarkdown = readFileSync(ALFRED_REPORT_MARKDOWN_PATH, 'utf8');
+const alfredReportHtml = readFileSync(ALFRED_REPORT_HTML_PATH, 'utf8');
 const readme = readFileSync(README_PATH, 'utf8');
 const rootAction = readFileSync(ROOT_ACTION_PATH, 'utf8');
 const nestedAction = readFileSync(NESTED_ACTION_PATH, 'utf8');
@@ -78,6 +82,49 @@ function requireIncludes(haystack, needle, field) {
   if (!haystack.includes(needle)) {
     throw new Error(`${field} must include ${JSON.stringify(needle)}.`);
   }
+}
+
+function requirePrivateReportLocationWithheld(evidence, field) {
+  if (!evidence) return;
+  for (const forbidden of ['path', 'line', 'file', 'filename']) {
+    if (forbidden in evidence) {
+      throw new Error(`Alfred public ${field} must not include ${forbidden}.`);
+    }
+  }
+  requireEqual(
+    evidence.locationWithheld,
+    'path withheld — private repository',
+    `Alfred public ${field} location marker`,
+  );
+}
+
+function requireNoPrivateLocationFields(value, field) {
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => requireNoPrivateLocationFields(entry, `${field}[${index}]`));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+
+  for (const [key, child] of Object.entries(value)) {
+    if (['path', 'line', 'file', 'filename'].includes(key)) {
+      if (field === 'report.repo' && key === 'path' && child === '.') continue;
+      throw new Error(`Alfred public report must not include location field ${field}.${key}.`);
+    }
+    requireNoPrivateLocationFields(child, `${field}.${key}`);
+  }
+}
+
+function requireNoPrivatePathText(value, field) {
+  const forbidden = [
+    /\/Users\//,
+    /\/home\//,
+    /[A-Za-z]:\\/,
+    /(?:^|[\s`"'(])(?:\.github|apps|packages|deploy|docs|scripts|src)\/[A-Za-z0-9_./-]+/m,
+    /BargLabs\/alfred/,
+    /@alfred\//,
+    /\.alfred\/trace/,
+  ].find((pattern) => pattern.test(value));
+  if (forbidden) throw new Error(`Alfred public ${field} contains private-path-shaped text.`);
 }
 
 function requirePnpmVersionDerived(workflowName, workflow, expectedVersion) {
@@ -480,6 +527,7 @@ for (const [needle, field] of [
   ['attestations: read', 'attestation read permission'],
   ['packages: read', 'OCI package read permission'],
   ['scripts/assert-release-identity.sh', 'per-job release identity assertion'],
+  ['GH_TOKEN: ${{ github.token }}', 'GitHub CLI authentication'],
   [
     'registry.modelcontextprotocol.io/v0.1/servers/io.github.BargLabs%2Fcejel/versions/$version',
     'exact-version Registry readback',
@@ -495,6 +543,28 @@ for (const [needle, field] of [
 }
 
 requireEqual(leaderboardIndex, leaderboard, 'deployed leaderboard index/leaderboard artifact');
+requireEqual(alfredReport.repo?.path, '.', 'Alfred public repository placeholder');
+requireNoPrivateLocationFields(alfredReport, 'report');
+for (const criterion of alfredReport.criteria ?? []) {
+  for (const [index, evidence] of (criterion.evidence ?? []).entries()) {
+    requirePrivateReportLocationWithheld(evidence, `${criterion.id}.evidence[${index}]`);
+  }
+  for (const [index, finding] of (criterion.findings ?? []).entries()) {
+    requirePrivateReportLocationWithheld(finding.evidence, `${criterion.id}.findings[${index}].evidence`);
+  }
+}
+for (const [value, field] of [
+  [JSON.stringify(alfredReport), 'JSON'],
+  [alfredReportMarkdown, 'Markdown'],
+  [alfredReportHtml, 'HTML'],
+]) {
+  requireNoPrivatePathText(value, field);
+}
+requireIncludes(
+  alfredReport.publicSanitization,
+  'every evidence and finding location is withheld',
+  'Alfred public sanitization disclosure',
+);
 requireIncludes(
   readme,
   `${alfredReport.overallScore.toFixed(1)}/4.0 on its rubric-native certificate`,
