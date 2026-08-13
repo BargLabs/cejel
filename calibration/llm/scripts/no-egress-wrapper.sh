@@ -26,8 +26,19 @@ detector_root=$(CDPATH= cd "$wrapper_directory/../../.." && pwd -P)
 runtime_wrapper="$detector_root/calibration/llm/scripts/no-egress-runtime-wrapper.sh"
 
 case "$1" in
-  "$detector_root"/*)
-    detector_script="$1"
+  /*)
+    script_directory=$(CDPATH= cd "$(dirname "$1")" && pwd -P) || {
+      echo 'no-egress wrapper requires a readable committed detector script' >&2
+      exit 68
+    }
+    detector_script="$script_directory/$(basename "$1")"
+    case "$detector_script" in
+      "$detector_root"/*) ;;
+      *)
+        echo 'no-egress wrapper requires a committed detector-repository script' >&2
+        exit 68
+        ;;
+    esac
     ;;
   *)
     echo 'no-egress wrapper requires a committed detector-repository script' >&2
@@ -35,9 +46,19 @@ case "$1" in
     ;;
 esac
 
-if ! docker image inspect "$CEJEL_CALIBRATION_NO_EGRESS_IMAGE" >/dev/null 2>&1; then
+if image_inspect_output=$(docker image inspect --format '{{.Id}}' "$CEJEL_CALIBRATION_NO_EGRESS_IMAGE" 2>&1); then
+  if [ -z "$image_inspect_output" ]; then
+    echo 'prepared no-egress container image did not return a local image ID' >&2
+    exit 125
+  fi
+elif printf '%s' "$image_inspect_output" | grep -q 'No such image'; then
   echo 'prepared no-egress container image is unavailable locally' >&2
   exit 69
+else
+  # Do not falsely record a missing image when Docker could not inspect its local store (for
+  # example, a denied daemon socket). The caller needs a different repair in that case.
+  echo 'Docker cannot verify local no-egress image availability' >&2
+  exit 125
 fi
 
 source_mount=''

@@ -56,10 +56,19 @@ calibration/llm/scripts/no-egress-wrapper.sh \
   calibration/llm/scripts/no-egress-probe.mjs
 ```
 
-The trusted workflow builds `calibration/llm/Dockerfile.no-egress` before cohort access and passes
-its local tag through `CEJEL_CALIBRATION_NO_EGRESS_IMAGE`. Direct execution must do the same. The
-wrapper requires that image to be present locally and invokes Docker with `--pull=never`; it refuses
-instead of downloading an image while a cohort is being evaluated.
+The trusted workflow prepares `calibration/llm/Dockerfile.no-egress` before cohort access and passes
+its local tag through `CEJEL_CALIBRATION_NO_EGRESS_IMAGE`. Direct execution must do the same. Use
+`calibration/llm/scripts/prepare-no-egress-image.sh <local-image-tag>` before any one-shot
+authorization: it builds with `--pull=false` and then performs the exact local image lookup the
+wrapper will require. The wrapper invokes Docker with `--pull=never`; it refuses instead of
+downloading an image while a cohort is being evaluated. A Docker-daemon access failure is distinct
+from a genuinely absent image and must be repaired before authorization, not recorded as an image
+absence during it.
+
+The mounted detector must be a self-contained local clone with its `.git` directory inside the
+Docker-shared root. A detached worktree may store Git metadata outside that root and can make the
+runtime's hardened local-Git control fail for an environmental reason. Prepare and exercise the
+clone before authorization; do not discover that portability defect during a cohort run.
 
 The Docker namespace is a host-level egress boundary for the detector process; it is not a claim of
 complete host or kernel isolation. The runtime probe additionally proves that the container has no
