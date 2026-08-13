@@ -151,7 +151,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'dependency-count-sanity',
     term: 'dependency count sanity',
     definition:
-      'A bounded check for unusually large direct-dependency surfaces in libraries; it matters because every direct dependency adds maintenance and supply-chain exposure.',
+      'A bounded check for an unusually long list of direct dependencies in a library; it matters because every direct dependency adds maintenance and supply-chain exposure.',
     metricNames: ['dependency_count_sanity'],
   },
   {
