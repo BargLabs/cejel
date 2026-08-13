@@ -6,6 +6,9 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
+  cpSync,
+  chmodSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -26,6 +29,25 @@ const {
 } = require('./no-egress-policy.cjs');
 
 const sha = (document) => createHash('sha256').update(canonicalize(document), 'utf8').digest('hex');
+
+function runWrapperWithFakeDocker(reply) {
+  const fakeBin = mkdtempSync(join(tmpdir(), 'cejel-no-egress-fake-docker-'));
+  const docker = join(fakeBin, 'docker');
+  writeFileSync(docker, `#!/bin/sh\nprintf '%s\\n' '${reply}' >&2\nexit 1\n`);
+  chmodSync(docker, 0o755);
+  return spawnSync(
+    fileURLToPath(new URL('./no-egress-wrapper.sh', import.meta.url)),
+    [fileURLToPath(new URL('./no-egress-probe.mjs', import.meta.url))],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH}`,
+        CEJEL_CALIBRATION_NO_EGRESS_IMAGE: 'synthetic:no-egress',
+      },
+    },
+  );
+}
 
 test('committed runtime no-egress probe denies network and process escape paths', () => {
   const result = spawnSync(
@@ -67,6 +89,79 @@ test('committed host wrapper has no default route under Docker network none', {
   assert.equal(probe.host_network_isolation, 'docker-network-none');
   assert.equal(probe.host_default_route_absent, true);
   assert.equal(probe.host_container_image, process.env.CEJEL_CALIBRATION_NO_EGRESS_TEST_IMAGE);
+});
+
+test('prepared image resolves through the exact wrapper, probe, and v22 driver in a self-contained synthetic detector clone', {
+  skip: !process.env.CEJEL_CALIBRATION_NO_EGRESS_EXERCISE_IMAGE,
+}, () => {
+  const image = process.env.CEJEL_CALIBRATION_NO_EGRESS_EXERCISE_IMAGE;
+  const detectorRoot = fileURLToPath(new URL('../../..', import.meta.url));
+  const syntheticDetector = mkdtempSync(join(tmpdir(), 'cejel-no-egress-detector-clone-'));
+  const cloned = spawnSync('git', ['clone', '--quiet', '--local', '--no-hardlinks', detectorRoot, syntheticDetector], {
+    encoding: 'utf8',
+  });
+  assert.equal(cloned.status, 0, cloned.stderr);
+  // The exercise uses the exact uncommitted assets under test, but the mounted detector has its
+  // own .git directory. A future frozen candidate must likewise be a self-contained clone, not
+  // a detached worktree whose Git metadata is outside Docker's configured shared paths.
+  for (const asset of [
+    'calibration/llm/scripts/no-egress-wrapper.sh',
+    'calibration/llm/scripts/no-egress-runtime-wrapper.sh',
+    'calibration/llm/scripts/no-egress-hook.cjs',
+    'calibration/llm/scripts/no-egress-policy.cjs',
+    'calibration/llm/scripts/no-egress-probe.mjs',
+    'calibration/llm/scripts/prepare-no-egress-image.sh',
+    'calibration/llm/scripts/run-v22-public-calibration.mjs',
+    'calibration/llm/scripts/v22-public-calibration-artifacts.mjs',
+  ]) cpSync(join(detectorRoot, asset), join(syntheticDetector, asset));
+  cpSync(join(detectorRoot, 'dist'), join(syntheticDetector, 'dist'), { recursive: true });
+  const wrapper = join(syntheticDetector, 'calibration/llm/scripts/no-egress-wrapper.sh');
+  const probe = join(syntheticDetector, 'calibration/llm/scripts/no-egress-probe.mjs');
+  const prepare = join(syntheticDetector, 'calibration/llm/scripts/prepare-no-egress-image.sh');
+  const prepared = spawnSync(prepare, [image], { encoding: 'utf8' });
+  assert.equal(prepared.status, 0, prepared.stderr);
+  assert.match(prepared.stdout.trim(), /^sha256:[0-9a-f]{64}$/);
+
+  const result = spawnSync(wrapper, [probe], {
+    encoding: 'utf8',
+    env: { ...process.env, CEJEL_CALIBRATION_NO_EGRESS_IMAGE: image },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const outcome = JSON.parse(result.stdout);
+  assert.equal(outcome.host_network_isolation, 'docker-network-none');
+  assert.equal(outcome.host_default_route_absent, true);
+  assert.equal(outcome.allowed_local_git, true);
+
+  const source = mkdtempSync(join(tmpdir(), 'cejel-no-egress-synthetic-source-'));
+  const output = mkdtempSync(join(tmpdir(), 'cejel-no-egress-synthetic-output-'));
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    name: 'cejel-no-egress-synthetic-v22-driver',
+    scripts: { start: 'node server.js' },
+  }));
+  writeFileSync(join(source, 'server.js'), "import { createServer } from 'node:http'; createServer(() => {}).listen(3000);\n");
+  const launcher = join(syntheticDetector, 'calibration/llm/scripts/run-v22-public-calibration.mjs');
+  const scan = spawnSync(wrapper, [launcher, 'scan', source, '--out', output, '--quiet'], {
+    encoding: 'utf8',
+    env: { ...process.env, CEJEL_CALIBRATION_NO_EGRESS_IMAGE: image },
+  });
+  assert.equal(scan.status, 0, scan.stderr);
+  const verifier = join(syntheticDetector, 'calibration/llm/scripts/v22-public-calibration-artifacts.mjs');
+  const verification = spawnSync(process.execPath, [realpathSync(verifier), output], { encoding: 'utf8' });
+  assert.equal(verification.status, 0, verification.stderr);
+  const receipt = JSON.parse(readFileSync(join(output, 'v22-calibration-receipt.json'), 'utf8'));
+  assert.equal(receipt.rubric_version, 'witan-rubric-v22-prospective-2026-08-10');
+  assert.equal(receipt.report_attestation_binding, 'verified');
+});
+
+test('host wrapper distinguishes an absent image from an inaccessible Docker daemon', () => {
+  const absent = runWrapperWithFakeDocker('Error response from daemon: No such image: synthetic:no-egress');
+  assert.equal(absent.status, 69);
+  assert.match(absent.stderr, /prepared no-egress container image is unavailable locally/);
+
+  const inaccessible = runWrapperWithFakeDocker('permission denied while trying to connect to the docker API');
+  assert.equal(inaccessible.status, 125);
+  assert.match(inaccessible.stderr, /Docker cannot verify local no-egress image availability/);
+  assert.doesNotMatch(inaccessible.stderr, /unavailable locally/);
 });
 
 test('committed v22 calibration launcher selects v22 under the host-plus-runtime no-egress lane', {
