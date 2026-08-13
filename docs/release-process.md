@@ -1,5 +1,39 @@
 # Release process
 
+## Required claim-retirement step
+
+*Added 12 August 2026.*
+
+**A release that fixes a published limitation does not retire the limitation. The documents that
+carry the caveat do, and only if someone edits them.**
+
+When a release ships a fix for a defect that is currently disclosed in outbound material, the
+release is not complete until every document carrying that caveat has been revisited. Half-doing
+this is worse than not starting: a caveat retired in one document and left in another produces two
+statements that contradict each other in front of the same reader.
+
+Checklist, to run **after** the release is published and verified:
+
+1. Identify every document class carrying the caveat. At minimum: the claim register; any
+   counterparty call sheet or account record; any sent-package follow-up; and the paid-pilot
+   one-pager, whose reproducibility **success criterion** is contractual rather than descriptive.
+2. Confirm the fix is in the **published** artifact, not merely merged. Check the release tag is an
+   ancestor of nothing more recent than what shipped, and read the version back from the
+   distribution surface rather than from the repository.
+3. Update the claim register **first**. It governs on conflict, so a stale register reintroduces the
+   retired caveat into the next document written.
+4. Update each remaining document, and record the date the caveat was retired alongside the
+   statement that replaced it.
+5. State the boundary explicitly wherever the new claim appears: artifacts produced by the shipping
+   version and later behave the new way; artifacts produced earlier do not, and their existing
+   attestations remain valid.
+
+**The named list of affected documents lives in the claim register in the private repository, not
+here.** This repository is public; the register carries the counterparty specifics.
+
+Known standing instance as of 12 August 2026: the report checkout-path caveat. The fix is merged
+and unreleased, and four documents currently carry the qualifier.
+
 ## Required Action major-tag step
 
 After every immutable `v<major>.<minor>.<patch>` release tag has passed its release
