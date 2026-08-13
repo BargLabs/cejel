@@ -30,12 +30,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   certificate includes it. It is uncalibrated, does not affect A1-B6 scoring, and does not change
   the leaderboard.
 
+## [0.4.2] — 2026-08-13
+
+### Added
+
+- A read-only currency verifier independently checks every supported release surface and fails
+  closed on stale, unreachable, or inconsistent state.
+
+### Changed
+
+- Human-readable terminal, HTML, and Markdown certificates now include relying-party summaries,
+  consistent measurements, and a plain-English glossary informed by external reviewer feedback.
+
 ### Fixed
 
-- Public-distribution validation now rejects location fields and private-path-shaped text in the
-  checked-in Alfred transparency JSON, Markdown, and HTML artifacts. Scores and content hashes
-  remain public, while every evidence and finding location must retain the uniform
-  `path withheld — private repository` marker.
+- OCI distribution readback now authenticates GitHub CLI before verifying the published image's
+  attestation and tagged source.
+- Public-distribution validation now rejects location fields and private-path-shaped text in
+  public transparency artifacts.
+- Coverage displays now distinguish an absent published measurement from a measured zero without
+  changing report bytes or scoring.
+- Capped test-to-source counts now render consistently across every human-readable certificate.
+- Certificate labels now distinguish basic checks from automated workflow pipelines and avoid
+  internal terminology.
 
 ## [0.4.1] — 2026-08-12
 
