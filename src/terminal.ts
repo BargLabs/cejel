@@ -1,4 +1,10 @@
 import { formatExternalSourceLine } from './witan/index.js';
+import type { WitanReport } from './witan/index.js';
+import {
+  buildRelyingPartySummary,
+  CERTIFICATE_GLOSSARY,
+  formatCertificateMetricValue,
+} from './witan/certificate-presentation.js';
 
 import type { WitanCliSummary } from './summary.js';
 
@@ -24,7 +30,7 @@ export function renderMinScoreLimitationFailure(
 
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
-export function renderTerminalCertificate(summary: WitanCliSummary): string {
+export function renderTerminalCertificate(summary: WitanCliSummary, report?: WitanReport): string {
   const abstained =
     summary.verdict === 'Insufficient source' || summary.verdict === 'Insufficient evidence';
   if (
@@ -52,6 +58,19 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
         `  Process trust: ${formatScore(summary.processTrustScore)}/4.0`,
         '',
       ];
+
+  if (report) {
+    const relyingPartySummary = buildRelyingPartySummary(report);
+    lines.splice(
+      2,
+      0,
+      `What was examined: ${relyingPartySummary.examined}`,
+      `What was established: ${relyingPartySummary.established}`,
+      `What was not established: ${relyingPartySummary.notEstablished}`,
+      `What to do next: ${relyingPartySummary.next}`,
+      '',
+    );
+  }
 
   if (summary.scanLimitations.length > 0) {
     lines.push(
@@ -81,6 +100,21 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
     lines.push(`Incorporates findings from: ${summary.contributingSources.join(', ')}`);
     for (const source of summary.externalSources) {
       lines.push(`  ${formatExternalSourceLine(source)}`);
+    }
+    lines.push('');
+  }
+
+  const measurements = report?.criteria.flatMap((criterion) =>
+    criterion.metrics.map((metric) => ({
+      criterionId: criterion.id,
+      label: metric.label,
+      value: formatCertificateMetricValue(criterion, metric),
+    })),
+  );
+  if (!abstained && (measurements?.length ?? 0) > 0) {
+    lines.push('Measurements:');
+    for (const measurement of measurements ?? []) {
+      lines.push(`  ${measurement.criterionId} — ${measurement.label}: ${measurement.value}`);
     }
     lines.push('');
   }
@@ -128,6 +162,10 @@ export function renderTerminalCertificate(summary: WitanCliSummary): string {
     if (remaining > 0) {
       lines.push(`  ...and ${remaining} more — see report.json for the full list.`);
     }
+  }
+  lines.push('', 'Plain-language glossary:');
+  for (const entry of CERTIFICATE_GLOSSARY) {
+    lines.push(`  ${entry.term} — ${entry.definition}`);
   }
 
   return `${lines.join('\n')}\n`;

@@ -1,4 +1,5 @@
 import type { WitanCriterionMetric, WitanCriterionScore, WitanFinding } from './schemas.js';
+import { formatCertificateMetricValue } from './certificate-presentation.js';
 
 const METRIC_DERIVED_FINDING_PATTERN =
   /^[A-Z]\d+ metric-derived score is (\d+\.\d)\/4\.0, in the (critical|warning) band — no single finding drove this; it reflects the combined metric weighting below\.$/;
@@ -56,7 +57,7 @@ export function renderFindingSummary(
     return `${criterion.id} dimension band is ${band} at ${score}/4.0. To improve this dimension, add stronger measurable evidence for ${criterion.title.toLowerCase()}.`;
   }
 
-  const measurements = drivers.map(formatMetricMember).join('; ');
+  const measurements = drivers.map((metric) => formatMetricMember(criterion, metric)).join('; ');
   const actions = Array.from(
     new Set(
       drivers.map(
@@ -86,18 +87,9 @@ function normalizedMetricValue(metric: WitanCriterionMetric): number {
   return Math.min(metric.value / metric.max, 1);
 }
 
-function formatMetricMember(metric: WitanCriterionMetric): string {
-  const unit = metric.unit ? ` ${metric.unit}` : '';
-  const maximum = metric.max;
-  if (maximum === undefined) return `${metric.label} ${formatMetricValue(metric.value)}${unit}`;
-  if (metric.kind === 'saturating_count' && metric.value > maximum) {
-    return `${metric.label} ${formatMetricValue(maximum)}${unit} capped (${formatMetricValue(metric.value)} raw)`;
-  }
-  return `${metric.label} ${formatMetricValue(metric.value)}/${formatMetricValue(maximum)}${unit}`;
-}
-
-function formatMetricValue(value: number): string {
-  return Number.isInteger(value)
-    ? String(value)
-    : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+function formatMetricMember(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionMetric,
+): string {
+  return `${metric.label} ${formatCertificateMetricValue(criterion, metric)}`;
 }
