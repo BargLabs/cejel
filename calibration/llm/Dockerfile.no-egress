@@ -1,0 +1,6 @@
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2
+
+# The detector's hardened, read-only local Git boundary remains available inside
+# the network namespace. This image is built before a calibration execution;
+# the execution wrapper itself always uses --pull=never.
+RUN apk add --no-cache git

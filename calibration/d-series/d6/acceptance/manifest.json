@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "cejel-d6-acceptance-v1",
+  "preregisteredAt": "2026-08-11",
+  "cases": [
+    {
+      "id": "D6-ACCEPT-EXIT-STATUS-01",
+      "mechanism": "exit-status-discarded",
+      "defectPath": "calibration/d-series/d6/acceptance/exit-status/guard.positive.fixture.sh",
+      "repairedPath": "calibration/d-series/d6/acceptance/exit-status/guard.negative.fixture.sh",
+      "ambiguousPath": "calibration/d-series/d6/acceptance/exit-status/cleanup.ambiguous.fixture.sh",
+      "beyondGraphPath": "calibration/d-series/d6/acceptance/exit-status/runtime-registry.ambiguous.fixture.mjs",
+      "oracle": "calibration/d-series/d6/acceptance/exit-status/oracle.node-test.mjs"
+    },
+    {
+      "id": "D6-ACCEPT-REPORT-INDEPENDENT-01",
+      "mechanism": "report-independent-of-operation",
+      "defectPath": "calibration/d-series/d6/acceptance/report-independent/report.positive.fixture.sh",
+      "repairedPath": "calibration/d-series/d6/acceptance/report-independent/report.negative.fixture.sh",
+      "oracle": "calibration/d-series/d6/acceptance/report-independent/oracle.node-test.mjs"
+    },
+    {
+      "id": "D6-ACCEPT-GIT-WORKTREE-REAPER-01",
+      "mechanism": "report-independent-of-operation",
+      "defectPath": "calibration/d-series/d6/acceptance/report-independent/reaper.positive.fixture.sh",
+      "repairedPath": "calibration/d-series/d6/acceptance/report-independent/reaper.negative.fixture.sh",
+      "oracle": "calibration/d-series/d6/acceptance/report-independent/oracle.node-test.mjs"
+    }
+  ],
+  "precisionGate": {
+    "cohort": "leaderboard/corpus.json public entries",
+    "expectedRepositories": 23,
+    "maximumFindings": 0,
+    "positiveControl": {
+      "path": "calibration/d-series/d6/acceptance/report-independent/reaper.positive.fixture.sh",
+      "expectedFindings": 1
+    },
+    "purpose": "The gate must first detect the seeded positive control; only then is zero on the unseeded pinned cohort evidence about false positives rather than detector silence."
+  }
+}

@@ -7,7 +7,13 @@ import { defineConfig } from 'tsup';
 // published dist runnable standalone. Second entry: the MCP stdio server bin
 // (dist/mcp/index.js) — same bundling story, same offline guarantee.
 export default defineConfig({
-  entry: ['src/index.ts', 'src/mcp/index.ts', 'src/packs/d-series/index.ts'],
+  entry: [
+    'src/index.ts',
+    'src/calibration/llm-detector.ts',
+    'src/mcp/index.ts',
+    'src/packs/d-series/index.ts',
+    'src/packs/decision-contracts/index.ts',
+  ],
   format: ['esm'],
   platform: 'node',
   target: 'node18',

@@ -50,3 +50,31 @@ export const WITAN_RUBRIC_VERSION_V18 = 'witan-rubric-v18-prospective-2026-07-25
 // explicit-only until a separately preregistered authenticated untouched holdout permits default
 // promotion.
 export const WITAN_RUBRIC_VERSION_V19 = 'witan-rubric-v19-prospective-2026-08-09';
+
+// Prospective A3 explicit-gap closure. V20 inherits v19 detector/scoring behavior and adds
+// only narrowly worded, path-anchored findings for directly observable production-readiness
+// omissions. The public default remains v17; callers must opt in explicitly.
+export const WITAN_RUBRIC_VERSION_V20 = 'witan-rubric-v20-prospective-2026-08-10';
+
+// Prospective B6 executed-escalation closure. V21 inherits v20 and adds only bounded
+// recognition of administrative SQL contained in authored migration files or executed by
+// direct database-driver string literals. The public default remains v17.
+export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10';
+
+// Prospective A3 package-start entrypoint closure. V22 inherits v21 and adds only bounded
+// recognition of direct Node HTTP entrypoints whose authored file is named by a simple root
+// package start command. The public default remains v17.
+export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10';
+
+// Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
+// iteration: prospective rubrics are available only to explicit evaluation harnesses and inherit
+// no precision, recall, false-positive-rate, or other calibration claim from v17. Promotion
+// requires a fresh authenticated untouched holdout and a separately recorded default decision.
+export const WITAN_LAST_CALIBRATED_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V17;
+export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
+  WITAN_RUBRIC_VERSION_V18,
+  WITAN_RUBRIC_VERSION_V19,
+  WITAN_RUBRIC_VERSION_V20,
+  WITAN_RUBRIC_VERSION_V21,
+  WITAN_RUBRIC_VERSION_V22,
+] as const);

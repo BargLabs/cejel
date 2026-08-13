@@ -150,7 +150,8 @@ Before untouched evaluation, record:
 - pack configuration and supported-language/SDK matrix;
 - build artifact SHA-256;
 - runtime version and command line;
-- the exact no-egress wrapper, hook, probe, and passing probe-output hashes; and
+- the exact no-egress wrapper, policy manifest, hook, probe, and passing probe-output hashes (the
+  declared probe count is a lower bound on tested coverage, never a completeness claim); and
 - the exact GitHub calibration workflow path and byte hash; and
 - the golden-set correction ledger.
 

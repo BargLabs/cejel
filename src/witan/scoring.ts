@@ -40,6 +40,9 @@ import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V18,
   WITAN_RUBRIC_VERSION_V19,
+  WITAN_RUBRIC_VERSION_V20,
+  WITAN_RUBRIC_VERSION_V21,
+  WITAN_RUBRIC_VERSION_V22,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
@@ -47,7 +50,10 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V19
+    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22
   );
 }
 
@@ -316,7 +322,10 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
-    rubricVersion !== WITAN_RUBRIC_VERSION_V19
+    rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V21 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V22
   ) {
     return statusForScore(roundScore(Math.max(0, nativeScore - adjustment)));
   }
@@ -408,6 +417,9 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_TRADING_RUBRIC_VERSION_V0
   );
 }
@@ -958,6 +970,9 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V21 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V22 &&
     findings.length > 0
   ) {
     return [...findings];

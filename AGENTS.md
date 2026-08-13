@@ -26,7 +26,7 @@ open-item labels must be mechanically reverified against current repository stat
 The Alfred and Cejel copies share a point-in-time SHA-256 pin. Each repository pins only its local
 file. This is a shared point-in-time parity record and local immutability guard; neither test proves
 current cross-repository byte equality. The current local SHA-256 pin is
-`118d4ea48d299d8a12e7e31c1a334e694121c63c4d7ee3345ae2d36dd3c84063`. Cross-repo parity must be
+`b7dea9f8971af80de061369e988f94b5cd50962bdf4399dab3e6bc1b2dc31717`. Cross-repo parity must be
 checked explicitly on every change: compare both files, copy the canonical bytes, bump
 `CONSTRAINTS-VERSION`, and update both local pins.
 
@@ -53,6 +53,23 @@ for five native targets on GitHub releases.
 - **Never weaken a rubric criterion or a guard to make a scan produce a nicer number.**
 - **Preregistration commits must remain strict ancestors of result commits.** Do not edit a
   preregistration after a run; corrections go in a separate errata document.
+
+## Recording lessons
+
+When a session identifies a defect, a correction, a false claim, or a rule that would prevent a
+recurrence, record it in this repository as part of the PR you are already opening — not as a chat
+attachment, and not staged to `lab_notes/_maeve/`, which is for agents that cannot commit.
+
+Stage the record as part of the PR in this repository, then promote it: sync discovers batches
+only in alfred's `docs/orchestration/maeve-lesson-batches/`, named `cejel_<topic>_<date>.json` —
+the exact `cejel_` filename prefix is load-bearing, and a batch that exists only in this
+repository is invisible to sync. Records with no qualifying fix commit go to alfred's
+`maeve-unanchored-lessons/`. Anchor only to a commit
+already on `origin/main` — a squash merge rewrites a branch SHA and orphans any anchor pointing at
+it — and confirm the commit's diff exhibits what the summary claims. The seed schema is a JSON
+array with `statement` (≤1000 chars), `scope[]`, `tags[]`, `anchors[]`, `lastSeenAt`; unknown fields
+are silently stripped at ingestion, so fold anything essential into `statement` before writing.
+Cite the commit, never an author.
 
 ## Before you commit
 
