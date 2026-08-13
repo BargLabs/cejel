@@ -68,7 +68,7 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 ```
 
 > **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
-> 0.4.1 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> 0.4.2 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
 > GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM and an
@@ -91,7 +91,7 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** Cejel `0.4.1` is the coordinated release version for npm,
+> **Distribution note:** Cejel `0.4.2` is the coordinated release version for npm,
 > standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry.
 
 `npx` can reuse a stale cached package. Force the current npm release with the `@latest`
@@ -140,16 +140,16 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.4.1`:
+**Docker / OCI.** The current container release is `0.4.2`:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.4.1
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.4.2
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.4.1 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.4.2 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
@@ -426,7 +426,7 @@ The OCI image is an alternative when Docker is the preferred execution boundary.
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-openclaw mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.1"]}'
+openclaw mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.2"]}'
 openclaw mcp doctor cejel-oci --probe
 ```
 
