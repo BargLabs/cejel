@@ -27,6 +27,7 @@ import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
   CERTIFICATE_GLOSSARY,
+  formatCertificateMetricLabel,
   formatCertificateMetricValue,
   glossaryEntriesForReport,
   glossaryEntryForMetric,
@@ -398,7 +399,7 @@ function renderMetric(
   const cappedEntry = formatted.includes('capped')
     ? CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'capped')
     : undefined;
-  const label = `<span class="term-help" tabindex="0" aria-describedby="${escapeAttribute(tooltipId)}"><strong>${escapeHtml(metric.label)}</strong><span class="term-tooltip" id="${escapeAttribute(tooltipId)}" role="tooltip">${escapeHtml(entry.definition)}</span></span>`;
+  const label = `<span class="term-help" tabindex="0" aria-describedby="${escapeAttribute(tooltipId)}"><strong>${escapeHtml(formatCertificateMetricLabel(metric))}</strong><span class="term-tooltip" id="${escapeAttribute(tooltipId)}" role="tooltip">${escapeHtml(entry.definition)}</span></span>`;
   if (!cappedEntry) return `${label}<span>${escapeHtml(formatted)}</span>`;
   const cappedTooltipId = `${tooltipId}-capped`;
   return `${label}<span class="term-help metric-value" tabindex="0" aria-describedby="${escapeAttribute(cappedTooltipId)}">${escapeHtml(formatted)}<span class="term-tooltip" id="${escapeAttribute(cappedTooltipId)}" role="tooltip">${escapeHtml(cappedEntry.definition)}</span></span>`;

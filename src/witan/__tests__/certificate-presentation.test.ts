@@ -154,6 +154,122 @@ describe('certificate presentation regressions', () => {
     expect(CERTIFICATE_GLOSSARY).toHaveLength(33);
   });
 
+  it('renders every glossary entry in every human-readable surface with the revision-2 style', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })]);
+    const outputs = [
+      renderWitanHtmlReport(report),
+      renderWitanMarkdownReport(report),
+      renderTerminalCertificate(buildWitanCliSummary(report), report),
+    ];
+
+    expect(CERTIFICATE_GLOSSARY).toHaveLength(33);
+    for (const entry of CERTIFICATE_GLOSSARY) {
+      expect(entry.definition.toLowerCase()).not.toContain('it matters');
+      expect(entry.definition).not.toContain(';');
+      for (const output of outputs) {
+        const readableOutput = output.replaceAll('&#39;', "'");
+        expect(readableOutput).toContain(entry.term);
+        expect(readableOutput).toContain(entry.definition);
+      }
+    }
+  });
+
+  it('renders distinct basic-check and inline workflow definitions without user-facing primitive language', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A3',
+        category: 'code_trust',
+        metrics: [
+          {
+            name: 'prod_readiness_primitives',
+            label: 'Production-readiness primitive coverage',
+            value: 4,
+            max: 6,
+            weight: 0.55,
+            unit: 'primitives',
+          },
+          {
+            name: 'prod_workflow_depth',
+            label: 'Production workflow depth',
+            value: 2,
+            max: 6,
+            weight: 0.2,
+            unit: 'signals',
+          },
+        ],
+      }),
+      criterion({
+        id: 'B2',
+        category: 'process_trust',
+        metrics: [
+          {
+            name: 'pr_trace_primitives',
+            label: 'PR trace primitive coverage',
+            value: 2,
+            max: 2,
+            weight: 0.8,
+            unit: 'signals',
+          },
+        ],
+      }),
+      criterion({
+        id: 'B3',
+        category: 'process_trust',
+        metrics: [
+          {
+            name: 'default_branch_ci_depth',
+            label: 'PR-gate CI workflow count',
+            value: 1,
+            max: 4,
+            weight: 0.5,
+            unit: 'workflows',
+          },
+        ],
+      }),
+    ]);
+    const outputs = [
+      renderWitanHtmlReport(report),
+      renderWitanMarkdownReport(report),
+      renderTerminalCertificate(buildWitanCliSummary(report), report),
+    ];
+
+    for (const output of outputs) {
+      expect(output).toContain('Production-readiness basic checks');
+      expect(output).toContain('PR trace basic checks');
+      expect(output).toContain('4/6 checks');
+      expect(output).toContain('2/2 checks');
+      expect(output).toContain(
+        'Production workflow depth (automated build/test/release pipeline)',
+      );
+      expect(output).toContain(
+        'PR-gate CI workflow count (automated build/test pipeline)',
+      );
+      expect(output.toLowerCase()).not.toContain('primitive');
+    }
+  });
+
+  it('locks the external reviewer feedback copy', () => {
+    const definitions = Object.fromEntries(
+      CERTIFICATE_GLOSSARY.map((entry) => [entry.key, entry.definition]),
+    );
+
+    expect(definitions.labels).toBe(
+      'Three labels can appear on one line because they answer three different questions. Finding severity describes how serious one issue is. The dimension band summarizes the criterion evidence. The numeric band comes from the weighted score.',
+    );
+    expect(definitions.capped).toBe(
+      'Credit stops increasing after the maximum defined by the scoring rubric, even when the raw count is higher. Caps are fixed per rubric version because they are part of what was calibrated. Extra volume therefore cannot outweigh the rest of the rubric.',
+    );
+    expect(definitions['static-coverage']).toBe(
+      'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives.',
+    );
+    expect(definitions['crypto-comparison-hygiene']).toBe(
+      'Comparisons of secret values that take the same time whether or not the values match. Attackers therefore cannot recover secrets by measuring response times.',
+    );
+    expect(definitions['dependency-count-sanity']).toBe(
+      'A bounded check for an unusually long list of direct dependencies for a library. Every direct dependency adds maintenance and supply-chain exposure.',
+    );
+  });
+
   it('records both the producing CLI version and rubric version', () => {
     const html = renderWitanHtmlReport(
       reportFixture([criterion({ id: 'A1', category: 'code_trust' })]),

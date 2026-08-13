@@ -1,5 +1,8 @@
 import type { WitanCriterionMetric, WitanCriterionScore, WitanFinding } from './schemas.js';
-import { formatCertificateMetricValue } from './certificate-presentation.js';
+import {
+  formatCertificateMetricLabel,
+  formatCertificateMetricValue,
+} from './certificate-presentation.js';
 
 const METRIC_DERIVED_FINDING_PATTERN =
   /^[A-Z]\d+ metric-derived score is (\d+\.\d)\/4\.0, in the (critical|warning) band — no single finding drove this; it reflects the combined metric weighting below\.$/;
@@ -62,7 +65,8 @@ export function renderFindingSummary(
     new Set(
       drivers.map(
         (metric) =>
-          REMEDIATION_BY_METRIC[metric.name] ?? `raise the measured ${metric.label.toLowerCase()}`,
+          REMEDIATION_BY_METRIC[metric.name] ??
+          `raise the measured ${formatCertificateMetricLabel(metric).toLowerCase()}`,
       ),
     ),
   ).join('; ');
@@ -91,5 +95,5 @@ function formatMetricMember(
   criterion: WitanCriterionScore,
   metric: WitanCriterionMetric,
 ): string {
-  return `${metric.label} ${formatCertificateMetricValue(criterion, metric)}`;
+  return `${formatCertificateMetricLabel(metric)} ${formatCertificateMetricValue(criterion, metric)}`;
 }
