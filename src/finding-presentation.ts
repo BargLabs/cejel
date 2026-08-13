@@ -1,5 +1,8 @@
 import type { WitanCriterionMetric, WitanCriterionScore, WitanFinding } from './witan/index.js';
-import { formatCertificateMetricValue } from './witan/certificate-presentation.js';
+import {
+  formatCertificateMetricLabel,
+  formatCertificateMetricValue,
+} from './witan/certificate-presentation.js';
 
 // Keep this presentation-only helper local to the public CLI package. The corresponding Witan
 // renderer helper cannot be exported through packages/witan/src/index.ts because that barrel is
@@ -61,7 +64,8 @@ export function renderFindingSummary(
     new Set(
       drivers.map(
         (metric) =>
-          REMEDIATION_BY_METRIC[metric.name] ?? `raise the measured ${metric.label.toLowerCase()}`,
+          REMEDIATION_BY_METRIC[metric.name] ??
+          `raise the measured ${formatCertificateMetricLabel(metric).toLowerCase()}`,
       ),
     ),
   ).join('; ');
@@ -90,5 +94,5 @@ function formatMetricMember(
   criterion: WitanCriterionScore,
   metric: WitanCriterionMetric,
 ): string {
-  return `${metric.label} ${formatCertificateMetricValue(criterion, metric)}`;
+  return `${formatCertificateMetricLabel(metric)} ${formatCertificateMetricValue(criterion, metric)}`;
 }

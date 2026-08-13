@@ -18,6 +18,7 @@ import {
 import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
+  formatCertificateMetricLabel,
   formatCertificateMetricValue,
   glossaryEntriesForReport,
 } from './certificate-presentation.js';
@@ -328,7 +329,7 @@ function renderMetric(
   criterion: WitanCriterionScore,
   metric: WitanCriterionScore['metrics'][number],
 ): string {
-  return `${metric.label}: ${formatCertificateMetricValue(criterion, metric)}`;
+  return `${formatCertificateMetricLabel(metric)}: ${formatCertificateMetricValue(criterion, metric)}`;
 }
 
 function renderCriterionEvidence(criterion: WitanCriterionScore): string[] {

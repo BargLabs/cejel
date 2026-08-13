@@ -3,6 +3,7 @@ import type { WitanReport } from './witan/index.js';
 import {
   buildRelyingPartySummary,
   CERTIFICATE_GLOSSARY,
+  formatCertificateMetricLabel,
   formatCertificateMetricValue,
 } from './witan/certificate-presentation.js';
 
@@ -107,7 +108,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
   const measurements = report?.criteria.flatMap((criterion) =>
     criterion.metrics.map((metric) => ({
       criterionId: criterion.id,
-      label: metric.label,
+      label: formatCertificateMetricLabel(metric),
       value: formatCertificateMetricValue(criterion, metric),
     })),
   );
