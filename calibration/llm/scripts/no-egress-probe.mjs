@@ -3,6 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
+import { assertAllSurfacesDenied } from './no-egress-probe-timeouts.mjs';
+
 const require = createRequire(import.meta.url);
 const {
   POLICY_ID,
@@ -68,24 +70,10 @@ for (const [args, env] of [
 }
 if (deniedGitVariants !== 3) throw new Error('hardened local Git negative controls failed');
 
-let denied = 0;
-const deniedSurfaceIds = [];
-for (const descriptor of SURFACE_DESCRIPTORS) {
-  try {
-    await descriptor.target[descriptor.method]();
-  } catch (error) {
-    // node:dns promises and Resolver exports can be aliases of the node:dns objects. The hook
-    // therefore reports the last canonical alias installed on that shared function; invoking
-    // each import path still has to reach a denial.
-    if (String(error.message).includes('Cejel calibration no-egress policy denied ')) {
-      denied += 1;
-      deniedSurfaceIds.push(descriptor.id);
-    }
-  }
-}
-if (denied !== SURFACE_DESCRIPTORS.length) {
-  throw new Error(`no-egress probe denied ${denied}/${SURFACE_DESCRIPTORS.length} paths`);
-}
+// node:dns promises and Resolver exports can be aliases of the node:dns objects. Invoking each
+// declared import path still has to reach a denial, and each invocation is independently bounded.
+const deniedSurfaceIds = await assertAllSurfacesDenied(SURFACE_DESCRIPTORS);
+const denied = deniedSurfaceIds.length;
 console.log(JSON.stringify({
   policy: POLICY_ID,
   denied,

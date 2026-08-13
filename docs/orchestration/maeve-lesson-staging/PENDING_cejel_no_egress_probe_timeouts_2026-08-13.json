@@ -1,0 +1,21 @@
+[
+  {
+    "statement": "A no-egress control that exercises multiple DNS, socket, HTTP, and process surfaces must bound each surface independently. A successful container network boundary does not prevent a newly uncovered or malfunctioning runtime-hook surface from hanging the entire probe and consuming a one-shot authorization. Accept only the hook's explicit denial; treat a timeout, unexpected success, or different error as fail-closed with the named surface. Prove compliant denial, timeout, and leak paths synthetically before binding the probe to any calibration execution.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "calibration/llm/scripts/no-egress-probe.mjs",
+      "calibration/llm/scripts/no-egress-probe-timeouts.mjs"
+    ],
+    "tags": [
+      "calibration",
+      "instrument-integrity",
+      "no-egress",
+      "timeout",
+      "fail-closed"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-13T00:00:00.000Z",
+    "quarantineReason": "This staging record accompanies the timeout repair branch, whose eventual squash commit does not yet exist on Cejel origin/main. It must not anchor to its own branch.",
+    "moveCondition": "After the timeout-repair PR merges, identify its 40-character squash commit on Cejel origin/main and verify that its diff adds the bounded per-surface probe helper and synthetic compliant-denial, hung-surface, and leaky-surface tests. Then copy this record into Alfred docs/orchestration/maeve-lesson-batches/ as a cejel_ batch with that commit, PR number, evidencePath, and evidenceQuote."
+  }
+]

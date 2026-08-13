@@ -110,6 +110,7 @@ test('prepared image resolves through the exact wrapper, probe, and v22 driver i
     'calibration/llm/scripts/no-egress-hook.cjs',
     'calibration/llm/scripts/no-egress-policy.cjs',
     'calibration/llm/scripts/no-egress-probe.mjs',
+    'calibration/llm/scripts/no-egress-probe-timeouts.mjs',
     'calibration/llm/scripts/prepare-no-egress-image.sh',
     'calibration/llm/scripts/run-v22-public-calibration.mjs',
     'calibration/llm/scripts/v22-public-calibration-artifacts.mjs',
