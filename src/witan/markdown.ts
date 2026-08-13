@@ -16,6 +16,11 @@ import {
   formatExternalSourceLabel,
 } from './external-findings.js';
 import { renderFindingSummary } from './finding-presentation.js';
+import {
+  buildRelyingPartySummary,
+  formatCertificateMetricValue,
+  glossaryEntriesForReport,
+} from './certificate-presentation.js';
 
 export function renderWitanMarkdownReport(report: WitanReport): string {
   const notApplicableCriteria = report.criteria.filter((c) => c.status === 'not_applicable');
@@ -52,6 +57,7 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
   const contributingSources = externalSourceSummaries.map(renderSourceProvenanceLabel);
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const noMeasurementAbstention = isWitanNoMeasurementAbstention(report);
+  const relyingPartySummary = buildRelyingPartySummary(report);
   const summaryScoreLines =
     report.verdict === 'insufficient_source'
       ? [
@@ -86,6 +92,13 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
           `- Verdict: ${renderWitanAbstentionLabel(report)} to certify — ${report.insufficientSourceReason}`,
         ]
       : []),
+    '',
+    '## How to read this certificate',
+    '',
+    `- What was examined: ${relyingPartySummary.examined}`,
+    `- What was established: ${relyingPartySummary.established}`,
+    `- What was not established: ${relyingPartySummary.notEstablished}`,
+    `- What to do next: ${relyingPartySummary.next}`,
     ...((report.scanLimitations?.length ?? 0) > 0
       ? [
           '',
@@ -161,6 +174,12 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
           '',
         ]
       : []),
+    '## Plain-language glossary',
+    '',
+    ...glossaryEntriesForReport(report).map(
+      (entry) => `- **${entry.term}** — ${entry.definition}`,
+    ),
+    '',
   ];
 
   return `${lines.join('\n')}`;
@@ -302,23 +321,14 @@ function renderCriterionMetrics(criterion: WitanCriterionScore): string {
     return 'Insufficient data — no measurable signal for this criterion';
   }
   if (criterion.metrics.length === 0) return 'No measured depth metrics supplied';
-  return criterion.metrics.map(renderMetric).join('; ');
+  return criterion.metrics.map((metric) => renderMetric(criterion, metric)).join('; ');
 }
 
-function renderMetric(metric: WitanCriterionScore['metrics'][number]): string {
-  const unit = metric.unit ? ` ${metric.unit}` : '';
-  const valueStr = formatMetricValue(metric.value);
-  if (!metric.max) return `${metric.label}: ${valueStr}${unit}`;
-  // Saturating-count metrics: value legitimately exceeds max (more-is-better, capped for scoring).
-  // Lead with the capped value and preserve the raw count explicitly, so the display never
-  // implies a broken numerator/denominator pair.
-  if (metric.kind === 'saturating_count') {
-    if (metric.value > metric.max) {
-      return `${metric.label}: ${formatMetricValue(metric.max)}${unit} (capped; ${valueStr} raw)`;
-    }
-    return `${metric.label}: ${valueStr}/${formatMetricValue(metric.max)}${unit}`;
-  }
-  return `${metric.label}: ${valueStr}/${formatMetricValue(metric.max)}${unit}`;
+function renderMetric(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionScore['metrics'][number],
+): string {
+  return `${metric.label}: ${formatCertificateMetricValue(criterion, metric)}`;
 }
 
 function renderCriterionEvidence(criterion: WitanCriterionScore): string[] {
@@ -379,8 +389,4 @@ function renderRepo(repo: string, headSha: string | undefined): string {
 
 function formatScore(score: number): string {
   return score.toFixed(1);
-}
-
-function formatMetricValue(value: number): string {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(2);
 }

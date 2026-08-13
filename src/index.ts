@@ -242,7 +242,7 @@ async function runWitanCli(
   writeFileSync(join(options.outDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
 
   if (!options.quiet) {
-    process.stdout.write(renderTerminalCertificate(summary));
+    process.stdout.write(renderTerminalCertificate(summary, report));
     process.stdout.write(
       `\nWrote:\n  ${options.outDir}/report.json\n  ${options.outDir}/summary.json\n  ${options.outDir}/attestation.json\n  ${options.outDir}/certificate.html\n  ${options.outDir}/badge.json\n  ${options.outDir}/badge.svg\n`,
     );
