@@ -1,0 +1,273 @@
+name: cejel-verify-published-windows-binary
+
+# Verifies the ALREADY-PUBLISHED release asset that a stranger would actually download --
+# not a freshly rebuilt binary. release-binaries.yml verifies a binary before it is attached
+# to a release; this workflow verifies what is sitting on the release right now, downloaded
+# the same way a user downloads it (gh release download / the documented curl/Invoke-WebRequest
+# snippets), on a real Windows runner. It also cross-checks the Windows binary's report against
+# the same npm package version run against the identical fixture commit, to establish -- not
+# assume -- whether reports are byte-identical across platforms for the same revision.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published release tag to verify (must already exist with attached assets)
+        required: true
+        type: string
+        default: v0.4.2
+
+concurrency:
+  group: cejel-verify-published-windows-binary-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    name: Build deterministic fixture
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Create fixture repo with fixed author/committer identity and dates
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$RUNNER_TEMP/fixture-src"
+          mkdir -p "$repo/src"
+          cd "$repo"
+          git init -q
+          git config user.email "cejel-verify@example.com"
+          git config user.name "cejel-verify"
+          git config core.autocrlf false
+          printf '{\n  "name": "cejel-sea-fixture",\n  "version": "0.0.0",\n  "private": true\n}\n' > package.json
+          printf 'lockfileVersion: 9.0\n' > pnpm-lock.yaml
+          printf 'export const add = (a: number, b: number): number => a + b;\n' > src/engine.ts
+          printf "import { expect, test } from 'vitest';\nimport { add } from './engine.js';\ntest('adds', () => expect(add(1, 2)).toBe(3));\n" > src/engine.test.ts
+          git add -A
+          export GIT_AUTHOR_NAME="cejel-verify" GIT_AUTHOR_EMAIL="cejel-verify@example.com"
+          export GIT_COMMITTER_NAME="cejel-verify" GIT_COMMITTER_EMAIL="cejel-verify@example.com"
+          export GIT_AUTHOR_DATE="2026-01-01T00:00:00Z" GIT_COMMITTER_DATE="2026-01-01T00:00:00Z"
+          git commit -q -m fixture
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          cd "$repo"
+          tar -cf "$RUNNER_TEMP/fixture.tar" .
+        id: fixture
+
+      - name: Upload fixture tarball
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fixture-tar
+          path: ${{ runner.temp }}/fixture.tar
+          retention-days: 7
+
+      - name: Record fixture commit
+        shell: bash
+        run: echo "${{ steps.fixture.outputs.commit }}" > "$RUNNER_TEMP/fixture-commit.txt"
+
+      - name: Upload fixture commit id
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fixture-commit
+          path: ${{ runner.temp }}/fixture-commit.txt
+          retention-days: 7
+
+  windows:
+    name: Verify published Windows binary
+    needs: fixture
+    runs-on: windows-latest
+    steps:
+      - name: Download fixture tarball
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: fixture-tar
+          path: ${{ runner.temp }}
+
+      - name: Extract fixture (preserve exact bytes, no autocrlf mangling)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fixture"
+          tar -xf "$RUNNER_TEMP/fixture.tar" -C "$RUNNER_TEMP/fixture"
+          echo "fixture commit inside tarball:"
+          git -C "$RUNNER_TEMP/fixture" rev-parse HEAD
+
+      - name: Download published release asset and checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          gh release download "${{ inputs.release_tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "cejel-Windows-x86_64.exe" \
+            --pattern "SHA256SUMS" \
+            --clobber
+
+      - name: Verify SHA256 against published SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          expected="$(grep '  cejel-Windows-x86_64.exe$' SHA256SUMS | awk '{print $1}')"
+          computed="$(sha256sum cejel-Windows-x86_64.exe | awk '{print $1}')"
+          echo "expected=$expected"
+          echo "computed=$computed"
+          if [ -z "$expected" ]; then
+            echo "::error::no SHA256SUMS entry found for cejel-Windows-x86_64.exe"
+            exit 1
+          fi
+          if [ "$expected" != "$computed" ]; then
+            echo "::error::SHA256 MISMATCH expected=$expected computed=$computed"
+            exit 1
+          fi
+          echo "SHA256 MATCH: $computed"
+
+      - name: Run the published binary against the fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          chmod +x cejel-Windows-x86_64.exe
+          set +e
+          ./cejel-Windows-x86_64.exe "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-windows" --quiet > "$RUNNER_TEMP/windows-stdout.txt" 2>"$RUNNER_TEMP/windows-stderr.txt"
+          echo "exit_code=$?" > "$RUNNER_TEMP/windows-exit.txt"
+          set -e
+          echo "---exit code---"
+          cat "$RUNNER_TEMP/windows-exit.txt"
+          echo "---first 20 lines stdout---"
+          head -n 20 "$RUNNER_TEMP/windows-stdout.txt" || true
+          echo "---first 20 lines stderr---"
+          head -n 20 "$RUNNER_TEMP/windows-stderr.txt" || true
+
+      - name: Hash the produced report
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/out-windows"
+          if [ ! -f "$out/report.json" ]; then
+            echo "::error::report.json was not written by the Windows binary (pass-by-absence check)"
+            exit 1
+          fi
+          sha256sum "$out/report.json" | tee "$RUNNER_TEMP/windows-report-sha256.txt"
+          cp "$out/report.json" "$RUNNER_TEMP/windows-report.json"
+
+      - name: Upload Windows evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-evidence
+          path: |
+            ${{ runner.temp }}/windows-exit.txt
+            ${{ runner.temp }}/windows-stdout.txt
+            ${{ runner.temp }}/windows-stderr.txt
+            ${{ runner.temp }}/windows-report-sha256.txt
+            ${{ runner.temp }}/windows-report.json
+          retention-days: 7
+
+  npm:
+    name: Run npm package on the same fixture
+    needs: fixture
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture tarball
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: fixture-tar
+          path: ${{ runner.temp }}
+
+      - name: Extract fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fixture"
+          tar -xf "$RUNNER_TEMP/fixture.tar" -C "$RUNNER_TEMP/fixture"
+          git -C "$RUNNER_TEMP/fixture" rev-parse HEAD
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Resolve release package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.release_tag }}"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Run npm package against the same fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          npx --yes "@cejel/cejel@${{ steps.version.outputs.version }}" "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-npm" --quiet > "$RUNNER_TEMP/npm-stdout.txt" 2>"$RUNNER_TEMP/npm-stderr.txt"
+          echo "exit_code=$?" > "$RUNNER_TEMP/npm-exit.txt"
+          set -e
+          echo "---exit code---"
+          cat "$RUNNER_TEMP/npm-exit.txt"
+          echo "---first 20 lines stdout---"
+          head -n 20 "$RUNNER_TEMP/npm-stdout.txt" || true
+
+      - name: Hash the produced report
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/out-npm"
+          if [ ! -f "$out/report.json" ]; then
+            echo "::error::report.json was not written by the npm package (pass-by-absence check)"
+            exit 1
+          fi
+          sha256sum "$out/report.json" | tee "$RUNNER_TEMP/npm-report-sha256.txt"
+          cp "$out/report.json" "$RUNNER_TEMP/npm-report.json"
+
+      - name: Upload npm evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-evidence
+          path: |
+            ${{ runner.temp }}/npm-exit.txt
+            ${{ runner.temp }}/npm-stdout.txt
+            ${{ runner.temp }}/npm-stderr.txt
+            ${{ runner.temp }}/npm-report-sha256.txt
+            ${{ runner.temp }}/npm-report.json
+          retention-days: 7
+
+  compare:
+    name: Compare Windows binary report vs npm package report
+    needs: [windows, npm]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download Windows evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-evidence
+          path: windows
+
+      - name: Download npm evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-evidence
+          path: npm
+
+      - name: Compare report digests -- report, do not assume, do not gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          windows_sha="$(awk '{print $1}' windows/windows-report-sha256.txt)"
+          npm_sha="$(awk '{print $1}' npm/npm-report-sha256.txt)"
+          echo "windows report.json sha256: $windows_sha"
+          echo "npm     report.json sha256: $npm_sha"
+          if [ "$windows_sha" = "$npm_sha" ]; then
+            echo "RESULT: MATCH -- Windows binary and npm package produced byte-identical report.json for the same fixture commit."
+          else
+            echo "RESULT: MISMATCH -- Windows binary and npm package did NOT produce byte-identical report.json for the same fixture commit."
+            echo "diff (unified):"
+            diff -u npm/npm-report.json windows/windows-report.json || true
+          fi
