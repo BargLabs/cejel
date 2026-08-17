@@ -96,6 +96,36 @@ describe('buildWitanCliSummary', () => {
     expect(finding?.displaySummary).not.toContain('combined metric weighting');
   });
 
+  it('never lists a fully-satisfied metric as a lowest contributing measurement', () => {
+    // Reproduces the reviewer-reported B2 case: pr_trace_primitives sits at full marks (2/2)
+    // while pr_merge_ratio is the only real shortfall, but B2 has just those two metrics, so a
+    // naive "always take the lowest two" selection pulled the maxed-out metric in anyway.
+    const rawSummary =
+      'B2 metric-derived score is 1.8/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.';
+    const criterion = findingCriterion('B2', [{ severity: 'warning', summary: rawSummary }]);
+    criterion.metrics = [
+      {
+        name: 'pr_trace_primitives',
+        label: 'PR trace basic checks',
+        value: 2,
+        max: 2,
+        weight: 0.8,
+      },
+      {
+        name: 'pr_merge_ratio',
+        label: 'Recent PR merge ratio',
+        value: 0,
+        max: 1,
+        weight: 0.2,
+      },
+    ];
+
+    const finding = buildWitanCliSummary(fixtureReport([criterion])).topFindings[0];
+
+    expect(finding?.displaySummary).toContain('Lowest contributing measurements: Recent PR merge ratio 0/1.');
+    expect(finding?.displaySummary).not.toContain('PR trace basic checks');
+  });
+
   it('caps topFindings at 5 while findingCount reflects the true total', () => {
     const ids = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3'];
     const criteria = ids.map((id, i) =>

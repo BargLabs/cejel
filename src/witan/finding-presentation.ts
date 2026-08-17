@@ -74,8 +74,11 @@ export function renderFindingSummary(
 }
 
 function selectLowestDrivers(metrics: readonly WitanCriterionMetric[]): WitanCriterionMetric[] {
+  // A metric at its max contributes no shortfall, so it is never a "lowest contributing"
+  // driver — excluding it here (rather than only ranking by ratio) stops a fully-satisfied
+  // metric from filling a slot just because a criterion has few measured metrics overall.
   return [...metrics]
-    .filter((metric) => metric.max !== undefined)
+    .filter((metric) => metric.max !== undefined && normalizedMetricValue(metric) < 1)
     .sort((left, right) => {
       const leftRatio = normalizedMetricValue(left);
       const rightRatio = normalizedMetricValue(right);

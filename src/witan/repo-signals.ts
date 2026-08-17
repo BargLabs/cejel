@@ -2586,7 +2586,7 @@ function collectA3ProdReadinessEvidence(
     metrics: [
       metric(
         'prod_readiness_primitives',
-        'Production-readiness primitive coverage',
+        'Production-readiness basic checks',
         [
           packageJson && (scripts.has('build') || scripts.has('typecheck')),
           workflows.length > 0,
@@ -2597,8 +2597,8 @@ function collectA3ProdReadinessEvidence(
         ].filter(Boolean).length,
         6,
         0.55,
-        'primitives',
-        'Counts distinct static production-readiness primitives instead of treating presence as enough.',
+        'checks',
+        'Counts distinct static production-readiness checks instead of treating presence as enough.',
       ),
       metric(
         'prod_workflow_depth',
@@ -3054,7 +3054,7 @@ function collectB2PrTraceEvidence(
       // sat well under half credit here even with a healthy PR-trace posture.
       metric(
         'pr_trace_primitives',
-        'PR trace primitive coverage',
+        'PR trace basic checks',
         workflows.length + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0),
         2,
         0.8,

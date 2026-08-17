@@ -266,6 +266,10 @@ export function glossaryEntryForMetric(metric: WitanCriterionMetric): Certificat
   );
 }
 
+// prod_readiness_primitives and pr_trace_primitives keep their explicit override even though
+// repo-signals.ts now emits this same plain-English text directly: report data written by an
+// older Cejel version can still carry the retired "primitive coverage" label, and this override
+// normalizes that legacy text at render time regardless of what the stored report says.
 const CERTIFICATE_METRIC_LABELS: Readonly<Record<string, string>> = {
   prod_readiness_primitives: 'Production-readiness basic checks',
   pr_trace_primitives: 'PR trace basic checks',
@@ -299,6 +303,12 @@ export function isCoverageNotMeasured(
   ].some((evidence) => evidence.kind === 'coverage');
 }
 
+function labelAlreadyStatesUnit(label: string, unit: string | undefined): boolean {
+  if (!unit) return false;
+  const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[\\s-])${escapedUnit}$`, 'i').test(label.trim());
+}
+
 export function formatCertificateMetricValue(
   criterion: WitanCriterionScore,
   metric: WitanCriterionMetric,
@@ -312,10 +322,17 @@ export function formatCertificateMetricValue(
     const comparison = `${tests} test file${metric.value === 1 ? '' : 's'} / ${sources} source file${metric.max === 1 ? '' : 's'}`;
     return metric.value > metric.max ? `${comparison} (credit capped at parity)` : comparison;
   }
+  // A unit that repeats the trailing word of its own label (e.g. label "Recent PR merge
+  // ratio" with unit "ratio") reads as a typo once concatenated ("Recent PR merge ratio
+  // 0/1 ratio"), so suppress the unit in that case rather than showing it twice. The basic-check
+  // metrics keep their unconditional "checks" unit (see the CERTIFICATE_METRIC_LABELS comment
+  // above) so legacy report data normalizes the same way it always has.
   const displayUnit =
     metric.name === 'prod_readiness_primitives' || metric.name === 'pr_trace_primitives'
       ? 'checks'
-      : metric.unit;
+      : labelAlreadyStatesUnit(formatCertificateMetricLabel(metric), metric.unit)
+        ? undefined
+        : metric.unit;
   const unit = displayUnit ? ` ${displayUnit}` : '';
   if (metric.max === undefined) return `${formatMetricNumber(metric.value)}${unit}`;
   if (metric.kind === 'saturating_count' && metric.value > metric.max) {
