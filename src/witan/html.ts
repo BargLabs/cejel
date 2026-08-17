@@ -643,11 +643,12 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .term-help { position: relative; cursor: help; outline: none; }
 .term-help:focus-visible { box-shadow: 0 0 0 2px var(--periwinkle); border-radius: 3px; }
 .term-tooltip {
-  position: absolute; z-index: 10; left: 0; bottom: calc(100% + 8px); width: min(320px, 75vw);
+  position: absolute; z-index: 100; left: 0; bottom: calc(100% + 8px); width: min(320px, 75vw);
   visibility: hidden; opacity: 0; pointer-events: none; white-space: normal;
   border: 1px solid var(--line-strong); border-radius: 6px; padding: 9px 11px;
   background: #101b2a; color: var(--text); font-family: var(--sans); font-size: 12px;
   font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: normal;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .55);
   transition: opacity .12s ease;
 }
 .term-help:hover > .term-tooltip, .term-help:focus-within > .term-tooltip { visibility: visible; opacity: 1; }
