@@ -93,7 +93,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/fixture"
-          tar -xf "$RUNNER_TEMP/fixture.tar" -C "$RUNNER_TEMP/fixture"
+          # --force-local: on windows-latest, RUNNER_TEMP is a Windows path (D:\a\_temp\...).
+          # Without this flag, GNU tar reads the drive letter before the colon as a remote
+          # host spec ("D:...") and tries to rsh/ssh to a host named "D" instead of opening
+          # a local file -- confirmed live: "tar: Cannot connect to D: resolve failed".
+          tar --force-local -xf "$RUNNER_TEMP/fixture.tar" -C "$RUNNER_TEMP/fixture"
           echo "fixture commit inside tarball:"
           git -C "$RUNNER_TEMP/fixture" rev-parse HEAD
 
