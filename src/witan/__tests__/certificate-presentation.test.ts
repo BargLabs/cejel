@@ -8,6 +8,25 @@ import { renderWitanMarkdownReport } from '../markdown.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import { serializeWitanReport } from '../attestation.js';
 
+// WCAG 2.x relative-luminance contrast ratio between two #rrggbb colors.
+function contrastRatio(hexA: string, hexB: string): number {
+  const luminance = (hex: string): number => {
+    const channel = (value: number): number => {
+      const c = value / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  };
+  const lumA = luminance(hexA);
+  const lumB = luminance(hexB);
+  const lighter = Math.max(lumA, lumB);
+  const darker = Math.min(lumA, lumB);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 function criterion(
   overrides: Partial<WitanCriterionScore> & Pick<WitanCriterionScore, 'id' | 'category'>,
 ): WitanCriterionScore {
@@ -394,5 +413,31 @@ describe('certificate presentation regressions', () => {
 
     expect(renderWitanHtmlReport(report)).toContain('Not recorded');
     expect(renderWitanMarkdownReport(report)).toContain('- CLI: Not recorded');
+  });
+
+  it('elevates the term tooltip so it never blends into the page behind it', () => {
+    const html = renderWitanHtmlReport(reportFixture([criterion({ id: 'A1', category: 'code_trust' })]));
+
+    const rule = html.match(/\.term-tooltip\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    const declarations = rule?.[1] ?? '';
+
+    const zIndex = Number(declarations.match(/z-index:\s*(\d+)/)?.[1]);
+    expect(zIndex).toBeGreaterThanOrEqual(100);
+
+    // A real elevation shadow, not just a hairline border, is what keeps the tooltip from
+    // reading as part of the surface behind it.
+    expect(declarations).toMatch(/box-shadow:\s*[^;]*rgba?\([^)]+\)/);
+
+    // Reported by an external reviewer on 0.4.2: the tooltip "looks great but is hard to read
+    // over the background text." Text-on-background contrast turned out fine (measured below);
+    // the z-index/shadow above were the actual fix. This assertion locks in that the text color
+    // stays at AAA contrast (>= 7:1) against the tooltip's own background regardless.
+    const tooltipBackground = declarations.match(/background:\s*(#[0-9a-fA-F]{6})/)?.[1];
+    const textColor = html.match(/--text:\s*(#[0-9a-fA-F]{6})/)?.[1];
+    expect(tooltipBackground).toBeDefined();
+    expect(textColor).toBeDefined();
+    const ratio = contrastRatio(textColor as string, tooltipBackground as string);
+    expect(ratio).toBeGreaterThanOrEqual(7);
   });
 });
