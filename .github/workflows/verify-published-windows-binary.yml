@@ -147,7 +147,7 @@ jobs:
           cd "$RUNNER_TEMP"
           chmod +x cejel-Windows-x86_64.exe
           set +e
-          ./cejel-Windows-x86_64.exe "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-windows" --quiet > "$RUNNER_TEMP/windows-stdout.txt" 2>"$RUNNER_TEMP/windows-stderr.txt"
+          ./cejel-Windows-x86_64.exe "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-windows" > "$RUNNER_TEMP/windows-stdout.txt" 2>"$RUNNER_TEMP/windows-stderr.txt"
           echo "exit_code=$?" > "$RUNNER_TEMP/windows-exit.txt"
           set -e
           echo "---exit code---"
@@ -166,7 +166,12 @@ jobs:
             echo "::error::report.json was not written by the Windows binary (pass-by-absence check)"
             exit 1
           fi
-          sha256sum "$out/report.json" | tee "$RUNNER_TEMP/windows-report-sha256.txt"
+          # Hash via stdin so the output line carries no filename at all -- GNU sha256sum
+          # prefixes the whole line with '\' and backslash-escapes the name whenever a hashed
+          # filename contains a backslash, which every path built from $RUNNER_TEMP on a
+          # Windows runner does (e.g. D:\a\_temp\...). A naive `awk '{print $1}'` then reads
+          # that leading backslash as part of the digest and never matches the other side.
+          sha256sum < "$out/report.json" | tee "$RUNNER_TEMP/windows-report-sha256.txt"
           cp "$out/report.json" "$RUNNER_TEMP/windows-report.json"
 
       - name: Upload Windows evidence
@@ -218,7 +223,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          npx --yes "@cejel/cejel@${{ steps.version.outputs.version }}" "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-npm" --quiet > "$RUNNER_TEMP/npm-stdout.txt" 2>"$RUNNER_TEMP/npm-stderr.txt"
+          npx --yes "@cejel/cejel@${{ steps.version.outputs.version }}" "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-npm" > "$RUNNER_TEMP/npm-stdout.txt" 2>"$RUNNER_TEMP/npm-stderr.txt"
           echo "exit_code=$?" > "$RUNNER_TEMP/npm-exit.txt"
           set -e
           echo "---exit code---"
@@ -235,7 +240,10 @@ jobs:
             echo "::error::report.json was not written by the npm package (pass-by-absence check)"
             exit 1
           fi
-          sha256sum "$out/report.json" | tee "$RUNNER_TEMP/npm-report-sha256.txt"
+          # Hash via stdin (no filename in the output line) for the same reason as the Windows
+          # job's report hash: it keeps both sides of the compare job byte-comparable regardless
+          # of what characters end up in $RUNNER_TEMP on either runner.
+          sha256sum < "$out/report.json" | tee "$RUNNER_TEMP/npm-report-sha256.txt"
           cp "$out/report.json" "$RUNNER_TEMP/npm-report.json"
 
       - name: Upload npm evidence
