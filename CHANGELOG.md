@@ -30,6 +30,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   certificate includes it. It is uncalibrated, does not affect A1-B6 scoring, and does not change
   the leaderboard.
 
+## [0.4.3] — 2026-08-17
+
+### Added
+
+- States the recognized-CI boundary: which five systems Cejel treats as real CI signal, why
+  absence is scored as a true negative rather than an abstention, and how that recognized set
+  evolves only through a version-gated rubric change.
+
 ### Fixed
 
 - Every documented CLI invocation across the README, leaderboard site copy, and the calibration
@@ -44,6 +52,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   had few measured metrics; it now only lists metrics with an actual shortfall.
 - A metric's displayed unit no longer repeats the trailing word of its own label (e.g. "Recent PR
   merge ratio 0/1 ratio" now reads "Recent PR merge ratio 0/1").
+- Certificate tooltips now sit clearly above the page — a higher stacking order and an elevation
+  shadow — instead of blending into the content behind them.
 
 ## [0.4.2] — 2026-08-13
 
