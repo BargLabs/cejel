@@ -23,7 +23,15 @@ import {
   glossaryEntriesForReport,
 } from './certificate-presentation.js';
 
-export function renderWitanMarkdownReport(report: WitanReport): string {
+export interface WitanMarkdownReportOptions {
+  /** Version of the Cejel CLI/server that produced this certificate. */
+  cliVersion?: string;
+}
+
+export function renderWitanMarkdownReport(
+  report: WitanReport,
+  options: WitanMarkdownReportOptions = {},
+): string {
   const notApplicableCriteria = report.criteria.filter((c) => c.status === 'not_applicable');
   const naSummaryLines =
     notApplicableCriteria.length > 0
@@ -80,6 +88,7 @@ export function renderWitanMarkdownReport(report: WitanReport): string {
     `# Cejel Trust Report - ${report.productDisplayName}`,
     '',
     `- Product: ${report.productSlug}`,
+    `- CLI: ${options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded'}`,
     `- Rubric: ${report.rubricVersion}`,
     `- Repository: ${renderRepo(report.repo.path ?? report.repo.url ?? report.productSlug, report.repo.headSha)}`,
     ...(hasSignals

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildWitanCliSummary } from '../../summary.js';
 import { renderTerminalCertificate } from '../../terminal.js';
-import { CERTIFICATE_GLOSSARY } from '../certificate-presentation.js';
+import { CERTIFICATE_GLOSSARY, formatCertificateMetricValue } from '../certificate-presentation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
@@ -347,5 +347,52 @@ describe('certificate presentation regressions', () => {
     expect(tarballHtml).toContain('displayed zero may undercount B2');
     expect(tarballHtml).toContain('Re-scan a full Git clone');
     expect(cloneHtml).not.toContain('Git history was unavailable');
+  });
+
+  it('does not double the trailing word of a metric label with its own unit', () => {
+    const b2 = criterion({
+      id: 'B2',
+      category: 'process_trust',
+      metrics: [
+        {
+          name: 'pr_merge_ratio',
+          label: 'Recent PR merge ratio',
+          value: 0,
+          max: 1,
+          weight: 0.2,
+          kind: 'ratio',
+          unit: 'ratio',
+        },
+      ],
+    });
+    const [metric] = b2.metrics;
+    if (!metric) throw new Error('fixture must supply a metric');
+
+    // formatCertificateMetricValue is what every renderer (HTML/Markdown/terminal) composes
+    // with the label as "<label>: <value>" or "<label> <value>" — assert directly on it so this
+    // test fails on the doubling regardless of a given renderer's separator/markup.
+    expect(formatCertificateMetricValue(b2, metric)).toBe('0/1');
+    expect(formatCertificateMetricValue(b2, metric)).not.toContain('ratio');
+
+    const markdown = renderWitanMarkdownReport(reportFixture([b2]));
+    expect(markdown).toContain('Recent PR merge ratio: 0/1 |');
+    expect(markdown).not.toContain('ratio: 0/1 ratio');
+  });
+
+  it('carries the CLI version in HTML and Markdown alike, so a stale cached CLI is visible in either format', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })]);
+
+    const html = renderWitanHtmlReport(report, { cliVersion: '0.2.2' });
+    const markdown = renderWitanMarkdownReport(report, { cliVersion: '0.2.2' });
+
+    expect(html).toContain('Cejel 0.2.2');
+    expect(markdown).toContain('- CLI: Cejel 0.2.2');
+  });
+
+  it('marks the CLI version as not recorded rather than silently omitting it when unset', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })]);
+
+    expect(renderWitanHtmlReport(report)).toContain('Not recorded');
+    expect(renderWitanMarkdownReport(report)).toContain('- CLI: Not recorded');
   });
 });
