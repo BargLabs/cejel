@@ -30,6 +30,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   certificate includes it. It is uncalibrated, does not affect A1-B6 scoring, and does not change
   the leaderboard.
 
+### Fixed
+
+- Every documented CLI invocation across the README, leaderboard site copy, and the calibration
+  issue template now pins `@latest`, so `npx @cejel/cejel` can no longer silently resolve a stale
+  cached package; a guard test fails the build if an unversioned invocation is reintroduced.
+- The Markdown certificate now carries the CLI version, matching the HTML and JSON (attestation)
+  certificates — previously only those two recorded it.
+- Two metric labels still said "primitive coverage" after the 0.4.2 glossary revision; they now
+  read "Production-readiness basic checks" and "PR trace basic checks" everywhere, consistent with
+  the rest of the glossary.
+- "Lowest contributing measurements" could list a metric already at full marks when its criterion
+  had few measured metrics; it now only lists metrics with an actual shortfall.
+- A metric's displayed unit no longer repeats the trailing word of its own label (e.g. "Recent PR
+  merge ratio 0/1 ratio" now reads "Recent PR merge ratio 0/1").
+
 ## [0.4.2] — 2026-08-13
 
 ### Added

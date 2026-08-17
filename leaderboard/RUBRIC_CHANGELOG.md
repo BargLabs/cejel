@@ -121,7 +121,7 @@ Canonical evidence:
 
 ## witan-rubric-v18-prospective-2026-07-25
 
-**Status.** Prospective only. The public `npx @cejel/cejel` default remains the
+**Status.** Prospective only. The public `npx @cejel/cejel@latest` default remains the
 holdout-calibrated `witan-rubric-v17-2026-07-24`. V18 must be selected explicitly and is not
 eligible to replace that default until a fresh authenticated untouched v51 holdout clears every
 preregistered gate. The public leaderboard selects v18 explicitly, with verdict bands withheld,

@@ -116,7 +116,7 @@ If a root `package.json` still carries a template name, override only the certif
 name while keeping the repository-derived stable slug:
 
 ```bash
-npx @cejel/cejel . --name "Customer Portal"
+npx @cejel/cejel@latest . --name "Customer Portal"
 ```
 
 The npm package is scoped as `@cejel/cejel`; its executable remains the short command `cejel`.
@@ -173,7 +173,7 @@ projects, the public Cejel repository itself, and one explicitly labeled transpa
 snapshot from the private studio monorepo where Cejel was built, with a per-repository
 evidence report for every row under [`leaderboard/reports/`](./leaderboard/reports/). The
 board is also hosted at [cejel.dev](https://cejel.dev). Every score is produced by the same
-sealed public scorer used by `npx @cejel/cejel .`; no private domain collector contributes.
+sealed public scorer used by `npx @cejel/cejel@latest .`; no private domain collector contributes.
 For each public-repository row, check out the immutable source commit printed in its report
 and run the public scorer to reproduce the score, verdict, measured coverage, and evidence.
 The private Alfred snapshot discloses its limitation instead: its source commit and withheld
