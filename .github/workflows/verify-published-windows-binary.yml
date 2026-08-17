@@ -92,14 +92,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/fixture"
-          # --force-local: on windows-latest, RUNNER_TEMP is a Windows path (D:\a\_temp\...).
-          # Without this flag, GNU tar reads the drive letter before the colon as a remote
-          # host spec ("D:...") and tries to rsh/ssh to a host named "D" instead of opening
-          # a local file -- confirmed live: "tar: Cannot connect to D: resolve failed".
-          tar --force-local -xf "$RUNNER_TEMP/fixture.tar" -C "$RUNNER_TEMP/fixture"
+          # cd into RUNNER_TEMP (a Windows path, D:\a\_temp\...) via bash's own MSYS-aware
+          # path handling, then use only bare relative names as tar argv from here on.
+          # Two failures observed passing "$RUNNER_TEMP/..." (mixed backslash/forward-slash
+          # separators) directly as tar argv: (1) without --force-local, GNU tar reads the
+          # drive letter before the colon as a remote host spec and tries to rsh/ssh to a
+          # host named "D" -- "tar: Cannot connect to D: resolve failed"; (2) even with
+          # --force-local, the mixed-separator absolute string does not resolve as a valid
+          # directory for native (non-MSYS) tar.exe's argv -- "tar: D\:\a\\_temp/fixture:
+          # Cannot open: No such file or directory". A bare relative path after cd sidesteps
+          # both by never handing tar a Windows-style absolute string at all.
+          cd "$RUNNER_TEMP"
+          mkdir -p fixture
+          tar --force-local -xf fixture.tar -C fixture
           echo "fixture commit inside tarball:"
-          git -C "$RUNNER_TEMP/fixture" rev-parse HEAD
+          git -C fixture rev-parse HEAD
 
       - name: Download published release asset and checksums
         shell: bash
