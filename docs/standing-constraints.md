@@ -1,7 +1,7 @@
 <!-- CANONICAL LOWERCASE FILE. Alfred and Cejel share a point-in-time copy. -->
 <!-- Each repo pins only its local bytes; cross-repo parity requires an explicit comparison. -->
 
-**CONSTRAINTS-VERSION: 2026-08-01.3**
+**CONSTRAINTS-VERSION: 2026-08-01.4**
 
 > Every agent report must echo the exact CONSTRAINTS-VERSION line above. This is an
 > observable delivery handshake: omission flags non-delivery or non-compliance, but
@@ -92,6 +92,16 @@ origin is legible is harder to argue away later.
 - **Session transcripts are not oracles.** An agent's own red→green account is the evidence
   class this programme argues against. Sessions are a discovery channel; qualification still
   requires a mechanical reverse-patch reproduction on frozen `main`.
+
+## Maeve lesson anchors
+
+- **A lesson seed may only anchor to a commit already on `origin/main`.** A batch PR may not
+  anchor to its own branch: a squash merge rewrites the commit an anchor names, so an anchor
+  added by that PR is orphaned by the PR's own merge. Where a seed describes the change its own
+  batch accompanies, that change lands first and the seed follows in a second PR anchored to the
+  resulting squash commit. *(Earned: #856 repaired five anchors orphaned this way, four of them
+  the first seed added by their own batch.)* Same wording, canonical for authors:
+  [`docs/orchestration/maeve-lesson-batches/README.md`](orchestration/maeve-lesson-batches/README.md).
 
 ## Product and commercial
 

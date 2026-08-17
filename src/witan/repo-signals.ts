@@ -52,13 +52,19 @@ import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V18,
   WITAN_RUBRIC_VERSION_V19,
+  WITAN_RUBRIC_VERSION_V20,
+  WITAN_RUBRIC_VERSION_V21,
+  WITAN_RUBRIC_VERSION_V22,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V19
+    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22
   );
 }
 
@@ -129,8 +135,23 @@ function buildWitanInputFromRepoUntracked(
     repoFiles.length === 0 ? explainIgnoredScanTarget(options.repoPath) : undefined;
   const usesV17Detectors = usesV17DetectorClosure(rubricVersion);
   const usesV18NativeRls =
-    rubricVersion === WITAN_RUBRIC_VERSION_V18 || rubricVersion === WITAN_RUBRIC_VERSION_V19;
-  const usesV19CommitYear = rubricVersion === WITAN_RUBRIC_VERSION_V19;
+    rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+  const usesV19CommitYear =
+    rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+  const usesV20A3ExplicitGaps =
+    rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+  const usesV21ExecutedEscalations =
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 || rubricVersion === WITAN_RUBRIC_VERSION_V22;
+  const usesV22PackageStartEntrypoint = rubricVersion === WITAN_RUBRIC_VERSION_V22;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -215,6 +236,9 @@ function buildWitanInputFromRepoUntracked(
     usesV47Detectors,
     usesV18NativeRls,
     usesV19CommitYear,
+    usesV20A3ExplicitGaps,
+    usesV21ExecutedEscalations,
+    usesV22PackageStartEntrypoint,
     reviewableSourceProof,
     scanLimitations,
   );
@@ -1289,6 +1313,9 @@ function collectRepoSignals(
   useV47Detectors: boolean,
   useV18NativeRls: boolean,
   useV19CommitYear: boolean,
+  useV20A3ExplicitGaps: boolean,
+  useV21ExecutedEscalations: boolean,
+  useV22PackageStartEntrypoint: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload[] {
@@ -1322,7 +1349,13 @@ function collectRepoSignals(
     ),
   );
   const a3Signal = collectCriterion('A3', () =>
-    collectA3ProdReadinessEvidence(repoPath, repoFiles, useV27Detectors),
+    collectA3ProdReadinessEvidence(
+      repoPath,
+      repoFiles,
+      useV27Detectors,
+      useV20A3ExplicitGaps,
+      useV22PackageStartEntrypoint,
+    ),
   );
   const a4Signal = collectCriterion('A4', () =>
     collectA4DependencyEvidence(
@@ -1375,7 +1408,12 @@ function collectRepoSignals(
   );
   // B6 is a generic governance signal (not Alfred-specific) — runs on every repo archetype.
   const b6Signal = collectCriterion('B6', () =>
-    collectB6PrivilegedOpsGatingEvidence(repoPath, repoFiles, useV39Detectors),
+    collectB6PrivilegedOpsGatingEvidence(
+      repoPath,
+      repoFiles,
+      useV39Detectors,
+      useV21ExecutedEscalations,
+    ),
   );
 
   for (const signal of [
@@ -2312,7 +2350,18 @@ function collectA3ProdReadinessEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV27Detectors: boolean,
+  useV20ExplicitGaps = false,
+  useV22PackageStartEntrypoint = false,
 ): WitanCriterionSignalPayload | null {
+  const v20DirectHttpEntrypoint = useV20ExplicitGaps
+    ? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles)
+    : null;
+  const v22PackageStartHttpEntrypoint = useV22PackageStartEntrypoint
+    ? findV22PackageStartHttpServerEntrypointFile(repoPath, repoFiles)
+    : null;
+  const v20RuntimeContainer = useV20ExplicitGaps
+    ? findRuntimeContainerEntrypointFile(repoPath, repoFiles, true)
+    : null;
   // Archetype-aware N/A gate (mirrors A2 mechanism from #224).
   // A3 only applies to repos operated as deployable services.
   // N/A requires evidenced absence of ALL service/deploy signals:
@@ -2320,7 +2369,12 @@ function collectA3ProdReadinessEvidence(
   // Dockerfile alone is ambiguous — it does not qualify.
   // ANTI-OVERFIT: a service WITH a deploy surface but missing
   //   health-checks / observability / rollback still scores LOW.
-  if (!isDeployableService(repoPath, repoFiles, useV27Detectors)) {
+  if (
+    !isDeployableService(repoPath, repoFiles, useV27Detectors) &&
+    !v20DirectHttpEntrypoint &&
+    !v22PackageStartHttpEntrypoint &&
+    !v20RuntimeContainer
+  ) {
     const dockerApplicabilityNote = useV27Detectors
       ? 'A Dockerfile without an explicit runtime start/service command is ambiguous and does not qualify.'
       : 'Dockerfile alone is ambiguous and does not qualify.';
@@ -2359,6 +2413,29 @@ function collectA3ProdReadinessEvidence(
       isHealthCheckSignalFile(repoPath, file),
   );
   const healthCheck = healthChecks[0];
+  const hasV20HealthOrReadinessRoute =
+    useV20ExplicitGaps &&
+    repoFiles.some(
+      (file) =>
+        isAuthoredProductionPath(file) &&
+        isImplementationFile(file) &&
+        fileContains(repoPath, file, V20_HEALTH_OR_READINESS_ROUTE_PATTERN),
+    );
+  const hasV22PackageStartHealthOrReadinessRoute =
+    v22PackageStartHttpEntrypoint !== null &&
+    fileContains(
+      repoPath,
+      v22PackageStartHttpEntrypoint,
+      V20_HEALTH_OR_READINESS_ROUTE_PATTERN,
+    );
+  const serverEntrypoint =
+    v22PackageStartHttpEntrypoint ??
+    findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
+    v20DirectHttpEntrypoint ??
+    null;
+  const runtimeContainer = useV27Detectors
+    ? findRuntimeContainerEntrypointFile(repoPath, repoFiles, useV20ExplicitGaps)
+    : null;
   const errorBoundaries = repoFiles.filter(
     (file) =>
       (!useV27Detectors || isAuthoredProductionPath(file)) &&
@@ -2419,10 +2496,6 @@ function collectA3ProdReadinessEvidence(
   // gate passed but no other A3 signal produced evidence. Without this anchor
   // the scorer would short-circuit to null despite having identified a service.
   if (evidence.length === 0) {
-    const serverEntrypoint = findServerEntrypointFile(repoPath, repoFiles, useV27Detectors);
-    const runtimeContainer = useV27Detectors
-      ? findRuntimeContainerEntrypointFile(repoPath, repoFiles)
-      : null;
     if (serverEntrypoint) {
       evidence.push(
         evidenceForRelative(
@@ -2445,6 +2518,57 @@ function collectA3ProdReadinessEvidence(
   }
 
   if (evidence.length === 0) return null;
+  if (useV20ExplicitGaps) {
+    const hasBuildOrTypecheck = scripts.has('build') || scripts.has('typecheck');
+    if (packageJson && !hasBuildOrTypecheck) {
+      findings.push({
+        severity: 'info',
+        summary:
+          'A deployable service package manifest declares neither a build nor a typecheck script.',
+        evidence: evidenceForRelative(
+          repoPath,
+          packageJson,
+          'prod_check',
+          'Deployable service manifest without a build or typecheck script',
+        ),
+      });
+    } else if (runtimeContainer) {
+      if (!fileContains(repoPath, runtimeContainer, /^\s*HEALTHCHECK\s+(?!NONE\b)/im)) {
+        findings.push({
+          severity: 'info',
+          summary: 'A runtime Dockerfile declares no active HEALTHCHECK instruction.',
+          evidence: evidenceForRelative(
+            repoPath,
+            runtimeContainer,
+            'prod_check',
+            'Runtime Dockerfile without an active HEALTHCHECK',
+          ),
+        });
+      }
+    } else if (
+      serverEntrypoint &&
+      fileContains(
+        repoPath,
+        serverEntrypoint,
+        /\b(?:request|req)\.(?:url|path|pathname|method)\b/i,
+      ) &&
+      healthChecks.length === 0 &&
+      !hasV20HealthOrReadinessRoute &&
+      !hasV22PackageStartHealthOrReadinessRoute
+    ) {
+      findings.push({
+        severity: 'info',
+        summary:
+          'A production HTTP entrypoint handles requests directly but declares no health or readiness route.',
+        evidence: evidenceForRelative(
+          repoPath,
+          serverEntrypoint,
+          'prod_check',
+          'Production HTTP entrypoint without a health or readiness route',
+        ),
+      });
+    }
+  }
   if (!workflow && releaseDeployConfigs.length === 0) {
     const firstEvidence = evidence[0];
     if (!firstEvidence) return null;
@@ -3181,6 +3305,7 @@ function collectB6PrivilegedOpsGatingEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV39Detectors = false,
+  useV21ExecutedEscalations = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -3224,7 +3349,7 @@ function collectB6PrivilegedOpsGatingEvidence(
   const executableFiles = implFiles.filter((file) =>
     fileContains(repoPath, file, SQL_EXEC_PATTERN),
   );
-  const ungatedEscalationFiles = executableFiles.filter((file) => {
+  const historicalUngatedEscalationFiles = executableFiles.filter((file) => {
     if (useV39Detectors && !fileHasExecutedPrivilegeEscalation(repoPath, file)) return false;
     const hasEscalation =
       fileContains(repoPath, file, ROLE_MEMBERSHIP_GRANT_PATTERN) ||
@@ -3232,6 +3357,18 @@ function collectB6PrivilegedOpsGatingEvidence(
     if (!hasEscalation) return false;
     return !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN);
   });
+  const v21ExecutedEscalationFiles = useV21ExecutedEscalations
+    ? repoFiles.filter(
+        (file) =>
+          isV39AuthoredProductionPath(file) &&
+          (fileHasV21RawSqlEscalation(repoPath, file) ||
+            (isImplementationFile(file) && fileHasV21DriverEscalation(repoPath, file))),
+      )
+    : [];
+  const v21ExecutedEscalationFileSet = new Set(v21ExecutedEscalationFiles);
+  const ungatedEscalationFiles = [
+    ...new Set([...historicalUngatedEscalationFiles, ...v21ExecutedEscalationFiles]),
+  ].filter((file) => !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN));
   // A GRANT statement asserted inside a test file exercises the detector itself, not a
   // production self-execution path — exclude it from both the finding set and the
   // production cleanliness metric.
@@ -3280,15 +3417,19 @@ function collectB6PrivilegedOpsGatingEvidence(
     );
   }
   for (const file of productionUngatedEscalationFiles.slice(0, 5)) {
+    const isV21ExecutedShape = v21ExecutedEscalationFileSet.has(file);
     findings.push({
       severity: 'critical',
-      summary:
-        'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
+      summary: isV21ExecutedShape
+        ? 'An authored SQL artifact contains, or a direct database-driver call executes, an administrative role grant, SUPERUSER escalation, or schema-wide table privilege grant with no documented human gate.'
+        : 'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
       evidence: evidenceForRelative(
         repoPath,
         file,
         'artifact',
-        'Ungated privilege-escalation statement',
+        isV21ExecutedShape
+          ? 'Ungated authored or directly executed administrative SQL statement'
+          : 'Ungated privilege-escalation statement',
       ),
     });
   }
@@ -3327,7 +3468,10 @@ function collectB6PrivilegedOpsGatingEvidence(
   // the two metrics that remain meaningful (cleanliness — vacuously true with nothing to be
   // unclean — and the general protected-path review-gate proxy).
   const hasPrivilegedOpsSurface =
-    humanGateDoc != null || gatedPrivilegeCheckFile != null || executableFiles.length > 0;
+    humanGateDoc != null ||
+    gatedPrivilegeCheckFile != null ||
+    executableFiles.length > 0 ||
+    v21ExecutedEscalationFiles.length > 0;
 
   return {
     criterionId: 'B6',
@@ -3363,7 +3507,9 @@ function collectB6PrivilegedOpsGatingEvidence(
         1,
         hasPrivilegedOpsSurface ? 0.3 : 0.4,
         'clean',
-        'Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement).',
+        useV21ExecutedEscalations
+          ? 'Penalizes authored SQL containing, and direct database-driver literals executing, an administrative role grant, SUPERUSER escalation, or schema-wide table privilege grant with no documented human gate; docs, tests, and fixtures are excluded.'
+          : 'Penalizes code that executes a role-membership GRANT or SUPERUSER escalation with no documented human gate (test/fixture SQL is excluded from this production-code measurement).',
       ),
       metric(
         'protected_path_review_gate',
@@ -3377,9 +3523,9 @@ function collectB6PrivilegedOpsGatingEvidence(
       ),
       ...killSwitchMetrics,
     ],
-    notes:
-      'B6 rewards documented, fail-closed human gating of privileged/credentialed operations and ' +
-      'penalizes ungated privilege-escalation code paths.',
+    notes: useV21ExecutedEscalations
+      ? 'B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated administrative SQL contained in authored migrations or executed from direct database-driver literals.'
+      : 'B6 rewards documented, fail-closed human gating of privileged/credentialed operations and penalizes ungated privilege-escalation code paths.',
   };
 }
 
@@ -3552,13 +3698,42 @@ const HUMAN_GATE_MARKER_PATTERN =
 const ROLE_MEMBERSHIP_GRANT_PATTERN =
   /\bGRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b/i;
 const SUPERUSER_ESCALATION_PATTERN = /\b(ALTER|CREATE)\s+(ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b/i;
+const BROAD_SCHEMA_TABLE_GRANT_PATTERN =
+  /\bGRANT\s+ALL\s+PRIVILEGES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\b/i;
 // Marks a file that actually executes SQL (vs. one that only documents or references it).
 const SQL_EXEC_PATTERN = /\.execute\s*\(|sql\.raw\s*\(/;
 const EXECUTED_ESCALATION_LITERAL_PATTERN =
   /(?:\.execute|sql\.raw)\s*\(\s*(?:[rubf]+)?["'`][^"'`]{0,500}(?:GRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b|(?:ALTER|CREATE)\s+(?:ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b)/i;
+const V21_DRIVER_EXECUTED_ESCALATION_PATTERN =
+  /\.(?:query|execute)\s*\(\s*(?:[rubf]+)?["'`]\s*(?:GRANT\s+(?!SELECT\b|INSERT\b|UPDATE\b|DELETE\b|USAGE\b|ALL\b|EXECUTE\b|TRIGGER\b|REFERENCES\b|CREATE\b|CONNECT\b|TEMP(?:ORARY)?\b)[A-Za-z_]\w*\s+TO\b|(?:ALTER|CREATE)\s+(?:ROLE|USER)\s+\w+[^;]*\bSUPERUSER\b|GRANT\s+ALL\s+PRIVILEGES\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\b)/i;
+const V21_RAW_SQL_ESCALATION_PATTERN = new RegExp(
+  `(?:^|[;\\n])\\s*(?:${ROLE_MEMBERSHIP_GRANT_PATTERN.source}|${SUPERUSER_ESCALATION_PATTERN.source}|${BROAD_SCHEMA_TABLE_GRANT_PATTERN.source})`,
+  'i',
+);
 
 function fileHasExecutedPrivilegeEscalation(repoPath: string, file: string): boolean {
   return fileContains(repoPath, file, EXECUTED_ESCALATION_LITERAL_PATTERN);
+}
+
+function fileHasV21DriverEscalation(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const withoutComments = stripCommentAndDocumentationExamples(
+    readRepoText(fullPath, 'utf8'),
+  )
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\r\n]*/g, '');
+  return V21_DRIVER_EXECUTED_ESCALATION_PATTERN.test(withoutComments);
+}
+
+function fileHasV21RawSqlEscalation(repoPath: string, file: string): boolean {
+  if (!/\.sql$/i.test(file)) return false;
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const withoutComments = readRepoText(fullPath, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--[^\r\n]*/g, '');
+  return V21_RAW_SQL_ESCALATION_PATTERN.test(withoutComments);
 }
 // Fail-closed privilege-membership check ahead of a role elevation (see verifyAsAppRole).
 const GATED_PRIVILEGE_CHECK_PATTERN = /pg_has_role\s*\(|has_role\s*\(|is not a member of/i;
@@ -5589,11 +5764,20 @@ const RACK_ENTRYPOINT_FILE_PATTERN = /(^|\/)(?:config\.ru|(?:main|server|app|sta
 // than method definitions in framework source (Application.prototype.listen = ...).
 const SERVER_ENTRYPOINT_PATTERN =
   /\bapp\.listen\s*\(|\bserver\.listen\s*\(\s*(?:PORT|port|\d+)|http\.ListenAndServe\s*\(|http\.ListenAndServeTLS\s*\(|axum::Server(?:::|\.)|actix_web::HttpServer(?:::|\.)|uvicorn\.run\s*\(/;
+// V20-only direct Node HTTP shape. Requiring both an entrypoint-shaped authored path and a
+// bounded createServer(...).listen(port) expression avoids changing historical deployability
+// classification or treating a helper that merely constructs an unbound server as production.
+const V20_DIRECT_HTTP_SERVER_PATTERN =
+  /\b(?:http|https)\.createServer\s*\([\s\S]{0,1500}?\)\.listen\s*\(\s*(?:PORT|port|\d+)/;
+const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
+  /["'`]\/(?:health|ready|readiness|live|liveness)["'`]/i;
 const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
 const RACK_CONFIG_RUN_PATTERN = /^\s*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
 const RUNTIME_CONTAINER_COMMAND_PATTERN =
   /^\s*(?:CMD|ENTRYPOINT)\s+.*(?:\b(?:start|serve|server|qgis|nginx|apache|gunicorn|uvicorn)\b|manage\.py\s+runserver).*$/im;
 const NON_RUNTIME_CONTAINER_COMMAND_PATTERN = /\b(?:test|lint|build|compile|package|check)\b/i;
+const V20_NODE_RUNTIME_CONTAINER_COMMAND_PATTERN =
+  /\bnode\b.*\b(?:main|server|app|service|index)\.(?:[cm]?js|ts)\b/i;
 
 // CI workflow job/step patterns that indicate a real deployment step.
 // Covers named deploy jobs in YAML and common deploy CLI commands.
@@ -5671,9 +5855,51 @@ function findServerEntrypointFile(
   );
 }
 
+function findV20DirectHttpServerEntrypointFile(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string | null {
+  return (
+    repoFiles
+      .filter(
+        (file) => MAIN_ENTRYPOINT_FILE_PATTERN.test(file) && isAuthoredProductionPath(file),
+      )
+      .slice(0, 30)
+      .find((file) => fileContains(repoPath, file, V20_DIRECT_HTTP_SERVER_PATTERN)) ?? null
+  );
+}
+
+const V22_SIMPLE_PACKAGE_START_PATTERN =
+  /^(?:node|tsx)\s+(\.?\/?[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*\.[cm]?[jt]s)$/;
+
+function findV22PackageStartHttpServerEntrypointFile(
+  repoPath: string,
+  repoFiles: readonly string[],
+): string | null {
+  const packageJson = findRootPackageJson(repoFiles);
+  if (!packageJson) return null;
+  const start = readPackageScripts(join(repoPath, packageJson)).get('start')?.trim();
+  if (!start) return null;
+  const declaredPath = V22_SIMPLE_PACKAGE_START_PATTERN.exec(start)?.[1];
+  if (!declaredPath) return null;
+  const normalizedPath = declaredPath.replace(/^\.\//, '');
+  if (
+    normalizedPath.startsWith('/') ||
+    normalizedPath.split('/').includes('..') ||
+    !repoFiles.includes(normalizedPath) ||
+    !isAuthoredProductionPath(normalizedPath)
+  ) {
+    return null;
+  }
+  return fileContains(repoPath, normalizedPath, V20_DIRECT_HTTP_SERVER_PATTERN)
+    ? normalizedPath
+    : null;
+}
+
 function findRuntimeContainerEntrypointFile(
   repoPath: string,
   repoFiles: readonly string[],
+  useV20NodeEntrypoints = false,
 ): string | null {
   return (
     repoFiles
@@ -5694,7 +5920,9 @@ function findRuntimeContainerEntrypointFile(
         const effectiveCommand = [entrypoint, command].filter(Boolean).join(' ');
         return (
           effectiveCommand.length > 0 &&
-          RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand) &&
+          (RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand) ||
+            (useV20NodeEntrypoints &&
+              V20_NODE_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand))) &&
           !NON_RUNTIME_CONTAINER_COMMAND_PATTERN.test(effectiveCommand)
         );
       }) ?? null

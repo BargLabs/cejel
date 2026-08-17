@@ -23,8 +23,12 @@ import {
   CALIBRATION_WORKFLOW_PATH,
   CURRENT_NO_EGRESS_POLICY,
   CURRENT_NO_EGRESS_PROBE_ATTEMPTS,
+  CURRENT_NO_EGRESS_SURFACE_IDS,
+  CURRENT_NO_EGRESS_SURFACE_SHA256,
   NO_EGRESS_HOOK_PATH,
+  NO_EGRESS_POLICY_PATH,
   NO_EGRESS_PROBE_PATH,
+  NO_EGRESS_RUNTIME_WRAPPER_PATH,
   NO_EGRESS_WRAPPER_PATH,
   validateDetectorFreezeRecord,
   validateFrozenGoldenManifest,
@@ -131,9 +135,22 @@ export function resolveFrozenExecutionBindings(freezeRecord, cejelPath) {
     NO_EGRESS_PROBE_PATH,
     'network-isolation probe',
   );
+  const policyPath = resolveFrozenFile(
+    root,
+    isolation.policy_path,
+    NO_EGRESS_POLICY_PATH,
+    'network-isolation policy',
+  );
   if (
     sha256Bytes(readFileSync(wrapperPath)) !== isolation.wrapper_sha256 ||
+    sha256Bytes(readFileSync(resolveFrozenFile(
+      root,
+      isolation.runtime_wrapper_path,
+      NO_EGRESS_RUNTIME_WRAPPER_PATH,
+      'network-isolation runtime wrapper',
+    ))) !== isolation.runtime_wrapper_sha256 ||
     sha256Bytes(readFileSync(hookPath)) !== isolation.hook_sha256 ||
+    sha256Bytes(readFileSync(policyPath)) !== isolation.policy_sha256 ||
     sha256Bytes(readFileSync(probePath)) !== isolation.probe_sha256
   ) {
     throw new Error('network-isolation files do not match detector-freeze record');
@@ -172,6 +189,12 @@ export async function resolveGoldenIsolationBindings(input, commandRunner = defa
     NO_EGRESS_HOOK_PATH,
     'network-isolation hook',
   );
+  const policyPath = resolveFrozenFile(
+    detectorRepositoryRoot,
+    NO_EGRESS_POLICY_PATH,
+    NO_EGRESS_POLICY_PATH,
+    'network-isolation policy',
+  );
   const probePath = resolveFrozenFile(
     detectorRepositoryRoot,
     NO_EGRESS_PROBE_PATH,
@@ -189,7 +212,14 @@ export async function resolveGoldenIsolationBindings(input, commandRunner = defa
   }
   for (const [relativePath, localPath] of [
     [NO_EGRESS_WRAPPER_PATH, wrapperPath],
+    [NO_EGRESS_RUNTIME_WRAPPER_PATH, resolveFrozenFile(
+      detectorRepositoryRoot,
+      NO_EGRESS_RUNTIME_WRAPPER_PATH,
+      NO_EGRESS_RUNTIME_WRAPPER_PATH,
+      'network-isolation runtime wrapper',
+    )],
     [NO_EGRESS_HOOK_PATH, hookPath],
+    [NO_EGRESS_POLICY_PATH, policyPath],
     [NO_EGRESS_PROBE_PATH, probePath],
   ]) {
     const blobOid = (await commandRunner('git', [
@@ -318,8 +348,6 @@ export function buildScanInvocation(isolationPrefix, cejel, source, output) {
       source,
       '--out',
       output,
-      '--pack',
-      'llm',
       '--quiet',
     ],
   };
@@ -590,7 +618,16 @@ export async function main(
       if (
         probe.policy !== isolationMode ||
         probe.denied !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
-        probe.attempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS
+        probe.attempted !== CURRENT_NO_EGRESS_PROBE_ATTEMPTS ||
+        probe.surface_sha256 !== CURRENT_NO_EGRESS_SURFACE_SHA256 ||
+        canonicalize(probe.surface_ids) !== canonicalize(CURRENT_NO_EGRESS_SURFACE_IDS) ||
+        probe.complete_for_declared_surface !== true ||
+        probe.allowed_local_git !== true ||
+        probe.denied_git_variants !== 3 ||
+        probe.host_network_isolation !== 'docker-network-none' ||
+        probe.host_default_route_absent !== true ||
+        typeof probe.host_container_image !== 'string' ||
+        probe.host_container_image.length < 8
       ) {
         throw new Error('golden network-isolation probe did not deny every tested egress path');
       }

@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { CLI_FLAG_SPECS, CLI_FLAG_TOKENS, type CliFlagKind, type CliFlagToken } from '../index.js';
@@ -101,6 +101,58 @@ describe('cejel install-from-tarball (published artifact)', () => {
   it('links node_modules/.bin/cejel', () => {
     expect(existsSync(binPath)).toBe(true);
     expect(lstatSync(binPath).isSymbolicLink()).toBe(true);
+  });
+
+  it('ships the opt-in decision-contract entrypoint and keeps it non-scoring', async () => {
+    const targetRepo = mkdtempSync(join(tmpdir(), 'cejel-decision-contract-installed-'));
+    mkdirSync(join(targetRepo, 'src'), { recursive: true });
+    mkdirSync(join(targetRepo, '.cejel'), { recursive: true });
+    writeFileSync(
+      join(targetRepo, 'src', 'release.mjs'),
+      `export function observe() {
+  const approval = { signed: false };
+  const released = true;
+  return { approval, released };
+}
+`,
+    );
+    writeFileSync(
+      join(targetRepo, '.cejel', 'decision-contracts.json'),
+      `${JSON.stringify({
+        schemaVersion: 'cejel-decision-contracts-v1',
+        contracts: [
+          {
+            id: 'release-approval',
+            source: 'src/release.mjs',
+            function: 'observe',
+            decisionProperty: 'released',
+            requiredPremises: ['approval.signed'],
+          },
+        ],
+      })}\n`,
+    );
+
+    const installedEntrypoint = join(
+      installDir,
+      INSTALLED_PACKAGE_DIR,
+      'dist',
+      'packs',
+      'decision-contracts',
+      'index.js',
+    );
+    const pack = (await import(pathToFileURL(installedEntrypoint).href)) as {
+      scanDecisionContracts: (repoRoot: string) => {
+        findings: Array<{ ruleId: string; evidence: { path: string } }>;
+      };
+    };
+
+    expect(pack.scanDecisionContracts(targetRepo).findings).toEqual([
+      expect.objectContaining({
+        ruleId: 'DECISION-CONTRACT-EDGE',
+        evidence: expect.objectContaining({ path: 'src/release.mjs' }),
+      }),
+    ]);
+    expect(existsSync(join(targetRepo, '.cejel', 'report.json'))).toBe(false);
   });
 
   it('runs the installed bin offline via the .bin symlink and prints a trust cert', () => {

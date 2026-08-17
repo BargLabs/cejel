@@ -27,6 +27,17 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 > outside the ranked population and receives no verdict band. We score ourselves before
 > asking you to score yourself.
 
+### Rubric calibration policy
+
+The public CLI default is `witan-rubric-v17-2026-07-24`, the last rubric to clear Cejel's
+preregistered 200-repository untouched holdout. Published calibration figures apply only to that
+exact rubric and frozen evaluation population. Later rubrics—including the current v18 through
+v22 prospective series—are available only to explicit evaluation harnesses. Prospective rubrics
+inherit none of v17's calibration figures; a bounded paired repair or corpus-delta result can
+validate its stated construction without transferring precision, recall, or false-positive-rate
+claims. Promoting a prospective rubric to the public default requires a fresh authenticated
+untouched holdout, every preregistered gate to pass, and a separately recorded promotion decision.
+
 ## Install
 
 No account, no key, no signup.

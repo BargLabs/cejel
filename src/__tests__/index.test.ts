@@ -14,7 +14,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
-import { parseArgs, parseCliInvocation, runWitanFreeCli } from '../index.js';
+import { parseArgs, parseCliInvocation, runWitanFreeCli, runWitanV22CalibrationCli } from '../index.js';
+import {
+  WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
+  WITAN_RUBRIC_VERSION_V22,
+} from '../witan/rubric-version.js';
 
 // Committed fixture (not a machine-specific temp file) — lives in the vendored witan-core test
 // fixtures since the SARIF adapter tests there also read it. See
@@ -151,6 +155,9 @@ describe('witan CLI arg parsing', () => {
     expect(() => parseCliInvocation(['scan', '.', '--pack', 'llm'])).toThrow(
       /Unknown Cejel CLI flag: --pack/,
     );
+    expect(() => parseCliInvocation(['scan', '.', '--rubric', WITAN_RUBRIC_VERSION_V22])).toThrow(
+      /Unknown Cejel CLI flag: --rubric/,
+    );
     expect(() => parseCliInvocation(['llm', 'scan', '.'])).toThrow(
       /Unexpected positional argument: scan/,
     );
@@ -204,6 +211,32 @@ describe('witan CLI arg parsing', () => {
   it('accepts boundary --min-score values 0 and 4', () => {
     expect(parseArgs(['--min-score', '0']).minScore).toBe(0);
     expect(parseArgs(['--min-score', '4']).minScore).toBe(4);
+  });
+});
+
+describe('witan CLI output inventory', () => {
+  it('reports every file written by a scan', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-output-inventory-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-output-inventory-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'output-inventory' }));
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir])).toBe(0);
+      const rendered = stdout.mock.calls.map(([chunk]) => String(chunk)).join('');
+      for (const artifact of [
+        'report.json',
+        'summary.json',
+        'attestation.json',
+        'certificate.html',
+        'badge.json',
+        'badge.svg',
+      ]) {
+        expect(rendered).toContain(`${outDir}/${artifact}`);
+      }
+    } finally {
+      stdout.mockRestore();
+    }
   });
 });
 
@@ -509,6 +542,43 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     } finally {
       stderrSpy.mockRestore();
     }
+  });
+});
+
+describe('v22 calibration-only entrypoint', () => {
+  it('pins v22 while the public CLI continues to emit the calibrated v17 default', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-v22-calibration-driver-'));
+    const publicOut = mkdtempSync(join(tmpdir(), 'cejel-v22-calibration-public-out-'));
+    const calibrationOut = mkdtempSync(join(tmpdir(), 'cejel-v22-calibration-driver-out-'));
+    writeFixtureFile(
+      repoPath,
+      'package.json',
+      JSON.stringify({ name: 'v22-calibration-driver-fixture', scripts: { start: 'node server.js' } }),
+    );
+    writeFixtureFile(
+      repoPath,
+      'server.js',
+      "import { createServer } from 'node:http'; createServer(() => {}).listen(3000);",
+    );
+
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', publicOut, '--quiet'])).toBe(0);
+    expect(
+      await runWitanV22CalibrationCli(['scan', repoPath, '--out', calibrationOut, '--quiet']),
+    ).toBe(0);
+
+    const publicReport = JSON.parse(readFileSync(join(publicOut, 'report.json'), 'utf8')) as {
+      rubricVersion: string;
+    };
+    const calibrationReport = JSON.parse(
+      readFileSync(join(calibrationOut, 'report.json'), 'utf8'),
+    ) as { rubricVersion: string };
+    const publicAttestation = JSON.parse(
+      readFileSync(join(publicOut, 'attestation.json'), 'utf8'),
+    ) as { predicate: { rubricVersion: string } };
+    expect(publicReport.rubricVersion).toBe(WITAN_LAST_CALIBRATED_RUBRIC_VERSION);
+    expect(publicReport.rubricVersion).not.toBe(WITAN_RUBRIC_VERSION_V22);
+    expect(publicAttestation.predicate.rubricVersion).toBe(WITAN_LAST_CALIBRATED_RUBRIC_VERSION);
+    expect(calibrationReport.rubricVersion).toBe(WITAN_RUBRIC_VERSION_V22);
   });
 });
 
