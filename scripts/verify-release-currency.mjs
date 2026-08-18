@@ -11,6 +11,8 @@ const PACKAGE_NAME = '@cejel/cejel';
 const IMAGE_NAME = 'ghcr.io/barglabs/cejel';
 const MCP_SERVER_NAME = 'io.github.BargLabs/cejel';
 const HOMEBREW_FORMULA_REPOSITORY = 'BargLabs/homebrew-tap';
+const BOARD_REPOSITORY = 'BargLabs/cejel-site';
+const BOARD_PATH = 'leaderboard/leaderboard.md';
 const SURFACES = [
   'npm',
   'npm attestation',
@@ -22,6 +24,7 @@ const SURFACES = [
   'MCP Registry',
   'cejel.dev',
   'published-versions.json',
+  'leaderboard',
 ];
 
 const SEMVER_PATTERN =
@@ -31,6 +34,10 @@ const SEMVER_PATTERN =
 const SEMVER = new RegExp(`^${SEMVER_PATTERN}$`);
 const COMMIT = /^[0-9a-f]{40}$/;
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
+const BOARD_SCORER_LINE = new RegExp(`Scorer source version: @cejel/cejel@(${SEMVER_PATTERN})`);
+const BOARD_PIN_LINE = new RegExp(
+  `Scorer version pin: @cejel/cejel@(${SEMVER_PATTERN}) [-—] reason: .+; declared \\d{4}-\\d{2}-\\d{2}`,
+);
 
 export class ReleaseCurrencyError extends Error {
   constructor(message, results = []) {
@@ -285,6 +292,23 @@ export function createLiveReaders() {
       }
       return parseJson(Buffer.from(record.content, 'base64').toString('utf8'), 'published-versions.json');
     },
+
+    async leaderboard() {
+      const record = await ghApi(
+        `repos/${BOARD_REPOSITORY}/contents/${BOARD_PATH}?ref=main`,
+        'leaderboard',
+      );
+      if (record?.encoding !== 'base64' || typeof record?.content !== 'string') {
+        throw new Error('GitHub response did not contain base64 content');
+      }
+      const markdown = Buffer.from(record.content, 'base64').toString('utf8');
+      const declared = BOARD_SCORER_LINE.exec(markdown);
+      if (!declared) {
+        throw new Error(`${BOARD_PATH} does not declare a "Scorer source version" line`);
+      }
+      const pin = BOARD_PIN_LINE.exec(markdown);
+      return { declaredVersion: declared[1], pinVersion: pin?.[1] ?? null };
+    },
   };
 }
 
@@ -303,6 +327,7 @@ function observedValue(surface, value) {
     case 'MCP Registry': return `name=${value.name}; version=${value.version}; OCI=${value.ociIdentifier}`;
     case 'cejel.dev': return `rendered current version=${value.currentVersion || '<missing>'}`;
     case 'published-versions.json': return JSON.stringify(value);
+    case 'leaderboard': return `declared=${value.declaredVersion}; pin=${value.pinVersion ?? '<none>'}`;
     default: return JSON.stringify(value);
   }
 }
@@ -372,6 +397,15 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
         throw new Error(`expected the published MCP Registry and OCI record to agree with independently observed version ${version}`);
       }
       break;
+    case 'leaderboard':
+      if (value.declaredVersion === version) break;
+      if (value.pinVersion !== null && value.pinVersion === value.declaredVersion) break;
+      throw new Error(
+        `board declares scorer version ${value.declaredVersion} but the release being verified is ${version}` +
+          (value.pinVersion
+            ? `; the committed pin names ${value.pinVersion}, which does not match the declared version either`
+            : '; no committed "Scorer version pin" line declares this as deliberate'),
+      );
     default:
       throw new Error(`unknown surface ${surface}`);
   }

@@ -17,6 +17,7 @@ const surfaces = [
   'MCP Registry',
   'cejel.dev',
   'published-versions.json',
+  'leaderboard',
 ];
 
 function goodReaders() {
@@ -46,6 +47,7 @@ function goodReaders() {
     }),
     'cejel.dev': async () => ({ currentVersion: version }),
     'published-versions.json': async () => ({ mcpRegistry: version, oci: version }),
+    leaderboard: async () => ({ declaredVersion: version, pinVersion: null }),
   };
 }
 
@@ -98,6 +100,37 @@ test('matching versions still fail when the MCP and observed OCI digests differ'
   assert.match(result.failure.message, /MCP Registry/);
   assert.ok(result.lines.some((line) =>
     line.includes('[FAIL] MCP Registry:') && line.includes('does not equal the observed OCI digest')));
+});
+
+test('a leaderboard declaring a stale scorer version fails and names both versions', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: null });
+  const result = await rejectedRun(readers);
+  showFixture('stale leaderboard fixture', result);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') &&
+    line.includes('declared=1.2.1') &&
+    line.includes(`board declares scorer version 1.2.1 but the release being verified is ${version}`)));
+});
+
+test('a leaderboard pinned to a stale version without a committed pin declaration still fails', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: '1.0.0' });
+  const result = await rejectedRun(readers);
+  showFixture('mismatched pin fixture', result);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') && line.includes('does not match the declared version either')));
+});
+
+test('a leaderboard with an explicit, committed pin declaration passes despite a stale scorer version', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: '1.2.1' });
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line) });
+  showFixture('committed pin fixture', { lines });
+  assert.ok(lines.some((line) => line.startsWith('[PASS] leaderboard: observed=declared=1.2.1; pin=1.2.1')));
 });
 
 test('a fully consistent release passes and prints every surface and observed value', async () => {

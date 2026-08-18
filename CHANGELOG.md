@@ -18,6 +18,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The release-currency verifier now checks an eleventh surface: the published leaderboard
+  (`BargLabs/cejel-site`, `leaderboard/leaderboard.md`) must declare a `Scorer source version`
+  matching the release under verification, and fails closed — naming both versions — when it
+  does not. A deliberate mismatch is accepted only via an explicit, committed
+  `Scorer version pin: @cejel/cejel@<version> — reason: <text>; declared <date>` line on the
+  board itself; silence is never treated as intentional.
 - Codifies the rubric calibration-claim policy: v17 remains the public default and the sole owner
   of its published calibration figures; v18-v22 remain explicit-only prospective rubrics with no
   inherited calibration claim. A future default promotion requires a fresh authenticated untouched
