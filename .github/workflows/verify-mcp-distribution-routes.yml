@@ -1,0 +1,252 @@
+name: cejel-verify-mcp-distribution-routes
+
+# Exercises the two MCP install routes cejel.dev offers a stranger --
+# `smithery mcp add cejel` and `openclaw mcp add cejel ...` -- the way a user actually would:
+# install the third-party CLI fresh, point it at the *published* record (Smithery's registry,
+# npm's @cejel/cejel), and see what happens. Same motivation as
+# verify-published-windows-binary.yml: an offered route nobody has run is unverified, not
+# working.
+#
+# This workflow cannot be dispatched until it exists on the default branch, so its first real
+# run is post-merge -- it is written to report facts (exit codes, stdout/stderr, resolved CLI
+# version) rather than assume it is correct, and every step is designed to keep going and
+# report even when a route fails, instead of stopping the job partway through.
+#
+# Boundary: read-only against published records. If a route's CLI reports that it needs an
+# account/credential to go further, the job records that fact and STOPS for that route -- it
+# does not attempt login, and this workflow must never be given a Smithery or OpenClaw
+# credential.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cejel-verify-mcp-distribution-routes
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smithery:
+    name: Verify Smithery MCP route
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Isolate HOME so this run cannot pick up a cached login
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/anon-home"
+          echo "ANON_HOME=$RUNNER_TEMP/anon-home" >> "$GITHUB_ENV"
+
+      - name: Record resolved Smithery CLI version
+        shell: bash
+        env:
+          HOME: ${{ env.ANON_HOME }}
+        run: npx --yes @smithery/cli@latest --version
+
+      - name: Confirm the CLI has no stored credentials (this must run as a stranger would)
+        shell: bash
+        env:
+          HOME: ${{ env.ANON_HOME }}
+        run: |
+          set +e
+          npx --yes @smithery/cli@latest auth whoami --json < /dev/null
+          echo "exit_code=$?"
+          set -e
+
+      - name: Search the published Smithery registry for cejel
+        shell: bash
+        env:
+          HOME: ${{ env.ANON_HOME }}
+        run: |
+          set +e
+          npx --yes @smithery/cli@latest mcp search cejel --json < /dev/null > "$RUNNER_TEMP/search-stdout.json" 2> "$RUNNER_TEMP/search-stderr.txt"
+          echo "exit_code=$?" > "$RUNNER_TEMP/search-exit.txt"
+          set -e
+          echo "---exit code---"
+          cat "$RUNNER_TEMP/search-exit.txt"
+          echo "---stdout---"
+          cat "$RUNNER_TEMP/search-stdout.json"
+          echo "---stderr---"
+          cat "$RUNNER_TEMP/search-stderr.txt" || true
+          if grep -q '"qualifiedName":"cejel"' "$RUNNER_TEMP/search-stdout.json"; then
+            echo "found=true" >> "$RUNNER_TEMP/search-result.txt"
+          else
+            echo "found=false" >> "$RUNNER_TEMP/search-result.txt"
+          fi
+
+      - name: Run the documented install route -- 'smithery mcp add cejel' -- as an anonymous stranger
+        shell: bash
+        env:
+          HOME: ${{ env.ANON_HOME }}
+        run: |
+          set +e
+          npx --yes @smithery/cli@latest mcp add cejel --json < /dev/null > "$RUNNER_TEMP/add-stdout.txt" 2> "$RUNNER_TEMP/add-stderr.txt"
+          echo "exit_code=$?" > "$RUNNER_TEMP/add-exit.txt"
+          set -e
+          echo "---exit code---"
+          cat "$RUNNER_TEMP/add-exit.txt"
+          echo "---stdout---"
+          cat "$RUNNER_TEMP/add-stdout.txt"
+          echo "---stderr---"
+          cat "$RUNNER_TEMP/add-stderr.txt"
+
+      - name: Route verdict -- do not attempt login if the CLI asked for one
+        shell: bash
+        run: |
+          set -euo pipefail
+          add_exit="$(grep -o '[0-9]*' "$RUNNER_TEMP/add-exit.txt")"
+          {
+            echo "## Smithery MCP route"
+            echo
+            echo "- \`mcp search cejel\` (anonymous): exit $(cat "$RUNNER_TEMP/search-exit.txt" | grep -o '[0-9]*'), listing found: $(grep -o 'found=.*' "$RUNNER_TEMP/search-result.txt" || echo unknown)"
+            echo "- \`mcp add cejel\` (anonymous): exit ${add_exit}"
+            if [ "$add_exit" = "0" ]; then
+              echo "- VERDICT: WORKS anonymously -- add succeeded with no stored credential."
+            elif grep -qi "api key\|authenticate\|login" "$RUNNER_TEMP/add-stderr.txt" "$RUNNER_TEMP/add-stdout.txt" 2>/dev/null; then
+              echo "- VERDICT: DOES NOT WORK for an anonymous stranger -- the CLI demands an account/login to go past discovery. Per the run's boundaries, this job stops here and does not authenticate."
+            else
+              echo "- VERDICT: COULD NOT BE ESTABLISHED -- add failed for a reason other than a credential prompt; see stdout/stderr above."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: smithery-evidence
+          path: |
+            ${{ runner.temp }}/search-stdout.json
+            ${{ runner.temp }}/search-stderr.txt
+            ${{ runner.temp }}/search-exit.txt
+            ${{ runner.temp }}/add-stdout.txt
+            ${{ runner.temp }}/add-stderr.txt
+            ${{ runner.temp }}/add-exit.txt
+          retention-days: 7
+
+  openclaw:
+    name: Verify OpenClaw MCP route
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 matches this repo's own CI convention (verify-release-currency.yml,
+        # verify-published-windows-binary.yml) and is a currently-supported Node 22 LTS
+        # patch -- i.e. a plausible stranger's ambient Node. 24 is what openclaw's own
+        # published engines range requires. Running both is how this job establishes,
+        # rather than assumes, whether the documented command is Node-version-sensitive.
+        node-version: ['22', '24']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          package-manager-cache: false
+
+      - name: Isolate state so this run cannot pick up a cached config
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/openclaw-state"
+          echo "OPENCLAW_STATE_DIR=$RUNNER_TEMP/openclaw-state" >> "$GITHUB_ENV"
+
+      - name: Diagnostic -- what a bare, unpinned 'npx openclaw' resolves to on this Node version
+        shell: bash
+        run: |
+          set +e
+          node --version
+          npx --yes openclaw --version < /dev/null
+          echo "exit_code=$?"
+          set -e
+          # Historical footgun this workflow discovered: on Node 22.15.0, npm's own
+          # engines-aware resolution silently served openclaw@2026.5.7, which predates the
+          # 'mcp add'/'mcp doctor' subcommands entirely -- no error, just a stale CLI. The
+          # README now documents 'openclaw@latest' explicitly for exactly this reason; this
+          # step is diagnostic only and does not gate the verdict below.
+
+      - name: Run the documented install route -- 'openclaw@latest mcp add cejel ...'
+        shell: bash
+        run: |
+          set +e
+          npx --yes openclaw@latest mcp add cejel \
+            --command npx --arg -y --arg --package=@cejel/cejel@latest --arg cejel-mcp \
+            < /dev/null > "$RUNNER_TEMP/add-stdout.txt" 2> "$RUNNER_TEMP/add-stderr.txt"
+          echo "exit_code=$?" > "$RUNNER_TEMP/add-exit.txt"
+          set -e
+          echo "---exit code---"
+          cat "$RUNNER_TEMP/add-exit.txt"
+          echo "---stdout---"
+          cat "$RUNNER_TEMP/add-stdout.txt"
+          echo "---stderr---"
+          cat "$RUNNER_TEMP/add-stderr.txt"
+
+      - name: If add succeeded, confirm the server is resolvable/startable
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          add_exit="$(grep -o '[0-9]*' "$RUNNER_TEMP/add-exit.txt" 2>/dev/null)"
+          if [ "$add_exit" = "0" ]; then
+            npx --yes openclaw@latest mcp doctor cejel --probe --json < /dev/null \
+              > "$RUNNER_TEMP/doctor-stdout.json" 2> "$RUNNER_TEMP/doctor-stderr.txt"
+            echo "exit_code=$?" > "$RUNNER_TEMP/doctor-exit.txt"
+            npx --yes openclaw@latest mcp probe cejel --json < /dev/null \
+              > "$RUNNER_TEMP/probe-stdout.json" 2> "$RUNNER_TEMP/probe-stderr.txt"
+            echo "exit_code=$?" > "$RUNNER_TEMP/probe-exit.txt"
+          else
+            echo "skipped: add did not succeed" > "$RUNNER_TEMP/doctor-stdout.json"
+            echo "skipped: add did not succeed" > "$RUNNER_TEMP/probe-stdout.json"
+          fi
+          set -e
+          echo "---doctor---"; cat "$RUNNER_TEMP/doctor-stdout.json"
+          echo "---probe---"; cat "$RUNNER_TEMP/probe-stdout.json"
+
+      - name: Route verdict
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          add_exit="$(grep -o '[0-9]*' "$RUNNER_TEMP/add-exit.txt")"
+          {
+            echo "## OpenClaw MCP route (Node ${{ matrix.node-version }})"
+            echo
+            echo "- \`openclaw@latest mcp add cejel ...\`: exit ${add_exit}"
+            if [ "$add_exit" = "0" ] && grep -q '"ok": true' "$RUNNER_TEMP/doctor-stdout.json" 2>/dev/null; then
+              echo "- \`mcp doctor cejel --probe\`: ok"
+              echo "- VERDICT: WORKS on Node ${{ matrix.node-version }} -- resolvable and startable, no account needed."
+            elif [ "$add_exit" = "0" ]; then
+              echo "- VERDICT: add succeeded but doctor/probe did not confirm a working server -- see evidence."
+            else
+              echo "- VERDICT: DOES NOT WORK on Node ${{ matrix.node-version }} even pinned to openclaw@latest -- see stdout/stderr above. Expected failure mode on a Node build below 22.22.3 is openclaw's own clear runtime version message, not the 'unknown option' error the unpinned diagnostic step above demonstrates."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openclaw-evidence-node${{ matrix.node-version }}
+          path: |
+            ${{ runner.temp }}/add-stdout.txt
+            ${{ runner.temp }}/add-stderr.txt
+            ${{ runner.temp }}/add-exit.txt
+            ${{ runner.temp }}/doctor-stdout.json
+            ${{ runner.temp }}/doctor-stderr.txt
+            ${{ runner.temp }}/probe-stdout.json
+            ${{ runner.temp }}/probe-stderr.txt
+          retention-days: 7

@@ -390,7 +390,7 @@ Add it to an MCP client config:
   "mcpServers": {
     "cejel": {
       "command": "npx",
-      "args": ["-y", "--package=@cejel/cejel", "cejel-mcp"]
+      "args": ["-y", "--package=@cejel/cejel@latest", "cejel-mcp"]
     }
   }
 }
@@ -408,6 +408,26 @@ The server exposes one tool and two resources:
 Like the CLI, scoring over MCP is fully offline: no network calls, no telemetry, no signup,
 and the server writes no files.
 
+## Install via Smithery
+
+Cejel is listed on the [Smithery](https://smithery.ai/) MCP registry via the repo's
+`smithery.yaml`. Discovery needs no account:
+
+```bash
+npx -y @smithery/cli@latest mcp search cejel
+```
+
+Connecting through Smithery's own CLI is a separate step and **requires a Smithery account**:
+`smithery mcp add` prompts to `smithery login` before it will create a connection, for every
+caller, not just first-time ones.
+
+```bash
+npx -y @smithery/cli@latest mcp add cejel
+```
+
+If you'd rather not create a Smithery account, the generic MCP client config above needs no
+login and no third-party CLI at all — it talks to the same `cejel-mcp` bin directly.
+
 ## Install on OpenClaw
 
 OpenClaw stores outbound MCP servers under `mcp.servers`. Add Cejel with the npm package's
@@ -419,7 +439,7 @@ shipped `cejel-mcp` bin:
     "servers": {
       "cejel": {
         "command": "npx",
-        "args": ["-y", "--package=@cejel/cejel", "cejel-mcp"]
+        "args": ["-y", "--package=@cejel/cejel@latest", "cejel-mcp"]
       }
     }
   }
@@ -429,16 +449,22 @@ shipped `cejel-mcp` bin:
 The equivalent OpenClaw command is:
 
 ```bash
-openclaw mcp add cejel --command npx --arg -y --arg --package=@cejel/cejel --arg cejel-mcp
-openclaw mcp doctor cejel --probe
+npx -y openclaw@latest mcp add cejel --command npx --arg -y --arg --package=@cejel/cejel@latest --arg cejel-mcp
+npx -y openclaw@latest mcp doctor cejel --probe
 ```
+
+Pin `openclaw@latest` explicitly rather than running bare `openclaw`. The `mcp add`/`mcp
+doctor` subcommands need OpenClaw ≥`2026.7.1-2`, which itself needs Node ≥22.22.3 (also
+≥24.15 or ≥25.9) — on an older-but-still-supported Node 22 patch, npm's own engines-aware
+resolution silently serves an older OpenClaw release lacking these subcommands, and the
+command above fails with `error: unknown option '--command'` instead of a version message.
 
 The OCI image is an alternative when Docker is the preferred execution boundary. Replace
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-openclaw mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.3"]}'
-openclaw mcp doctor cejel-oci --probe
+npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.3"]}'
+npx -y openclaw@latest mcp doctor cejel-oci --probe
 ```
 
 Cejel is active in the Official MCP Registry as `io.github.BargLabs/cejel`. The explicit

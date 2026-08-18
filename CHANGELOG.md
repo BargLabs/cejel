@@ -29,6 +29,25 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A `workflow_dispatch` workflow (`verify-mcp-distribution-routes.yml`) exercises the
+  Smithery and OpenClaw MCP install routes against the published record on a clean runner,
+  rather than leaving them offered-but-never-tried. It found and fixed two real doc bugs
+  (below) before either route was ever run by a stranger.
+
+### Fixed
+
+- The OpenClaw MCP install commands now pin `openclaw@latest` and `@cejel/cejel@latest`
+  instead of a bare `openclaw`. On Node 22.15.0 (a currently-supported Node 22 patch), npm's
+  own engines-aware resolution silently served an OpenClaw release that predates the `mcp
+  add`/`mcp doctor` subcommands the previous instructions used, so the documented command
+  failed with `error: unknown option '--command'` — with no hint it was a version mismatch.
+- Documents that `smithery mcp add` — the Smithery CLI's actual connect step, as opposed to
+  `mcp search`, which is free — requires a Smithery account. The generic MCP client config
+  needs neither an account nor the Smithery CLI and is now called out as the no-login
+  alternative.
+
+### Added
+
 - The release-currency verifier now checks an eleventh surface: the published leaderboard
   (`BargLabs/cejel-site`, `leaderboard/leaderboard.md`) must declare a `Scorer source version`
   matching the release under verification, and fails closed — naming both versions — when it
