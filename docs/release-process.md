@@ -74,3 +74,26 @@ and run its release-state check. The site derives its current download links, cu
 verification record, checksums, and provenance link from that record, and must link to canonical
 GitHub Release assets rather than host copied binaries. Run the published download-and-checksum
 snippet end to end against those release URLs before the site change is merged.
+
+## Reference pattern: verifying a published artifact as a stranger would
+
+*Added 18 August 2026.*
+
+A reproducibility or trust check that re-invokes the tool it is checking must go through the same
+sealed, published entry point an outside caller would use — not an internal import of the function
+that produces the thing being checked. Calling the internal function is not a smaller version of the
+same check; it is a different, weaker check that happens to share a name, because it can no longer
+catch a defect in the packaging, distribution, or artifact-integrity layer, and it silently keeps
+passing if that layer breaks.
+
+[`.github/workflows/verify-published-windows-binary.yml`](../.github/workflows/verify-published-windows-binary.yml)
+is the reference shape for this: it downloads the actual release asset the way a user downloads it
+(`gh release download`, not a rebuild), checks it against the published `SHA256SUMS`, executes it
+against a fixture on a real runner for that platform, and diffs its `report.json` against the same
+fixture run through the published npm package — reporting the comparison rather than assuming it.
+See run [32164964141](https://github.com/BargLabs/cejel/actions/runs/32164964141) for a worked
+example (Windows and Linux aarch64 assets from the v0.4.3 release, both matching).
+
+Any checker elsewhere — in this repository or another — that claims to verify "the published
+package" or "the published binary" but is implemented as an internal import of the scoring/build
+function should be re-pointed at this pattern rather than redesigned from scratch.
