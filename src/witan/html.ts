@@ -34,6 +34,7 @@ import {
   type CertificateGlossaryEntry,
   type RelyingPartySummary,
 } from './certificate-presentation.js';
+import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './rubric-version.js';
 
 export interface WitanHtmlReportOptions {
   /** Version of the Cejel CLI/server that produced this certificate. */
@@ -85,6 +86,13 @@ export function renderWitanHtmlReport(
             <div><dt>Run</dt><dd>${escapeHtml(renderRepo(report))}</dd></div>
             <div><dt>CLI</dt><dd>${escapeHtml(options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded')}</dd></div>
             <div><dt>Rubric</dt><dd>${escapeHtml(report.rubricVersion)}</dd></div>
+            ${
+              // Gated on the rubric actually being prospective — a calibrated (v17) certificate's
+              // HTML stays byte-identical to before --rubric-pin existed.
+              isProspectiveRubricVersion(report.rubricVersion)
+                ? `<div><dt>Calibration</dt><dd class="prospective-rubric-notice">${escapeHtml(PROSPECTIVE_RUBRIC_NOTICE)}</dd></div>`
+                : ''
+            }
             ${
               contributingSources.length > 0
                 ? `<div><dt>Sources</dt><dd>Incorporates findings from: ${escapeHtml(contributingSources.join(', '))}<ul class="source-counts">${externalSourceSummaries

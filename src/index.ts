@@ -12,7 +12,10 @@ import {
   serializeWitanReport,
   verifyWitanAttestationBinding,
 } from './witan/index.js';
-import { WITAN_RUBRIC_VERSION_V22 } from './witan/rubric-version.js';
+import {
+  WITAN_RUBRIC_VERSION_V22,
+  assertSelectableRubricVersion,
+} from './witan/rubric-version.js';
 
 export { WitanReportSchema, verifyWitanAttestationBinding };
 
@@ -33,6 +36,11 @@ export interface WitanCliOptions {
   showVersion: boolean;
   /** Raw --ingest values (file paths or single-level globs), in the order given. */
   ingestPatterns: string[];
+  /**
+   * Explicit public opt-in to an alternate rubric (see WITAN_SELECTABLE_RUBRIC_VERSIONS).
+   * Omitted by every ordinary invocation, which stays on the calibrated public default.
+   */
+  rubricPin?: string;
 }
 
 export type CejelCliInvocation =
@@ -41,7 +49,15 @@ export type CejelCliInvocation =
 
 const DEFAULT_OUT_DIR = '.cejel';
 
-export type CliFlagKind = 'help' | 'version' | 'quiet' | 'out' | 'minScore' | 'ingest' | 'name';
+export type CliFlagKind =
+  | 'help'
+  | 'version'
+  | 'quiet'
+  | 'out'
+  | 'minScore'
+  | 'ingest'
+  | 'name'
+  | 'rubricPin';
 
 interface CliFlagSpec {
   tokens: readonly string[];
@@ -74,6 +90,13 @@ export const CLI_FLAG_SPECS = [
     value: '<file>',
     description: 'fold in a SARIF/JSON scanner report (repeatable)',
     kind: 'ingest',
+  },
+  {
+    tokens: ['--rubric-pin'],
+    value: '<version>',
+    description:
+      'EXPLICIT OPT-IN: pin a rubric other than the calibrated default (see docs); prospective rubrics carry no calibration claim',
+    kind: 'rubricPin',
   },
   {
     tokens: ['--quiet'],
@@ -212,10 +235,14 @@ async function runWitanCli(
     return 0;
   }
 
+  // An explicit --rubric-pin on this invocation always wins over a preset rubricVersion: the
+  // preset exists only for a committed calibration driver's own args (see
+  // runWitanV22CalibrationCli below), which never populates options.rubricPin.
+  const effectiveRubricVersion = options.rubricPin ?? rubricVersion;
   const { report, summary, generatedAt } = runCejelScan({
     repoPath: options.repoPath,
     ...(options.productDisplayName ? { productDisplayName: options.productDisplayName } : {}),
-    ...(rubricVersion ? { rubricVersion } : {}),
+    ...(effectiveRubricVersion ? { rubricVersion: effectiveRubricVersion } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
   });
@@ -358,6 +385,7 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
   let quiet = false;
   let showHelp = false;
   let showVersion = false;
+  let rubricPin: string | undefined;
   const ingestPatterns: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -420,6 +448,14 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
           index += 1;
           break;
         }
+        case 'rubricPin': {
+          const value = args[index + 1];
+          if (!value) throw new Error('Missing value for --rubric-pin');
+          assertSelectableRubricVersion(value);
+          rubricPin = value;
+          index += 1;
+          break;
+        }
       }
       continue;
     }
@@ -441,6 +477,7 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
     showHelp,
     showVersion,
     ingestPatterns,
+    ...(rubricPin ? { rubricPin } : {}),
   };
 }
 

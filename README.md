@@ -256,6 +256,12 @@ prints that boundary on every successful verification.
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
+- `--rubric-pin <version>` — **explicit opt-in only.** Pin an alternate rubric instead of the
+  calibrated public default. Accepts the calibrated version or any published prospective rubric
+  (`witan-rubric-v18-prospective-*` through `v22`) and fails closed, naming what was accepted, on
+  anything else. Omit this flag for the calibrated result every default scan produces — a
+  prospective pin carries no precision/recall claim, and the terminal certificate, HTML
+  certificate, and Markdown report all state that plainly whenever one is used.
 - `--quiet` — suppress the terminal certificate (files are still written)
 - `-h`, `--help` — print usage and exit successfully
 - `-v`, `--version` — print the version derived from the package manifest and exit successfully
