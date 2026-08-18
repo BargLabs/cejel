@@ -440,4 +440,56 @@ describe('certificate presentation regressions', () => {
     const ratio = contrastRatio(textColor as string, tooltipBackground as string);
     expect(ratio).toBeGreaterThanOrEqual(7);
   });
+
+  it('wraps tooltip text that has nowhere else to break, instead of overflowing the box', () => {
+    // Reported by an external reviewer (Tom): the dark tooltip box renders, but text runs past
+    // its edge. white-space: normal only creates break opportunities at spaces and hyphens -- a
+    // single unbroken token (a commit SHA, a file path, a metric identifier) wider than the
+    // tooltip's fixed width has nowhere else to break and overflows the box it's drawn on.
+    const html = renderWitanHtmlReport(reportFixture([criterion({ id: 'A1', category: 'code_trust' })]));
+    const rule = html.match(/\.term-tooltip\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    const declarations = rule?.[1] ?? '';
+    // overflow-wrap (anywhere/break-word) is what forces a break inside an unbreakable token
+    // itself; white-space: normal alone cannot. overflow-wrap is inherited, so this single
+    // declaration on .term-tooltip also covers any inline code/mono child a tooltip gains later,
+    // the same way the page's existing `code { overflow-wrap: anywhere }` rule already does.
+    expect(declarations).toMatch(/overflow-wrap:\s*(anywhere|break-word)/);
+
+    // Reproduce the actual failure surface through the real rendering pipeline, not just the
+    // CSS in isolation. Today's curated CERTIFICATE_GLOSSARY text never contains an unbreakable
+    // token -- but glossaryEntryForMetric's fallback (any metric name outside the glossary)
+    // passes an arbitrary, schema-legal metric.description straight into a tooltip, and that
+    // field permits up to 300 characters with no whitespace requirement
+    // (WitanCriterionMetricSchema). A commit SHA or file path is exactly the shape both the
+    // reporter's hypothesis and the schema allow.
+    // Alphanumeric and underscore only, deliberately: no space, hyphen, slash, or dot -- none
+    // of which this token contains -- so there is no CSS soft-break opportunity anywhere in it
+    // without overflow-wrap. A hyphen or slash would already be breakable under plain
+    // white-space: normal in most engines and would understate what this test needs to prove.
+    const longUnbrokenToken =
+      '9b3ef1d0f73cdb0ef7c2506a3d4e223c89647406_witan_anunusuallylongevidenceidentifierwithnobreakablecharactersanywhereinit';
+    const withUnbrokenToken = renderWitanHtmlReport(
+      reportFixture([
+        criterion({
+          id: 'A1',
+          category: 'code_trust',
+          metrics: [
+            {
+              name: 'not_in_the_curated_glossary',
+              label: 'Evidence provenance depth',
+              value: 2,
+              max: 4,
+              weight: 1,
+              unit: 'signals',
+              description: `Derived from ${longUnbrokenToken}`,
+            },
+          ],
+        }),
+      ]),
+    );
+    expect(withUnbrokenToken).toContain(longUnbrokenToken);
+    const tooltipCarriesToken = new RegExp(`<span class="term-tooltip"[^>]*>[^<]*${longUnbrokenToken}`);
+    expect(withUnbrokenToken).toMatch(tooltipCarriesToken);
+  });
 });

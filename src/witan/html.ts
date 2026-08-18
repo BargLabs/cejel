@@ -645,6 +645,7 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .term-tooltip {
   position: absolute; z-index: 100; left: 0; bottom: calc(100% + 8px); width: min(320px, 75vw);
   visibility: hidden; opacity: 0; pointer-events: none; white-space: normal;
+  overflow-wrap: anywhere;
   border: 1px solid var(--line-strong); border-radius: 6px; padding: 9px 11px;
   background: #101b2a; color: var(--text); font-family: var(--sans); font-size: 12px;
   font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: normal;
