@@ -18,6 +18,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The `.term-tooltip` glossary/metric tooltips on the HTML certificate now wrap safely instead
+  of overflowing their box. `white-space: normal` alone only creates break opportunities at
+  spaces and hyphens; a single unbroken token — a commit SHA, a file path, a metric identifier —
+  wider than the tooltip's fixed `min(320px, 75vw)` width had nowhere else to break. Today's
+  curated glossary text never contains such a token, but `glossaryEntryForMetric`'s fallback
+  path (any metric name outside the curated glossary) renders an arbitrary, schema-legal
+  `metric.description` verbatim — up to 300 characters, no whitespace required. Fixed with a
+  single `overflow-wrap: anywhere` on `.term-tooltip`, which — being an inherited property —
+  also covers any inline code/mono child a tooltip gains later, the same way the page's existing
+  `code { overflow-wrap: anywhere }` rule already does elsewhere on the certificate. Reported by
+  an external reviewer (Tom): the dark box rendered correctly, but text ran past its edge.
 - `scoreRepoWithPublicCejel` — the sealed scoring path shared by the CLI and every published
   leaderboard row — now rejects an explicitly supplied but unwired `rubricVersion` instead of
   silently falling through to whatever `createWitanReport` does with a version string it doesn't
