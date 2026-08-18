@@ -16,6 +16,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Adds `cejel scan --rubric-pin <version>` — the first way for a stranger running the published
+  package to explicitly opt into a rubric other than the calibrated default, without a committed
+  evaluation driver. It accepts any of `WITAN_SELECTABLE_RUBRIC_VERSIONS` (the calibrated v17, or
+  v18-v22) and fails closed on any other value, naming what was accepted. Omitting the flag is
+  unaffected: default (unpinned) scans stay on the calibrated `witan-rubric-v17-2026-07-24`, and
+  every written artifact (`report.json`, `attestation.json`, `summary.json`, `badge.json`,
+  `badge.svg`) is byte-identical to before this flag existed — no new field was added to any of
+  those schemas. A pin to a prospective rubric (v18-v22) is labeled on every human-facing render
+  surface only (the terminal certificate, `certificate.html`, and the Markdown report): it states
+  the rubric that ran and that it is prospective/uncalibrated, so no certificate produced under a
+  prospective pin can be mistaken for a calibrated one. Motivated by the public leaderboard's own
+  methodology text ("every score is produced through the same sealed public-scoring entry point
+  ... with this board's explicit prospective rubric pin declared"), which described a public
+  pinning capability that did not actually exist in the published CLI until now.
+
 ## [0.4.4] — 2026-08-18
 
 ### Fixed
@@ -138,20 +155,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - CI now verifies the published Windows binary and the published Linux `aarch64` binary on their
   real target platforms after each release, comparing their output against the npm package's, in
   addition to the existing per-target smoke checks.
-- Adds `cejel scan --rubric-pin <version>` — the first way for a stranger running the published
-  package to explicitly opt into a rubric other than the calibrated default, without a committed
-  evaluation driver. It accepts any of `WITAN_SELECTABLE_RUBRIC_VERSIONS` (the calibrated v17, or
-  v18-v22) and fails closed on any other value, naming what was accepted. Omitting the flag is
-  unaffected: default (unpinned) scans stay on the calibrated `witan-rubric-v17-2026-07-24`, and
-  every written artifact (`report.json`, `attestation.json`, `summary.json`, `badge.json`,
-  `badge.svg`) is byte-identical to before this flag existed — no new field was added to any of
-  those schemas. A pin to a prospective rubric (v18-v22) is labeled on every human-facing render
-  surface only (the terminal certificate, `certificate.html`, and the Markdown report): it states
-  the rubric that ran and that it is prospective/uncalibrated, so no certificate produced under a
-  prospective pin can be mistaken for a calibrated one. Motivated by the public leaderboard's own
-  methodology text ("every score is produced through the same sealed public-scoring entry point
-  ... with this board's explicit prospective rubric pin declared"), which described a public
-  pinning capability that did not actually exist in the published CLI until now.
 
 ## [0.4.3] — 2026-08-17
 
