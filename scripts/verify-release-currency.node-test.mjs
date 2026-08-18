@@ -16,8 +16,30 @@ const surfaces = [
   'Homebrew tap',
   'MCP Registry',
   'cejel.dev',
+  'changelog',
   'published-versions.json',
+  'leaderboard',
 ];
+
+const goodCejelDevHtml = `
+<div class="cmd"><span class="dollar">$</span>pnpm dlx @cejel/cejel@${version} .</div>
+<p class="sub">Also: <code>bunx @cejel/cejel@${version} .</code></p>
+<p class="pill">Current &middot; v${version}</p>
+`;
+
+const goodChangelogHtml = `
+<h1>What's new in Cejel</h1>
+<p>Install or update any time with <code>npx @cejel/cejel@latest .</code></p>
+<h2 id="v123-title">v${version}</h2>
+<p>Nothing else changed.</p>
+<h2 id="v121-title">v1.2.1</h2>
+<p>Ship this with <code>npx @cejel/cejel .</code> against the old release.</p>
+`;
+
+const goodLeaderboardMarkdown =
+  `Scorer source version: @cejel/cejel@${version}\n` +
+  'Every score is produced through the same sealed public-scoring entry point used by ' +
+  `\`pnpm dlx @cejel/cejel@${version} .\`.\n`;
 
 function goodReaders() {
   return {
@@ -44,8 +66,10 @@ function goodReaders() {
       version,
       ociIdentifier: `ghcr.io/barglabs/cejel@${digest}`,
     }),
-    'cejel.dev': async () => ({ currentVersion: version }),
+    'cejel.dev': async () => ({ currentVersion: version, html: goodCejelDevHtml }),
+    changelog: async () => ({ versions: [version, '1.2.1'], html: goodChangelogHtml }),
     'published-versions.json': async () => ({ mcpRegistry: version, oci: version }),
+    leaderboard: async () => ({ declaredVersion: version, pinVersion: null, markdown: goodLeaderboardMarkdown }),
   };
 }
 
@@ -98,6 +122,122 @@ test('matching versions still fail when the MCP and observed OCI digests differ'
   assert.match(result.failure.message, /MCP Registry/);
   assert.ok(result.lines.some((line) =>
     line.includes('[FAIL] MCP Registry:') && line.includes('does not equal the observed OCI digest')));
+});
+
+test('a leaderboard declaring a stale scorer version fails and names both versions', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: null, markdown: goodLeaderboardMarkdown });
+  const result = await rejectedRun(readers);
+  showFixture('stale leaderboard fixture', result);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') &&
+    line.includes('declared=1.2.1') &&
+    line.includes(`leaderboard declares scorer version 1.2.1 but the release being verified is ${version}`)));
+});
+
+test('a leaderboard pinned to a stale version without a committed pin declaration still fails', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: '1.0.0', markdown: goodLeaderboardMarkdown });
+  const result = await rejectedRun(readers);
+  showFixture('mismatched pin fixture', result);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') && line.includes('does not match the declared scorer version either')));
+});
+
+test('a leaderboard with an explicit, committed pin declaration passes despite a stale scorer version', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: '1.2.1', markdown: goodLeaderboardMarkdown });
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line) });
+  showFixture('committed pin fixture', { lines });
+  assert.ok(lines.some((line) => line.startsWith('[PASS] leaderboard: observed=declared=1.2.1; pin=1.2.1')));
+});
+
+test('a leaderboard carrying a bare npx invocation fails and names the line', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({
+    declaredVersion: version,
+    pinVersion: null,
+    markdown: `Scorer source version: @cejel/cejel@${version}\nRun it with \`npx @cejel/cejel .\`.\n`,
+  });
+  const result = await rejectedRun(readers);
+  showFixture('leaderboard bare invocation fixture', result);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') &&
+    line.includes('unpinned invocation on line 2') &&
+    line.includes('npx @cejel/cejel .')));
+});
+
+test('cejel.dev with a correctly pinned hero command passes', async () => {
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers: goodReaders(), write: (line) => lines.push(line) });
+  assert.ok(lines.some((line) => line.startsWith(`[PASS] cejel.dev: observed=rendered current version=${version}`)));
+});
+
+test('a bare npx hero command on cejel.dev fails and names the line', async () => {
+  const readers = goodReaders();
+  readers['cejel.dev'] = async () => ({
+    currentVersion: version,
+    html: `<p class="pill">Current &middot; v${version}</p>\n<div class="cmd"><span class="dollar">$</span>npx @cejel/cejel .</div>\n`,
+  });
+  const result = await rejectedRun(readers);
+  showFixture('bare hero command fixture', result);
+  assert.match(result.failure.message, /cejel\.dev/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] cejel.dev:') &&
+    line.includes('unpinned hero/example invocation on line 2') &&
+    line.includes('npx @cejel/cejel .')));
+});
+
+test('a changelog naming the current release with no bare invocation in its lede passes', async () => {
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers: goodReaders(), write: (line) => lines.push(line) });
+  showFixture('consistent changelog fixture', { lines });
+  assert.ok(lines.some((line) =>
+    line.startsWith(`[PASS] changelog: observed=newest named release=${version}`)));
+});
+
+test('a bare npx invocation inside a historical changelog entry does not fire', async () => {
+  // goodChangelogHtml already carries `npx @cejel/cejel .` inside the old v1.2.1 entry, below
+  // the first version heading — the fully-consistent run above passing proves it is exempt.
+  const readers = goodReaders();
+  readers.changelog = async () => ({ versions: [version, '1.2.1'], html: goodChangelogHtml });
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line) });
+  assert.ok(lines.some((line) => line.startsWith('[PASS] changelog:')));
+});
+
+test('a bare npx invocation in the changelog lede fails and names the line', async () => {
+  const readers = goodReaders();
+  readers.changelog = async () => ({
+    versions: [version],
+    html: `<h1>What's new</h1>\n<p>Install or update any time with <code>npx @cejel/cejel .</code></p>\n<h2>v${version}</h2>\n`,
+  });
+  const result = await rejectedRun(readers);
+  showFixture('changelog lede bare invocation fixture', result);
+  assert.match(result.failure.message, /changelog/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] changelog:') &&
+    line.includes('unpinned install/update invocation on line 2') &&
+    line.includes('npx @cejel/cejel .')));
+});
+
+test('a changelog whose newest named release is behind the release being verified fails with both versions', async () => {
+  const readers = goodReaders();
+  readers.changelog = async () => ({
+    versions: ['1.2.2', '1.2.1'],
+    html: '<h1>What\'s new</h1>\n<p>Install or update any time with <code>npx @cejel/cejel@latest .</code></p>\n<h2>v1.2.2</h2>\n<h2>v1.2.1</h2>\n',
+  });
+  const result = await rejectedRun(readers);
+  showFixture('stale changelog fixture', result);
+  assert.match(result.failure.message, /changelog/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] changelog:') &&
+    line.includes('observed=newest named release=1.2.2') &&
+    line.includes(`changelog's newest named release is 1.2.2 but the release being verified is ${version}`)));
 });
 
 test('a fully consistent release passes and prints every surface and observed value', async () => {

@@ -18,6 +18,30 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The release-currency verifier now checks an eleventh surface: the published leaderboard
+  (`BargLabs/cejel-site`, `leaderboard/leaderboard.md`) must declare a `Scorer source version`
+  matching the release under verification, and fails closed — naming both versions — when it
+  does not. A deliberate mismatch is accepted only via an explicit, committed
+  `Scorer version pin: @cejel/cejel@<version> — reason: <text>; declared <date>` line on the
+  board itself; silence is never treated as intentional.
+- The release-currency verifier now checks the *published content* of every fetched surface, not
+  just its version markers — closing the gap that let three defects reach cejel.dev in one week
+  with every marker still green: an unpinned `npx @cejel/cejel .` hero command (the exact command
+  an external reviewer copied and got a stale cached build from), a `/changelog/` page that had not
+  named a release in a month and four versions, and the leaderboard's stale scorer version (above).
+  Adds a twelfth surface, `changelog` (`cejel.dev/changelog/`), and two new checks applied to every
+  prose-bearing surface (`cejel.dev`, `changelog`, `leaderboard`):
+  - **No unversioned invocation.** Any `npx`/`pnpm dlx`/`bunx @cejel/cejel` without a version spec
+    fails closed, naming the surface and the line. On the changelog specifically, this only applies
+    to the evergreen lede above the first version-numbered heading — text inside a dated release
+    entry is a historical record of what that release said, not a live instruction, and old entries
+    may legitimately narrate an old bare command.
+  - **Declared tool versions.** Generalizes the leaderboard's scorer-version-pin logic
+    (`assertDeclaredVersion`) into a shared check any surface can use: a declared scorer/CLI version
+    must equal the release or carry an explicit, committed pin with a reason — silence fails.
+  - **Changelog currency.** The newest version named on `cejel.dev/changelog/` must equal the
+    release under verification; failures name both the expected and newest-found version.
+  Version-marker drift detection (the original ten-plus-one surfaces) is unchanged.
 - Codifies the rubric calibration-claim policy: v17 remains the public default and the sole owner
   of its published calibration figures; v18-v22 remain explicit-only prospective rubrics with no
   inherited calibration claim. A future default promotion requires a fresh authenticated untouched

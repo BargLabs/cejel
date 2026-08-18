@@ -11,6 +11,8 @@ const PACKAGE_NAME = '@cejel/cejel';
 const IMAGE_NAME = 'ghcr.io/barglabs/cejel';
 const MCP_SERVER_NAME = 'io.github.BargLabs/cejel';
 const HOMEBREW_FORMULA_REPOSITORY = 'BargLabs/homebrew-tap';
+const BOARD_REPOSITORY = 'BargLabs/cejel-site';
+const BOARD_PATH = 'leaderboard/leaderboard.md';
 const SURFACES = [
   'npm',
   'npm attestation',
@@ -21,7 +23,9 @@ const SURFACES = [
   'Homebrew tap',
   'MCP Registry',
   'cejel.dev',
+  'changelog',
   'published-versions.json',
+  'leaderboard',
 ];
 
 const SEMVER_PATTERN =
@@ -31,6 +35,87 @@ const SEMVER_PATTERN =
 const SEMVER = new RegExp(`^${SEMVER_PATTERN}$`);
 const COMMIT = /^[0-9a-f]{40}$/;
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
+const BOARD_SCORER_LINE = new RegExp(`Scorer source version: @cejel/cejel@(${SEMVER_PATTERN})`);
+const BOARD_PIN_LINE = new RegExp(
+  `Scorer version pin: @cejel/cejel@(${SEMVER_PATTERN}) [-—] reason: .+; declared \\d{4}-\\d{2}-\\d{2}`,
+);
+
+// Mirrors src/__tests__/bare-npx-invocation-guard.test.ts, which scans this repository's own
+// docs/README/issue-template copy. That guard cannot see cejel.dev or cejel-site — they are a
+// different repository — so the same pattern is re-applied here against the published surfaces
+// a first-time reviewer actually reads and copies commands from.
+const RUNNER_PREFIXES = ['npx', 'pnpm dlx', 'bunx'];
+const BARE_INVOCATION_PATTERN = new RegExp(
+  `\\b(?:${RUNNER_PREFIXES.join('|')})\\s+@cejel/cejel(?!@)\\b`,
+);
+
+// A changelog entry heading, HTML (`<h2 id="...">v0.4.1</h2>`) or Markdown (`## v0.4.1`).
+const CHANGELOG_HEADING_PATTERN = new RegExp(
+  `(?:<h[1-6][^>]*>\\s*|^#{1,6}\\s+)v?(${SEMVER_PATTERN})\\b`,
+  'gim',
+);
+
+function findBareInvocation(text) {
+  const lines = String(text ?? '').split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    if (BARE_INVOCATION_PATTERN.test(lines[index])) {
+      return { line: index + 1, snippet: lines[index].trim().slice(0, 200) };
+    }
+  }
+  return null;
+}
+
+function assertNoBareInvocation(surface, text, { property = 'invocation' } = {}) {
+  const found = findBareInvocation(text);
+  if (found) {
+    throw new Error(
+      `unpinned ${property} on line ${found.line}: "${found.snippet}" — every public npx/pnpm ` +
+        'dlx/bunx @cejel/cejel invocation must pin a version so it cannot silently resolve stale',
+    );
+  }
+}
+
+function compareSemver(a, b) {
+  const [aMajor, aMinor, aPatch] = a.split('.').map(Number);
+  const [bMajor, bMinor, bPatch] = b.split('.').map(Number);
+  if (aMajor !== bMajor) return aMajor - bMajor;
+  if (aMinor !== bMinor) return aMinor - bMinor;
+  return aPatch - bPatch;
+}
+
+function changelogVersions(html) {
+  return [...html.matchAll(CHANGELOG_HEADING_PATTERN)].map((match) => match[1]);
+}
+
+function newestSemver(versions) {
+  return versions.reduce((best, candidate) => (compareSemver(candidate, best) > 0 ? candidate : best));
+}
+
+// Content up to the first version-numbered heading is the evergreen "install or update"
+// lede: a live instruction a reader follows right now, so it is checked like a hero command.
+// Content from the first heading onward is dated release-note entries — a historical record of
+// what a past (or the current) release announced, which may legitimately narrate an old command
+// without that narration being a live "run this" instruction. Those are exempt.
+function changelogLede(html) {
+  CHANGELOG_HEADING_PATTERN.lastIndex = 0;
+  const match = CHANGELOG_HEADING_PATTERN.exec(html);
+  CHANGELOG_HEADING_PATTERN.lastIndex = 0;
+  return match ? html.slice(0, match.index) : html;
+}
+
+// Shared by every surface that can declare a scorer or CLI version in prose (currently only the
+// leaderboard). A declared version must either equal the release under verification, or carry an
+// explicit, committed pin naming a reason — silence is always a failure, never an inferred pin.
+function assertDeclaredVersion(surface, property, declared, pin, version) {
+  if (declared === version) return;
+  if (pin !== null && pin === declared) return;
+  throw new Error(
+    `${surface} declares ${property} ${declared} but the release being verified is ${version}` +
+      (pin
+        ? `; the committed pin names ${pin}, which does not match the declared ${property} either`
+        : `; no committed pin declaration names this as deliberate`),
+  );
+}
 
 export class ReleaseCurrencyError extends Error {
   constructor(message, results = []) {
@@ -272,7 +357,13 @@ export function createLiveReaders() {
     async 'cejel.dev'() {
       const response = await fetchChecked('https://cejel.dev', 'cejel.dev');
       const html = await response.text();
-      return { currentVersion: renderedCurrentVersion(html) };
+      return { currentVersion: renderedCurrentVersion(html), html };
+    },
+
+    async changelog() {
+      const response = await fetchChecked('https://cejel.dev/changelog/', 'changelog');
+      const html = await response.text();
+      return { versions: changelogVersions(html), html };
     },
 
     async 'published-versions.json'() {
@@ -284,6 +375,23 @@ export function createLiveReaders() {
         throw new Error('GitHub response did not contain base64 content');
       }
       return parseJson(Buffer.from(record.content, 'base64').toString('utf8'), 'published-versions.json');
+    },
+
+    async leaderboard() {
+      const record = await ghApi(
+        `repos/${BOARD_REPOSITORY}/contents/${BOARD_PATH}?ref=main`,
+        'leaderboard',
+      );
+      if (record?.encoding !== 'base64' || typeof record?.content !== 'string') {
+        throw new Error('GitHub response did not contain base64 content');
+      }
+      const markdown = Buffer.from(record.content, 'base64').toString('utf8');
+      const declared = BOARD_SCORER_LINE.exec(markdown);
+      if (!declared) {
+        throw new Error(`${BOARD_PATH} does not declare a "Scorer source version" line`);
+      }
+      const pin = BOARD_PIN_LINE.exec(markdown);
+      return { declaredVersion: declared[1], pinVersion: pin?.[1] ?? null, markdown };
     },
   };
 }
@@ -302,7 +410,10 @@ function observedValue(surface, value) {
     case 'Homebrew tap': return `Formula/cejel.rb versions=${value.versions.join(',') || '<none>'}`;
     case 'MCP Registry': return `name=${value.name}; version=${value.version}; OCI=${value.ociIdentifier}`;
     case 'cejel.dev': return `rendered current version=${value.currentVersion || '<missing>'}`;
+    case 'changelog':
+      return `newest named release=${value.versions.length ? newestSemver(value.versions) : '<none>'}; versions=${value.versions.join(',') || '<none>'}`;
     case 'published-versions.json': return JSON.stringify(value);
+    case 'leaderboard': return `declared=${value.declaredVersion}; pin=${value.pinVersion ?? '<none>'}`;
     default: return JSON.stringify(value);
   }
 }
@@ -366,11 +477,29 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
     }
     case 'cejel.dev':
       if (value.currentVersion !== version) throw new Error(`rendered current marker does not name ${version}`);
+      assertNoBareInvocation('cejel.dev', value.html, { property: 'hero/example invocation' });
       break;
+    case 'changelog': {
+      assertNoBareInvocation('changelog', changelogLede(value.html), { property: 'install/update invocation' });
+      if (value.versions.length === 0) {
+        throw new Error('https://cejel.dev/changelog/ does not name any release version');
+      }
+      const newest = newestSemver(value.versions);
+      if (newest !== version) {
+        throw new Error(
+          `changelog's newest named release is ${newest} but the release being verified is ${version}`,
+        );
+      }
+      break;
+    }
     case 'published-versions.json':
       if (value?.mcpRegistry !== version || value?.oci !== version) {
         throw new Error(`expected the published MCP Registry and OCI record to agree with independently observed version ${version}`);
       }
+      break;
+    case 'leaderboard':
+      assertDeclaredVersion('leaderboard', 'scorer version', value.declaredVersion, value.pinVersion, version);
+      assertNoBareInvocation('leaderboard', value.markdown, { property: 'invocation' });
       break;
     default:
       throw new Error(`unknown surface ${surface}`);
