@@ -414,7 +414,7 @@ Cejel is listed on the [Smithery](https://smithery.ai/) MCP registry via the rep
 `smithery.yaml`. Discovery needs no account:
 
 ```bash
-npx -y @smithery/cli mcp search cejel
+npx -y @smithery/cli@latest mcp search cejel
 ```
 
 Connecting through Smithery's own CLI is a separate step and **requires a Smithery account**:
@@ -422,7 +422,7 @@ Connecting through Smithery's own CLI is a separate step and **requires a Smithe
 caller, not just first-time ones.
 
 ```bash
-npx -y @smithery/cli mcp add cejel
+npx -y @smithery/cli@latest mcp add cejel
 ```
 
 If you'd rather not create a Smithery account, the generic MCP client config above needs no

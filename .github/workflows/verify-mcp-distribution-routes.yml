@@ -53,7 +53,7 @@ jobs:
         shell: bash
         env:
           HOME: ${{ env.ANON_HOME }}
-        run: npx --yes @smithery/cli --version
+        run: npx --yes @smithery/cli@latest --version
 
       - name: Confirm the CLI has no stored credentials (this must run as a stranger would)
         shell: bash
@@ -61,7 +61,7 @@ jobs:
           HOME: ${{ env.ANON_HOME }}
         run: |
           set +e
-          npx --yes @smithery/cli auth whoami --json < /dev/null
+          npx --yes @smithery/cli@latest auth whoami --json < /dev/null
           echo "exit_code=$?"
           set -e
 
@@ -71,7 +71,7 @@ jobs:
           HOME: ${{ env.ANON_HOME }}
         run: |
           set +e
-          npx --yes @smithery/cli mcp search cejel --json < /dev/null > "$RUNNER_TEMP/search-stdout.json" 2> "$RUNNER_TEMP/search-stderr.txt"
+          npx --yes @smithery/cli@latest mcp search cejel --json < /dev/null > "$RUNNER_TEMP/search-stdout.json" 2> "$RUNNER_TEMP/search-stderr.txt"
           echo "exit_code=$?" > "$RUNNER_TEMP/search-exit.txt"
           set -e
           echo "---exit code---"
@@ -92,7 +92,7 @@ jobs:
           HOME: ${{ env.ANON_HOME }}
         run: |
           set +e
-          npx --yes @smithery/cli mcp add cejel --json < /dev/null > "$RUNNER_TEMP/add-stdout.txt" 2> "$RUNNER_TEMP/add-stderr.txt"
+          npx --yes @smithery/cli@latest mcp add cejel --json < /dev/null > "$RUNNER_TEMP/add-stdout.txt" 2> "$RUNNER_TEMP/add-stderr.txt"
           echo "exit_code=$?" > "$RUNNER_TEMP/add-exit.txt"
           set -e
           echo "---exit code---"
