@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.4] — 2026-08-18
+
 ### Fixed
 
 - The `.term-tooltip` glossary/metric tooltips on the HTML certificate now wrap safely instead
@@ -94,6 +96,46 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exported from `@cejel/cejel/d-series` only: `cejel scan` does not run it and no released
   certificate includes it. It is uncalibrated, does not affect A1-B6 scoring, and does not change
   the leaderboard.
+- Adds a separate, opt-in, non-scoring decision-contract conformance checker, exported from
+  `@cejel/cejel/decision-contracts` only. Repositories author exact premise-to-decision contracts;
+  the checker reports only absent supported local dependency edges and abstains on calls, mutable
+  bindings, dynamic access, object aliases, whole-object flow, getters, unsupported control flow,
+  missing sources, or parse failures. `cejel scan`, A1-B6 scoring, rubric versions, and the
+  leaderboard are unchanged — nothing here runs unless a caller imports the subpath explicitly.
+- Adds three explicit-only prospective rubric versions, each selectable only by an evaluation
+  driver that passes `rubricVersion` — `cejel scan`'s public default stays on the calibrated
+  `witan-rubric-v17-2026-07-24` and none of the following run unless separately selected:
+  - **v20** narrowly bounded A3 production-readiness findings (missing build/typecheck script,
+    inactive Dockerfile `HEALTHCHECK`, or a direct HTTP entrypoint with no health/readiness route),
+    each citing the exact manifest, entrypoint, or Dockerfile.
+  - **v21** bounded B6 findings for executed/contained administrative SQL: authored production SQL
+    containing role grants, `SUPERUSER` escalation, or schema-wide table privilege grants, and the
+    same shapes executed via direct database-driver `.query(...)`/`.execute(...)` literals. Docs,
+    tests, fixtures, comments, ordinary grants, and documented human-gated paths stay clean.
+  - **v22** extends v20/v21's direct-HTTP detection through a simple root package start command
+    (`node <path>` / `tsx <path>`) to its tracked authored JS/TS entrypoint, closing a blind spot
+    where the server file itself was never named on the command line.
+  None of v20/v21/v22 carry a calibration claim; each remains explicit-only pending its own
+  authenticated untouched holdout and a separately recorded default-promotion decision.
+
+### Fixed
+
+- `execGit` — the sole production Git subprocess boundary, used by every default scan as well as
+  the d-series and LLM-calibration packs — now scopes the trusted `safe.directory` entry to the
+  exact, caller-supplied working directory instead of relying on ambient global Git config to have
+  a matching entry. Closes a cross-UID Docker/CI mount gap without widening trust: the child still
+  receives only `PATH`/`HOME`/`TZ` plus fixed hardening variables.
+- Generalizes the bare-npx-invocation guard (`src/__tests__/bare-npx-invocation-guard.test.ts`)
+  beyond `@cejel/cejel` itself: it now fails closed on *any* unpinned `npx`/`pnpm dlx`/`bunx`
+  invocation of a public-facing package named in this repository's own docs, not just our own.
+  Motivated by a same-shaped incident in an unrelated tool (OpenClaw) that a `@cejel/cejel`-only
+  guard would not have caught.
+
+### Added
+
+- CI now verifies the published Windows binary and the published Linux `aarch64` binary on their
+  real target platforms after each release, comparing their output against the npm package's, in
+  addition to the existing per-target smoke checks.
 
 ## [0.4.3] — 2026-08-17
 
