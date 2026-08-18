@@ -165,7 +165,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/openclaw-state"
           echo "OPENCLAW_STATE_DIR=$RUNNER_TEMP/openclaw-state" >> "$GITHUB_ENV"
 
-      - name: Record what npm actually resolves for a bare 'npx openclaw' on this Node version
+      - name: Diagnostic -- what a bare, unpinned 'npx openclaw' resolves to on this Node version
         shell: bash
         run: |
           set +e
@@ -173,13 +173,18 @@ jobs:
           npx --yes openclaw --version < /dev/null
           echo "exit_code=$?"
           set -e
+          # Historical footgun this workflow discovered: on Node 22.15.0, npm's own
+          # engines-aware resolution silently served openclaw@2026.5.7, which predates the
+          # 'mcp add'/'mcp doctor' subcommands entirely -- no error, just a stale CLI. The
+          # README now documents 'openclaw@latest' explicitly for exactly this reason; this
+          # step is diagnostic only and does not gate the verdict below.
 
-      - name: Run the documented install route -- 'openclaw mcp add cejel ...'
+      - name: Run the documented install route -- 'openclaw@latest mcp add cejel ...'
         shell: bash
         run: |
           set +e
-          npx --yes openclaw mcp add cejel \
-            --command npx --arg -y --arg --package=@cejel/cejel --arg cejel-mcp \
+          npx --yes openclaw@latest mcp add cejel \
+            --command npx --arg -y --arg --package=@cejel/cejel@latest --arg cejel-mcp \
             < /dev/null > "$RUNNER_TEMP/add-stdout.txt" 2> "$RUNNER_TEMP/add-stderr.txt"
           echo "exit_code=$?" > "$RUNNER_TEMP/add-exit.txt"
           set -e
@@ -197,10 +202,10 @@ jobs:
           set +e
           add_exit="$(grep -o '[0-9]*' "$RUNNER_TEMP/add-exit.txt" 2>/dev/null)"
           if [ "$add_exit" = "0" ]; then
-            npx --yes openclaw mcp doctor cejel --probe --json < /dev/null \
+            npx --yes openclaw@latest mcp doctor cejel --probe --json < /dev/null \
               > "$RUNNER_TEMP/doctor-stdout.json" 2> "$RUNNER_TEMP/doctor-stderr.txt"
             echo "exit_code=$?" > "$RUNNER_TEMP/doctor-exit.txt"
-            npx --yes openclaw mcp probe cejel --json < /dev/null \
+            npx --yes openclaw@latest mcp probe cejel --json < /dev/null \
               > "$RUNNER_TEMP/probe-stdout.json" 2> "$RUNNER_TEMP/probe-stderr.txt"
             echo "exit_code=$?" > "$RUNNER_TEMP/probe-exit.txt"
           else
@@ -220,14 +225,14 @@ jobs:
           {
             echo "## OpenClaw MCP route (Node ${{ matrix.node-version }})"
             echo
-            echo "- \`mcp add cejel ...\`: exit ${add_exit}"
+            echo "- \`openclaw@latest mcp add cejel ...\`: exit ${add_exit}"
             if [ "$add_exit" = "0" ] && grep -q '"ok": true' "$RUNNER_TEMP/doctor-stdout.json" 2>/dev/null; then
               echo "- \`mcp doctor cejel --probe\`: ok"
               echo "- VERDICT: WORKS on Node ${{ matrix.node-version }} -- resolvable and startable, no account needed."
             elif [ "$add_exit" = "0" ]; then
               echo "- VERDICT: add succeeded but doctor/probe did not confirm a working server -- see evidence."
             else
-              echo "- VERDICT: DOES NOT WORK on Node ${{ matrix.node-version }} as documented -- add failed; see stdout/stderr above (commonly an npm-engines-driven resolution to an older openclaw release that predates the 'mcp add'/'mcp doctor' subcommands)."
+              echo "- VERDICT: DOES NOT WORK on Node ${{ matrix.node-version }} even pinned to openclaw@latest -- see stdout/stderr above. Expected failure mode on a Node build below 22.22.3 is openclaw's own clear runtime version message, not the 'unknown option' error the unpinned diagnostic step above demonstrates."
             fi
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
