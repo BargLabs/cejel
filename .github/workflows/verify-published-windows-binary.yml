@@ -1,12 +1,16 @@
 name: cejel-verify-published-windows-binary
 
-# Verifies the ALREADY-PUBLISHED release asset that a stranger would actually download --
-# not a freshly rebuilt binary. release-binaries.yml verifies a binary before it is attached
+# Verifies the ALREADY-PUBLISHED release assets that a stranger would actually download --
+# not freshly rebuilt binaries. release-binaries.yml verifies a binary before it is attached
 # to a release; this workflow verifies what is sitting on the release right now, downloaded
 # the same way a user downloads it (gh release download / the documented curl/Invoke-WebRequest
-# snippets), on a real Windows runner. It also cross-checks the Windows binary's report against
-# the same npm package version run against the identical fixture commit, to establish -- not
-# assume -- whether reports are byte-identical across platforms for the same revision.
+# snippets), on real runners for each low-download, unaudited-by-users platform -- Windows
+# (windows-latest) and Linux aarch64 (ubuntu-24.04-arm, a physical arm64 GitHub-hosted runner,
+# not emulated). It also cross-checks each binary's report against the same npm package version
+# run against the identical fixture commit, to establish -- not assume -- whether reports are
+# byte-identical across platforms for the same revision. The workflow file name and job id
+# (`windows`) predate the Linux aarch64 job added alongside it; kept as-is to avoid churning the
+# already-registered workflow_id.
 
 on:
   workflow_dispatch:
@@ -186,6 +190,110 @@ jobs:
             ${{ runner.temp }}/windows-report.json
           retention-days: 7
 
+  linux-aarch64:
+    name: Verify published Linux aarch64 binary
+    needs: fixture
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Download fixture tarball
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: fixture-tar
+          path: ${{ runner.temp }}
+
+      - name: Extract fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fixture"
+          tar -xf "$RUNNER_TEMP/fixture.tar" -C "$RUNNER_TEMP/fixture"
+          echo "fixture commit inside tarball:"
+          git -C "$RUNNER_TEMP/fixture" rev-parse HEAD
+
+      - name: Confirm this runner is real aarch64, not emulated
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="$(uname -m)"
+          echo "uname -m: $arch"
+          if [ "$arch" != "aarch64" ]; then
+            echo "::error::expected an aarch64 runner, got $arch"
+            exit 1
+          fi
+
+      - name: Download published release asset and checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          gh release download "${{ inputs.release_tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "cejel-Linux-aarch64" \
+            --pattern "SHA256SUMS" \
+            --clobber
+
+      - name: Verify SHA256 against published SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          expected="$(grep '  cejel-Linux-aarch64$' SHA256SUMS | awk '{print $1}')"
+          computed="$(sha256sum cejel-Linux-aarch64 | awk '{print $1}')"
+          echo "expected=$expected"
+          echo "computed=$computed"
+          if [ -z "$expected" ]; then
+            echo "::error::no SHA256SUMS entry found for cejel-Linux-aarch64"
+            exit 1
+          fi
+          if [ "$expected" != "$computed" ]; then
+            echo "::error::SHA256 MISMATCH expected=$expected computed=$computed"
+            exit 1
+          fi
+          echo "SHA256 MATCH: $computed"
+
+      - name: Run the published binary against the fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          chmod +x cejel-Linux-aarch64
+          set +e
+          ./cejel-Linux-aarch64 "$RUNNER_TEMP/fixture" --out "$RUNNER_TEMP/out-linux-aarch64" > "$RUNNER_TEMP/linux-aarch64-stdout.txt" 2>"$RUNNER_TEMP/linux-aarch64-stderr.txt"
+          echo "exit_code=$?" > "$RUNNER_TEMP/linux-aarch64-exit.txt"
+          set -e
+          echo "---exit code---"
+          cat "$RUNNER_TEMP/linux-aarch64-exit.txt"
+          echo "---first 20 lines stdout---"
+          head -n 20 "$RUNNER_TEMP/linux-aarch64-stdout.txt" || true
+          echo "---first 20 lines stderr---"
+          head -n 20 "$RUNNER_TEMP/linux-aarch64-stderr.txt" || true
+
+      - name: Hash the produced report
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/out-linux-aarch64"
+          if [ ! -f "$out/report.json" ]; then
+            echo "::error::report.json was not written by the Linux aarch64 binary (pass-by-absence check)"
+            exit 1
+          fi
+          sha256sum < "$out/report.json" | tee "$RUNNER_TEMP/linux-aarch64-report-sha256.txt"
+          cp "$out/report.json" "$RUNNER_TEMP/linux-aarch64-report.json"
+
+      - name: Upload Linux aarch64 evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-aarch64-evidence
+          path: |
+            ${{ runner.temp }}/linux-aarch64-exit.txt
+            ${{ runner.temp }}/linux-aarch64-stdout.txt
+            ${{ runner.temp }}/linux-aarch64-stderr.txt
+            ${{ runner.temp }}/linux-aarch64-report-sha256.txt
+            ${{ runner.temp }}/linux-aarch64-report.json
+          retention-days: 7
+
   npm:
     name: Run npm package on the same fixture
     needs: fixture
@@ -259,8 +367,8 @@ jobs:
           retention-days: 7
 
   compare:
-    name: Compare Windows binary report vs npm package report
-    needs: [windows, npm]
+    name: Compare Windows / Linux aarch64 / npm package reports
+    needs: [windows, linux-aarch64, npm]
     runs-on: ubuntu-24.04
     steps:
       - name: Download Windows evidence
@@ -268,6 +376,12 @@ jobs:
         with:
           name: windows-evidence
           path: windows
+
+      - name: Download Linux aarch64 evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: linux-aarch64-evidence
+          path: linux-aarch64
 
       - name: Download npm evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -280,13 +394,40 @@ jobs:
         run: |
           set -euo pipefail
           windows_sha="$(awk '{print $1}' windows/windows-report-sha256.txt)"
+          linux_aarch64_sha="$(awk '{print $1}' linux-aarch64/linux-aarch64-report-sha256.txt)"
           npm_sha="$(awk '{print $1}' npm/npm-report-sha256.txt)"
-          echo "windows report.json sha256: $windows_sha"
-          echo "npm     report.json sha256: $npm_sha"
+          echo "windows        report.json sha256: $windows_sha"
+          echo "linux-aarch64  report.json sha256: $linux_aarch64_sha"
+          echo "npm            report.json sha256: $npm_sha"
+
+          all_match=true
           if [ "$windows_sha" = "$npm_sha" ]; then
-            echo "RESULT: MATCH -- Windows binary and npm package produced byte-identical report.json for the same fixture commit."
+            echo "RESULT windows vs npm: MATCH"
           else
-            echo "RESULT: MISMATCH -- Windows binary and npm package did NOT produce byte-identical report.json for the same fixture commit."
-            echo "diff (unified):"
+            echo "RESULT windows vs npm: MISMATCH"
+            all_match=false
+            echo "diff (unified, npm vs windows):"
             diff -u npm/npm-report.json windows/windows-report.json || true
+          fi
+
+          if [ "$linux_aarch64_sha" = "$npm_sha" ]; then
+            echo "RESULT linux-aarch64 vs npm: MATCH"
+          else
+            echo "RESULT linux-aarch64 vs npm: MISMATCH"
+            all_match=false
+            echo "diff (unified, npm vs linux-aarch64):"
+            diff -u npm/npm-report.json linux-aarch64/linux-aarch64-report.json || true
+          fi
+
+          if [ "$windows_sha" = "$linux_aarch64_sha" ]; then
+            echo "RESULT windows vs linux-aarch64: MATCH"
+          else
+            echo "RESULT windows vs linux-aarch64: MISMATCH"
+            all_match=false
+          fi
+
+          if [ "$all_match" = true ]; then
+            echo "OVERALL: all three report.json digests are byte-identical for this fixture commit on this revision."
+          else
+            echo "OVERALL: at least one pair of report.json digests differ for this fixture commit on this revision -- see mismatches above."
           fi
