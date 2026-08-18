@@ -67,9 +67,11 @@ export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10
 export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10';
 
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
-// iteration: prospective rubrics are available only to explicit evaluation harnesses and inherit
-// no precision, recall, false-positive-rate, or other calibration claim from v17. Promotion
-// requires a fresh authenticated untouched holdout and a separately recorded default decision.
+// iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
+// harness, or (since 0.4.4) the public `cejel scan --rubric-pin <version>` flag (src/index.ts) —
+// and inherit no precision, recall, false-positive-rate, or other calibration claim from v17.
+// Promotion to public default requires a fresh authenticated untouched holdout and a separately
+// recorded default decision; `--rubric-pin` does not itself constitute that decision.
 export const WITAN_LAST_CALIBRATED_RUBRIC_VERSION = WITAN_RUBRIC_VERSION_V17;
 export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V18,
@@ -102,3 +104,19 @@ export function assertSelectableRubricVersion(rubricVersion: string): void {
     `Cejel: unrecognized rubric version: "${rubricVersion}". Accepted values: ${WITAN_SELECTABLE_RUBRIC_VERSIONS.join(', ')}.`,
   );
 }
+
+/** True for any rubric that has not cleared the calibration gate (currently v18-v22). */
+export function isProspectiveRubricVersion(rubricVersion: string): boolean {
+  return (WITAN_PROSPECTIVE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion);
+}
+
+/**
+ * Human-facing warning for a prospective-rubric certificate — terminal, HTML, and Markdown
+ * renderers only. Deliberately never attached to report.json/attestation.json/summary.json/
+ * badge.json: adding a field to those schemas would change their shape for every scan, including
+ * the calibrated default, which is exactly the default-path behavior change `--rubric-pin` must
+ * never cause. Those artifacts already name the exact rubric that ran via the existing
+ * `rubricVersion` field; any downstream consumer can call `isProspectiveRubricVersion` on it.
+ */
+export const PROSPECTIVE_RUBRIC_NOTICE =
+  'PROSPECTIVE / UNCALIBRATED RUBRIC — this rubric has not cleared a calibration gate. Scores, verdicts, and findings produced under it carry no precision/recall claim and are not comparable to a calibrated certificate.';

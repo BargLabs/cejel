@@ -14,8 +14,15 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
-import { parseArgs, parseCliInvocation, runWitanFreeCli, runWitanV22CalibrationCli } from '../index.js';
 import {
+  USAGE,
+  parseArgs,
+  parseCliInvocation,
+  runWitanFreeCli,
+  runWitanV22CalibrationCli,
+} from '../index.js';
+import {
+  PROSPECTIVE_RUBRIC_NOTICE,
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   WITAN_RUBRIC_VERSION_V22,
 } from '../witan/rubric-version.js';
@@ -579,6 +586,149 @@ describe('v22 calibration-only entrypoint', () => {
     expect(publicReport.rubricVersion).not.toBe(WITAN_RUBRIC_VERSION_V22);
     expect(publicAttestation.predicate.rubricVersion).toBe(WITAN_LAST_CALIBRATED_RUBRIC_VERSION);
     expect(calibrationReport.rubricVersion).toBe(WITAN_RUBRIC_VERSION_V22);
+  });
+});
+
+// --rubric-pin (0.4.4): the first PUBLIC, CLI-flag opt-in into a prospective rubric. Previously
+// the only way to reach v18-v22 was a committed evaluation driver like
+// runWitanV22CalibrationCli above, which parses no CLI args a stranger controls. This makes the
+// "unpinned run cannot reach a prospective rubric" guarantee load-bearing for the first time —
+// a bug in the flag's wiring could now leak a prospective rubric into an ordinary public scan.
+describe('--rubric-pin explicit opt-in', () => {
+  it('is documented in --help usage', () => {
+    expect(USAGE).toContain('--rubric-pin');
+  });
+
+  it('is unset by default, and an unpinned scan stays on the calibrated rubric with no prospective banner anywhere', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-default-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-default-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'rubric-pin-default-fixture' }));
+    writeFixtureFile(repoPath, 'README.md', '# rubric-pin-default-fixture\n');
+
+    expect(parseArgs([repoPath]).rubricPin).toBeUndefined();
+
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir])).toBe(0);
+    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8')) as {
+      rubricVersion: string;
+    };
+    expect(report.rubricVersion).toBe(WITAN_LAST_CALIBRATED_RUBRIC_VERSION);
+
+    // The CLI writes no standalone Markdown report file (that surface is
+    // renderWitanMarkdownReport, covered directly in certificate-presentation.test.ts); check
+    // the CLI's own written surfaces instead — the HTML certificate and the JSON summary.
+    const certificateHtml = readFileSync(join(outDir, 'certificate.html'), 'utf8');
+    const machineSummary = readFileSync(join(outDir, 'summary.json'), 'utf8');
+    expect(certificateHtml).not.toContain('PROSPECTIVE');
+    expect(machineSummary).not.toContain('PROSPECTIVE');
+  });
+
+  it('fails closed on an unrecognized --rubric-pin value, before any scan runs', () => {
+    expect(() =>
+      parseCliInvocation(['scan', '.', '--rubric-pin', 'not-a-real-rubric']),
+    ).toThrow(/unrecognized rubric version: "not-a-real-rubric"/);
+  });
+
+  it('requires a value', () => {
+    expect(() => parseCliInvocation(['scan', '.', '--rubric-pin'])).toThrow(
+      'Missing value for --rubric-pin',
+    );
+  });
+
+  it('accepts an explicit pin to the calibrated version itself, with no prospective banner', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-calibrated-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-calibrated-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'rubric-pin-v17-fixture' }));
+
+    expect(
+      await runWitanFreeCli([
+        'scan',
+        repoPath,
+        '--out',
+        outDir,
+        '--rubric-pin',
+        WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
+      ]),
+    ).toBe(0);
+    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8')) as {
+      rubricVersion: string;
+    };
+    expect(report.rubricVersion).toBe(WITAN_LAST_CALIBRATED_RUBRIC_VERSION);
+    expect(readFileSync(join(outDir, 'certificate.html'), 'utf8')).not.toContain('PROSPECTIVE');
+  });
+
+  it('reaches a prospective rubric only when explicitly pinned, and labels every human-facing surface', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-prospective-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-prospective-out-'));
+    writeFixtureFile(
+      repoPath,
+      'package.json',
+      JSON.stringify({ name: 'rubric-pin-prospective-fixture', scripts: { start: 'node server.js' } }),
+    );
+    writeFixtureFile(
+      repoPath,
+      'server.js',
+      "import { createServer } from 'node:http'; createServer(() => {}).listen(3000);",
+    );
+
+    expect(
+      await runWitanFreeCli([
+        'scan',
+        repoPath,
+        '--out',
+        outDir,
+        '--rubric-pin',
+        WITAN_RUBRIC_VERSION_V22,
+      ]),
+    ).toBe(0);
+
+    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8')) as {
+      rubricVersion: string;
+    };
+    const attestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8')) as {
+      predicate: { rubricVersion: string };
+    };
+    expect(report.rubricVersion).toBe(WITAN_RUBRIC_VERSION_V22);
+    expect(attestation.predicate.rubricVersion).toBe(WITAN_RUBRIC_VERSION_V22);
+
+    // Machine-readable artifacts carry the pin via the pre-existing rubricVersion field only —
+    // no new field, so the default (calibrated) path's schema shape never changes.
+    expect(Object.keys(report)).not.toContain('rubricCalibrationStatus');
+
+    // Human-facing surfaces state the prospective/uncalibrated status explicitly. (The CLI
+    // writes no standalone Markdown file — renderWitanMarkdownReport is covered directly in
+    // certificate-presentation.test.ts.)
+    const certificateHtml = readFileSync(join(outDir, 'certificate.html'), 'utf8');
+    const machineSummary = readFileSync(join(outDir, 'summary.json'), 'utf8');
+    expect(certificateHtml).toContain(PROSPECTIVE_RUBRIC_NOTICE);
+    expect(certificateHtml).toContain(WITAN_RUBRIC_VERSION_V22);
+    // summary.json is the machine-readable CLI summary, not a human-facing render surface —
+    // the notice belongs on certificate.html and the terminal certificate only.
+    expect(machineSummary).not.toContain(PROSPECTIVE_RUBRIC_NOTICE);
+  });
+
+  it('prints the prospective banner on the terminal certificate only when pinned to a prospective rubric', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-terminal-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-terminal-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'rubric-pin-terminal-fixture' }));
+    writeFixtureFile(repoPath, 'README.md', '# rubric-pin-terminal-fixture\n');
+
+    const stdoutWrites: string[] = [];
+    const spy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((chunk: string | Uint8Array) => {
+        stdoutWrites.push(chunk.toString());
+        return true;
+      });
+    try {
+      expect(
+        await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--rubric-pin', WITAN_RUBRIC_VERSION_V22]),
+      ).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    const terminalOutput = stdoutWrites.join('');
+    expect(terminalOutput).toContain(PROSPECTIVE_RUBRIC_NOTICE);
+    expect(terminalOutput).toContain(`Rubric: ${WITAN_RUBRIC_VERSION_V22}`);
   });
 });
 

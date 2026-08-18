@@ -22,6 +22,7 @@ import {
   formatCertificateMetricValue,
   glossaryEntriesForReport,
 } from './certificate-presentation.js';
+import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './rubric-version.js';
 
 export interface WitanMarkdownReportOptions {
   /** Version of the Cejel CLI/server that produced this certificate. */
@@ -90,6 +91,11 @@ export function renderWitanMarkdownReport(
     `- Product: ${report.productSlug}`,
     `- CLI: ${options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded'}`,
     `- Rubric: ${report.rubricVersion}`,
+    // Gated on the rubric actually being prospective — a calibrated (v17) report's Markdown
+    // stays byte-identical to before --rubric-pin existed.
+    ...(isProspectiveRubricVersion(report.rubricVersion)
+      ? [`- **${PROSPECTIVE_RUBRIC_NOTICE}**`]
+      : []),
     `- Repository: ${renderRepo(report.repo.path ?? report.repo.url ?? report.productSlug, report.repo.headSha)}`,
     ...(hasSignals
       ? [

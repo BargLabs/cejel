@@ -1,0 +1,17 @@
+[
+  {
+    "statement": "A published surface's documentation can describe a capability -- a flag, an opt-in mechanism, a reproducibility guarantee -- that never actually exists in the shipped code; this drifts false silently unless treated as its own checkable claim, the same as a numeric claim. Alfred's public leaderboard methodology (docs/leaderboard/leaderboard.md) states scores are produced with 'this board's explicit prospective rubric pin declared' and that omitting a pin 'remains on calibrated v17' -- describing public rubric-pinning. None existed: no flag, env var, or config file in cejel's src/index.ts, scan.ts, or MCP scan tool could pin a rubric through the published @cejel/cejel package. The withdrawn board's own notice confirms every row ran under the prospective v18 rubric, so the stated regeneration methodology was unexecutable through the real published CLI.",
+    "scope": ["repo:BargLabs/cejel", "repo:BargLabs/alfred", "claim-vs-code", "documentation", "public-cli"],
+    "tags": [
+      "documented-capability-claim",
+      "rubric-pin",
+      "public-cli-surface",
+      "leaderboard-methodology",
+      "claim-vs-code"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-18T14:35:00.000Z",
+    "quarantineReason": "This staging record accompanies cejel PR #220 (feat: add cejel scan --rubric-pin), whose squash commit does not yet exist on Cejel origin/main -- and cannot yet, since PR #219 already merged and tagged v0.4.4 without this fix, leaving an open operator decision (documented atop PR #220's description) about whether this lands in a re-cut v0.4.4 or ships as v0.4.5. It must not anchor to its own branch.",
+    "moveCondition": "After PR #220 merges (whichever release it lands in), identify its 40-character squash commit on Cejel origin/main and verify its diff adds --rubric-pin to src/index.ts (assertSelectableRubricVersion-validated, fails closed), the default-path byte-identical test coverage in src/__tests__/index.test.ts, and the prospective-rubric notice on the terminal/HTML/Markdown renderers only (never on report.json/attestation.json/summary.json/badge.json). Then copy this record into Alfred docs/orchestration/maeve-lesson-batches/ as a cejel_ batch with that commit, PR number, evidencePath, and evidenceQuote -- and check whether Alfred's leaderboard-reproducibility.ts (fixed in alfred PR #1020) also needs a follow-up to read a declared rubric pin from the board and pass --rubric-pin to its npx invocation, since a board regenerated under a prospective-rubric methodology would otherwise be rescanned on the wrong (calibrated) rubric and falsely reported RED."
+  }
+]

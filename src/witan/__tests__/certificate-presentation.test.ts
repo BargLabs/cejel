@@ -5,6 +5,7 @@ import { renderTerminalCertificate } from '../../terminal.js';
 import { CERTIFICATE_GLOSSARY, formatCertificateMetricValue } from '../certificate-presentation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
+import { PROSPECTIVE_RUBRIC_NOTICE, WITAN_RUBRIC_VERSION_V22 } from '../rubric-version.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 import { serializeWitanReport } from '../attestation.js';
 
@@ -43,7 +44,7 @@ function criterion(
 
 function reportFixture(
   criteria: WitanCriterionScore[],
-  options: { headSha?: string } = {},
+  options: { headSha?: string; rubricVersion?: string } = {},
 ): WitanReport {
   return {
     productSlug: 'certificate-fixture',
@@ -52,7 +53,7 @@ function reportFixture(
       path: '/tmp/certificate-fixture',
       ...(options.headSha ? { headSha: options.headSha } : {}),
     },
-    rubricVersion: 'witan-rubric-v17-2026-07-24',
+    rubricVersion: options.rubricVersion ?? 'witan-rubric-v17-2026-07-24',
     verdict: 'conditional',
     codeTrustScore: 3,
     processTrustScore: 3,
@@ -491,5 +492,40 @@ describe('certificate presentation regressions', () => {
     expect(withUnbrokenToken).toContain(longUnbrokenToken);
     const tooltipCarriesToken = new RegExp(`<span class="term-tooltip"[^>]*>[^<]*${longUnbrokenToken}`);
     expect(withUnbrokenToken).toMatch(tooltipCarriesToken);
+  });
+});
+
+// Renderer-level lock for the --rubric-pin prospective-rubric notice (src/index.ts, 0.4.4): a
+// calibrated (v17) report's HTML/Markdown/terminal output must be byte-identical to before the
+// notice existed, and a prospective (v18-v22) report's output must carry the notice on every
+// human-facing renderer — never on the machine-readable summary.
+describe('prospective-rubric notice', () => {
+  it('never appears for a calibrated (v17) report, on any renderer', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })]);
+    expect(renderWitanHtmlReport(report)).not.toContain('PROSPECTIVE');
+    expect(renderWitanMarkdownReport(report)).not.toContain('PROSPECTIVE');
+    expect(renderTerminalCertificate(buildWitanCliSummary(report), report)).not.toContain(
+      'PROSPECTIVE',
+    );
+  });
+
+  it('appears on HTML, Markdown, and terminal output for a prospective (v22) report', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })], {
+      rubricVersion: WITAN_RUBRIC_VERSION_V22,
+    });
+    expect(renderWitanHtmlReport(report)).toContain(PROSPECTIVE_RUBRIC_NOTICE);
+    expect(renderWitanMarkdownReport(report)).toContain(PROSPECTIVE_RUBRIC_NOTICE);
+    expect(renderTerminalCertificate(buildWitanCliSummary(report), report)).toContain(
+      PROSPECTIVE_RUBRIC_NOTICE,
+    );
+  });
+
+  it('never appears in the machine-readable summary object, calibrated or prospective', () => {
+    const calibrated = reportFixture([criterion({ id: 'A1', category: 'code_trust' })]);
+    const prospective = reportFixture([criterion({ id: 'A1', category: 'code_trust' })], {
+      rubricVersion: WITAN_RUBRIC_VERSION_V22,
+    });
+    expect(JSON.stringify(buildWitanCliSummary(calibrated))).not.toContain('PROSPECTIVE');
+    expect(JSON.stringify(buildWitanCliSummary(prospective))).not.toContain('PROSPECTIVE');
   });
 });

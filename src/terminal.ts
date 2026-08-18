@@ -6,6 +6,7 @@ import {
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
 } from './witan/certificate-presentation.js';
+import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './witan/rubric-version.js';
 
 import type { WitanCliSummary } from './summary.js';
 
@@ -167,6 +168,16 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
   lines.push('', 'Plain-language glossary:');
   for (const entry of CERTIFICATE_GLOSSARY) {
     lines.push(`  ${entry.term} — ${entry.definition}`);
+  }
+
+  // Prepended last, unshifted onto the finished body rather than spliced in partway through —
+  // every earlier splice/push above targets indices/relative positions computed from the
+  // original (no-banner) shape, so inserting this any earlier would shift them. Gated on the
+  // rubric actually being prospective so an ordinary, unpinned scan's terminal output stays
+  // byte-identical to before this existed; this banner only exists because --rubric-pin
+  // (src/index.ts) made a prospective run reachable from the public CLI.
+  if (report && isProspectiveRubricVersion(report.rubricVersion)) {
+    lines.unshift(`Rubric: ${report.rubricVersion}`, PROSPECTIVE_RUBRIC_NOTICE, '');
   }
 
   return `${lines.join('\n')}\n`;
