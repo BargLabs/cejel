@@ -78,3 +78,27 @@ export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V21,
   WITAN_RUBRIC_VERSION_V22,
 ] as const);
+
+// The complete set of rubric identifiers a caller may explicitly select: the calibrated default
+// plus every wired prospective rubric. This is deliberately narrower than "every rubric version
+// this package has ever implemented" (v0-v16 remain load-bearing for historical fixtures and
+// regression tests, but are not offered as a live selection) — it is the same "callers must opt
+// in explicitly" set every V18-V22 constant above documents.
+export const WITAN_SELECTABLE_RUBRIC_VERSIONS = Object.freeze([
+  WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
+  ...WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
+] as const);
+
+/**
+ * Fail closed on an explicitly supplied rubric selector that isn't wired. Passing an unwired or
+ * misspelled rubric string must not silently fall through to whatever default `createWitanReport`
+ * happens to apply to an unrecognized version string — that produces a certificate whose
+ * `rubricVersion` field states a rubric that did not actually run. Absence is not covered here:
+ * an absent selector legitimately takes the default, checked by the caller before invoking this.
+ */
+export function assertSelectableRubricVersion(rubricVersion: string): void {
+  if ((WITAN_SELECTABLE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion)) return;
+  throw new Error(
+    `Cejel: unrecognized rubric version: "${rubricVersion}". Accepted values: ${WITAN_SELECTABLE_RUBRIC_VERSIONS.join(', ')}.`,
+  );
+}

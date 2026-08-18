@@ -16,6 +16,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `scoreRepoWithPublicCejel` — the sealed scoring path shared by the CLI and every published
+  leaderboard row — now rejects an explicitly supplied but unwired `rubricVersion` instead of
+  silently falling through to whatever `createWitanReport` does with a version string it doesn't
+  recognize. A certificate's `rubricVersion` field is a provenance claim; a rubric that never ran
+  must never be named there. Found while regenerating the public leaderboard, when
+  `witan-rubric-v19-prospective-2026-08-09` turned out never to have been wired into the general
+  dispatch and produced results anyway. An absent selector is unaffected and still takes the
+  calibrated public default.
+
 ### Added
 
 - The release-currency verifier now checks an eleventh surface: the published leaderboard

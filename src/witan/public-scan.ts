@@ -5,6 +5,7 @@ import type { WitanInputSignal, WitanReport } from './schemas.js';
 import { isWitanNoMeasurementAbstention } from './abstention.js';
 import { discoverIngestInputs, expandIngestPattern, parseIngestFile } from './ingest.js';
 import { buildWitanInputFromRepo, explainNoMeasurementSourceCoverage } from './repo-signals.js';
+import { assertSelectableRubricVersion } from './rubric-version.js';
 import { createWitanReport } from './scoring.js';
 
 /**
@@ -27,6 +28,12 @@ export interface PublicCejelScoreOptions {
 }
 
 export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): WitanReport {
+  // A present-but-unwired selector must fail closed, not fall through to whatever
+  // createWitanReport does with a version string it doesn't recognize. An absent selector is
+  // untouched here — the schema default (the calibrated public rubric) applies downstream.
+  if (options.rubricVersion !== undefined) {
+    assertSelectableRubricVersion(options.rubricVersion);
+  }
   const input = buildWitanInputFromRepo({
     productSlug: options.productSlug,
     productDisplayName: options.productDisplayName,
