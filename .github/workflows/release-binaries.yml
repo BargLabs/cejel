@@ -114,7 +114,18 @@ jobs:
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
-          path: ${{ steps.package.outputs.root }}
+          # Scoped to the built artifact directory, not steps.package.outputs.root: root
+          # falls back to the full $GITHUB_WORKSPACE checkout whenever packages/witan-cli
+          # isn't present (which is every real run of this workflow against the standalone
+          # cejel repo — that directory only ever exists in the alfred monorepo), which
+          # would hand syft the label-class calibration paths
+          # (calibration/llm/private/**, calibration/llm/cohorts/**, and the other patterns
+          # inventoried during the 2026-08-18 audit) alongside everything else. An SBOM
+          # should describe the shipped artifact's contents, not the source repo; scoping
+          # to .build/cejel-sea structurally excludes calibration/** regardless of which
+          # branch "root" resolved to, rather than relying on an allowlist/denylist that
+          # would need to be kept in sync with that pattern inventory by hand.
+          path: ${{ steps.package.outputs.root }}/.build/cejel-sea
           format: spdx-json
           artifact-name: ${{ matrix.asset }}.spdx.json
           output-file: ${{ steps.package.outputs.root }}/.build/cejel-sea/${{ matrix.asset }}.spdx.json
