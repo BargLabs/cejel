@@ -37,6 +37,18 @@ whole file was unread.
 **If the constraints file cannot be resolved at that path, report the absence explicitly and
 name what governed the run instead; never proceed silently.**
 
+## IP boundary (2026-08-18 — governs all public-facing work)
+
+You give away the exam, never the answer key. Open by design: methodology, rubric, spent
+calibration-frame membership (revealed at retirement), records, failures. CLOSED — never
+published, quoted, summarized, or decrypted into anything public, under any framing:
+adjudication labels, reviewer notes, evidence corpora, live frame membership, alfred
+implementation, keys, counterparty specifics. A retirement-reveal contains members + pinned
+commits ONLY. Any task that appears to need label-class material on a public surface stops
+and hands back to the operator. Authority: the operator's disclosure boundary decision
+(`_studio/disclosure_boundary_2026-08-18.md`, 2026-08-18) — that file lives in the operator's
+private lab notes, not this repository; ask the operator if you need to read it directly.
+
 ## Project
 
 Cejel — an offline, no-LLM trust-certificate CLI. It scores a repository against a published
