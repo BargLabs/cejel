@@ -72,7 +72,7 @@ Remote symbolic `HEAD` still resolves to `main` at the exact prior frozen tips:
 | `houman44/site-machine` | `1e4106f131f9af27a9a314a0dbb2ecc35c09b441` | 2026-07-04 16:42:10 -07:00 |
 
 The standing-constraints file was not missing or unavailable. It exists at
-`/Users/bargs/projects/lab_notes/_studio/Standing_Constraints_2026-08-01.md`; it was outside the
+`<operator-home>/projects/lab_notes/_studio/Standing_Constraints_2026-08-01.md`; it was outside the
 Cejel repository boundary and therefore unreachable from the worktree-scoped search. The supplied
 goal brief controlled the run, as recorded before extraction in the preregistration. “Unreachable
 from the Cejel worktree” is the scoped result; the earlier description of the file as absent is

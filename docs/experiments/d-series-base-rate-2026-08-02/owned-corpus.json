@@ -7,43 +7,43 @@
       "fullName": "BargLabs/alfred",
       "url": "https://github.com/BargLabs/alfred.git",
       "revision": "5a8e496c33e783b2271827e78096e5f515f656a0",
-      "localPath": "/Users/bargs/projects/alfred"
+      "localPath": "<operator-home>/projects/alfred"
     },
     {
       "fullName": "houman44/edwin",
       "url": "https://github.com/houman44/edwin.git",
       "revision": "cf0512fa1b3286b132f931539f1e6a49392818e1",
-      "localPath": "/Users/bargs/projects/edwin"
+      "localPath": "<operator-home>/projects/edwin"
     },
     {
       "fullName": "BargStudio/egbert",
       "url": "https://github.com/BargStudio/egbert.git",
       "revision": "1a62ec1a08da85365fe0923e4edc717c45bc7930",
-      "localPath": "/Users/bargs/projects/egbert"
+      "localPath": "<operator-home>/projects/egbert"
     },
     {
       "fullName": "houman44/site-machine",
       "url": "https://github.com/houman44/site-machine.git",
       "revision": "6f443d1a8d55e476a2d5290e448e543e9b6dbcc7",
-      "localPath": "/Users/bargs/projects/site-machine"
+      "localPath": "<operator-home>/projects/site-machine"
     },
     {
       "fullName": "BargStudio/therasyn",
       "url": "https://github.com/BargStudio/therasyn.git",
       "revision": "95f6e7011810b19c300135f595dc81055a1a4aac",
-      "localPath": "/Users/bargs/projects/therasyn"
+      "localPath": "<operator-home>/projects/therasyn"
     },
     {
       "fullName": "BargLabs/cejel",
       "url": "https://github.com/BargLabs/cejel",
       "revision": "05d5d9fca79ea9cb1d34e64fa795f9713b6d1bf1",
-      "localPath": "/Users/bargs/projects/cejel"
+      "localPath": "<operator-home>/projects/cejel"
     },
     {
       "fullName": "houman44/knut",
       "url": "https://github.com/houman44/knut.git",
       "revision": "fb988af413582250268414a61a12ceef9bd98bbd",
-      "localPath": "/Users/bargs/projects/knut"
+      "localPath": "<operator-home>/projects/knut"
     }
   ]
 }

@@ -72,17 +72,17 @@ operator's existing credential helper and was never written to a result file.
 
 ```bash
 repos=(
-  'BargLabs/cejel|/Users/bargs/projects/cejel'
-  'BargStudio/egbert|/Users/bargs/projects/egbert'
-  'houman44/site-machine|/Users/bargs/projects/site-machine'
-  'BargLabs/alfred|/Users/bargs/projects/alfred'
-  'houman44/edwin|/Users/bargs/projects/edwin'
-  'BargStudio/therasyn|/Users/bargs/projects/therasyn'
-  'houman44/knut|/Users/bargs/projects/knut'
-  'BargLabs/edwy|/Users/bargs/projects/edwy'
-  'BargLabs/wilfrid|/Users/bargs/projects/wilfrid'
-  'houman44/barglabs-site|/Users/bargs/projects/barglabs-site'
-  'BargLabs/cejel-site|/Users/bargs/projects/cejel-site'
+  'BargLabs/cejel|<operator-home>/projects/cejel'
+  'BargStudio/egbert|<operator-home>/projects/egbert'
+  'houman44/site-machine|<operator-home>/projects/site-machine'
+  'BargLabs/alfred|<operator-home>/projects/alfred'
+  'houman44/edwin|<operator-home>/projects/edwin'
+  'BargStudio/therasyn|<operator-home>/projects/therasyn'
+  'houman44/knut|<operator-home>/projects/knut'
+  'BargLabs/edwy|<operator-home>/projects/edwy'
+  'BargLabs/wilfrid|<operator-home>/projects/wilfrid'
+  'houman44/barglabs-site|<operator-home>/projects/barglabs-site'
+  'BargLabs/cejel-site|<operator-home>/projects/cejel-site'
 )
 ```
 
