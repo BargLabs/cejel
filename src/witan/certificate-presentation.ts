@@ -14,8 +14,54 @@ export interface RelyingPartySummary {
   next: string;
 }
 
-// Presentation-only copy. Nothing in this file is added to WitanReport, so changing these words
-// cannot change report.json, its digest, a rubric score, or a calibrated status.
+// Every metric emitted by the repository detector must be registered here before it can compile.
+// The glossary guard below then requires a reader-facing definition for every registered name.
+// Labels are presentation-only: report values, maxima, weights, and rubric behavior do not read
+// this registry.
+export const CERTIFICATE_METRIC_REGISTRY = {
+  test_to_source_ratio: { displayLabel: 'Test-to-source file ratio' },
+  coverage_percent: { displayLabel: 'Static coverage percentage' },
+  verification_script_ratio: { displayLabel: 'Verification script ratio' },
+  non_hollow_test_share: { displayLabel: 'Non-hollow test share' },
+  secret_cleanliness: { displayLabel: 'Secret cleanliness' },
+  env_handling_depth: { displayLabel: 'Environment handling depth' },
+  rls_policy_count: { displayLabel: 'RLS policy count' },
+  tenant_scope_ratio: { displayLabel: 'Tenant-scoped schema ratio' },
+  crypto_comparison_hygiene: { displayLabel: 'Crypto comparison hygiene' },
+  prod_readiness_primitives: { displayLabel: 'Production-readiness basic checks' },
+  prod_workflow_depth: {
+    displayLabel: 'Production workflow depth (automated build/test/release pipeline)',
+  },
+  observability_depth: { displayLabel: 'Observability depth' },
+  rollback_safety_depth: { displayLabel: 'Rollback and migration-safety depth' },
+  dependency_automation_ratio: { displayLabel: 'Dependency automation ratio' },
+  pinned_dependency_ratio: { displayLabel: 'Pinned dependency ratio' },
+  lockfile_coverage: { displayLabel: 'Lockfile coverage' },
+  declared_version_range_ratio: { displayLabel: 'Declared version range ratio' },
+  dependency_count_sanity: { displayLabel: 'Dependency count sanity' },
+  claim_match_rate: { displayLabel: 'Claim match rate' },
+  claim_source_depth: { displayLabel: 'Claim source depth' },
+  reconciliation_artifact_depth: { displayLabel: 'Reconciliation artifact depth' },
+  pr_trace_primitives: { displayLabel: 'PR trace basic checks' },
+  pr_merge_ratio: { displayLabel: 'Recent commits with recognizable PR references' },
+  ci_script_depth: { displayLabel: 'CI verification depth' },
+  default_branch_ci_depth: {
+    displayLabel: 'PR-gate CI workflow count (automated build/test pipeline)',
+  },
+  audit_artifact_depth: { displayLabel: 'Audit artifact depth' },
+  audit_freshness_depth: { displayLabel: 'Audit freshness depth' },
+  kill_switch_fail_safe_present: { displayLabel: 'Un-overridable kill-switch present' },
+  human_gate_documented: { displayLabel: 'Human gate documented' },
+  fail_closed_privilege_check: { displayLabel: 'Fail-closed privilege check present' },
+  privilege_escalation_cleanliness: { displayLabel: 'Privilege-escalation cleanliness' },
+  protected_path_review_gate: { displayLabel: 'Protected-path review gate' },
+} as const;
+
+export type CertificateMetricName = keyof typeof CERTIFICATE_METRIC_REGISTRY;
+
+// Reader-facing copy. Detector-produced component names are carried as optional presentation
+// metadata in WitanReport so a persisted certificate can still name what was present and missing.
+// None of this copy participates in metric values, weights, scores, or calibrated statuses.
 export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
   {
     key: 'labels',
@@ -33,216 +79,225 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
   },
   {
     key: 'test-to-source-file-ratio',
-    term: 'test-to-source file ratio',
+    term: 'Test-to-source file ratio',
     definition:
       'The number of detected test files compared with detected source files. A larger implementation surface needs a correspondingly visible test surface.',
     metricNames: ['test_to_source_ratio'],
   },
   {
     key: 'static-coverage',
-    term: 'static coverage',
+    term: 'Static coverage percentage',
     definition:
       'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives.',
     metricNames: ['coverage_percent'],
   },
   {
     key: 'verification-script',
-    term: 'verification script',
-    definition: 'the checks that run automatically: tests, linting, type-checking, build',
+    term: 'Verification script ratio',
+    definition:
+      'A capped scoring input that adds one for each detected test, coverage, lint, or type-check command and one for each detected test-runner configuration file. The raw count is capped at four for scoring. Build is not measured by this metric.',
     metricNames: ['verification_script_ratio'],
   },
   {
     key: 'non-hollow',
-    term: 'non-hollow',
+    term: 'Non-hollow test share',
     definition: 'test files that actually assert something rather than being empty or skipped',
     metricNames: ['non_hollow_test_share'],
   },
   {
     key: 'secrets',
-    term: 'secrets',
-    definition: 'credentials like API keys and tokens',
+    term: 'Secret cleanliness',
+    definition:
+      'A binary result. Clean means the static repository-tree and reachable-history scan produced no critical secret finding. It is not a count of files containing secrets.',
     metricNames: ['secret_cleanliness'],
   },
   {
     key: 'environment-handling-depth',
-    term: 'environment handling depth',
+    term: 'Environment handling depth',
     definition:
-      'The visible controls for keeping environment-specific configuration and credentials out of source. Unsafe configuration handling can expose production access.',
+      'A count of three named practices: an environment template file, a .gitignore rule for environment files, and environment reads in implementation code in a supported language.',
     metricNames: ['env_handling_depth'],
   },
   {
     key: 'rls-policy-count',
     term: 'RLS policy count',
     definition:
-      'The number of detected database row-level security policies. Those policies can enforce which rows each tenant or user may reach.',
+      'A selected-rubric static count of row-level-security markers. The calibrated detector counts CREATE POLICY, ENABLE ROW LEVEL SECURITY, and FORCE ROW LEVEL SECURITY matches. Prospective native-RLS detection counts repository-native CREATE POLICY definitions.',
     metricNames: ['rls_policy_count'],
   },
   {
     key: 'tenant-scoped-schema-ratio',
-    term: 'tenant-scoped schema ratio',
+    term: 'Tenant-scoped schema ratio',
     definition:
-      'The share of relevant database tables with a visible tenant boundary. Missing tenant scope can allow one customer\'s data to mix with another\'s.',
+      'The share of detected data-layer or migration files carrying the selected rubric\'s tenant-scope marker. Prospective native-RLS detection instead uses repository-native scoped storage files. It is a file-level static proxy, not a table-by-table proof.',
     metricNames: ['tenant_scope_ratio'],
   },
   {
     key: 'crypto-comparison-hygiene',
-    term: 'crypto comparison hygiene',
+    term: 'Crypto comparison hygiene',
     definition:
-      'Comparisons of secret values that take the same time whether or not the values match. Attackers therefore cannot recover secrets by measuring response times.',
+      'A conditional binary result shown only when production code exposes a signing, HMAC, or secret-comparison surface. Clean means no detected plain-equality secret comparison or non-canonical JSON signing pattern. Detected constant-time comparison and canonical serialization are positive evidence, but the metric does not require both when only one relevant surface exists.',
     metricNames: ['crypto_comparison_hygiene'],
   },
   {
-    key: 'basic-checks',
-    term: 'basic checks',
+    key: 'production-readiness-basic-checks',
+    term: 'Production-readiness basic checks',
     definition:
-      'In code trust, production-readiness basic checks cover build or type-check commands, automated pipelines, deployment configuration, environment templates, health checks, and error boundaries. In process trust, PR trace basic checks cover automated pipelines, pull-request templates, and review-gate records. Missing checks leave part of the acceptance path unsupported.',
-    metricNames: ['prod_readiness_primitives', 'pr_trace_primitives'],
+      'A count of six named checks: a build or type-check command, a CI workflow, deployment configuration, an environment template, a health or readiness signal, and an error boundary.',
+    metricNames: ['prod_readiness_primitives'],
+  },
+  {
+    key: 'pr-trace-basic-checks',
+    term: 'PR trace basic checks',
+    definition:
+      'A capped scoring input that counts detected CI workflow files, a pull-request template, and a review-gate record such as CODEOWNERS or branch-protection documentation. The raw count is capped at two for scoring.',
+    metricNames: ['pr_trace_primitives'],
   },
   {
     key: 'workflow-depth',
-    term: 'workflow depth',
+    term: 'Production workflow depth (automated build/test/release pipeline)',
     definition:
-      'Workflows here are automated build, test, or release pipelines, such as GitHub Actions, not team policy. This measures how many relevant pipeline stages Cejel can see rather than how many workflow files exist. A deeper pipeline checks more of the path to a release.',
+      'The number of detected CI workflow files plus deployment-configuration files, capped at six for scoring. It counts files, not team policies or distinct pipeline stages.',
     metricNames: ['prod_workflow_depth'],
   },
   {
     key: 'observability-depth',
-    term: 'observability depth',
+    term: 'Observability depth',
     definition:
-      'The visible health, logging, and error-reporting controls. Operators need evidence that failures can be detected and investigated.',
+      'The number of implementation files containing a recognized logging, metrics, tracing, or error-reporting marker, capped at four for scoring.',
     metricNames: ['observability_depth'],
   },
   {
     key: 'rollback-and-migration-safety-depth',
-    term: 'rollback and migration-safety depth',
+    term: 'Rollback and migration-safety depth',
     definition:
-      'The visible procedures and checks for reversing a release or changing stored data safely. Recovery and data changes are high-risk parts of accepting software.',
+      'The number of files under recognized documentation, migration, or script paths containing a rollback, reversal, undo, or migration-safety marker, capped at four for scoring.',
     metricNames: ['rollback_safety_depth'],
   },
   {
     key: 'dependency-automation-ratio',
-    term: 'dependency automation ratio',
+    term: 'Dependency automation ratio',
     definition:
       'The share of expected automated dependency-update and audit controls that are present. Stale or vulnerable packages otherwise depend on manual discovery.',
     metricNames: ['dependency_automation_ratio'],
   },
   {
     key: 'pinned-dependency-ratio',
-    term: 'pinned dependency ratio',
+    term: 'Pinned dependency ratio',
     definition:
       'The share of application dependencies fixed to exact versions. Exact inputs make deployed builds more reproducible.',
     metricNames: ['pinned_dependency_ratio'],
   },
   {
     key: 'lockfile-coverage',
-    term: 'lockfile coverage',
+    term: 'Lockfile coverage',
     definition:
-      'Whether the package manifests are backed by committed lockfiles. Lockfiles record the exact dependency versions selected for a build.',
+      'A binary check for at least one detected lockfile in the scanned package or its covering monorepo root. It does not compare each manifest with a separate lockfile.',
     metricNames: ['lockfile_coverage'],
   },
   {
     key: 'declared-version-range-ratio',
-    term: 'declared version range ratio',
+    term: 'Declared version range ratio',
     definition:
-      'The share of library dependencies with an explicit compatible version range. Unconstrained dependencies can change without a deliberate source change.',
+      'For a library or CLI, the share of detected dependency specifications carrying any explicit constraint, including an exact version or a compatible range. Bare names, *, latest, and x do not count.',
     metricNames: ['declared_version_range_ratio'],
   },
   {
     key: 'dependency-count-sanity',
-    term: 'dependency count sanity',
+    term: 'Dependency count sanity',
     definition:
-      'A bounded check for an unusually long list of direct dependencies for a library. Every direct dependency adds maintenance and supply-chain exposure.',
+      'A low-weight library/CLI metric with full credit through 120 detected dependency specifications across manifests, then linearly declining to zero over the next 240.',
     metricNames: ['dependency_count_sanity'],
   },
   {
     key: 'claim-match-rate',
-    term: 'claim match rate',
+    term: 'Claim match rate',
     definition:
-      'The share of documented product claims that match visible repository evidence. An acceptance claim should be checkable against the delivered revision.',
+      'A bounded static proxy: detected implementation-file count divided by that count plus detected headline claim-source document count. It does not semantically decide whether individual prose claims are true.',
     metricNames: ['claim_match_rate'],
   },
   {
     key: 'claim-source-depth',
-    term: 'claim source depth',
+    term: 'Claim source depth',
     definition:
-      'How much concrete, checkable claim material is present. Vague or missing claims give a relying party nothing specific to verify.',
+      'The number of detected README or headline claim-source documents, capped at four for scoring. It measures visible document depth, not the truth or specificity of their prose.',
     metricNames: ['claim_source_depth'],
   },
   {
     key: 'reconciliation-artifact-depth',
-    term: 'reconciliation artifact depth',
+    term: 'Reconciliation artifact depth',
     definition:
-      'The visible records connecting stated claims to evidence. A relying party needs to trace what was promised to what was inspected.',
+      'The number of detected dedicated claim-reality reconciliation artifacts, capped at three for scoring.',
     metricNames: ['reconciliation_artifact_depth'],
   },
   {
     key: 'recent-pr-merge-ratio',
-    term: 'recent PR merge ratio',
+    term: 'Recent commits with recognizable PR references',
     definition:
-      'The share of recent visible commits associated with merged pull requests. Review history helps a relying party inspect how changes reached the revision.',
+      'Among up to 12 recent local commit subjects, the share containing “merge pull request”, “pull request”, or a #number reference. A zero means no recognizable reference was found, not that Cejel detected a merge without a PR. When history is empty or unavailable, scoring conservatively uses a denominator of one.',
     metricNames: ['pr_merge_ratio'],
   },
   {
     key: 'ci-verification-depth',
     term: 'CI verification depth',
     definition:
-      'The number of test, lint, type-check, and build categories Cejel sees running in continuous integration. Automated gates make checks repeatable for each change.',
+      'A capped scoring input that adds package-script and CI-command detections separately for test, lint, type-check, and build. The same category can therefore contribute once as a package script and once in CI. The raw count is capped at four for scoring.',
     metricNames: ['ci_script_depth'],
   },
   {
     key: 'pr-gate-ci-workflow-count',
-    term: 'PR-gate CI workflow count',
+    term: 'PR-gate CI workflow count (automated build/test pipeline)',
     definition:
-      'Workflows here are automated build and test pipelines, such as GitHub Actions, not team policy. This counts pipelines that visibly run on pull requests or the default branch. Checks that never gate changes cannot support the acceptance decision.',
+      'The number of detected CI workflow files configured for pull requests or the main or master branch, including a covering monorepo-root workflow, capped at four for scoring.',
     metricNames: ['default_branch_ci_depth'],
   },
   {
     key: 'audit-artifact-depth',
-    term: 'audit artifact depth',
+    term: 'Audit artifact depth',
     definition:
-      'How many durable audit records such as changelogs, incident notes, or security records are present. Past operational decisions should remain inspectable.',
+      'The number of files whose paths match recognized changelog, audit, incident, status, runbook, provenance, release-note, or security-policy forms, capped at three for scoring.',
     metricNames: ['audit_artifact_depth'],
   },
   {
     key: 'audit-freshness-depth',
-    term: 'audit freshness depth',
+    term: 'Audit freshness depth',
     definition:
-      'How recently the visible audit records were maintained. Stale records may not describe the revision being accepted.',
+      'The share of detected audit-artifact files containing recent, latest, or current, or the applicable reference year. The calibrated rubric uses the scan year. Prospective v19 uses the scanned HEAD committer year when available. This is a text-marker proxy, not a file-history age check.',
     metricNames: ['audit_freshness_depth'],
   },
   {
     key: 'un-overridable-kill-switch',
-    term: 'un-overridable kill-switch',
+    term: 'Un-overridable kill-switch present',
     definition:
-      'A stop control that ordinary automation cannot bypass. Operators need a dependable way to halt privileged behavior.',
+      'A positive-only binary check for a named governance or safety toggle whose falsy state immediately returns or throws before lower-priority configuration can proceed. The metric is omitted when no such pattern is detected.',
     metricNames: ['kill_switch_fail_safe_present'],
   },
   {
     key: 'human-gate-documented',
-    term: 'human gate documented',
+    term: 'Human gate documented',
     definition:
-      'A written requirement for a person to approve sensitive operations. High-impact actions should not rely only on unattended automation.',
+      'A binary check for documentation saying privileged or credentialed operations are human-executed or human-gated and never agent-run. It is scored only when a privileged-operation-shaped surface exists.',
     metricNames: ['human_gate_documented'],
   },
   {
     key: 'fail-closed-privilege-check',
-    term: 'fail-closed privilege check',
+    term: 'Fail-closed privilege check present',
     definition:
-      'A permission check that refuses the operation when it cannot reach a confident allow decision. Errors must not silently grant elevated access.',
+      'A binary check for implementation code that checks role membership and fails closed before setting or elevating a role. It is scored only when a privileged-operation-shaped surface exists.',
     metricNames: ['fail_closed_privilege_check'],
   },
   {
     key: 'privilege-escalation-cleanliness',
-    term: 'privilege-escalation cleanliness',
+    term: 'Privilege-escalation cleanliness',
     definition:
-      'The absence of detected patterns that unsafely widen permissions. Unnecessary elevation increases the impact of a mistake or compromise.',
+      'A binary result. Clean means the selected rubric detected no ungated production privilege-escalation pattern. The calibrated detector checks executed role-membership grants and SUPERUSER escalation. Prospective v21 also checks authored administrative SQL and direct database-driver literals for administrative role grants and schema-wide table grants. Tests and fixtures are excluded from the metric.',
     metricNames: ['privilege_escalation_cleanliness'],
   },
   {
     key: 'protected-path-review-gate',
-    term: 'protected-path review gate',
+    term: 'Protected-path review gate',
     definition:
-      'A rule requiring review before sensitive files or directories can change. Critical controls deserve an explicit second check.',
+      'A binary check for a CODEOWNERS file or documentation of required review or branch protection. This is the repository-visible proxy for human review of sensitive-path changes.',
     metricNames: ['protected_path_review_gate'],
   },
 ] as const;
@@ -266,21 +321,10 @@ export function glossaryEntryForMetric(metric: WitanCriterionMetric): Certificat
   );
 }
 
-// prod_readiness_primitives and pr_trace_primitives keep their explicit override even though
-// repo-signals.ts now emits this same plain-English text directly: report data written by an
-// older Cejel version can still carry the retired "primitive coverage" label, and this override
-// normalizes that legacy text at render time regardless of what the stored report says.
-const CERTIFICATE_METRIC_LABELS: Readonly<Record<string, string>> = {
-  prod_readiness_primitives: 'Production-readiness basic checks',
-  pr_trace_primitives: 'PR trace basic checks',
-  prod_workflow_depth:
-    'Production workflow depth (automated build/test/release pipeline)',
-  default_branch_ci_depth:
-    'PR-gate CI workflow count (automated build/test pipeline)',
-};
-
 export function formatCertificateMetricLabel(metric: WitanCriterionMetric): string {
-  return CERTIFICATE_METRIC_LABELS[metric.name] ?? metric.label;
+  return (
+    CERTIFICATE_METRIC_REGISTRY[metric.name as CertificateMetricName]?.displayLabel ?? metric.label
+  );
 }
 
 export function glossaryEntriesForReport(report: WitanReport): readonly CertificateGlossaryEntry[] {
@@ -309,6 +353,78 @@ function labelAlreadyStatesUnit(label: string, unit: string | undefined): boolea
   return new RegExp(`(?:^|[\\s-])${escapedUnit}$`, 'i').test(label.trim());
 }
 
+const BINARY_METRIC_COPY: Readonly<
+  Partial<Record<CertificateMetricName, { positive: string; negative: string }>>
+> = {
+  secret_cleanliness: {
+    positive: 'clean — no critical secret findings detected',
+    negative: 'not clean — one or more critical secret findings detected',
+  },
+  crypto_comparison_hygiene: {
+    positive: 'clean — no insecure comparison or serialization pattern detected',
+    negative: 'not clean — an insecure comparison or serialization pattern was detected',
+  },
+  lockfile_coverage: {
+    positive: 'present — at least one covering lockfile detected',
+    negative: 'missing — no covering lockfile detected',
+  },
+  kill_switch_fail_safe_present: {
+    positive: 'present — a fail-closed safety toggle was detected',
+    negative: 'missing — no fail-closed safety toggle detected',
+  },
+  human_gate_documented: {
+    positive: 'present — privileged operations are documented as human-executed or gated',
+    negative: 'missing — no human-gate documentation detected',
+  },
+  fail_closed_privilege_check: {
+    positive: 'present — role membership is checked fail-closed before elevation',
+    negative: 'missing — no fail-closed pre-elevation role check detected',
+  },
+  privilege_escalation_cleanliness: {
+    positive: 'clean — no ungated production privilege-escalation pattern detected',
+    negative: 'not clean — an ungated production privilege-escalation pattern was detected',
+  },
+  protected_path_review_gate: {
+    positive: 'present — CODEOWNERS or a documented required-review policy was detected',
+    negative: 'missing — no CODEOWNERS or documented required-review policy detected',
+  },
+};
+
+const CONDITIONAL_METRIC_COPY: Readonly<Partial<Record<CertificateMetricName, string>>> = {
+  crypto_comparison_hygiene: 'scored because a signing, HMAC, or secret-comparison surface was detected',
+  rls_policy_count: 'scored because a multi-tenant data surface was detected',
+  tenant_scope_ratio: 'scored because a multi-tenant data surface was detected',
+  human_gate_documented: 'scored because a privileged-operation-shaped surface was detected',
+  fail_closed_privilege_check: 'scored because a privileged-operation-shaped surface was detected',
+  kill_switch_fail_safe_present:
+    'shown because a fail-closed kill switch was detected; this positive-only metric is omitted when absent',
+};
+
+function appendMetricCondition(metric: WitanCriterionMetric, value: string): string {
+  const condition =
+    metric.presentation?.condition ??
+    CONDITIONAL_METRIC_COPY[metric.name as CertificateMetricName];
+  return condition ? `${value}; ${condition}` : value;
+}
+
+function formatEnumerableMetric(metric: WitanCriterionMetric): string | null {
+  const components = metric.presentation?.components;
+  if (!components || metric.max === undefined) return null;
+  const present = components
+    .filter((component) => component.count > 0)
+    .map((component) =>
+      component.count === 1 ? component.label : `${component.label} (${component.count} detected)`,
+    );
+  const missing = components
+    .filter((component) => component.count === 0)
+    .map((component) => component.label);
+  const value =
+    metric.kind === 'saturating_count' && metric.value > metric.max
+      ? `${formatMetricNumber(metric.max)}/${formatMetricNumber(metric.max)} (capped; ${formatMetricNumber(metric.value)} raw)`
+      : `${formatMetricNumber(metric.value)}/${formatMetricNumber(metric.max)}`;
+  return `${value} — present: ${present.length > 0 ? present.join(', ') : 'none'}; missing: ${missing.length > 0 ? missing.join(', ') : 'none'}`;
+}
+
 export function formatCertificateMetricValue(
   criterion: WitanCriterionScore,
   metric: WitanCriterionMetric,
@@ -320,13 +436,27 @@ export function formatCertificateMetricValue(
     const tests = formatMetricNumber(metric.value);
     const sources = formatMetricNumber(metric.max);
     const comparison = `${tests} test file${metric.value === 1 ? '' : 's'} / ${sources} source file${metric.max === 1 ? '' : 's'}`;
-    return metric.value > metric.max ? `${comparison} (credit capped at parity)` : comparison;
+    return appendMetricCondition(
+      metric,
+      metric.value > metric.max ? `${comparison} (credit capped at parity)` : comparison,
+    );
   }
-  // A unit that repeats the trailing word of its own label (e.g. label "Recent PR merge
-  // ratio" with unit "ratio") reads as a typo once concatenated ("Recent PR merge ratio
-  // 0/1 ratio"), so suppress the unit in that case rather than showing it twice. The basic-check
-  // metrics keep their unconditional "checks" unit (see the CERTIFICATE_METRIC_LABELS comment
-  // above) so legacy report data normalizes the same way it always has.
+  const binaryCopy = BINARY_METRIC_COPY[metric.name as CertificateMetricName];
+  if (binaryCopy && metric.max === 1 && (metric.value === 0 || metric.value === 1)) {
+    return appendMetricCondition(metric, metric.value === 1 ? binaryCopy.positive : binaryCopy.negative);
+  }
+  if (metric.name === 'pr_merge_ratio' && metric.max !== undefined) {
+    const value =
+      metric.value === 0
+        ? `none found in bounded recent commit subjects (scoring value 0/${formatMetricNumber(metric.max)})`
+        : `${formatMetricNumber(metric.value)} of ${formatMetricNumber(metric.max)} recent commit subjects contain a recognizable PR reference`;
+    return appendMetricCondition(metric, value);
+  }
+  const enumerable = formatEnumerableMetric(metric);
+  if (enumerable) return appendMetricCondition(metric, enumerable);
+  // A unit that repeats the trailing word of its own label reads as a typo once concatenated, so
+  // suppress it. The basic-check metrics retain their reader-facing "checks" unit for legacy
+  // reports that predate component-level presentation data.
   const displayUnit =
     metric.name === 'prod_readiness_primitives' || metric.name === 'pr_trace_primitives'
       ? 'checks'
@@ -334,11 +464,19 @@ export function formatCertificateMetricValue(
         ? undefined
         : metric.unit;
   const unit = displayUnit ? ` ${displayUnit}` : '';
-  if (metric.max === undefined) return `${formatMetricNumber(metric.value)}${unit}`;
-  if (metric.kind === 'saturating_count' && metric.value > metric.max) {
-    return `${formatMetricNumber(metric.max)}${unit} (capped; ${formatMetricNumber(metric.value)} raw)`;
+  if (metric.max === undefined) {
+    return appendMetricCondition(metric, `${formatMetricNumber(metric.value)}${unit}`);
   }
-  return `${formatMetricNumber(metric.value)}/${formatMetricNumber(metric.max)}${unit}`;
+  if (metric.kind === 'saturating_count' && metric.value > metric.max) {
+    return appendMetricCondition(
+      metric,
+      `${formatMetricNumber(metric.max)}${unit} (capped; ${formatMetricNumber(metric.value)} raw)`,
+    );
+  }
+  return appendMetricCondition(
+    metric,
+    `${formatMetricNumber(metric.value)}/${formatMetricNumber(metric.max)}${unit}`,
+  );
 }
 
 export function buildRelyingPartySummary(report: WitanReport): RelyingPartySummary {
@@ -354,6 +492,16 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   if (a1 && coverageMetric && isCoverageNotMeasured(a1, coverageMetric)) {
     gaps.push(
       'No coverage report or configured threshold was found, so static coverage was not measured; Cejel does not run the subject\'s tests.',
+    );
+  }
+  if (
+    !report.repo.headSha &&
+    report.criteria.some((criterion) =>
+      criterion.metrics.some((metric) => metric.name === 'pr_merge_ratio'),
+    )
+  ) {
+    gaps.push(
+      'Git history was unavailable, so the recent-commit PR-reference proxy found no commit subjects to inspect; its conservative scoring zero is not a detected merge outcome.',
     );
   }
   const unmeasured = applicable.filter((criterion) => criterion.status === 'insufficient_data');
