@@ -265,3 +265,38 @@ and cryptographically resolved finding paths from frozen records. Free-core pari
 embedded `test_run`; prohibited-claim absence requires an embedded `claim_audit`. Their exact JSON
 bytes, check-specific assertions, assertion evidence content, detector build, and source commit are
 verified. A missing, opaque, generic, tampered, wrong-kind, or contradictory record prevents evaluation.
+
+## 11. Public disclosure boundary
+
+**Effective cycle:** the first new LLM-track calibration cycle initiated after v1.9's retirement
+(the v1.9 successor), and every later cycle.
+
+The complete adjudication and review record remains required for internal measurement and audit,
+but it is private. Raw labels, adjudications, reviewer records or notes, evidence payloads, and any
+other artifact that exposes item-level ground truth must never be published, whether as plaintext,
+ciphertext, an archive, or an embedded workflow artifact. Public references to private records are
+content commitments only; a digest does not authorize publication of the committed bytes.
+
+Each cycle instead publishes a public calibration digest containing only:
+
+- the protocol and cycle identifiers, immutable detector and public-method references, and the
+  declared claim boundary;
+- denominated aggregate counts and metrics required by sections 8-10, including per-rule support,
+  uncertainty, exclusions, limitations, and the recorded GO/NO-GO decision;
+- canonical SHA-256 commitments to each closed record class needed to bind the private evidence
+  chain, with the committed class, hash contract, and any self-excluded digest field named; and
+- public correction, withdrawal, or supersession notices expressed without item-level labels,
+  review rationale, or evidence.
+
+Commitments use the repository's `rfc8785-sha256-v1` convention in
+[`docs/calibration/hash-conventions.md`](../../docs/calibration/hash-conventions.md). Live frame
+membership is represented publicly by its commitment. At retirement, a separate reveal may name
+only the frame members and their pinned commits so the commitment can be verified; labels,
+adjudications, review material, and evidence remain private after retirement.
+
+The review, result, and adjudication-stage records already published before this amendment remain
+sanctioned historical baseline; they are not retracted or deleted solely because of this forward
+rule. That fixed exception is the baseline enumerated by the disclosure scanner tracked in
+[Alfred #1055](https://github.com/BargLabs/alfred/issues/1055). It does not authorize revisions,
+successors, or newly published raw records. Any new public item-level ground-truth artifact is a
+policy violation, including one derived from a historical cycle.
