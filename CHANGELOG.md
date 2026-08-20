@@ -40,9 +40,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   counts, conditional metrics state why they apply, and the recent-commit PR proxy names the
   commit-subject pattern it actually measures. The HTML tooltips and glossary use the same copy as
   Markdown and terminal output. A registry-to-glossary guard now fails CI if any emitted metric
-  lacks an exact reader-facing glossary entry. This presentation-only pass changes no metric
-  value, maximum, weight, score, status, or rubric version. Prompted by an external-style fresh
-  read of a generated certificate.
+  lacks an exact reader-facing glossary entry. This is presentation-only, but it is not byte- or
+  schema-identical to 0.4.4: new scans' `report.json` metric objects may carry the new optional
+  `presentation.components[]` entries (`label` and `count`) and
+  `presentation.condition`. Consequently, a new scan of the same commit is not byte-identical to
+  its 0.4.4 `report.json`; the report SHA-256 values in `attestation.json` change with those report
+  bytes, and the Markdown, HTML, and terminal certificate text changes by design. Reports without
+  these optional fields remain schema-valid, previously generated certificates remain valid, and
+  their existing report/attestation digest bindings still verify. No metric value, maximum,
+  weight, status, score, or rubric version changes. Prompted by an external-style fresh read of a
+  generated certificate.
 
 ## [0.4.4] — 2026-08-18
 
@@ -130,11 +137,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   bindings, dynamic access, object aliases, whole-object flow, getters, unsupported control flow,
   missing sources, or parse failures. `cejel scan`, A1-B6 scoring, rubric versions, and the
   leaderboard are unchanged — nothing here runs unless a caller imports the subpath explicitly.
-- Adds three explicit-only prospective rubric versions, each reachable only by explicit opt-in —
-  a committed evaluation driver that passes `rubricVersion`, or (see `--rubric-pin` below) the
-  public `cejel scan --rubric-pin <version>` flag added later in this release. `cejel scan`'s
-  public default stays on the calibrated `witan-rubric-v17-2026-07-24` and none of the following
-  run unless separately selected:
+- Adds three explicit-only prospective rubric versions, each reachable in 0.4.4 only through a
+  committed evaluation driver that passes `rubricVersion`. The public
+  `cejel scan --rubric-pin <version>` flag described under Unreleased was added to main after
+  0.4.4 and is not part of this release. `cejel scan`'s public default stays on the calibrated
+  `witan-rubric-v17-2026-07-24` and none of the following run unless separately selected:
   - **v20** narrowly bounded A3 production-readiness findings (missing build/typecheck script,
     inactive Dockerfile `HEALTHCHECK`, or a direct HTTP entrypoint with no health/readiness route),
     each citing the exact manifest, entrypoint, or Dockerfile.

@@ -500,7 +500,7 @@ describe('certificate presentation regressions', () => {
   });
 });
 
-// Renderer-level lock for the --rubric-pin prospective-rubric notice (src/index.ts, 0.4.4): a
+// Renderer-level lock for the unreleased, post-0.4.4 --rubric-pin prospective-rubric notice: a
 // calibrated (v17) report's HTML/Markdown/terminal output must be byte-identical to before the
 // notice existed, and a prospective (v18-v22) report's output must carry the notice on every
 // human-facing renderer — never on the machine-readable summary.

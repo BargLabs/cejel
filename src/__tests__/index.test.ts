@@ -590,7 +590,8 @@ describe('v22 calibration-only entrypoint', () => {
   });
 });
 
-// --rubric-pin (0.4.4): the first PUBLIC, CLI-flag opt-in into a prospective rubric. Previously
+// --rubric-pin (Unreleased; added after 0.4.4): the first PUBLIC, CLI-flag opt-in into a
+// prospective rubric. Previously
 // the only way to reach v18-v22 was a committed evaluation driver like
 // runWitanV22CalibrationCli above, which parses no CLI args a stranger controls. This makes the
 // "unpinned run cannot reach a prospective rubric" guarantee load-bearing for the first time —
