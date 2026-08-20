@@ -265,3 +265,68 @@ and cryptographically resolved finding paths from frozen records. Free-core pari
 embedded `test_run`; prohibited-claim absence requires an embedded `claim_audit`. Their exact JSON
 bytes, check-specific assertions, assertion evidence content, detector build, and source commit are
 verified. A missing, opaque, generic, tampered, wrong-kind, or contradictory record prevents evaluation.
+
+## 11. Publication boundary (2026-08-19 amendment)
+
+This section implements the 2026-08-19 maximum-moat operator ruling.
+
+**Effective cycle: v2.0, the first Free LLM Pack calibration cycle after v1.9.** This amendment is
+forward-looking. It does not alter any v1.2-v1.9 preregistration, result, or decision record.
+
+Beginning with v2.0, raw adjudication records, labels, review records, reviewer notes or rationales,
+and evidence payloads or corpora must never be published to a public repository, release artifact,
+workflow artifact, website, paper supplement, or other public surface, whether plaintext or
+encrypted. They remain in restricted private storage. Public output is limited to:
+
+- the aggregate denominated counts, metrics, uncertainty, exclusions, support counts, and
+  limitations required by sections 8-10;
+- the cycle's GO, NO-GO, withdrawal, failure, and correction summaries;
+- frozen-artifact and private-record-set digests and commitments; and
+- retired frame membership, limited to repository identity and pinned commit, after the frame's
+  single use has ended.
+
+Public output must not contain per-item labels, opportunity IDs joined to outcomes, evidence
+pointers or excerpts, reviewer prose, raw record filenames, per-record digests, or ciphertext of
+any closed record. Publishing an honest NO-GO or correction remains mandatory, but it uses the
+aggregate-and-commitment surface above rather than publishing the underlying records.
+
+### Public digest replacement
+
+For each closed record class, the public cycle summary replaces raw publication with one set-level
+commitment having exactly these fields:
+
+```json
+{
+  "record_class": "adjudication_and_review_records",
+  "record_count": 0,
+  "hash_contract": "rfc8785-sha256-v1",
+  "private_record_set_sha256": "<64 lowercase hex characters>",
+  "committed_at": "<RFC 3339 timestamp>"
+}
+```
+
+The other permitted `record_class` value is `evidence_payloads`. To compute
+`private_record_set_sha256`, form a private JSON object with `schema_version`, `cycle_id`,
+`record_class`, and `records`; sort `records` by stable internal record ID using code-point order;
+and hash the complete object with `sha256Canonical`. The digest is separate from the private object,
+so no field is self-excluded. `record_count` must equal the private array length. Follow
+[`docs/calibration/hash-conventions.md`](../../docs/calibration/hash-conventions.md), including its
+bare-hex exception for fields whose names end in `_sha256`, and commit the public summary before
+any result-dependent disclosure. Later public records cite the full Git commit SHA that first
+contained the summary; the summary does not embed its own commit SHA. The set-level digest binds the
+retained private record set; it does not make that set public or promise a later reveal.
+
+Live frame membership follows the same document's commit-then-reveal convention: publish the member
+list commitment at freeze, keep membership closed while live, and reveal only repository identity
+and pinned commit when the single-use frame retires. Adjudication, review, and evidence records stay
+closed after retirement.
+
+### Historical sanction and baseline
+
+The v1.2-v1.9 material already published under this track's earlier procedural-blinding practice,
+including `calibration/llm/reviews/**`, `calibration/llm/results/**`, historical experiment-stage
+records, and the historical encrypted evidence bundle, remains sanctioned as published. Alfred PR
+[#1055](https://github.com/BargLabs/alfred/pull/1055) enumerates those paths and blobs in the
+content-addressed scanner baseline. Nothing is deleted or retracted by this amendment. That baseline
+is an inventory of unretractable history, not permission to add a new label-class path or a precedent
+for v2.0 and later cycles; no successor to any historical raw or encrypted publication is permitted.
