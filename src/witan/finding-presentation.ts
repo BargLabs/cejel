@@ -10,7 +10,8 @@ const METRIC_DERIVED_FINDING_PATTERN =
 const REMEDIATION_BY_METRIC: Readonly<Record<string, string>> = {
   test_to_source_ratio: 'add concrete regression tests for the implementation surface',
   coverage_percent: 'configure coverage and publish a measured threshold or report',
-  verification_script_ratio: 'add explicit test, lint, and typecheck verification commands',
+  verification_script_ratio:
+    'add the missing test, coverage, lint, or type-check command or a test-runner configuration',
   non_hollow_test_share: 'replace skipped or placeholder tests with live assertions',
   env_handling_depth: 'document and enforce safe environment-secret handling',
   secret_cleanliness: 'remove committed secrets and rotate any exposed credentials',
@@ -28,7 +29,7 @@ const REMEDIATION_BY_METRIC: Readonly<Record<string, string>> = {
   claim_match_rate: 'align documented product claims with observable repository evidence',
   claim_source_depth: 'document concrete, checkable product claims',
   reconciliation_artifact_depth: 'publish a claim-to-evidence reconciliation record',
-  pr_merge_ratio: 'preserve merged pull-request history in the scanned clone',
+  pr_merge_ratio: 'preserve recognizable pull-request references in recent commit subjects',
   pr_trace_primitives: 'add pull-request templates and outcome-trace records',
   ci_script_depth: 'run the repository verification commands in CI',
   default_branch_ci_depth: 'run CI on the default branch and pull requests',

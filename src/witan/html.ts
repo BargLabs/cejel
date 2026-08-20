@@ -347,7 +347,7 @@ function renderCriterionCard(
   const statusReconciliation = renderStatusReconciliation(criterion);
   const historyWarning =
     gitHistoryUnavailable && criterion.metrics.some((metric) => metric.name === 'pr_merge_ratio')
-      ? `<p class="scan-warning"><strong>Scan limitation:</strong> Git history was unavailable (for example, this may be a source tarball), so the recent PR merge ratio is not a measured repository outcome and its displayed zero may undercount ${escapeHtml(criterion.id)}. Re-scan a full Git clone for this signal.</p>`
+      ? `<p class="scan-warning"><strong>Scan limitation:</strong> Git history was unavailable (for example, this may be a source tarball), so the recent-commit PR-reference proxy found no commit subjects to inspect. Its conservative scoring zero is not a detected merge outcome and may undercount ${escapeHtml(criterion.id)}. Re-scan a full Git clone for this signal.</p>`
       : '';
 
   return `<article class="criterion">

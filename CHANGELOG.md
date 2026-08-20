@@ -33,6 +33,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ... with this board's explicit prospective rubric pin declared"), which described a public
   pinning capability that did not actually exist in the published CLI until now.
 
+### Fixed
+
+- Human-readable certificates now explain every measurement without vendor interpretation. Fixed
+  enumerable checks name what was found and missing, binary outcomes no longer look like file
+  counts, conditional metrics state why they apply, and the recent-commit PR proxy names the
+  commit-subject pattern it actually measures. The HTML tooltips and glossary use the same copy as
+  Markdown and terminal output. A registry-to-glossary guard now fails CI if any emitted metric
+  lacks an exact reader-facing glossary entry. This presentation-only pass changes no metric
+  value, maximum, weight, score, status, or rubric version. Prompted by an external-style fresh
+  read of a generated certificate.
+
 ## [0.4.4] — 2026-08-18
 
 ### Fixed
