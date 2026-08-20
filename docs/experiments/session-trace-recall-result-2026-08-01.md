@@ -50,7 +50,7 @@ The committed source boundary was the 8,551-file, 22.1 GB manifest rooted at
 Deduplication preceded every funnel count. Exact byte duplicates across Alfred trace, active/archive,
 Cowork, and migrated machine paths were removed first. Remaining copies sharing provider/session ID
 were reduced to the valid JSONL copy with the greatest event count, with raw SHA-256 as the tie
-breaker. No path under `/Users/houman`, `/Users/bargs`, Air, MacBook, active, partial, or archive
+breaker. No path under `<legacy-operator-home>`, `<operator-home>`, Air, MacBook, active, partial, or archive
 received independent credit merely because it was copied.
 
 The eight files that changed after the freeze were excluded rather than silently reading their new

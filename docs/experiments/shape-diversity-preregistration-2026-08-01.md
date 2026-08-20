@@ -6,7 +6,7 @@ Status: frozen before remote-branch enumeration, candidate extraction, or shape 
 
 The pre-run scope statement below records the worktree-scoped search and remains unchanged as part
 of the frozen record. It must not be read as a global absence claim. The standing-constraints file
-exists at `/Users/bargs/projects/lab_notes/_studio/Standing_Constraints_2026-08-01.md`; it was
+exists at `<operator-home>/projects/lab_notes/_studio/Standing_Constraints_2026-08-01.md`; it was
 outside the Cejel repository boundary and therefore unreachable from that worktree-scoped search.
 This erratum narrows the claim's scope without changing any frozen method, prediction, or outcome.
 

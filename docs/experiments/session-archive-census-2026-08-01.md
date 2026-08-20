@@ -120,7 +120,7 @@ The live and migration roots contain 1,285 session-ID participations, 833 distin
 distinct scrubbed hashes. The migration root contains 685 IDs: 452 have an exact live-store hash
 and 233 occur in neither live IDs nor live hashes. Thus the migration is majority mirror by content
 but contains a material additive subset that the 3,542 union already counted. The live project-key
-directory names comprise 340 `/Users/bargs/...` keys, nine `/Users/houman/...` legacy keys, 14
+directory names comprise 340 `<operator-home>/...` keys, nine `<legacy-operator-home>/...` keys, 14
 `/private/...` keys, and three other keys; those labels do not determine content identity.
 
 ### Cowork

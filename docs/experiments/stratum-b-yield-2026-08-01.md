@@ -33,17 +33,17 @@ experiment.
 
 | Expansion order | Repository | Local repository | Frozen `main` tip | Scope |
 |---:|---|---|---|---|
-| 1 | `BargLabs/alfred` | `/Users/bargs/projects/alfred` | `76a631be63cf1be2cd4d9c6b303626a7124864c4` | primary |
-| 2 | `BargLabs/cejel` | `/Users/bargs/projects/cejel` | `97564ad17ddde4c64d213f78c98d316c01b0c12a` | primary |
-| 3 | `BargStudio/egbert` | `/Users/bargs/projects/egbert` | `b8346c235a9607c0efff31af6bb44a25ee4d16bb` | expansion |
-| 4 | `houman44/site-machine` | `/Users/bargs/projects/site-machine` | `1e4106f131f9af27a9a314a0dbb2ecc35c09b441` | expansion |
-| 5 | `houman44/edwin` | `/Users/bargs/projects/edwin` | `8a9e006d1bae6653f253608ddc11eb93570fc5a1` | expansion |
-| 6 | `BargStudio/therasyn` | `/Users/bargs/projects/therasyn` | `39f228590c2b2ecb47ddb420709d15c9271ad65a` | expansion |
-| 7 | `BargLabs/edwy` | `/Users/bargs/projects/edwy` | `99c1139ba187d7181ff9923edd782f66cc599aec` | expansion |
-| 8 | `houman44/knut` | `/Users/bargs/projects/knut` | `4609f13c43f8b772db2aee7020bd9dad8ffeca16` | expansion |
-| 9 | `BargLabs/wilfrid` | `/Users/bargs/projects/wilfrid` | `da0a474d361dd472c92e59c07b63b6139c390e42` | expansion |
-| 10 | `houman44/barglabs-site` | `/Users/bargs/projects/barglabs-site` | `1e164da9400b0c7b8f073f2df5bafad3af48d643` | expansion |
-| 11 | `BargLabs/cejel-site` | `/Users/bargs/projects/cejel-site` | `5ed796e3dc9926ae69e0b2b018026c099d211a2e` | expansion |
+| 1 | `BargLabs/alfred` | `<operator-home>/projects/alfred` | `76a631be63cf1be2cd4d9c6b303626a7124864c4` | primary |
+| 2 | `BargLabs/cejel` | `<operator-home>/projects/cejel` | `97564ad17ddde4c64d213f78c98d316c01b0c12a` | primary |
+| 3 | `BargStudio/egbert` | `<operator-home>/projects/egbert` | `b8346c235a9607c0efff31af6bb44a25ee4d16bb` | expansion |
+| 4 | `houman44/site-machine` | `<operator-home>/projects/site-machine` | `1e4106f131f9af27a9a314a0dbb2ecc35c09b441` | expansion |
+| 5 | `houman44/edwin` | `<operator-home>/projects/edwin` | `8a9e006d1bae6653f253608ddc11eb93570fc5a1` | expansion |
+| 6 | `BargStudio/therasyn` | `<operator-home>/projects/therasyn` | `39f228590c2b2ecb47ddb420709d15c9271ad65a` | expansion |
+| 7 | `BargLabs/edwy` | `<operator-home>/projects/edwy` | `99c1139ba187d7181ff9923edd782f66cc599aec` | expansion |
+| 8 | `houman44/knut` | `<operator-home>/projects/knut` | `4609f13c43f8b772db2aee7020bd9dad8ffeca16` | expansion |
+| 9 | `BargLabs/wilfrid` | `<operator-home>/projects/wilfrid` | `da0a474d361dd472c92e59c07b63b6139c390e42` | expansion |
+| 10 | `houman44/barglabs-site` | `<operator-home>/projects/barglabs-site` | `1e164da9400b0c7b8f073f2df5bafad3af48d643` | expansion |
+| 11 | `BargLabs/cejel-site` | `<operator-home>/projects/cejel-site` | `5ed796e3dc9926ae69e0b2b018026c099d211a2e` | expansion |
 
 Alfred and Cejel are always measured completely. If they contain fewer than ten B1 qualifiers, add
 expansion repositories in the table order, measuring each repository completely. Stop after the

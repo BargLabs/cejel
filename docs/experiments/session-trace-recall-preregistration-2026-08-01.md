@@ -41,13 +41,13 @@ manifest has:
 
 | Source label | Frozen root | JSONL files | Bytes | Unique raw content hashes within source |
 |---|---|---:|---:|---:|
-| `codex-archived` | `/Users/bargs/.codex/archived_sessions` | 1,675 | 10,577,874,876 | 1,675 |
-| `codex-active` | `/Users/bargs/.codex/sessions` | 854 | 740,634,850 | 854 |
-| `claude-code` | `/Users/bargs/.claude/projects` | 919 | 563,139,831 | 919 |
-| `alfred-trace` | `/Users/bargs/.alfred/trace/archive` | 4,165 | 7,795,195,993 | 3,188 |
-| `cowork-archive` | `/Users/bargs/.alfred/trace/cowork-archive` | 181 | 349,010,023 | 181 |
-| `cowork-live` | `/Users/bargs/Library/Application Support/Claude/local-agent-mode-sessions` | 643 | 1,756,910,269 | 642 |
-| `cowork-partial-141248` | `/Users/bargs/Library/Application Support/Claude.partial.20260611-141248/local-agent-mode-sessions` | 114 | 337,398,469 | 114 |
+| `codex-archived` | `<operator-home>/.codex/archived_sessions` | 1,675 | 10,577,874,876 | 1,675 |
+| `codex-active` | `<operator-home>/.codex/sessions` | 854 | 740,634,850 | 854 |
+| `claude-code` | `<operator-home>/.claude/projects` | 919 | 563,139,831 | 919 |
+| `alfred-trace` | `<operator-home>/.alfred/trace/archive` | 4,165 | 7,795,195,993 | 3,188 |
+| `cowork-archive` | `<operator-home>/.alfred/trace/cowork-archive` | 181 | 349,010,023 | 181 |
+| `cowork-live` | `<operator-home>/Library/Application Support/Claude/local-agent-mode-sessions` | 643 | 1,756,910,269 | 642 |
+| `cowork-partial-141248` | `<operator-home>/Library/Application Support/Claude.partial.20260611-141248/local-agent-mode-sessions` | 114 | 337,398,469 | 114 |
 
 The second partial Claude root contained no JSONL and contributes zero. Any file whose current
 bytes do not reproduce its frozen hash is excluded. Files created after the manifest are outside
@@ -68,8 +68,8 @@ Deduplication occurs before any funnel count.
    new-seed numerator.
 
 Raw path count, unique content count, unique session count, provider count, product count, and
-cross-source duplicate count will all be reported. Migrated `/Users/houman/...`,
-`/Users/bargs/...`, machine-labelled Air, MacBook, and any other copies receive no special-case
+cross-source duplicate count will all be reported. Migrated `<legacy-operator-home>/...`,
+`<operator-home>/...`, machine-labelled Air, MacBook, and any other copies receive no special-case
 credit; the identity rules above control them uniformly.
 
 ## Product scope and frozen replay tips
