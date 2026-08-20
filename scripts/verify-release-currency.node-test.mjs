@@ -209,6 +209,23 @@ test('a bare npx invocation inside leaderboard history does not fire', async () 
   assert.ok(lines.some((line) => line.startsWith('[PASS] leaderboard:')));
 });
 
+test('a current bare invocation after leaderboard history still fails', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({
+    declaredVersion: version,
+    pinVersion: null,
+    markdown:
+      `- Cejel version: @cejel/cejel@${version} (published, npx)\n\n` +
+      '## History\n\nA withdrawn run used `npx @cejel/cejel .`.\n\n' +
+      '## How to read this board\n\nRun current scans with `npx @cejel/cejel .`.\n',
+  });
+  const result = await rejectedRun(readers);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') &&
+    line.includes('Run current scans with `npx @cejel/cejel .`')));
+});
+
 test('cejel.dev with a correctly pinned hero command passes', async () => {
   const lines = [];
   await verifyReleaseCurrency({ version, readers: goodReaders(), write: (line) => lines.push(line) });

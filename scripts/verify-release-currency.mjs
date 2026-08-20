@@ -111,6 +111,16 @@ function leaderboardCurrentSection(markdown) {
   return historyHeading ? markdown.slice(0, historyHeading.index) : markdown;
 }
 
+function leaderboardWithoutHistory(markdown) {
+  const historyHeading = /^## History\s*$/m.exec(markdown);
+  if (!historyHeading) return markdown;
+  const afterHeading = historyHeading.index + historyHeading[0].length;
+  const nextCurrentHeading = /^## (?!History\s*$).+$/m.exec(markdown.slice(afterHeading));
+  return nextCurrentHeading
+    ? `${markdown.slice(0, historyHeading.index)}${markdown.slice(afterHeading + nextCurrentHeading.index)}`
+    : markdown.slice(0, historyHeading.index);
+}
+
 export function parseLeaderboardRecord(markdown) {
   const currentSection = leaderboardCurrentSection(String(markdown ?? ''));
   const declared = BOARD_CURRENT_VERSION_LINE.exec(currentSection);
@@ -512,7 +522,7 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
       break;
     case 'leaderboard':
       assertDeclaredVersion('leaderboard', 'scorer version', value.declaredVersion, value.pinVersion, version);
-      assertNoBareInvocation('leaderboard', leaderboardCurrentSection(value.markdown), {
+      assertNoBareInvocation('leaderboard', leaderboardWithoutHistory(value.markdown), {
         property: 'invocation',
       });
       break;
