@@ -166,12 +166,12 @@ describe('certificate presentation regressions', () => {
       expect(output).toContain(
         'test files that actually assert something rather than being empty or skipped',
       );
-      expect(output).toContain('credentials like API keys and tokens');
       expect(output).toContain(
-        'the checks that run automatically: tests, linting, type-checking, build',
+        'It is not a count of files containing secrets',
       );
+      expect(output).toContain('Build is not measured by this metric');
     }
-    expect(CERTIFICATE_GLOSSARY).toHaveLength(33);
+    expect(CERTIFICATE_GLOSSARY).toHaveLength(34);
   });
 
   it('renders every glossary entry in every human-readable surface with the revision-2 style', () => {
@@ -182,7 +182,7 @@ describe('certificate presentation regressions', () => {
       renderTerminalCertificate(buildWitanCliSummary(report), report),
     ];
 
-    expect(CERTIFICATE_GLOSSARY).toHaveLength(33);
+    expect(CERTIFICATE_GLOSSARY).toHaveLength(34);
     for (const entry of CERTIFICATE_GLOSSARY) {
       expect(entry.definition.toLowerCase()).not.toContain('it matters');
       expect(entry.definition).not.toContain(';');
@@ -283,10 +283,10 @@ describe('certificate presentation regressions', () => {
       'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives.',
     );
     expect(definitions['crypto-comparison-hygiene']).toBe(
-      'Comparisons of secret values that take the same time whether or not the values match. Attackers therefore cannot recover secrets by measuring response times.',
+      'A conditional binary result shown only when production code exposes a signing, HMAC, or secret-comparison surface. Clean means no detected plain-equality secret comparison or non-canonical JSON signing pattern. Detected constant-time comparison and canonical serialization are positive evidence, but the metric does not require both when only one relevant surface exists.',
     );
     expect(definitions['dependency-count-sanity']).toBe(
-      'A bounded check for an unusually long list of direct dependencies for a library. Every direct dependency adds maintenance and supply-chain exposure.',
+      'A low-weight library/CLI metric with full credit through 120 detected dependency specifications across manifests, then linearly declining to zero over the next 240.',
     );
   });
 
@@ -364,7 +364,8 @@ describe('certificate presentation regressions', () => {
     );
 
     expect(tarballHtml).toContain('Git history was unavailable');
-    expect(tarballHtml).toContain('displayed zero may undercount B2');
+    expect(tarballHtml).toContain('conservative scoring zero is not a detected merge outcome');
+    expect(tarballHtml).toContain('may undercount B2');
     expect(tarballHtml).toContain('Re-scan a full Git clone');
     expect(cloneHtml).not.toContain('Git history was unavailable');
   });
@@ -391,12 +392,16 @@ describe('certificate presentation regressions', () => {
     // formatCertificateMetricValue is what every renderer (HTML/Markdown/terminal) composes
     // with the label as "<label>: <value>" or "<label> <value>" — assert directly on it so this
     // test fails on the doubling regardless of a given renderer's separator/markup.
-    expect(formatCertificateMetricValue(b2, metric)).toBe('0/1');
-    expect(formatCertificateMetricValue(b2, metric)).not.toContain('ratio');
+    expect(formatCertificateMetricValue(b2, metric)).toBe(
+      'none found in bounded recent commit subjects (scoring value 0/1)',
+    );
+    expect(formatCertificateMetricValue(b2, metric)).not.toContain('merge');
 
     const markdown = renderWitanMarkdownReport(reportFixture([b2]));
-    expect(markdown).toContain('Recent PR merge ratio: 0/1 |');
-    expect(markdown).not.toContain('ratio: 0/1 ratio');
+    expect(markdown).toContain(
+      'Recent commits with recognizable PR references: none found in bounded recent commit subjects (scoring value 0/1) |',
+    );
+    expect(markdown).not.toContain('Recent PR merge ratio');
   });
 
   it('carries the CLI version in HTML and Markdown alike, so a stale cached CLI is visible in either format', () => {
@@ -495,7 +500,7 @@ describe('certificate presentation regressions', () => {
   });
 });
 
-// Renderer-level lock for the --rubric-pin prospective-rubric notice (src/index.ts, 0.4.4): a
+// Renderer-level lock for the unreleased, post-0.4.4 --rubric-pin prospective-rubric notice: a
 // calibrated (v17) report's HTML/Markdown/terminal output must be byte-identical to before the
 // notice existed, and a prospective (v18-v22) report's output must carry the notice on every
 // human-facing renderer — never on the machine-readable summary.

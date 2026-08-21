@@ -68,7 +68,8 @@ export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10
 
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
 // iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
-// harness, or (since 0.4.4) the public `cejel scan --rubric-pin <version>` flag (src/index.ts) —
+// harness, or (on main after 0.4.4) the unreleased public
+// `cejel scan --rubric-pin <version>` flag (src/index.ts) —
 // and inherit no precision, recall, false-positive-rate, or other calibration claim from v17.
 // Promotion to public default requires a fresh authenticated untouched holdout and a separately
 // recorded default decision; `--rubric-pin` does not itself constitute that decision.

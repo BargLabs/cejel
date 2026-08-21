@@ -35,7 +35,10 @@ const SEMVER_PATTERN =
 const SEMVER = new RegExp(`^${SEMVER_PATTERN}$`);
 const COMMIT = /^[0-9a-f]{40}$/;
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
-const BOARD_SCORER_LINE = new RegExp(`Scorer source version: @cejel/cejel@(${SEMVER_PATTERN})`);
+const BOARD_CURRENT_VERSION_LINE = new RegExp(
+  `^- Cejel version: @cejel/cejel@(${SEMVER_PATTERN})(?:\\s|$)`,
+  'm',
+);
 const BOARD_PIN_LINE = new RegExp(
   `Scorer version pin: @cejel/cejel@(${SEMVER_PATTERN}) [-—] reason: .+; declared \\d{4}-\\d{2}-\\d{2}`,
 );
@@ -101,6 +104,31 @@ function changelogLede(html) {
   const match = CHANGELOG_HEADING_PATTERN.exec(html);
   CHANGELOG_HEADING_PATTERN.lastIndex = 0;
   return match ? html.slice(0, match.index) : html;
+}
+
+function leaderboardCurrentSection(markdown) {
+  const historyHeading = /^## History\s*$/m.exec(markdown);
+  return historyHeading ? markdown.slice(0, historyHeading.index) : markdown;
+}
+
+function leaderboardWithoutHistory(markdown) {
+  const historyHeading = /^## History\s*$/m.exec(markdown);
+  if (!historyHeading) return markdown;
+  const afterHeading = historyHeading.index + historyHeading[0].length;
+  const nextCurrentHeading = /^## (?!History\s*$).+$/m.exec(markdown.slice(afterHeading));
+  return nextCurrentHeading
+    ? `${markdown.slice(0, historyHeading.index)}${markdown.slice(afterHeading + nextCurrentHeading.index)}`
+    : markdown.slice(0, historyHeading.index);
+}
+
+export function parseLeaderboardRecord(markdown) {
+  const currentSection = leaderboardCurrentSection(String(markdown ?? ''));
+  const declared = BOARD_CURRENT_VERSION_LINE.exec(currentSection);
+  if (!declared) {
+    throw new Error(`${BOARD_PATH} does not declare a current "Cejel version" header line`);
+  }
+  const pin = BOARD_PIN_LINE.exec(currentSection);
+  return { declaredVersion: declared[1], pinVersion: pin?.[1] ?? null };
 }
 
 // Shared by every surface that can declare a scorer or CLI version in prose (currently only the
@@ -386,12 +414,7 @@ export function createLiveReaders() {
         throw new Error('GitHub response did not contain base64 content');
       }
       const markdown = Buffer.from(record.content, 'base64').toString('utf8');
-      const declared = BOARD_SCORER_LINE.exec(markdown);
-      if (!declared) {
-        throw new Error(`${BOARD_PATH} does not declare a "Scorer source version" line`);
-      }
-      const pin = BOARD_PIN_LINE.exec(markdown);
-      return { declaredVersion: declared[1], pinVersion: pin?.[1] ?? null, markdown };
+      return { ...parseLeaderboardRecord(markdown), markdown };
     },
   };
 }
@@ -499,7 +522,9 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
       break;
     case 'leaderboard':
       assertDeclaredVersion('leaderboard', 'scorer version', value.declaredVersion, value.pinVersion, version);
-      assertNoBareInvocation('leaderboard', value.markdown, { property: 'invocation' });
+      assertNoBareInvocation('leaderboard', leaderboardWithoutHistory(value.markdown), {
+        property: 'invocation',
+      });
       break;
     default:
       throw new Error(`unknown surface ${surface}`);

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ReleaseCurrencyError, verifyReleaseCurrency } from './verify-release-currency.mjs';
+import {
+  parseLeaderboardRecord,
+  ReleaseCurrencyError,
+  verifyReleaseCurrency,
+} from './verify-release-currency.mjs';
 
 const version = '1.2.3';
 const commit = 'a'.repeat(40);
@@ -37,7 +41,8 @@ const goodChangelogHtml = `
 `;
 
 const goodLeaderboardMarkdown =
-  `Scorer source version: @cejel/cejel@${version}\n` +
+  '# Cejel OSS trust leaderboard\n\n' +
+  `- Cejel version: @cejel/cejel@${version} (published, npx)\n` +
   'Every score is produced through the same sealed public-scoring entry point used by ' +
   `\`pnpm dlx @cejel/cejel@${version} .\`.\n`;
 
@@ -124,6 +129,25 @@ test('matching versions still fail when the MCP and observed OCI digests differ'
     line.includes('[FAIL] MCP Registry:') && line.includes('does not equal the observed OCI digest')));
 });
 
+test('the leaderboard parser reads the current header and ignores conflicting history', () => {
+  const markdown =
+    '# Cejel OSS trust leaderboard\n\n' +
+    `- Cejel version: @cejel/cejel@${version} (published, npx)\n\n` +
+    '## History\n\n' +
+    'Scorer source version: @cejel/cejel@1.2.1\n';
+  assert.deepEqual(parseLeaderboardRecord(markdown), {
+    declaredVersion: version,
+    pinVersion: null,
+  });
+});
+
+test('a historical scorer declaration cannot substitute for the current leaderboard header', () => {
+  assert.throws(
+    () => parseLeaderboardRecord('## History\n\nScorer source version: @cejel/cejel@1.2.1\n'),
+    /does not declare a current "Cejel version" header line/,
+  );
+});
+
 test('a leaderboard declaring a stale scorer version fails and names both versions', async () => {
   const readers = goodReaders();
   readers.leaderboard = async () => ({ declaredVersion: '1.2.1', pinVersion: null, markdown: goodLeaderboardMarkdown });
@@ -160,7 +184,7 @@ test('a leaderboard carrying a bare npx invocation fails and names the line', as
   readers.leaderboard = async () => ({
     declaredVersion: version,
     pinVersion: null,
-    markdown: `Scorer source version: @cejel/cejel@${version}\nRun it with \`npx @cejel/cejel .\`.\n`,
+    markdown: `- Cejel version: @cejel/cejel@${version} (published, npx)\nRun it with \`npx @cejel/cejel .\`.\n`,
   });
   const result = await rejectedRun(readers);
   showFixture('leaderboard bare invocation fixture', result);
@@ -169,6 +193,37 @@ test('a leaderboard carrying a bare npx invocation fails and names the line', as
     line.includes('[FAIL] leaderboard:') &&
     line.includes('unpinned invocation on line 2') &&
     line.includes('npx @cejel/cejel .')));
+});
+
+test('a bare npx invocation inside leaderboard history does not fire', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({
+    declaredVersion: version,
+    pinVersion: null,
+    markdown:
+      goodLeaderboardMarkdown +
+      '\n## History\n\nA withdrawn run used `npx @cejel/cejel .` and is retained verbatim.\n',
+  });
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line) });
+  assert.ok(lines.some((line) => line.startsWith('[PASS] leaderboard:')));
+});
+
+test('a current bare invocation after leaderboard history still fails', async () => {
+  const readers = goodReaders();
+  readers.leaderboard = async () => ({
+    declaredVersion: version,
+    pinVersion: null,
+    markdown:
+      `- Cejel version: @cejel/cejel@${version} (published, npx)\n\n` +
+      '## History\n\nA withdrawn run used `npx @cejel/cejel .`.\n\n' +
+      '## How to read this board\n\nRun current scans with `npx @cejel/cejel .`.\n',
+  });
+  const result = await rejectedRun(readers);
+  assert.match(result.failure.message, /leaderboard/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] leaderboard:') &&
+    line.includes('Run current scans with `npx @cejel/cejel .`')));
 });
 
 test('cejel.dev with a correctly pinned hero command passes', async () => {

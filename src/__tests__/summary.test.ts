@@ -122,7 +122,9 @@ describe('buildWitanCliSummary', () => {
 
     const finding = buildWitanCliSummary(fixtureReport([criterion])).topFindings[0];
 
-    expect(finding?.displaySummary).toContain('Lowest contributing measurements: Recent PR merge ratio 0/1.');
+    expect(finding?.displaySummary).toContain(
+      'Lowest contributing measurements: Recent commits with recognizable PR references none found in bounded recent commit subjects (scoring value 0/1).',
+    );
     expect(finding?.displaySummary).not.toContain('PR trace basic checks');
   });
 

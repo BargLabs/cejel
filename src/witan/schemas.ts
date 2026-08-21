@@ -175,6 +175,23 @@ export const WitanCriterionMetricSchema = z
     weight: z.number().positive().max(1).default(1),
     unit: z.string().min(1).max(40).optional(),
     description: z.string().min(1).max(300).optional(),
+    presentation: z
+      .object({
+        components: z
+          .array(
+            z
+              .object({
+                label: z.string().min(1).max(120),
+                count: z.number().int().nonnegative(),
+              })
+              .strict(),
+          )
+          .min(1)
+          .optional(),
+        condition: z.string().min(1).max(240).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

@@ -377,10 +377,11 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(firstReport.repo).not.toHaveProperty('path');
     expect(secondReport.repo).not.toHaveProperty('path');
     expect(firstReportJson).toBe(secondReportJson);
-    // Origin/main's RED report normalized by deleting only repo.path. This locks every score,
-    // verdict, criterion, finding, evidence hash, and remaining byte of the report.
+    // Normalized report with certificate explanation metadata, deleting only repo.path. This
+    // locks every score, verdict, criterion, metric explanation, finding, evidence hash, and
+    // remaining byte of the report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '5e9824f5b2339145d24fec72df8a149efbbb2030402d3e129dec1f7411df1af3',
+      'e5ca23ceb458ff289d822ec5d9ec3de46979661dd6287cdd5a1eccc4b4b5a835',
     );
   });
 
@@ -589,7 +590,8 @@ describe('v22 calibration-only entrypoint', () => {
   });
 });
 
-// --rubric-pin (0.4.4): the first PUBLIC, CLI-flag opt-in into a prospective rubric. Previously
+// --rubric-pin (Unreleased; added after 0.4.4): the first PUBLIC, CLI-flag opt-in into a
+// prospective rubric. Previously
 // the only way to reach v18-v22 was a committed evaluation driver like
 // runWitanV22CalibrationCli above, which parses no CLI args a stranger controls. This makes the
 // "unpinned run cannot reach a prospective rubric" guarantee load-bearing for the first time —

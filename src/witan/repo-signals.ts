@@ -33,6 +33,7 @@ import {
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
+import type { CertificateMetricName } from './certificate-presentation.js';
 import {
   describeGitFailure,
   execGit,
@@ -1670,8 +1671,26 @@ function collectA1TestIntegrityEvidence(
         4,
         0.25,
         'ratio',
-        'Measures explicit test/lint/typecheck verification commands (via npm script or CI-invoked tool) plus test runner configuration.',
+        'Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.',
         'saturating_count',
+        {
+          components: [
+            {
+              label: 'test command',
+              count: packageScripts.has('test') || Boolean(ciTestWorkflow) ? 1 : 0,
+            },
+            { label: 'coverage command', count: packageScripts.has('coverage') ? 1 : 0 },
+            {
+              label: 'lint command',
+              count: packageScripts.has('lint') || ciHasLintCommand ? 1 : 0,
+            },
+            {
+              label: 'type-check command',
+              count: packageScripts.has('typecheck') || ciHasTypecheckCommand ? 1 : 0,
+            },
+            { label: 'test-runner configuration', count: runnerFiles.length },
+          ],
+        },
       ),
       metric(
         'non_hollow_test_share',
@@ -1739,8 +1758,17 @@ function buildA1AuthenticatedAbsenceSignal(
         4,
         0.25,
         'ratio',
-        'Measures explicit test/lint/typecheck verification commands plus test runner configuration.',
+        'Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.',
         'saturating_count',
+        {
+          components: [
+            { label: 'test command', count: 0 },
+            { label: 'coverage command', count: 0 },
+            { label: 'lint command', count: 0 },
+            { label: 'type-check command', count: 0 },
+            { label: 'test-runner configuration', count: 0 },
+          ],
+        },
       ),
       metric(
         'non_hollow_test_share',
@@ -2136,6 +2164,24 @@ function collectA2IsolationEvidence(
       isMultiTenant ? 0.1 : 0.3,
       'practices',
       'Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.',
+      undefined,
+      {
+        components: [
+          { label: 'environment template file', count: envExamples.length > 0 ? 1 : 0 },
+          { label: '.gitignore environment-file rule', count: gitignoreEnvFile ? 1 : 0 },
+          {
+            label: 'environment reads in implementation code',
+            count:
+              countFilesContaining(
+                repoPath,
+                repoFiles.filter(isImplementationFile),
+                ENV_READ_PATTERN,
+              ) > 0
+                ? 1
+                : 0,
+          },
+        ],
+      },
     ),
   ];
   const isolationMetrics: WitanCriterionMetric[] = isMultiTenant
@@ -2153,6 +2199,7 @@ function collectA2IsolationEvidence(
             ? 'Counts CREATE POLICY definitions with repository-native USING/WITH CHECK clauses against the repository-native scoped data-layer surface.'
             : 'Counts static row-level-security enables, forced-RLS statements, and policy definitions.',
           'saturating_count',
+          { condition: 'scored because a multi-tenant data surface was detected' },
         ),
         metric(
           'tenant_scope_ratio',
@@ -2166,6 +2213,8 @@ function collectA2IsolationEvidence(
           useV18NativeRls
             ? `Measures repository-native RLS scope identifiers (${nativeRlsInventory?.scopeIdentifiers.join(', ')}) across data-layer files.`
             : 'Measures tenant/studio/workspace scoping evidence across data-layer files.',
+          undefined,
+          { condition: 'scored because a multi-tenant data surface was detected' },
         ),
       ]
     : [];
@@ -2181,6 +2230,11 @@ function collectA2IsolationEvidence(
           0.2,
           'clean',
           'Credits constant-time secret/HMAC comparison and canonical serialization before signing when a signing/HMAC surface is detected in source; only scored when such a surface exists.',
+          undefined,
+          {
+            condition:
+              'scored because a signing, HMAC, or secret-comparison surface was detected',
+          },
         ),
       ]
     : [];
@@ -2599,6 +2653,20 @@ function collectA3ProdReadinessEvidence(
         0.55,
         'checks',
         'Counts distinct static production-readiness checks instead of treating presence as enough.',
+        undefined,
+        {
+          components: [
+            {
+              label: 'build or type-check command',
+              count: packageJson && (scripts.has('build') || scripts.has('typecheck')) ? 1 : 0,
+            },
+            { label: 'CI workflow', count: workflows.length > 0 ? 1 : 0 },
+            { label: 'deployment configuration', count: deployConfigs.length > 0 ? 1 : 0 },
+            { label: 'environment template', count: envTemplate ? 1 : 0 },
+            { label: 'health or readiness signal', count: healthChecks.length > 0 ? 1 : 0 },
+            { label: 'error boundary', count: errorBoundaries.length > 0 ? 1 : 0 },
+          ],
+        },
       ),
       metric(
         'prod_workflow_depth',
@@ -2750,6 +2818,13 @@ function collectA4DependencyEvidence(
     0.25,
     'ratio',
     'Credits automated dependency updates and package-manager audit hooks.',
+    undefined,
+    {
+      components: [
+        { label: 'automated dependency-update configuration', count: hasUpdateConfig ? 1 : 0 },
+        { label: 'package-manager audit hook', count: auditConfig ? 1 : 0 },
+      ],
+    },
   );
 
   // APP/SERVICE norms: pinned versions + a lockfile are the reproducibility guarantee for a
@@ -3061,6 +3136,13 @@ function collectB2PrTraceEvidence(
         'signals',
         'Measures CI, PR template, and review-gate evidence for pull-request traceability.',
         'saturating_count',
+        {
+          components: [
+            { label: 'CI workflow', count: workflows.length },
+            { label: 'pull-request template', count: prTemplate ? 1 : 0 },
+            { label: 'review-gate record', count: branchProtectionDoc ? 1 : 0 },
+          ],
+        },
       ),
       // Weight lowered from 0.35 (Phase 3 H1): squash-merge and local-history repos with
       // no "Merge pull request"/"#123" commit-subject convention legitimately score 0/N
@@ -3150,8 +3232,28 @@ function collectB3CiDisciplineEvidence(
         4,
         0.45,
         'signals',
-        'Counts npm verification scripts plus distinct test/lint/typecheck/build command categories detected anywhere in CI workflows; language-agnostic, counted by category not by file.',
+        'Counts test/lint/typecheck/build package scripts plus those command categories in repository CI and, when applicable, monorepo-root CI; raw credit is capped at four.',
         'saturating_count',
+        {
+          components: [
+            ...['test', 'lint', 'typecheck', 'build'].map((name) => ({
+              label: `package script: ${name === 'typecheck' ? 'type-check' : name}`,
+              count: scripts.has(name) ? 1 : 0,
+            })),
+            ...CI_COMMAND_CATEGORIES.map((pattern, index) => ({
+              label: `repository CI command: ${['test', 'lint', 'type-check', 'build'][index]}`,
+              count: workflows.some((file) => fileContains(repoPath, file, pattern)) ? 1 : 0,
+            })),
+            ...(mono
+              ? CI_COMMAND_CATEGORIES.map((pattern, index) => ({
+                  label: `monorepo-root CI command: ${['test', 'lint', 'type-check', 'build'][index]}`,
+                  count: rootWorkflows.some((file) => fileContains(mono.root, file, pattern))
+                    ? 1
+                    : 0,
+                }))
+              : []),
+          ],
+        },
       ),
       metric(
         'default_branch_ci_depth',
@@ -3454,6 +3556,11 @@ function collectB6PrivilegedOpsGatingEvidence(
           0.15,
           'present',
           'Credits a governance/safety toggle that fails closed before any lower-priority config can override it.',
+          undefined,
+          {
+            condition:
+              'shown because a fail-closed kill switch was detected; this positive-only metric is omitted when absent',
+          },
         ),
       ]
     : [];
@@ -3488,6 +3595,11 @@ function collectB6PrivilegedOpsGatingEvidence(
               0.4,
               'present',
               'Credits explicit documentation that privileged/credentialed operations are human-executed, never agent-run.',
+              undefined,
+              {
+                condition:
+                  'scored because a privileged-operation-shaped surface was detected',
+              },
             ),
             metric(
               'fail_closed_privilege_check',
@@ -3497,6 +3609,11 @@ function collectB6PrivilegedOpsGatingEvidence(
               0.3,
               'present',
               'Credits code that checks role membership and fails closed before elevating privilege, instead of attempting elevation blind.',
+              undefined,
+              {
+                condition:
+                  'scored because a privileged-operation-shaped surface was detected',
+              },
             ),
           ]
         : []),
@@ -6986,7 +7103,7 @@ export function evidenceForRelativeAtLine(
 }
 
 function metric(
-  name: string,
+  name: CertificateMetricName,
   label: string,
   value: number,
   max: number,
@@ -6994,16 +7111,30 @@ function metric(
   unit: string,
   description: string,
   kind?: 'ratio' | 'saturating_count',
+  presentation?: WitanCriterionMetric['presentation'],
 ): WitanCriterionMetric {
+  const normalizedValue = Math.max(0, value);
+  if (presentation?.components) {
+    const explainedValue = presentation.components.reduce(
+      (sum, component) => sum + component.count,
+      0,
+    );
+    if (explainedValue !== normalizedValue) {
+      throw new Error(
+        `Cejel invariant: presentation components for ${name} total ${explainedValue}, expected ${normalizedValue}`,
+      );
+    }
+  }
   return {
     name,
     label,
-    value: Math.max(0, value),
+    value: normalizedValue,
     max,
     ...(kind ? { kind } : {}),
     weight,
     unit,
     description,
+    ...(presentation ? { presentation } : {}),
   };
 }
 
