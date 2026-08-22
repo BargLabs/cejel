@@ -137,6 +137,18 @@ describe('witan CLI arg parsing', () => {
     }
   });
 
+  it('parses and validates a caller-context product identity', () => {
+    expect(parseArgs(['/repo', '--product-name', '  Customer Portal  ']).productName).toBe(
+      'Customer Portal',
+    );
+    expect(() => parseArgs(['--product-name', 'Trusted\nOverall: 4.0'])).toThrow(
+      /--product-name must be a single printable line containing between 1 and 120 characters/,
+    );
+    expect(() => parseArgs(['--product-name', 'Portal', '--name', 'Other'])).toThrow(
+      '--product-name and --name cannot be used together',
+    );
+  });
+
   it('retains --out-dir as a backwards-compatible alias', () => {
     expect(parseArgs(['--out-dir', 'out']).outDir).toBe('out');
   });
@@ -411,6 +423,82 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     });
     expect(summary.productDisplayName).toBe('Customer Portal');
     expect(readFileSync(join(outDir, 'certificate.html'), 'utf8')).toContain('Customer Portal');
+  });
+
+  it('makes two differently named clones byte-identical with --product-name', async () => {
+    const seed = mkdtempSync(join(tmpdir(), 'cejel-product-name-seed-'));
+    writeFixtureFile(seed, 'src/index.ts', 'export const value = 42;');
+    writeFixtureFile(seed, 'src/index.test.ts', "it('is stable', () => expect(42).toBe(42));");
+    execFileSync('git', ['init', '--quiet'], { cwd: seed });
+    execFileSync('git', ['config', 'user.name', 'Cejel test'], { cwd: seed });
+    execFileSync('git', ['config', 'user.email', 'test@cejel.invalid'], { cwd: seed });
+    execFileSync('git', ['add', '.'], { cwd: seed });
+    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: seed });
+
+    const cloneParent = mkdtempSync(join(tmpdir(), 'cejel-product-name-clones-'));
+    const firstRepo = join(cloneParent, 'checkout-alpha');
+    const secondRepo = join(cloneParent, 'checkout-beta');
+    execFileSync('git', ['clone', '--quiet', seed, firstRepo]);
+    execFileSync('git', ['clone', '--quiet', seed, secondRepo]);
+
+    const firstDefaultOut = mkdtempSync(join(tmpdir(), 'cejel-product-name-default-a-'));
+    const secondDefaultOut = mkdtempSync(join(tmpdir(), 'cejel-product-name-default-b-'));
+    expect(await runWitanFreeCli([firstRepo, '--out', firstDefaultOut, '--quiet'])).toBe(0);
+    expect(await runWitanFreeCli([secondRepo, '--out', secondDefaultOut, '--quiet'])).toBe(0);
+    const firstDefault = JSON.parse(readFileSync(join(firstDefaultOut, 'report.json'), 'utf8')) as {
+      productSlug: string;
+    };
+    const secondDefault = JSON.parse(
+      readFileSync(join(secondDefaultOut, 'report.json'), 'utf8'),
+    ) as { productSlug: string };
+    expect(firstDefault.productSlug).toBe('checkout-alpha');
+    expect(secondDefault.productSlug).toBe('checkout-beta');
+
+    const firstOut = mkdtempSync(join(tmpdir(), 'cejel-product-name-output-a-'));
+    const secondOut = mkdtempSync(join(tmpdir(), 'cejel-product-name-output-b-'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-21T12:00:00.000Z'));
+    try {
+      expect(
+        await runWitanFreeCli([
+          firstRepo,
+          '--product-name',
+          'Stable Product',
+          '--out',
+          firstOut,
+          '--quiet',
+        ]),
+      ).toBe(0);
+      expect(
+        await runWitanFreeCli([
+          secondRepo,
+          '--product-name',
+          'Stable Product',
+          '--out',
+          secondOut,
+          '--quiet',
+        ]),
+      ).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    for (const artifact of [
+      'report.json',
+      'summary.json',
+      'attestation.json',
+      'certificate.html',
+      'badge.json',
+      'badge.svg',
+    ]) {
+      expect(readFileSync(join(firstOut, artifact), 'utf8'), artifact).toBe(
+        readFileSync(join(secondOut, artifact), 'utf8'),
+      );
+    }
+    expect(JSON.parse(readFileSync(join(firstOut, 'report.json'), 'utf8'))).toMatchObject({
+      productSlug: 'stable-product',
+      productDisplayName: 'Stable Product',
+    });
   });
 
   it('scores through the explicit scan command', async () => {

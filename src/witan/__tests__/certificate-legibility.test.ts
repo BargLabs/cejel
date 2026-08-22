@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildWitanCliSummary } from '../../summary.js';
 import { renderTerminalCertificate } from '../../terminal.js';
 import {
+  CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   CERTIFICATE_METRIC_REGISTRY,
 } from '../certificate-presentation.js';
@@ -56,6 +57,14 @@ describe('certificate metric glossary guard', () => {
       const entries = CERTIFICATE_GLOSSARY.filter((entry) => entry.metricNames.includes(name));
       expect(entries, `${name} must have exactly one glossary entry`).toHaveLength(1);
       expect(entries[0]?.term).toBe(registration.displayLabel);
+    }
+  });
+});
+
+describe('caller-context product identity label', () => {
+  it('appears on HTML, Markdown, and terminal certificate surfaces', () => {
+    for (const output of humanReadableOutputs(reportFixture([]))) {
+      expect(output).toContain(CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE);
     }
   });
 });

@@ -26,6 +26,7 @@ import {
 import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
+  CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
@@ -82,6 +83,7 @@ export function renderWitanHtmlReport(
           <p class="eyebrow">Trust Certificate</p>
           <h1>${escapeHtml(report.productDisplayName)}</h1>
           <dl class="meta">
+            <div><dt>Product identity</dt><dd>${escapeHtml(CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE)}</dd></div>
             ${options.generatedAt ? `<div><dt>Date</dt><dd>${escapeHtml(formatDate(options.generatedAt))}</dd></div>` : ''}
             <div><dt>Run</dt><dd>${escapeHtml(renderRepo(report))}</dd></div>
             <div><dt>CLI</dt><dd>${escapeHtml(options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded')}</dd></div>

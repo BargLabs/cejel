@@ -18,6 +18,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Adds `cejel scan --product-name <name>` so a caller can set both `productSlug` (slugified) and
+  `productDisplayName` from one explicit, stable value. This fixes the reproducibility wart
+  documented by the public leaderboard: repositories without a usable `package.json.name`
+  otherwise inherit identity from the checkout directory, so differently named clones of the
+  same commit differed in those two fields. Product identity is now labeled on the terminal,
+  HTML, and Markdown certificates as caller context and excluded from byte-comparison claims.
+  The default identity precedence and report schema are unchanged. With the flag omitted,
+  `report.json`, `summary.json`, `attestation.json`, `badge.json`, and `badge.svg` retain their
+  prior values/bytes for the same invocation inputs (the attestation's existing invocation time
+  remains variable); `certificate.html`, Markdown, and terminal text change to add the caller-
+  context disclosure. With the flag present, `report.json` changes only `productSlug` and
+  `productDisplayName` relative to the same scan without it; `summary.json`, the attestation's
+  report binding/repository identity, and human-readable certificates consequently change.
+  Scores, findings, evidence pointers, rubric selection, and both badge formats are unchanged.
+
 - Adds `cejel scan --rubric-pin <version>` — the first way for a stranger running the published
   package to explicitly opt into a rubric other than the calibrated default, without a committed
   evaluation driver. It accepts any of `WITAN_SELECTABLE_RUBRIC_VERSIONS` (the calibrated v17, or

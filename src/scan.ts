@@ -7,6 +7,8 @@ import { type WitanCliSummary, buildWitanCliSummary } from './summary.js';
 export interface CejelScanOptions {
   /** Repository to score. Callers resolve relative paths before passing it in. */
   repoPath: string;
+  /** Optional caller-context identity override; sets both the stable slug and display name. */
+  productName?: string;
   /** Optional certificate display-name override; the stable repository slug is unchanged. */
   productDisplayName?: string;
   /**
@@ -35,7 +37,7 @@ export interface CejelScanResult {
  * badge artifacts stays in the CLI entry; this only computes.
  */
 export function runCejelScan(options: CejelScanOptions): CejelScanResult {
-  const identity = deriveProductIdentity(options.repoPath);
+  const identity = deriveProductIdentity(options.repoPath, options.productName);
   const generatedAt = new Date().toISOString();
   const report = scoreRepoWithPublicCejel({
     productSlug: identity.productSlug,

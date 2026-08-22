@@ -10,10 +10,14 @@ export interface ProductIdentity {
   productDisplayName: string;
 }
 
-/** Zero-config identity: read the repo's package.json name, else fall back to the directory name. */
-export function deriveProductIdentity(repoPath: string): ProductIdentity {
+/**
+ * Product identity is caller context, not scored repository evidence. An explicit name makes
+ * reports portable across checkout directory names; the zero-config compatibility path reads the
+ * repo's package.json name, then falls back to the directory name.
+ */
+export function deriveProductIdentity(repoPath: string, productName?: string): ProductIdentity {
   const packageJsonPath = join(repoPath, 'package.json');
-  const raw = readPackageName(packageJsonPath) ?? basename(repoPath);
+  const raw = productName ?? readPackageName(packageJsonPath) ?? basename(repoPath);
   const displayName = raw.trim().length > 0 ? raw.trim() : FALLBACK_DISPLAY_NAME;
   return {
     productSlug: slugify(raw),

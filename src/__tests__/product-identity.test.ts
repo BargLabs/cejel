@@ -16,6 +16,16 @@ describe('deriveProductIdentity', () => {
     });
   });
 
+  it('uses an explicit caller-context name for both slug and display name', () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-cli-identity-explicit-'));
+    writeFileSync(join(repoPath, 'package.json'), JSON.stringify({ name: 'checkout-local-name' }));
+
+    expect(deriveProductIdentity(repoPath, 'Customer Portal')).toEqual({
+      productSlug: 'customer-portal',
+      productDisplayName: 'Customer Portal',
+    });
+  });
+
   it('falls back to the directory name when there is no package.json', () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-cli-identity-plain-repo-'));
     const identity = deriveProductIdentity(repoPath);
