@@ -119,6 +119,16 @@ name while keeping the repository-derived stable slug:
 npx @cejel/cejel@latest . --name "Customer Portal"
 ```
 
+From the release after 0.4.4, use `--product-name` when two checkout directories must emit the
+same identity fields. The supplied value sets both the display name and its slugified stable ID:
+
+```bash
+npx @cejel/cejel@latest . --product-name "Customer Portal"
+```
+
+Product identity is caller context, not scored repository evidence, and is excluded from
+certificate byte-comparison claims.
+
 The npm package is scoped as `@cejel/cejel`; its executable remains the short command `cejel`.
 
 **GitHub Action** — score every PR and publish the badge:
@@ -253,6 +263,11 @@ prints that boundary on every successful verification.
 - `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4), or if Cejel
   abstains and therefore cannot evaluate the threshold; used by the GitHub Action's optional
   threshold gate
+- `--product-name <name>` — **Unreleased; not available in 0.4.4.** Set both the caller-context
+  display name and slugified product ID so differently named checkouts can emit identical
+  certificates.
+- `--name <display>` — override only the displayed project name while leaving the derived slug
+  unchanged; retained for compatibility
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.

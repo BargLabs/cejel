@@ -18,6 +18,7 @@ import {
 import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
+  CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
   glossaryEntriesForReport,
@@ -89,6 +90,7 @@ export function renderWitanMarkdownReport(
     `# Cejel Trust Report - ${report.productDisplayName}`,
     '',
     `- Product: ${report.productSlug}`,
+    `- Product identity: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`,
     `- CLI: ${options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded'}`,
     `- Rubric: ${report.rubricVersion}`,
     // Gated on the rubric actually being prospective — a calibrated (v17) report's Markdown

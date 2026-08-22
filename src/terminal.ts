@@ -2,6 +2,7 @@ import { formatExternalSourceLine } from './witan/index.js';
 import type { WitanReport } from './witan/index.js';
 import {
   buildRelyingPartySummary,
+  CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
@@ -61,10 +62,12 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
         '',
       ];
 
+  lines.splice(1, 0, `Product identity: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`);
+
   if (report) {
     const relyingPartySummary = buildRelyingPartySummary(report);
     lines.splice(
-      2,
+      3,
       0,
       `What was examined: ${relyingPartySummary.examined}`,
       `What was established: ${relyingPartySummary.established}`,

@@ -14,6 +14,9 @@ export interface RelyingPartySummary {
   next: string;
 }
 
+export const CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE =
+  'Product name and slug are caller context and are excluded from certificate byte-comparison claims.';
+
 // Every metric emitted by the repository detector must be registered here before it can compile.
 // The glossary guard below then requires a reader-facing definition for every registered name.
 // Labels are presentation-only: report values, maxima, weights, and rubric behavior do not read

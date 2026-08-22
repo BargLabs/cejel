@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A certificate's product name is caller context unless it is bound to immutable repository content. Deriving identity from a checkout directory makes two clones of the same commit differ for a reason unrelated to scores, findings, or evidence, so the identity fields must either come from a stable explicit input or be excluded from byte-comparison claims. Preserve zero-config compatibility, add one explicit input that controls both display name and slug, label the boundary on every human-facing certificate, and prove the repair by scanning two real differently named clones rather than comparing constructed report objects.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "repo:BargLabs/cejel-site",
+      "certificate-reproducibility",
+      "public-cli",
+      "published-methodology"
+    ],
+    "tags": [
+      "caller-context",
+      "product-identity",
+      "reproducibility",
+      "report-json",
+      "published-surface-drift"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-21T00:00:00.000Z",
+    "quarantineReason": "This staging record accompanies the product-identity reproducibility repair, whose eventual squash commit does not yet exist on Cejel origin/main. It must not anchor to its own branch.",
+    "moveCondition": "After the repair PR merges, identify its 40-character squash commit on Cejel origin/main and verify that its diff adds --product-name, caller-context labeling on terminal/HTML/Markdown, the two-real-clone byte comparison, and the explicit artifact-byte changelog. Then copy this record into Alfred docs/orchestration/maeve-lesson-batches/ as a cejel_ batch with that commit, PR number, evidencePath, and evidenceQuote. Confirm the coordinated cejel-site reproduction copy landed in the same release window."
+  }
+]

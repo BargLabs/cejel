@@ -30,6 +30,7 @@ export interface WitanCliOptions {
   repoPath: string;
   outDir: string;
   minScore?: number;
+  productName?: string;
   productDisplayName?: string;
   quiet: boolean;
   showHelp: boolean;
@@ -57,6 +58,7 @@ export type CliFlagKind =
   | 'minScore'
   | 'ingest'
   | 'name'
+  | 'productName'
   | 'rubricPin';
 
 interface CliFlagSpec {
@@ -80,9 +82,15 @@ export const CLI_FLAG_SPECS = [
     kind: 'minScore',
   },
   {
+    tokens: ['--product-name'],
+    value: '<name>',
+    description: 'set caller-context slug and display name for reproducible certificates',
+    kind: 'productName',
+  },
+  {
     tokens: ['--name'],
     value: '<display>',
-    description: 'override the project name shown on the certificate',
+    description: 'override only the displayed project name (legacy compatibility)',
     kind: 'name',
   },
   {
@@ -241,6 +249,7 @@ async function runWitanCli(
   const effectiveRubricVersion = options.rubricPin ?? rubricVersion;
   const { report, summary, generatedAt } = runCejelScan({
     repoPath: options.repoPath,
+    ...(options.productName ? { productName: options.productName } : {}),
     ...(options.productDisplayName ? { productDisplayName: options.productDisplayName } : {}),
     ...(effectiveRubricVersion ? { rubricVersion: effectiveRubricVersion } : {}),
     ingestPatterns: options.ingestPatterns,
@@ -381,6 +390,7 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
   let repoPath: string | undefined;
   let outDir = DEFAULT_OUT_DIR;
   let minScore: number | undefined;
+  let productName: string | undefined;
   let productDisplayName: string | undefined;
   let quiet = false;
   let showHelp = false;
@@ -441,6 +451,23 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
           index += 1;
           break;
         }
+        case 'productName': {
+          const value = args[index + 1];
+          if (!value) throw new Error('Missing value for --product-name');
+          const trimmed = value.trim();
+          if (
+            trimmed.length === 0 ||
+            trimmed.length > 120 ||
+            hasUnsafeDisplayNameCharacter(trimmed)
+          ) {
+            throw new Error(
+              '--product-name must be a single printable line containing between 1 and 120 characters',
+            );
+          }
+          productName = trimmed;
+          index += 1;
+          break;
+        }
         case 'ingest': {
           const value = args[index + 1];
           if (!value) throw new Error('Missing value for --ingest');
@@ -468,10 +495,15 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
     }
   }
 
+  if (productName && productDisplayName) {
+    throw new Error('--product-name and --name cannot be used together');
+  }
+
   return {
     repoPath: resolve(repoPath ?? '.'),
     outDir,
     ...(minScore != null ? { minScore } : {}),
+    ...(productName ? { productName } : {}),
     ...(productDisplayName ? { productDisplayName } : {}),
     quiet,
     showHelp,
