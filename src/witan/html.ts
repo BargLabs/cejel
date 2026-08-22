@@ -410,7 +410,7 @@ function renderMetric(
     ? CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'capped')
     : undefined;
   const label = `<span class="term-help" tabindex="0" aria-describedby="${escapeAttribute(tooltipId)}"><strong>${escapeHtml(formatCertificateMetricLabel(metric))}</strong><span class="term-tooltip" id="${escapeAttribute(tooltipId)}" role="tooltip">${escapeHtml(entry.definition)}</span></span>`;
-  if (!cappedEntry) return `${label}<span>${escapeHtml(formatted)}</span>`;
+  if (!cappedEntry) return `${label}<span class="metric-value">${escapeHtml(formatted)}</span>`;
   const cappedTooltipId = `${tooltipId}-capped`;
   return `${label}<span class="term-help metric-value" tabindex="0" aria-describedby="${escapeAttribute(cappedTooltipId)}">${escapeHtml(formatted)}<span class="term-tooltip" id="${escapeAttribute(cappedTooltipId)}" role="tooltip">${escapeHtml(cappedEntry.definition)}</span></span>`;
 }
@@ -649,7 +649,10 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .criterion-metrics { display: grid; gap: 7px; margin-top: 10px; padding: 0; list-style: none; font-size: 12px; }
 .criterion-metrics li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(238, 244, 247, .08); padding-bottom: 6px; }
 .criterion-metrics strong { color: var(--text); font-weight: 650; }
-.criterion-metrics span { white-space: nowrap; color: var(--muted); }
+.criterion-metrics span { color: var(--muted); }
+.criterion-metrics > li > .metric-value {
+  min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: right;
+}
 .term-help { position: relative; cursor: help; outline: none; }
 .term-help:focus-visible { box-shadow: 0 0 0 2px var(--periwinkle); border-radius: 3px; }
 .term-tooltip {
