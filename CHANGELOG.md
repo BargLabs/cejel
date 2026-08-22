@@ -50,6 +50,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- HTML certificate metric values now wrap within their criterion cards instead of painting across
+  neighboring content when reader-facing measurement explanations are sentence-length.
+
 - Human-readable certificates now explain every measurement without vendor interpretation. Fixed
   enumerable checks name what was found and missing, binary outcomes no longer look like file
   counts, conditional metrics state why they apply, and the recent-commit PR proxy names the
