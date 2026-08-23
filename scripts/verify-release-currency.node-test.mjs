@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  LEADERBOARD_URL,
   parseLeaderboardRecord,
   ReleaseCurrencyError,
   verifyReleaseCurrency,
@@ -45,6 +46,10 @@ const goodLeaderboardMarkdown =
   `- Cejel version: @cejel/cejel@${version} (published, npx)\n` +
   'Every score is produced through the same sealed public-scoring entry point used by ' +
   `\`pnpm dlx @cejel/cejel@${version} .\`.\n`;
+
+test('the leaderboard source is the deployed public Markdown surface', () => {
+  assert.equal(LEADERBOARD_URL, 'https://cejel.dev/leaderboard/leaderboard.md');
+});
 
 function goodReaders() {
   return {
