@@ -1289,12 +1289,11 @@ describe('Guard 3 — no vendor name defines the scheduled-health-workflow dimen
     expect(collectorEnd).toBeGreaterThan(collectorStart);
     const collectorSource = source.slice(collectorStart, collectorEnd);
 
-    // No Barg-Labs-specific workflow filename may appear as a quoted literal inside the A1
-    // collector body — the collector must reason purely from the workflow's shape (schedule
-    // trigger + test-run command), never by comparing repoFiles against a vendor-named path.
-    // The public evidence taxonomy uses the generic scheduled_health_summary kind for this
-    // signal; do not reintroduce a vendor/agent name in the emitted evidence kind.
-    const vendorFilenamePattern = /['"][^'"]*(bede|edgar|aelfric)[^'"]*\.ya?ml['"]/i;
-    expect(collectorSource).not.toMatch(vendorFilenamePattern);
+    // No workflow filename may appear as a quoted literal inside the A1 collector body — the
+    // collector must reason purely from the workflow's shape (schedule trigger + test-run
+    // command), never by comparing repoFiles against any specially named path. The public
+    // evidence taxonomy uses the generic scheduled_health_summary kind for this signal.
+    const literalWorkflowFilenamePattern = /['"][^'"]*\.ya?ml['"]/i;
+    expect(collectorSource).not.toMatch(literalWorkflowFilenamePattern);
   });
 });

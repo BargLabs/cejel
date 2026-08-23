@@ -754,8 +754,14 @@ goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12):**
 | axios | 3.3 | 3.3 | Conditional | Conditional | none | unchanged |
 | zod | 3.0 | 3.0 | Conditional | Conditional | none | unchanged |
 | scorecard | 3.0 | 3.0 | Conditional | Conditional | none | unchanged |
-| alfred (private) | 3.1 | 3.1 | Conditional | Conditional | none | Same warning, now worded generically: "results are handed only to an ephemeral, access-gated CI artifact" instead of naming Bede by product. A1's sub-score moved 2.2 -> 2.3 from ordinary repo growth between the two scan commits (more test files at HEAD), not from the rubric change — see A1's `test_to_source_ratio`/`non_hollow_test_share` metric inputs in the evidence report. |
+| alfred (private) | 3.1 | 3.1 | Conditional | Conditional | none | Same warning, now worded generically: "results are handed only to an ephemeral, access-gated CI artifact" instead of naming an internal component. A1's sub-score moved 2.2 -> 2.3 from ordinary repo growth between the two scan commits (more test files at HEAD), not from the rubric change — see A1's `test_to_source_ratio`/`non_hollow_test_share` metric inputs in the evidence report. |
 | cejel (private) | 3.4 | 3.4 | Conditional | Conditional | none | unchanged |
+
+**Erratum — 2026-08-23 (disclosure redaction):** The internal row above was edited to replace a
+closed internal product codename with the generic phrase "an internal component." This is a
+disclosure-only correction: it changes no score, verdict, rank, metric input, or rubric behavior.
+The original published wording remains in immutable Git history; Cejel does not rewrite history
+because certificates and attestations pin commits.
 
 **No external repository's score, verdict, or rank moved.** One external repository
 (react) gained a more specific, correct finding for an already-existing warning at an

@@ -9,7 +9,7 @@ export const WITAN_RUBRIC_VERSION_V0 = 'witan-rubric-v0-2026-06-22';
 export const WITAN_RUBRIC_VERSION_V1 = 'witan-rubric-v1-2026-06-24';
 // v2 (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12): A1's scheduled-
 // product-health-workflow sub-signal is now detected by shape (schedule trigger + test-run
-// command), never by the literal filename `bede-nightly.yml` — see
+// command), never by a literal workflow filename — see
 // docs/leaderboard/RUBRIC_CHANGELOG.md for the full corpus-wide before/after delta this
 // version bump requires and carries. Scoring algorithm is unchanged from v1 (metric-based).
 export const WITAN_RUBRIC_VERSION_V2 = 'witan-rubric-v2-2026-07-12';

@@ -26,7 +26,7 @@ open-item labels must be mechanically reverified against current repository stat
 The Alfred and Cejel copies share a point-in-time SHA-256 pin. Each repository pins only its local
 file. This is a shared point-in-time parity record and local immutability guard; neither test proves
 current cross-repository byte equality. The current local SHA-256 pin is
-`b7dea9f8971af80de061369e988f94b5cd50962bdf4399dab3e6bc1b2dc31717`. Cross-repo parity must be
+`f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22`. Cross-repo parity must be
 checked explicitly on every change: compare both files, copy the canonical bytes, bump
 `CONSTRAINTS-VERSION`, and update both local pins.
 

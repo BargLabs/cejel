@@ -1,7 +1,7 @@
 <!-- CANONICAL LOWERCASE FILE. Alfred and Cejel share a point-in-time copy. -->
 <!-- Each repo pins only its local bytes; cross-repo parity requires an explicit comparison. -->
 
-**CONSTRAINTS-VERSION: 2026-08-01.4**
+**CONSTRAINTS-VERSION: 2026-08-01.5**
 
 > Every agent report must echo the exact CONSTRAINTS-VERSION line above. This is an
 > observable delivery handshake: omission flags non-delivery or non-compliance, but
@@ -85,8 +85,8 @@ origin is legible is harder to argue away later.
   `app.ts:1560` also converts storage exceptions into 400s. A green endpoint after an
   incident is evidence the deployment was replaced, not that the defect was fixed.
 - **A deploy verifier must read the build identity off the running artifact**, not off the
-  ref it was asked to verify. *(Earned: five green `Edgar Tier C Deploy Verify` runs against
-  a production that had not moved in four hours. Fixed in #772.)*
+  ref it was asked to verify. *(Earned: five green deploy-verification runs against a
+  production that had not moved in four hours. Fixed in #772.)*
 - **Shell command history must be scrubbed at ingestion** before entering any corpus an
   agent later recalls from.
 - **Session transcripts are not oracles.** An agent's own red→green account is the evidence
@@ -111,8 +111,9 @@ origin is legible is harder to argue away later.
 - **Sign the binding, not the verdict.** The scan runs offline on the customer's machine and
   we do not witness it. The defensible claim is that this report was produced by detector
   revision X under rubric vY whose calibration record is Z, and the digest matches.
-- **`cerdic`: do not create package names yet.** `cerdic.com` is taken and no formal
-  trademark clearance has been run.
+- **Do not create package or domain registrations for unreleased or undecided products.**
+  Product naming and registration require an operator decision; public documentation must
+  not disclose banked architecture or availability research.
 - **react and django are calibration repositories.** They cannot be used as an external
   recall corpus — that would be training on test. Reconstructing the full calibration repo
   list is a prerequisite for any external-corpus work; it is not currently recoverable from
@@ -136,8 +137,7 @@ review:
   candidate storage by the `PENDING_` filename prefix — a real protection with no test
   asserting it. Some describe defects in documents or workflows that exist now and could
   anchor as `artifact` today (ADR-0012).
-- ADR-0013's D1 rule scores 0/1 against its own documented positive
-  (`bede/src/dual-control/report.ts:87`). Its implemented contract is narrower than its
-  name. Amend the ADR or the rule; do not leave the name unqualified.
+- ADR-0013's D1 rule scores 0/1 against its own documented positive. Its implemented contract
+  is narrower than its name. Amend the ADR or the rule; do not leave the name unqualified.
 - The dual-control preregistration's primary hypothesis (`8/16` on an eight-seed held-out
   split) is unsatisfiable at every outcome. Recorded in the errata, not amendable.

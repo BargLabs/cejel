@@ -8,8 +8,8 @@ const REPOSITORY_ROOT = join(__dirname, '..', '..');
 const DOCS_DIRECTORY = join(REPOSITORY_ROOT, 'docs');
 const CONSTRAINTS_PATH = join(DOCS_DIRECTORY, 'standing-constraints.md');
 const ENTRYPOINTS = ['AGENTS.md', 'CLAUDE.md'] as const;
-const PINNED_SHA256 = 'b7dea9f8971af80de061369e988f94b5cd50962bdf4399dab3e6bc1b2dc31717';
-const EXPECTED_VERSION = '**CONSTRAINTS-VERSION: 2026-08-01.4**';
+const PINNED_SHA256 = 'f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22';
+const EXPECTED_VERSION = '**CONSTRAINTS-VERSION: 2026-08-01.5**';
 const CONSTRAINTS_LINK = '[`docs/standing-constraints.md`](docs/standing-constraints.md)';
 const HANDSHAKE_INSTRUCTION =
   '**Echo the exact `CONSTRAINTS-VERSION` line from that file in every report.** This is an observable delivery handshake: omission flags non-delivery or non-compliance, but does not logically prove the whole file was unread.';
@@ -18,7 +18,7 @@ const LOCAL_PIN_BOUNDARY =
 const EXPLICIT_PARITY_CHECK =
   'Cross-repo parity must be checked explicitly on every change: compare both files, copy the canonical bytes, bump `CONSTRAINTS-VERSION`, and update both local pins.';
 const LOCAL_PIN_INSTRUCTION =
-  'The current local SHA-256 pin is `b7dea9f8971af80de061369e988f94b5cd50962bdf4399dab3e6bc1b2dc31717`.';
+  'The current local SHA-256 pin is `f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22`.';
 const HISTORICAL_REVERIFY_INSTRUCTION =
   'Historical counts and open-item labels must be mechanically reverified against current repository state before action.';
 

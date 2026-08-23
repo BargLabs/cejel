@@ -3775,12 +3775,12 @@ const CI_TYPECHECK_COMMAND_PATTERN = /\b(tsc|mypy|pyright)\b/i;
 // The concept, detected by SHAPE, never by filename: does this repository run a
 // cron-scheduled workflow that exercises its verification suite, and are that
 // workflow's results durably published somewhere a reader could actually check —
-// or only handed to an ephemeral, access-gated CI artifact? This repository's own
-// `.github/workflows/bede-nightly.yml` is one recognized instance of the shape
-// (schedule trigger + `pnpm test` + `actions/upload-artifact`, no durable publish
-// step) — a differently-named nightly workflow with the same shape is detected
-// identically, and a repo whose nightly workflow is named "bede-nightly.yml" but
-// lacks the shape (no schedule trigger, no test-run command) is not flagged at all
+// or only handed to an ephemeral, access-gated CI artifact? A cron-scheduled workflow that
+// runs the verification suite and only uploads an ephemeral CI artifact is one recognized
+// instance of the shape. A differently named
+// workflow with the same shape is detected identically, while a workflow whose name
+// suggests nightly health verification but lacks the shape (no schedule trigger or
+// test-run command) is not flagged at all
 // (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12).
 const SCHEDULE_TRIGGER_PATTERN = /(^|\n)\s*schedule:\s*\r?\n\s*-\s*cron:/;
 // Durable-publication markers: the workflow visibly does more than hand its result
