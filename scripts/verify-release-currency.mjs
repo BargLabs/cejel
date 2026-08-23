@@ -11,8 +11,8 @@ const PACKAGE_NAME = '@cejel/cejel';
 const IMAGE_NAME = 'ghcr.io/barglabs/cejel';
 const MCP_SERVER_NAME = 'io.github.BargLabs/cejel';
 const HOMEBREW_FORMULA_REPOSITORY = 'BargLabs/homebrew-tap';
-const BOARD_REPOSITORY = 'BargLabs/cejel-site';
 const BOARD_PATH = 'leaderboard/leaderboard.md';
+export const LEADERBOARD_URL = `https://cejel.dev/${BOARD_PATH}`;
 const SURFACES = [
   'npm',
   'npm attestation',
@@ -44,9 +44,9 @@ const BOARD_PIN_LINE = new RegExp(
 );
 
 // Mirrors src/__tests__/bare-npx-invocation-guard.test.ts, which scans this repository's own
-// docs/README/issue-template copy. That guard cannot see cejel.dev or cejel-site — they are a
-// different repository — so the same pattern is re-applied here against the published surfaces
-// a first-time reviewer actually reads and copies commands from.
+// docs/README/issue-template copy. That guard cannot see cejel.dev, so the same pattern is
+// re-applied here against the published surfaces a first-time reviewer actually reads and copies
+// commands from.
 const RUNNER_PREFIXES = ['npx', 'pnpm dlx', 'bunx'];
 const BARE_INVOCATION_PATTERN = new RegExp(
   `\\b(?:${RUNNER_PREFIXES.join('|')})\\s+@cejel/cejel(?!@)\\b`,
@@ -406,14 +406,8 @@ export function createLiveReaders() {
     },
 
     async leaderboard() {
-      const record = await ghApi(
-        `repos/${BOARD_REPOSITORY}/contents/${BOARD_PATH}?ref=main`,
-        'leaderboard',
-      );
-      if (record?.encoding !== 'base64' || typeof record?.content !== 'string') {
-        throw new Error('GitHub response did not contain base64 content');
-      }
-      const markdown = Buffer.from(record.content, 'base64').toString('utf8');
+      const response = await fetchChecked(LEADERBOARD_URL, 'leaderboard');
+      const markdown = await response.text();
       return { ...parseLeaderboardRecord(markdown), markdown };
     },
   };
