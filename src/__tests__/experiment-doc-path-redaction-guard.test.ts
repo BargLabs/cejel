@@ -1,8 +1,17 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+
+const EXPERIMENTS_DIRECTORY = new URL('../../docs/experiments/', import.meta.url);
+const SHAPE_DIVERSITY_RESULT = readdirSync(EXPERIMENTS_DIRECTORY).find((name) =>
+  /^shape-diversity-.+-sitemachine-2026-08-01\.md$/.test(name),
+);
+
+if (!SHAPE_DIVERSITY_RESULT) {
+  throw new Error('shape-diversity result artifact is missing');
+}
 
 const PUBLIC_REDACTED_ARTIFACTS = [
   'docs/experiments/d-series-base-rate-2026-08-02/owned-corpus.json',
@@ -10,7 +19,7 @@ const PUBLIC_REDACTED_ARTIFACTS = [
   'docs/experiments/session-trace-recall-preregistration-2026-08-01.md',
   'docs/experiments/session-trace-recall-result-2026-08-01.md',
   'docs/experiments/shape-diversity-preregistration-2026-08-01.md',
-  'docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md',
+  `docs/experiments/${SHAPE_DIVERSITY_RESULT}`,
   'docs/experiments/strata-a-yield-2026-08-01.md',
   'docs/experiments/stratum-b-yield-2026-08-01.md',
 ] as const;
