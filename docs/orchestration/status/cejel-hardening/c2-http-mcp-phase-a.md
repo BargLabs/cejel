@@ -81,9 +81,9 @@ requests and successful `scan` calls cannot be separated from transport-level
 
 The text search covered these roots:
 
-- `/Users/bargs/projects/cejel`;
-- `/Users/bargs/projects/cejel-site`;
-- `/Users/bargs/projects/lab_notes`, the available studio and
+- `<operator-home>/projects/cejel`;
+- `<operator-home>/projects/cejel-site`;
+- `<operator-home>/projects/lab_notes`, the available studio and
   partner-planning corpus.
 
 The search looked for endpoint domains, `/api/mcp`, `api/mcp.ts`,

@@ -6,9 +6,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+const OPERATOR_HOME = os.homedir();
 const ALFRED = {
   slug: 'BargLabs/alfred',
-  localPath: '/Users/bargs/projects/alfred',
+  localPath: path.join(OPERATOR_HOME, 'projects', 'alfred'),
   tip: '76a631be63cf1be2cd4d9c6b303626a7124864c4',
 };
 
@@ -86,7 +87,7 @@ function cleanEnvironment(tempRoot) {
     CI: 'true',
     NO_COLOR: '1',
     PNPM_HOME: path.join(tempRoot, 'pnpm-home'),
-    PNPM_STORE_DIR: '/Users/bargs/Library/pnpm/store/v11',
+    PNPM_STORE_DIR: path.join(OPERATOR_HOME, 'Library', 'pnpm', 'store', 'v11'),
     DOCKER_CONFIG: path.join(tempRoot, 'docker-config'),
   };
   for (const directory of [env.HOME, env.TMPDIR, env.PNPM_HOME, env.DOCKER_CONFIG]) fs.mkdirSync(directory, { recursive: true, mode: 0o700 });

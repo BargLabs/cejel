@@ -3,10 +3,11 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, resolve } from 'node:path';
 
 const CEJEL_ROOT = resolve(new URL('..', import.meta.url).pathname);
-const ALFRED_ROOT = '/Users/bargs/projects/alfred';
+const ALFRED_ROOT = resolve(homedir(), 'projects', 'alfred');
 const ALFRED_COMMIT = '5a8e496c33e783b2271827e78096e5f515f656a0';
 const CEJEL_RULE_COMMIT = '05d5d9fca79ea9cb1d34e64fa795f9713b6d1bf1';
 const V50_SPEC_PATH =

@@ -5,8 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+const OPERATOR_HOME = os.homedir();
 const EGBERT = {
-  localPath: '/Users/bargs/projects/egbert',
+  localPath: path.join(OPERATOR_HOME, 'projects', 'egbert'),
   tip: 'b8346c235a9607c0efff31af6bb44a25ee4d16bb',
 };
 

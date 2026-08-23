@@ -2,22 +2,24 @@
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
+const OPERATOR_HOME = os.homedir();
 const REPOSITORIES = [
-  { product: 'cejel', slug: 'BargLabs/cejel', localPath: '/Users/bargs/projects/cejel' },
-  { product: 'egbert', slug: 'BargStudio/egbert', localPath: '/Users/bargs/projects/egbert' },
-  { product: 'site-machine', slug: 'houman44/site-machine', localPath: '/Users/bargs/projects/site-machine' },
-  { product: 'alfred', slug: 'BargLabs/alfred', localPath: '/Users/bargs/projects/alfred' },
-  { product: 'edwin', slug: 'houman44/edwin', localPath: '/Users/bargs/projects/edwin' },
-  { product: 'therasyn', slug: 'BargStudio/therasyn', localPath: '/Users/bargs/projects/therasyn' },
-  { product: 'knut', slug: 'houman44/knut', localPath: '/Users/bargs/projects/knut' },
-  { product: 'edwy', slug: 'BargLabs/edwy', localPath: '/Users/bargs/projects/edwy' },
-  { product: 'wilfrid', slug: 'BargLabs/wilfrid', localPath: '/Users/bargs/projects/wilfrid' },
-  { product: 'barglabs-site', slug: 'houman44/barglabs-site', localPath: '/Users/bargs/projects/barglabs-site' },
-  { product: 'cejel-site', slug: 'BargLabs/cejel-site', localPath: '/Users/bargs/projects/cejel-site' },
+  { product: 'cejel', slug: 'BargLabs/cejel', localPath: path.join(OPERATOR_HOME, 'projects', 'cejel') },
+  { product: 'egbert', slug: 'BargStudio/egbert', localPath: path.join(OPERATOR_HOME, 'projects', 'egbert') },
+  { product: 'site-machine', slug: 'houman44/site-machine', localPath: path.join(OPERATOR_HOME, 'projects', 'site-machine') },
+  { product: 'alfred', slug: 'BargLabs/alfred', localPath: path.join(OPERATOR_HOME, 'projects', 'alfred') },
+  { product: 'edwin', slug: 'houman44/edwin', localPath: path.join(OPERATOR_HOME, 'projects', 'edwin') },
+  { product: 'therasyn', slug: 'BargStudio/therasyn', localPath: path.join(OPERATOR_HOME, 'projects', 'therasyn') },
+  { product: 'knut', slug: 'houman44/knut', localPath: path.join(OPERATOR_HOME, 'projects', 'knut') },
+  { product: 'edwy', slug: 'BargLabs/edwy', localPath: path.join(OPERATOR_HOME, 'projects', 'edwy') },
+  { product: 'wilfrid', slug: 'BargLabs/wilfrid', localPath: path.join(OPERATOR_HOME, 'projects', 'wilfrid') },
+  { product: 'barglabs-site', slug: 'houman44/barglabs-site', localPath: path.join(OPERATOR_HOME, 'projects', 'barglabs-site') },
+  { product: 'cejel-site', slug: 'BargLabs/cejel-site', localPath: path.join(OPERATOR_HOME, 'projects', 'cejel-site') },
 ];
 
 const TEST_COMMAND = /(?:^|[\s;&|])(?:[^\s;&|]*\/)?(?:pytest|vitest|jest|mocha|playwright|cargo\s+test|go\s+test|node\s+--test|bun\s+test)|\b(?:npm|pnpm|yarn)\b[^\n;&|]*\btest\b/i;

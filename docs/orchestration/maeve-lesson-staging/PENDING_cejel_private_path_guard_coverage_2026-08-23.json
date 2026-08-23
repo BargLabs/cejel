@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "A public-repository redaction guard must scan the same Git-tracked surface that can leak. In incident #984, src/__tests__/experiment-doc-path-redaction-guard.test.ts enumerated only eight experiment artifacts, so docs/orchestration/status/cejel-hardening/c2-http-mcp-phase-a.md and scripts/{d-series-base-rate-prepare,session-trace-extract,session-trace-extract.node-test,session-trace-oracle,session-trace-resolve,session-trace-source-manifest,stratum-b-egbert-oracle,stratum-b-extract,stratum-b-ledger,stratum-b-oracle}.mjs remained uncovered. Add a Git-tracked-file search, use the established operator-home placeholder in prose, derive executable roots from the runtime home, and prove the repair with a committed forbidden specimen. Move condition: after the repair PR merges, verify its origin/main squash diff exhibits those changes, then anchor and copy this record into Alfred's maeve-lesson-batches with the cejel_ prefix.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "src/__tests__/experiment-doc-path-redaction-guard.test.ts",
+      "docs/orchestration/status/cejel-hardening/c2-http-mcp-phase-a.md",
+      "scripts/"
+    ],
+    "tags": [
+      "guard-coverage",
+      "private-path-redaction",
+      "public-surface",
+      "failure-plane",
+      "structural-regression"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-23T00:00:00.000Z"
+  }
+]
