@@ -3,17 +3,19 @@
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
+const OPERATOR_HOME = os.homedir();
 const sources = [
-  ['codex-archived', '/Users/bargs/.codex/archived_sessions'],
-  ['codex-active', '/Users/bargs/.codex/sessions'],
-  ['claude-code', '/Users/bargs/.claude/projects'],
-  ['alfred-trace', '/Users/bargs/.alfred/trace/archive'],
-  ['cowork-archive', '/Users/bargs/.alfred/trace/cowork-archive'],
-  ['cowork-live', '/Users/bargs/Library/Application Support/Claude/local-agent-mode-sessions'],
-  ['cowork-partial-141248', '/Users/bargs/Library/Application Support/Claude.partial.20260611-141248/local-agent-mode-sessions'],
-  ['cowork-partial-142030', '/Users/bargs/Library/Application Support/Claude.partial.20260611-142030/local-agent-mode-sessions'],
+  ['codex-archived', path.join(OPERATOR_HOME, '.codex', 'archived_sessions')],
+  ['codex-active', path.join(OPERATOR_HOME, '.codex', 'sessions')],
+  ['claude-code', path.join(OPERATOR_HOME, '.claude', 'projects')],
+  ['alfred-trace', path.join(OPERATOR_HOME, '.alfred', 'trace', 'archive')],
+  ['cowork-archive', path.join(OPERATOR_HOME, '.alfred', 'trace', 'cowork-archive')],
+  ['cowork-live', path.join(OPERATOR_HOME, 'Library', 'Application Support', 'Claude', 'local-agent-mode-sessions')],
+  ['cowork-partial-141248', path.join(OPERATOR_HOME, 'Library', 'Application Support', 'Claude.partial.20260611-141248', 'local-agent-mode-sessions')],
+  ['cowork-partial-142030', path.join(OPERATOR_HOME, 'Library', 'Application Support', 'Claude.partial.20260611-142030', 'local-agent-mode-sessions')],
 ];
 
 function list(root) {

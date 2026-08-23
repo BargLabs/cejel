@@ -1,4 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -13,10 +15,24 @@ const PUBLIC_REDACTED_ARTIFACTS = [
   'docs/experiments/stratum-b-yield-2026-08-01.md',
 ] as const;
 
+const OPERATOR_HOME_PREFIXES = ['/Us' + 'ers/', '/ho' + 'me/', ':\\Us' + 'ers\\'];
 const OPERATOR_HOME_PATH = /(?:\/Users\/|\/home\/)[^/\s`"'|]+/;
 const WINDOWS_OPERATOR_HOME_PATH = /[A-Za-z]:\\Users\\[^\\\s`"'|]+/;
+const REPOSITORY_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-describe('public experiment document path redaction', () => {
+function trackedPathViolations(): { status: number | null; output: string } {
+  const patterns = OPERATOR_HOME_PREFIXES.flatMap((prefix) => ['-e', prefix]);
+  const result = spawnSync('git', ['grep', '-n', '-F', ...patterns, '--', '.'], {
+    cwd: REPOSITORY_ROOT,
+    encoding: 'utf8',
+  });
+  return {
+    status: result.status,
+    output: `${result.stdout}${result.stderr}`.trim(),
+  };
+}
+
+describe('public repository path redaction', () => {
   for (const artifact of PUBLIC_REDACTED_ARTIFACTS) {
     it(`keeps ${artifact} free of workstation-specific home paths`, () => {
       const contents = readFileSync(new URL(`../../${artifact}`, import.meta.url), 'utf8');
@@ -25,4 +41,10 @@ describe('public experiment document path redaction', () => {
       expect(contents).not.toMatch(WINDOWS_OPERATOR_HOME_PATH);
     });
   }
+
+  it('keeps every tracked artifact free of workstation-specific home paths', () => {
+    const violations = trackedPathViolations();
+
+    expect(violations).toEqual({ status: 1, output: '' });
+  });
 });
