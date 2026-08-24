@@ -334,7 +334,7 @@ function renderNotApplicableGroup(criteria: readonly WitanCriterionScore[]): str
 
 function renderNotApplicableItem(criterion: WitanCriterionScore): string {
   const reason = criterion.notes ?? 'Not applicable to this repository.';
-  return `<li><span class="na-id">${escapeHtml(criterion.id)}</span> ${escapeHtml(criterion.title)} — <span class="na-reason">${escapeHtml(reason)}</span></li>`;
+  return `<li><span class="na-id">${escapeHtml(criterion.id)}</span> ${escapeHtml(criterion.title)} — <span class="na-reason">${escapeHtml(reason)}</span><span class="na-reconciliation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</span></li>`;
 }
 
 function renderCriterionCard(
@@ -373,15 +373,27 @@ function renderCriterionCard(
 }
 
 function renderStatusReconciliation(criterion: WitanCriterionScore): string {
-  if (
-    criterion.status === 'not_applicable' ||
-    criterion.status === 'insufficient_data' ||
-    criterion.status === 'unverified'
-  ) {
-    return '';
+  if (criterion.status === 'not_applicable') {
+    return '<p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension is not applicable to this repository, so it has no weighted numeric score band to compare.</p>';
+  }
+  if (criterion.status === 'insufficient_data') {
+    return '<p class="status-explanation"><strong>Why no label comparison applies:</strong> this dimension has insufficient measurable data, so it has no weighted numeric score band to compare.</p>';
+  }
+  if (criterion.status === 'unverified') {
+    return '<p class="status-explanation"><strong>Why no label comparison applies:</strong> the unverified dimension state is a fail-closed or legacy zero state, not a calibrated numeric band.</p>';
   }
   const numericBand = scoreBandForPresentation(criterion.score);
-  if (numericBand === criterion.status) return '';
+  if (numericBand === criterion.status) {
+    return `<p class="status-explanation"><strong>How the labels agree:</strong> the ${escapeHtml(criterion.status)} dimension band matches the ${formatScore(criterion.score)}/4.0 weighted score (the ${numericBand} numeric band).</p>`;
+  }
+  if (
+    criterion.status !== 'verified' &&
+    criterion.status !== 'info' &&
+    criterion.status !== 'warning' &&
+    criterion.status !== 'critical'
+  ) {
+    return `<p class="status-explanation"><strong>Why no label comparison applies:</strong> this report contains an unrecognized dimension state (${escapeHtml(String(criterion.status))}), so Cejel will not infer a comparison.</p>`;
+  }
   const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'labels');
   const help = entry
     ? `<span class="term-help" tabindex="0" aria-describedby="tooltip-${criterion.id}-labels"><strong>Why the labels differ:</strong><span class="term-tooltip" id="tooltip-${criterion.id}-labels" role="tooltip">${escapeHtml(entry.definition)}</span></span>`
@@ -635,6 +647,8 @@ h2 { font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacin
 .na-list li { margin: 0; color: var(--muted); }
 .na-id { color: var(--faint); font-family: var(--mono); font-size: 11px; margin-right: 6px; }
 .na-reason { color: var(--muted); }
+.na-reconciliation { display: block; margin-top: 4px; color: var(--muted); }
+.na-reconciliation strong { color: var(--text); }
 .criterion { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--surface-2); }
 .criterion-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
 .criterion-id { color: var(--periwinkle); font-family: var(--mono); font-size: 12px; margin-bottom: 4px; }

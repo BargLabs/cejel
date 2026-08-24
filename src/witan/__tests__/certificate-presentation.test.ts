@@ -337,6 +337,97 @@ describe('certificate presentation regressions', () => {
     expect(html).toContain('warning numeric band');
   });
 
+  it('states explicitly when dimension and numeric bands agree', () => {
+    const html = renderWitanHtmlReport(
+      reportFixture([
+        criterion({
+          id: 'A5',
+          category: 'code_trust',
+          score: 3.1,
+          status: 'info',
+        }),
+      ]),
+      { cliVersion: '0.4.4' },
+    );
+
+    expect(html).toContain('How the labels agree:');
+    expect(html).toContain('info dimension band matches the 3.1/4.0 weighted score');
+    expect(html).toContain('the info numeric band');
+  });
+
+  it.each([
+    [
+      'not_applicable',
+      'this dimension is not applicable to this repository, so it has no weighted numeric score band to compare',
+    ],
+    [
+      'insufficient_data',
+      'this dimension has insufficient measurable data, so it has no weighted numeric score band to compare',
+    ],
+    [
+      'unverified',
+      'the unverified dimension state is a fail-closed or legacy zero state, not a calibrated numeric band',
+    ],
+  ] as const)('states why %s has no label comparison', (status, explanation) => {
+    const html = renderWitanHtmlReport(
+      reportFixture([
+        criterion({
+          id: 'A5',
+          category: 'code_trust',
+          score: 0,
+          status,
+        }),
+      ]),
+      { cliVersion: '0.4.4' },
+    );
+
+    expect(html).toContain('Why no label comparison applies:');
+    expect(html).toContain(explanation);
+  });
+
+  it('fails closed with explicit text for an unrecognized dimension state', () => {
+    const invalidCriterion = {
+      ...criterion({
+        id: 'A5',
+        category: 'code_trust',
+        score: 3,
+        status: 'info',
+      }),
+      status: 'future_band',
+    } as unknown as WitanCriterionScore;
+
+    const html = renderWitanHtmlReport(reportFixture([invalidCriterion]), {
+      cliVersion: '0.4.4',
+    });
+
+    expect(html).toContain('Why no label comparison applies:');
+    expect(html).toContain('unrecognized dimension state (future_band)');
+    expect(html).toContain('Cejel will not infer a comparison');
+  });
+
+  it('uses an honest display label without changing the claim_match_rate machine key', () => {
+    const metric = {
+      name: 'claim_match_rate',
+      label: 'Claim match rate',
+      value: 0.8,
+      max: 1,
+      weight: 1,
+      kind: 'ratio' as const,
+    };
+    const report = reportFixture([
+      criterion({
+        id: 'A5',
+        category: 'code_trust',
+        metrics: [metric],
+      }),
+    ]);
+    const html = renderWitanHtmlReport(report, { cliVersion: '0.4.4' });
+
+    expect(report.criteria[0]?.metrics[0]?.name).toBe('claim_match_rate');
+    expect(html).toContain('Implementation-to-claim-source file ratio');
+    expect(html).not.toContain('>Claim match rate<');
+  });
+
   it('warns that a tarball scan cannot measure the git-history PR proxy', () => {
     const b2 = criterion({
       id: 'B2',
