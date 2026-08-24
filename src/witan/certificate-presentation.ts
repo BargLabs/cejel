@@ -42,7 +42,7 @@ export const CERTIFICATE_METRIC_REGISTRY = {
   lockfile_coverage: { displayLabel: 'Lockfile coverage' },
   declared_version_range_ratio: { displayLabel: 'Declared version range ratio' },
   dependency_count_sanity: { displayLabel: 'Dependency count sanity' },
-  claim_match_rate: { displayLabel: 'Claim match rate' },
+  claim_match_rate: { displayLabel: 'Implementation-to-claim-source file ratio' },
   claim_source_depth: { displayLabel: 'Claim source depth' },
   reconciliation_artifact_depth: { displayLabel: 'Reconciliation artifact depth' },
   pr_trace_primitives: { displayLabel: 'PR trace basic checks' },
@@ -214,9 +214,9 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
   },
   {
     key: 'claim-match-rate',
-    term: 'Claim match rate',
+    term: 'Implementation-to-claim-source file ratio',
     definition:
-      'A bounded static proxy: detected implementation-file count divided by that count plus detected headline claim-source document count. It does not semantically decide whether individual prose claims are true.',
+      'A bounded file-count ratio: detected implementation-file count divided by that count plus detected headline claim-source document count. It does not verify whether individual prose claims are true.',
     metricNames: ['claim_match_rate'],
   },
   {

@@ -52,6 +52,19 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - HTML certificate metric values now wrap within their criterion cards instead of painting across
   neighboring content when reader-facing measurement explanations are sentence-length.
+  `certificate.html` changes; `report.json`, `summary.json`, and `attestation.json` remain
+  unchanged.
+
+- HTML certificates now state explicitly when a dimension band agrees with its weighted-score
+  numeric band, and explain why no comparison applies for not-applicable, insufficient-data, and
+  unverified states. No state is represented by silent absence. `certificate.html` changes;
+  `report.json`, `summary.json`, and `attestation.json` remain unchanged.
+
+- Renames the reader-facing “Claim match rate” metric to
+  “Implementation-to-claim-source file ratio” and states that the bounded file-count ratio does
+  not verify prose claims. The machine key remains `claim_match_rate`. Human-readable
+  certificate text, including `certificate.html`, changes; `report.json`, `summary.json`, and
+  `attestation.json` remain unchanged.
 
 - Human-readable certificates now explain every measurement without vendor interpretation. Fixed
   enumerable checks name what was found and missing, binary outcomes no longer look like file
