@@ -139,6 +139,9 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
     min-score: "2.5"   # optional: fail the build below this
 ```
 
+For an executed public example that binds a release artifact to the same commit named by its
+Cejel certificate, see [Certified releases with GitHub build provenance](./docs/certified-release-example.md).
+
 **From source** — it is AGPL and it runs offline, so reading it is rather the point:
 
 ```bash
