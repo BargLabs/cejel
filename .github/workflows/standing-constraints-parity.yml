@@ -1,0 +1,121 @@
+name: Standing constraints parity
+
+# Auth mode for THIS direction (cejel reading alfred): alfred is PRIVATE, so
+# the job's default GITHUB_TOKEN (scoped only to this repo) cannot read it --
+# GitHub's contents API only serves private-repo content to a token
+# explicitly granted read access to that specific repo. This workflow needs
+# a repo secret, ALFRED_CONSTRAINTS_READ_TOKEN: a fine-grained PAT (or GitHub
+# App installation token) scoped to READ-ONLY "Contents" on BargLabs/alfred
+# and nothing else. That secret is a human-provisioned credential (repo
+# Settings > Secrets and variables > Actions) -- this workflow proposes the
+# requirement but does not and cannot create the secret itself. Until it is
+# set, `gh api` fails with 404 (GitHub does not distinguish "private, no
+# access" from "does not exist") and the guard FAILS loud, which is the
+# correct behavior for an unreadable sibling, not a bug to route around.
+#
+# Alfred's own copy of this workflow reads cejel, which is PUBLIC, so it
+# needs no equivalent secret (see that repo's copy of this file).
+
+on:
+  pull_request:
+    paths:
+      - 'docs/standing-constraints.md'
+      - 'scripts/constraints-parity-guard.sh'
+      - '.github/workflows/standing-constraints-parity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/standing-constraints.md'
+      - 'scripts/constraints-parity-guard.sh'
+      - '.github/workflows/standing-constraints-parity.yml'
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: standing-constraints-parity-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: Compare Cejel and Alfred
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Guard regression tests (fixtures only, no live fetch)
+        run: bash scripts/constraints_parity_guard_tests.sh
+
+      - name: Compare canonical bytes against Alfred
+        id: guard
+        env:
+          PARITY_GUARD_SELF_LABEL: cejel
+          PARITY_GUARD_SIBLING_REPO: BargLabs/alfred
+          PARITY_GUARD_SIBLING_LABEL: alfred
+          PARITY_GUARD_AUTH_MODE: fine-grained-pat
+          GH_TOKEN: ${{ secrets.ALFRED_CONSTRAINTS_READ_TOKEN }}
+        run: ./scripts/constraints-parity-guard.sh 2>&1 | tee "${RUNNER_TEMP}/parity-guard-output.txt"
+
+      # PR runs stop at the guard step above: the failing check is the
+      # signal, and a PR that never merges should not open an operator
+      # issue. Only push/schedule/workflow_dispatch runs (i.e. runs against
+      # what main actually looks like right now) escalate, so overnight
+      # drift surfaces where the estate already looks -- as an escalation
+      # deploy/operator/escalation-issue-check.sh's daily sweep will pick up
+      # (it searches BargLabs + houman44 issues by the escalation:operator
+      # label across every repo, so no change to that script is needed for
+      # an issue opened here to be found by it).
+      - name: Escalate constraints-parity drift or unreadable sibling
+        if: failure() && steps.guard.outcome == 'failure' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh label create "constraints-parity" --color "d93f0b" \
+            --description "Alfred/Cejel standing-constraints.md byte-parity guard" --force >/dev/null
+          gh label create "escalation:operator" --color "b60205" \
+            --description "Surfaced to the daily operator escalation sweep" --force >/dev/null
+
+          body="$(mktemp)"
+          {
+            echo "The cross-repo standing-constraints.md parity guard failed (drift, or the"
+            echo "sibling repo was unreadable -- this guard treats both the same way: loud,"
+            echo "never a silent skip)."
+            echo
+            echo "If this is an unreadable-sibling failure, check whether"
+            echo "ALFRED_CONSTRAINTS_READ_TOKEN (repo secret) is set and still has read access"
+            echo "to BargLabs/alfred -- see the auth-mode comment at the top of this workflow."
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '```'
+            cat "${RUNNER_TEMP}/parity-guard-output.txt"
+            echo '```'
+          } > "${body}"
+
+          existing="$(gh issue list --label constraints-parity --state open --json number --jq '.[0].number // empty')"
+          if [ -n "${existing}" ]; then
+            gh issue edit "${existing}" --body-file "${body}"
+          else
+            gh issue create \
+              --title "[constraints-parity] standing-constraints.md diverged or sibling unreadable" \
+              --label constraints-parity --label escalation:operator --body-file "${body}"
+          fi
+
+      - name: Close recovered constraints-parity escalation
+        if: steps.guard.outcome == 'success' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --label constraints-parity --state open --json number --jq '.[0].number // empty')"
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" \
+              --body "Recovered: the parity guard is green again as of ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+            gh issue close "${existing}"
+          fi

@@ -28,7 +28,10 @@ file. This is a shared point-in-time parity record and local immutability guard;
 current cross-repository byte equality. The current local SHA-256 pin is
 `f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22`. Cross-repo parity must be
 checked explicitly on every change: compare both files, copy the canonical bytes, bump
-`CONSTRAINTS-VERSION`, and update both local pins.
+`CONSTRAINTS-VERSION`, and update both local pins. This is checked mechanically by
+[`scripts/constraints-parity-guard.sh`](scripts/constraints-parity-guard.sh) in CI — wired into
+both repos on any PR touching the file, on push to `main`, and on a daily schedule; drift or an
+unreadable sibling fails the check loud, it never silently skips.
 
 **Echo the exact `CONSTRAINTS-VERSION` line from that file in every report.** This is an observable
 delivery handshake: omission flags non-delivery or non-compliance, but does not logically prove the
