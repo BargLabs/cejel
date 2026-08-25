@@ -98,7 +98,7 @@ describe('standing constraints', () => {
 
     expect(workflow).toContain("pull_request: paths: - 'docs/standing-constraints.md'");
     expect(workflow).toContain("schedule: - cron: '23 9 * * *'");
-    expect(workflow).toContain('run: ./scripts/constraints-parity-guard.sh');
+    expect(workflow).toContain('./scripts/constraints-parity-guard.sh');
     expect(workflow).toContain('PARITY_GUARD_SIBLING_REPO: BargLabs/alfred');
     expect(workflow).toContain('GH_TOKEN: ${{ secrets.ALFRED_CONSTRAINTS_READ_TOKEN }}');
     expect(workflow).toContain(
@@ -106,5 +106,25 @@ describe('standing constraints', () => {
     );
     expect(workflow).toContain('--label escalation:operator');
     expect(workflow).not.toContain('continue-on-error:');
+  });
+
+  it('the guard step sets pipefail before piping through tee, so a failure cannot be swallowed', () => {
+    // Regression guard for a real defect caught on this card's own PR: GitHub
+    // Actions' default bash shell is `bash -e {0}`, NOT `-eo pipefail`. A
+    // `run: guard.sh 2>&1 | tee file` step without an explicit `set -o
+    // pipefail` reports the exit code of `tee` (always 0), not the guard's --
+    // so a real drift or unreadable-sibling failure was observed to pass this
+    // step silently: this PR's own first CI run (missing-secret state) had
+    // the guard print "FAILED [plane=content] ..." to the log while the step
+    // and job both showed green. `set -o pipefail` on its own line before the
+    // piped command is the fix; assert its presence directly adjacent to the
+    // tee pipe so a future edit that drops it again fails this test.
+    const workflow = readFileSync(PARITY_WORKFLOW_PATH, 'utf8');
+    const guardStepMatch = workflow.match(/Compare canonical bytes[\s\S]*?run: \|([\s\S]*?)\n\n/);
+
+    expect(guardStepMatch).not.toBeNull();
+    const guardStepBody = guardStepMatch?.[1] ?? '';
+    expect(guardStepBody).toContain('set -o pipefail');
+    expect(guardStepBody).toContain('| tee');
   });
 });

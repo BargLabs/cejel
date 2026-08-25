@@ -59,7 +59,9 @@ jobs:
           PARITY_GUARD_SIBLING_LABEL: alfred
           PARITY_GUARD_AUTH_MODE: fine-grained-pat
           GH_TOKEN: ${{ secrets.ALFRED_CONSTRAINTS_READ_TOKEN }}
-        run: ./scripts/constraints-parity-guard.sh 2>&1 | tee "${RUNNER_TEMP}/parity-guard-output.txt"
+        run: |
+          set -o pipefail
+          ./scripts/constraints-parity-guard.sh 2>&1 | tee "${RUNNER_TEMP}/parity-guard-output.txt"
 
       # PR runs stop at the guard step above: the failing check is the
       # signal, and a PR that never merges should not open an operator
