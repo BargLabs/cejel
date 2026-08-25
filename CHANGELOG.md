@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-08-24
+
 ### Added
 
 - Adds `cejel scan --product-name <name>` so a caller can set both `productSlug` (slugified) and
