@@ -79,7 +79,7 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 ```
 
 > **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
-> 0.4.4 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> 0.4.5 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
 > GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM and an
@@ -102,7 +102,7 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** Cejel `0.4.4` is the coordinated release version for npm,
+> **Distribution note:** Cejel `0.4.5` is the coordinated release version for npm,
 > standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry.
 
 `npx` can reuse a stale cached package. Force the current npm release with the `@latest`
@@ -119,7 +119,7 @@ name while keeping the repository-derived stable slug:
 npx @cejel/cejel@latest . --name "Customer Portal"
 ```
 
-From the release after 0.4.4, use `--product-name` when two checkout directories must emit the
+From 0.4.5, use `--product-name` when two checkout directories must emit the
 same identity fields. The supplied value sets both the display name and its slugified stable ID:
 
 ```bash
@@ -161,16 +161,16 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.4.4`:
+**Docker / OCI.** The current container release is `0.4.5`:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.4.4
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.4.5
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.4.4 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.4.5 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
@@ -263,7 +263,7 @@ prints that boundary on every successful verification.
 - `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4), or if Cejel
   abstains and therefore cannot evaluate the threshold; used by the GitHub Action's optional
   threshold gate
-- `--product-name <name>` — **Unreleased; not available in 0.4.4.** Set both the caller-context
+- `--product-name <name>` — Set both the caller-context
   display name and slugified product ID so differently named checkouts can emit identical
   certificates.
 - `--name <display>` — override only the displayed project name while leaving the derived slug
@@ -271,8 +271,8 @@ prints that boundary on every successful verification.
 - `--ingest <file|glob>` — fold another scanner's output into the score (repeatable). Accepts
   SARIF, OpenSSF Scorecard JSON, or the generic Cejel external-signal shape — format is
   auto-detected. See "Aggregate your scanners" below.
-- `--rubric-pin <version>` — **Unreleased; not available in 0.4.4.** When released, this will be an
-  explicit opt-in only: pin an alternate rubric instead of the calibrated public default. It
+- `--rubric-pin <version>` — Explicit opt-in only: pin an alternate rubric instead of the
+  calibrated public default. It
   accepts the calibrated version or any published prospective rubric
   (`witan-rubric-v18-prospective-*` through `v22`) and fails closed, naming what was accepted, on
   anything else. Omit this flag for the calibrated result every default scan produces — a
@@ -485,7 +485,7 @@ The OCI image is an alternative when Docker is the preferred execution boundary.
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.4"]}'
+npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.5"]}'
 npx -y openclaw@latest mcp doctor cejel-oci --probe
 ```
 
