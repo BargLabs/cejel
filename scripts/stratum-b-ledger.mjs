@@ -5,23 +5,20 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 
-const OPERATOR_HOME = os.homedir();
-const projectPath = (name) => path.join(OPERATOR_HOME, 'projects', name);
+import { portfolioRepositories } from './portfolio-repo-registry.mjs';
+
+const repositories = portfolioRepositories();
+const primaryRepositories = repositories.filter((repo) => repo.scope === 'primary');
+const expansionRepositories = repositories.filter((repo) => repo.scope !== 'primary');
 
 const SOURCES = [
-  ['/tmp/stratum-b-primary.json', {
-    'BargLabs/alfred': [projectPath('alfred'), '76a631be63cf1be2cd4d9c6b303626a7124864c4'],
-    'BargLabs/cejel': [projectPath('cejel'), '97564ad17ddde4c64d213f78c98d316c01b0c12a'],
-  }],
-  ['/tmp/stratum-b-egbert.json', { 'BargStudio/egbert': [projectPath('egbert'), 'b8346c235a9607c0efff31af6bb44a25ee4d16bb'] }],
-  ['/tmp/stratum-b-site-machine.json', { 'houman44/site-machine': [projectPath('site-machine'), '1e4106f131f9af27a9a314a0dbb2ecc35c09b441'] }],
-  ['/tmp/stratum-b-edwin.json', { 'houman44/edwin': [projectPath('edwin'), '8a9e006d1bae6653f253608ddc11eb93570fc5a1'] }],
-  ['/tmp/stratum-b-therasyn.json', { 'BargStudio/therasyn': [projectPath('therasyn'), '39f228590c2b2ecb47ddb420709d15c9271ad65a'] }],
-  ['/tmp/stratum-b-edwy.json', { 'BargLabs/edwy': [projectPath('edwy'), '99c1139ba187d7181ff9923edd782f66cc599aec'] }],
-  ['/tmp/stratum-b-knut.json', { 'houman44/knut': [projectPath('knut'), '4609f13c43f8b772db2aee7020bd9dad8ffeca16'] }],
-  ['/tmp/stratum-b-wilfrid.json', { 'BargLabs/wilfrid': [projectPath('wilfrid'), 'da0a474d361dd472c92e59c07b63b6139c390e42'] }],
-  ['/tmp/stratum-b-barglabs-site.json', { 'houman44/barglabs-site': [projectPath('barglabs-site'), '1e164da9400b0c7b8f073f2df5bafad3af48d643'] }],
-  ['/tmp/stratum-b-cejel-site.json', { 'BargLabs/cejel-site': [projectPath('cejel-site'), '5ed796e3dc9926ae69e0b2b018026c099d211a2e'] }],
+  ['/tmp/stratum-b-primary.json', Object.fromEntries(
+    primaryRepositories.map((repo) => [repo.slug, [repo.localPath, repo.tip]]),
+  )],
+  ...expansionRepositories.map((repo) => [
+    `/tmp/stratum-b-${repo.product}.json`,
+    { [repo.slug]: [repo.localPath, repo.tip] },
+  ]),
 ];
 
 const B1 = new Map([

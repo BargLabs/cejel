@@ -6,6 +6,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, resolve } from 'node:path';
 
+import { loadPrivatePortfolioConfig } from './portfolio-repo-registry.mjs';
+
 const CEJEL_ROOT = resolve(new URL('..', import.meta.url).pathname);
 const ALFRED_ROOT = resolve(homedir(), 'projects', 'alfred');
 const ALFRED_COMMIT = '5a8e496c33e783b2271827e78096e5f515f656a0';
@@ -108,12 +110,8 @@ function reconstructPriorExposure() {
   for (const identity of [
     'BargLabs/alfred',
     'BargLabs/cejel',
-    'BargLabs/egbert',
-    'BargStudio/egbert',
-    'houman44/edwin',
     'houman44/site-machine',
-    'BargStudio/therasyn',
-    'houman44/knut',
+    ...loadPrivatePortfolioConfig().priorExposureIdentities,
   ]) {
     identities.add(normalizeIdentity(identity));
   }

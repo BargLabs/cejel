@@ -80,9 +80,20 @@ function verifyCheckout(manifest, subject, checkout) {
 }
 
 function observe(adapterPath, checkout, subject, runtime) {
+  const reportRelativePath = manifest.implementationPath;
+  const corpusRelativePath = `${dirname(reportRelativePath)}/corpus.ts`;
   const stdout = execFileSync(
     process.execPath,
-    [runtime.tsxCliPath, adapterPath, '--alfred-root', checkout],
+    [
+      runtime.tsxCliPath,
+      adapterPath,
+      '--alfred-root',
+      checkout,
+      '--corpus-relative-path',
+      corpusRelativePath,
+      '--report-relative-path',
+      reportRelativePath,
+    ],
     { cwd: checkout, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
   const parsed = JSON.parse(stdout);

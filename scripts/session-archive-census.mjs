@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { loadPrivatePortfolioConfig } from './portfolio-repo-registry.mjs';
+
 // This census is deliberately content-blind. It may stat paths and inspect names,
 // but it must not open, read, or hash transcript or shell-history bodies.
 
@@ -98,8 +100,11 @@ const secondaryExports = [
   { label: 'icloud-claude-documents', root: path.join(home, 'Library/Mobile Documents/com~apple~CloudDocs/Documents/Claude') },
   { label: 'icloud-codex-documents', root: path.join(home, 'Library/Mobile Documents/com~apple~CloudDocs/Documents/Codex') },
   { label: 'alfred-session-docs', root: path.join(home, 'projects/alfred/docs/sessions') },
-  { label: 'therasyn-session-docs', root: path.join(home, 'projects/therasyn/docs/sessions') },
   { label: 'lab-session-pdfs', root: path.join(home, 'projects/lab_notes/_business/session_pdfs_2026-06-30') },
+  ...loadPrivatePortfolioConfig().sessionArchiveSecondaryExports.map(({ label, relativeRoot }) => ({
+    label,
+    root: path.join(home, relativeRoot),
+  })),
 ];
 
 function extensionOf(file) {

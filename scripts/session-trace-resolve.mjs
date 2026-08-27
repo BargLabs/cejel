@@ -2,29 +2,15 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-const OPERATOR_HOME = os.homedir();
-const projectPath = (name) => path.join(OPERATOR_HOME, 'projects', name);
+import { loadPrivatePortfolioConfig, portfolioRepositories } from './portfolio-repo-registry.mjs';
 
-const REPOSITORIES = {
-  'BargLabs/cejel': { path: projectPath('cejel'), tip: '97564ad17ddde4c64d213f78c98d316c01b0c12a' },
-  'BargStudio/egbert': { path: projectPath('egbert'), tip: 'b8346c235a9607c0efff31af6bb44a25ee4d16bb' },
-  'houman44/site-machine': { path: projectPath('site-machine'), tip: '1e4106f131f9af27a9a314a0dbb2ecc35c09b441' },
-  'BargLabs/alfred': { path: projectPath('alfred'), tip: '76a631be63cf1be2cd4d9c6b303626a7124864c4' },
-  'houman44/edwin': { path: projectPath('edwin'), tip: '8a9e006d1bae6653f253608ddc11eb93570fc5a1' },
-  'BargStudio/therasyn': { path: projectPath('therasyn'), tip: '39f228590c2b2ecb47ddb420709d15c9271ad65a' },
-  'houman44/knut': { path: projectPath('knut'), tip: '4609f13c43f8b772db2aee7020bd9dad8ffeca16' },
-  'BargLabs/edwy': { path: projectPath('edwy'), tip: '99c1139ba187d7181ff9923edd782f66cc599aec' },
-  'BargLabs/wilfrid': { path: projectPath('wilfrid'), tip: 'da0a474d361dd472c92e59c07b63b6139c390e42' },
-  'houman44/barglabs-site': { path: projectPath('barglabs-site'), tip: '1e164da9400b0c7b8f073f2df5bafad3af48d643' },
-  'BargLabs/cejel-site': { path: projectPath('cejel-site'), tip: '5ed796e3dc9926ae69e0b2b018026c099d211a2e' },
-};
+const REPOSITORIES = Object.fromEntries(
+  portfolioRepositories().map((repo) => [repo.slug, { path: repo.localPath, tip: repo.tip }]),
+);
 
 const EXISTING_A1_A3 = new Set([
-  'BargStudio/egbert@aa20b4acfb4fac17577274bf2f612d0626500e72',
-  'BargStudio/egbert@34e1dcdde0c53aa2b147533bc735c5912c658d5f',
   'BargLabs/alfred@2e2e2362675b3ab8d3a106438aef8e7736b02147',
   'BargLabs/alfred@5da4234ed184a667135228db4450577e593c1629',
   'BargLabs/alfred@904c2ad2e8dd313860b359775ea02b208cdf1461',
@@ -32,10 +18,7 @@ const EXISTING_A1_A3 = new Set([
   'BargLabs/alfred@3acc157a722974c340ba4f30f510eb36b9361247',
   'BargLabs/alfred@57475927ec5289e33c1fef0d2d6b49c8fa3177ac',
   'BargLabs/alfred@8a381574355fe58aad7ed7e4a6e60ad203d3dc54',
-  'houman44/edwin@c3c43cd47ae9f82a581f6f06ebf4aac8c36320ed',
-  'houman44/edwin@6974e35c9bd168a81e360d85b12d36b2c68dacc8',
-  'houman44/edwin@b78a5d2cc54b75c794817b11765b84db205f2377',
-  'houman44/edwin@f88aba3ccbf182707225b35f00fcb33e1de71786',
+  ...loadPrivatePortfolioConfig().sessionTraceExistingOverlapKeys,
 ]);
 
 const TEST_PATH = /(?:^|\/)(?:tests?|__tests__|spec)(?:\/|$)|\.(?:test|spec)\.[^/]+$/i;

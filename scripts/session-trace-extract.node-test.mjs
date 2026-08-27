@@ -18,7 +18,7 @@ function claudeRow(type, content, extra = {}) {
   return {
     type,
     sessionId: 'session-1',
-    cwd: projectPath('edwin'),
+    cwd: projectPath('cejel'),
     timestamp: extra.timestamp ?? '2026-07-01T00:00:00Z',
     message: { role: type, content },
     ...extra,
@@ -35,14 +35,14 @@ test('extracts pytest and Vitest named failures without retaining assertion text
 });
 
 test('maps migrated and current worktree paths to the canonical product', () => {
-  assert.equal(productFromCwd(projectPath('BargAI', 'egbert')), 'egbert');
-  assert.equal(productFromCwd(projectPath('edwin', '.worktrees', 'fix-one')), 'edwin');
+  assert.equal(productFromCwd(projectPath('some-org', 'site-machine')), 'site-machine');
+  assert.equal(productFromCwd(projectPath('cejel', '.worktrees', 'fix-one')), 'cejel');
   assert.equal(productFromCwd(projectPath('site-machine')), 'site-machine');
 });
 
 test('extracts structurally written paths from patch and Python write calls', () => {
   const command = `apply_patch <<'PATCH'\n*** Update File: src/guard.ts\nPATCH\npython -c "from pathlib import Path; Path('src/other.ts').write_text('x')"`;
-  assert.deepEqual(extractWritePaths(command, projectPath('edwin'), { localPath: projectPath('edwin') }), [
+  assert.deepEqual(extractWritePaths(command, projectPath('cejel'), { localPath: projectPath('cejel') }), [
     'src/guard.ts',
     'src/other.ts',
   ]);
@@ -50,8 +50,8 @@ test('extracts structurally written paths from patch and Python write calls', ()
 
 test('normalizes package-relative edit paths to the repository root', () => {
   const command = `python -c "from pathlib import Path; Path('src/quant.py').write_text('x')"`;
-  assert.deepEqual(extractWritePaths(command, projectPath('edwin', 'egbert_core'), { localPath: projectPath('edwin') }), [
-    'egbert_core/src/quant.py',
+  assert.deepEqual(extractWritePaths(command, projectPath('cejel', 'nested_pkg'), { localPath: projectPath('cejel') }), [
+    'nested_pkg/src/quant.py',
   ]);
 });
 
@@ -65,7 +65,7 @@ test('primary rule accepts same named test through a later containing file comma
     content: 'FAILED tests/test_quant.py::test_hold - AssertionError\n1 failed',
   }]));
   parser.consume(claudeRow('assistant', [{
-    type: 'tool_use', id: 'edit', name: 'Edit', input: { file_path: projectPath('edwin', 'src', 'quant.py'), old_string: 'a', new_string: 'b' },
+    type: 'tool_use', id: 'edit', name: 'Edit', input: { file_path: projectPath('cejel', 'src', 'quant.py'), old_string: 'a', new_string: 'b' },
   }]));
   parser.consume(claudeRow('assistant', [{
     type: 'tool_use', id: 'green', name: 'Bash', input: { command: 'pytest -q tests/test_quant.py' },
@@ -92,10 +92,10 @@ test('exact-command sensitivity is a subset of the primary rule', () => {
   const command = 'pytest -q tests/test_quant.py::test_hold';
   parser.consume(claudeRow('assistant', [{ type: 'tool_use', id: 'red', name: 'Bash', input: { command } }]));
   parser.consume(claudeRow('user', [{ type: 'tool_result', tool_use_id: 'red', is_error: true, content: 'FAILED tests/test_quant.py::test_hold\n1 failed' }]));
-  parser.consume(claudeRow('assistant', [{ type: 'tool_use', id: 'edit', name: 'Edit', input: { file_path: projectPath('edwin', 'src', 'quant.py') } }]));
+  parser.consume(claudeRow('assistant', [{ type: 'tool_use', id: 'edit', name: 'Edit', input: { file_path: projectPath('cejel', 'src', 'quant.py') } }]));
   parser.consume(claudeRow('assistant', [{ type: 'tool_use', id: 'green', name: 'Bash', input: { command } }]));
   parser.consume(claudeRow('user', [{ type: 'tool_result', tool_use_id: 'green', content: '1 passed' }]));
-  parser.consume({ type: 'pr-link', sessionId: 'session-1', cwd: projectPath('edwin'), prRepository: 'houman44/edwin', prNumber: 99 });
+  parser.consume({ type: 'pr-link', sessionId: 'session-1', cwd: projectPath('cejel'), prRepository: 'BargLabs/cejel', prNumber: 99 });
   const candidates = candidatesFromSession(parser.finish());
   assert.equal(candidates.length, 1);
   assert.equal(candidates[0].coverage, 'exact-command');

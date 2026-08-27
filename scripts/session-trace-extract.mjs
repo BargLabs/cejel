@@ -2,25 +2,13 @@
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
-const OPERATOR_HOME = os.homedir();
-const REPOSITORIES = [
-  { product: 'cejel', slug: 'BargLabs/cejel', localPath: path.join(OPERATOR_HOME, 'projects', 'cejel') },
-  { product: 'egbert', slug: 'BargStudio/egbert', localPath: path.join(OPERATOR_HOME, 'projects', 'egbert') },
-  { product: 'site-machine', slug: 'houman44/site-machine', localPath: path.join(OPERATOR_HOME, 'projects', 'site-machine') },
-  { product: 'alfred', slug: 'BargLabs/alfred', localPath: path.join(OPERATOR_HOME, 'projects', 'alfred') },
-  { product: 'edwin', slug: 'houman44/edwin', localPath: path.join(OPERATOR_HOME, 'projects', 'edwin') },
-  { product: 'therasyn', slug: 'BargStudio/therasyn', localPath: path.join(OPERATOR_HOME, 'projects', 'therasyn') },
-  { product: 'knut', slug: 'houman44/knut', localPath: path.join(OPERATOR_HOME, 'projects', 'knut') },
-  { product: 'edwy', slug: 'BargLabs/edwy', localPath: path.join(OPERATOR_HOME, 'projects', 'edwy') },
-  { product: 'wilfrid', slug: 'BargLabs/wilfrid', localPath: path.join(OPERATOR_HOME, 'projects', 'wilfrid') },
-  { product: 'barglabs-site', slug: 'houman44/barglabs-site', localPath: path.join(OPERATOR_HOME, 'projects', 'barglabs-site') },
-  { product: 'cejel-site', slug: 'BargLabs/cejel-site', localPath: path.join(OPERATOR_HOME, 'projects', 'cejel-site') },
-];
+import { portfolioRepositories } from './portfolio-repo-registry.mjs';
+
+const REPOSITORIES = portfolioRepositories();
 
 const TEST_COMMAND = /(?:^|[\s;&|])(?:[^\s;&|]*\/)?(?:pytest|vitest|jest|mocha|playwright|cargo\s+test|go\s+test|node\s+--test|bun\s+test)|\b(?:npm|pnpm|yarn)\b[^\n;&|]*\btest\b/i;
 const SHELL_NAMES = /^(?:exec_command|Bash|shell|run_command)$/i;
@@ -58,22 +46,21 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return value; }
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function repositoryCwdPattern(repo) {
+  const name = escapeRegExp(repo.product);
+  const nested = repo.nestedProjectFolder ? '(?:[^/]+/)?' : '';
+  return new RegExp(`/projects/${nested}${name}(?:/|$)|/${name}(?:--|/|$)`);
+}
+
 function productFromCwd(cwd = '') {
   const normalized = cwd.replaceAll('\\', '/').toLowerCase();
-  const explicit = [
-    ['site-machine', /\/projects\/(?:[^/]+\/)?site-machine(?:\/|$)|\/site-machine(?:--|\/|$)/],
-    ['barglabs-site', /\/projects\/(?:[^/]+\/)?barglabs-site(?:\/|$)/],
-    ['cejel-site', /\/projects\/(?:[^/]+\/)?cejel-site(?:\/|$)/],
-    ['egbert', /\/projects\/(?:bargai\/)?egbert(?:\/|$)|\/egbert(?:--|\/|$)/],
-    ['edwin', /\/projects\/edwin(?:\/|$)|\/edwin(?:--|\/|$)/],
-    ['therasyn', /\/projects\/therasyn(?:\/|$)|\/therasyn(?:--|\/|$)/],
-    ['alfred', /\/projects\/alfred(?:\/|$)|\/alfred(?:--|\/|$)/],
-    ['cejel', /\/projects\/cejel(?:\/|$)|\/cejel(?:--|\/|$)/],
-    ['edwy', /\/projects\/edwy(?:\/|$)|\/edwy(?:--|\/|$)/],
-    ['knut', /\/projects\/knut(?:\/|$)|\/knut(?:--|\/|$)/],
-    ['wilfrid', /\/projects\/wilfrid(?:\/|$)|\/wilfrid(?:--|\/|$)/],
-  ];
-  for (const [product, pattern] of explicit) if (pattern.test(normalized)) return product;
+  for (const repo of REPOSITORIES) {
+    if (repositoryCwdPattern(repo).test(normalized)) return repo.product;
+  }
   return null;
 }
 
