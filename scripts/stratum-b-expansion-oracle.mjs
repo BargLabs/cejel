@@ -5,28 +5,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const OPERATOR_HOME = os.homedir();
-const EGBERT = {
-  localPath: path.join(OPERATOR_HOME, 'projects', 'egbert'),
-  tip: 'b8346c235a9607c0efff31af6bb44a25ee4d16bb',
-};
+// This oracle replays real CI jobs from a specific expansion-scope portfolio repository
+// (see portfolio-repo-registry.mjs) to mechanically confirm a named-transition candidate.
+// The target repository's identity, frozen tip, and the exact literal strings its own CI
+// configuration contains (workflow filenames, bundle paths, generated-file naming) are
+// operator-local data, not public information, so they are never written into this file:
+// they are loaded at run time from CEJEL_STRATUM_B_EXPANSION_ORACLE_CONFIG_PATH.
+const CONFIG_PATH_ENV = 'CEJEL_STRATUM_B_EXPANSION_ORACLE_CONFIG_PATH';
+const configPath = process.env[CONFIG_PATH_ENV];
+if (!configPath) throw new Error(`${CONFIG_PATH_ENV} is required`);
+const TARGET = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-const REPLAYS = [
-  {
-    fixSha: 'd52b82777311501f20a9cafc253825ed78bffc87',
-    namedJob: 'Deploy core to Vultr',
-    kind: 'bundle-from-checkout',
-    workflow: '.github/workflows/deploy-egbert.yml',
-    stepName: 'Build tested git bundle',
-  },
-  {
-    fixSha: '8e6e7951eed2a088c24bbb614b1900448773c15d',
-    namedJob: 'Check changed paths',
-    kind: 'large-path-list',
-    workflow: '.github/workflows/deploy-cockpit.yml',
-    stepName: 'Detect relevant changes',
-  },
-];
+const REPLAYS = TARGET.replays;
 
 function runProcess(command, args, options = {}) {
   const started = Date.now();
@@ -110,35 +100,35 @@ function restoreFiles(cwd, files) {
   must(git(cwd, ['restore', '--staged', '--worktree', '--source=HEAD', '--', ...files]), 'restore fixed configuration');
 }
 
-function executeBundleReplay({ configCwd, workflow, stepName, root, env }) {
+function executeBundleReplay({ configCwd, workflow, stepName, root, env, bundleFilename }) {
   const text = fs.readFileSync(path.join(configCwd, workflow), 'utf8');
   const shell = workflowStep(text, stepName)
-    .replaceAll('${{ github.event.workflow_run.head_sha || github.sha }}', EGBERT.tip)
-    .replaceAll('/tmp/egbert-deploy.bundle', path.join(root, 'egbert-deploy.bundle'));
+    .replaceAll('${{ github.event.workflow_run.head_sha || github.sha }}', TARGET.tip)
+    .replaceAll(`/tmp/${bundleFilename}`, path.join(root, bundleFilename));
   const fullCheckout = /fetch-depth:\s*0/.test(text.slice(0, text.indexOf(`- name: ${stepName}`)));
   const checkout = fs.mkdtempSync(path.join(root, 'checkout-'));
   const cloneArgs = fullCheckout
-    ? ['clone', '--shared', '--no-checkout', EGBERT.localPath, checkout]
-    : ['clone', '--depth', '1', '--no-checkout', `file://${EGBERT.localPath}`, checkout];
+    ? ['clone', '--shared', '--no-checkout', TARGET.localPath, checkout]
+    : ['clone', '--depth', '1', '--no-checkout', `file://${TARGET.localPath}`, checkout];
   must(runProcess('git', cloneArgs, { cwd: root, env }), 'fixture checkout');
-  must(git(checkout, ['checkout', '--detach', EGBERT.tip], { env }), 'fixture tip checkout');
+  must(git(checkout, ['checkout', '--detach', TARGET.tip], { env }), 'fixture tip checkout');
   const result = runProcess('bash', ['-euo', 'pipefail', '-c', shell], { cwd: checkout, env });
   fs.rmSync(checkout, { recursive: true, force: true });
-  fs.rmSync(path.join(root, 'egbert-deploy.bundle'), { force: true });
+  fs.rmSync(path.join(root, bundleFilename), { force: true });
   return result;
 }
 
-function writeGitStub(bin) {
+function writeGitStub(bin, pathListPattern) {
   const stub = `#!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
-  "rev-parse HEAD") echo "${EGBERT.tip}" ;;
+  "rev-parse HEAD") echo "${TARGET.tip}" ;;
   "rev-parse --verify refs/tags/_deploy/cockpit") exit 1 ;;
   "rev-parse HEAD~1") echo "1111111111111111111111111111111111111111" ;;
   "diff --name-only 1111111111111111111111111111111111111111 HEAD")
     i=0
     while [[ "$i" -lt 20000 ]]; do
-      printf 'egbert-ui/generated-%05d.ts\\n' "$i"
+      printf '${pathListPattern}\\n' "$i"
       i=$((i + 1))
     done
     ;;
@@ -149,13 +139,13 @@ esac
   fs.writeFileSync(file, stub, { mode: 0o700 });
 }
 
-function executeLargePathReplay({ configCwd, workflow, stepName, root, env }) {
+function executeLargePathReplay({ configCwd, workflow, stepName, root, env, pathListPattern }) {
   const text = fs.readFileSync(path.join(configCwd, workflow), 'utf8');
   const shell = workflowStep(text, stepName);
   const fixture = fs.mkdtempSync(path.join(root, 'paths-'));
   const bin = path.join(fixture, 'bin');
   fs.mkdirSync(bin, { mode: 0o700 });
-  writeGitStub(bin);
+  writeGitStub(bin, pathListPattern);
   const githubOutput = path.join(fixture, 'github-output');
   fs.writeFileSync(githubOutput, '', { mode: 0o600 });
   const result = runProcess('bash', ['-euo', 'pipefail', '-c', shell], {
@@ -164,7 +154,7 @@ function executeLargePathReplay({ configCwd, workflow, stepName, root, env }) {
       ...env,
       PATH: `${bin}:${env.PATH}`,
       EVENT_NAME: 'workflow_run',
-      HEAD_SHA: EGBERT.tip,
+      HEAD_SHA: TARGET.tip,
       GITHUB_OUTPUT: githubOutput,
     },
   });
@@ -191,13 +181,13 @@ function publicResult(result) {
 function run(extractionPath, outputPath) {
   const extraction = JSON.parse(fs.readFileSync(extractionPath, 'utf8'));
   const candidates = new Map(extraction.candidates.map((candidate) => [candidate.fixSha, candidate]));
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'stratum-b-egbert-oracle-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'stratum-b-expansion-oracle-'));
   fs.chmodSync(root, 0o700);
   const configCwd = path.join(root, 'config');
   const env = cleanEnvironment(root);
   try {
-    must(runProcess('git', ['clone', '--shared', '--no-checkout', EGBERT.localPath, configCwd], { cwd: root, env }), 'scratch clone');
-    must(git(configCwd, ['checkout', '--detach', EGBERT.tip], { env }), 'checkout frozen tip');
+    must(runProcess('git', ['clone', '--shared', '--no-checkout', TARGET.localPath, configCwd], { cwd: root, env }), 'scratch clone');
+    must(git(configCwd, ['checkout', '--detach', TARGET.tip], { env }), 'checkout frozen tip');
     const results = [];
     for (const replay of REPLAYS) {
       const candidate = candidates.get(replay.fixSha);
@@ -232,7 +222,7 @@ function run(extractionPath, outputPath) {
     const output = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
-      frozenTip: EGBERT.tip,
+      frozenTip: TARGET.tip,
       productionCredentialsInherited: false,
       results,
     };
@@ -243,4 +233,4 @@ function run(extractionPath, outputPath) {
   }
 }
 
-run(process.argv[2] ?? '/tmp/stratum-b-egbert.json', process.argv[3] ?? '/tmp/stratum-b-egbert-oracle.json');
+run(process.argv[2] ?? '/tmp/stratum-b-expansion.json', process.argv[3] ?? '/tmp/stratum-b-expansion-oracle.json');

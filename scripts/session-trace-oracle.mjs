@@ -2,27 +2,17 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { namedTestsFromOutput } from './session-trace-extract.mjs';
+import { portfolioRepositories } from './portfolio-repo-registry.mjs';
 
-const OPERATOR_HOME = os.homedir();
-const projectPath = (name) => path.join(OPERATOR_HOME, 'projects', name);
-
-const REPOSITORIES = {
-  'BargLabs/cejel': { path: projectPath('cejel'), tip: '97564ad17ddde4c64d213f78c98d316c01b0c12a' },
-  'BargStudio/egbert': { path: projectPath('egbert'), tip: 'b8346c235a9607c0efff31af6bb44a25ee4d16bb' },
-  'houman44/site-machine': { path: projectPath('site-machine'), tip: '1e4106f131f9af27a9a314a0dbb2ecc35c09b441' },
-  'BargLabs/alfred': { path: projectPath('alfred'), tip: '76a631be63cf1be2cd4d9c6b303626a7124864c4' },
-  'houman44/edwin': { path: projectPath('edwin'), tip: '8a9e006d1bae6653f253608ddc11eb93570fc5a1' },
-  'BargStudio/therasyn': { path: projectPath('therasyn'), tip: '39f228590c2b2ecb47ddb420709d15c9271ad65a' },
-  'houman44/knut': { path: projectPath('knut'), tip: '4609f13c43f8b772db2aee7020bd9dad8ffeca16' },
-  'BargLabs/edwy': { path: projectPath('edwy'), tip: '99c1139ba187d7181ff9923edd782f66cc599aec' },
-  'BargLabs/wilfrid': { path: projectPath('wilfrid'), tip: 'da0a474d361dd472c92e59c07b63b6139c390e42' },
-  'houman44/barglabs-site': { path: projectPath('barglabs-site'), tip: '1e164da9400b0c7b8f073f2df5bafad3af48d643' },
-  'BargLabs/cejel-site': { path: projectPath('cejel-site'), tip: '5ed796e3dc9926ae69e0b2b018026c099d211a2e' },
-};
+const REPOSITORIES = Object.fromEntries(
+  portfolioRepositories().map((repo) => [
+    repo.slug,
+    { path: repo.localPath, tip: repo.tip, pytestSubproject: repo.pytestSubproject ?? null },
+  ]),
+);
 
 const TEST_PATH = /(?:^|\/)(?:tests?|__tests__|spec)(?:\/|$)|\.(?:test|spec)\.[^/]+$/i;
 const RUNNABLE_TEST = /\.(?:py|ts|tsx|js|jsx|mjs|cjs)$/i;
@@ -85,12 +75,10 @@ function makeGroups(candidate, clone, selectedTests) {
   for (const testFile of selectedTests) {
     let kind, cwd, executable;
     if (testFile.endsWith('.py')) {
-      if ((candidate.repo === 'BargStudio/egbert' || candidate.repo === 'houman44/edwin') && testFile.startsWith('egbert_core/')) {
-        cwd = path.join(clone, 'egbert_core');
-        executable = path.join(repo.path, 'egbert_core/.venv/bin/pytest');
-      } else if (candidate.repo === 'BargStudio/therasyn' && testFile.startsWith('apps/api-backend/')) {
-        cwd = path.join(clone, 'apps/api-backend');
-        executable = path.join(repo.path, '.venv/bin/pytest');
+      const subproject = repo.pytestSubproject;
+      if (subproject && testFile.startsWith(subproject.prefix)) {
+        cwd = path.join(clone, subproject.prefix.replace(/\/$/, ''));
+        executable = path.join(repo.path, subproject.venvRelative);
       } else {
         cwd = clone;
         executable = 'pytest';

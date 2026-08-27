@@ -17,6 +17,10 @@ const args = parseArguments(process.argv);
 const alfredRootArgument = args.get('--alfred-root');
 if (!alfredRootArgument) throw new Error('missing_argument:--alfred-root');
 const alfredRoot = resolve(alfredRootArgument);
+const corpusRelativePathArgument = args.get('--corpus-relative-path');
+if (!corpusRelativePathArgument) throw new Error('missing_argument:--corpus-relative-path');
+const reportRelativePathArgument = args.get('--report-relative-path');
+if (!reportRelativePathArgument) throw new Error('missing_argument:--report-relative-path');
 
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], {
   cwd: alfredRoot,
@@ -24,10 +28,10 @@ const revision = execFileSync('git', ['rev-parse', 'HEAD'], {
 }).trim();
 const cacheBust = `?revision=${revision}`;
 const corpus = await import(
-  `${pathToFileURL(resolve(alfredRoot, 'packages/bede/src/dual-control/corpus.ts')).href}${cacheBust}`
+  `${pathToFileURL(resolve(alfredRoot, corpusRelativePathArgument)).href}${cacheBust}`
 );
 const report = await import(
-  `${pathToFileURL(resolve(alfredRoot, 'packages/bede/src/dual-control/report.ts')).href}${cacheBust}`
+  `${pathToFileURL(resolve(alfredRoot, reportRelativePathArgument)).href}${cacheBust}`
 );
 
 function runFixture(caughtSeedIds) {

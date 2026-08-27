@@ -2,28 +2,20 @@
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-const PREREG_COMMIT = '238cc9a';
-const OPERATOR_HOME = os.homedir();
-const projectPath = (name) => path.join(OPERATOR_HOME, 'projects', name);
+import { portfolioRepositories } from './portfolio-repo-registry.mjs';
 
-const REPOSITORIES = [
-  ['BargLabs/alfred', projectPath('alfred'), '76a631be63cf1be2cd4d9c6b303626a7124864c4', 'primary'],
-  ['BargLabs/cejel', projectPath('cejel'), '97564ad17ddde4c64d213f78c98d316c01b0c12a', 'primary'],
-  ['BargStudio/egbert', projectPath('egbert'), 'b8346c235a9607c0efff31af6bb44a25ee4d16bb', 'expansion'],
-  ['houman44/site-machine', projectPath('site-machine'), '1e4106f131f9af27a9a314a0dbb2ecc35c09b441', 'expansion'],
-  ['houman44/edwin', projectPath('edwin'), '8a9e006d1bae6653f253608ddc11eb93570fc5a1', 'expansion'],
-  ['BargStudio/therasyn', projectPath('therasyn'), '39f228590c2b2ecb47ddb420709d15c9271ad65a', 'expansion'],
-  ['BargLabs/edwy', projectPath('edwy'), '99c1139ba187d7181ff9923edd782f66cc599aec', 'expansion'],
-  ['houman44/knut', projectPath('knut'), '4609f13c43f8b772db2aee7020bd9dad8ffeca16', 'expansion'],
-  ['BargLabs/wilfrid', projectPath('wilfrid'), 'da0a474d361dd472c92e59c07b63b6139c390e42', 'expansion'],
-  ['houman44/barglabs-site', projectPath('barglabs-site'), '1e164da9400b0c7b8f073f2df5bafad3af48d643', 'expansion'],
-  ['BargLabs/cejel-site', projectPath('cejel-site'), '5ed796e3dc9926ae69e0b2b018026c099d211a2e', 'expansion'],
-].map(([slug, localPath, tip, scope]) => ({ slug, localPath, tip, scope }));
+const PREREG_COMMIT = '238cc9a';
+
+const REPOSITORIES = portfolioRepositories().map(({ slug, localPath, tip, scope }) => ({
+  slug,
+  localPath,
+  tip,
+  scope,
+}));
 
 const SECRET_RULES = [
   ['private-key', /-----BEGIN [^-\n]*(?:PRIVATE|SECRET)[^-\n]*-----[\s\S]*?-----END [^-\n]+-----/gi],
