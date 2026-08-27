@@ -34,6 +34,7 @@ function makeFixtureRepo(tool: string): { repoPath: string; ingestPath: string }
     repoPath,
     '.cejel/inputs/evil.json',
     JSON.stringify({
+      version: '1.0',
       tool,
       signals: [
         {

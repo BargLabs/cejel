@@ -20,7 +20,12 @@ export {
   isMeasuredCriterionStatus,
 } from './coverage.js';
 export type { CategoryCoverage, CoverageCounts, MeasuredCoverage } from './coverage.js';
-export { renderReportVerdict, renderVerdict, renderWitanHtmlReport } from './html.js';
+export {
+  CEJEL_CERTIFICATE_FORMAT_VERSION,
+  renderReportVerdict,
+  renderVerdict,
+  renderWitanHtmlReport,
+} from './html.js';
 export { renderWitanMarkdownReport } from './markdown.js';
 export {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
@@ -39,5 +44,13 @@ export type { WitanRubricCriterion } from './rubric.js';
 export { createWitanReport } from './scoring.js';
 export { parseSarifFile, parseSarifJson } from './sarif-adapter.js';
 export { parseScorecardFile, parseScorecardJson } from './scorecard-adapter.js';
-export { isGenericSignalDocument, parseGenericFile, parseGenericJson } from './generic-adapter.js';
+export {
+  CEJEL_GENERIC_INGEST_CONTRACT_MAJOR,
+  CEJEL_GENERIC_INGEST_CONTRACT_VERSION,
+  GenericSignalDocumentV1Schema,
+  isGenericSignalDocument,
+  parseGenericFile,
+  parseGenericJson,
+} from './generic-adapter.js';
+export type { GenericSignalDocumentV1 } from './generic-adapter.js';
 export { discoverIngestInputs, expandIngestPattern, parseIngestFile } from './ingest.js';

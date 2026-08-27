@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { isGenericSignalDocument, parseGenericFile, parseGenericJson } from '../generic-adapter.js';
 
 const GENERIC_DOC: unknown = {
+  version: '1.0',
   tool: 'munatrust',
   signals: [
     {
@@ -18,17 +19,15 @@ const GENERIC_DOC: unknown = {
           message: 'Hardcoded API key detected.',
           location: 'src/config.ts:10',
         },
-        { ruleId: 'unknown-severity', severity: 'bogus', message: 'dropped' },
       ],
     },
-    { dimension: 'unknown-dimension', findings: [{ ruleId: 'x', severity: 'warning' }] },
-    { dimension: 'A4', findings: [] },
   ],
 };
 
 describe('generic-adapter — isGenericSignalDocument', () => {
-  it('accepts a document with a tool string and signals array', () => {
+  it('detects a document structurally so version validation runs separately', () => {
     expect(isGenericSignalDocument(GENERIC_DOC)).toBe(true);
+    expect(isGenericSignalDocument({ version: '99.0', tool: 'x', signals: [] })).toBe(true);
   });
 
   it('rejects SARIF, Scorecard, and malformed documents', () => {
@@ -48,35 +47,90 @@ describe('generic-adapter — parseGenericJson', () => {
     expect(signals[0]).toMatchObject({ source: 'munatrust', dimension: 'A2', weight: 0.7 });
   });
 
-  it('drops findings with an unrecognized severity', () => {
-    const signals = parseGenericJson(GENERIC_DOC);
-    const ruleIds = signals.flatMap((s) => s.findings.map((f) => f.ruleId));
-    expect(ruleIds).toContain('hardcoded-secret');
-    expect(ruleIds).not.toContain('unknown-severity');
+  it('rejects a missing version rather than guessing the de-facto contract', () => {
+    expect(() => parseGenericJson({ tool: 'x', signals: [] })).toThrow(
+      /contract version is required.*Refusing to guess/,
+    );
   });
 
-  it('drops signals with an unrecognized dimension', () => {
-    const signals = parseGenericJson(GENERIC_DOC);
-    expect(signals.some((s) => s.dimension === ('unknown-dimension' as never))).toBe(false);
+  it('rejects unknown majors loudly rather than parsing them as the current contract', () => {
+    expect(() => parseGenericJson({ version: '2.0', tool: 'x', signals: [] })).toThrow(
+      /unsupported generic ingest contract major version 2.*Refusing to guess/,
+    );
   });
 
-  it('drops signals with zero surviving findings', () => {
-    const signals = parseGenericJson(GENERIC_DOC);
-    expect(signals.some((s) => s.dimension === 'A4')).toBe(false);
+  it('accepts additive minor versions and ignores unknown additive fields', () => {
+    const signals = parseGenericJson({
+      version: '1.7',
+      tool: 'future-tool',
+      producer: { build: 'synthetic' },
+      signals: [
+        {
+          dimension: 'A1',
+          futureSignalField: true,
+          findings: [
+            {
+              ruleId: 'recorded-event',
+              severity: 'info',
+              message: 'Recorded.',
+              futureFindingField: 'ignored',
+            },
+          ],
+        },
+      ],
+    });
+    expect(signals).toEqual([
+      {
+        source: 'future-tool',
+        dimension: 'A1',
+        weight: 0.5,
+        findings: [{ ruleId: 'recorded-event', severity: 'info', message: 'Recorded.' }],
+      },
+    ]);
   });
 
-  it('defaults weight to 0.5 when omitted, clamps out-of-range weights', () => {
+  it('defaults weight to 0.5 when omitted and rejects out-of-range weights', () => {
     const noWeight = parseGenericJson({
+      version: '1.0',
       tool: 'x',
-      signals: [{ dimension: 'A1', findings: [{ ruleId: 'r', severity: 'info' }] }],
+      signals: [
+        {
+          dimension: 'A1',
+          findings: [{ ruleId: 'r', severity: 'info', message: 'Recorded.' }],
+        },
+      ],
     });
     expect(noWeight[0]?.weight).toBe(0.5);
 
-    const clamped = parseGenericJson({
-      tool: 'x',
-      signals: [{ dimension: 'A1', weight: 5, findings: [{ ruleId: 'r', severity: 'info' }] }],
-    });
-    expect(clamped[0]?.weight).toBe(1);
+    expect(() =>
+      parseGenericJson({
+        version: '1.0',
+        tool: 'x',
+        signals: [
+          {
+            dimension: 'A1',
+            weight: 5,
+            findings: [{ ruleId: 'r', severity: 'info', message: 'Recorded.' }],
+          },
+        ],
+      }),
+    ).toThrow(/signals\.0\.weight/);
+  });
+
+  it('rejects invalid dimensions, severities, empty findings, and missing stable fields', () => {
+    expect(() =>
+      parseGenericJson({
+        version: '1.0',
+        tool: 'x',
+        signals: [
+          {
+            dimension: 'unknown-dimension',
+            findings: [{ ruleId: 'r', severity: 'bogus' }],
+          },
+          { dimension: 'A4', findings: [] },
+        ],
+      }),
+    ).toThrow(/invalid generic ingest contract v1\.0/);
   });
 
   it('returns [] for a non-generic document', () => {

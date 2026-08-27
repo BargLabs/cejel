@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cejel.dev/schemas/ingest/v1.json",
+  "title": "Cejel generic ingest contract v1",
+  "description": "Versioned, offline external-signal input accepted by cejel --ingest.",
+  "type": "object",
+  "required": ["version", "tool", "signals"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "Contract major and minor version. This schema covers additive 1.x versions."
+    },
+    "tool": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "signals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/signal" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "signal": {
+      "type": "object",
+      "required": ["dimension", "findings"],
+      "properties": {
+        "dimension": {
+          "type": "string",
+          "enum": ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5", "B6"]
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.5
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/finding" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "finding": {
+      "type": "object",
+      "required": ["ruleId", "severity", "message"],
+      "properties": {
+        "ruleId": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["critical", "warning", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "location": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  }
+}
