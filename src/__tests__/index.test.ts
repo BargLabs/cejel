@@ -314,6 +314,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     );
     const html = readFileSync(join(outDir, 'certificate.html'), 'utf8');
     expect(html).toContain('Trust Certificate');
+    expect(html).toContain('<meta name="cejel-certificate-format" content="1.0">');
     const manifest = JSON.parse(
       readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
     ) as { version: string };

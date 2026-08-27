@@ -1,0 +1,20 @@
+{
+  "fixtureNotice": "SYNTHETIC FIXTURE — contains no real counterparty data",
+  "workflow": "synthetic-ci",
+  "attempts": [
+    {
+      "attempt": 1,
+      "exitCode": 1,
+      "matchedFailurePattern": "lockfile is out of date",
+      "actionTaken": "regenerated lockfile from committed manifests",
+      "outcome": "healed"
+    },
+    {
+      "attempt": 2,
+      "exitCode": 0,
+      "matchedFailurePattern": "none",
+      "actionTaken": "no further action",
+      "outcome": "passed_after_heal"
+    }
+  ]
+}

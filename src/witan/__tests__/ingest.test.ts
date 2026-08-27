@@ -29,6 +29,7 @@ const SCORECARD_DOC = {
 };
 
 const GENERIC_DOC = {
+  version: '1.0',
   tool: 'munatrust',
   signals: [
     {
@@ -68,6 +69,14 @@ describe('ingest — parseIngestFile auto-detection', () => {
     const signals = parseIngestFile(file);
     expect(signals).toHaveLength(1);
     expect(signals[0]?.source).toBe('munatrust');
+  });
+
+  it('rejects an unknown generic-contract major with a version-specific error', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'witan-ingest-'));
+    const file = writeJson(dir, 'future.json', { version: '9.0', tool: 'future', signals: [] });
+    expect(() => parseIngestFile(file)).toThrow(
+      /unsupported generic ingest contract major version 9.*Refusing to guess/,
+    );
   });
 
   it('throws a clear error for an unrecognized JSON shape', () => {
@@ -232,6 +241,7 @@ describe('ingest — clamps over-long finding fields instead of failing downstre
   it('truncates an over-long ruleId and location the same way', () => {
     const dir = mkdtempSync(join(tmpdir(), 'witan-ingest-long-fields-'));
     const file = writeJson(dir, 'munatrust.json', {
+      version: '1.0',
       tool: 'munatrust',
       signals: [
         {

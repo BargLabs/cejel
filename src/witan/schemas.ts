@@ -431,6 +431,7 @@ export const WitanReportSchema = z.preprocess((value) => {
 
 export const WITAN_ATTESTATION_STATEMENT_TYPE = 'https://in-toto.io/Statement/v1' as const;
 export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/scan/v1' as const;
+export const WITAN_REPORT_FORMAT_VERSION = '1.0' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z
@@ -480,6 +481,10 @@ export const WitanAttestationStatementSchema = z
           })
           .strict(),
         generatedAt: z.string().datetime({ offset: true }),
+        // Optional on read for attestations emitted before Evidence Seam v1. New attestations
+        // always carry it, keeping report.json byte-stable while giving paired consumers an
+        // explicit report contract version.
+        reportFormatVersion: z.string().regex(/^1\.\d+$/).optional(),
         rubricVersion: z.string().min(1).max(120),
         repository: z
           .object({

@@ -53,6 +53,7 @@ describe('Cejel scan attestation', () => {
     expect(first.subject[0]?.digest.sha256).toBe(hashWitanReport(report));
     expect(first.predicate.report.sha256).toBe(hashWitanReport(report));
     expect(first.predicate.generatedAt).toBe(GENERATED_AT);
+    expect(first.predicate.reportFormatVersion).toBe('1.0');
     expect(JSON.stringify(first)).not.toContain('/private/local/path');
     expect(verifyWitanAttestationBinding(first, report)).toEqual({ valid: true, errors: [] });
   });
@@ -75,6 +76,29 @@ describe('Cejel scan attestation', () => {
       });
     },
   );
+
+  it('continues to verify a legacy scan/v1 attestation without reportFormatVersion', () => {
+    const report = fixtureReport();
+    const statement = createWitanAttestation(report, ATTESTATION_OPTIONS);
+    const legacy = JSON.parse(JSON.stringify(statement)) as {
+      predicate: { reportFormatVersion?: string };
+    };
+    delete legacy.predicate.reportFormatVersion;
+
+    expect(verifyWitanAttestationBinding(legacy, report)).toEqual({ valid: true, errors: [] });
+  });
+
+  it('rejects an unknown report-format major instead of guessing', () => {
+    const report = fixtureReport();
+    const statement = createWitanAttestation(report, ATTESTATION_OPTIONS) as unknown as {
+      predicate: { reportFormatVersion: string };
+    };
+    statement.predicate.reportFormatVersion = '2.0';
+
+    const verification = verifyWitanAttestationBinding(statement, report);
+    expect(verification.valid).toBe(false);
+    expect(verification.errors.join('\n')).toMatch(/reportFormatVersion/);
+  });
 
   it('renders a path-free report with its stable slug and revision instead of unknown', () => {
     const report = fixtureReport();

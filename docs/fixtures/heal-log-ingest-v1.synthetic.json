@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "tool": "synthetic-ci-heal-log",
+  "signals": [
+    {
+      "dimension": "B6",
+      "weight": 0,
+      "findings": [
+        {
+          "ruleId": "ci-heal/healed",
+          "severity": "info",
+          "message": "RECORDED attempt 1: exitCode=1; matchedFailurePattern=\"lockfile is out of date\"; actionTaken=\"regenerated lockfile from committed manifests\"; outcome=\"healed\".",
+          "location": "synthetic-ci/heal-log.json#attempt-1"
+        },
+        {
+          "ruleId": "ci-heal/passed-after-heal",
+          "severity": "info",
+          "message": "RECORDED attempt 2: exitCode=0; matchedFailurePattern=\"none\"; actionTaken=\"no further action\"; outcome=\"passed_after_heal\".",
+          "location": "synthetic-ci/heal-log.json#attempt-2"
+        }
+      ]
+    }
+  ]
+}

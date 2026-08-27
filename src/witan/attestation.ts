@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   WITAN_ATTESTATION_PREDICATE_TYPE,
   WITAN_ATTESTATION_STATEMENT_TYPE,
+  WITAN_REPORT_FORMAT_VERSION,
   type WitanAttestationStatement,
   WitanAttestationStatementSchema,
   type WitanReport,
@@ -81,6 +82,7 @@ export function createWitanAttestation(
     predicate: {
       tool: { name: 'cejel', version: options.toolVersion },
       generatedAt: options.generatedAt,
+      reportFormatVersion: WITAN_REPORT_FORMAT_VERSION,
       rubricVersion: report.rubricVersion,
       repository: {
         productSlug: report.productSlug,

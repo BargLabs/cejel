@@ -89,7 +89,7 @@ export function parseIngestFile(
 
   if (!signals) {
     throw new Error(
-      `Cejel: unrecognized ingest file format: ${filePath} — expected SARIF (a "runs" array), OpenSSF Scorecard JSON (a "checks" array), or the generic Cejel external-signal shape (a "tool" string + "signals" array). See the cejel README "Aggregate your scanners".`,
+      `Cejel: unrecognized ingest file format: ${filePath} — expected SARIF (a "runs" array), OpenSSF Scorecard JSON (a "checks" array), or the versioned generic Cejel external-signal shape (a "version" string + "tool" string + "signals" array). See the cejel README "Aggregate your scanners".`,
     );
   }
 

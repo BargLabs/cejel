@@ -351,6 +351,7 @@ Three ways a scanner's output gets ingested:
 
    ```json
    {
+     "version": "1.0",
      "tool": "my-scanner",
      "signals": [
        {
@@ -372,6 +373,12 @@ Three ways a scanner's output gets ingested:
    `dimension` is one of the Witan rubric criterion ids (`A1`-`A5`, `B1`-`B6`); `weight`
    (0–1, default `0.5`) bounds how much this signal can move that dimension; `severity` is
    `critical` | `warning` | `info`; `location` is optional.
+
+   The version field is required. Cejel rejects unversioned generic documents and unknown major
+   versions rather than guessing. See the [generic ingest contract](docs/ingest-contract.md), its
+   [published JSON Schema](docs/schemas/cejel-ingest-v1.schema.json), and the
+   [synthetic CI heal-log mapping](docs/heal-log-mapping.md). Output-field stability and version
+   routing are documented in [format stability](docs/format-stability.md).
 
 ## Displaying the trust badge
 

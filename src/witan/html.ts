@@ -44,6 +44,8 @@ export interface WitanHtmlReportOptions {
   generatedAt?: string;
 }
 
+export const CEJEL_CERTIFICATE_FORMAT_VERSION = '1.0' as const;
+
 export function renderWitanHtmlReport(
   report: WitanReport,
   options: WitanHtmlReportOptions = {},
@@ -68,6 +70,7 @@ export function renderWitanHtmlReport(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="cejel-certificate-format" content="${CEJEL_CERTIFICATE_FORMAT_VERSION}">
   <title>Cejel Trust Certificate - ${escapeHtml(report.productDisplayName)}</title>
   <style>${CERTIFICATE_CSS}</style>
 </head>
