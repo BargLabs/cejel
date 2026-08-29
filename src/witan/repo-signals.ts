@@ -3523,8 +3523,8 @@ function collectB6PrivilegedOpsGatingEvidence(
     findings.push({
       severity: 'critical',
       summary: isV21ExecutedShape
-        ? 'An authored SQL artifact contains, or a direct database-driver call executes, an administrative role grant, SUPERUSER escalation, or schema-wide table privilege grant with no documented human gate.'
-        : 'Role-membership GRANT or SUPERUSER escalation executes in code with no documented human gate.',
+        ? 'This file contains an authored administrative SQL statement — role-membership grant, SUPERUSER escalation, or schema-wide table privilege grant — or executes one through a direct database-driver call, and does not itself contain text matching the human-gate marker pattern.'
+        : 'This file executes a role-membership GRANT or SUPERUSER escalation and does not itself contain text matching the human-gate marker pattern.',
       evidence: evidenceForRelative(
         repoPath,
         file,

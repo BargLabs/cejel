@@ -13,7 +13,7 @@ import {
 import { WITAN_RUBRIC_VERSION } from '../schemas.js';
 
 const V21_B6_SUMMARY =
-  'An authored SQL artifact contains, or a direct database-driver call executes, an administrative role grant, SUPERUSER escalation, or schema-wide table privilege grant with no documented human gate.';
+  'This file contains an authored administrative SQL statement — role-membership grant, SUPERUSER escalation, or schema-wide table privilege grant — or executes one through a direct database-driver call, and does not itself contain text matching the human-gate marker pattern.';
 
 function makeRepo(files: Readonly<Record<string, string | undefined>>): string {
   const repo = mkdtempSync(join(tmpdir(), 'cejel-b6-v21-'));

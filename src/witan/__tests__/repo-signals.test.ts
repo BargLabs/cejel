@@ -887,6 +887,33 @@ describe('B6 — privileged-operation human gating', () => {
     expect(b6?.metrics?.find((m) => m.name === 'privilege_escalation_cleanliness')?.value).toBe(0);
   });
 
+  it('keeps repo-scoped gate documentation distinct from a file-scoped ungated finding', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'docs/runbooks/prod-admin.md',
+      '# Prod admin\n\nPrivileged operations are human-executed; agents never hold prod admin credentials.\n',
+    );
+    writeFile(
+      dir,
+      'src/db/bootstrap.ts',
+      [
+        "import { sql } from 'drizzle-orm';",
+        'export async function bootstrapMigrationRole(db) {',
+        "  await db.execute(sql.raw('GRANT app_rls TO migration_role'));",
+        '}',
+      ].join('\n'),
+    );
+
+    const b6 = signalFor(dir, 'B6');
+    expect(b6).not.toBeNull();
+    expect(b6?.metrics?.find((m) => m.name === 'human_gate_documented')?.value).toBe(1);
+    expect(b6?.findings).toHaveLength(1);
+    expect(
+      b6?.findings?.some(({ summary }) => /with no documented human gate/i.test(summary)),
+    ).toBe(false);
+  });
+
   it('same GRANT statement, but the file also documents the human gate → not flagged as ungated', () => {
     const dir = makeTmpRepo();
     writeFile(
