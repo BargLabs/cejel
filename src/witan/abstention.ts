@@ -12,6 +12,8 @@ export const WITAN_NO_MEASUREMENT_REASON =
 // critical-finding score behavior.
 export const WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY =
   'Reviewable source is present, but the tracked scan-eligible inventory matched no concrete test file, configured test runner, CI test command, or coverage configuration.';
+export const WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY =
+  'Reviewable source is present, but the complete tracked inventory contains no concrete test file, configured test runner, CI test command, or coverage configuration.';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (

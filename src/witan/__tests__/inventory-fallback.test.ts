@@ -87,6 +87,8 @@ describe('tracked-file inventory fallback', () => {
       expect.stringContaining('output exceeded the explicit 8 MiB limit'),
     ]);
     expect(JSON.stringify(report)).toContain('bounded directory walk');
+    expect(JSON.stringify(report)).not.toContain('tracked-scan-eligible');
+    expect(JSON.stringify(report)).not.toContain('inventory-scan');
     expect(renderWitanMarkdownReport(report)).toContain('## Scan limitations');
     expect(renderWitanMarkdownReport(report)).toContain('bounded directory walk');
     expect(renderWitanHtmlReport(report)).toContain('Scan limitations');
@@ -144,6 +146,8 @@ describe('tracked-file inventory fallback', () => {
       expect(report.criteria.length).toBeGreaterThan(0);
       expect(report.overallScore).not.toBeNull();
       expect(report.repo.headSha).toBeUndefined();
+      expect(JSON.stringify(report)).not.toContain('tracked-scan-eligible');
+      expect(JSON.stringify(report)).not.toContain('inventory-scan');
     },
   );
 });

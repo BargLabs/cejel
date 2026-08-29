@@ -5,7 +5,8 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { WITAN_RUBRIC_VERSION_V22 } from '../rubric-version.js';
+import { buildWitanInputFromRepo } from '../repo-signals.js';
+import { WITAN_RUBRIC_VERSION_V16, WITAN_RUBRIC_VERSION_V22 } from '../rubric-version.js';
 import { WitanFindingSchema, WitanReportSchema, type WitanFinding } from '../schemas.js';
 
 const GENERATED_AT = '2026-08-29T00:00:00.000Z';
@@ -15,6 +16,7 @@ function makeRepo(files: Readonly<Record<string, string>>): string {
   execFileSync('git', ['init', '--quiet'], { cwd: repoPath });
   execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: repoPath });
   execFileSync('git', ['config', 'user.name', 'Cejel Test'], { cwd: repoPath });
+  execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: repoPath });
   for (const [relativePath, contents] of Object.entries(files)) {
     const fullPath = join(repoPath, relativePath);
     mkdirSync(dirname(fullPath), { recursive: true });
@@ -110,7 +112,7 @@ describe('inventory-scan derivation contract', () => {
     ).toBe(false);
   });
 
-  it('emits derivations for every current-tree CORE absence branch', () => {
+  it('emits derivations for every authorized inventory-absence branch', () => {
     const repoPath = makeRepo({
       '.env': 'FEATURE_FLAG_MODE=beta\nLOG_LEVEL=debug\n',
       'README.md': '# Derivation fixture\n',
@@ -187,5 +189,47 @@ describe('inventory-scan derivation contract', () => {
     expectPathFreeInventoryDerivation(finding, 1);
     expect(finding.summary).toContain('tracked scan-eligible inventory');
     expect(finding.summary).not.toContain('complete tracked inventory');
+  });
+
+  it('keeps historical templates unchanged when their reports do not carry derivations', () => {
+    const repoPath = makeRepo({
+      'package.json': JSON.stringify({
+        name: 'historical-runner-without-tests',
+        scripts: { test: 'jest' },
+        devDependencies: { jest: '^30.0.0' },
+      }),
+      'src/index.ts': 'export const answer = 42;\n',
+    });
+    const input = buildWitanInputFromRepo({
+      repoPath,
+      productSlug: 'derivation-fixture',
+      productDisplayName: 'Derivation fixture',
+      generatedAt: GENERATED_AT,
+      rubricVersion: WITAN_RUBRIC_VERSION_V16,
+    });
+    const finding = (input.signals ?? [])
+      .flatMap((signal) => signal.findings ?? [])
+      .find(
+        (candidate) =>
+          candidate.summary ===
+          'A test runner is configured, but no concrete test files were detected.',
+      );
+
+    expect(finding).toBeDefined();
+    expect(finding?.derivation).toBeUndefined();
+  });
+
+  it('does not attach the new tracked-scan-eligible contract to a directory fallback', () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-derivation-directory-'));
+    mkdirSync(join(repoPath, 'src'), { recursive: true });
+    writeFileSync(join(repoPath, 'src/index.ts'), 'export const answer = 42;\n', 'utf8');
+
+    const finding = nativeFindings(score(repoPath)).find((candidate) =>
+      candidate.summary.startsWith('Reviewable source is present'),
+    );
+
+    expect(finding?.summary).toContain('complete tracked inventory');
+    expect(finding?.summary).not.toContain('tracked scan-eligible inventory');
+    expect(finding?.derivation).toBeUndefined();
   });
 });

@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A finding-template rewrite and its derivation must be gated by both rubric version and the provenance of the inventory actually examined. In the derivation-emission branch, activating new wording from the rubric version alone rewrote retired-rubric templates without derivations and labeled bounded directory-walk fallbacks as tracked-scan-eligible. Compute an explicit emission policy from the selected rubric and the successful inventory acquisition path: emit the new template and derivation together only for a real tracked inventory, and preserve the pre-existing template when the decided derivation schema cannot truthfully represent the fallback. Test historical-rubric output and Git-unavailable/failing inventory paths separately.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "finding-derivation",
+      "output-contract-versioning",
+      "inventory-provenance",
+      "fallback-semantics"
+    ],
+    "tags": [
+      "derivation",
+      "rubric-version",
+      "inventory-scope",
+      "precision-first",
+      "fallback"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-29T00:00:00.000Z",
+    "quarantineReason": "This staging record accompanies the derivation-emission branch, whose eventual squash commit does not yet exist on Cejel origin/main. It must not anchor to its own branch.",
+    "moveCondition": "After the derivation-emission PR merges, identify its 40-character squash commit on Cejel origin/main and verify that its diff gates new proposition wording and inventory-scan derivations on both rubric version and a successful tracked inventory, preserves historical and directory-fallback behavior, and covers both paths in tests. Then copy this record into Alfred docs/orchestration/maeve-lesson-batches/ with the required cejel_ filename prefix and that origin/main commit anchor."
+  }
+]
