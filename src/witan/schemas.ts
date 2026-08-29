@@ -157,11 +157,31 @@ export const WitanEvidencePointerSchema = z
     message: 'Witan evidence must include a path, url, or content hash.',
   });
 
+export const WitanInventoryScanDerivationSchema = z
+  .object({
+    kind: z.literal('inventory-scan'),
+    inventoryScope: z.enum(['tracked-scan-eligible', 'tracked-complete']),
+    inventoryCount: z.number().int().nonnegative(),
+    patternSetId: z.string().min(1).max(180),
+    patternCount: z.number().int().positive(),
+    matchCount: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const WitanFindingDerivationSchema = z.discriminatedUnion('kind', [
+  WitanInventoryScanDerivationSchema,
+]);
+
 export const WitanFindingSchema = z
   .object({
     severity: WitanFindingSeveritySchema,
     summary: z.string().min(1).max(500),
     evidence: WitanEvidencePointerSchema,
+    // Absence findings emitted by the native repository detector must name the exact
+    // inventory and versioned pattern set whose zero result supports the proposition.
+    // This remains optional at the shared schema boundary because positive findings and
+    // semantic derivations are separate contracts; native absence emitters require it.
+    derivation: WitanFindingDerivationSchema.optional(),
   })
   .strict();
 

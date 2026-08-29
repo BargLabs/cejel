@@ -87,7 +87,7 @@ describe('Template-vs-real-secret distinction (unit)', () => {
         (f) =>
           f.severity === 'info' &&
           f.summary ===
-            'A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.',
+            'A tracked non-template .env file is present, while the bounded scan over the tracked scan-eligible inventory matched no secret-shaped value.',
       ),
     ).toBe(true);
   });
