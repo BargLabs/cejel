@@ -1,0 +1,32 @@
+name: Standing constraints PR checks
+
+# Pull requests retain the checks that need no cross-repository credential:
+# the guard's structural invariants and its match/drift/unreadable fixtures.
+# The live Cejel/Alfred byte comparison is intentionally post-merge in
+# standing-constraints-parity.yml, which runs on push to main and daily.
+on:
+  pull_request:
+    paths:
+      - 'docs/standing-constraints.md'
+      - 'scripts/constraints-parity-guard.sh'
+      - 'scripts/constraints_parity_guard_tests.sh'
+      - '.github/workflows/standing-constraints-pr.yml'
+      - '.github/workflows/standing-constraints-parity.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: standing-constraints-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixtures:
+    name: Structural and fixture checks (no live fetch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Guard regression tests (fixtures only, no live fetch)
+        run: bash scripts/constraints_parity_guard_tests.sh
