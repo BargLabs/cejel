@@ -17,27 +17,23 @@ name: Standing constraints parity
 # needs no equivalent secret (see that repo's copy of this file).
 
 on:
-  pull_request:
-    paths:
-      - 'docs/standing-constraints.md'
-      - 'scripts/constraints-parity-guard.sh'
-      - '.github/workflows/standing-constraints-parity.yml'
   push:
     branches: [main]
     paths:
       - 'docs/standing-constraints.md'
       - 'scripts/constraints-parity-guard.sh'
+      - 'scripts/constraints_parity_guard_tests.sh'
+      - '.github/workflows/standing-constraints-pr.yml'
       - '.github/workflows/standing-constraints-parity.yml'
   schedule:
     - cron: '23 9 * * *'
-  workflow_dispatch:
 
 permissions:
   contents: read
   issues: write
 
 concurrency:
-  group: standing-constraints-parity-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  group: standing-constraints-parity-main
   cancel-in-progress: true
 
 jobs:
@@ -63,17 +59,17 @@ jobs:
           set -o pipefail
           ./scripts/constraints-parity-guard.sh 2>&1 | tee "${RUNNER_TEMP}/parity-guard-output.txt"
 
-      # PR runs stop at the guard step above: the failing check is the
-      # signal, and a PR that never merges should not open an operator
-      # issue. Only push/schedule/workflow_dispatch runs (i.e. runs against
-      # what main actually looks like right now) escalate, so overnight
-      # drift surfaces where the estate already looks -- as an escalation
+      # This privileged workflow runs only after merge to main and on the
+      # daily schedule. Pull requests run the offline fixture/structural
+      # checks in standing-constraints-pr.yml without this credential.
+      # Failures here escalate so overnight drift surfaces where the estate
+      # already looks -- as an escalation
       # deploy/operator/escalation-issue-check.sh's daily sweep will pick up
       # (it searches BargLabs + houman44 issues by the escalation:operator
       # label across every repo, so no change to that script is needed for
       # an issue opened here to be found by it).
       - name: Escalate constraints-parity drift or unreadable sibling
-        if: failure() && steps.guard.outcome == 'failure' && github.event_name != 'pull_request'
+        if: failure() && steps.guard.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -110,7 +106,7 @@ jobs:
           fi
 
       - name: Close recovered constraints-parity escalation
-        if: steps.guard.outcome == 'success' && github.event_name != 'pull_request'
+        if: steps.guard.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

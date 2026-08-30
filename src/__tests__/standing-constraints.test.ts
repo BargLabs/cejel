@@ -13,7 +13,14 @@ const PARITY_WORKFLOW_PATH = join(
   'workflows',
   'standing-constraints-parity.yml',
 );
+const PR_WORKFLOW_PATH = join(
+  REPOSITORY_ROOT,
+  '.github',
+  'workflows',
+  'standing-constraints-pr.yml',
+);
 const PARITY_GUARD_SCRIPT_PATH = join(REPOSITORY_ROOT, 'scripts', 'constraints-parity-guard.sh');
+const WORKFLOWS_DIRECTORY = join(REPOSITORY_ROOT, '.github', 'workflows');
 const ENTRYPOINTS = ['AGENTS.md', 'CLAUDE.md'] as const;
 const PINNED_SHA256 = 'f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22';
 const EXPECTED_VERSION = '**CONSTRAINTS-VERSION: 2026-08-01.5**';
@@ -27,7 +34,7 @@ const EXPLICIT_PARITY_CHECK =
 const LOCAL_PIN_INSTRUCTION =
   'The current local SHA-256 pin is `f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22`.';
 const PARITY_GUARD_NAMED =
-  'This is checked mechanically by [`scripts/constraints-parity-guard.sh`](scripts/constraints-parity-guard.sh) in CI — wired into both repos on any PR touching the file, on push to `main`, and on a daily schedule; drift or an unreadable sibling fails the check loud, it never silently skips.';
+  'This is checked mechanically in CI. Pull requests touching the file retain credential-free structural, fixture, and local-immutability checks; they do not receive the sibling-read credential or run mutable checkout code with it. The privileged cross-repository byte comparison runs after merge on push to `main`, on manual dispatch, and on a daily schedule. On those authoritative runs, drift or an unreadable sibling fails the check loud; it never silently skips.';
 const HISTORICAL_REVERIFY_INSTRUCTION =
   'Historical counts and open-item labels must be mechanically reverified against current repository state before action.';
 
@@ -95,14 +102,19 @@ describe('standing constraints', () => {
 
   it('fails loudly when the cross-repo parity reader cannot fetch or finds drift', () => {
     const workflow = normalized(PARITY_WORKFLOW_PATH);
+    const prWorkflow = normalized(PR_WORKFLOW_PATH);
 
-    expect(workflow).toContain("pull_request: paths: - 'docs/standing-constraints.md'");
+    expect(prWorkflow).toContain("pull_request: paths: - 'docs/standing-constraints.md'");
+    expect(prWorkflow).toContain('bash scripts/constraints_parity_guard_tests.sh');
+    expect(prWorkflow).not.toContain('secrets.');
+    expect(prWorkflow).not.toContain('./scripts/constraints-parity-guard.sh');
+    expect(workflow).not.toContain('pull_request:');
     expect(workflow).toContain("schedule: - cron: '23 9 * * *'");
     expect(workflow).toContain('./scripts/constraints-parity-guard.sh');
     expect(workflow).toContain('PARITY_GUARD_SIBLING_REPO: BargLabs/alfred');
     expect(workflow).toContain('GH_TOKEN: ${{ secrets.ALFRED_CONSTRAINTS_READ_TOKEN }}');
     expect(workflow).toContain(
-      "if: failure() && steps.guard.outcome == 'failure' && github.event_name != 'pull_request'",
+      "if: failure() && steps.guard.outcome == 'failure'",
     );
     expect(workflow).toContain('--label escalation:operator');
     expect(workflow).not.toContain('continue-on-error:');
@@ -126,5 +138,31 @@ describe('standing constraints', () => {
     const guardStepBody = guardStepMatch?.[1] ?? '';
     expect(guardStepBody).toContain('set -o pipefail');
     expect(guardStepBody).toContain('| tee');
+  });
+
+  it('keeps secrets out of pull-request jobs that execute checked-out scripts', () => {
+    const violations = readdirSync(WORKFLOWS_DIRECTORY)
+      .filter((file) => /\.ya?ml$/.test(file))
+      .flatMap((file) => {
+        const workflow = readFileSync(join(WORKFLOWS_DIRECTORY, file), 'utf8');
+        if (!/^  pull_request:\s*$/m.test(workflow)) return [];
+
+        const jobs = workflow.slice(workflow.search(/^jobs:\s*$/m));
+        const jobStarts = [...jobs.matchAll(/^  ([A-Za-z0-9_-]+):\s*$/gm)];
+        return jobStarts.flatMap((match, index) => {
+          const start = match.index ?? 0;
+          const end = jobStarts[index + 1]?.index ?? jobs.length;
+          const job = jobs.slice(start, end);
+          const checksOutRepository = /uses:\s*actions\/checkout@/.test(job);
+          const referencesSecret = /\$\{\{\s*secrets\.[^}]+\}\}/.test(job);
+          const runsCheckedOutScript = /run:\s*(?:\||>)?[\s\S]*?(?:\.\/|\bscripts\/)/.test(job);
+
+          return checksOutRepository && referencesSecret && runsCheckedOutScript
+            ? [`${file}#${match[1]}`]
+            : [];
+        });
+      });
+
+    expect(violations).toEqual([]);
   });
 });
