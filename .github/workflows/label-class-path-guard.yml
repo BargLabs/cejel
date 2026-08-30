@@ -3,6 +3,9 @@ name: Disclosure-boundary path guard
 on:
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '15 6 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +23,10 @@ jobs:
       - name: Run the check's own tests before trusting it
         run: node --test scripts/check-label-class-paths.node-test.mjs
       - name: Check added/renamed paths against the disclosure boundary
+        if: github.event_name == 'pull_request'
         run: |
           git diff --name-only --diff-filter=AR "origin/${{ github.base_ref }}...HEAD" \
-            | node scripts/check-label-class-paths.mjs
+            | node scripts/check-label-class-paths.mjs --diff
+      - name: Sweep the complete tracked tree against paths and content shapes
+        if: github.event_name != 'pull_request'
+        run: node scripts/check-label-class-paths.mjs --full-tree
