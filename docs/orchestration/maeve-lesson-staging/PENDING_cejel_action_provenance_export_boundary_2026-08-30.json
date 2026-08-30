@@ -1,0 +1,21 @@
+[
+  {
+    "statement": "A current-run provenance boundary and a caller-facing artifact directory are different trust domains. Generate and read the authoritative result only in a fresh Action-owned directory outside the repository, then treat the documented out-dir strictly as an export sink. Preserving repeat-run compatibility requires testing a populated destination and caller-owned inputs without ever accepting them as current-run evidence. Any backup path used during export is itself repository-controlled: lstat every component, reject symlinks and non-directories, and clean the Action-owned temporary directory on both success and failure. Exercise the real runner through early failure, repeat success, newline-bearing outputs, and a symlinked backup component.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "github-action",
+      "artifact-provenance",
+      "filesystem-boundary"
+    ],
+    "tags": [
+      "current-run-provenance",
+      "symlink",
+      "compatibility",
+      "fail-closed"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-30T00:00:00.000Z",
+    "quarantineReason": "This staging record accompanies the Action current-run provenance branch, whose eventual squash commit does not yet exist on Cejel origin/main. It must not anchor to its own branch.",
+    "moveCondition": "After the Action provenance PR merges, identify its 40-character squash commit on Cejel origin/main and verify that its diff uses a fresh Action-owned output directory, multiline GitHub outputs, repeat-run export coverage, temporary-directory cleanup, and symlink rejection for backup components. Then copy this record into Alfred docs/orchestration/maeve-lesson-batches/ with the required cejel_ filename prefix and that origin/main commit anchor."
+  }
+]

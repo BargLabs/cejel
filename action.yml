@@ -20,10 +20,11 @@ inputs:
     required: false
     default: ''
   out-dir:
-    description: 'Directory to write the JSON report, HTML certificate, and badge artifacts.'
+    description: >-
+      Empty destination to receive this invocation's report artifacts after the fresh
+      runner-temporary scan completes. Existing populated destinations are refused.
     required: false
     default: '.cejel'
-
 outputs:
   score:
     description: 'Overall Cejel trust score (0.0-4.0), or empty when Cejel abstains.'
@@ -42,6 +43,9 @@ outputs:
   limitations:
     description: 'JSON array of scan limitation messages.'
     value: ${{ steps.witan-run.outputs.limitations }}
+  artifact-dir:
+    description: 'Write-only export destination containing this invocation’s report artifacts.'
+    value: ${{ steps.witan-run.outputs.artifact-dir }}
 
 runs:
   using: 'composite'
@@ -68,8 +72,10 @@ runs:
         cd "${{ github.action_path }}"
         pnpm run build
 
-    # Deliberately does NOT cd into this action's own checkout — repo-path/out-dir stay
-    # relative to the CALLING workflow's own workspace (the repo being scored).
+    # Deliberately does NOT cd into this action's own checkout — repo-path and the
+    # write-only export destination stay relative to the CALLING workflow's workspace.
+    # The report used for publication is first created in a fresh action-owned
+    # directory under RUNNER_TEMP.
     - name: Run Cejel (offline scoring — no network calls, no signup)
       id: witan-run
       shell: bash
@@ -77,4 +83,4 @@ runs:
       env:
         WITAN_REPO_PATH: ${{ inputs.repo-path }}
         WITAN_MIN_SCORE: ${{ inputs.min-score }}
-        WITAN_OUT_DIR: ${{ inputs.out-dir }}
+        WITAN_EXPORT_DIR: ${{ inputs.out-dir }}
