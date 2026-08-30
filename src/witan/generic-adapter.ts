@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { WitanCriterionId, WitanInputSignal } from './schemas.js';
 
 import { stripBom } from './json-safe.js';
+import { resolveIngestFilePath } from './ingest-files.js';
 
 export const CEJEL_GENERIC_INGEST_CONTRACT_VERSION = '1.0' as const;
 export const CEJEL_GENERIC_INGEST_CONTRACT_MAJOR = 1;
@@ -110,6 +111,8 @@ export function parseGenericJson(raw: unknown): WitanInputSignal[] {
 
 // Parse a generic Cejel external-signal JSON file at the given path. No network — local file only.
 export function parseGenericFile(genericPath: string): WitanInputSignal[] {
-  const raw: unknown = JSON.parse(stripBom(readFileSync(genericPath, 'utf8')));
+  const raw: unknown = JSON.parse(
+    stripBom(readFileSync(resolveIngestFilePath(genericPath), 'utf8')),
+  );
   return parseGenericJson(raw);
 }

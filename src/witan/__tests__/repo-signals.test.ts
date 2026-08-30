@@ -1253,6 +1253,48 @@ describe('robustness — BOM-prefixed package.json does not crash the scan', () 
 });
 
 describe('filesystem boundary — tracked symlinks are not repository evidence', () => {
+  it('applies the fallback 512 KB cap to the primary tracked-file inventory', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
+    writeFile(dir, 'assets/oversized.bin', 'x'.repeat(512_001));
+
+    const input = buildWitanInputFromRepo({
+      productSlug: 'tracked-size-boundary',
+      productDisplayName: 'Tracked Size Boundary',
+      repoPath: dir,
+      generatedAt: '2026-08-30T00:00:00.000Z',
+    });
+
+    expect(input.contentReadSummary?.byReason.tooLarge).toBe(1);
+    expect(input.contentReadSummary?.byReason.excludedByExtension).toBe(0);
+  });
+
+  it('abstains the criterion when an oversized tracked file could change an absence claim', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'package.json', JSON.stringify({ name: 'oversized-lockfile-fixture' }));
+    writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
+    writeFile(dir, 'package-lock.json', 'x'.repeat(512_001));
+
+    const input = buildWitanInputFromRepo({
+      productSlug: 'oversized-lockfile-fixture',
+      productDisplayName: 'Oversized Lockfile Fixture',
+      repoPath: dir,
+      generatedAt: '2026-08-30T00:00:00.000Z',
+    });
+    const a4 = input.signals?.find((signal) => signal.criterionId === 'A4');
+
+    expect(input.contentReadSummary?.byReason.tooLarge).toBe(1);
+    expect(input.contentReadSummary?.affectedCriteria).toContain('A4');
+    expect(input.scanLimitations).toEqual([
+      expect.stringContaining('1 criterion abstained'),
+    ]);
+    expect(a4).toMatchObject({
+      insufficientData: true,
+      findings: [],
+      positiveEvidence: [],
+    });
+  });
+
   it('does not read or cite a tracked README symlink whose target escapes the checkout', () => {
     const dir = makeTmpRepo();
     const outside = mkdtempSync(join(tmpdir(), 'witan-signals-outside-'));

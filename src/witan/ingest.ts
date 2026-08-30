@@ -1,13 +1,22 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { lstatSync, opendirSync, readFileSync, realpathSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import type { WitanIngestProvenance, WitanInputSignal } from './schemas.js';
+
+import { sanitizePresentationLine } from '../presentation-safety.js';
 
 import { clampFinding } from './finding-limits.js';
 import { isGenericSignalDocument, parseGenericJson } from './generic-adapter.js';
 import { stripBom } from './json-safe.js';
 import { type SarifDimensionRule, parseSarifJson } from './sarif-adapter.js';
 import { parseScorecardJson } from './scorecard-adapter.js';
+import {
+  isMissingIngestPath,
+  isResolvedIngestPathContained,
+  resolveIngestFilePath,
+} from './ingest-files.js';
+
+export { resolveIngestFilePath } from './ingest-files.js';
 
 function looksLikeSarif(raw: unknown): boolean {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
@@ -55,6 +64,7 @@ function rawToolName(raw: unknown): string {
 // generic Cejel external-signal shape by structure. Offline — reads a local file only.
 export interface ParseIngestFileOptions {
   extraSarifDimensionRules?: readonly SarifDimensionRule[];
+  maxFindingCandidates?: number;
   provenance?: WitanIngestProvenance;
 }
 
@@ -63,23 +73,33 @@ const MAX_INGEST_SOURCE_LENGTH = 120;
 // Scanner names are untrusted presentation input. Strip Unicode control/format characters and
 // cap the complete source identifier before it reaches report JSON or any certificate renderer.
 export function sanitizeIngestSource(source: string): string {
-  const withoutControls = source.replace(/[\p{Cc}\p{Cf}]/gu, '').trim();
-  const safeSource = withoutControls.length > 0 ? withoutControls : 'unknown';
-  const codePoints = Array.from(safeSource);
-  if (codePoints.length <= MAX_INGEST_SOURCE_LENGTH) return safeSource;
-  return `${codePoints.slice(0, MAX_INGEST_SOURCE_LENGTH - 3).join('')}...`;
+  return sanitizePresentationLine(source, {
+    fallback: 'unknown',
+    maxLength: MAX_INGEST_SOURCE_LENGTH,
+  });
 }
 
 export function parseIngestFile(
   filePath: string,
   options: ParseIngestFileOptions = {},
 ): WitanInputSignal[] {
+  const resolvedFilePath = resolveIngestFilePath(filePath);
   let raw: unknown;
   try {
-    raw = JSON.parse(stripBom(readFileSync(filePath, 'utf8')));
+    raw = JSON.parse(stripBom(readFileSync(resolvedFilePath, 'utf8')));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Cejel: could not parse ingest file as JSON: ${filePath} (${message})`);
+  }
+
+  const rawCount = countRawEntries(raw);
+  if (
+    options.maxFindingCandidates !== undefined &&
+    rawCount > options.maxFindingCandidates
+  ) {
+    throw new Error(
+      `Cejel: ${rawCount.toLocaleString('en-US')} ingest finding candidates exceed the ${options.maxFindingCandidates.toLocaleString('en-US')} remaining retained ingest finding budget; refusing before adapter materialization.`,
+    );
   }
 
   let signals: WitanInputSignal[] | undefined;
@@ -95,7 +115,6 @@ export function parseIngestFile(
 
   // A source that parses but maps to nothing must say so — the silent zero is exactly what
   // hid 488 dropped Semgrep findings (rule-default severity, not per-result) in production.
-  const rawCount = countRawEntries(raw);
   const mappedCount = signals.reduce((sum, signal) => sum + signal.findings.length, 0);
   if (rawCount > 0 && mappedCount === 0) {
     process.stderr.write(
@@ -120,7 +139,7 @@ export function parseIngestFile(
 // scanner-output globbing without a dependency; shells typically expand real glob syntax
 // before it reaches argv, so this only matters for quoted patterns or auto-discovery.
 // Returns [] (rather than throwing) when a wildcard pattern matches nothing.
-export function expandIngestPattern(pattern: string): string[] {
+export function expandIngestPattern(pattern: string, maxMatches = Number.POSITIVE_INFINITY): string[] {
   if (!pattern.includes('*')) return [pattern];
 
   const lastSlash = pattern.lastIndexOf('/');
@@ -129,32 +148,86 @@ export function expandIngestPattern(pattern: string): string[] {
   const regexSource = filePattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
   const regex = new RegExp(`^${regexSource}$`);
 
-  let entries: string[];
+  const entries: string[] = [];
   try {
-    entries = readdirSync(dir);
-  } catch {
+    const directoryStat = lstatSync(resolve(dir));
+    if (directoryStat.isSymbolicLink()) {
+      throw new Error(`Cejel: refusing symlinked ingest directory: ${dir}`);
+    }
+    if (!directoryStat.isDirectory()) return [];
+    const directory = opendirSync(dir);
+    try {
+      for (;;) {
+        const entry = directory.readSync();
+        if (!entry) break;
+        if (!regex.test(entry.name)) continue;
+        entries.push(entry.name);
+        if (entries.length >= maxMatches) break;
+      }
+    } finally {
+      directory.closeSync();
+    }
+  } catch (error) {
+    if (!isMissingIngestPath(error)) throw error;
     return [];
   }
 
   return entries
-    .filter((name) => regex.test(name))
     .sort()
-    .map((name) => join(dir, name));
+    .map((name) => {
+      const candidate = join(dir, name);
+      resolveIngestFilePath(candidate, dir);
+      return candidate;
+    });
 }
 
 // Auto-discover .cejel/inputs/*.{sarif,json} under a repo root, layered on top of any
 // explicit --ingest paths. Returns [] when the directory does not exist.
-export function discoverIngestInputs(repoPath: string): string[] {
+export function discoverIngestInputs(
+  repoPath: string,
+  maxMatches = Number.POSITIVE_INFINITY,
+): string[] {
+  const resolvedRoot = realpathSync(repoPath);
+  const cejelDir = join(repoPath, '.cejel');
   const inputsDir = join(repoPath, '.cejel', 'inputs');
-  let entries: string[];
+  const entries: string[] = [];
   try {
-    entries = readdirSync(inputsDir);
-  } catch {
+    const cejelStat = lstatSync(cejelDir);
+    if (cejelStat.isSymbolicLink()) {
+      throw new Error(`Cejel: refusing symlinked ingest path component: ${cejelDir}`);
+    }
+    if (!cejelStat.isDirectory()) {
+      throw new Error(`Cejel: refusing non-directory ingest path component: ${cejelDir}`);
+    }
+    const inputsStat = lstatSync(inputsDir);
+    if (inputsStat.isSymbolicLink()) {
+      throw new Error(`Cejel: refusing symlinked ingest path component: ${inputsDir}`);
+    }
+    if (!inputsStat.isDirectory()) {
+      throw new Error(`Cejel: refusing non-directory ingest path component: ${inputsDir}`);
+    }
+    const resolvedInputs = realpathSync(inputsDir);
+    if (!isResolvedIngestPathContained(resolvedInputs, resolvedRoot)) {
+      throw new Error(`Cejel: refusing auto-discovery directory outside the repository root.`);
+    }
+    const directory = opendirSync(inputsDir);
+    try {
+      for (;;) {
+        const entry = directory.readSync();
+        if (!entry) break;
+        if (!/\.(sarif|json)$/i.test(entry.name)) continue;
+        entries.push(entry.name);
+        if (entries.length >= maxMatches) break;
+      }
+    } finally {
+      directory.closeSync();
+    }
+  } catch (error) {
+    if (!isMissingIngestPath(error)) throw error;
     return [];
   }
 
   return entries
-    .filter((name) => /\.(sarif|json)$/i.test(name))
     .sort()
-    .map((name) => join(inputsDir, name));
+    .map((name) => resolveIngestFilePath(join(inputsDir, name), inputsDir));
 }

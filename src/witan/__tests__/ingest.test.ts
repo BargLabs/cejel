@@ -1,9 +1,13 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { discoverIngestInputs, expandIngestPattern, parseIngestFile } from '../ingest.js';
+import { parseGenericFile } from '../generic-adapter.js';
+import { parseSarifFile } from '../sarif-adapter.js';
+import { parseScorecardFile } from '../scorecard-adapter.js';
+import { MAX_INGEST_DOCUMENT_BYTES } from '../ingest-files.js';
 
 const SARIF_DOC = {
   version: '2.1.0',
@@ -47,6 +51,43 @@ function writeJson(dir: string, name: string, contents: unknown): string {
 }
 
 describe('ingest — parseIngestFile auto-detection', () => {
+  it('rejects an oversized document before JSON parsing or adapter materialization', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'witan-ingest-size-'));
+    const file = join(dir, 'oversized.sarif');
+    writeFileSync(file, Buffer.alloc(MAX_INGEST_DOCUMENT_BYTES + 1));
+
+    expect(() => parseIngestFile(file)).toThrow(/byte budget/i);
+  });
+
+  it('rejects a symlinked explicit ingest file instead of following it', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'witan-ingest-outside-'));
+    const selected = mkdtempSync(join(tmpdir(), 'witan-ingest-selected-'));
+    const target = writeJson(outside, 'scan.sarif', SARIF_DOC);
+    const link = join(selected, 'scan.sarif');
+    symlinkSync(target, link);
+
+    expect(() => parseIngestFile(link)).toThrow(/symlink/i);
+  });
+
+  it.each([
+    ['SARIF', SARIF_DOC, parseSarifFile],
+    ['Scorecard', SCORECARD_DOC, parseScorecardFile],
+    ['generic', GENERIC_DOC, parseGenericFile],
+  ] as const)('rejects symlinks through the public %s file adapter', (_label, document, parse) => {
+    const outside = mkdtempSync(join(tmpdir(), 'witan-adapter-outside-'));
+    const selected = mkdtempSync(join(tmpdir(), 'witan-adapter-selected-'));
+    const target = writeJson(outside, 'scan.json', document);
+    const link = join(selected, 'scan.json');
+    symlinkSync(target, link);
+
+    expect(() => parse(link)).toThrow(/symlink/i);
+  });
+
+  it('rejects a non-regular explicit ingest candidate', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'witan-ingest-directory-'));
+    expect(() => parseIngestFile(directory)).toThrow(/non-regular ingest file/i);
+  });
+
   it('detects and parses SARIF by its runs array', () => {
     const dir = mkdtempSync(join(tmpdir(), 'witan-ingest-'));
     const file = writeJson(dir, 'scan.sarif', SARIF_DOC);
@@ -175,6 +216,16 @@ describe('ingest — expandIngestPattern', () => {
     expect(expandIngestPattern('/definitely/not/a/real/dir/*.sarif')).toEqual([]);
   });
 
+  it('rejects a symlinked explicit glob directory', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'witan-glob-outside-'));
+    const selected = mkdtempSync(join(tmpdir(), 'witan-glob-selected-'));
+    writeJson(outside, 'scan.sarif', SARIF_DOC);
+    const linkedDirectory = join(selected, 'reports');
+    symlinkSync(outside, linkedDirectory);
+
+    expect(() => expandIngestPattern(join(linkedDirectory, '*.sarif'))).toThrow(/symlink/i);
+  });
+
   it.each(['.', '+', '?', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\'])(
     'treats regex metacharacter %j as a literal while preserving * glob semantics',
     (metacharacter) => {
@@ -204,6 +255,16 @@ describe('ingest — discoverIngestInputs', () => {
   it('returns [] when .cejel/inputs does not exist', () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-discover-none-'));
     expect(discoverIngestInputs(repoPath)).toEqual([]);
+  });
+
+  it('rejects a symlinked auto-discovery directory instead of following it', () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'witan-discover-symlink-'));
+    const outside = mkdtempSync(join(tmpdir(), 'witan-discover-outside-'));
+    mkdirSync(join(repoPath, '.cejel'), { recursive: true });
+    writeJson(outside, 'outside.sarif', SARIF_DOC);
+    symlinkSync(outside, join(repoPath, '.cejel', 'inputs'));
+
+    expect(() => discoverIngestInputs(repoPath)).toThrow(/symlink/i);
   });
 });
 

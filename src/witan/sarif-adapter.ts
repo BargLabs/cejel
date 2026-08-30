@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { WitanCriterionId, WitanInputSignal, WitanInputSignalFinding } from './schemas.js';
 
 import { stripBom } from './json-safe.js';
+import { resolveIngestFilePath } from './ingest-files.js';
 
 // SARIF 2.1.0 structural types — local, no vendor SDK, offline-clean.
 interface SarifLocation {
@@ -250,6 +251,8 @@ export function parseSarifFile(
   sarifPath: string,
   extraDimensionRules?: readonly SarifDimensionRule[],
 ): WitanInputSignal[] {
-  const raw: unknown = JSON.parse(stripBom(readFileSync(sarifPath, 'utf8')));
+  const raw: unknown = JSON.parse(
+    stripBom(readFileSync(resolveIngestFilePath(sarifPath), 'utf8')),
+  );
   return parseSarifJson(raw, extraDimensionRules);
 }

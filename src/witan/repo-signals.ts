@@ -8,6 +8,9 @@ import {
 } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path';
 
+import { MAX_REPOSITORY_CONTENT_BYTES } from '../filesystem-limits.js';
+import { sanitizePresentationLine } from '../presentation-safety.js';
+
 import { WITAN_RUBRIC_VERSION, WITAN_RUBRIC_VERSION_V8 } from './schemas.js';
 import type {
   WitanCriterionMetric,
@@ -24,6 +27,7 @@ import {
   readRepoText,
   readRepoTextPrefix,
   recordContentSkip,
+  recordContentSkipForCriteria,
   recordFilesystemSkip,
   trackContentReads,
   withContentReadCriterion,
@@ -376,7 +380,10 @@ function buildWitanInputFromRepoUntracked(
 
   return {
     productSlug: options.productSlug,
-    productDisplayName: options.productDisplayName,
+    productDisplayName: sanitizePresentationLine(options.productDisplayName, {
+      fallback: 'Repository',
+      maxLength: 120,
+    }),
     repo: {
       ...(headSha ? { headSha } : {}),
     },
@@ -4365,8 +4372,18 @@ function parseGitTrackedFiles(
       continue;
     }
     try {
-      if (!lstatSync(fullPath).isFile()) {
+      const stat = lstatSync(fullPath);
+      if (!stat.isFile()) {
         recordContentSkip(fullPath, 'non_regular_file', true);
+        continue;
+      }
+      if (stat.size > MAX_REPOSITORY_CONTENT_BYTES) {
+        const affectedCriteria = affectedCriteriaForUnavailablePath(file);
+        if (affectedCriteria.length > 0) {
+          recordContentSkipForCriteria(fullPath, 'too_large', affectedCriteria, true);
+        } else {
+          recordContentSkip(fullPath, 'too_large', true);
+        }
         continue;
       }
     } catch (error: unknown) {
@@ -4379,6 +4396,40 @@ function parseGitTrackedFiles(
     files.push(file);
   }
   return files.sort();
+}
+
+function affectedCriteriaForUnavailablePath(file: string): WitanCriterionId[] {
+  const affected = new Set<WitanCriterionId>();
+  if (isDependencyManifest(file) || isLockfile(file)) affected.add('A4');
+  if (isCiWorkflow(file)) {
+    affected.add('A1');
+    affected.add('A3');
+    affected.add('B2');
+    affected.add('B3');
+  }
+  if (isDeployConfig(file)) {
+    affected.add('A3');
+    affected.add('B2');
+  }
+  if (isTestFile(file)) {
+    affected.add('A1');
+    affected.add('A2');
+  }
+  if (isImplementationFile(file)) {
+    affected.add('A1');
+    affected.add('A2');
+    affected.add('A3');
+    affected.add('B1');
+    affected.add('B6');
+  }
+  if (/\.(?:md|mdx|rst|txt)$/i.test(file)) {
+    affected.add('A5');
+    affected.add('B4');
+    affected.add('B5');
+    affected.add('B6');
+  }
+  if (isAuditFile(file)) affected.add('B5');
+  return [...affected];
 }
 
 function directoryInventory(repoPath: string): string[] {
@@ -4552,8 +4603,13 @@ function visitRepoDir(
       continue;
     }
     const repoRelativePath = relative(repoPath, fullPath);
-    if (size > 512_000) {
-      recordContentSkip(fullPath, 'too_large');
+    if (size > MAX_REPOSITORY_CONTENT_BYTES) {
+      const affectedCriteria = affectedCriteriaForUnavailablePath(repoRelativePath);
+      if (affectedCriteria.length > 0) {
+        recordContentSkipForCriteria(fullPath, 'too_large', affectedCriteria);
+      } else {
+        recordContentSkip(fullPath, 'too_large');
+      }
       continue;
     }
     if (!isPotentialContentPath(repoRelativePath)) {

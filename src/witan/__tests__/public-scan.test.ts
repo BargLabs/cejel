@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { resolvePublicIngestSignals, scoreRepoWithPublicCejel } from '../public-scan.js';
 import {
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
@@ -80,5 +80,76 @@ describe('rubric version selector fails closed', () => {
       WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
       ...WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
     ]);
+  });
+});
+
+describe('public ingest resource budgets', () => {
+  it('fails closed above the 128-document budget after canonical deduplication', () => {
+    const root = mkdtempSync(join(tmpdir(), 'witan-ingest-document-budget-'));
+    for (let index = 0; index < 129; index += 1) {
+      writeFixtureFile(
+        root,
+        `scanner-${index}.json`,
+        JSON.stringify({ version: '1.0', tool: `scanner-${index}`, signals: [] }),
+      );
+    }
+
+    expect(() =>
+      resolvePublicIngestSignals({
+        repoPath: root,
+        ingestPatterns: [join(root, '*.json'), join(root, '*.json')],
+      }),
+    ).toThrow(/128.*ingest document/i);
+  });
+
+  it('fails closed above the 10,000 retained-finding budget', () => {
+    const root = mkdtempSync(join(tmpdir(), 'witan-ingest-finding-budget-'));
+    const ingestPath = join(root, 'scanner.json');
+    writeFileSync(
+      ingestPath,
+      JSON.stringify({
+        version: '1.0',
+        tool: 'large-scanner',
+        signals: [
+          {
+            dimension: 'A2',
+            weight: 1,
+            findings: Array.from({ length: 10_001 }, (_, index) => ({
+              ruleId: `finding-${index}`,
+              severity: 'warning',
+              message: 'bounded finding',
+            })),
+          },
+        ],
+      }),
+    );
+
+    expect(() =>
+      resolvePublicIngestSignals({ repoPath: root, ingestPatterns: [ingestPath] }),
+    ).toThrow(/10,000.*retained ingest finding/i);
+  });
+
+  it('rejects an over-budget unmapped SARIF before adapter materialization', () => {
+    const root = mkdtempSync(join(tmpdir(), 'witan-ingest-unmapped-budget-'));
+    const ingestPath = join(root, 'scanner.sarif');
+    writeFileSync(
+      ingestPath,
+      JSON.stringify({
+        version: '2.1.0',
+        runs: [
+          {
+            tool: { driver: { name: 'large-unmapped-scanner' } },
+            results: Array.from({ length: 10_001 }, (_, index) => ({
+              level: 'none',
+              ruleId: `unmapped-${index}`,
+            })),
+          },
+        ],
+      }),
+    );
+
+    expect(() =>
+      resolvePublicIngestSignals({ repoPath: root, ingestPatterns: [ingestPath] }),
+    ).toThrow(/finding candidates.*10,000.*retained ingest finding budget/i);
   });
 });

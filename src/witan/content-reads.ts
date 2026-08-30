@@ -1,6 +1,8 @@
 import { closeSync, lstatSync, openSync, readFileSync, readSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { MAX_REPOSITORY_CONTENT_BYTES } from '../filesystem-limits.js';
+
 import type { WitanContentReadSummary, WitanCriterionId } from './schemas.js';
 
 export type ContentReadSkipReason =
@@ -134,6 +136,20 @@ export function recordContentSkip(
   recordSkip(path, reason, undefined, false, deduplicate);
 }
 
+/** Record an inventory-time omission whose path shape identifies affected rubric criteria. */
+export function recordContentSkipForCriteria(
+  path: string,
+  reason: Exclude<ContentReadSkipReason, 'unreadable'>,
+  criteria: readonly WitanCriterionId[],
+  deduplicate = false,
+): void {
+  const session = activeSession;
+  if (session) {
+    for (const criterion of criteria) session.affectedCriteria.add(criterion);
+  }
+  recordSkip(path, reason, undefined, false, deduplicate);
+}
+
 export function recordFilesystemSkip(
   path: string,
   error: unknown,
@@ -159,6 +175,10 @@ export function readRepoText(path: string, encoding: BufferEncoding = 'utf8'): s
     const stat = lstatSync(path);
     if (!stat.isFile()) {
       recordSkip(path, 'non_regular_file', undefined, true, true);
+      return '';
+    }
+    if (stat.size > MAX_REPOSITORY_CONTENT_BYTES) {
+      recordSkip(path, 'too_large', undefined, true, true);
       return '';
     }
   } catch (error: unknown) {
