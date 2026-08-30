@@ -34,7 +34,7 @@ const EXPLICIT_PARITY_CHECK =
 const LOCAL_PIN_INSTRUCTION =
   'The current local SHA-256 pin is `f871f0b6dfce6cea9fcce3bfc6e195d02da5d2bbe2d0afaca1764f05d3d9be22`.';
 const PARITY_GUARD_NAMED =
-  'This is checked mechanically by [`scripts/constraints-parity-guard.sh`](scripts/constraints-parity-guard.sh) in CI — wired into both repos on any PR touching the file, on push to `main`, and on a daily schedule; drift or an unreadable sibling fails the check loud, it never silently skips.';
+  'This is checked mechanically in CI. Pull requests touching the file retain credential-free structural, fixture, and local-immutability checks; they do not receive the sibling-read credential or run mutable checkout code with it. The privileged cross-repository byte comparison runs after merge on push to `main`, on manual dispatch, and on a daily schedule. On those authoritative runs, drift or an unreadable sibling fails the check loud; it never silently skips.';
 const HISTORICAL_REVERIFY_INSTRUCTION =
   'Historical counts and open-item labels must be mechanically reverified against current repository state before action.';
 
