@@ -7,6 +7,8 @@ import type {
   WitanReport,
 } from './schemas.js';
 
+import { escapeMarkdownInline } from '../presentation-safety.js';
+
 import { isWitanNoMeasurementAbstention, renderWitanAbstentionLabel } from './abstention.js';
 import { computeMeasuredCoverage, formatCoverageSummary } from './coverage.js';
 import {
@@ -87,7 +89,7 @@ export function renderWitanMarkdownReport(
         ];
 
   const lines = [
-    `# Cejel Trust Report - ${report.productDisplayName}`,
+    `# Cejel Trust Report - ${escapeMarkdownInline(report.productDisplayName)}`,
     '',
     `- Product: ${report.productSlug}`,
     `- Product identity: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`,
@@ -283,10 +285,6 @@ function renderSourceProvenanceLabel(summary: ProvenanceSourceSummary): string {
 function formatSourceProvenanceLine(summary: ProvenanceSourceSummary): string {
   const noun = summary.findingCount === 1 ? 'finding' : 'findings';
   return `${renderSourceProvenanceLabel(summary)}: ${summary.findingCount} ${noun} ingested (folded into ${summary.dimensions.join(', ')})`;
-}
-
-function escapeMarkdownInline(value: string): string {
-  return value.replace(/([\\`*_[\]<>|])/g, '\\$1');
 }
 
 function renderConsumedSignals(signals: readonly WitanConsumedSignalSummary[]): string[] {

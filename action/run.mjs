@@ -15,6 +15,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const cliEntry = fileURLToPath(new URL('../dist/index.js', import.meta.url));
 
+function renderMarkdownInline(value) {
+  return String(value)
+    .replace(/[\r\n\u2028\u2029]+/g, ' ')
+    .replace(/([\\`*_[\]<>|#])/g, '\\$1');
+}
+
 export function renderStepSummary(s) {
   const abstained = s.verdict === 'Insufficient source' || s.verdict === 'Insufficient evidence';
   const limitationLines =
@@ -24,17 +30,19 @@ export function renderStepSummary(s) {
           '',
           'The score and verdict are qualified by scan limitations:',
           '',
-          ...s.scanLimitations.map((limitation) => `- ${limitation}`),
+          ...s.scanLimitations.map((limitation) => `- ${renderMarkdownInline(limitation)}`),
           '',
         ]
       : [];
   if (abstained) {
     return `${[
-      `## Cejel trust check — ${s.productDisplayName}`,
+      `## Cejel trust check — ${renderMarkdownInline(s.productDisplayName)}`,
       '',
-      `**${s.verdict} to certify.**`,
+      `**${renderMarkdownInline(s.verdict)} to certify.**`,
       '',
-      s.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.',
+      renderMarkdownInline(
+        s.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.',
+      ),
       '',
       ...limitationLines,
     ].join('\n')}\n`;
@@ -47,9 +55,9 @@ export function renderStepSummary(s) {
     throw new Error('A scored Cejel Action summary must carry numeric headline scores.');
   }
   const lines = [
-    `## Cejel trust check — ${s.productDisplayName}`,
+    `## Cejel trust check — ${renderMarkdownInline(s.productDisplayName)}`,
     '',
-    `**Overall: ${s.overallScore.toFixed(1)}/4.0 (${s.verdict})**`,
+    `**Overall: ${s.overallScore.toFixed(1)}/4.0 (${renderMarkdownInline(s.verdict)})**`,
     '',
     '| Code trust | Process trust |',
     '|---|---|',
@@ -66,7 +74,7 @@ export function renderStepSummary(s) {
     );
     for (const finding of s.topFindings) {
       lines.push(
-        `- **[finding severity: ${finding.severity}]** ${finding.criterionId} **[dimension band: ${finding.dimensionBand}]**: ${finding.displaySummary ?? finding.summary}`,
+        `- **[finding severity: ${renderMarkdownInline(finding.severity)}]** ${renderMarkdownInline(finding.criterionId)} **[dimension band: ${renderMarkdownInline(finding.dimensionBand)}]**: ${renderMarkdownInline(finding.displaySummary ?? finding.summary)}`,
       );
     }
   }

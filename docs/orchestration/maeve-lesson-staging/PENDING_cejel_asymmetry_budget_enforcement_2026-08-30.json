@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A resource or filesystem control is incomplete when it exists only after attacker-controlled work has already been materialized, or only on one sibling path. Enforce document bytes before readFileSync/JSON.parse, stop directory enumeration once the document budget can be proven exceeded, and reject over-budget finding candidates before adapter mapping. When an inventory cap omits a recognized file that could change an absence claim, record the existing skip reason and mark the relevant criterion insufficient_data; a truthful skip count alone does not qualify the assertion. Centralize containment and presentation sanitization, then test every public file adapter, explicit and auto-discovered ingest, Git and fallback inventory, derived and programmatic identity, and each Markdown sink.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "resource-budgets",
+      "inventory-provenance",
+      "ingest-containment",
+      "presentation-safety"
+    ],
+    "tags": [
+      "asymmetry",
+      "pre-materialization-budget",
+      "insufficient-data",
+      "symlink",
+      "precision-first"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-08-30T00:00:00.000Z",
+    "quarantineReason": "This staging record accompanies the asymmetry-controls branch, whose eventual squash commit does not yet exist on Cejel origin/main. It must not anchor to its own branch.",
+    "moveCondition": "After the asymmetry-controls PR merges, identify its 40-character squash commit on Cejel origin/main and verify that its diff enforces primary-inventory size parity, criterion abstention for claim-relevant omissions, ingest containment, pre-materialization byte and finding budgets, bounded enumeration, shared identity sanitization, and Markdown sink escaping. Then copy this record into Alfred docs/orchestration/maeve-lesson-batches/ with the required cejel_ filename prefix and that origin/main commit anchor."
+  }
+]

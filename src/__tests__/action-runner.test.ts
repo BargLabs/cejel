@@ -33,6 +33,29 @@ function renderActionOutputs(summary: unknown): string {
 }
 
 describe('GitHub Action step summary', () => {
+  it('keeps untrusted identity and finding text on escaped Markdown lines', () => {
+    const rendered = renderStepSummary({
+      productDisplayName: 'Trusted\n## Forged *identity*',
+      overallScore: 2.7,
+      codeTrustScore: 2.2,
+      processTrustScore: 3.2,
+      verdict: 'Conditional',
+      findingCount: 1,
+      topFindings: [
+        {
+          criterionId: 'A3',
+          severity: 'warning',
+          dimensionBand: 'warning',
+          summary: '**forged finding emphasis**',
+        },
+      ],
+    });
+
+    expect(rendered).not.toContain('\n## Forged');
+    expect(rendered).toContain('\\*identity\\*');
+    expect(rendered).toContain('\\*\\*forged finding emphasis\\*\\*');
+  });
+
   it('uses actionable finding copy and labels severity separately from the dimension band', () => {
     const rendered = renderStepSummary({
       productDisplayName: 'fixture',

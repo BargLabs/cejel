@@ -1,9 +1,12 @@
-import { resolve } from 'node:path';
-
 import type { WitanInputSignal, WitanReport } from './schemas.js';
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
-import { discoverIngestInputs, expandIngestPattern, parseIngestFile } from './ingest.js';
+import {
+  discoverIngestInputs,
+  expandIngestPattern,
+  parseIngestFile,
+  resolveIngestFilePath,
+} from './ingest.js';
 import { buildWitanInputFromRepo, explainNoMeasurementSourceCoverage } from './repo-signals.js';
 import { assertSelectableRubricVersion } from './rubric-version.js';
 import { createWitanReport } from './scoring.js';
@@ -26,6 +29,12 @@ export interface PublicCejelScoreOptions {
   autoDiscoverIngest?: boolean;
   warnOnEmptyIngestMatch?: boolean;
 }
+
+// Public scans fail closed rather than silently truncate when external evidence exceeds either
+// combined budget. The document limit applies after canonical-path deduplication across explicit
+// and auto-discovered inputs; the finding limit applies before any parsed findings reach scoring.
+export const MAX_INGEST_DOCUMENTS = 128;
+export const MAX_RETAINED_INGEST_FINDINGS = 10_000;
 
 export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): WitanReport {
   // A present-but-unwired selector must fail closed, not fall through to whatever
@@ -67,32 +76,62 @@ export function resolvePublicIngestSignals(
   >,
 ): WitanInputSignal[] {
   const seen = new Set<string>();
-  const explicitFiles: string[] = [];
+  const documents: Array<{
+    file: string;
+    provenance: 'operator_supplied' | 'auto_discovered';
+  }> = [];
+
+  const addDocument = (
+    file: string,
+    provenance: 'operator_supplied' | 'auto_discovered',
+  ): void => {
+    const resolved = resolveIngestFilePath(file);
+    if (seen.has(resolved)) return;
+    seen.add(resolved);
+    documents.push({ file: resolved, provenance });
+    if (documents.length > MAX_INGEST_DOCUMENTS) {
+      throw new Error(
+        `Cejel: ${documents.length} unique ingest documents exceed the ${MAX_INGEST_DOCUMENTS} ingest document budget; refusing to produce a partial certificate.`,
+      );
+    }
+  };
 
   for (const pattern of options.ingestPatterns ?? []) {
-    const matches = expandIngestPattern(pattern);
+    // Stop directory enumeration once enough candidates exist to prove the combined budget can
+    // be exceeded; canonical deduplication still happens in addDocument below.
+    const matches = expandIngestPattern(pattern, MAX_INGEST_DOCUMENTS + 1);
     if (matches.length === 0 && options.warnOnEmptyIngestMatch) {
       process.stderr.write(`Cejel: --ingest pattern matched no files: ${pattern}\n`);
     }
     for (const match of matches) {
-      const resolved = resolve(match);
-      if (seen.has(resolved)) continue;
-      seen.add(resolved);
-      explicitFiles.push(match);
+      addDocument(match, 'operator_supplied');
     }
   }
 
-  const signals = explicitFiles.flatMap((file) =>
-    parseIngestFile(file, { provenance: 'operator_supplied' }),
-  );
-  if (!options.autoDiscoverIngest) return signals;
-
-  for (const discovered of discoverIngestInputs(options.repoPath)) {
-    const resolved = resolve(discovered);
-    if (seen.has(resolved)) continue;
-    seen.add(resolved);
-    signals.push(...parseIngestFile(discovered, { provenance: 'auto_discovered' }));
+  if (options.autoDiscoverIngest) {
+    for (const discovered of discoverIngestInputs(
+      options.repoPath,
+      MAX_INGEST_DOCUMENTS + 1,
+    )) {
+      addDocument(discovered, 'auto_discovered');
+    }
   }
 
+  const signals: WitanInputSignal[] = [];
+  let retainedFindings = 0;
+  for (const document of documents) {
+    const parsed = parseIngestFile(document.file, {
+      maxFindingCandidates: MAX_RETAINED_INGEST_FINDINGS - retainedFindings,
+      provenance: document.provenance,
+    });
+    const documentFindings = parsed.reduce((count, signal) => count + signal.findings.length, 0);
+    retainedFindings += documentFindings;
+    if (retainedFindings > MAX_RETAINED_INGEST_FINDINGS) {
+      throw new Error(
+        `Cejel: ${retainedFindings.toLocaleString('en-US')} retained findings exceed the ${MAX_RETAINED_INGEST_FINDINGS.toLocaleString('en-US')} retained ingest finding budget; refusing to truncate evidence.`,
+      );
+    }
+    signals.push(...parsed);
+  }
   return signals;
 }

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { WitanCriterionId, WitanInputSignal, WitanInputSignalFinding } from './schemas.js';
 
 import { stripBom } from './json-safe.js';
+import { resolveIngestFilePath } from './ingest-files.js';
 
 // OpenSSF Scorecard JSON output — local structural types, no vendor SDK, offline-clean.
 // Produced by `scorecard --repo=... --format=json`. Each check carries a 0-10 score
@@ -126,6 +127,8 @@ export function parseScorecardJson(raw: unknown): WitanInputSignal[] {
 
 // Parse an OpenSSF Scorecard JSON file at the given path. No network — local file only.
 export function parseScorecardFile(scorecardPath: string): WitanInputSignal[] {
-  const raw: unknown = JSON.parse(stripBom(readFileSync(scorecardPath, 'utf8')));
+  const raw: unknown = JSON.parse(
+    stripBom(readFileSync(resolveIngestFilePath(scorecardPath), 'utf8')),
+  );
   return parseScorecardJson(raw);
 }
