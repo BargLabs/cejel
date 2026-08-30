@@ -11,6 +11,10 @@ export const WITAN_NO_MEASUREMENT_REASON =
 // proposition to keep the new authenticated zero at 0.0 without changing any other v16
 // critical-finding score behavior.
 export const WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY =
+  'Reviewable source is present, but the tracked scan-eligible inventory matched no concrete test file, configured test runner, CI test command, or coverage configuration.';
+export const WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY =
+  'Reviewable source is present, but the bounded directory walk matched no concrete test file, configured test runner, CI test command, or coverage configuration.';
+export const WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY =
   'Reviewable source is present, but the complete tracked inventory contains no concrete test file, configured test runner, CI test command, or coverage configuration.';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {

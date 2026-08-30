@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { listCejelLlmPackFiles } from '../../packs/llm/files.js';
 import { runCejelScan } from '../../scan.js';
+import { WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY } from '../abstention.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 
@@ -41,6 +42,15 @@ function fixtureRepo(): string {
     join(root, '.github', 'workflows', 'ci.yml'),
     'on: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n',
   );
+  return root;
+}
+
+function fixtureRepoWithoutTests(): string {
+  const root = mkdtempSync(join(tmpdir(), 'cejel-inventory-fallback-absence-'));
+  temporaryDirectories.push(root);
+  mkdirSync(join(root, 'src'), { recursive: true });
+  writeFileSync(join(root, 'README.md'), '# Inventory fallback absence fixture\n');
+  writeFileSync(join(root, 'src', 'index.ts'), 'export const value = 42;\n');
   return root;
 }
 
@@ -87,10 +97,28 @@ describe('tracked-file inventory fallback', () => {
       expect.stringContaining('output exceeded the explicit 8 MiB limit'),
     ]);
     expect(JSON.stringify(report)).toContain('bounded directory walk');
+    expect(JSON.stringify(report)).not.toContain('complete tracked inventory');
+    expect(JSON.stringify(report)).not.toContain('tracked-scan-eligible');
+    expect(JSON.stringify(report)).not.toContain('inventory-scan');
     expect(renderWitanMarkdownReport(report)).toContain('## Scan limitations');
     expect(renderWitanMarkdownReport(report)).toContain('bounded directory walk');
     expect(renderWitanHtmlReport(report)).toContain('Scan limitations');
     expect(renderWitanHtmlReport(report)).toContain('bounded directory walk');
+  });
+
+  it('does not describe a bounded directory fallback as a complete tracked inventory', () => {
+    const repoPath = fixtureRepoWithoutTests();
+    mockInventoryBufferFailure(repoPath);
+
+    const { report } = runCejelScan({ repoPath });
+
+    expect(
+      report.criteria.flatMap((criterion) =>
+        criterion.findings.map(({ summary }) => summary),
+      ),
+    ).toContain(WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY);
+    expect(JSON.stringify(report)).not.toContain('complete tracked inventory');
+    expect(JSON.stringify(report)).not.toContain('inventory-scan');
   });
 
   it('makes an oversized LLM-pack inventory a hard failure instead of a silent downgrade', () => {
@@ -144,6 +172,9 @@ describe('tracked-file inventory fallback', () => {
       expect(report.criteria.length).toBeGreaterThan(0);
       expect(report.overallScore).not.toBeNull();
       expect(report.repo.headSha).toBeUndefined();
+      expect(JSON.stringify(report)).not.toContain('complete tracked inventory');
+      expect(JSON.stringify(report)).not.toContain('tracked-scan-eligible');
+      expect(JSON.stringify(report)).not.toContain('inventory-scan');
     },
   );
 });
