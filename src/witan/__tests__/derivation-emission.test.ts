@@ -144,6 +144,67 @@ describe('inventory-scan derivation contract', () => {
     }
   });
 
+  it('enumerates every tracked-inventory absence branch and requires its derivation', () => {
+    const combinedRepo = makeRepo({
+      '.env': 'FEATURE_FLAG_MODE=beta\nLOG_LEVEL=debug\n',
+      'README.md': '# Derivation fixture\n',
+      'migrations/001-create-jobs.sql':
+        'CREATE TABLE jobs (id bigint primary key, tenant_id uuid not null);\n',
+      'package.json': JSON.stringify({
+        name: 'derivation-fixture',
+        scripts: { start: 'node src/server.js', test: 'jest' },
+        dependencies: { express: '^5.0.0' },
+        devDependencies: { jest: '^30.0.0' },
+      }),
+      'src/server.js':
+        "import * as http from 'node:http';\nhttp.createServer((_req, res) => res.end('ok')).listen(3000);\n",
+      'test/server.test.ts':
+        "import { expect, test } from 'vitest';\ntest('ok', () => expect(1).toBe(1));\n",
+    });
+    const lockfileRepo = makeRepo({
+      'Procfile': 'web: node src/server.js\n',
+      'package.json': JSON.stringify({
+        name: 'application-without-lockfile',
+        dependencies: { express: '^5.0.0' },
+      }),
+    });
+    const runnerRepo = makeRepo({
+      'package.json': JSON.stringify({
+        name: 'runner-without-tests',
+        scripts: { test: 'jest' },
+        devDependencies: { jest: '^30.0.0' },
+      }),
+      'src/index.ts': 'export const answer = 42;\n',
+    });
+    const sourceOnlyRepo = makeRepo({
+      'src/index.ts': 'export const answer = 42;\n',
+    });
+    const findings = [combinedRepo, lockfileRepo, runnerRepo, sourceOnlyRepo].flatMap((repoPath) =>
+      nativeFindings(score(repoPath)),
+    );
+    const absenceFindings = findings.filter((finding) =>
+      finding.summary.includes('tracked scan-eligible inventory'),
+    );
+    const expectedPatternSetIds = [
+      'cejel.core-a1.test-integrity-surface.v1',
+      'cejel.core-a1.concrete-test-files.v1',
+      'cejel.core-a1.coverage-configuration.v1',
+      'cejel.core-a2.current-secret-shape.v1',
+      'cejel.core-a2.rls-policy.v1',
+      'cejel.core-a3.ci-or-release-deploy.v1',
+      'cejel.core-a4.lockfile.v1',
+      'cejel.core-a5.claim-reality-artifact.v1',
+    ];
+
+    expect(absenceFindings).toHaveLength(expectedPatternSetIds.length);
+    for (const finding of absenceFindings) {
+      expect(finding.derivation).toBeDefined();
+    }
+    expect(
+      absenceFindings.map((finding) => finding.derivation?.patternSetId).sort(),
+    ).toEqual(expectedPatternSetIds.sort());
+  });
+
   it('emits the lockfile absence derivation without asserting install reproducibility', () => {
     const repoPath = makeRepo({
       'Procfile': 'web: node src/server.js\n',
@@ -228,7 +289,8 @@ describe('inventory-scan derivation contract', () => {
       candidate.summary.startsWith('Reviewable source is present'),
     );
 
-    expect(finding?.summary).toContain('complete tracked inventory');
+    expect(finding?.summary).toContain('bounded directory walk');
+    expect(finding?.summary).not.toContain('complete tracked inventory');
     expect(finding?.summary).not.toContain('tracked scan-eligible inventory');
     expect(finding?.derivation).toBeUndefined();
   });

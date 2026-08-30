@@ -26,6 +26,7 @@ import {
 
 import {
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+  WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
@@ -624,6 +625,7 @@ function capScoreForFindings(
       criticalFindings.length === 1 &&
       [
         WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+        WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
         WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
       ].includes(criticalFindings[0]?.summary ?? '');
     return authenticatedA1Absence ? Math.min(score, 1.4) : 1.4;

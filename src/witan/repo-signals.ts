@@ -31,6 +31,7 @@ import {
 
 import {
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+  WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
@@ -75,7 +76,21 @@ interface InventoryScanPatternSet {
   readonly count: number;
 }
 
-type InventoryDerivationPolicy = 'legacy' | 'emit';
+interface InventoryAbsenceContext {
+  readonly rubricGeneration: 'legacy' | 'current';
+  readonly inventoryProvenance: 'tracked-scan-eligible' | 'directory-walk';
+}
+
+interface InventoryAbsenceSummaries {
+  readonly legacy: string;
+  readonly currentTracked: string;
+  readonly currentDirectoryWalk: string;
+}
+
+const LEGACY_INVENTORY_ABSENCE_CONTEXT: InventoryAbsenceContext = {
+  rubricGeneration: 'legacy',
+  inventoryProvenance: 'directory-walk',
+};
 
 // Stable, public identities for the exact matcher families behind native current-tree
 // absence findings. `count` is the number of independently evaluated pattern/classifier
@@ -118,6 +133,7 @@ const INVENTORY_SCAN_PATTERN_SETS = {
 function inventoryScanDerivation(
   inventoryCount: number,
   patternSet: InventoryScanPatternSet,
+  matchCount: number,
 ): NonNullable<WitanFinding['derivation']> {
   return {
     kind: 'inventory-scan',
@@ -125,7 +141,42 @@ function inventoryScanDerivation(
     inventoryCount,
     patternSetId: patternSet.id,
     patternCount: patternSet.count,
-    matchCount: 0,
+    matchCount,
+  };
+}
+
+function inventoryAbsenceFinding(options: {
+  readonly severity: WitanFinding['severity'];
+  readonly summaries: InventoryAbsenceSummaries;
+  readonly evidence: WitanEvidencePointer;
+  readonly context: InventoryAbsenceContext;
+  readonly inventoryCount: number;
+  readonly patternSet: InventoryScanPatternSet;
+  readonly matchCount: number;
+}): WitanFinding {
+  const { context, summaries } = options;
+  const summary =
+    context.rubricGeneration === 'legacy'
+      ? summaries.legacy
+      : context.inventoryProvenance === 'tracked-scan-eligible'
+        ? summaries.currentTracked
+        : summaries.currentDirectoryWalk;
+  const emitsDerivation =
+    context.rubricGeneration === 'current' &&
+    context.inventoryProvenance === 'tracked-scan-eligible';
+  return {
+    severity: options.severity,
+    summary,
+    evidence: options.evidence,
+    ...(emitsDerivation
+      ? {
+          derivation: inventoryScanDerivation(
+            options.inventoryCount,
+            options.patternSet,
+            options.matchCount,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -195,11 +246,13 @@ function buildWitanInputFromRepoUntracked(
   const ignoredTargetReason =
     repoFiles.length === 0 ? explainIgnoredScanTarget(options.repoPath) : undefined;
   const usesV17Detectors = usesV17DetectorClosure(rubricVersion);
-  const inventoryDerivationPolicy: InventoryDerivationPolicy = !usesV17Detectors
-    ? 'legacy'
-    : fileInventory.repoFileInventoryScope === 'tracked-scan-eligible'
-      ? 'emit'
-      : 'legacy';
+  const inventoryAbsenceContext: InventoryAbsenceContext = {
+    rubricGeneration: usesV17Detectors ? 'current' : 'legacy',
+    inventoryProvenance:
+      fileInventory.repoFileInventoryScope === 'tracked-scan-eligible'
+        ? 'tracked-scan-eligible'
+        : 'directory-walk',
+  };
   const usesV18NativeRls =
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
@@ -306,7 +359,7 @@ function buildWitanInputFromRepoUntracked(
     usesV21ExecutedEscalations,
     usesV22PackageStartEntrypoint,
     reviewableSourceProof,
-    inventoryDerivationPolicy,
+    inventoryAbsenceContext,
     scanLimitations,
   );
   const archetype =
@@ -1384,7 +1437,7 @@ function collectRepoSignals(
   useV21ExecutedEscalations: boolean,
   useV22PackageStartEntrypoint: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
-  inventoryDerivationPolicy: InventoryDerivationPolicy = 'legacy',
+  inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
 ): WitanCriterionSignalPayload[] {
   const signals: WitanCriterionSignalPayload[] = [];
@@ -1401,7 +1454,7 @@ function collectRepoSignals(
       useV33Detectors,
       useV36Detectors,
       reviewableSourceProof,
-      inventoryDerivationPolicy,
+      inventoryAbsenceContext,
     ),
   );
   const a2Signal = collectCriterion('A2', () =>
@@ -1414,7 +1467,7 @@ function collectRepoSignals(
       useV39Detectors,
       useV47Detectors,
       useV18NativeRls,
-      inventoryDerivationPolicy,
+      inventoryAbsenceContext,
       scanLimitations,
     ),
   );
@@ -1425,7 +1478,7 @@ function collectRepoSignals(
       useV27Detectors,
       useV20A3ExplicitGaps,
       useV22PackageStartEntrypoint,
-      inventoryDerivationPolicy,
+      inventoryAbsenceContext,
     ),
   );
   const a4Signal = collectCriterion('A4', () =>
@@ -1435,7 +1488,7 @@ function collectRepoSignals(
       mono,
       useV27Detectors,
       useV47Detectors,
-      inventoryDerivationPolicy,
+      inventoryAbsenceContext,
     ),
   );
   const a5Signal = collectCriterion('A5', () =>
@@ -1443,7 +1496,7 @@ function collectRepoSignals(
       repoPath,
       repoFiles,
       useV27Detectors,
-      inventoryDerivationPolicy,
+      inventoryAbsenceContext,
     ),
   );
   const b1Signal = buildNotApplicableSignal(
@@ -1519,7 +1572,7 @@ function collectA1TestIntegrityEvidence(
   useV33Detectors: boolean,
   useV36Detectors: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
-  inventoryDerivationPolicy: InventoryDerivationPolicy = 'legacy',
+  inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -1669,7 +1722,7 @@ function collectA1TestIntegrityEvidence(
           repoPath,
           reviewableSourceProof,
           repoFiles.length,
-          inventoryDerivationPolicy,
+          inventoryAbsenceContext,
         )
       : null;
   }
@@ -1686,22 +1739,23 @@ function collectA1TestIntegrityEvidence(
         ? undefined
         : (evidence[0] ?? findings[0]?.evidence);
     if (fallback) {
-      findings.push({
-        severity: 'warning',
-        summary:
-          inventoryDerivationPolicy === 'emit'
-            ? 'A test runner is configured, but the tracked scan-eligible inventory matched no concrete test file.'
-            : 'A test runner is configured, but no concrete test files were detected.',
-        evidence: fallback,
-        ...(inventoryDerivationPolicy === 'emit'
-          ? {
-              derivation: inventoryScanDerivation(
-                repoFiles.length,
-                INVENTORY_SCAN_PATTERN_SETS.a1ConcreteTests,
-              ),
-            }
-          : {}),
-      });
+      findings.push(
+        inventoryAbsenceFinding({
+          severity: 'warning',
+          summaries: {
+            legacy: 'A test runner is configured, but no concrete test files were detected.',
+            currentTracked:
+              'A test runner is configured, but the tracked scan-eligible inventory matched no concrete test file.',
+            currentDirectoryWalk:
+              'A test runner is configured, but the bounded directory walk matched no concrete test file.',
+          },
+          evidence: fallback,
+          context: inventoryAbsenceContext,
+          inventoryCount: repoFiles.length,
+          patternSet: INVENTORY_SCAN_PATTERN_SETS.a1ConcreteTests,
+          matchCount: 0,
+        }),
+      );
     }
   } else if (coverageFiles.length === 0 && (!useV33Detectors || configuredRunnerFiles.length > 0)) {
     if (isLeanTestToolchain) {
@@ -1719,22 +1773,23 @@ function collectA1TestIntegrityEvidence(
     } else {
       const firstEvidence = evidence[0];
       if (!firstEvidence) return null;
-      findings.push({
-        severity: 'info',
-        summary:
-          inventoryDerivationPolicy === 'emit'
-            ? 'Test suite files are present, but the tracked scan-eligible inventory matched no coverage configuration.'
-            : 'Test suite files are present, but no coverage configuration was detected.',
-        evidence: firstEvidence,
-        ...(inventoryDerivationPolicy === 'emit'
-          ? {
-              derivation: inventoryScanDerivation(
-                repoFiles.length,
-                INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfiguration,
-              ),
-            }
-          : {}),
-      });
+      findings.push(
+        inventoryAbsenceFinding({
+          severity: 'info',
+          summaries: {
+            legacy: 'Test suite files are present, but no coverage configuration was detected.',
+            currentTracked:
+              'Test suite files are present, but the tracked scan-eligible inventory matched no coverage configuration.',
+            currentDirectoryWalk:
+              'Test suite files are present, but the bounded directory walk matched no coverage configuration.',
+          },
+          evidence: firstEvidence,
+          context: inventoryAbsenceContext,
+          inventoryCount: repoFiles.length,
+          patternSet: INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfiguration,
+          matchCount: 0,
+        }),
+      );
     }
   }
 
@@ -1815,7 +1870,7 @@ function buildA1AuthenticatedAbsenceSignal(
   repoPath: string,
   proof: ReviewableSourceProof,
   inventoryCount: number,
-  inventoryDerivationPolicy: InventoryDerivationPolicy,
+  inventoryAbsenceContext: InventoryAbsenceContext,
 ): WitanCriterionSignalPayload {
   const sourcePath = proof.firstReadablePath;
   if (!sourcePath) {
@@ -1831,22 +1886,19 @@ function buildA1AuthenticatedAbsenceSignal(
     criterionId: 'A1',
     positiveEvidence: [anchor],
     findings: [
-      {
+      inventoryAbsenceFinding({
         severity: 'critical',
-        summary:
-          inventoryDerivationPolicy === 'emit'
-            ? WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY
-            : WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+        summaries: {
+          legacy: WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+          currentTracked: WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+          currentDirectoryWalk: WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
+        },
         evidence: anchor,
-        ...(inventoryDerivationPolicy === 'emit'
-          ? {
-              derivation: inventoryScanDerivation(
-                inventoryCount,
-                INVENTORY_SCAN_PATTERN_SETS.a1AuthenticatedAbsence,
-              ),
-            }
-          : {}),
-      },
+        context: inventoryAbsenceContext,
+        inventoryCount,
+        patternSet: INVENTORY_SCAN_PATTERN_SETS.a1AuthenticatedAbsence,
+        matchCount: 0,
+      }),
     ],
     metrics: [
       metric(
@@ -1913,7 +1965,7 @@ function collectA2IsolationEvidence(
   useV39Detectors: boolean,
   useV47Detectors: boolean,
   useV18NativeRls: boolean,
-  inventoryDerivationPolicy: InventoryDerivationPolicy,
+  inventoryAbsenceContext: InventoryAbsenceContext,
   scanLimitations: Set<string>,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
@@ -2185,27 +2237,29 @@ function collectA2IsolationEvidence(
       ),
     });
   } else if (committedEnvFilePath) {
-    findings.push({
-      severity: useV33Detectors ? 'info' : 'warning',
-      summary:
-        inventoryDerivationPolicy === 'emit'
-          ? 'A tracked non-template .env file is present, while the bounded scan over the tracked scan-eligible inventory matched no secret-shaped value.'
-          : 'A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.',
-      evidence: evidenceForRelative(
-        repoPath,
-        committedEnvFilePath,
-        'secret_scan',
-        'Committed .env file (no confirmed secret value found)',
-      ),
-      ...(inventoryDerivationPolicy === 'emit'
-        ? {
-            derivation: inventoryScanDerivation(
-              repoFiles.length,
-              INVENTORY_SCAN_PATTERN_SETS.a2CurrentSecret,
-            ),
-          }
-        : {}),
-    });
+    findings.push(
+      inventoryAbsenceFinding({
+        severity: useV33Detectors ? 'info' : 'warning',
+        summaries: {
+          legacy:
+            'A non-template .env file is committed in the current repository tree; no secret-shaped value was detected.',
+          currentTracked:
+            'A tracked non-template .env file is present, while the bounded scan over the tracked scan-eligible inventory matched no secret-shaped value.',
+          currentDirectoryWalk:
+            'A non-template .env file is present in the bounded directory walk, which matched no secret-shaped value.',
+        },
+        evidence: evidenceForRelative(
+          repoPath,
+          committedEnvFilePath,
+          'secret_scan',
+          'Committed .env file (no confirmed secret value found)',
+        ),
+        context: inventoryAbsenceContext,
+        inventoryCount: repoFiles.length,
+        patternSet: INVENTORY_SCAN_PATTERN_SETS.a2CurrentSecret,
+        matchCount: 0,
+      }),
+    );
   }
   if (historySecretScan?.evidence) {
     const historyPath = historySecretScan.evidence.path ?? '';
@@ -2247,27 +2301,29 @@ function collectA2IsolationEvidence(
   if (hasTenantWithoutRlsGap) {
     const gapEvidence = rlsMigration ?? tenantScopedFile ?? tenantWithoutRlsPremiseFiles[0];
     if (gapEvidence) {
-      findings.push({
-        severity: 'warning',
-        summary:
-          inventoryDerivationPolicy === 'emit'
-            ? 'A tenant-scoped schema signal is present, while the tracked scan-eligible inventory matched no row-level-security policy.'
-            : 'Tenant-scoped schema detected but no row-level-security policies found — isolation gap.',
-        evidence: evidenceForRelative(
-          repoPath,
-          gapEvidence,
-          'artifact',
-          'Tenant schema without RLS policies',
-        ),
-        ...(inventoryDerivationPolicy === 'emit'
-          ? {
-              derivation: inventoryScanDerivation(
-                repoFiles.length,
-                INVENTORY_SCAN_PATTERN_SETS.a2RlsPolicy,
-              ),
-            }
-          : {}),
-      });
+      findings.push(
+        inventoryAbsenceFinding({
+          severity: 'warning',
+          summaries: {
+            legacy:
+              'Tenant-scoped schema detected but no row-level-security policies found — isolation gap.',
+            currentTracked:
+              'A tenant-scoped schema signal is present, while the tracked scan-eligible inventory matched no row-level-security policy.',
+            currentDirectoryWalk:
+              'A tenant-scoped schema signal is present, while the bounded directory walk matched no row-level-security policy.',
+          },
+          evidence: evidenceForRelative(
+            repoPath,
+            gapEvidence,
+            'artifact',
+            'Tenant schema without RLS policies',
+          ),
+          context: inventoryAbsenceContext,
+          inventoryCount: repoFiles.length,
+          patternSet: INVENTORY_SCAN_PATTERN_SETS.a2RlsPolicy,
+          matchCount: 0,
+        }),
+      );
     }
   }
 
@@ -2544,7 +2600,7 @@ function collectA3ProdReadinessEvidence(
   useV27Detectors: boolean,
   useV20ExplicitGaps = false,
   useV22PackageStartEntrypoint = false,
-  inventoryDerivationPolicy: InventoryDerivationPolicy = 'legacy',
+  inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
   const v20DirectHttpEntrypoint = useV20ExplicitGaps
     ? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles)
@@ -2765,22 +2821,24 @@ function collectA3ProdReadinessEvidence(
   if (!workflow && releaseDeployConfigs.length === 0) {
     const firstEvidence = evidence[0];
     if (!firstEvidence) return null;
-    findings.push({
-      severity: 'info',
-      summary:
-        inventoryDerivationPolicy === 'emit'
-          ? 'A deployable service signal is present, while the tracked scan-eligible inventory matched no CI workflow or release-deployment automation.'
-          : 'A deployable service surface exists, but no CI or release-deployment automation was detected.',
-      evidence: firstEvidence,
-      ...(inventoryDerivationPolicy === 'emit'
-        ? {
-            derivation: inventoryScanDerivation(
-              repoFiles.length,
-              INVENTORY_SCAN_PATTERN_SETS.a3CiOrReleaseDeploy,
-            ),
-          }
-        : {}),
-    });
+    findings.push(
+      inventoryAbsenceFinding({
+        severity: 'info',
+        summaries: {
+          legacy:
+            'A deployable service surface exists, but no CI or release-deployment automation was detected.',
+          currentTracked:
+            'A deployable service signal is present, while the tracked scan-eligible inventory matched no CI workflow or release-deployment automation.',
+          currentDirectoryWalk:
+            'A deployable service signal is present, while the bounded directory walk matched no CI workflow or release-deployment automation.',
+        },
+        evidence: firstEvidence,
+        context: inventoryAbsenceContext,
+        inventoryCount: repoFiles.length,
+        patternSet: INVENTORY_SCAN_PATTERN_SETS.a3CiOrReleaseDeploy,
+        matchCount: 0,
+      }),
+    );
   }
   return {
     criterionId: 'A3',
@@ -2857,7 +2915,7 @@ function collectA4DependencyEvidence(
   mono: MonorepoContext | null | undefined,
   useV27Detectors: boolean,
   useV47Detectors: boolean,
-  inventoryDerivationPolicy: InventoryDerivationPolicy = 'legacy',
+  inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2939,22 +2997,29 @@ function collectA4DependencyEvidence(
     // A missing recognized lockfile is a concrete inventory result. Do not infer the broader
     // install-reproducibility consequence here: the detector does not inspect every other
     // package-manager or deployment pinning mechanism.
-    findings.push({
-      severity: 'critical',
-      summary:
-        inventoryDerivationPolicy === 'emit'
-          ? 'Dependency manifest is present, but the tracked scan-eligible inventory matched no recognized lockfile.'
-          : 'Dependency manifest is present without a detected lockfile — non-reproducible installs.',
-      evidence: evidenceForRelative(repoPath, manifest, 'dependency_report', 'Dependency manifest'),
-      ...(inventoryDerivationPolicy === 'emit'
-        ? {
-            derivation: inventoryScanDerivation(
-              repoFiles.length + (mono?.sharedFiles.length ?? 0),
-              INVENTORY_SCAN_PATTERN_SETS.a4Lockfile,
-            ),
-          }
-        : {}),
-    });
+    findings.push(
+      inventoryAbsenceFinding({
+        severity: 'critical',
+        summaries: {
+          legacy:
+            'Dependency manifest is present without a detected lockfile — non-reproducible installs.',
+          currentTracked:
+            'Dependency manifest is present, but the tracked scan-eligible inventory matched no recognized lockfile.',
+          currentDirectoryWalk:
+            'Dependency manifest is present, but the bounded directory walk matched no recognized lockfile.',
+        },
+        evidence: evidenceForRelative(
+          repoPath,
+          manifest,
+          'dependency_report',
+          'Dependency manifest',
+        ),
+        context: inventoryAbsenceContext,
+        inventoryCount: repoFiles.length + (mono?.sharedFiles.length ?? 0),
+        patternSet: INVENTORY_SCAN_PATTERN_SETS.a4Lockfile,
+        matchCount: 0,
+      }),
+    );
   }
   if (manifest && hasSuspiciousDependencies(repoPath, manifest, useV47Detectors)) {
     // Suspicious/hallucinated package names are a supply-chain risk.
@@ -3097,7 +3162,7 @@ function collectA5ClaimRealityEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV27Detectors: boolean,
-  inventoryDerivationPolicy: InventoryDerivationPolicy = 'legacy',
+  inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
   const reconciliationArtifacts = useV27Detectors
     ? findClaimRealityReconciliationArtifacts(repoPath, repoFiles)
@@ -3195,30 +3260,29 @@ function collectA5ClaimRealityEvidence(
       reconciliationArtifacts.length > 0
         ? []
         : [
-            {
+            inventoryAbsenceFinding({
               // Proxy-only A5: cap at warning (never critical) — a static proxy is lower-confidence
               // than a curated registry or reconciliation artifact. Downgraded to info when the repo
               // documents honest negative space: that scoping IS a form of claim-reality discipline,
               // not an additional gap on top of the missing dedicated artifact.
               severity: negativeSpaceDoc ? 'info' : 'warning',
-              summary:
-                inventoryDerivationPolicy === 'emit'
-                  ? negativeSpaceDoc
-                    ? 'Claim-source and implementation-file signals are present, while the tracked scan-eligible inventory matched no dedicated claim-reality report artifact; the repo separately documents what it does NOT cover or protect against.'
-                    : 'Claim-source and implementation-file signals are present, while the tracked scan-eligible inventory matched no dedicated claim-reality report artifact.'
-                  : negativeSpaceDoc
-                    ? 'Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming.'
-                    : 'Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.',
+              summaries: {
+                legacy: negativeSpaceDoc
+                  ? 'Claim source and implementation files are present; no dedicated claim-reality report artifact was supplied, but the repo explicitly documents what it does NOT cover/protect against — honest scoping, not overclaiming.'
+                  : 'Claim source and implementation files are present, but no dedicated claim-reality report artifact was supplied.',
+                currentTracked: negativeSpaceDoc
+                  ? 'Claim-source and implementation-file signals are present, while the tracked scan-eligible inventory matched no dedicated claim-reality report artifact; the repo separately documents what it does NOT cover or protect against.'
+                  : 'Claim-source and implementation-file signals are present, while the tracked scan-eligible inventory matched no dedicated claim-reality report artifact.',
+                currentDirectoryWalk: negativeSpaceDoc
+                  ? 'Claim-source and implementation-file signals are present, while the bounded directory walk matched no dedicated claim-reality report artifact; the repo separately documents what it does NOT cover or protect against.'
+                  : 'Claim-source and implementation-file signals are present, while the bounded directory walk matched no dedicated claim-reality report artifact.',
+              },
               evidence: firstEvidence,
-              ...(inventoryDerivationPolicy === 'emit'
-                ? {
-                    derivation: inventoryScanDerivation(
-                      repoFiles.length,
-                      INVENTORY_SCAN_PATTERN_SETS.a5ClaimRealityArtifact,
-                    ),
-                  }
-                : {}),
-            },
+              context: inventoryAbsenceContext,
+              inventoryCount: repoFiles.length,
+              patternSet: INVENTORY_SCAN_PATTERN_SETS.a5ClaimRealityArtifact,
+              matchCount: 0,
+            }),
           ],
     // Recalibrated (goal_cejel_launch_hardening_combined_2026-07-06, Phase 3 H1):
     // reconciliation_artifact_depth is usually 0 on the generic-proxy path, so its prior 0.3
