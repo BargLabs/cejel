@@ -22,7 +22,8 @@ const SURFACES = [
   'GitHub Action',
   'Homebrew tap',
   'MCP Registry',
-  'cejel.dev',
+  'cejel.dev homepage',
+  'cejel.dev for-engineers',
   'changelog',
   'published-versions.json',
   'leaderboard',
@@ -279,10 +280,18 @@ function formulaVersions(formula) {
   )].sort();
 }
 
-function renderedCurrentVersion(html) {
+export function renderedCurrentVersion(html) {
   const marker = new RegExp(`Current[\\s\\S]{0,80}?v(${SEMVER_PATTERN})`, 'i').exec(html);
   const sentence = new RegExp(`v(${SEMVER_PATTERN})\\s+is current`, 'i').exec(html);
   return marker?.[1] || sentence?.[1] || null;
+}
+
+// The buyer-first homepage refresh (cejel-site#62) moved the "Current · v<version>" claim off the
+// homepage onto /for-engineers/; the homepage itself now only carries pinned @cejel/cejel@<version>
+// invocation strings. Checking the homepage for a "Current" marker after that move silently reads
+// <missing> forever — the marker isn't there to find — so the two surfaces are checked separately.
+function heroInvocationVersions(html) {
+  return [...html.matchAll(new RegExp(`@cejel/cejel@(${SEMVER_PATTERN})`, 'g'))].map((match) => match[1]);
 }
 
 function mcpOciIdentifier(server) {
@@ -382,8 +391,14 @@ export function createLiveReaders() {
       };
     },
 
-    async 'cejel.dev'() {
-      const response = await fetchChecked('https://cejel.dev', 'cejel.dev');
+    async 'cejel.dev homepage'() {
+      const response = await fetchChecked('https://cejel.dev', 'cejel.dev homepage');
+      const html = await response.text();
+      return { invocationVersions: heroInvocationVersions(html), html };
+    },
+
+    async 'cejel.dev for-engineers'() {
+      const response = await fetchChecked('https://cejel.dev/for-engineers/', 'cejel.dev for-engineers');
       const html = await response.text();
       return { currentVersion: renderedCurrentVersion(html), html };
     },
@@ -426,7 +441,8 @@ function observedValue(surface, value) {
     case 'GitHub Action': return `@${value.immutableTag} -> ${value.immutableCommit} (${value.immutableManifest}); action@${value.floatingTag} -> ${value.floatingCommit} (${value.floatingManifest})`;
     case 'Homebrew tap': return `Formula/cejel.rb versions=${value.versions.join(',') || '<none>'}`;
     case 'MCP Registry': return `name=${value.name}; version=${value.version}; OCI=${value.ociIdentifier}`;
-    case 'cejel.dev': return `rendered current version=${value.currentVersion || '<missing>'}`;
+    case 'cejel.dev homepage': return `pinned invocation versions=${value.invocationVersions.join(',') || '<none>'}`;
+    case 'cejel.dev for-engineers': return `rendered current version=${value.currentVersion || '<missing>'}`;
     case 'changelog':
       return `newest named release=${value.versions.length ? newestSemver(value.versions) : '<none>'}; versions=${value.versions.join(',') || '<none>'}`;
     case 'published-versions.json': return JSON.stringify(value);
@@ -492,9 +508,20 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
       }
       break;
     }
-    case 'cejel.dev':
+    case 'cejel.dev homepage':
+      if (value.invocationVersions.length === 0) {
+        throw new Error('homepage does not carry any pinned @cejel/cejel@<version> invocation');
+      }
+      if (value.invocationVersions.some((observed) => observed !== version)) {
+        throw new Error(
+          `homepage pinned invocation versions (${value.invocationVersions.join(',')}) do not all equal ${version}`,
+        );
+      }
+      assertNoBareInvocation('cejel.dev homepage', value.html, { property: 'hero/example invocation' });
+      break;
+    case 'cejel.dev for-engineers':
       if (value.currentVersion !== version) throw new Error(`rendered current marker does not name ${version}`);
-      assertNoBareInvocation('cejel.dev', value.html, { property: 'hero/example invocation' });
+      assertNoBareInvocation('cejel.dev for-engineers', value.html, { property: 'hero/example invocation' });
       break;
     case 'changelog': {
       assertNoBareInvocation('changelog', changelogLede(value.html), { property: 'install/update invocation' });

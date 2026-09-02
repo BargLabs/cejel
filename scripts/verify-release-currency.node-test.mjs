@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   LEADERBOARD_URL,
   parseLeaderboardRecord,
+  renderedCurrentVersion,
   ReleaseCurrencyError,
   verifyReleaseCurrency,
 } from './verify-release-currency.mjs';
@@ -20,16 +21,30 @@ const surfaces = [
   'GitHub Action',
   'Homebrew tap',
   'MCP Registry',
-  'cejel.dev',
+  'cejel.dev homepage',
+  'cejel.dev for-engineers',
   'changelog',
   'published-versions.json',
   'leaderboard',
 ];
 
-const goodCejelDevHtml = `
-<div class="cmd"><span class="dollar">$</span>pnpm dlx @cejel/cejel@${version} .</div>
-<p class="sub">Also: <code>bunx @cejel/cejel@${version} .</code></p>
+const goodHomepageHtml = `
+<div class="cmd"><span class="dollar">$</span>npx @cejel/cejel@${version} .</div>
+<p class="sub">Also: <code>pnpm dlx @cejel/cejel@${version} .</code> &middot; <code>bunx @cejel/cejel@${version} .</code></p>
+`;
+
+const goodForEngineersHtml = `
 <p class="pill">Current &middot; v${version}</p>
+<p>npm, Docker / OCI, the Official MCP Registry, and the GitHub Action now point to the current release.</p>
+`;
+
+// Captured 2026-09-02 from the live homepage after cejel-site#62 (the buyer-first refresh) moved
+// the "Current · v<version>" claim to /for-engineers/ and left only pinned invocation strings on
+// the homepage. The word "current" no longer appears anywhere on this page.
+const realCurrentHomepageExcerpt = `
+<meta property="og:description" content="npx @cejel/cejel@0.4.5 . — no install, no signup, fully offline.">
+<span><span class="dollar">$</span>npx @cejel/cejel@0.4.5 .</span>
+<p class="sub">Also: <code>pnpm dlx @cejel/cejel@0.4.5 .</code> &middot; <code>bunx @cejel/cejel@0.4.5 .</code></p>
 `;
 
 const goodChangelogHtml = `
@@ -76,7 +91,11 @@ function goodReaders() {
       version,
       ociIdentifier: `ghcr.io/barglabs/cejel@${digest}`,
     }),
-    'cejel.dev': async () => ({ currentVersion: version, html: goodCejelDevHtml }),
+    'cejel.dev homepage': async () => ({
+      invocationVersions: [version, version, version],
+      html: goodHomepageHtml,
+    }),
+    'cejel.dev for-engineers': async () => ({ currentVersion: version, html: goodForEngineersHtml }),
     changelog: async () => ({ versions: [version, '1.2.1'], html: goodChangelogHtml }),
     'published-versions.json': async () => ({ mcpRegistry: version, oci: version }),
     leaderboard: async () => ({ declaredVersion: version, pinVersion: null, markdown: goodLeaderboardMarkdown }),
@@ -231,23 +250,70 @@ test('a current bare invocation after leaderboard history still fails', async ()
     line.includes('Run current scans with `npx @cejel/cejel .`')));
 });
 
-test('cejel.dev with a correctly pinned hero command passes', async () => {
-  const lines = [];
-  await verifyReleaseCurrency({ version, readers: goodReaders(), write: (line) => lines.push(line) });
-  assert.ok(lines.some((line) => line.startsWith(`[PASS] cejel.dev: observed=rendered current version=${version}`)));
+test('the pre-re-point "Current" marker pattern cannot find a match on the current live homepage', () => {
+  // Regression guard: proves the re-point was needed. This is a real excerpt of cejel.dev's
+  // homepage (captured 2026-09-02, after cejel-site#62 moved the "Current · v<version>" claim to
+  // /for-engineers/). Checking the homepage for this pattern — what the code did before the
+  // re-point — silently returns <missing> forever on real content, because the word "current"
+  // isn't on the homepage anymore. That is what broke release-currency verification for
+  // cejel.dev, not a live-site regression.
+  assert.equal(renderedCurrentVersion(realCurrentHomepageExcerpt), null);
 });
 
-test('a bare npx hero command on cejel.dev fails and names the line', async () => {
+test('cejel.dev homepage with correctly pinned invocation strings passes', async () => {
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers: goodReaders(), write: (line) => lines.push(line) });
+  assert.ok(lines.some((line) =>
+    line.startsWith(`[PASS] cejel.dev homepage: observed=pinned invocation versions=${version},${version},${version}`)));
+});
+
+test('a stale pinned invocation on the cejel.dev homepage fails and names the observed versions', async () => {
   const readers = goodReaders();
-  readers['cejel.dev'] = async () => ({
+  readers['cejel.dev homepage'] = async () => ({
+    invocationVersions: [version, '1.2.2'],
+    html: goodHomepageHtml,
+  });
+  const result = await rejectedRun(readers);
+  showFixture('stale homepage invocation fixture', result);
+  assert.match(result.failure.message, /cejel\.dev homepage/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] cejel.dev homepage:') &&
+    line.includes(`homepage pinned invocation versions (${version},1.2.2) do not all equal ${version}`)));
+});
+
+test('a bare npx hero command on the cejel.dev homepage fails and names the line', async () => {
+  const readers = goodReaders();
+  readers['cejel.dev homepage'] = async () => ({
+    invocationVersions: [version],
+    html: `<div class="cmd"><span class="dollar">$</span>npx @cejel/cejel@${version} .</div>\n<div class="cmd"><span class="dollar">$</span>npx @cejel/cejel .</div>\n`,
+  });
+  const result = await rejectedRun(readers);
+  showFixture('bare hero command fixture', result);
+  assert.match(result.failure.message, /cejel\.dev homepage/);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] cejel.dev homepage:') &&
+    line.includes('unpinned hero/example invocation on line 2') &&
+    line.includes('npx @cejel/cejel .')));
+});
+
+test('cejel.dev for-engineers with a correctly rendered "Current" marker passes', async () => {
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers: goodReaders(), write: (line) => lines.push(line) });
+  assert.ok(lines.some((line) =>
+    line.startsWith(`[PASS] cejel.dev for-engineers: observed=rendered current version=${version}`)));
+});
+
+test('a bare npx hero command on cejel.dev for-engineers fails and names the line', async () => {
+  const readers = goodReaders();
+  readers['cejel.dev for-engineers'] = async () => ({
     currentVersion: version,
     html: `<p class="pill">Current &middot; v${version}</p>\n<div class="cmd"><span class="dollar">$</span>npx @cejel/cejel .</div>\n`,
   });
   const result = await rejectedRun(readers);
-  showFixture('bare hero command fixture', result);
-  assert.match(result.failure.message, /cejel\.dev/);
+  showFixture('bare for-engineers command fixture', result);
+  assert.match(result.failure.message, /cejel\.dev for-engineers/);
   assert.ok(result.lines.some((line) =>
-    line.includes('[FAIL] cejel.dev:') &&
+    line.includes('[FAIL] cejel.dev for-engineers:') &&
     line.includes('unpinned hero/example invocation on line 2') &&
     line.includes('npx @cejel/cejel .')));
 });
