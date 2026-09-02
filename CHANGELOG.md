@@ -16,6 +16,59 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.6] — 2026-09-02
+
+### Added
+
+- Adds a generic `--ingest` contract v1 (`version: "1.0"`) and its published JSON Schema, with
+  additive-minor / breaking-major compatibility rules: unknown same-major fields stay reserved
+  for additive evolution, but an unversioned document, a malformed stable field, or an unknown
+  major is rejected loudly instead of guessed at or silently dropped. The de-facto adapter this
+  formalizes previously had no contract version: it accepted `tool` + `signals` structurally,
+  defaulted missing or non-finite weights to 0.5, clamped out-of-range weights, silently dropped
+  unknown dimensions and severities, invented missing `ruleId`/`message` values, and dropped
+  signals with no surviving findings. New attestations carry
+  `predicate.reportFormatVersion: "1.0"` and human-readable certificates carry a
+  `cejel-certificate-format` field; `report.json` is unchanged by this alone.
+
+### Security
+
+- The GitHub Action now runs every invocation in a fresh directory under `RUNNER_TEMP`, outside
+  the scanned repository, and publishes only the summary that invocation wrote. Previously, an
+  early CLI failure fell through to reading a workspace `out-dir`, so a committed
+  `.cejel/summary.json` could be rendered into `GITHUB_STEP_SUMMARY` and `GITHUB_OUTPUT`. A
+  caller-selected `out-dir` is now only ever an export destination, populated after a
+  current-run summary exists; it is never evidence provenance. Repeat runs still archive prior
+  named Cejel artifacts into export history, preserve caller-owned entries, reject a symlinked
+  export/backup boundary, and encode every `GITHUB_OUTPUT` value with GitHub's delimiter-based
+  multiline format. The verified export location is now also exposed as the `artifact-dir`
+  output.
+- The existing 512,000-byte repository-content cap now applies to Git tracked inventory and the
+  shared read boundary, not only ad hoc reads; an oversized recognized file marks the criteria
+  its absence could affect `insufficient_data` rather than asserting false absence. All four
+  public ingest paths now share one file validator that rejects symlink and non-regular
+  candidates and enforces realpath containment. Public ingest is bounded at 128 canonical
+  documents, 8,388,608 bytes per document, and 10,000 finding candidates/retained findings, with
+  glob/auto-discovery enumeration stopping as soon as the document limit is provably exceeded.
+  Dynamic Markdown at both the report and Action-summary sinks is now escaped through the
+  existing control-character sanitizer, applied uniformly to explicit, package, basename, and
+  programmatic product identity.
+- The disclosure-boundary guard gains a scheduled full-tree consistency mode alongside its
+  existing pull-request path-check mode, failing closed on drift or an incomplete read.
+
+### Fixed
+
+- The B6 human-gate finding now states the file-scoped proxy it actually computed, instead of
+  reading as a repository-wide "no documented human gate" claim when a matching gate document
+  exists elsewhere in the repository; the metric is repository-scoped, the finding filter is
+  file-scoped, and both can legitimately coexist.
+- Fallback-derivation wording for current-rubric directory fallbacks now says a bounded
+  directory walk matched no relevant file or configuration, rather than implying a tracked
+  inventory was consulted. Historical rubric wording is unchanged.
+
+Certificate legibility work (started in 0.4.5 with #231) gets no further slice in this release;
+it's explicitly deferred to 0.4.7.
+
 ## [0.4.5] — 2026-08-24
 
 ### Added
