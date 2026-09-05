@@ -490,7 +490,7 @@ describe('certificate presentation regressions', () => {
 
     const markdown = renderWitanMarkdownReport(reportFixture([b2]));
     expect(markdown).toContain(
-      'Recent commits with recognizable PR references: none found in bounded recent commit subjects (scoring value 0/1) |',
+      'Recent commits with recognizable PR references: none found in bounded recent commit subjects (scoring value 0/1) (weight 100% of B2) |',
     );
     expect(markdown).not.toContain('Recent PR merge ratio');
   });
