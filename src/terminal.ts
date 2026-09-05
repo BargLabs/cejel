@@ -4,6 +4,7 @@ import {
   buildRelyingPartySummary,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
+  formatCertificateMetricAppliedWeightPercent,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
 } from './witan/certificate-presentation.js';
@@ -114,12 +115,15 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       criterionId: criterion.id,
       label: formatCertificateMetricLabel(metric),
       value: formatCertificateMetricValue(criterion, metric),
+      weightPercent: formatCertificateMetricAppliedWeightPercent(criterion, metric),
     })),
   );
   if (!abstained && (measurements?.length ?? 0) > 0) {
     lines.push('Measurements:');
     for (const measurement of measurements ?? []) {
-      lines.push(`  ${measurement.criterionId} — ${measurement.label}: ${measurement.value}`);
+      lines.push(
+        `  ${measurement.criterionId} — ${measurement.label}: ${measurement.value} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
+      );
     }
     lines.push('');
   }

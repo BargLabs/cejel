@@ -330,6 +330,23 @@ export function formatCertificateMetricLabel(metric: WitanCriterionMetric): stri
   );
 }
 
+// Track A2 (ADR-0022): every certificate surface shows the weight a metric actually applied to
+// its criterion's score, not its nominal declared weight — scoreMetrics() (scoring.ts)
+// renormalizes surviving weights to sum to 1.0 when a metric is absent from criterion.metrics, so
+// dividing by the sum of weights actually present in this criterion reproduces that same
+// renormalization for display, using data report.json already carries. Reads metric.weight;
+// computes no new score. Shared by html.ts, markdown.ts, and terminal.ts so all three surfaces
+// report the identical percentage from the identical formula.
+export function formatCertificateMetricAppliedWeightPercent(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionMetric,
+): number {
+  const totalCriterionMetricWeight = criterion.metrics.reduce((sum, m) => sum + m.weight, 0);
+  return totalCriterionMetricWeight > 0
+    ? Math.round((metric.weight / totalCriterionMetricWeight) * 100)
+    : 0;
+}
+
 export function glossaryEntriesForReport(report: WitanReport): readonly CertificateGlossaryEntry[] {
   const entries = new Map(CERTIFICATE_GLOSSARY.map((entry) => [entry.key, entry] as const));
   for (const metric of report.criteria.flatMap((criterion) => criterion.metrics)) {
