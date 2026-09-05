@@ -28,6 +28,7 @@ import {
   buildRelyingPartySummary,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
+  formatCertificateMetricAppliedWeightPercent,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
   glossaryEntriesForReport,
@@ -459,6 +460,14 @@ function scoreBandForPresentation(score: number): Extract<
   return 'critical';
 }
 
+function renderMetricWeightBadge(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionScore['metrics'][number],
+): string {
+  const appliedSharePercent = formatCertificateMetricAppliedWeightPercent(criterion, metric);
+  return `<span class="metric-weight">weight ${appliedSharePercent}% of ${escapeHtml(criterion.id)}</span>`;
+}
+
 function renderMetric(
   criterion: WitanCriterionScore,
   metric: WitanCriterionScore['metrics'][number],
@@ -466,13 +475,15 @@ function renderMetric(
   const entry = glossaryEntryForMetric(metric);
   const tooltipId = `tooltip-${criterion.id}-${entry.key}`;
   const formatted = formatCertificateMetricValue(criterion, metric);
+  const weightBadge = renderMetricWeightBadge(criterion, metric);
   const cappedEntry = formatted.includes('capped')
     ? CERTIFICATE_GLOSSARY.find((candidate) => candidate.key === 'capped')
     : undefined;
   const label = `<span class="term-help" tabindex="0" aria-describedby="${escapeAttribute(tooltipId)}"><strong>${escapeHtml(formatCertificateMetricLabel(metric))}</strong><span class="term-tooltip" id="${escapeAttribute(tooltipId)}" role="tooltip">${escapeHtml(entry.definition)}</span></span>`;
-  if (!cappedEntry) return `${label}<span class="metric-value">${escapeHtml(formatted)}</span>`;
+  if (!cappedEntry)
+    return `${label}<span class="metric-value">${escapeHtml(formatted)} ${weightBadge}</span>`;
   const cappedTooltipId = `${tooltipId}-capped`;
-  return `${label}<span class="term-help metric-value" tabindex="0" aria-describedby="${escapeAttribute(cappedTooltipId)}">${escapeHtml(formatted)}<span class="term-tooltip" id="${escapeAttribute(cappedTooltipId)}" role="tooltip">${escapeHtml(cappedEntry.definition)}</span></span>`;
+  return `${label}<span class="term-help metric-value" tabindex="0" aria-describedby="${escapeAttribute(cappedTooltipId)}">${escapeHtml(formatted)} ${weightBadge}<span class="term-tooltip" id="${escapeAttribute(cappedTooltipId)}" role="tooltip">${escapeHtml(cappedEntry.definition)}</span></span>`;
 }
 
 function renderCategoryScore(
@@ -715,6 +726,7 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .criterion-metrics li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(238, 244, 247, .08); padding-bottom: 6px; }
 .criterion-metrics strong { color: var(--text); font-weight: 650; }
 .criterion-metrics span { color: var(--muted); }
+.metric-weight { font-size: 10px; color: var(--faint); }
 .criterion-metrics > li > .metric-value {
   min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: right;
 }

@@ -21,6 +21,7 @@ import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
+  formatCertificateMetricAppliedWeightPercent,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
   glossaryEntriesForReport,
@@ -344,7 +345,8 @@ function renderMetric(
   criterion: WitanCriterionScore,
   metric: WitanCriterionScore['metrics'][number],
 ): string {
-  return `${formatCertificateMetricLabel(metric)}: ${formatCertificateMetricValue(criterion, metric)}`;
+  const appliedSharePercent = formatCertificateMetricAppliedWeightPercent(criterion, metric);
+  return `${formatCertificateMetricLabel(metric)}: ${formatCertificateMetricValue(criterion, metric)} (weight ${appliedSharePercent}% of ${criterion.id})`;
 }
 
 function renderCriterionEvidence(criterion: WitanCriterionScore): string[] {
