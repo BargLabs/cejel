@@ -330,21 +330,66 @@ export function formatCertificateMetricLabel(metric: WitanCriterionMetric): stri
   );
 }
 
-// Track A2 (ADR-0022): every certificate surface shows the weight a metric actually applied to
-// its criterion's score, not its nominal declared weight — scoreMetrics() (scoring.ts)
-// renormalizes surviving weights to sum to 1.0 when a metric is absent from criterion.metrics, so
-// dividing by the sum of weights actually present in this criterion reproduces that same
-// renormalization for display, using data report.json already carries. Reads metric.weight;
-// computes no new score. Shared by html.ts, markdown.ts, and terminal.ts so all three surfaces
-// report the identical percentage from the identical formula.
+// Track A2 (ADR-0022): the precise (unrounded) share of a criterion's composite that this
+// metric's weight actually contributed — exactly scoreMetrics()'s own weight/totalWeight
+// denominator (scoring.ts), computed independently here so the certificate can display it
+// without importing the scoring module. This is a known duplication, accepted for now: if
+// scoring.ts's renormalization ever changes without this formula changing to match, the
+// certificate would silently show a share that no longer reflects what was actually applied.
+// The deferred proper fix — the applied share riding as data on report.json itself, versioned
+// with the report format — is tracked in #272. Until then, "Track A2 parity guard"
+// (metric-weight-display-parity.test.ts) calls the real scoreMetrics() directly across several
+// fixtures, including a renormalized (reduced-metric-set) one, and fails loud the moment this
+// duplication drifts.
+export function computeCriterionMetricAppliedWeightShare(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionMetric,
+): number {
+  const metrics = criterion.metrics;
+  if (!metrics.includes(metric)) {
+    throw new Error(
+      'computeCriterionMetricAppliedWeightShare: metric does not belong to criterion.metrics',
+    );
+  }
+  const totalWeight = metrics.reduce((sum, m) => sum + m.weight, 0);
+  return totalWeight > 0 ? metric.weight / totalWeight : 0;
+}
+
+// Rounds every metric's applied share in a criterion to a whole percent using the
+// largest-remainder method, so the displayed weights for a criterion always sum to exactly
+// 100 — independently rounding each metric's share with Math.round() can under- or overshoot
+// 100 (three equal-weight metrics each rounding to 33% reads as 99%, which a reader auditing
+// the certificate could reasonably mistake for a scoring error rather than a rounding artifact).
 export function formatCertificateMetricAppliedWeightPercent(
   criterion: WitanCriterionScore,
   metric: WitanCriterionMetric,
 ): number {
-  const totalCriterionMetricWeight = criterion.metrics.reduce((sum, m) => sum + m.weight, 0);
-  return totalCriterionMetricWeight > 0
-    ? Math.round((metric.weight / totalCriterionMetricWeight) * 100)
-    : 0;
+  const metrics = criterion.metrics;
+  const index = metrics.indexOf(metric);
+  if (index === -1) {
+    throw new Error(
+      'formatCertificateMetricAppliedWeightPercent: metric does not belong to criterion.metrics',
+    );
+  }
+  const totalWeight = metrics.reduce((sum, m) => sum + m.weight, 0);
+  if (totalWeight <= 0) return 0;
+
+  const shares = metrics.map((m, i) => {
+    const raw = (m.weight / totalWeight) * 100;
+    const floor = Math.floor(raw);
+    return { i, floor, fraction: raw - floor };
+  });
+  const flooredTotal = shares.reduce((sum, s) => sum + s.floor, 0);
+  const byLargestRemainder = [...shares].sort((a, b) => b.fraction - a.fraction);
+
+  const result = new Map(shares.map((s) => [s.i, s.floor]));
+  let remainder = Math.round(100 - flooredTotal);
+  for (const s of byLargestRemainder) {
+    if (remainder <= 0) break;
+    result.set(s.i, (result.get(s.i) ?? s.floor) + 1);
+    remainder -= 1;
+  }
+  return result.get(index) ?? 0;
 }
 
 export function glossaryEntriesForReport(report: WitanReport): readonly CertificateGlossaryEntry[] {

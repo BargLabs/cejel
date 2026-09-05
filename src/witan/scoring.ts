@@ -592,7 +592,7 @@ function fallbackMetricsForEvidence(
   ];
 }
 
-function scoreMetrics(metrics: readonly WitanCriterionMetric[]): number {
+export function scoreMetrics(metrics: readonly WitanCriterionMetric[]): number {
   let weightedTotal = 0;
   let totalWeight = 0;
 
@@ -1027,6 +1027,6 @@ function averageScore(
   return roundScore(total / applicable.length);
 }
 
-function roundScore(score: number): number {
+export function roundScore(score: number): number {
   return Math.round(score * 10) / 10;
 }
