@@ -4,7 +4,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { renderWitanHtmlReport } from '../html.js';
 import type { WitanReport } from '../schemas.js';
@@ -14,6 +14,30 @@ const workDir = mkdtempSync(join(tmpdir(), 'cejel-html-layout-'));
 afterAll(() => {
   rmSync(workDir, { recursive: true, force: true });
 });
+
+// CI flake fix (2026-09): the first Chrome launch in a fresh CI job pays a one-time cold-start
+// cost (binary/shared-library page-cache warmup, first-run profile creation) that occasionally
+// exceeds the 15s budget below on a shared GitHub-hosted runner, throwing `spawnSync ETIMEDOUT`
+// on whichever viewport case happens to run first (it.each preserves array order, so 1280 always
+// paid this cost; 1440 immediately after was always fast because the OS page cache was warm).
+// Paying that cost once here, with its own generous-but-bounded timeout, keeps the per-viewport
+// budget below tight (it still catches a genuine rendering regression) while removing the
+// ordering-dependent flake. A truly broken/missing Chrome still fails loudly here instead of
+// being silently retried or masked.
+beforeAll(() => {
+  execFileSync(
+    chromeExecutable(),
+    [
+      '--headless=new',
+      '--disable-gpu',
+      '--no-sandbox',
+      `--user-data-dir=${join(workDir, 'chrome-warmup')}`,
+      '--dump-dom',
+      'about:blank',
+    ],
+    { encoding: 'utf8', timeout: 30_000 },
+  );
+}, 30_000);
 
 function chromeExecutable(): string {
   const configured = process.env.CEJEL_CHROME_BIN;
