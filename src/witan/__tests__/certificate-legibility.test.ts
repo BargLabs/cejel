@@ -407,6 +407,10 @@ describe('Track A1 — findings-first restructure', () => {
     const warningIndex = html.indexOf('warning finding fixture');
 
     expect(findingsHeadingIndex).toBeGreaterThan(-1);
+    // The heading names exactly the two severities promoted here — not the bare word
+    // "Findings", which would overclaim relative to what this section actually contains
+    // (info-severity findings are deliberately excluded; see below).
+    expect(html).toContain('id="findings-first-heading">Critical and warning findings</h2>');
     expect(relyingPartyHeadingIndex).toBeGreaterThan(findingsHeadingIndex);
     expect(criticalIndex).toBeGreaterThan(findingsHeadingIndex);
     expect(criticalIndex).toBeLessThan(relyingPartyHeadingIndex);

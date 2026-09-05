@@ -219,7 +219,7 @@ function renderFindingsFirstSummary(report: WitanReport): string {
           .join('')}</ul>`
       : '<p class="findings-first-empty">No critical or warning findings were identified across any criterion in this scan.</p>';
   return `<section class="findings-first-summary" aria-labelledby="findings-first-heading">
-      <h2 id="findings-first-heading">Findings</h2>
+      <h2 id="findings-first-heading">Critical and warning findings</h2>
       ${body}
     </section>`;
 }
