@@ -126,6 +126,8 @@ export function renderWitanHtmlReport(
       </div>
     </header>
 
+    ${renderFindingsFirstSummary(report)}
+
     ${renderRelyingPartySummary(relyingPartySummary)}
 
     ${
@@ -177,6 +179,49 @@ export function renderWitanHtmlReport(
 </body>
 </html>
 `;
+}
+
+interface FindingsFirstEntry {
+  criterion: WitanCriterionScore;
+  finding: WitanFinding;
+}
+
+const FINDINGS_FIRST_SEVERITY_ORDER: Record<WitanFinding['severity'], number> = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+};
+
+// Track A1 (ADR-0022): surfaces "what's wrong" before the scope/completeness prose below it.
+// Reorders and re-renders existing finding data via the same renderFindingEvidence used inside
+// each criterion card; it does not compute or invent new finding text, and touches no report.json,
+// attestation.json, summary.json, or badge byte.
+function collectFindingsFirstEntries(report: WitanReport): FindingsFirstEntry[] {
+  return report.criteria
+    .flatMap((criterion) =>
+      criterion.findings
+        .filter((finding) => finding.severity === 'critical' || finding.severity === 'warning')
+        .map((finding) => ({ criterion, finding })),
+    )
+    .sort(
+      (a, b) =>
+        FINDINGS_FIRST_SEVERITY_ORDER[a.finding.severity] -
+        FINDINGS_FIRST_SEVERITY_ORDER[b.finding.severity],
+    );
+}
+
+function renderFindingsFirstSummary(report: WitanReport): string {
+  const entries = collectFindingsFirstEntries(report);
+  const body =
+    entries.length > 0
+      ? `<ul>${entries
+          .map(({ criterion, finding }) => `<li>${renderFindingEvidence(criterion, finding)}</li>`)
+          .join('')}</ul>`
+      : '<p class="findings-first-empty">No critical or warning findings were identified across any criterion in this scan.</p>';
+  return `<section class="findings-first-summary" aria-labelledby="findings-first-heading">
+      <h2 id="findings-first-heading">Findings</h2>
+      ${body}
+    </section>`;
 }
 
 function renderRelyingPartySummary(summary: RelyingPartySummary): string {
@@ -629,6 +674,9 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .subscores { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .coverage-note { margin-top: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
 .source-counts { margin: 8px 0 0; padding-left: 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.findings-first-summary { margin-top: 20px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
+.findings-first-summary ul { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
+.findings-first-empty { margin: 0; color: var(--muted); }
 .relying-party-summary, .glossary { margin-top: 28px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
 .relying-party-summary dl { display: grid; gap: 14px; margin: 0; }
 .relying-party-summary dl div { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }

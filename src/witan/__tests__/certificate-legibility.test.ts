@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildWitanCliSummary } from '../../summary.js';
 import { renderTerminalCertificate } from '../../terminal.js';
+import { serializeWitanReport } from '../attestation.js';
 import {
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
@@ -9,7 +10,7 @@ import {
 } from '../certificate-presentation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
-import type { WitanCriterionScore, WitanReport } from '../schemas.js';
+import type { WitanCriterionScore, WitanFinding, WitanReport } from '../schemas.js';
 
 function criterion(
   overrides: Partial<WitanCriterionScore> & Pick<WitanCriterionScore, 'id' | 'category'>,
@@ -45,6 +46,14 @@ function humanReadableOutputs(report: WitanReport): string[] {
     renderWitanMarkdownReport(report),
     renderTerminalCertificate(buildWitanCliSummary(report), report),
   ].map((output) => output.replaceAll('&#39;', "'"));
+}
+
+function finding(overrides: Partial<WitanFinding> & Pick<WitanFinding, 'severity'>): WitanFinding {
+  return {
+    summary: `${overrides.severity} finding`,
+    evidence: { kind: 'artifact', label: 'fixture evidence', path: 'src/example.ts' },
+    ...overrides,
+  };
 }
 
 describe('certificate metric glossary guard', () => {
@@ -347,5 +356,101 @@ describe('certificate metric self-explanation', () => {
       expect(output).toContain('A zero means no recognizable reference was found');
       expect(output).not.toContain('Recent PR merge ratio');
     }
+  });
+});
+
+// 0.4.7 Track A discipline (ADR-0022): every item in this workstream is presentation-only.
+// The certificate may change; report.json (and every other machine-readable surface) may not.
+// This is a mechanical, reusable guard for that boundary — add to it, don't bypass it, as later
+// Track A items land.
+describe('Track A presentation-only guard', () => {
+  it('leaves report.json byte-identical across every human-readable render', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        findings: [
+          finding({ severity: 'critical', summary: 'critical finding fixture' }),
+          finding({ severity: 'warning', summary: 'warning finding fixture' }),
+          finding({ severity: 'info', summary: 'info finding fixture' }),
+        ],
+      }),
+    ]);
+    const before = serializeWitanReport(report);
+
+    renderWitanHtmlReport(report);
+    renderWitanMarkdownReport(report);
+    renderTerminalCertificate(buildWitanCliSummary(report), report);
+
+    expect(serializeWitanReport(report)).toBe(before);
+  });
+});
+
+describe('Track A1 — findings-first restructure', () => {
+  it('shows critical and warning findings, ordered critical-first, before the relying-party summary', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        findings: [
+          finding({ severity: 'warning', summary: 'warning finding fixture' }),
+          finding({ severity: 'critical', summary: 'critical finding fixture' }),
+          finding({ severity: 'info', summary: 'info finding fixture' }),
+        ],
+      }),
+    ]);
+    const html = renderWitanHtmlReport(report);
+
+    const findingsHeadingIndex = html.indexOf('id="findings-first-heading"');
+    const relyingPartyHeadingIndex = html.indexOf('id="relying-party-heading"');
+    const criticalIndex = html.indexOf('critical finding fixture');
+    const warningIndex = html.indexOf('warning finding fixture');
+
+    expect(findingsHeadingIndex).toBeGreaterThan(-1);
+    expect(relyingPartyHeadingIndex).toBeGreaterThan(findingsHeadingIndex);
+    expect(criticalIndex).toBeGreaterThan(findingsHeadingIndex);
+    expect(criticalIndex).toBeLessThan(relyingPartyHeadingIndex);
+    expect(warningIndex).toBeGreaterThan(criticalIndex);
+    expect(warningIndex).toBeLessThan(relyingPartyHeadingIndex);
+    // The info-severity finding is not promoted into the findings-first section — it still
+    // renders inside its criterion card, further down the document, not ahead of it.
+    const infoIndexInFindingsFirst = html
+      .slice(findingsHeadingIndex, relyingPartyHeadingIndex)
+      .includes('info finding fixture');
+    expect(infoIndexInFindingsFirst).toBe(false);
+  });
+
+  it('states plainly, before the relying-party summary, when there are no critical or warning findings', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        findings: [finding({ severity: 'info', summary: 'info finding fixture' })],
+      }),
+    ]);
+    const html = renderWitanHtmlReport(report);
+
+    const findingsHeadingIndex = html.indexOf('id="findings-first-heading"');
+    const relyingPartyHeadingIndex = html.indexOf('id="relying-party-heading"');
+    const emptyStatementIndex = html.indexOf(
+      'No critical or warning findings were identified across any criterion in this scan.',
+    );
+
+    expect(findingsHeadingIndex).toBeGreaterThan(-1);
+    expect(emptyStatementIndex).toBeGreaterThan(findingsHeadingIndex);
+    expect(emptyStatementIndex).toBeLessThan(relyingPartyHeadingIndex);
+  });
+
+  it('does not change report.json, attestation-relevant fields, or badge-relevant scores', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        findings: [finding({ severity: 'critical', summary: 'critical finding fixture' })],
+      }),
+    ]);
+    const before = serializeWitanReport(report);
+    renderWitanHtmlReport(report);
+    expect(serializeWitanReport(report)).toBe(before);
   });
 });
