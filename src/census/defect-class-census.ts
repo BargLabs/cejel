@@ -46,11 +46,12 @@ export interface RuleRef {
 
 /**
  * The 2024 CWE Top 25 Most Dangerous Software Weaknesses, in the order published.
- * External standard — not derivable from this repo. Verify against the source before
- * relying on exact rank order: https://cwe.mitre.org/top25/archive/2024/2024_cwe_top25.html
+ * External standard — not derivable from this repo. Rank order verified against the
+ * official MITRE list on 2026-09-06.
  */
 export const CWE_TOP_25_2024_SOURCE =
-  'https://cwe.mitre.org/top25/archive/2024/2024_cwe_top25.html';
+  'https://cwe.mitre.org/top25/archive/2024/2024_top25_list.html';
+export const CWE_TOP_25_2024_RETRIEVED = '2026-09-06';
 
 export const CWE_TOP_25_2024: readonly TaxonomyClass[] = [
   { id: 'CWE-79', name: "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')" },
@@ -60,22 +61,22 @@ export const CWE_TOP_25_2024: readonly TaxonomyClass[] = [
   { id: 'CWE-22', name: "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')" },
   { id: 'CWE-125', name: 'Out-of-bounds Read' },
   { id: 'CWE-78', name: "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')" },
-  { id: 'CWE-434', name: 'Unrestricted Upload of File with Dangerous Type' },
-  { id: 'CWE-20', name: 'Improper Input Validation' },
+  { id: 'CWE-416', name: 'Use After Free' },
   { id: 'CWE-862', name: 'Missing Authorization' },
-  { id: 'CWE-476', name: 'NULL Pointer Dereference' },
+  { id: 'CWE-434', name: 'Unrestricted Upload of File with Dangerous Type' },
+  { id: 'CWE-94', name: "Improper Control of Generation of Code ('Code Injection')" },
+  { id: 'CWE-20', name: 'Improper Input Validation' },
+  { id: 'CWE-77', name: "Improper Neutralization of Special Elements used in a Command ('Command Injection')" },
   { id: 'CWE-287', name: 'Improper Authentication' },
-  { id: 'CWE-190', name: 'Integer Overflow or Wraparound' },
+  { id: 'CWE-269', name: 'Improper Privilege Management' },
+  { id: 'CWE-502', name: 'Deserialization of Untrusted Data' },
+  { id: 'CWE-200', name: 'Exposure of Sensitive Information to an Unauthorized Actor' },
+  { id: 'CWE-863', name: 'Incorrect Authorization' },
   { id: 'CWE-918', name: 'Server-Side Request Forgery (SSRF)' },
   { id: 'CWE-119', name: 'Improper Restriction of Operations within the Bounds of a Memory Buffer' },
-  { id: 'CWE-416', name: 'Use After Free' },
-  { id: 'CWE-863', name: 'Incorrect Authorization' },
-  { id: 'CWE-94', name: "Improper Control of Generation of Code ('Code Injection')" },
-  { id: 'CWE-502', name: 'Deserialization of Untrusted Data' },
-  { id: 'CWE-77', name: "Improper Neutralization of Special Elements used in a Command ('Command Injection')" },
-  { id: 'CWE-269', name: 'Improper Privilege Management' },
+  { id: 'CWE-476', name: 'NULL Pointer Dereference' },
   { id: 'CWE-798', name: 'Use of Hard-coded Credentials' },
-  { id: 'CWE-200', name: 'Exposure of Sensitive Information to an Unauthorized Actor' },
+  { id: 'CWE-190', name: 'Integer Overflow or Wraparound' },
   { id: 'CWE-400', name: 'Uncontrolled Resource Consumption' },
   { id: 'CWE-306', name: 'Missing Authentication for Critical Function' },
 ];
@@ -479,8 +480,8 @@ inclusion is itself a judgment call — see "Judgment calls" below.
 
 ## CWE Top 25 (2024)
 
-Source: <${CWE_TOP_25_2024_SOURCE}>. Rank order below reflects the published list; verify
-against the source before relying on exact rank for anything beyond this document.
+Source: <${CWE_TOP_25_2024_SOURCE}> (retrieved ${CWE_TOP_25_2024_RETRIEVED}). Rank order
+below was verified against the official MITRE list on that date.
 
 ${cwe.markdown}
 

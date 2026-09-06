@@ -49,6 +49,9 @@ untouched holdout, every preregistered gate to pass, and a separately recorded p
 > `docs/experiments/in-scope-detection-recall-v3-result-2026-08-09.md` and
 > `docs/experiments/in-scope-detection-recall-v4-result-2026-08-11.md`.
 
+The [defect-class census](docs/defect-class-census.md) publishes the coverage-breadth
+boundary—which defect classes any shipped rule targets—and is explicitly not a recall claim.
+
 ## Install
 
 No account, no key, no signup.
