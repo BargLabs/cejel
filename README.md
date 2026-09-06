@@ -38,6 +38,17 @@ validate its stated construction without transferring precision, recall, or fals
 claims. Promoting a prospective rubric to the public default requires a fresh authenticated
 untouched holdout, every preregistered gate to pass, and a separately recorded promotion decision.
 
+### Measured recall (bounded)
+
+> **Measured recall (bounded).** Cejel publishes no general detection-recall figure. On a frozen,
+> preregistered, in-scope held-out fixture set of 30 named defects, the released public default
+> (v17, tree `a857f0b3`) cited **16/30**, two-sided 95% Wilson interval **[36.1%, 69.8%]**; the
+> prospective v22 detector (commit `8a289ea`, tree `10960a03`) cited **24/30**, two-sided 95%
+> Wilson interval **[62.7%, 90.5%]**. Same fixtures, same partition, same controls in both runs.
+> v22 is prospective and not the shipped default. Full preregistrations and results:
+> `docs/experiments/in-scope-detection-recall-v3-result-2026-08-09.md` and
+> `docs/experiments/in-scope-detection-recall-v4-result-2026-08-11.md`.
+
 ## Install
 
 No account, no key, no signup.
