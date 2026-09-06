@@ -726,7 +726,7 @@ h3 { font-size: 15px; line-height: 1.35; font-weight: 600; margin-bottom: 0; }
 .criterion-metrics li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(238, 244, 247, .08); padding-bottom: 6px; }
 .criterion-metrics strong { color: var(--text); font-weight: 650; }
 .criterion-metrics span { color: var(--muted); }
-.metric-weight { font-size: 10px; color: var(--faint); }
+.criterion-metrics .metric-weight { font-size: 10px; color: var(--faint); }
 .criterion-metrics > li > .metric-value {
   min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: right;
 }

@@ -541,6 +541,56 @@ describe('Track A2 — per-criterion cards show applied weight', () => {
     }
   });
 
+  it('keeps the named 21-workflow alarm-delivery case auditable with weight, method, and evidence', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'B3',
+        category: 'process_trust',
+        evidence: [
+          {
+            kind: 'artifact',
+            label: 'Workflow inventory',
+            path: '.github/workflows',
+          },
+        ],
+        findings: [
+          finding({
+            severity: 'warning',
+            summary: 'Alarm delivery is not wired for 21 workflows',
+            evidence: {
+              kind: 'artifact',
+              label: 'Workflow inventory',
+              path: '.github/workflows',
+            },
+          }),
+        ],
+        metrics: [
+          {
+            name: 'default_branch_ci_depth',
+            label: 'PR-gate CI workflow count',
+            value: 21,
+            max: 4,
+            weight: 1,
+            kind: 'saturating_count',
+            unit: 'workflows',
+          },
+        ],
+      }),
+    ]);
+
+    // The issue's secondary acceptance target names the certificate specifically. The tests
+    // above separately enforce the new weight on all three human-readable renderers.
+    const certificate = renderWitanHtmlReport(report);
+    expect(certificate).toContain('Alarm delivery is not wired for 21 workflows');
+    expect(certificate).toContain('PR-gate CI workflow count');
+    expect(certificate).toContain('4 workflows (capped; 21 raw)');
+    expect(certificate).toContain('weight 100% of B3');
+    expect(certificate).toContain(
+      'The number of detected CI workflow files configured for pull requests or the main or master branch',
+    );
+    expect(certificate).toContain('.github/workflows');
+  });
+
   it('does not change report.json across a render with multi-weighted metrics', () => {
     const report = reportFixture([
       criterion({
