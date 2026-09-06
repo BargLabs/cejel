@@ -66,6 +66,11 @@ export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10
 // package start command. The public default remains v17.
 export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10';
 
+// Prospective A1 command-flag coverage closure. V23 inherits v22 and adds only bounded
+// recognition of coverage-capable test-runner flags on commands reachable from a test entry
+// point. The public default remains v17.
+export const WITAN_RUBRIC_VERSION_V23 = 'witan-rubric-v23-prospective-2026-09-06';
+
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
 // iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
 // harness, or (on main after 0.4.4) the unreleased public
@@ -80,13 +85,14 @@ export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V20,
   WITAN_RUBRIC_VERSION_V21,
   WITAN_RUBRIC_VERSION_V22,
+  WITAN_RUBRIC_VERSION_V23,
 ] as const);
 
 // The complete set of rubric identifiers a caller may explicitly select: the calibrated default
 // plus every wired prospective rubric. This is deliberately narrower than "every rubric version
 // this package has ever implemented" (v0-v16 remain load-bearing for historical fixtures and
 // regression tests, but are not offered as a live selection) — it is the same "callers must opt
-// in explicitly" set every V18-V22 constant above documents.
+// in explicitly" set every V18-V23 constant above documents.
 export const WITAN_SELECTABLE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   ...WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
@@ -106,7 +112,7 @@ export function assertSelectableRubricVersion(rubricVersion: string): void {
   );
 }
 
-/** True for any rubric that has not cleared the calibration gate (currently v18-v22). */
+/** True for any rubric that has not cleared the calibration gate (currently v18-v23). */
 export function isProspectiveRubricVersion(rubricVersion: string): boolean {
   return (WITAN_PROSPECTIVE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion);
 }

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { buildWitanInputFromRepo } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V16, WITAN_RUBRIC_VERSION_V22 } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V16, WITAN_RUBRIC_VERSION_V23 } from '../rubric-version.js';
 import { WitanFindingSchema, WitanReportSchema, type WitanFinding } from '../schemas.js';
 
 const GENERATED_AT = '2026-08-29T00:00:00.000Z';
@@ -33,7 +33,7 @@ function score(repoPath: string) {
     productSlug: 'derivation-fixture',
     productDisplayName: 'Derivation fixture',
     generatedAt: GENERATED_AT,
-    rubricVersion: WITAN_RUBRIC_VERSION_V22,
+    rubricVersion: WITAN_RUBRIC_VERSION_V23,
   });
   return WitanReportSchema.parse(JSON.parse(JSON.stringify(report)));
 }
@@ -130,7 +130,7 @@ describe('inventory-scan derivation contract', () => {
     });
     const findings = nativeFindings(score(repoPath));
     const expectedPatternSets = new Map([
-      ['cejel.core-a1.coverage-configuration.v1', 10],
+      ['cejel.core-a1.coverage-configuration.v2', 14],
       ['cejel.core-a2.current-secret-shape.v1', 3],
       ['cejel.core-a2.rls-policy.v1', 3],
       ['cejel.core-a3.ci-or-release-deploy.v1', 12],
@@ -188,7 +188,7 @@ describe('inventory-scan derivation contract', () => {
     const expectedPatternSetIds = [
       'cejel.core-a1.test-integrity-surface.v1',
       'cejel.core-a1.concrete-test-files.v1',
-      'cejel.core-a1.coverage-configuration.v1',
+      'cejel.core-a1.coverage-configuration.v2',
       'cejel.core-a2.current-secret-shape.v1',
       'cejel.core-a2.rls-policy.v1',
       'cejel.core-a3.ci-or-release-deploy.v1',
