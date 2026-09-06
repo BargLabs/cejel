@@ -204,10 +204,18 @@ requireEqual(
 );
 
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');
+// This must compare against packageManifest.version (the intended release), never
+// publishedVersions.mcpRegistry (the last OBSERVED live state). The two are legitimately allowed
+// to differ during a disclosed MCP-registry lag (see current-release.mjs's mcpRegistry.disclosedLag
+// on the site) -- that is the whole point of disclosing a lag instead of lying about it. Comparing
+// server.json against the observed-current field instead of the intended-release field is exactly
+// how the 0.4.6 incident (registry #1615) shipped silently: server.json and published-versions.json
+// were both left at 0.4.5 together, so they agreed with EACH OTHER while both disagreeing with the
+// actual release (package.json's 0.4.6) -- this check passed the whole time it should have failed.
 requireEqual(
   serverManifest.version,
-  publishedVersions.mcpRegistry,
-  'server.json/published MCP Registry version',
+  packageManifest.version,
+  'server.json version/package.json version (the intended release, not the last observed MCP Registry state)',
 );
 requireEqual(serverManifest.repository?.url, 'https://github.com/BargLabs/cejel', 'repository URL');
 requireEqual(serverManifest.repository?.id, '1291714236', 'repository ID');

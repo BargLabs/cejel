@@ -97,3 +97,43 @@ example (Windows and Linux aarch64 assets from the v0.4.3 release, both matching
 Any checker elsewhere — in this repository or another — that claims to verify "the published
 package" or "the published binary" but is implemented as an internal import of the scoring/build
 function should be re-pointed at this pattern rather than redesigned from scratch.
+
+## Required ordering: bump release-identity metadata BEFORE cutting the tag
+
+*Added 6 September 2026, incident: [registry #1615](https://github.com/modelcontextprotocol/registry/issues/1615).*
+
+**A release tag is immutable. A follow-up commit that fixes a metadata file the tag already
+carries can never reach that tag.** Every release from 0.4.0 through 0.4.5 bumped
+`server.json`, `published-versions.json`, and the `Dockerfile`'s default `VERSION` build-arg
+together, inside the same "prepare release" commit that got tagged. The 0.4.6 cut missed
+`server.json` (and the other two) in that commit; the omission was fixed 52 minutes later on
+`main` (`fa00874`) — a commit that is not an ancestor of `refs/tags/v0.4.6` and never can be.
+The consequence: `publish-distribution.yml`'s `assert-release-identity.sh` hard-requires
+`GITHUB_REF`/`GITHUB_SHA`/checked-out `HEAD` to literally equal the dispatched release tag's
+commit (by design — this is the guard against provenance forking), so **every future dispatch
+of the MCP Registry publish job against `v0.4.6` will submit the same stale `server.json`
+forever, no matter how many times it is retried.** `0.4.6` cannot be published to the MCP
+Registry short of retargeting the tag itself (rejected — the site and other public records
+already cite the tag's original commit) or relaxing the identity guard (a separate, larger
+change with its own review, not a same-day fix).
+
+The proximate cause looked, for a day, like an upstream registry defect (a stale or
+soft-deleted row blocking republish). It was not: the maintainers checked their database and
+logs directly and found no `0.4.6` row of any kind — both failed publish attempts had
+literally submitted `0.4.5`, which already existed. `validate-distribution-metadata.mjs`
+should have caught this and did not, because its check compared `server.json`'s version
+against `published-versions.json`'s `mcpRegistry` field — the last **observed** live state —
+instead of against `package.json`'s version, the **intended** release. Both stale files agreed
+with each other while both disagreed with the actual release, so the check passed when it
+should have failed. Fixed to compare against the intended release version instead.
+
+**Checklist, before cutting any release tag:**
+
+1. Bump `package.json`, `server.json` (`version` field), `published-versions.json`, and the
+   `Dockerfile`'s default `VERSION` build-arg in the same commit — never as a follow-up.
+2. Run `pnpm run validate:distribution` against that commit **before** tagging it. A clean run
+   after the tag exists is too late to fix anything the tag itself carries.
+3. If a metadata omission is discovered only after a tag is already cut, do not attempt to
+   retroactively "fix" the tag. Disclose the gap plainly (this repository's disclosed-lag
+   pattern on the site is the reference shape) and let the next release, cut correctly, be the
+   one that actually reaches the affected distribution surface.
