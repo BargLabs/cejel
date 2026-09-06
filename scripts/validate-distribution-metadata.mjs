@@ -204,10 +204,17 @@ requireEqual(
 );
 
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');
+// This must compare against packageManifest.version, the canonical intended release, rather than
+// another independently maintained channel pointer. Historical release prep advances
+// publishedVersions.mcpRegistry ahead of the live publish; it is not a live-observation ledger.
+// Comparing two secondary fields is exactly how the 0.4.6 incident (registry #1615) shipped
+// silently: server.json and published-versions.json were both left at 0.4.5 together, so they
+// agreed with EACH OTHER while both disagreed with package.json's 0.4.6. The site's separate
+// current-release record owns disclosure when the live registry lags the intended release.
 requireEqual(
   serverManifest.version,
-  publishedVersions.mcpRegistry,
-  'server.json/published MCP Registry version',
+  packageManifest.version,
+  'server.json version/package.json version (the intended release, not the last observed MCP Registry state)',
 );
 requireEqual(serverManifest.repository?.url, 'https://github.com/BargLabs/cejel', 'repository URL');
 requireEqual(serverManifest.repository?.id, '1291714236', 'repository ID');
