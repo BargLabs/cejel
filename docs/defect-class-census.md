@@ -43,8 +43,8 @@ inclusion is itself a judgment call — see "Judgment calls" below.
 
 ## CWE Top 25 (2024)
 
-Source: <https://cwe.mitre.org/top25/archive/2024/2024_cwe_top25.html>. Rank order below reflects the published list; verify
-against the source before relying on exact rank for anything beyond this document.
+Source: <https://cwe.mitre.org/top25/archive/2024/2024_top25_list.html> (retrieved 2026-09-06). Rank order
+below was verified against the official MITRE list on that date.
 
 | Class | Name | Status | Rule(s) and mechanism |
 |---|---|---|---|
@@ -55,22 +55,22 @@ against the source before relying on exact rank for anything beyond this documen
 | CWE-22 | Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal') | not targeted | — |
 | CWE-125 | Out-of-bounds Read | not targeted | — |
 | CWE-78 | Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection') | not targeted | — |
-| CWE-434 | Unrestricted Upload of File with Dangerous Type | not targeted | — |
-| CWE-20 | Improper Input Validation | not targeted | — |
+| CWE-416 | Use After Free | not targeted | — |
 | CWE-862 | Missing Authorization | partial | **A2**: Native-RLS mode flags a tenant-scoped storage/migration file with no row-level-security policy defined for it (collectA2IsolationEvidence, nativeRlsInventory/tenantWithoutRlsPremiseFiles). _Gap: Only the Postgres-native-RLS multi-tenant shape is checked; any other authorization-boundary omission (missing ACL check, missing ownership check outside RLS) is not detected._<br>**B6**: collectB6PrivilegedOpsGatingEvidence flags a file that executes a SET ROLE/privilege-escalation statement (SQL_EXEC_PATTERN) with no preceding GATED_PRIVILEGE_CHECK_PATTERN (pg_has_role/has_role membership check) in the same file. _Gap: Narrow to the SQL role-escalation shape; general missing-authorization checks elsewhere in application code are not covered._ |
-| CWE-476 | NULL Pointer Dereference | not targeted | — |
+| CWE-434 | Unrestricted Upload of File with Dangerous Type | not targeted | — |
+| CWE-94 | Improper Control of Generation of Code ('Code Injection') | not targeted | — |
+| CWE-20 | Improper Input Validation | not targeted | — |
+| CWE-77 | Improper Neutralization of Special Elements used in a Command ('Command Injection') | not targeted | — |
 | CWE-287 | Improper Authentication | not targeted | — |
-| CWE-190 | Integer Overflow or Wraparound | not targeted | — |
+| CWE-269 | Improper Privilege Management | partial | **B6**: Same executed-privilege-escalation-without-gate mechanism as CWE-862 above, read as improper privilege management rather than missing authorization. _Gap: Same narrow SQL-role-escalation shape only._ |
+| CWE-502 | Deserialization of Untrusted Data | not targeted | — |
+| CWE-200 | Exposure of Sensitive Information to an Unauthorized Actor | partial | **A2**: Same committed-secret scan as CWE-798 — a hardcoded secret is one narrow, concrete instance of sensitive-information exposure. _Gap: Does not detect exposure via verbose errors, logs, response bodies, or any channel other than a secret literal committed to source._ |
+| CWE-863 | Incorrect Authorization | not targeted | — |
 | CWE-918 | Server-Side Request Forgery (SSRF) | not targeted | — |
 | CWE-119 | Improper Restriction of Operations within the Bounds of a Memory Buffer | not targeted | — |
-| CWE-416 | Use After Free | not targeted | — |
-| CWE-863 | Incorrect Authorization | not targeted | — |
-| CWE-94 | Improper Control of Generation of Code ('Code Injection') | not targeted | — |
-| CWE-502 | Deserialization of Untrusted Data | not targeted | — |
-| CWE-77 | Improper Neutralization of Special Elements used in a Command ('Command Injection') | not targeted | — |
-| CWE-269 | Improper Privilege Management | partial | **B6**: Same executed-privilege-escalation-without-gate mechanism as CWE-862 above, read as improper privilege management rather than missing authorization. _Gap: Same narrow SQL-role-escalation shape only._ |
+| CWE-476 | NULL Pointer Dereference | not targeted | — |
 | CWE-798 | Use of Hard-coded Credentials | covered | **A2**: findCommittedSecretInFile + looksLikeSecretValue scan authored source for branded API-key prefixes (sk-, ghp_, AKIA…) and high-entropy generic tokens assigned to secret-shaped identifiers (src/witan/repo-signals.ts, SECRET_VALUE_BRANDED_PATTERN/GENERIC_SECRET_SHAPE_PATTERN), independent of a .gitignore/archetype gate. |
-| CWE-200 | Exposure of Sensitive Information to an Unauthorized Actor | partial | **A2**: Same committed-secret scan as CWE-798 — a hardcoded secret is one narrow, concrete instance of sensitive-information exposure. _Gap: Does not detect exposure via verbose errors, logs, response bodies, or any channel other than a secret literal committed to source._ |
+| CWE-190 | Integer Overflow or Wraparound | not targeted | — |
 | CWE-400 | Uncontrolled Resource Consumption | not targeted | — |
 | CWE-306 | Missing Authentication for Critical Function | not targeted | — |
 
