@@ -122,10 +122,13 @@ soft-deleted row blocking republish). It was not: the maintainers checked their 
 logs directly and found no `0.4.6` row of any kind — both failed publish attempts had
 literally submitted `0.4.5`, which already existed. `validate-distribution-metadata.mjs`
 should have caught this and did not, because its check compared `server.json`'s version
-against `published-versions.json`'s `mcpRegistry` field — the last **observed** live state —
-instead of against `package.json`'s version, the **intended** release. Both stale files agreed
-with each other while both disagreed with the actual release, so the check passed when it
-should have failed. Fixed to compare against the intended release version instead.
+against `published-versions.json`'s independently maintained `mcpRegistry` release-channel
+target instead of against `package.json`'s version, the canonical intended release. Historical
+release prep advances that channel target ahead of the live publish; it is not a live-registry
+observation ledger. Both stale files agreed with each other while both disagreed with the
+actual release, so the check passed when it should have failed. Fixed to compare against the
+intended release version instead; the site's separate current-release record owns any
+disclosed live-registry lag.
 
 **Checklist, before cutting any release tag:**
 

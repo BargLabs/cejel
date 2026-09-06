@@ -204,14 +204,13 @@ requireEqual(
 );
 
 requireEqual(serverManifest.name, packageManifest.mcpName, 'server.json name/package.json mcpName');
-// This must compare against packageManifest.version (the intended release), never
-// publishedVersions.mcpRegistry (the last OBSERVED live state). The two are legitimately allowed
-// to differ during a disclosed MCP-registry lag (see current-release.mjs's mcpRegistry.disclosedLag
-// on the site) -- that is the whole point of disclosing a lag instead of lying about it. Comparing
-// server.json against the observed-current field instead of the intended-release field is exactly
-// how the 0.4.6 incident (registry #1615) shipped silently: server.json and published-versions.json
-// were both left at 0.4.5 together, so they agreed with EACH OTHER while both disagreeing with the
-// actual release (package.json's 0.4.6) -- this check passed the whole time it should have failed.
+// This must compare against packageManifest.version, the canonical intended release, rather than
+// another independently maintained channel pointer. Historical release prep advances
+// publishedVersions.mcpRegistry ahead of the live publish; it is not a live-observation ledger.
+// Comparing two secondary fields is exactly how the 0.4.6 incident (registry #1615) shipped
+// silently: server.json and published-versions.json were both left at 0.4.5 together, so they
+// agreed with EACH OTHER while both disagreed with package.json's 0.4.6. The site's separate
+// current-release record owns disclosure when the live registry lags the intended release.
 requireEqual(
   serverManifest.version,
   packageManifest.version,
