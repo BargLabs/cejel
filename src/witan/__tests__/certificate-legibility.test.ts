@@ -365,6 +365,9 @@ describe('certificate metric self-explanation', () => {
 // Track A items land.
 describe('Track A presentation-only guard', () => {
   it('leaves report.json byte-identical across every human-readable render', () => {
+    // Extend this fixture as later Track A items land, rather than adding parallel guard tests —
+    // one growing fixture keeps the byte-identity check exercising every kind of report content
+    // Track A has touched (findings here for A1; multi-weighted metrics here for A2).
     const report = reportFixture([
       criterion({
         id: 'A2',
@@ -373,6 +376,24 @@ describe('Track A presentation-only guard', () => {
           finding({ severity: 'critical', summary: 'critical finding fixture' }),
           finding({ severity: 'warning', summary: 'warning finding fixture' }),
           finding({ severity: 'info', summary: 'info finding fixture' }),
+        ],
+        metrics: [
+          {
+            name: 'secret_cleanliness',
+            label: 'Secret cleanliness',
+            value: 1,
+            max: 1,
+            weight: 1,
+            unit: 'clean',
+          },
+          {
+            name: 'crypto_comparison_hygiene',
+            label: 'Crypto comparison hygiene',
+            value: 1,
+            max: 1,
+            weight: 3,
+            unit: 'clean',
+          },
         ],
       }),
     ]);
@@ -455,6 +476,154 @@ describe('Track A1 — findings-first restructure', () => {
     ]);
     const before = serializeWitanReport(report);
     renderWitanHtmlReport(report);
+    expect(serializeWitanReport(report)).toBe(before);
+  });
+});
+
+describe('Track A2 — per-criterion cards show applied weight', () => {
+  it('shows each metric renormalized to the share actually applied to this report, on every surface', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        metrics: [
+          {
+            name: 'secret_cleanliness',
+            label: 'Secret cleanliness',
+            value: 1,
+            max: 1,
+            weight: 1,
+            unit: 'clean',
+          },
+          {
+            name: 'crypto_comparison_hygiene',
+            label: 'Crypto comparison hygiene',
+            value: 1,
+            max: 1,
+            weight: 3,
+            unit: 'clean',
+          },
+        ],
+      }),
+    ]);
+
+    // Weights 1 and 3 renormalize to 25% and 75% of this criterion — not their nominal 1 and 3,
+    // and not a naive 1/1=100%/3/1=300% misread. This is the exact renormalization scoreMetrics()
+    // (scoring.ts) already applies to compute the score; the certificate now shows the reader the
+    // same number, it does not compute a new one.
+    for (const output of humanReadableOutputs(report)) {
+      expect(output).toContain('weight 25% of A2');
+      expect(output).toContain('weight 75% of A2');
+    }
+  });
+
+  it('shows 100% for a criterion with a single surviving metric, not its nominal declared weight', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'B6',
+        category: 'process_trust',
+        metrics: [
+          {
+            name: 'human_gate_documented',
+            label: 'Human gate documented',
+            value: 1,
+            max: 1,
+            weight: 0.2,
+            unit: 'present',
+          },
+        ],
+      }),
+    ]);
+
+    for (const output of humanReadableOutputs(report)) {
+      expect(output).toContain('weight 100% of B6');
+      expect(output).not.toContain('weight 20% of B6');
+    }
+  });
+
+  it('keeps the named 21-workflow alarm-delivery case auditable with weight, method, and evidence', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'B3',
+        category: 'process_trust',
+        evidence: [
+          {
+            kind: 'artifact',
+            label: 'Workflow inventory',
+            path: '.github/workflows',
+          },
+        ],
+        findings: [
+          finding({
+            severity: 'warning',
+            summary: 'Alarm delivery is not wired for 21 workflows',
+            evidence: {
+              kind: 'artifact',
+              label: 'Workflow inventory',
+              path: '.github/workflows',
+            },
+          }),
+        ],
+        metrics: [
+          {
+            name: 'default_branch_ci_depth',
+            label: 'PR-gate CI workflow count',
+            value: 21,
+            max: 4,
+            weight: 1,
+            kind: 'saturating_count',
+            unit: 'workflows',
+          },
+        ],
+      }),
+    ]);
+
+    // The issue's secondary acceptance target names the certificate specifically. The tests
+    // above separately enforce the new weight on all three human-readable renderers.
+    const certificate = renderWitanHtmlReport(report);
+    expect(certificate).toContain('Alarm delivery is not wired for 21 workflows');
+    expect(certificate).toContain('PR-gate CI workflow count');
+    expect(certificate).toContain('4 workflows (capped; 21 raw)');
+    expect(certificate).toContain('weight 100% of B3');
+    expect(certificate).toContain(
+      'The number of detected CI workflow files configured for pull requests or the main or master branch',
+    );
+    expect(certificate).toContain('.github/workflows');
+  });
+
+  it('does not change report.json across a render with multi-weighted metrics', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        metrics: [
+          {
+            name: 'secret_cleanliness',
+            label: 'Secret cleanliness',
+            value: 1,
+            max: 1,
+            weight: 1,
+            unit: 'clean',
+          },
+          {
+            name: 'crypto_comparison_hygiene',
+            label: 'Crypto comparison hygiene',
+            value: 0,
+            max: 1,
+            weight: 3,
+            unit: 'clean',
+          },
+        ],
+      }),
+    ]);
+    const before = serializeWitanReport(report);
+    for (const render of [
+      () => renderWitanHtmlReport(report),
+      () => renderWitanMarkdownReport(report),
+      () => renderTerminalCertificate(buildWitanCliSummary(report), report),
+    ]) {
+      render();
+    }
     expect(serializeWitanReport(report)).toBe(before);
   });
 });
