@@ -1,0 +1,9 @@
+[
+  {
+    "statement": "A validator comparing a value against an OBSERVED field instead of the INTENDED source passes exactly when it should fail. cejel's validate-distribution-metadata.mjs asserted server.json.version === published-versions.json.mcpRegistry (observed registry state) instead of === package.json.version (intended release). The 0.4.6 release commit missed bumping server.json; the fix landed 52 min later on main but never reached the immutable v0.4.6 tag. Both stale fields agreed with each other while disagreeing with the real release, so the check passed when it should fail -- shipped a broken MCP Registry publish (registry #1615, tag submits stale metadata forever). General form: a self-consistency check between two fields both derived from one manual step only proves the step was skipped consistently, not that it was done. Release-identity metadata must be bumped in the SAME commit that gets tagged -- a tag is immutable. Fix: BargLabs/cejel PR #273 (unmerged -- anchor once merged).",
+    "scope": ["dev-task"],
+    "tags": ["validator-design", "false-negative", "release-process", "immutable-tag"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-06T00:00:00.000Z"
+  }
+]
