@@ -16,6 +16,55 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Findings-first certificate restructure (Track A1, #268): `certificate.html` now surfaces
+  critical- and warning-severity findings across all criteria, critical first, in a new section
+  between the hero and the relying-party prose summary — a reader reaches "what's wrong" before
+  scope/completeness prose. States plainly when there are none, rather than a silent empty
+  section. Presentation-only: `report.json`, `attestation.json`, `summary.json`, and badge bytes
+  are unchanged.
+- Per-criterion cards show applied weight (Track A2, #271): every rendered metric now shows the
+  weight actually applied to the score — renormalized across surviving metrics, matching
+  `scoreMetrics()`'s own renormalization — instead of its nominal declared weight, identically on
+  the HTML, Markdown, and terminal certificates. Presentation-only: `report.json` and the other
+  machine artifacts are unchanged.
+- `--rubric-pin` now accepts `witan-rubric-v23-prospective-2026-09-06` (explicit opt-in only; the
+  public default stays calibrated v17). v23 adds bounded recognition of coverage-capable
+  test-runner flags on commands reachable from a test entry point, with negation guards against
+  flags like `--no-coverage` (#276, #277), and narrows A1's abstention from whole-criterion to
+  per-signal so a skip on one unreadable file no longer discards findings/metrics computed from
+  files that read fine (#278). No other criterion is signal-scoped yet. Carries no
+  precision/recall claim.
+
+### Fixed
+
+- The MCP Registry publish validator (`validate-distribution-metadata.mjs`) compared `server.json`
+  against the last observed-live registry state instead of the intended release
+  (`package.json`), so a release-prep commit that missed bumping `server.json` could still pass
+  the check. Root cause of registry issue #1615: v0.4.6 published "0.4.5" to the registry on both
+  attempts. Fixed to compare against `package.json`'s version, and `docs/release-process.md` now
+  states that release-identity metadata must be bumped in the same commit that gets tagged (#273).
+- `verify-release-currency`'s `cejel.dev` check grepped the homepage for a "Current · v<version>"
+  marker that moved to `/for-engineers/` on 2026-08-31, so it silently reported the surface as
+  missing regardless of actual site currency. Split into two checks: the homepage now asserts
+  every pinned `@cejel/cejel@<version>` invocation string names the release version, and
+  `/for-engineers/` keeps the original marker check (#257).
+- Fixed a CI flake in `html-metric-layout.test.ts`: the first headless-Chrome invocation in a test
+  run pays Chrome's one-time cold-start cost against a shared 15s timeout, which occasionally
+  exceeded it on a busy runner. That cost is now paid once in `beforeAll`, outside any per-viewport
+  test's timing budget.
+
+### Docs
+
+- Publishes a defect-class census (`docs/defect-class-census.md`) mechanically classifying the
+  shipped rule inventory against the 2024 CWE Top 25, the 2021 OWASP Top 10, and Cejel's own
+  D1-D8 taxonomy, with a CI check that fails on drift between the committed table and a fresh
+  derivation (#274, #275). Breadth only — no recall/precision claim.
+- README now publishes v17's calibrated 16/30 and prospective v22's 24/30 in-scope recall figures
+  together, with fixture scope and Wilson intervals in the same sentence, guarded so neither
+  number can appear without its qualifying context (#259).
+
 ## [0.4.6] — 2026-09-02
 
 ### Added
