@@ -627,3 +627,35 @@ describe('Track A2 — per-criterion cards show applied weight', () => {
     expect(serializeWitanReport(report)).toBe(before);
   });
 });
+
+describe('Track A5 — github.run_attempt rider', () => {
+  it('shows the run attempt on HTML and Markdown when supplied', () => {
+    const report = reportFixture([criterion({ id: 'A2', category: 'code_trust' })]);
+
+    const html = renderWitanHtmlReport(report, { runAttempt: '2' });
+    const markdown = renderWitanMarkdownReport(report, { runAttempt: '2' });
+
+    expect(html).toContain('<dt>Run attempt</dt><dd>2</dd>');
+    expect(markdown).toContain('- Run attempt: 2');
+  });
+
+  it('shows no run attempt line at all — never a fabricated default — when omitted', () => {
+    const report = reportFixture([criterion({ id: 'A2', category: 'code_trust' })]);
+
+    const html = renderWitanHtmlReport(report);
+    const markdown = renderWitanMarkdownReport(report);
+
+    expect(html).not.toContain('Run attempt');
+    expect(markdown).not.toContain('Run attempt');
+  });
+
+  it('does not change report.json when a run attempt is rendered', () => {
+    const report = reportFixture([criterion({ id: 'A2', category: 'code_trust' })]);
+    const before = serializeWitanReport(report);
+
+    renderWitanHtmlReport(report, { runAttempt: '3' });
+    renderWitanMarkdownReport(report, { runAttempt: '3' });
+
+    expect(serializeWitanReport(report)).toBe(before);
+  });
+});

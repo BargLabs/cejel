@@ -56,6 +56,11 @@ display it but should gate on the structured status fields. Absence of `reportFo
 accepted only for legacy scan/v1 attestations and means report format 1.0; an unknown present major
 must not be guessed.
 
+`predicate.githubRunAttempt` is an additive-optional field (`--run-attempt`, forwarded by the
+GitHub Action from `GITHUB_RUN_ATTEMPT`): present only for a scan run under the GitHub Action,
+absent — never fabricated or defaulted — for a local CLI or any other CI. It is not part of the
+stable set above; consumers that don't recognize it ignore it per the report-format v1 rule.
+
 ### `certificate.html`
 
 Stable in certificate format v1: the format meta element and the semantic presence of product

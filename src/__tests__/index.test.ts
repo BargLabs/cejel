@@ -823,6 +823,117 @@ describe('--rubric-pin explicit opt-in', () => {
   });
 });
 
+// --run-attempt (Track A5 rider, ADR-0022): threads GITHUB_RUN_ATTEMPT (forwarded by
+// action/run.mjs) onto the certificate and attestation.json's predicate, never fabricated or
+// defaulted for a local/non-Action scan. report.json is untouched — this is per-invocation
+// metadata, not repository state, so adding it there would break report.json's byte-
+// reproducibility guarantee for the same repo across runs.
+describe('--run-attempt rider', () => {
+  it('is documented in --help usage', () => {
+    expect(USAGE).toContain('--run-attempt');
+  });
+
+  it('is unset by default, and an unpinned scan writes no run-attempt field anywhere', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-default-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-default-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'run-attempt-default-fixture' }));
+    writeFixtureFile(repoPath, 'README.md', '# run-attempt-default-fixture\n');
+
+    expect(parseArgs([repoPath]).runAttempt).toBeUndefined();
+
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir])).toBe(0);
+    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8')) as object;
+    const attestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8')) as {
+      predicate: { githubRunAttempt?: string };
+    };
+    const certificateHtml = readFileSync(join(outDir, 'certificate.html'), 'utf8');
+
+    expect(Object.keys(report)).not.toContain('githubRunAttempt');
+    expect(attestation.predicate.githubRunAttempt).toBeUndefined();
+    expect(JSON.stringify(attestation)).not.toContain('githubRunAttempt');
+    expect(certificateHtml).not.toContain('Run attempt');
+  });
+
+  it('rejects a non-positive-integer value, before any scan runs', () => {
+    expect(() => parseCliInvocation(['scan', '.', '--run-attempt', '0'])).toThrow(
+      '--run-attempt must be a positive integer, got: 0',
+    );
+    expect(() => parseCliInvocation(['scan', '.', '--run-attempt', 'two'])).toThrow(
+      '--run-attempt must be a positive integer',
+    );
+  });
+
+  it('requires a value', () => {
+    expect(() => parseCliInvocation(['scan', '.', '--run-attempt'])).toThrow(
+      'Missing value for --run-attempt',
+    );
+  });
+
+  it('surfaces the supplied run attempt on the certificate and attestation without touching report.json', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-set-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-set-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'run-attempt-set-fixture' }));
+    writeFixtureFile(repoPath, 'README.md', '# run-attempt-set-fixture\n');
+
+    const withoutOutDir = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-baseline-out-'));
+    expect(await runWitanFreeCli(['scan', repoPath, '--out', withoutOutDir])).toBe(0);
+    const baselineReport = readFileSync(join(withoutOutDir, 'report.json'), 'utf8');
+
+    expect(
+      await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--run-attempt', '2']),
+    ).toBe(0);
+
+    const report = readFileSync(join(outDir, 'report.json'), 'utf8');
+    const attestation = JSON.parse(readFileSync(join(outDir, 'attestation.json'), 'utf8')) as {
+      predicate: { githubRunAttempt?: string };
+    };
+    const certificateHtml = readFileSync(join(outDir, 'certificate.html'), 'utf8');
+
+    // report.json is byte-identical to the same scan without --run-attempt (modulo nothing —
+    // it's the same repo state either way): this field never enters the reproducible artifact.
+    expect(report).toBe(baselineReport);
+    expect(attestation.predicate.githubRunAttempt).toBe('2');
+    expect(certificateHtml).toContain('<dt>Run attempt</dt><dd>2</dd>');
+  });
+
+  // Load-bearing byte-comparability guard (review handback, 0.4.7): Cejel's claim is that one
+  // offline deterministic command produces a certificate anyone can re-run and byte-compare on
+  // the same pinned revision. github.run_attempt is a per-run CI value, not repository state, so
+  // it must land only in the attestation envelope (predicate.githubRunAttempt) — never inside
+  // report.json, the hashed content — or two runs of the identical revision would disagree on
+  // bytes that are supposed to be reproducible. This test isolates exactly that: same repo path
+  // scanned twice, differing only in --run-attempt, asserting report.json is byte-identical
+  // across the two runs while the attestation's githubRunAttempt correctly differs.
+  it('scans the same revision twice with differing run attempts: report.json is byte-identical, the attestation differs', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-two-runs-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'run-attempt-two-runs-fixture' }));
+    writeFixtureFile(repoPath, 'README.md', '# run-attempt-two-runs-fixture\n');
+
+    const firstOutDir = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-first-out-'));
+    const secondOutDir = mkdtempSync(join(tmpdir(), 'cejel-run-attempt-second-out-'));
+
+    expect(
+      await runWitanFreeCli(['scan', repoPath, '--out', firstOutDir, '--run-attempt', '1']),
+    ).toBe(0);
+    expect(
+      await runWitanFreeCli(['scan', repoPath, '--out', secondOutDir, '--run-attempt', '2']),
+    ).toBe(0);
+
+    const firstReport = readFileSync(join(firstOutDir, 'report.json'), 'utf8');
+    const secondReport = readFileSync(join(secondOutDir, 'report.json'), 'utf8');
+    const firstAttestation = JSON.parse(
+      readFileSync(join(firstOutDir, 'attestation.json'), 'utf8'),
+    ) as { predicate: { githubRunAttempt?: string } };
+    const secondAttestation = JSON.parse(
+      readFileSync(join(secondOutDir, 'attestation.json'), 'utf8'),
+    ) as { predicate: { githubRunAttempt?: string } };
+
+    expect(secondReport).toBe(firstReport);
+    expect(firstAttestation.predicate.githubRunAttempt).toBe('1');
+    expect(secondAttestation.predicate.githubRunAttempt).toBe('2');
+  });
+});
+
 describe('runWitanFreeCli (--ingest scanner aggregation)', () => {
   const SARIF_FIXTURE = {
     version: '2.1.0',

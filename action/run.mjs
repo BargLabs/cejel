@@ -191,6 +191,10 @@ export function main() {
   const repoPath =
     process.env.WITAN_REPO_PATH?.trim() || process.env.GITHUB_WORKSPACE?.trim() || process.cwd();
   const minScoreRaw = process.env.WITAN_MIN_SCORE?.trim();
+  // GITHUB_RUN_ATTEMPT is a standard GitHub Actions runner env var, available to every step
+  // (including this composite action's) with no explicit passthrough in action.yml. Forwarded
+  // as-is; never fabricated when absent (e.g. a local `node run.mjs` invocation).
+  const runAttemptRaw = process.env.GITHUB_RUN_ATTEMPT?.trim();
   const exportDir = resolve(process.env.WITAN_EXPORT_DIR?.trim() || '.cejel');
   let outDir;
   try {
@@ -207,6 +211,7 @@ export function main() {
     // re-deriving the gate here from summary.json after the fact.
     const cliArgs = [cliEntry, resolve(repoPath), '--out-dir', outDir];
     if (minScoreRaw) cliArgs.push('--min-score', minScoreRaw);
+    if (runAttemptRaw) cliArgs.push('--run-attempt', runAttemptRaw);
 
     let cliFailed = false;
     try {

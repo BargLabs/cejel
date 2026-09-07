@@ -327,3 +327,113 @@ describe('GitHub Action step summary', () => {
     }
   });
 });
+
+// Track A5 rider (ADR-0022): action/run.mjs forwards GITHUB_RUN_ATTEMPT — a standard runner env
+// var, present with no explicit passthrough in action.yml — to the CLI as --run-attempt, and
+// forwards nothing when it's absent (a local `node run.mjs` invocation, or any non-Action CI).
+function makeArgvCapturingActionRunner(fixtureRoot: string): string {
+  const runnerPath = join(fixtureRoot, 'action', 'run.mjs');
+  const cliPath = join(fixtureRoot, 'dist', 'index.js');
+  mkdirSync(join(fixtureRoot, 'action'), { recursive: true });
+  mkdirSync(join(fixtureRoot, 'dist'), { recursive: true });
+  copyFileSync(ACTION_RUNNER_PATH, runnerPath);
+  writeFileSync(
+    cliPath,
+    `import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const outDir = process.argv[process.argv.indexOf('--out-dir') + 1];
+mkdirSync(outDir, { recursive: true });
+// Written next to this fake CLI (outside outDir), not as an outDir entry — the real run.mjs
+// refuses to export any file it doesn't recognize as one of its five artifacts, so a captured
+// argv can't live in outDir without tripping that guard.
+writeFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'argv.json'),
+  JSON.stringify(process.argv.slice(2)),
+);
+const summary = {
+  productDisplayName: 'fixture', overallScore: 4, codeTrustScore: 4,
+  processTrustScore: 4, verdict: 'Verified', findingCount: 0, topFindings: [],
+};
+for (const name of ['attestation.json', 'badge.json', 'badge.svg', 'certificate.html', 'report.json']) {
+  writeFileSync(join(outDir, name), '{}\\n');
+}
+writeFileSync(join(outDir, 'summary.json'), JSON.stringify(summary));
+`,
+  );
+  return runnerPath;
+}
+
+describe('GitHub Action run-attempt forwarding', () => {
+  it('forwards GITHUB_RUN_ATTEMPT to the CLI as --run-attempt', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-run-attempt-'));
+    try {
+      const runnerPath = makeArgvCapturingActionRunner(fixtureRoot);
+      const repoPath = join(fixtureRoot, 'repo');
+      const runnerTemp = join(fixtureRoot, 'runner-temp');
+      mkdirSync(join(repoPath, 'src'), { recursive: true });
+      mkdirSync(runnerTemp, { recursive: true });
+      writeFileSync(join(repoPath, 'src', 'index.ts'), 'export const answer = 42;\n');
+
+      const invocation = `import { main } from ${JSON.stringify(pathToFileURL(runnerPath).href)}; main();`;
+      const result = spawnSync(process.execPath, ['--input-type=module', '--eval', invocation], {
+        cwd: repoPath,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GITHUB_WORKSPACE: repoPath,
+          GITHUB_RUN_ATTEMPT: '2',
+          RUNNER_TEMP: runnerTemp,
+          WITAN_EXPORT_DIR: join(repoPath, '.cejel'),
+          WITAN_REPO_PATH: repoPath,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      const argv = JSON.parse(
+        readFileSync(join(fixtureRoot, 'dist', 'argv.json'), 'utf8'),
+      ) as string[];
+      expect(argv).toContain('--run-attempt');
+      expect(argv[argv.indexOf('--run-attempt') + 1]).toBe('2');
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('forwards no --run-attempt flag when GITHUB_RUN_ATTEMPT is unset', () => {
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'cejel-action-no-run-attempt-'));
+    try {
+      const runnerPath = makeArgvCapturingActionRunner(fixtureRoot);
+      const repoPath = join(fixtureRoot, 'repo');
+      const runnerTemp = join(fixtureRoot, 'runner-temp');
+      mkdirSync(join(repoPath, 'src'), { recursive: true });
+      mkdirSync(runnerTemp, { recursive: true });
+      writeFileSync(join(repoPath, 'src', 'index.ts'), 'export const answer = 42;\n');
+
+      // Tests must not inherit a real GITHUB_RUN_ATTEMPT from the ambient environment (e.g. this
+      // suite itself running inside a GitHub Actions job) — this case exercises the absent path.
+      const { GITHUB_RUN_ATTEMPT: _unused, ...ambientEnv } = process.env;
+      const env = {
+        ...ambientEnv,
+        GITHUB_WORKSPACE: repoPath,
+        RUNNER_TEMP: runnerTemp,
+        WITAN_EXPORT_DIR: join(repoPath, '.cejel'),
+        WITAN_REPO_PATH: repoPath,
+      };
+      const invocation = `import { main } from ${JSON.stringify(pathToFileURL(runnerPath).href)}; main();`;
+      const result = spawnSync(process.execPath, ['--input-type=module', '--eval', invocation], {
+        cwd: repoPath,
+        encoding: 'utf8',
+        env,
+      });
+
+      expect(result.status).toBe(0);
+      const argv = JSON.parse(
+        readFileSync(join(fixtureRoot, 'dist', 'argv.json'), 'utf8'),
+      ) as string[];
+      expect(argv).not.toContain('--run-attempt');
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+});

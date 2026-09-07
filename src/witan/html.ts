@@ -43,6 +43,8 @@ export interface WitanHtmlReportOptions {
   cliVersion?: string;
   /** UTC timestamp for the scan invocation, displayed without entering report.json. */
   generatedAt?: string;
+  /** GITHUB_RUN_ATTEMPT, when the scan ran under the GitHub Action. Absent otherwise. */
+  runAttempt?: string;
 }
 
 export const CEJEL_CERTIFICATE_FORMAT_VERSION = '1.0' as const;
@@ -91,6 +93,7 @@ export function renderWitanHtmlReport(
             ${options.generatedAt ? `<div><dt>Date</dt><dd>${escapeHtml(formatDate(options.generatedAt))}</dd></div>` : ''}
             <div><dt>Run</dt><dd>${escapeHtml(renderRepo(report))}</dd></div>
             <div><dt>CLI</dt><dd>${escapeHtml(options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded')}</dd></div>
+            ${options.runAttempt ? `<div><dt>Run attempt</dt><dd>${escapeHtml(options.runAttempt)}</dd></div>` : ''}
             <div><dt>Rubric</dt><dd>${escapeHtml(report.rubricVersion)}</dd></div>
             ${
               // Gated on the rubric actually being prospective — a calibrated (v17) certificate's

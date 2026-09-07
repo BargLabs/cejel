@@ -301,6 +301,10 @@ prints that boundary on every successful verification.
   criterion-wide under v23, same as v17/v22. Omit this flag for the calibrated result every
   default scan produces — a prospective pin carries no precision/recall claim, and the terminal
   certificate, HTML certificate, and Markdown report all state that plainly whenever one is used.
+- `--run-attempt <n>` — record which CI run attempt produced this certificate, surfaced on the
+  human-readable certificate and as an additive-optional `predicate.githubRunAttempt` field on
+  `attestation.json`. The GitHub Action sets this automatically from `GITHUB_RUN_ATTEMPT`; omit it
+  for a local scan or any other CI — Cejel never fabricates or defaults a run attempt.
 - `--quiet` — suppress the terminal certificate (files are still written)
 - `-h`, `--help` — print usage and exit successfully
 - `-v`, `--version` — print the version derived from the package manifest and exit successfully

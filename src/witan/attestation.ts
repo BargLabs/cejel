@@ -13,6 +13,11 @@ export interface CreateWitanAttestationOptions {
   toolVersion: string;
   /** UTC timestamp describing this scan invocation, not the repository report. */
   generatedAt: string;
+  /**
+   * GITHUB_RUN_ATTEMPT, when the scan ran under the GitHub Action. Omit outside GitHub Actions —
+   * never fabricate or default this to "1".
+   */
+  githubRunAttempt?: string;
 }
 
 export interface WitanAttestationBindingVerification {
@@ -83,6 +88,7 @@ export function createWitanAttestation(
       tool: { name: 'cejel', version: options.toolVersion },
       generatedAt: options.generatedAt,
       reportFormatVersion: WITAN_REPORT_FORMAT_VERSION,
+      ...(options.githubRunAttempt ? { githubRunAttempt: options.githubRunAttempt } : {}),
       rubricVersion: report.rubricVersion,
       repository: {
         productSlug: report.productSlug,
