@@ -124,9 +124,14 @@ describe.skipIf(!canDenyReadAccess)('v23 per-signal abstention', () => {
   });
 
   it('a criterion with no signal-scoped skip still abstains wholesale under v23 (conservative fallback)', () => {
-    // A4 (dependency evidence) is not instrumented with withContentReadSignal by this goal, so
-    // an unreadable file relevant to it must still abstain the whole criterion under v23 —
-    // exactly like it always has.
+    // A too-large lockfile is caught by the path-shape heuristic in
+    // affectedCriteriaForUnavailablePath at file-inventory time, before any criterion's
+    // collector runs — it can never be attributed to a specific signal (no collector ever sees
+    // a file that never entered repoFiles), so it must force the conservative whole-criterion
+    // wipe for A4 regardless of how many of A4's own signals are instrumented with
+    // withContentReadSignal (see goal_cejel_v23_instrument_all_criteria_2026-09-07, which
+    // instrumented A4's pinned/range/sanity/automation signals; this fixture is deliberately
+    // outside that instrumentation's reach).
     const dir = makeTmpRepo();
     writeFile(dir, 'package.json', JSON.stringify({ name: 'unattributed-fixture' }));
     writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
