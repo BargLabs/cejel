@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { buildWitanInputFromRepo } from '../repo-signals.js';
+import {
+  analyzeCoverageConfiguration,
+  buildWitanInputFromRepo,
+  type CoverageDetectorDecision,
+} from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V22,
@@ -59,6 +63,22 @@ function coverageEvidencePaths(dir: string): string[] {
   return (a1Signal(dir)?.positiveEvidence ?? [])
     .filter((evidence) => evidence.kind === 'coverage' && evidence.path !== undefined)
     .map((evidence) => evidence.path as string);
+}
+
+function coverageAnalysis(dir: string) {
+  const repoFiles = execFileSync('git', ['ls-files'], { cwd: dir, encoding: 'utf8' })
+    .split('\n')
+    .filter(Boolean);
+  return analyzeCoverageConfiguration(dir, repoFiles);
+}
+
+function testScriptCoverageDecision(dir: string): CoverageDetectorDecision | undefined {
+  return coverageAnalysis(dir).detectorDecisions.find(
+    (decision) =>
+      decision.path === 'package.json' &&
+      decision.source === 'package-script' &&
+      decision.locator === 'test',
+  );
 }
 
 function writeVitestPackage(
@@ -168,6 +188,13 @@ describe('A1 v23 command-flag coverage recognition', () => {
     const dir = makeTmpRepo();
     writeVitestPackage(dir, { test: command });
 
+    expect(testScriptCoverageDecision(dir)).toEqual(
+      expect.objectContaining({
+        evidence: command,
+        detectorRecognized: true,
+        detectorState: 'none',
+      }),
+    );
     expect(hasCoverageAbsence(dir)).toBe(true);
     expect(coverageEvidencePaths(dir)).toEqual([]);
   });
@@ -181,9 +208,48 @@ describe('A1 v23 command-flag coverage recognition', () => {
       "export default { test: { coverage: false } };\n",
     );
 
+    expect(
+      coverageAnalysis(dir).detectorDecisions.find(
+        (decision) =>
+          decision.path === 'vitest.config.ts' &&
+          decision.source === 'runner-configuration' &&
+          decision.locator === 'coverage',
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        evidence: expect.stringContaining('coverage: false'),
+        detectorRecognized: true,
+        detectorState: 'none',
+      }),
+    );
     expect(hasCoverageAbsence(dir)).toBe(true);
     expect(coverageEvidencePaths(dir)).toEqual([]);
   });
+
+  it.each([
+    ['named negation', 'vitest --coverage --no-coverage'],
+    ['assigned false', 'vitest --coverage --coverage=false'],
+    ['space-separated false', 'vitest --coverage --coverage false'],
+  ])(
+    'withholds the absence finding when enabled and disabled coverage flags conflict: %s',
+    (_label, command) => {
+      const dir = makeTmpRepo();
+      writeVitestPackage(dir, { test: command });
+
+      expect(testScriptCoverageDecision(dir)).toEqual(
+        expect.objectContaining({
+          evidence: command,
+          detectorRecognized: true,
+          detectorState: 'unresolved',
+        }),
+      );
+      const a1 = a1Signal(dir);
+      expect(hasCoverageAbsence(dir)).toBe(false);
+      expect(coverageEvidencePaths(dir)).toEqual([]);
+      expect(a1?.notes).toContain('Coverage command reachability or flag ownership was unresolved');
+      expect(a1?.notes).toContain('package.json');
+    },
+  );
 
   it('ignores an enabled flag inside a shell comment', () => {
     const dir = makeTmpRepo();
