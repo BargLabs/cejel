@@ -62,6 +62,7 @@ import {
   WITAN_RUBRIC_VERSION_V20,
   WITAN_RUBRIC_VERSION_V21,
   WITAN_RUBRIC_VERSION_V22,
+  WITAN_RUBRIC_VERSION_V23,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -71,7 +72,8 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V22
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V23
   );
 }
 
@@ -108,9 +110,13 @@ const INVENTORY_SCAN_PATTERN_SETS = {
     id: 'cejel.core-a1.concrete-test-files.v1',
     count: 16,
   },
-  a1CoverageConfiguration: {
+  a1CoverageConfigurationV1: {
     id: 'cejel.core-a1.coverage-configuration.v1',
     count: 10,
+  },
+  a1CoverageConfigurationV2: {
+    id: 'cejel.core-a1.coverage-configuration.v2',
+    count: 14,
   },
   a2CurrentSecret: {
     id: 'cejel.core-a2.current-secret-shape.v1',
@@ -262,19 +268,26 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const usesV19CommitYear =
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const usesV20A3ExplicitGaps =
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V22;
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const usesV21ExecutedEscalations =
-    rubricVersion === WITAN_RUBRIC_VERSION_V21 || rubricVersion === WITAN_RUBRIC_VERSION_V22;
-  const usesV22PackageStartEntrypoint = rubricVersion === WITAN_RUBRIC_VERSION_V22;
+    rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V23;
+  const usesV22PackageStartEntrypoint =
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 || rubricVersion === WITAN_RUBRIC_VERSION_V23;
+  const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -362,6 +375,7 @@ function buildWitanInputFromRepoUntracked(
     usesV20A3ExplicitGaps,
     usesV21ExecutedEscalations,
     usesV22PackageStartEntrypoint,
+    usesV23CommandCoverage,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1443,6 +1457,7 @@ function collectRepoSignals(
   useV20A3ExplicitGaps: boolean,
   useV21ExecutedEscalations: boolean,
   useV22PackageStartEntrypoint: boolean,
+  useV23CommandCoverage: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1460,6 +1475,7 @@ function collectRepoSignals(
       useV27Detectors,
       useV33Detectors,
       useV36Detectors,
+      useV23CommandCoverage,
       reviewableSourceProof,
       inventoryAbsenceContext,
     ),
@@ -1578,6 +1594,7 @@ function collectA1TestIntegrityEvidence(
   useV27Detectors: boolean,
   useV33Detectors: boolean,
   useV36Detectors: boolean,
+  useV23CommandCoverage: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
@@ -1593,16 +1610,33 @@ function collectA1TestIntegrityEvidence(
   const runnerFiles = repoFiles
     .filter(
       (file) =>
-        (!useV27Detectors || isAuthoredProductionPath(file)) && isTestRunnerConfig(repoPath, file),
+        (!useV27Detectors || isAuthoredProductionPath(file)) &&
+        (isTestRunnerConfig(repoPath, file) ||
+          (useV23CommandCoverage && isRecipeTestEntry(repoPath, file))),
     )
     .slice(0, 6);
-  const configuredRunnerFiles = useV33Detectors
+  const baseConfiguredRunnerFiles = useV33Detectors
     ? findConfiguredTestRunnerFiles(repoPath, repoFiles)
     : runnerFiles;
-  const allCoverageFiles = findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors);
-  const coverageFiles = allCoverageFiles.slice(0, 4);
+  const configuredRunnerFiles = useV23CommandCoverage
+    ? [
+        ...new Set([
+          ...baseConfiguredRunnerFiles,
+          ...repoFiles.filter((file) => isRecipeTestEntry(repoPath, file)),
+        ]),
+      ].sort()
+    : baseConfiguredRunnerFiles;
   const packageJson = findRootPackageJson(repoFiles);
   const packageScripts = packageJson ? readPackageScripts(join(repoPath, packageJson)) : new Map();
+  const coverageAnalysis = useV23CommandCoverage
+    ? analyzeCoverageConfiguration(repoPath, repoFiles, useV27Detectors)
+    : {
+        coverageFiles: findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors),
+        unresolvedFiles: [],
+        hasCoverageCommand: packageScripts.has('coverage'),
+      };
+  const allCoverageFiles = coverageAnalysis.coverageFiles;
+  const coverageFiles = allCoverageFiles.slice(0, 4);
   const packageJsonFiles = useV27Detectors
     ? repoFiles.filter(
         (file) => /(^|\/)package\.json$/.test(file) && isAuthoredProductionPath(file),
@@ -1633,7 +1667,7 @@ function collectA1TestIntegrityEvidence(
   );
   const verificationScriptCount = [
     packageScripts.has('test') || Boolean(ciTestWorkflow),
-    packageScripts.has('coverage'),
+    coverageAnalysis.hasCoverageCommand,
     packageScripts.has('lint') || ciHasLintCommand,
     packageScripts.has('typecheck') || ciHasTypecheckCommand,
   ].filter(Boolean).length;
@@ -1764,7 +1798,11 @@ function collectA1TestIntegrityEvidence(
         }),
       );
     }
-  } else if (coverageFiles.length === 0 && (!useV33Detectors || configuredRunnerFiles.length > 0)) {
+  } else if (
+    coverageFiles.length === 0 &&
+    coverageAnalysis.unresolvedFiles.length === 0 &&
+    (!useV33Detectors || configuredRunnerFiles.length > 0)
+  ) {
     if (isLeanTestToolchain) {
       const leanEvidenceFile = packageJson ?? testFiles[0];
       if (leanEvidenceFile) {
@@ -1793,7 +1831,9 @@ function collectA1TestIntegrityEvidence(
           evidence: firstEvidence,
           context: inventoryAbsenceContext,
           inventoryCount: repoFiles.length,
-          patternSet: INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfiguration,
+          patternSet: useV23CommandCoverage
+            ? INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfigurationV2
+            : INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfigurationV1,
           matchCount: 0,
         }),
       );
@@ -1845,7 +1885,7 @@ function collectA1TestIntegrityEvidence(
               label: 'test command',
               count: packageScripts.has('test') || Boolean(ciTestWorkflow) ? 1 : 0,
             },
-            { label: 'coverage command', count: packageScripts.has('coverage') ? 1 : 0 },
+            { label: 'coverage command', count: coverageAnalysis.hasCoverageCommand ? 1 : 0 },
             {
               label: 'lint command',
               count: packageScripts.has('lint') || ciHasLintCommand ? 1 : 0,
@@ -1869,7 +1909,9 @@ function collectA1TestIntegrityEvidence(
       ),
     ],
     notes:
-      'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+      coverageFiles.length === 0 && coverageAnalysis.unresolvedFiles.length > 0
+        ? `A1 is detected from real test files, test runner configuration, and optional coverage configuration. Coverage command reachability or flag ownership was unresolved in ${coverageAnalysis.unresolvedFiles.slice(0, 4).join(', ')}; the no-coverage absence claim was withheld.`
+        : 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
   };
 }
 
@@ -5164,6 +5206,12 @@ function isTestRunnerConfig(repoPath: string, file: string): boolean {
   );
 }
 
+function isRecipeTestEntry(repoPath: string, file: string): boolean {
+  return (
+    isRecipeFile(file) && fileContains(repoPath, file, /^\s*(?:test|tests|check)\s*:/m)
+  );
+}
+
 export function findCoverageConfigFiles(
   repoPath: string,
   repoFiles: readonly string[],
@@ -5611,6 +5659,586 @@ function packageJsonHasCoverageTooling(repoPath: string, file: string): boolean 
     if (typeof config === 'object' && config !== null && !Array.isArray(config)) return true;
   }
   return false;
+}
+
+function isV23CoverageConfig(repoPath: string, file: string): boolean {
+  if (/(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
+    const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
+    const property = /(?:^|[{,])\s*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im
+      .exec(contents)?.[1]
+      ?.trim();
+    if (!property || /^(?:false\b|null\b|undefined\b)/i.test(property)) return false;
+    if (/^\{/.test(property) && /\benabled\s*:\s*false\b/i.test(contents)) return false;
+    return true;
+  }
+  if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
+    const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
+    return (
+      /(?:^|[{,])\s*["']?collectCoverage["']?\s*:\s*true\b/m.test(contents) ||
+      /(?:^|[{,])\s*["']?(?:coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:/m.test(
+        contents,
+      )
+    );
+  }
+  if (/(^|\/)package\.json$/.test(file)) {
+    return packageJsonHasStaticCoverageTooling(repoPath, file);
+  }
+  return isCoverageConfig(repoPath, file);
+}
+
+function packageJsonHasStaticCoverageTooling(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const parsed = parseJsonObject(readRepoText(fullPath, 'utf8'));
+  if (!parsed) return false;
+  return ['nyc', 'c8', 'istanbul'].some((key) => {
+    const config = parsed[key];
+    return typeof config === 'object' && config !== null && !Array.isArray(config);
+  });
+}
+
+type CoverageCommandState = 'none' | 'collects' | 'unresolved';
+
+interface CoverageConfigurationAnalysis {
+  readonly coverageFiles: string[];
+  readonly unresolvedFiles: string[];
+  readonly hasCoverageCommand: boolean;
+}
+
+interface PackageScriptReferences {
+  readonly names: string[];
+  readonly dynamic: boolean;
+}
+
+interface RecipeTarget {
+  readonly dependencies: string[];
+  readonly commands: string[];
+}
+
+// Coverage absence is an assertion, so command-derived coverage needs two independent facts:
+// a coverage-capable runner owns an enabling flag, and the command is reachable from a test entry
+// point. Mentions, upload-only commands, unused scripts, and dependencies alone prove neither.
+function analyzeCoverageConfiguration(
+  repoPath: string,
+  repoFiles: readonly string[],
+  authoredOnly = false,
+): CoverageConfigurationAnalysis {
+  const eligibleFiles = repoFiles.filter(
+    (file) => !authoredOnly || isAuthoredProductionPath(file),
+  );
+  const eligibleSet = new Set(eligibleFiles);
+  const coverageFiles = new Set<string>();
+  const unresolvedFiles = new Set<string>();
+  const ciCommandsByFile = new Map<string, string[]>();
+  let hasCoverageCommand = false;
+
+  for (const file of eligibleFiles.filter(isCiWorkflow)) {
+    const commands = extractCiRunCommands(readRepoText(join(repoPath, file), 'utf8'));
+    ciCommandsByFile.set(file, commands);
+    const state = combineCoverageCommandStates(
+      commands.map((command) => coverageCommandState(repoPath, eligibleSet, command)),
+    );
+    if (state === 'collects') {
+      coverageFiles.add(file);
+      hasCoverageCommand = true;
+    }
+    if (state === 'unresolved') unresolvedFiles.add(file);
+  }
+
+  const ciCommands = [...ciCommandsByFile.values()].flat();
+  for (const file of eligibleFiles) {
+    if (isCiWorkflow(file) || isRecipeFile(file)) continue;
+    if (/(^|\/)package\.json$/.test(file)) {
+      if (packageJsonHasStaticCoverageTooling(repoPath, file)) coverageFiles.add(file);
+      const packageState = packageScriptCoverageState(
+        repoPath,
+        eligibleSet,
+        file,
+        file === 'package.json' ? ciCommands : [],
+      );
+      if (packageState === 'collects') {
+        coverageFiles.add(file);
+        hasCoverageCommand = true;
+      }
+      if (packageState === 'unresolved') unresolvedFiles.add(file);
+      continue;
+    }
+    if (isV23CoverageConfig(repoPath, file)) coverageFiles.add(file);
+  }
+
+  for (const file of eligibleFiles.filter(isRecipeFile)) {
+    const state = recipeCoverageState(repoPath, eligibleSet, file, ciCommands);
+    if (state === 'collects') {
+      coverageFiles.add(file);
+      hasCoverageCommand = true;
+    }
+    if (state === 'unresolved') unresolvedFiles.add(file);
+  }
+
+  for (const file of coverageFiles) unresolvedFiles.delete(file);
+  return {
+    coverageFiles: [...coverageFiles].sort(),
+    unresolvedFiles: [...unresolvedFiles].sort(),
+    hasCoverageCommand,
+  };
+}
+
+function stripJavaScriptComments(contents: string): string {
+  let output = '';
+  let quote: "'" | '"' | '`' | null = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let index = 0; index < contents.length; index += 1) {
+    const character = contents[index] ?? '';
+    const next = contents[index + 1] ?? '';
+    if (lineComment) {
+      if (character === '\n') {
+        lineComment = false;
+        output += '\n';
+      } else {
+        output += ' ';
+      }
+      continue;
+    }
+    if (blockComment) {
+      if (character === '*' && next === '/') {
+        output += '  ';
+        index += 1;
+        blockComment = false;
+      } else {
+        output += character === '\n' ? '\n' : ' ';
+      }
+      continue;
+    }
+    if (escaped) {
+      output += character;
+      escaped = false;
+      continue;
+    }
+    if (quote) {
+      output += character;
+      if (character === '\\') escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character;
+      output += character;
+      continue;
+    }
+    if (character === '/' && next === '/') {
+      output += '  ';
+      index += 1;
+      lineComment = true;
+      continue;
+    }
+    if (character === '/' && next === '*') {
+      output += '  ';
+      index += 1;
+      blockComment = true;
+      continue;
+    }
+    output += character;
+  }
+  return output;
+}
+
+function packageScriptCoverageState(
+  repoPath: string,
+  repoFiles: ReadonlySet<string>,
+  packageJson: string,
+  ciCommands: readonly string[],
+): CoverageCommandState {
+  const scripts = readPackageScripts(join(repoPath, packageJson));
+  if (scripts.size === 0) return 'none';
+
+  const roots = new Set<string>();
+  let unresolved = false;
+  if (scripts.has('test')) roots.add('test');
+  for (const command of ciCommands) {
+    const references = packageScriptReferences(command, scripts);
+    for (const name of references.names) roots.add(name);
+    if (
+      references.dynamic &&
+      [...scripts.values()].some(
+        (candidate) =>
+          commandInvokesCoverageTool(candidate) || containsPotentialCoverageFlag(candidate),
+      )
+    ) {
+      unresolved = true;
+    }
+  }
+
+  const queue = [...roots];
+  const visited = new Set<string>();
+  while (queue.length > 0) {
+    const name = queue.shift();
+    if (!name || visited.has(name)) continue;
+    const command = scripts.get(name);
+    if (command === undefined) continue;
+    visited.add(name);
+
+    const state = coverageCommandState(repoPath, repoFiles, command);
+    if (state === 'collects') return 'collects';
+    if (state === 'unresolved') unresolved = true;
+
+    const references = packageScriptReferences(command, scripts);
+    for (const referenced of references.names) {
+      if (!visited.has(referenced)) queue.push(referenced);
+    }
+    for (const lifecycle of [`pre${name}`, `post${name}`]) {
+      if (scripts.has(lifecycle) && !visited.has(lifecycle)) queue.push(lifecycle);
+    }
+    if (
+      references.dynamic &&
+      [...scripts.values()].some(
+        (candidate) =>
+          commandInvokesCoverageTool(candidate) || containsPotentialCoverageFlag(candidate),
+      )
+    ) {
+      unresolved = true;
+    }
+  }
+  return unresolved ? 'unresolved' : 'none';
+}
+
+function packageScriptReferences(
+  command: string,
+  scripts: ReadonlyMap<string, string>,
+): PackageScriptReferences {
+  const names = new Set<string>();
+  let dynamic = false;
+  for (const segment of splitShellCommandSegments(command)) {
+    for (const match of segment.matchAll(
+      /\bpnpm\s+run\s+\/((?:\\.|[^/])+)\/([dgimsuvy]*)/giu,
+    )) {
+      const source = match[1];
+      if (!source) continue;
+      try {
+        const flags = (match[2] ?? '').replace(/[dgy]/g, '');
+        const selector = new RegExp(source, flags);
+        for (const name of scripts.keys()) {
+          if (selector.test(name)) names.add(name);
+          selector.lastIndex = 0;
+        }
+      } catch {
+        dynamic = true;
+      }
+    }
+
+    for (const match of segment.matchAll(
+      /\b(?:npm|pnpm|yarn)\s+(?:run\s+)?([A-Za-z0-9][A-Za-z0-9:._-]*)/giu,
+    )) {
+      const name = match[1];
+      if (name && scripts.has(name)) names.add(name);
+    }
+    if (/\b(?:npm|pnpm|yarn)\s+run\s+(?:\$|["']\$|`)/u.test(segment)) dynamic = true;
+  }
+  return { names: [...names], dynamic };
+}
+
+function extractCiRunCommands(contents: string): string[] {
+  const lines = contents.split(/\r?\n/);
+  const commands: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    const match = /^(\s*)(?:-\s*)?run\s*:\s*(.*)$/u.exec(line);
+    if (!match) continue;
+    const indentation = match[1]?.length ?? 0;
+    const value = match[2]?.trim() ?? '';
+    if (value === '|' || value === '>' || value.startsWith('|-') || value.startsWith('>-')) {
+      const block: string[] = [];
+      for (index += 1; index < lines.length; index += 1) {
+        const nested = lines[index] ?? '';
+        if (nested.trim().length === 0) {
+          block.push('');
+          continue;
+        }
+        const nestedIndentation = /^\s*/u.exec(nested)?.[0].length ?? 0;
+        if (nestedIndentation <= indentation) {
+          index -= 1;
+          break;
+        }
+        block.push(nested.slice(Math.min(nested.length, indentation + 2)));
+      }
+      commands.push(block.join(value.startsWith('>') ? ' ' : '\n'));
+      continue;
+    }
+    if (value.length === 0) continue;
+    const quoted = /^(?:"([\s\S]*)"|'([\s\S]*)')$/u.exec(value);
+    commands.push(quoted ? (quoted[1] ?? quoted[2] ?? '') : value);
+  }
+  return commands;
+}
+
+function isRecipeFile(file: string): boolean {
+  return /(^|\/)(?:Makefile|makefile|GNUmakefile|[Jj]ustfile)$/.test(file);
+}
+
+function recipeCoverageState(
+  repoPath: string,
+  repoFiles: ReadonlySet<string>,
+  file: string,
+  ciCommands: readonly string[],
+): CoverageCommandState {
+  const targets = readRecipeTargets(readRepoText(join(repoPath, file), 'utf8'));
+  const roots = new Set(['test', 'tests', 'check'].filter((target) => targets.has(target)));
+  const runner = /[Jj]ustfile$/.test(file) ? 'just' : 'make';
+  for (const command of ciCommands) {
+    for (const match of command.matchAll(new RegExp(`\\b${runner}\\s+([A-Za-z0-9._-]+)`, 'gu'))) {
+      const target = match[1];
+      if (target && targets.has(target)) roots.add(target);
+    }
+  }
+
+  const queue = [...roots];
+  const visited = new Set<string>();
+  let unresolved = false;
+  while (queue.length > 0) {
+    const name = queue.shift();
+    if (!name || visited.has(name)) continue;
+    const target = targets.get(name);
+    if (!target) continue;
+    visited.add(name);
+    const state = combineCoverageCommandStates(
+      target.commands.map((command) => coverageCommandState(repoPath, repoFiles, command)),
+    );
+    if (state === 'collects') return 'collects';
+    if (state === 'unresolved') unresolved = true;
+    for (const dependency of target.dependencies) {
+      if (targets.has(dependency) && !visited.has(dependency)) queue.push(dependency);
+    }
+    for (const command of target.commands) {
+      const pattern = new RegExp(`(?:\\$\\(MAKE\\)|\\b${runner})\\s+([A-Za-z0-9._-]+)`, 'gu');
+      for (const match of command.matchAll(pattern)) {
+        const referenced = match[1];
+        if (referenced && targets.has(referenced) && !visited.has(referenced)) queue.push(referenced);
+      }
+    }
+  }
+  return unresolved ? 'unresolved' : 'none';
+}
+
+function readRecipeTargets(contents: string): Map<string, RecipeTarget> {
+  const targets = new Map<string, { dependencies: string[]; commands: string[] }>();
+  let active: { dependencies: string[]; commands: string[] } | null = null;
+  for (const line of contents.split(/\r?\n/)) {
+    const header = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*:\s*([^#]*)/u.exec(line);
+    if (header) {
+      const name = header[1];
+      if (!name) continue;
+      active = {
+        dependencies: (header[2] ?? '').trim().split(/\s+/u).filter(Boolean),
+        commands: [],
+      };
+      targets.set(name, active);
+      continue;
+    }
+    if (active && /^\s+/u.test(line) && line.trim().length > 0) {
+      active.commands.push(line.trim().replace(/^[@+-]+/u, ''));
+      continue;
+    }
+    if (line.trim().length > 0 && !line.trimStart().startsWith('#')) active = null;
+  }
+  return targets;
+}
+
+function coverageCommandState(
+  repoPath: string,
+  repoFiles: ReadonlySet<string>,
+  command: string,
+  depth = 0,
+): CoverageCommandState {
+  if (depth > 4) return containsPotentialCoverageFlag(command) ? 'unresolved' : 'none';
+  const normalized = normalizeCoverageCommandPrefixes(command);
+  const segments = normalized.splitShellOperators
+    ? splitShellCommandSegments(normalized.segment)
+    : [normalized.segment];
+  const states = segments.map((rawSegment) => {
+    const candidate = normalizeCoverageCommandPrefixes(rawSegment);
+    if (commandInvokesCoverageTool(candidate.segment)) return 'collects' as const;
+    const words = shellWords(candidate.segment);
+    if (words.length === 0) return 'none' as const;
+    const direct = coverageFlagCommandState(words);
+    if (direct !== 'none') return direct;
+    if (isRecognizedCoverageFlagRunner(words)) return 'none' as const;
+
+    const wrapper = reachableShellWrapper(words, repoFiles);
+    if (wrapper) {
+      return coverageCommandState(
+        repoPath,
+        repoFiles,
+        readRepoText(join(repoPath, wrapper), 'utf8'),
+        depth + 1,
+      );
+    }
+    const executable = commandExecutable(words);
+    const potentialFlagState = flagState(
+      words.slice(1),
+      ['--experimental-test-coverage', '--collectcoverage', '--collect-coverage', '--coverage', '--cov'],
+      [
+        '--no-experimental-test-coverage',
+        '--no-collectcoverage',
+        '--no-collect-coverage',
+        '--no-coverage',
+        '--no-cov',
+      ],
+    );
+    if (
+      containsPotentialCoverageFlag(candidate.segment) &&
+      potentialFlagState !== 'none' &&
+      executable &&
+      /(?:test|spec|runner)/i.test(executable) &&
+      !/(?:docs?|map|report|upload|codecov|coveralls)/i.test(executable)
+    ) {
+      return 'unresolved' as const;
+    }
+    return 'none' as const;
+  });
+  return combineCoverageCommandStates(states);
+}
+
+function combineCoverageCommandStates(states: readonly CoverageCommandState[]): CoverageCommandState {
+  if (states.includes('collects')) return 'collects';
+  return states.includes('unresolved') ? 'unresolved' : 'none';
+}
+
+function shellWords(segment: string): string[] {
+  const words: string[] = [];
+  let offset = 0;
+  while (offset < segment.length) {
+    const scanned = scanShellWord(segment, offset);
+    if (!scanned) break;
+    words.push(scanned.word);
+    if (scanned.end <= offset) break;
+    offset = scanned.end;
+  }
+  return words;
+}
+
+function commandExecutable(words: readonly string[]): string | undefined {
+  const normalized = unwrapPackageManagerExecutable(words);
+  const executable = normalized[0];
+  return executable ? basename(executable).replace(/\.cmd$/i, '').toLowerCase() : undefined;
+}
+
+function unwrapPackageManagerExecutable(words: readonly string[]): string[] {
+  if (words.length === 0) return [];
+  const first = basename(words[0] ?? '').toLowerCase();
+  if (first === 'pnpm' || first === 'yarn') {
+    const second = words[1]?.toLowerCase();
+    return words.slice(second === 'exec' || second === 'dlx' ? 2 : 1);
+  }
+  if (first === 'npx') return words.slice(1).filter((word) => !/^--(?:yes|no-install)$/u.test(word));
+  if (first === 'npm' && words[1]?.toLowerCase() === 'exec') {
+    let offset = 2;
+    while (/^--(?:yes|no-install)$/u.test(words[offset] ?? '')) offset += 1;
+    if (words[offset] === '--') offset += 1;
+    return words.slice(offset);
+  }
+  return [...words];
+}
+
+function coverageFlagCommandState(words: readonly string[]): CoverageCommandState {
+  const command = unwrapPackageManagerExecutable(words);
+  const executable = basename(command[0] ?? '').replace(/\.cmd$/i, '').toLowerCase();
+  const args = command.slice(1);
+  if (!executable) return 'none';
+
+  if (executable === 'node') {
+    if (!args.includes('--test')) return 'none';
+    return flagState(args, ['--experimental-test-coverage'], ['--no-experimental-test-coverage']);
+  }
+  if (executable === 'pytest' || executable === 'py.test') {
+    return flagState(args, ['--cov'], ['--no-cov']);
+  }
+  if (executable === 'bun' || executable === 'deno') {
+    if (args[0]?.toLowerCase() !== 'test') return 'none';
+    return flagState(args.slice(1), ['--coverage'], ['--no-coverage']);
+  }
+  if (executable === 'jest') {
+    return flagState(
+      args,
+      ['--coverage', '--collectcoverage', '--collect-coverage'],
+      ['--no-coverage', '--no-collectcoverage', '--no-collect-coverage'],
+    );
+  }
+  if (executable === 'vitest' || executable === 'bnt') {
+    return flagState(args, ['--coverage'], ['--no-coverage']);
+  }
+  return 'none';
+}
+
+function isRecognizedCoverageFlagRunner(words: readonly string[]): boolean {
+  const command = unwrapPackageManagerExecutable(words);
+  const executable = basename(command[0] ?? '').replace(/\.cmd$/i, '').toLowerCase();
+  if (['bnt', 'vitest', 'jest', 'pytest', 'py.test'].includes(executable)) return true;
+  if (executable === 'node') return command.slice(1).includes('--test');
+  return (
+    (executable === 'bun' || executable === 'deno') &&
+    command[1]?.toLowerCase() === 'test'
+  );
+}
+
+function flagState(
+  args: readonly string[],
+  enablingNames: readonly string[],
+  disablingNames: readonly string[],
+): CoverageCommandState {
+  let enabled = false;
+  let disabled = false;
+  let unresolved = false;
+  const enabling = new Set(enablingNames.map((name) => name.toLowerCase()));
+  const disabling = new Set(disablingNames.map((name) => name.toLowerCase()));
+
+  for (let index = 0; index < args.length; index += 1) {
+    const raw = args[index] ?? '';
+    const lower = raw.toLowerCase();
+    if (disabling.has(lower)) {
+      disabled = true;
+      continue;
+    }
+    const [name, assigned] = lower.split('=', 2);
+    if (!name || !enabling.has(name)) continue;
+    if (assigned !== undefined) {
+      if (assigned === 'false' || assigned === '0' || assigned === 'off') disabled = true;
+      else if (/\$|\{|\}/u.test(assigned)) unresolved = true;
+      else enabled = true;
+      continue;
+    }
+    const next = args[index + 1]?.toLowerCase();
+    if (next === 'false' || next === '0' || next === 'off') {
+      disabled = true;
+      index += 1;
+    } else if (next && /\$|\{|\}/u.test(next)) {
+      unresolved = true;
+      index += 1;
+    } else {
+      enabled = true;
+    }
+  }
+  if (unresolved || (enabled && disabled)) return 'unresolved';
+  return enabled && !disabled ? 'collects' : 'none';
+}
+
+function containsPotentialCoverageFlag(command: string): boolean {
+  return /(?:^|\s)--(?:experimental-test-coverage|collect-?coverage|no-coverage|coverage|no-cov|cov)(?:[=\s]|$)/iu.test(
+    command,
+  );
+}
+
+function reachableShellWrapper(
+  words: readonly string[],
+  repoFiles: ReadonlySet<string>,
+): string | undefined {
+  const executable = basename(words[0] ?? '').toLowerCase();
+  const candidate = /^(?:ba|da|k|z)?sh$/u.test(executable) ? words[1] : words[0];
+  if (!candidate || !/(?:^|\/)\.?[^\s]*\.sh$/i.test(candidate)) return undefined;
+  const normalized = candidate.replace(/^\.\//u, '');
+  if (normalized.startsWith('/') || normalized.split('/').includes('..')) return undefined;
+  return repoFiles.has(normalized) ? normalized : undefined;
 }
 
 function commandInvokesCoverageTool(command: string): boolean {
