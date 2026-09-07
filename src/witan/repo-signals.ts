@@ -24,6 +24,7 @@ import type {
 } from './schemas.js';
 
 import {
+  contentReadSignalKey,
   readRepoText,
   readRepoTextPrefix,
   recordContentSkip,
@@ -31,6 +32,7 @@ import {
   recordFilesystemSkip,
   trackContentReads,
   withContentReadCriterion,
+  withContentReadSignal,
 } from './content-reads.js';
 
 import {
@@ -213,28 +215,103 @@ export interface BuildWitanInputOptions {
   domainCollectors?: readonly WitanDomainSignalCollector[];
 }
 
+function wholesaleCriterionAbstention(
+  signal: WitanCriterionSignalPayload,
+): WitanCriterionSignalPayload {
+  return {
+    criterionId: signal.criterionId,
+    positiveEvidence: [],
+    findings: [],
+    metrics: [],
+    insufficientData: true as const,
+    notes:
+      'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+  };
+}
+
 export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanReportInputPayload {
   const tracked = trackContentReads(options.repoPath, () => buildWitanInputFromRepoUntracked(options));
   const affectedCriteria = tracked.affectedCriteria;
+  const rubricVersion = options.rubricVersion ?? WITAN_RUBRIC_VERSION;
+
+  // v17 and v22 (and every other rubric) keep the exact pre-v23 wholesale-wipe behavior below,
+  // byte-for-byte — this branch is untouched by the per-signal work
+  // (goal_cejel_v23_per_signal_abstention_2026-09-06).
+  if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {
+    const signals = (tracked.value.signals ?? []).map((signal) =>
+      affectedCriteria.has(signal.criterionId) ? wholesaleCriterionAbstention(signal) : signal,
+    );
+    const affectedCount = affectedCriteria.size;
+    const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
+    if (affectedCount > 0 && scanLimitations.length < 16) {
+      scanLimitations.push(
+        `${affectedCount} ${affectedCount === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+      );
+    }
+    return {
+      ...tracked.value,
+      signals,
+      ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
+      contentReadSummary: tracked.summary,
+    };
+  }
+
+  // v23: attach abstention to the signal(s) whose own inputs were unreadable, not to the whole
+  // criterion. A criterion only falls back to the wholesale wipe above when a skip inside it
+  // could NOT be attributed to one named signal (tracked.unattributedCriteria) — that keeps the
+  // conservative, honest default for every criterion this goal did not instrument (only A1's
+  // coverage_percent and non_hollow_test_share signals are signal-scoped today).
+  const wholesaleAbstainedCriteria: WitanCriterionId[] = [];
+  const partiallyAbstainedSignals: string[] = [];
   const signals = (tracked.value.signals ?? []).map((signal) => {
     if (!affectedCriteria.has(signal.criterionId)) return signal;
+    if (tracked.unattributedCriteria.has(signal.criterionId)) {
+      wholesaleAbstainedCriteria.push(signal.criterionId);
+      return wholesaleCriterionAbstention(signal);
+    }
+    const prefix = contentReadSignalKey(signal.criterionId, '');
+    const affectedNames = [...tracked.affectedSignals]
+      .filter((key) => key.startsWith(prefix))
+      .map((key) => key.slice(prefix.length));
+    if (affectedNames.length === 0) {
+      // Invariant: affectedCriteria only grows alongside affectedSignals or
+      // unattributedCriteria (content-reads.ts), so this should be unreachable — fall back to
+      // the conservative wipe rather than silently trust an inconsistent tracker.
+      wholesaleAbstainedCriteria.push(signal.criterionId);
+      return wholesaleCriterionAbstention(signal);
+    }
+    const affectedNameSet = new Set(affectedNames);
+    const metrics = (signal.metrics ?? []).filter((metric) => !affectedNameSet.has(metric.name));
+    const anythingSurvives =
+      metrics.length > 0 ||
+      (signal.positiveEvidence?.length ?? 0) > 0 ||
+      (signal.findings?.length ?? 0) > 0;
+    if (!anythingSurvives) {
+      wholesaleAbstainedCriteria.push(signal.criterionId);
+      return wholesaleCriterionAbstention(signal);
+    }
+    for (const name of affectedNames) {
+      partiallyAbstainedSignals.push(`${signal.criterionId}.${name}`);
+    }
     return {
-      criterionId: signal.criterionId,
-      positiveEvidence: [],
-      findings: [],
-      metrics: [],
-      insufficientData: true as const,
-      notes:
-        'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+      ...signal,
+      metrics,
+      notes: `Cejel abstained on ${[...affectedNames].sort().join(', ')} in this criterion because that content could not be read; other signals in this criterion were computed from readable files and are unaffected.`,
     };
   });
-  const affectedCount = affectedCriteria.size;
+
   const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
-  if (affectedCount > 0 && scanLimitations.length < 16) {
+  if (wholesaleAbstainedCriteria.length > 0 && scanLimitations.length < 16) {
     scanLimitations.push(
-      `${affectedCount} ${affectedCount === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+      `${wholesaleAbstainedCriteria.length} ${wholesaleAbstainedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read and the affected signal could not be isolated. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
     );
   }
+  if (partiallyAbstainedSignals.length > 0 && scanLimitations.length < 16) {
+    scanLimitations.push(
+      `${partiallyAbstainedSignals.length} ${partiallyAbstainedSignals.length === 1 ? 'signal' : 'signals'} abstained because its own repository content could not be read, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedSignals].sort().join(', ')}.`,
+    );
+  }
+
   return {
     ...tracked.value,
     signals,
@@ -1628,13 +1705,26 @@ function collectA1TestIntegrityEvidence(
     : baseConfiguredRunnerFiles;
   const packageJson = findRootPackageJson(repoFiles);
   const packageScripts = packageJson ? readPackageScripts(join(repoPath, packageJson)) : new Map();
-  const coverageAnalysis = useV23CommandCoverage
-    ? analyzeCoverageConfiguration(repoPath, repoFiles, useV27Detectors)
-    : {
-        coverageFiles: findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors),
-        unresolvedFiles: [],
-        hasCoverageCommand: packageScripts.has('coverage'),
-      };
+  // Scoped to the 'coverage_percent' signal (not the whole A1 criterion) so an unreadable
+  // coverage file only abstains this metric — test-file and CI-script evidence computed from
+  // other, readable files survives (goal_cejel_v23_per_signal_abstention_2026-09-06). The
+  // classification pass (which files even ARE coverage config) and the value-extraction pass
+  // both read the same candidate files, so both are wrapped together; a read failure here can
+  // also under-count coverageAnalysis.hasCoverageCommand for verification_script_ratio below —
+  // an accepted, narrow scope for this goal (goal_cejel_v23_per_signal_abstention_2026-09-06).
+  const { coverageAnalysis, coveragePercent } = withContentReadSignal('A1', 'coverage_percent', () => {
+    const analysis = useV23CommandCoverage
+      ? analyzeCoverageConfiguration(repoPath, repoFiles, useV27Detectors)
+      : {
+          coverageFiles: findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors),
+          unresolvedFiles: [],
+          hasCoverageCommand: packageScripts.has('coverage'),
+        };
+    return {
+      coverageAnalysis: analysis,
+      coveragePercent: readCoveragePercent(repoPath, analysis.coverageFiles.slice(0, 4)),
+    };
+  });
   const allCoverageFiles = coverageAnalysis.coverageFiles;
   const coverageFiles = allCoverageFiles.slice(0, 4);
   const packageJsonFiles = useV27Detectors
@@ -1644,7 +1734,6 @@ function collectA1TestIntegrityEvidence(
     : packageJson
       ? [packageJson]
       : [];
-  const coveragePercent = readCoveragePercent(repoPath, coverageFiles);
   // Ecosystems without a package.json (Python, Go, Rust, Java...) have no npm "test"/"lint"/
   // "typecheck" script key to credit — their real verification signal is a CI workflow that
   // actually invokes the equivalent tool (pytest, flake8/ruff, mypy, ...). Crediting only
@@ -1700,9 +1789,14 @@ function collectA1TestIntegrityEvidence(
   ) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Configured test runner'));
   }
-  for (const file of coverageFiles) {
-    evidence.push(evidenceForRelative(repoPath, file, 'coverage', 'Coverage configuration'));
-  }
+  // Wrapped with the coverage_percent signal: this evidence pointer is hashed from the same
+  // coverage-config file(s) readCoveragePercent above reads, so an unreadable file here belongs
+  // to the same signal, not an unattributed A1-wide skip.
+  withContentReadSignal('A1', 'coverage_percent', () => {
+    for (const file of coverageFiles) {
+      evidence.push(evidenceForRelative(repoPath, file, 'coverage', 'Coverage configuration'));
+    }
+  });
   if (ciTestWorkflow) {
     evidence.push(
       evidenceForRelative(repoPath, ciTestWorkflow, 'test_run', 'CI workflow runs the test suite'),
@@ -1840,10 +1934,10 @@ function collectA1TestIntegrityEvidence(
     }
   }
 
-  const nonHollowShare = measureNonHollowTestShare(
-    repoPath,
-    allTestFiles,
-    reviewableSourceProof !== undefined,
+  // Scoped to the 'non_hollow_test_share' signal for the same reason as coverage_percent above:
+  // an unreadable test file should only abstain this metric, not the whole A1 criterion.
+  const nonHollowShare = withContentReadSignal('A1', 'non_hollow_test_share', () =>
+    measureNonHollowTestShare(repoPath, allTestFiles, reviewableSourceProof !== undefined),
   );
 
   return {

@@ -17,13 +17,28 @@ interface ContentReadSession {
   readonly unreadableByErrno: Map<string, number>;
   readonly deduplicatedSkips: Set<string>;
   readonly affectedCriteria: Set<WitanCriterionId>;
+  // Composite `${criterionId}:${signalId}` keys for skips attributed to a specific named
+  // sub-computation within a criterion (set via withContentReadSignal), plus criterion ids that
+  // had at least one skip NOT attributed to a signal — the latter is what forces the
+  // conservative whole-criterion abstention fallback in buildWitanInputFromRepo, since an
+  // unattributed skip could have tainted anything in that criterion's output.
+  readonly affectedSignals: Set<string>;
+  readonly unattributedCriteria: Set<WitanCriterionId>;
   criterion?: WitanCriterionId;
+  signal?: string;
 }
 
 export interface TrackedContentReads<T> {
   readonly value: T;
   readonly summary: WitanContentReadSummary;
   readonly affectedCriteria: ReadonlySet<WitanCriterionId>;
+  readonly affectedSignals: ReadonlySet<string>;
+  readonly unattributedCriteria: ReadonlySet<WitanCriterionId>;
+}
+
+/** Composite key used in affectedSignals; exported so callers never hand-format it. */
+export function contentReadSignalKey(criterionId: WitanCriterionId, signalId: string): string {
+  return [criterionId, signalId].join(':');
 }
 
 // Repository scans and their collectors are deliberately synchronous. A stack-scoped session
@@ -48,6 +63,11 @@ function recordSkip(
   if (!session) return;
   if (affectsCurrentCriterion && session.criterion) {
     session.affectedCriteria.add(session.criterion);
+    if (session.signal) {
+      session.affectedSignals.add(contentReadSignalKey(session.criterion, session.signal));
+    } else {
+      session.unattributedCriteria.add(session.criterion);
+    }
   }
   if (deduplicate) {
     const key = `${resolve(path)}\u0000${reason}\u0000${errno ?? ''}`;
@@ -86,6 +106,8 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
       value: collect(),
       summary: summaryFor(existing),
       affectedCriteria: existing.affectedCriteria,
+      affectedSignals: existing.affectedSignals,
+      unattributedCriteria: existing.unattributedCriteria,
     };
   }
   const session: ContentReadSession = {
@@ -99,6 +121,8 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
     unreadableByErrno: new Map(),
     deduplicatedSkips: new Set(),
     affectedCriteria: new Set(),
+    affectedSignals: new Set(),
+    unattributedCriteria: new Set(),
   };
   activeSession = session;
   try {
@@ -107,6 +131,8 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
       value,
       summary: summaryFor(session),
       affectedCriteria: session.affectedCriteria,
+      affectedSignals: session.affectedSignals,
+      unattributedCriteria: session.unattributedCriteria,
     };
   } finally {
     activeSession = undefined;
@@ -128,6 +154,29 @@ export function withContentReadCriterion<T>(
   }
 }
 
+/**
+ * Narrows an in-progress withContentReadCriterion scope to a named sub-computation, so a skip
+ * inside `collect` is attributed to this signal specifically rather than tainting every signal
+ * under the enclosing criterion (goal_cejel_v23_per_signal_abstention_2026-09-06). Must be
+ * nested inside withContentReadCriterion for the same criterion id — outside one, this is a
+ * no-op passthrough, matching withContentReadCriterion's own no-session behavior.
+ */
+export function withContentReadSignal<T>(
+  criterionId: WitanCriterionId,
+  signalId: string,
+  collect: () => T,
+): T {
+  const session = activeSession;
+  if (!session || session.criterion !== criterionId) return collect();
+  const previous = session.signal;
+  session.signal = signalId;
+  try {
+    return collect();
+  } finally {
+    session.signal = previous;
+  }
+}
+
 export function recordContentSkip(
   path: string,
   reason: Exclude<ContentReadSkipReason, 'unreadable'>,
@@ -145,7 +194,14 @@ export function recordContentSkipForCriteria(
 ): void {
   const session = activeSession;
   if (session) {
-    for (const criterion of criteria) session.affectedCriteria.add(criterion);
+    for (const criterion of criteria) {
+      session.affectedCriteria.add(criterion);
+      // This path names criteria directly from a path-shape heuristic, never from an active
+      // withContentReadSignal scope — it can never be attributed to one signal, so it must force
+      // the conservative whole-criterion fallback rather than silently leaving the criterion out
+      // of unattributedCriteria (which would make v23 wrongly treat it as fully attributed).
+      session.unattributedCriteria.add(criterion);
+    }
   }
   recordSkip(path, reason, undefined, false, deduplicate);
 }
