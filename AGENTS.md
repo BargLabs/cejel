@@ -73,18 +73,14 @@ for five native targets on GitHub releases.
 
 ## Recording lessons
 
-**This repository has no local Maeve lesson store — do not stage a lesson record here.**
-`src/__tests__/maeve-lesson-delivery.test.ts` fails CI on any lesson-shaped JSON committed to this
-repository, at any path, by design: staging is raw and pre-classification, this repository is
-public, and some of what a session earns here touches closed-class material (see the IP boundary
-above), so the guard fails closed rather than let that material accumulate in a public tree. An
-earlier version of this section described staging a record here for a sync process to promote into
-alfred's `maeve-lesson-batches/` — that route has no mechanism behind it and never worked; do not
-attempt it, and do not re-litigate the guard as a bug to route around.
-
 When a session identifies a defect, a correction, a false claim, or a rule that would prevent a
-recurrence, state it in plain prose in the session's handback. Whoever receives the handback stages
-it. Do not write it only to an agent's own private session memory, which the estate cannot read.
+recurrence: if this repository is open, stage it as `PENDING_cejel_<slug>_<date>.json` in
+[`docs/orchestration/maeve-unanchored-lessons/`](docs/orchestration/maeve-unanchored-lessons/README.md)
+as part of the PR you are already opening. That README is the single source for the mechanism
+(schema, the 7-day age bound, alfred's harvest-and-drain, and the closed-class carve-out) — read it
+there rather than a restatement here. Also state the lesson in plain prose in the session's
+handback. Whoever receives the handback confirms the seed landed. Do not write it only to an
+agent's own private session memory, which the estate cannot read.
 
 ## Before you commit
 
