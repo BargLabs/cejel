@@ -292,9 +292,12 @@ prints that boundary on every successful verification.
   calibrated public default. It
   accepts the calibrated version or any published prospective rubric
   (`witan-rubric-v18-prospective-*` through `v23`) and fails closed, naming what was accepted, on
-  anything else. `v23` inherits v22 detector/scoring behavior and adds bounded A1 coverage-flag
-  recognition (#276) plus per-signal (rather than per-criterion) abstention for A1's
-  `coverage_percent`/`non_hollow_test_share` metrics (#278); every other criterion still abstains
+  anything else. `v23` is prospective and uncalibrated, like every rubric after v17: the public
+  default (`WITAN_LAST_CALIBRATED_RUBRIC_VERSION`) is still `witan-rubric-v17-2026-07-24`, and v23
+  inherits none of v17's precision, recall, or false-positive-rate figures. It inherits v22
+  detector/scoring behavior and adds bounded A1 coverage-flag recognition (#276) plus per-signal
+  (rather than per-criterion) abstention for A1's `coverage_percent`/`non_hollow_test_share`
+  metrics (#278); every other criterion still abstains
   criterion-wide under v23, same as v17/v22. Omit this flag for the calibrated result every
   default scan produces — a prospective pin carries no precision/recall claim, and the terminal
   certificate, HTML certificate, and Markdown report all state that plainly whenever one is used.
