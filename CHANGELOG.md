@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.7] — 2026-09-07
+
 ### Added
 
 - Findings-first certificate restructure (Track A1, #268): `certificate.html` now surfaces
@@ -36,6 +38,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   per-signal so a skip on one unreadable file no longer discards findings/metrics computed from
   files that read fine (#278). No other criterion is signal-scoped yet. Carries no
   precision/recall claim.
+- `--run-attempt <n>` (Track A5 rider, #282): records which CI run attempt produced a certificate.
+  The GitHub Action forwards it automatically from `GITHUB_RUN_ATTEMPT`; a local scan or any other
+  CI never fabricates or defaults one. Surfaced on the HTML/Markdown certificates and as an
+  additive-optional `predicate.githubRunAttempt` field on `attestation.json` — never inside
+  `report.json`, whose byte-reproducibility guarantee for a pinned revision excludes per-invocation
+  values. Verified with a test that scans one revision twice with differing run attempts and
+  asserts `report.json` stays byte-identical while the attestation differs.
+- Certificate remediation output is now prioritized evidence-absence, not one static sentence
+  (Track A4, #283): the "what to do next" field is derived from the same gap-detection logic that
+  already populates "what was not established" — an unmeasured criterion that could change the
+  verdict ranks first, then a capped, per-finding evidence-absence statement for critical/warning
+  findings, then the existing coverage/PR-merge-ratio/not-applicable/scan-limitation gaps — with
+  every sentence naming an absence, never a score-promise. `report.json`/`attestation.json`/
+  `summary.json`/badges unchanged.
+- The HTML certificate's plain-language glossary and "not applicable to this repository" group now
+  collapse by default behind native `<details>`/`<summary>` (Track A3, #285) — zero JavaScript, so
+  the certificate stays a single, offline, self-contained file. Collapsed content stays in the
+  markup; a reader with JS disabled or a machine parser still sees it all.
 
 ### Fixed
 
