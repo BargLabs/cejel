@@ -32,7 +32,7 @@ certificate + badge over all of them. See "Aggregate your scanners" below.
 The public CLI default is `witan-rubric-v17-2026-07-24`, the last rubric to clear Cejel's
 preregistered 200-repository untouched holdout. Published calibration figures apply only to that
 exact rubric and frozen evaluation population. Later rubrics—including the current v18 through
-v22 prospective series—are available only to explicit evaluation harnesses. Prospective rubrics
+v23 prospective series—are available only to explicit evaluation harnesses. Prospective rubrics
 inherit none of v17's calibration figures; a bounded paired repair or corpus-delta result can
 validate its stated construction without transferring precision, recall, or false-positive-rate
 claims. Promoting a prospective rubric to the public default requires a fresh authenticated
@@ -291,10 +291,16 @@ prints that boundary on every successful verification.
 - `--rubric-pin <version>` — Explicit opt-in only: pin an alternate rubric instead of the
   calibrated public default. It
   accepts the calibrated version or any published prospective rubric
-  (`witan-rubric-v18-prospective-*` through `v22`) and fails closed, naming what was accepted, on
-  anything else. Omit this flag for the calibrated result every default scan produces — a
-  prospective pin carries no precision/recall claim, and the terminal certificate, HTML
-  certificate, and Markdown report all state that plainly whenever one is used.
+  (`witan-rubric-v18-prospective-*` through `v23`) and fails closed, naming what was accepted, on
+  anything else. `v23` is prospective and uncalibrated, like every rubric after v17: the public
+  default (`WITAN_LAST_CALIBRATED_RUBRIC_VERSION`) is still `witan-rubric-v17-2026-07-24`, and v23
+  inherits none of v17's precision, recall, or false-positive-rate figures. It inherits v22
+  detector/scoring behavior and adds bounded A1 coverage-flag recognition (#276) plus per-signal
+  (rather than per-criterion) abstention for A1's `coverage_percent`/`non_hollow_test_share`
+  metrics (#278); every other criterion still abstains
+  criterion-wide under v23, same as v17/v22. Omit this flag for the calibrated result every
+  default scan produces — a prospective pin carries no precision/recall claim, and the terminal
+  certificate, HTML certificate, and Markdown report all state that plainly whenever one is used.
 - `--quiet` — suppress the terminal certificate (files are still written)
 - `-h`, `--help` — print usage and exit successfully
 - `-v`, `--version` — print the version derived from the package manifest and exit successfully
