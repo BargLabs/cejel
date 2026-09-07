@@ -1,0 +1,9 @@
+[
+  {
+    "statement": "When retrofitting a per-signal (not per-criterion) read-failure attribution mechanism onto an existing collector, every read of the input must be enumerated, not just the one producing the scored value — a citation/evidence-hash helper that re-reads the same file independently is an easy miss. In cejel's witan v23 per-signal abstention (extending PR #278's A1-only mechanism to A2/A3/A4/A5/B3/B4/B6), evidenceForRelative(repoPath, file, ...) re-reads file content to compute a contentHash/line anchor, separate from whatever read produced the metric value. Wrapping only the metric-value read in withContentReadSignal left the evidence-anchor read unwrapped over the identical unreadable file, forcing the conservative whole-criterion wipe instead of the intended narrow per-signal abstention. Found via 4 of 7 new per-criterion test fixtures failing with an unexpected wholesale wipe despite the metric read being correctly wrapped; root-caused by temporarily instrumenting content-reads.ts's recordSkip to print session.criterion/session.signals per call, revealing a second unwrapped call on the same path between two wrapped calls. A4 had a distinct second variant: pickPrimaryDependencyManifest parsed each manifest candidate via the same readDependencySpecs the wrapped ratio-metric read used, but that internal call ran outside the wrap. Fixed by wrapping every evidence-anchor and tie-break call over an already-signal-scoped file under that same signal name. UNANCHORED: fix is in BargLabs/cejel PR #284 (branch goal/v23-instrument-all-criteria-2026-09-07), not yet merged to origin/main as of 2026-09-07 — move to a lesson batch with the merge commit once merged, verifying with git merge-base --is-ancestor first.",
+    "scope": ["dev-task"],
+    "tags": ["cejel", "witan", "content-read-attribution", "evidence-anchor", "per-signal-abstention"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-07T00:00:00.000Z"
+  }
+]
