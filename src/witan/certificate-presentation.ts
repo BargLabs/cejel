@@ -1,4 +1,9 @@
-import type { WitanCriterionMetric, WitanCriterionScore, WitanReport } from './schemas.js';
+import type {
+  WitanCriterionMetric,
+  WitanCriterionScore,
+  WitanFinding,
+  WitanReport,
+} from './schemas.js';
 
 export interface CertificateGlossaryEntry {
   key: string;
@@ -544,6 +549,114 @@ export function formatCertificateMetricValue(
   );
 }
 
+const NEXT_STEP_FINDING_SEVERITIES = new Set<WitanFinding['severity']>(['critical', 'warning']);
+const NEXT_STEP_FINDING_SEVERITY_RANK: Record<WitanFinding['severity'], number> = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+};
+const MAX_NEXT_STEP_FINDINGS = 3;
+
+interface CriterionFinding {
+  criterionId: string;
+  finding: WitanFinding;
+}
+
+/**
+ * Track A4 (ADR-0022): builds the certificate's "what to do next" field from the same
+ * gap-detection logic that populates `notEstablished`, reordered so whatever most changes the
+ * picture (an unmeasured criterion that could flip the verdict) ranks above a cosmetic gap.
+ * Every sentence names an absence — missing evidence, an unmeasured metric, a scan limitation —
+ * and never states or implies what score a repository would receive; see the "no score-promise
+ * language" guard in certificate-legibility.test.ts.
+ */
+function buildNextSteps(
+  report: WitanReport,
+  unmeasured: readonly WitanCriterionScore[],
+  notApplicable: readonly WitanCriterionScore[],
+  a1: WitanCriterionScore | undefined,
+  coverageMetric: WitanCriterionMetric | undefined,
+): string[] {
+  const steps: string[] = [];
+
+  // Highest priority: a scored dimension with no result recorded can change the verdict outright
+  // once measured, unlike a criterion correctly marked not applicable.
+  if (unmeasured.length > 0) {
+    const ids = unmeasured.map((criterion) => criterion.id).join(', ');
+    steps.push(
+      `Obtain measurable evidence for ${ids} — ${unmeasured.length === 1 ? 'this scored dimension has' : 'these scored dimensions have'} no recorded result, and could change the verdict.`,
+    );
+  }
+
+  // Per-finding evidence-absence statements for critical/warning findings, capped so this field
+  // stays bounded regardless of how many findings a scan produces — the findings themselves are
+  // already itemized in full above (Track A1's findings-first section).
+  const criterionFindings: CriterionFinding[] = report.criteria.flatMap((criterion) =>
+    criterion.findings
+      .filter((finding) => NEXT_STEP_FINDING_SEVERITIES.has(finding.severity))
+      .map((finding) => ({ criterionId: criterion.id, finding })),
+  );
+  const sortedFindings = [...criterionFindings].sort(
+    (a, b) =>
+      NEXT_STEP_FINDING_SEVERITY_RANK[a.finding.severity] -
+      NEXT_STEP_FINDING_SEVERITY_RANK[b.finding.severity],
+  );
+  for (const { criterionId, finding } of sortedFindings.slice(0, MAX_NEXT_STEP_FINDINGS)) {
+    steps.push(
+      `Evidence is currently absent for the ${finding.severity} finding on ${criterionId}: obtain independent verification before relying on this criterion.`,
+    );
+  }
+  if (sortedFindings.length > MAX_NEXT_STEP_FINDINGS) {
+    steps.push(
+      `${sortedFindings.length - MAX_NEXT_STEP_FINDINGS} more critical/warning finding(s) need the same independent verification; see the findings listed above for the complete set.`,
+    );
+  }
+
+  if (a1 && coverageMetric && isCoverageNotMeasured(a1, coverageMetric)) {
+    steps.push(
+      "Obtain a coverage report or configured threshold for A1's static coverage metric; none was found, so it was not measured.",
+    );
+  }
+  if (
+    !report.repo.headSha &&
+    report.criteria.some((criterion) =>
+      criterion.metrics.some((metric) => metric.name === 'pr_merge_ratio'),
+    )
+  ) {
+    steps.push(
+      'Restore Git history access so the recent-commit PR-reference proxy has commit subjects to inspect; its scoring zero here is a conservative default, not a detected outcome.',
+    );
+  }
+
+  // Lower priority: expected/cosmetic once confirmed correct, unlike an unmeasured dimension.
+  if (notApplicable.length > 0) {
+    const ids = notApplicable.map((criterion) => criterion.id).join(', ');
+    steps.push(
+      `Confirm ${ids} ${notApplicable.length === 1 ? 'is' : 'are'} correctly marked not applicable to this repository; ${notApplicable.length === 1 ? 'it was' : 'they were'} not examined.`,
+    );
+  }
+  const scanLimitationCount = report.scanLimitations?.length ?? 0;
+  if (scanLimitationCount > 0) {
+    steps.push(
+      `Resolve the ${scanLimitationCount} scan limitation${scanLimitationCount === 1 ? '' : 's'} qualifying the readable evidence, then reproduce the scan.`,
+    );
+  }
+  const skippedCount = report.contentReadSummary?.skipped ?? 0;
+  if (skippedCount > 0) {
+    steps.push(
+      `Make the ${skippedCount} skipped content entr${skippedCount === 1 ? 'y' : 'ies'} readable (see the itemized reasons in the certificate), then reproduce the scan.`,
+    );
+  }
+
+  if (steps.length === 0) {
+    steps.push(
+      'No unresolved evidence gaps were identified across the categories Cejel tracks; reproduce the scan at the reported revision when one is available before relying on this certificate.',
+    );
+  }
+
+  return steps;
+}
+
 export function buildRelyingPartySummary(report: WitanReport): RelyingPartySummary {
   const applicable = report.criteria.filter((criterion) => criterion.status !== 'not_applicable');
   const measured = applicable.filter((criterion) => criterion.status !== 'insufficient_data');
@@ -597,8 +710,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
     examined: `Cejel examined the repository evidence recorded for ${report.productDisplayName}${revision} under ${report.rubricVersion}.`,
     established: `The report established measured results for ${measured.length} of ${applicable.length} applicable rubric dimensions and recorded ${findings} evidence-backed finding${findings === 1 ? '' : 's'}.`,
     notEstablished: gaps.join(' '),
-    next:
-      'Review the cited evidence and open or unverified items, reproduce the scan at the reported revision when one is available, and obtain missing measurements or resolve limitations before deciding whether to accept the code.',
+    next: buildNextSteps(report, unmeasured, notApplicable, a1, coverageMetric).join(' '),
   };
 }
 

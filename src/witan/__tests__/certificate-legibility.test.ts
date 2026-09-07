@@ -4,6 +4,7 @@ import { buildWitanCliSummary } from '../../summary.js';
 import { renderTerminalCertificate } from '../../terminal.js';
 import { serializeWitanReport } from '../attestation.js';
 import {
+  buildRelyingPartySummary,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   CERTIFICATE_METRIC_REGISTRY,
@@ -367,7 +368,8 @@ describe('Track A presentation-only guard', () => {
   it('leaves report.json byte-identical across every human-readable render', () => {
     // Extend this fixture as later Track A items land, rather than adding parallel guard tests —
     // one growing fixture keeps the byte-identity check exercising every kind of report content
-    // Track A has touched (findings here for A1; multi-weighted metrics here for A2).
+    // Track A has touched (findings here for A1; multi-weighted metrics here for A2; an
+    // unmeasured + a not-applicable criterion here for A4's remediation-output gap detection).
     const report = reportFixture([
       criterion({
         id: 'A2',
@@ -396,6 +398,8 @@ describe('Track A presentation-only guard', () => {
           },
         ],
       }),
+      criterion({ id: 'B4', category: 'process_trust', status: 'insufficient_data' }),
+      criterion({ id: 'B5', category: 'process_trust', status: 'not_applicable' }),
     ]);
     const before = serializeWitanReport(report);
 
@@ -655,6 +659,168 @@ describe('Track A5 — github.run_attempt rider', () => {
 
     renderWitanHtmlReport(report, { runAttempt: '3' });
     renderWitanMarkdownReport(report, { runAttempt: '3' });
+
+    expect(serializeWitanReport(report)).toBe(before);
+  });
+});
+
+// No-score-promise guard patterns. Track A4's "next" copy must name an absence — missing
+// evidence, an unmeasured metric, a scan limitation — and never state or imply what score a
+// repository would receive. Mirrors the discipline of the glossary guard above: an exhaustive
+// check over generated copy, not a spot check, so a future edit can't silently reintroduce a
+// score-promise.
+const SCORE_PROMISE_PATTERNS = [
+  /\bscore (would|will|could|can) (be|become)\b/i,
+  /\brais(e|es|ing) (your|the|its) score\b/i,
+  /\bimprov(e|es|ing) (your|the) score to\b/i,
+  /\bbecomes? (a|an) \d/i,
+  /\bresults? in a score of\b/i,
+  /\bscore of \d(\.\d)?\/4/i,
+];
+
+function assertNoScorePromise(text: string): void {
+  for (const pattern of SCORE_PROMISE_PATTERNS) {
+    expect(text, `must not contain a score-promise matching ${pattern}: "${text}"`).not.toMatch(
+      pattern,
+    );
+  }
+}
+
+describe('Track A4 — remediation output: evidence-absence, prioritized', () => {
+  it('prioritizes an unmeasured criterion above a not-applicable criterion', () => {
+    const report = reportFixture([
+      criterion({ id: 'A1', category: 'code_trust', status: 'insufficient_data' }),
+      criterion({ id: 'B4', category: 'process_trust', status: 'not_applicable' }),
+    ]);
+    const summary = buildRelyingPartySummary(report);
+
+    const unmeasuredIndex = summary.next.indexOf('Obtain measurable evidence for A1');
+    const notApplicableIndex = summary.next.indexOf(
+      'Confirm B4 is correctly marked not applicable',
+    );
+
+    expect(unmeasuredIndex).toBeGreaterThan(-1);
+    expect(notApplicableIndex).toBeGreaterThan(-1);
+    expect(unmeasuredIndex).toBeLessThan(notApplicableIndex);
+  });
+
+  it('states an evidence-absence next step per critical/warning finding, capped by severity then order, excluding info', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        findings: [
+          finding({ severity: 'critical', summary: 'critical finding one' }),
+          finding({ severity: 'warning', summary: 'warning finding one' }),
+          finding({ severity: 'info', summary: 'info finding one' }),
+        ],
+      }),
+      criterion({
+        id: 'A3',
+        category: 'code_trust',
+        findings: [
+          finding({ severity: 'critical', summary: 'critical finding two' }),
+          finding({ severity: 'warning', summary: 'warning finding two' }),
+        ],
+      }),
+    ]);
+    const summary = buildRelyingPartySummary(report);
+
+    // 4 critical/warning findings total, sorted critical-first (stable within a severity),
+    // capped at 3 individual statements plus one overflow sentence naming the remaining count —
+    // the lowest-priority item (A3's warning) is never silently dropped.
+    expect(summary.next).toContain(
+      'Evidence is currently absent for the critical finding on A2: obtain independent verification',
+    );
+    expect(summary.next).toContain(
+      'Evidence is currently absent for the critical finding on A3: obtain independent verification',
+    );
+    expect(summary.next).toContain(
+      'Evidence is currently absent for the warning finding on A2: obtain independent verification',
+    );
+    expect(summary.next).toContain('1 more critical/warning finding(s) need the same');
+    // The info-severity finding gets no next-step statement of its own.
+    expect(summary.next).not.toContain('for the info finding');
+  });
+
+  it('produces different, specific next content for differently-gapped reports', () => {
+    const missingCoverageReport = reportFixture([
+      criterion({
+        id: 'A1',
+        category: 'code_trust',
+        metrics: [
+          { name: 'coverage_percent', label: 'Static coverage percentage', value: 0, max: 100, weight: 1 },
+        ],
+      }),
+    ]);
+    const notApplicableReport = reportFixture([
+      criterion({ id: 'B4', category: 'process_trust', status: 'not_applicable' }),
+    ]);
+
+    const missingCoverageNext = buildRelyingPartySummary(missingCoverageReport).next;
+    const notApplicableNext = buildRelyingPartySummary(notApplicableReport).next;
+
+    expect(missingCoverageNext).not.toBe(notApplicableNext);
+    expect(missingCoverageNext).toContain("A1's static coverage metric");
+    expect(notApplicableNext).toContain('Confirm B4 is correctly marked not applicable');
+  });
+
+  it('states plainly, never silently, when no unresolved evidence gap was identified', () => {
+    const report = reportFixture([criterion({ id: 'A1', category: 'code_trust' })]);
+    const summary = buildRelyingPartySummary(report);
+
+    expect(summary.next).toContain('No unresolved evidence gaps were identified');
+  });
+
+  it('never states or implies a score-promise, across every next-step branch', () => {
+    const reports = [
+      reportFixture([criterion({ id: 'A1', category: 'code_trust', status: 'insufficient_data' })]),
+      reportFixture([criterion({ id: 'B4', category: 'process_trust', status: 'not_applicable' })]),
+      reportFixture([
+        criterion({
+          id: 'A2',
+          category: 'code_trust',
+          findings: [
+            finding({ severity: 'critical', summary: 'critical finding' }),
+            finding({ severity: 'warning', summary: 'warning finding' }),
+          ],
+        }),
+      ]),
+      reportFixture([criterion({ id: 'A1', category: 'code_trust' })]),
+      { ...reportFixture([criterion({ id: 'A1', category: 'code_trust' })]), scanLimitations: ['bounded directory walk'] },
+      {
+        ...reportFixture([criterion({ id: 'A1', category: 'code_trust' })]),
+        contentReadSummary: {
+          skipped: 2,
+          byReason: { unreadable: 2, tooLarge: 0, excludedByExtension: 0, deniedPath: 0, nonRegularFile: 0 },
+          unreadableByErrno: {},
+          affectedCriteria: ['A1' as const],
+        },
+      },
+    ];
+
+    for (const report of reports) {
+      const summary = buildRelyingPartySummary(report);
+      assertNoScorePromise(summary.next);
+      assertNoScorePromise(summary.notEstablished);
+    }
+  });
+
+  it('does not change report.json across a render with an unmeasured criterion, findings, and a not-applicable criterion', () => {
+    const report = reportFixture([
+      criterion({ id: 'A1', category: 'code_trust', status: 'insufficient_data' }),
+      criterion({
+        id: 'A2',
+        category: 'code_trust',
+        findings: [finding({ severity: 'critical', summary: 'critical finding fixture' })],
+      }),
+      criterion({ id: 'B4', category: 'process_trust', status: 'not_applicable' }),
+    ]);
+    const before = serializeWitanReport(report);
+
+    for (const output of humanReadableOutputs(report)) {
+      expect(output).toContain('What to do next');
+    }
 
     expect(serializeWitanReport(report)).toBe(before);
   });
