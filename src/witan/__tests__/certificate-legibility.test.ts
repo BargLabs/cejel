@@ -825,3 +825,62 @@ describe('Track A4 — remediation output: evidence-absence, prioritized', () =>
     expect(serializeWitanReport(report)).toBe(before);
   });
 });
+
+describe('Track A3 — collapsible sections, single-file constraint', () => {
+  it('wraps the glossary in a collapsed-by-default <details>, content still present', () => {
+    const html = renderWitanHtmlReport(reportFixture([criterion({ id: 'A1', category: 'code_trust' })]));
+
+    expect(html).toMatch(/<details>\s*<summary><h2 id="glossary-heading">Plain-language glossary<\/h2><\/summary>/);
+    expect(html).not.toMatch(/<details open>\s*<summary><h2 id="glossary-heading">/);
+    expect(html).toContain(CERTIFICATE_GLOSSARY[0]?.definition);
+  });
+
+  it("wraps the not-applicable group in a collapsed-by-default <details>, reasons still present", () => {
+    const html = renderWitanHtmlReport(
+      reportFixture([
+        criterion({
+          id: 'B4',
+          category: 'process_trust',
+          status: 'not_applicable',
+          notes: 'No audit-trail surface detected.',
+        }),
+      ]),
+    );
+
+    expect(html).toMatch(
+      /<details class="na-group">\s*<summary><h3 class="na-heading">Not applicable to this repository<\/h3><\/summary>/,
+    );
+    expect(html).not.toMatch(/<details class="na-group" open>/);
+    expect(html).toContain('No audit-trail surface detected.');
+  });
+
+  it('adds no not-applicable <details> element when there are no not-applicable criteria', () => {
+    const html = renderWitanHtmlReport(reportFixture([criterion({ id: 'A1', category: 'code_trust' })]));
+
+    expect(html).not.toContain('<details class="na-group">');
+    expect(html).not.toContain('Not applicable to this repository</h3>');
+  });
+
+  it('ships zero <script> tags — every collapse/expand is native browser behavior, not JS', () => {
+    const html = renderWitanHtmlReport(
+      reportFixture([
+        criterion({ id: 'A1', category: 'code_trust' }),
+        criterion({ id: 'B4', category: 'process_trust', status: 'not_applicable' }),
+      ]),
+    );
+
+    expect(html).not.toContain('<script');
+  });
+
+  it('does not change report.json across a render with a collapsed not-applicable group', () => {
+    const report = reportFixture([
+      criterion({ id: 'A1', category: 'code_trust' }),
+      criterion({ id: 'B4', category: 'process_trust', status: 'not_applicable' }),
+    ]);
+    const before = serializeWitanReport(report);
+
+    renderWitanHtmlReport(report);
+
+    expect(serializeWitanReport(report)).toBe(before);
+  });
+});

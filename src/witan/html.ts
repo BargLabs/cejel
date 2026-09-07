@@ -240,15 +240,21 @@ function renderRelyingPartySummary(summary: RelyingPartySummary): string {
     </section>`;
 }
 
+// Track A3 (ADR-0022): collapsed by default behind native <details>/<summary> — zero JavaScript,
+// so the certificate stays a single, offline, self-contained HTML file. The heading stays a real
+// <h2> nested as the summary's first child, which the HTML spec treats as the disclosure widget's
+// accessible label while still exposing it as a heading in the accessibility tree.
 function renderGlossary(entries: readonly CertificateGlossaryEntry[]): string {
   return `<section class="glossary" aria-labelledby="glossary-heading">
-      <h2 id="glossary-heading">Plain-language glossary</h2>
-      <dl>${entries
-        .map(
-          (entry) =>
-            `<div><dt id="glossary-${escapeAttribute(entry.key)}">${escapeHtml(entry.term)}</dt><dd>${escapeHtml(entry.definition)}</dd></div>`,
-        )
-        .join('')}</dl>
+      <details>
+        <summary><h2 id="glossary-heading">Plain-language glossary</h2></summary>
+        <dl>${entries
+          .map(
+            (entry) =>
+              `<div><dt id="glossary-${escapeAttribute(entry.key)}">${escapeHtml(entry.term)}</dt><dd>${escapeHtml(entry.definition)}</dd></div>`,
+          )
+          .join('')}</dl>
+      </details>
     </section>`;
 }
 
@@ -375,13 +381,15 @@ function renderCriterionColumn(
       </section>`;
 }
 
+// Track A3 (ADR-0022): collapsed by default behind native <details>/<summary>, same rationale
+// and heading-nesting pattern as renderGlossary above.
 function renderNotApplicableGroup(criteria: readonly WitanCriterionScore[]): string {
-  return `<div class="na-group">
-          <h3 class="na-heading">Not applicable to this repository</h3>
+  return `<details class="na-group">
+          <summary><h3 class="na-heading">Not applicable to this repository</h3></summary>
           <ul class="na-list">
             ${criteria.map(renderNotApplicableItem).join('')}
           </ul>
-        </div>`;
+        </details>`;
 }
 
 function renderNotApplicableItem(criterion: WitanCriterionScore): string {
@@ -698,6 +706,14 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .glossary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; margin: 0; }
 .glossary dl div { border-top: 1px solid var(--line); padding-top: 10px; }
 .glossary dd { margin-top: 4px; font-size: 13px; }
+/* Track A3: native <details>/<summary> disclosure — the summary is the clickable control, a
+   heading nests inside it as its accessible label (still exposed as a heading), and the heading's
+   own vertical margin is neutralized by making it inline, so the marker sits flush against it. */
+summary { cursor: pointer; }
+summary h2, summary h3 { display: inline; }
+summary::marker { color: var(--periwinkle); }
+summary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--periwinkle); border-radius: 3px; }
+.glossary details[open] dl, .na-group[open] .na-list { margin-top: 16px; }
 .trust-grid, .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
 .scan-limitations-section { margin-top: 28px; border-color: rgba(231, 191, 114, .44); }
 .scan-limitations-section .scan-warning { list-style: none; margin-left: -18px; }
