@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "Asserting or ruling on system state from a summary/handback instead of checking current live state produces stale-but-confident claims when something else changes concurrently. Two instances, same day, different actors: (1) cejel PR #287 merged CLAUDE.md/AGENTS.md text stating this repository has no local Maeve lesson store -- true when drafted, false 3 minutes later when PR #286 (a real holding directory with harvest+age-bound drain) landed first via the auto-merge queue, unchecked before treating #287 as final. (2) The operator ruled Cejel should have no local lesson store by reasoning from the prior handback's dead-end description, without checking currently-open PRs -- #286 was already open with the actual fix. A correct-when-formed claim needs a live re-check immediately before being asserted as current, especially right after any auto-merge or async landing.",
+    "scope": ["dev-task"],
+    "tags": [
+      "stale-claim-from-summary",
+      "check-live-state-not-handback",
+      "concurrent-auto-merge-race",
+      "same-mistake-different-actor",
+      "review-handback"
+    ],
+    "anchors": [
+      {
+        "commit": "8354ffd0be57f3ef054c0b8386fd187c2c9d58f6",
+        "pr": 287,
+        "summary": "Merged CLAUDE.md/AGENTS.md wording stating cejel has no local Maeve lesson store, three minutes after PR #286 (already contradicting it) landed via the same auto-merge queue -- author didn't re-check before treating #287 as final."
+      },
+      {
+        "commit": "5e39d9464fd74b9561b6c54cd185dc9a3d77c16c",
+        "pr": 286,
+        "summary": "Gave cejel a real, age-bounded local Maeve lesson holding directory with a harvest-and-drain design, open concurrently while the operator separately ruled (in a different channel) that cejel should have no local store, without checking open PRs first."
+      }
+    ],
+    "lastSeenAt": "2026-09-07T00:00:00.000Z"
+  }
+]

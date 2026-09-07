@@ -75,15 +75,12 @@ of all static analysis and are priced in; false assertions are not.
 
 ## Recording lessons
 
-**This repository has no local Maeve lesson store.** `src/__tests__/maeve-lesson-delivery.test.ts`
-fails CI on any lesson-shaped JSON committed here, by design: staging is raw and
-pre-classification, this repository is public, and some of what a session earns here touches
-closed-class material (see the IP boundary above), so the guard fails closed rather than let that
-material accumulate in a public tree. This is not a defect to route around.
-
-A lesson earned while working in Cejel belongs in the session's handback, stated in plain prose —
-not staged in this repository under any path, and not written only to an agent's own private
-session memory, which the estate cannot read. Whoever receives the handback stages it.
+A session with this repository open stages a lesson as `PENDING_cejel_<slug>_<date>.json` in
+[`docs/orchestration/maeve-unanchored-lessons/`](docs/orchestration/maeve-unanchored-lessons/README.md)
+as part of its own PR. That README is the single source for the mechanism (schema, the 7-day age
+bound, alfred's harvest-and-drain, and the closed-class carve-out) — read it there rather than a
+restatement here. Also state the lesson in plain prose in the session's handback, not only in an
+agent's own private session memory, which the estate cannot read.
 
 ## Conventions
 

@@ -19,3 +19,8 @@ A file sitting here for more than 7 days is presumed undelivered, not merely "li
 `.github/maeve-sync-products.json`) enforce that threshold and fail loud rather than treat this
 directory's allowlist entry as proof of delivery. See goal_maeve_cross_repo_lesson_delivery_2026-09-07
 in BargLabs/alfred for the full design.
+
+Seeds staged here are public from the moment they are committed and remain in this repository's
+git history after deletion — the 7-day bound limits staleness, not exposure. A lesson touching
+closed-class material under the IP boundary (`CLAUDE.md`/`AGENTS.md`) routes to alfred directly
+and never lands here.
