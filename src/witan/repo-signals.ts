@@ -33,6 +33,7 @@ import {
   trackContentReads,
   withContentReadCriterion,
   withContentReadSignal,
+  withContentReadSignals,
 } from './content-reads.js';
 
 import {
@@ -2124,44 +2125,58 @@ function collectA2IsolationEvidence(
   // must fire critical even in an archetype the gate would otherwise call N/A; the prior
   // ordering made a real committed secret invisible whenever there was no "data layer" or
   // "secrets surface" (goal_cejel_launch_hardening_combined_2026-07-06, Phase 2 FN #2).
-  let committedSecret: { path: string; match: RealSecretAssignmentMatch } | undefined;
-  for (const path of repoFiles) {
-    const authoredProductionPath = useV47Detectors
-      ? isV47AuthoredProductionPath(path)
-      : useV39Detectors
-        ? isV39AuthoredProductionPath(path)
-        : isAuthoredProductionPath(path);
-    if (isIgnoredScanFile(path, useV47Detectors) || (useV33Detectors && !authoredProductionPath)) {
-      continue;
-    }
-    const match = findCommittedSecretInFile(
-      repoPath,
-      path,
-      useV36Detectors,
-      useV39Detectors,
-      useV47Detectors,
-    );
-    if (!match) continue;
-    committedSecret = { path, match };
-    break;
-  }
-  const currentSecretFingerprintsByPath = new Map<string, ReadonlySet<string>>();
-  if (useV27Detectors) {
-    for (const path of repoFiles.filter((candidate) => isCredentialHistoryPath(candidate))) {
-      currentSecretFingerprintsByPath.set(
-        path,
-        new Set(
-          findSecretFingerprintsInFile(
-            repoPath,
+  // Scoped to the 'secret_cleanliness' signal: this is A2's secret matcher, the clearest case
+  // of a finding that genuinely depends on file content (goal_cejel_v23_instrument_all_
+  // criteria_2026-09-07) — an unreadable file here must abstain the committed-secret finding
+  // and the secret_cleanliness metric, never silently report "clean" from a file it never saw.
+  const { committedSecret, currentSecretFingerprintsByPath } = withContentReadSignal(
+    'A2',
+    'secret_cleanliness',
+    () => {
+      let match_: { path: string; match: RealSecretAssignmentMatch } | undefined;
+      for (const path of repoFiles) {
+        const authoredProductionPath = useV47Detectors
+          ? isV47AuthoredProductionPath(path)
+          : useV39Detectors
+            ? isV39AuthoredProductionPath(path)
+            : isAuthoredProductionPath(path);
+        if (
+          isIgnoredScanFile(path, useV47Detectors) ||
+          (useV33Detectors && !authoredProductionPath)
+        ) {
+          continue;
+        }
+        const found = findCommittedSecretInFile(
+          repoPath,
+          path,
+          useV36Detectors,
+          useV39Detectors,
+          useV47Detectors,
+        );
+        if (!found) continue;
+        match_ = { path, match: found };
+        break;
+      }
+      const fingerprintsByPath = new Map<string, ReadonlySet<string>>();
+      if (useV27Detectors) {
+        for (const path of repoFiles.filter((candidate) => isCredentialHistoryPath(candidate))) {
+          fingerprintsByPath.set(
             path,
-            useV36Detectors,
-            useV39Detectors,
-            useV47Detectors,
-          ),
-        ),
-      );
-    }
-  }
+            new Set(
+              findSecretFingerprintsInFile(
+                repoPath,
+                path,
+                useV36Detectors,
+                useV39Detectors,
+                useV47Detectors,
+              ),
+            ),
+          );
+        }
+      }
+      return { committedSecret: match_, currentSecretFingerprintsByPath: fingerprintsByPath };
+    },
+  );
   // Current-tree and ancestor-history evidence are independent propositions. A current secret
   // must not suppress a distinct deleted/rotated credential finding from history. V8 excludes
   // HEAD and any still-current value fingerprints from the history pass, so unchanged credentials
@@ -2186,10 +2201,15 @@ function collectA2IsolationEvidence(
   // surface in source (e.g. an audit-chain library with no .env anywhere) IS itself a ratable
   // secrets surface, same reasoning as the committed/history secret scan above. Bounded and
   // only scored when such a surface is actually found; never a penalty for repos without one.
-  const cryptoHygiene = collectCryptoHygieneEvidence(
-    repoPath,
-    repoFiles.filter(isImplementationFile).slice(0, 60),
-    useV39Detectors,
+  // Scoped to 'crypto_comparison_hygiene': independent of the secret scan above, this reads a
+  // different file set (implementation files) for a different pattern family (signing/HMAC/
+  // secret-comparison) and feeds its own metric plus its own findings.
+  const cryptoHygiene = withContentReadSignal('A2', 'crypto_comparison_hygiene', () =>
+    collectCryptoHygieneEvidence(
+      repoPath,
+      repoFiles.filter(isImplementationFile).slice(0, 60),
+      useV39Detectors,
+    ),
   );
 
   // Archetype-aware N/A gate. A ratable secrets surface requires at least one of:
@@ -2271,57 +2291,82 @@ function collectA2IsolationEvidence(
   }
   // hasSecretsSurface via gitignoreHasEnvRule or envExamples: pushed in main loop below.
 
-  const v47RlsPolicyFiles = useV47Detectors ? findRlsPolicyFiles(repoPath, repoFiles) : [];
-  const nativeRlsInventory = useV18NativeRls
-    ? deriveRlsPolicyScopeInventory(repoPath, repoFiles)
-    : null;
-  // V18 positive isolation credit is policy-native, but a schema that advertises a
-  // tenant boundary and has zero policies must never be silently reclassified as
-  // single-tenant. This legacy, conservative premise is used only to emit the
-  // fail-closed gap finding; it cannot manufacture D7 credit or isolation metrics.
-  const tenantWithoutRlsPremiseFiles = useV18NativeRls
-    ? findTenantStoragePremiseFiles(repoPath, repoFiles)
-    : [];
-  const v47TenantStorageFiles =
-    useV47Detectors && !useV18NativeRls ? findTenantStoragePremiseFiles(repoPath, repoFiles) : [];
-  const rlsMigration = useV47Detectors
-    ? v47RlsPolicyFiles[0]
-    : migrationFiles.find((file) => fileContains(repoPath, file, RLS_PATTERN));
+  // Scoped to ['rls_policy_count', 'tenant_scope_ratio']: both metrics (and the tenant-
+  // without-RLS gap finding below) are derived from this one pass over migration files, so a
+  // read failure anywhere in it abstains both rather than leaving one silently under-counted
+  // from the other's partial read.
   const tenantScopePattern = useV39Detectors
     ? TENANT_SCOPE_PATTERN_V11
     : useV36Detectors
       ? TENANT_SCOPE_PATTERN_V10
       : TENANT_SCOPE_PATTERN;
-  const tenantScopedFile = useV18NativeRls
-    ? nativeRlsInventory?.storageFiles[0]
-    : useV47Detectors
-      ? v47TenantStorageFiles[0]
-      : migrationFiles.find((file) => fileContains(repoPath, file, tenantScopePattern));
-  const rlsPolicyCount = useV18NativeRls
-    ? (nativeRlsInventory?.policyCount ?? 0)
-    : useV47Detectors
-      ? v47RlsPolicyFiles.length
-      : countPatternMatches(
-          repoPath,
-          migrationFiles,
-          /create policy|enable row level security|force row level security/gi,
-        );
-  const tenantScopedMigrationFileCount = useV18NativeRls
-    ? (nativeRlsInventory?.storageFiles.length ?? 0)
-    : useV47Detectors
-      ? v47TenantStorageFiles.length
-      : countFilesContaining(repoPath, migrationFiles, tenantScopePattern);
-  // gitignoreEnvFile is non-null only when the gitignore actually contains an .env rule.
-  const gitignoreEnvFile =
-    gitignore && fileContains(repoPath, gitignore, /^\.env(\*|\b)|\.env\./m) ? gitignore : null;
-  // FIX 3 — env_handling_depth: multi-language (match the same set as the surface detector).
-  // Counts three distinct bounded practices (0–3) to prevent file-count over-indexing.
-  const envHandlingDepth =
-    (envExamples.length > 0 ? 1 : 0) +
-    (gitignoreEnvFile ? 1 : 0) +
-    (countFilesContaining(repoPath, repoFiles.filter(isImplementationFile), ENV_READ_PATTERN) > 0
-      ? 1
-      : 0);
+  const {
+    rlsMigration,
+    tenantScopedFile,
+    rlsPolicyCount,
+    tenantScopedMigrationFileCount,
+    nativeRlsInventory,
+    tenantWithoutRlsPremiseFiles,
+  } = withContentReadSignals('A2', ['rls_policy_count', 'tenant_scope_ratio'], () => {
+    const v47RlsPolicyFiles = useV47Detectors ? findRlsPolicyFiles(repoPath, repoFiles) : [];
+    const rlsInventory = useV18NativeRls ? deriveRlsPolicyScopeInventory(repoPath, repoFiles) : null;
+    // V18 positive isolation credit is policy-native, but a schema that advertises a
+    // tenant boundary and has zero policies must never be silently reclassified as
+    // single-tenant. This legacy, conservative premise is used only to emit the
+    // fail-closed gap finding; it cannot manufacture D7 credit or isolation metrics.
+    const tenantWithoutRlsFiles = useV18NativeRls
+      ? findTenantStoragePremiseFiles(repoPath, repoFiles)
+      : [];
+    const v47TenantStorageFiles =
+      useV47Detectors && !useV18NativeRls
+        ? findTenantStoragePremiseFiles(repoPath, repoFiles)
+        : [];
+    return {
+      rlsMigration: useV47Detectors
+        ? v47RlsPolicyFiles[0]
+        : migrationFiles.find((file) => fileContains(repoPath, file, RLS_PATTERN)),
+      tenantScopedFile: useV18NativeRls
+        ? rlsInventory?.storageFiles[0]
+        : useV47Detectors
+          ? v47TenantStorageFiles[0]
+          : migrationFiles.find((file) => fileContains(repoPath, file, tenantScopePattern)),
+      rlsPolicyCount: useV18NativeRls
+        ? (rlsInventory?.policyCount ?? 0)
+        : useV47Detectors
+          ? v47RlsPolicyFiles.length
+          : countPatternMatches(
+              repoPath,
+              migrationFiles,
+              /create policy|enable row level security|force row level security/gi,
+            ),
+      tenantScopedMigrationFileCount: useV18NativeRls
+        ? (rlsInventory?.storageFiles.length ?? 0)
+        : useV47Detectors
+          ? v47TenantStorageFiles.length
+          : countFilesContaining(repoPath, migrationFiles, tenantScopePattern),
+      nativeRlsInventory: rlsInventory,
+      tenantWithoutRlsPremiseFiles: tenantWithoutRlsFiles,
+    };
+  });
+  // Scoped to 'env_handling_depth': gitignoreEnvFile and the env-read scan both feed only this
+  // metric (a read failure here does not touch the secret or RLS signals above).
+  const { gitignoreEnvFile, hasEnvReadsInImplementation, envHandlingDepth } = withContentReadSignal(
+    'A2',
+    'env_handling_depth',
+    () => {
+      // gitignoreEnvFile is non-null only when the gitignore actually contains an .env rule.
+      const envFile =
+        gitignore && fileContains(repoPath, gitignore, /^\.env(\*|\b)|\.env\./m) ? gitignore : null;
+      const hasEnvReads =
+        countFilesContaining(repoPath, repoFiles.filter(isImplementationFile), ENV_READ_PATTERN) >
+        0;
+      // FIX 3 — env_handling_depth: multi-language (match the same set as the surface detector).
+      // Counts three distinct bounded practices (0–3) to prevent file-count over-indexing.
+      const depth =
+        (envExamples.length > 0 ? 1 : 0) + (envFile ? 1 : 0) + (hasEnvReads ? 1 : 0);
+      return { gitignoreEnvFile: envFile, hasEnvReadsInImplementation: hasEnvReads, envHandlingDepth: depth };
+    },
+  );
   // Whether the repo claims multi-tenant architecture (tenant/studio/org-scoped schema signals).
   const isMultiTenant = useV18NativeRls
     ? (nativeRlsInventory?.policyCount ?? 0) > 0 &&
@@ -2329,27 +2374,37 @@ function collectA2IsolationEvidence(
     : tenantScopedMigrationFileCount > 0;
 
   if (gitignoreEnvFile) {
-    evidence.push(
-      evidenceForRelative(repoPath, gitignoreEnvFile, 'secret_scan', '.env files are gitignored'),
+    withContentReadSignal('A2', 'env_handling_depth', () =>
+      evidence.push(
+        evidenceForRelative(repoPath, gitignoreEnvFile, 'secret_scan', '.env files are gitignored'),
+      ),
     );
   }
-  for (const file of envExamples.slice(0, 3)) {
-    evidence.push(evidenceForRelative(repoPath, file, 'secret_scan', 'Environment template'));
-  }
+  // Feeds env_handling_depth's 'environment template file' component — a genuinely first read
+  // of these files (envExamples is filename-only), not a re-read of an already-read file.
+  withContentReadSignal('A2', 'env_handling_depth', () => {
+    for (const file of envExamples.slice(0, 3)) {
+      evidence.push(evidenceForRelative(repoPath, file, 'secret_scan', 'Environment template'));
+    }
+  });
   if (rlsMigration) {
-    evidence.push(
-      evidenceForRelative(repoPath, rlsMigration, 'artifact', 'RLS or tenant migration'),
+    withContentReadSignals('A2', ['rls_policy_count', 'tenant_scope_ratio'], () =>
+      evidence.push(
+        evidenceForRelative(repoPath, rlsMigration, 'artifact', 'RLS or tenant migration'),
+      ),
     );
   }
   if (tenantScopedFile) {
-    evidence.push(
-      evidenceForRelative(
-        repoPath,
-        tenantScopedFile,
-        'artifact',
-        useV18NativeRls
-          ? `Repository-native RLS scope (${nativeRlsInventory?.scopeIdentifiers.join(', ')})`
-          : 'Tenant scoping signal',
+    withContentReadSignals('A2', ['rls_policy_count', 'tenant_scope_ratio'], () =>
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          tenantScopedFile,
+          'artifact',
+          useV18NativeRls
+            ? `Repository-native RLS scope (${nativeRlsInventory?.scopeIdentifiers.join(', ')})`
+            : 'Tenant scoping signal',
+        ),
       ),
     );
   }
@@ -2508,14 +2563,7 @@ function collectA2IsolationEvidence(
           { label: '.gitignore environment-file rule', count: gitignoreEnvFile ? 1 : 0 },
           {
             label: 'environment reads in implementation code',
-            count:
-              countFilesContaining(
-                repoPath,
-                repoFiles.filter(isImplementationFile),
-                ENV_READ_PATTERN,
-              ) > 0
-                ? 1
-                : 0,
+            count: hasEnvReadsInImplementation ? 1 : 0,
           },
         ],
       },
@@ -2799,27 +2847,36 @@ function collectA3ProdReadinessEvidence(
   const envTemplate = repoFiles.find(
     (file) => (!useV27Detectors || isAuthoredProductionPath(file)) && isEnvTemplatePath(file),
   );
-  const healthChecks = repoFiles.filter(
-    (file) =>
-      (!useV27Detectors || isAuthoredProductionPath(file)) &&
-      isHealthCheckSignalFile(repoPath, file),
+  // Scoped to 'prod_readiness_primitives': the only content-dependent check among that
+  // metric's six components (the rest are filename/path predicates).
+  const healthChecks = withContentReadSignal('A3', 'prod_readiness_primitives', () =>
+    repoFiles.filter(
+      (file) =>
+        (!useV27Detectors || isAuthoredProductionPath(file)) &&
+        isHealthCheckSignalFile(repoPath, file),
+    ),
   );
   const healthCheck = healthChecks[0];
-  const hasV20HealthOrReadinessRoute =
-    useV20ExplicitGaps &&
-    repoFiles.some(
-      (file) =>
-        isAuthoredProductionPath(file) &&
-        isImplementationFile(file) &&
-        fileContains(repoPath, file, V20_HEALTH_OR_READINESS_ROUTE_PATTERN),
-    );
-  const hasV22PackageStartHealthOrReadinessRoute =
-    v22PackageStartHttpEntrypoint !== null &&
-    fileContains(
-      repoPath,
-      v22PackageStartHttpEntrypoint,
-      V20_HEALTH_OR_READINESS_ROUTE_PATTERN,
-    );
+  // Scoped to 'health_readiness_route': feeds only the (info-severity) health/readiness-route
+  // absence finding below, never a scored metric.
+  const { hasV20HealthOrReadinessRoute, hasV22PackageStartHealthOrReadinessRoute } =
+    withContentReadSignal('A3', 'health_readiness_route', () => ({
+      hasV20HealthOrReadinessRoute:
+        useV20ExplicitGaps &&
+        repoFiles.some(
+          (file) =>
+            isAuthoredProductionPath(file) &&
+            isImplementationFile(file) &&
+            fileContains(repoPath, file, V20_HEALTH_OR_READINESS_ROUTE_PATTERN),
+        ),
+      hasV22PackageStartHealthOrReadinessRoute:
+        v22PackageStartHttpEntrypoint !== null &&
+        fileContains(
+          repoPath,
+          v22PackageStartHttpEntrypoint,
+          V20_HEALTH_OR_READINESS_ROUTE_PATTERN,
+        ),
+    }));
   const serverEntrypoint =
     v22PackageStartHttpEntrypoint ??
     findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
@@ -2834,21 +2891,26 @@ function collectA3ProdReadinessEvidence(
       /error-boundary|error\.(tsx|jsx|ts|js)$/.test(file),
   );
   const errorBoundary = errorBoundaries[0];
-  const observabilityCount = countFilesContaining(
-    repoPath,
-    repoFiles.filter(
-      (file) => (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file),
+  const observabilityCount = withContentReadSignal('A3', 'observability_depth', () =>
+    countFilesContaining(
+      repoPath,
+      repoFiles.filter(
+        (file) =>
+          (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file),
+      ),
+      /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail/i,
     ),
-    /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail/i,
   );
-  const rollbackSafetyCount = countFilesContaining(
-    repoPath,
-    repoFiles.filter(
-      (file) =>
-        (!useV27Detectors || isAuthoredProductionPath(file)) &&
-        /(^|\/)(docs|migrations?|drizzle|prisma|scripts)\//.test(file),
+  const rollbackSafetyCount = withContentReadSignal('A3', 'rollback_safety_depth', () =>
+    countFilesContaining(
+      repoPath,
+      repoFiles.filter(
+        (file) =>
+          (!useV27Detectors || isAuthoredProductionPath(file)) &&
+          /(^|\/)(docs|migrations?|drizzle|prisma|scripts)\//.test(file),
+      ),
+      /rollback|roll back|migration safety|down migration|reversible|undo migration/i,
     ),
-    /rollback|roll back|migration safety|down migration|reversible|undo migration/i,
   );
 
   if (packageJson && (scripts.has('build') || scripts.has('typecheck'))) {
@@ -2877,10 +2939,13 @@ function collectA3ProdReadinessEvidence(
     );
   if (envTemplate)
     evidence.push(evidenceForRelative(repoPath, envTemplate, 'prod_check', 'Environment template'));
-  if (healthCheck)
-    evidence.push(
-      evidenceForRelative(repoPath, healthCheck, 'prod_check', 'Health/readiness signal'),
+  if (healthCheck) {
+    withContentReadSignal('A3', 'prod_readiness_primitives', () =>
+      evidence.push(
+        evidenceForRelative(repoPath, healthCheck, 'prod_check', 'Health/readiness signal'),
+      ),
     );
+  }
   if (errorBoundary)
     evidence.push(evidenceForRelative(repoPath, errorBoundary, 'prod_check', 'Error boundary'));
 
@@ -2925,7 +2990,10 @@ function collectA3ProdReadinessEvidence(
         ),
       });
     } else if (runtimeContainer) {
-      if (!fileContains(repoPath, runtimeContainer, /^\s*HEALTHCHECK\s+(?!NONE\b)/im)) {
+      const hasActiveHealthcheck = withContentReadSignal('A3', 'dockerfile_healthcheck', () =>
+        fileContains(repoPath, runtimeContainer, /^\s*HEALTHCHECK\s+(?!NONE\b)/im),
+      );
+      if (!hasActiveHealthcheck) {
         findings.push({
           severity: 'info',
           summary: 'A runtime Dockerfile declares no active HEALTHCHECK instruction.',
@@ -2939,10 +3007,12 @@ function collectA3ProdReadinessEvidence(
       }
     } else if (
       serverEntrypoint &&
-      fileContains(
-        repoPath,
-        serverEntrypoint,
-        /\b(?:request|req)\.(?:url|path|pathname|method)\b/i,
+      withContentReadSignal('A3', 'health_readiness_route', () =>
+        fileContains(
+          repoPath,
+          serverEntrypoint,
+          /\b(?:request|req)\.(?:url|path|pathname|method)\b/i,
+        ),
       ) &&
       healthChecks.length === 0 &&
       !hasV20HealthOrReadinessRoute &&
@@ -3064,12 +3134,6 @@ function collectA4DependencyEvidence(
   const findings: WitanCriterionSignalPayload['findings'] = [];
   const manifests = repoFiles.filter(isDependencyManifest);
   const lockfiles = repoFiles.filter(isLockfile);
-  // Cite the manifest that actually carries dependencies for evidence/findings,
-  // not whichever sorts first (e.g. a near-empty requirements-windows.txt that
-  // precedes the real requirements.txt), so the evidence pointer reflects the
-  // file the A4 score is derived from. The score itself is unaffected: it
-  // aggregates specs across ALL manifests below.
-  const manifest = pickPrimaryDependencyManifest(repoPath, manifests);
   const lockfile = lockfiles[0];
   // A lockfile / dependency-update config at the MONOREPO ROOT covers this sub-package.
   const rootLockfile = mono ? mono.sharedFiles.find(isLockfile) : undefined;
@@ -3077,16 +3141,47 @@ function collectA4DependencyEvidence(
   const hasLockfile = Boolean(lockfile) || Boolean(rootLockfile);
   const updateConfig = repoFiles.find(isDependencyUpdateConfig);
   const hasUpdateConfig = Boolean(updateConfig) || Boolean(rootUpdateConfig);
-  const auditConfig = manifests.some((file) => packageJsonHasAuditScript(repoPath, file));
-  const dependencySpecs = readDependencySpecs(repoPath, manifests);
+  // Scoped to 'dependency_automation_ratio': the only content-dependent half of that metric
+  // (hasUpdateConfig above is filename-only).
+  const auditConfig = withContentReadSignal('A4', 'dependency_automation_ratio', () =>
+    manifests.some((file) => packageJsonHasAuditScript(repoPath, file)),
+  );
+  // A single parse of each manifest feeds three separate ratio metrics below
+  // (pinned_dependency_ratio / declared_version_range_ratio / dependency_count_sanity) — see
+  // withContentReadSignals' doc comment in content-reads.ts. An unreadable manifest abstains
+  // all three rather than silently under-counting only the one computed first.
+  // pickPrimaryDependencyManifest also parses every manifest candidate (to break ties by spec
+  // count), so it is wrapped in the same scope — otherwise its read of the very same file would
+  // happen outside any signal and force the conservative whole-criterion fallback regardless of
+  // the wrap below (goal_cejel_v23_instrument_all_criteria_2026-09-07).
+  const { manifest, dependencySpecs } = withContentReadSignals(
+    'A4',
+    ['pinned_dependency_ratio', 'declared_version_range_ratio', 'dependency_count_sanity'],
+    () => ({
+      // Cite the manifest that actually carries dependencies for evidence/findings, not
+      // whichever sorts first (e.g. a near-empty requirements-windows.txt that precedes the
+      // real requirements.txt), so the evidence pointer reflects the file the A4 score is
+      // derived from. The score itself is unaffected: it aggregates specs across ALL manifests.
+      manifest: pickPrimaryDependencyManifest(repoPath, manifests),
+      dependencySpecs: readDependencySpecs(repoPath, manifests),
+    }),
+  );
   const pinnedDependencyCount = dependencySpecs.filter((dependency) =>
     isPinnedDependencyVersion(dependency.version),
   ).length;
 
-  if (manifest)
-    evidence.push(
-      evidenceForRelative(repoPath, manifest, 'dependency_report', 'Dependency manifest'),
+  if (manifest) {
+    // This evidence pointer is hashed from the same manifest the ratio metrics above parsed —
+    // an unreadable manifest belongs to that signal group, not an unattributed A4-wide skip.
+    withContentReadSignals(
+      'A4',
+      ['pinned_dependency_ratio', 'declared_version_range_ratio', 'dependency_count_sanity'],
+      () =>
+        evidence.push(
+          evidenceForRelative(repoPath, manifest, 'dependency_report', 'Dependency manifest'),
+        ),
     );
+  }
   if (lockfile)
     evidence.push(
       evidenceForRelative(repoPath, lockfile, 'dependency_report', 'Dependency lockfile'),
@@ -3139,32 +3234,44 @@ function collectA4DependencyEvidence(
   if (isAppOrService && !hasLockfile && manifest) {
     // A missing recognized lockfile is a concrete inventory result. Do not infer the broader
     // install-reproducibility consequence here: the detector does not inspect every other
-    // package-manager or deployment pinning mechanism.
-    findings.push(
-      inventoryAbsenceFinding({
-        severity: 'critical',
-        summaries: {
-          legacy:
-            'Dependency manifest is present without a detected lockfile — non-reproducible installs.',
-          currentTracked:
-            'Dependency manifest is present, but the tracked scan-eligible inventory matched no recognized lockfile.',
-          currentDirectoryWalk:
-            'Dependency manifest is present, but the bounded directory walk matched no recognized lockfile.',
-        },
-        evidence: evidenceForRelative(
-          repoPath,
-          manifest,
-          'dependency_report',
-          'Dependency manifest',
+    // package-manager or deployment pinning mechanism. The evidence pointer below is hashed
+    // from the same manifest the ratio metrics above parsed, so it is wrapped in that same
+    // signal group rather than left to force an unattributed A4-wide skip.
+    withContentReadSignals(
+      'A4',
+      ['pinned_dependency_ratio', 'declared_version_range_ratio', 'dependency_count_sanity'],
+      () =>
+        findings.push(
+          inventoryAbsenceFinding({
+            severity: 'critical',
+            summaries: {
+              legacy:
+                'Dependency manifest is present without a detected lockfile — non-reproducible installs.',
+              currentTracked:
+                'Dependency manifest is present, but the tracked scan-eligible inventory matched no recognized lockfile.',
+              currentDirectoryWalk:
+                'Dependency manifest is present, but the bounded directory walk matched no recognized lockfile.',
+            },
+            evidence: evidenceForRelative(
+              repoPath,
+              manifest,
+              'dependency_report',
+              'Dependency manifest',
+            ),
+            context: inventoryAbsenceContext,
+            inventoryCount: repoFiles.length + (mono?.sharedFiles.length ?? 0),
+            patternSet: INVENTORY_SCAN_PATTERN_SETS.a4Lockfile,
+            matchCount: 0,
+          }),
         ),
-        context: inventoryAbsenceContext,
-        inventoryCount: repoFiles.length + (mono?.sharedFiles.length ?? 0),
-        patternSet: INVENTORY_SCAN_PATTERN_SETS.a4Lockfile,
-        matchCount: 0,
-      }),
     );
   }
-  if (manifest && hasSuspiciousDependencies(repoPath, manifest, useV47Detectors)) {
+  if (
+    manifest &&
+    withContentReadSignal('A4', 'suspicious_dependencies', () =>
+      hasSuspiciousDependencies(repoPath, manifest, useV47Detectors),
+    )
+  ) {
     // Suspicious/hallucinated package names are a supply-chain risk.
     findings.push({
       severity: 'critical',
@@ -3380,18 +3487,27 @@ function collectA5ClaimRealityEvidence(
     ...allDocFiles,
     ...repoFiles.filter((file) => /(^|\/)(SECURITY|THREAT[_-]?MODEL)\.md$/i.test(file)),
   ]);
-  const negativeSpaceDoc = [...negativeSpaceCandidates].find(
-    (file) =>
-      fileContains(repoPath, file, NEGATIVE_SPACE_SECTION_PATTERN) ||
-      fileContains(repoPath, file, NEGATIVE_SPACE_PHRASE_PATTERN),
+  // Scoped to 'negative_space_documentation': feeds no metric (A5's three metrics are all
+  // file-count proxies, never content-derived — see this goal's report), only the evidence
+  // pointer and the finding severity (info vs warning) below. An unreadable candidate here must
+  // not silently fall through to "no documented negative space" and harden the finding's
+  // wording/severity as if that had been positively confirmed.
+  const negativeSpaceDoc = withContentReadSignal('A5', 'negative_space_documentation', () =>
+    [...negativeSpaceCandidates].find(
+      (file) =>
+        fileContains(repoPath, file, NEGATIVE_SPACE_SECTION_PATTERN) ||
+        fileContains(repoPath, file, NEGATIVE_SPACE_PHRASE_PATTERN),
+    ),
   );
   if (negativeSpaceDoc) {
-    evidence.push(
-      evidenceForRelative(
-        repoPath,
-        negativeSpaceDoc,
-        'claim_reconciliation',
-        'Documented limitations / threat model / "not covered" section',
+    withContentReadSignal('A5', 'negative_space_documentation', () =>
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          negativeSpaceDoc,
+          'claim_reconciliation',
+          'Documented limitations / threat model / "not covered" section',
+        ),
       ),
     );
   }
@@ -3554,11 +3670,12 @@ function collectB3CiDisciplineEvidence(
   const workflow = workflows[0];
   // CI workflows at the MONOREPO ROOT gate this sub-package's PRs too — count them.
   const rootWorkflows = mono ? mono.sharedFiles.filter(isCiWorkflow) : [];
-  const defaultBranchCiCount =
+  const defaultBranchCiCount = withContentReadSignal('B3', 'default_branch_ci_depth', () =>
     workflows.filter((file) => workflowTargetsDefaultBranch(repoPath, file)).length +
-    (mono
-      ? rootWorkflows.filter((file) => workflowTargetsDefaultBranch(mono.root, file)).length
-      : 0);
+      (mono
+        ? rootWorkflows.filter((file) => workflowTargetsDefaultBranch(mono.root, file)).length
+        : 0),
+  );
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -3566,11 +3683,21 @@ function collectB3CiDisciplineEvidence(
   if (packageJson && scripts.has('lint')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'ci_run', 'Lint script'));
   }
-  if (workflow) evidence.push(evidenceForRelative(repoPath, workflow, 'ci_run', 'CI workflow'));
-  else if (rootWorkflows[0] && mono)
-    evidence.push(
-      evidenceForRelative(mono.root, rootWorkflows[0], 'ci_run', 'CI workflow (monorepo root)'),
+  // Both evidence pointers below are hashed from the same workflow file(s) ci_script_depth and
+  // default_branch_ci_depth read above — an unreadable workflow belongs to those signals, not
+  // an unattributed B3-wide skip.
+  if (workflow) {
+    withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+      evidence.push(evidenceForRelative(repoPath, workflow, 'ci_run', 'CI workflow')),
     );
+  } else if (rootWorkflows[0] && mono) {
+    const rootWorkflow = rootWorkflows[0];
+    withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+      evidence.push(
+        evidenceForRelative(mono.root, rootWorkflow, 'ci_run', 'CI workflow (monorepo root)'),
+      ),
+    );
+  }
 
   if (evidence.length === 0) return null;
 
@@ -3592,13 +3719,25 @@ function collectB3CiDisciplineEvidence(
     CI_BUILD_COMMAND_PATTERN,
   ];
   const scriptDepth = ['test', 'lint', 'typecheck', 'build'].filter((s) => scripts.has(s)).length;
-  const countCiCommandCategories = (root: string, files: readonly string[]): number =>
-    CI_COMMAND_CATEGORIES.filter((pattern) =>
-      files.some((file) => fileContains(root, file, pattern)),
-    ).length;
+  // Scoped to 'ci_script_depth': computed once here and reused below for both the metric value
+  // and its presentation components, so a read failure abstains the metric instead of leaving
+  // the redisplayed components silently recomputed outside the tracked scope.
+  const { repoCategoryHits, rootCategoryHits } = withContentReadSignal(
+    'B3',
+    'ci_script_depth',
+    () => ({
+      repoCategoryHits: CI_COMMAND_CATEGORIES.map((pattern) =>
+        workflows.some((file) => fileContains(repoPath, file, pattern)),
+      ),
+      rootCategoryHits: mono
+        ? CI_COMMAND_CATEGORIES.map((pattern) =>
+            rootWorkflows.some((file) => fileContains(mono.root, file, pattern)),
+          )
+        : [],
+    }),
+  );
   const ciCommandDepth =
-    countCiCommandCategories(repoPath, workflows) +
-    (mono ? countCiCommandCategories(mono.root, rootWorkflows) : 0);
+    repoCategoryHits.filter(Boolean).length + rootCategoryHits.filter(Boolean).length;
   const combinedDepth = scriptDepth + ciCommandDepth;
 
   return {
@@ -3621,16 +3760,14 @@ function collectB3CiDisciplineEvidence(
               label: `package script: ${name === 'typecheck' ? 'type-check' : name}`,
               count: scripts.has(name) ? 1 : 0,
             })),
-            ...CI_COMMAND_CATEGORIES.map((pattern, index) => ({
+            ...CI_COMMAND_CATEGORIES.map((_pattern, index) => ({
               label: `repository CI command: ${['test', 'lint', 'type-check', 'build'][index]}`,
-              count: workflows.some((file) => fileContains(repoPath, file, pattern)) ? 1 : 0,
+              count: repoCategoryHits[index] ? 1 : 0,
             })),
             ...(mono
-              ? CI_COMMAND_CATEGORIES.map((pattern, index) => ({
+              ? CI_COMMAND_CATEGORIES.map((_pattern, index) => ({
                   label: `monorepo-root CI command: ${['test', 'lint', 'type-check', 'build'][index]}`,
-                  count: rootWorkflows.some((file) => fileContains(mono.root, file, pattern))
-                    ? 1
-                    : 0,
+                  count: rootCategoryHits[index] ? 1 : 0,
                 }))
               : []),
           ],
@@ -3691,9 +3828,14 @@ function collectB4AuditEvidence(
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const auditFiles = repoFiles.filter(isAuditFile);
-  for (const file of auditFiles.slice(0, 5)) {
-    evidence.push(evidenceForRelative(repoPath, file, 'audit_log', 'Audit or changelog artifact'));
-  }
+  // These evidence pointers are hashed from the same files audit_freshness_depth scans below —
+  // an unreadable audit file belongs to that signal, not an unattributed B4-wide skip.
+  // audit_artifact_depth itself is a pure file count and is unaffected either way.
+  withContentReadSignal('B4', 'audit_freshness_depth', () => {
+    for (const file of auditFiles.slice(0, 5)) {
+      evidence.push(evidenceForRelative(repoPath, file, 'audit_log', 'Audit or changelog artifact'));
+    }
+  });
   if (evidence.length === 0) {
     // FIX (goal_cejel_calibration_fix_with_strict_gate_2026-07-06): originally a `null`
     // signal scored 0.0-unverified INSIDE the process-trust average, so this returns an
@@ -3766,7 +3908,9 @@ function collectB4AuditEvidence(
       metric(
         'audit_freshness_depth',
         'Audit freshness depth',
-        countFilesContaining(repoPath, auditFiles, freshnessPattern),
+        withContentReadSignal('B4', 'audit_freshness_depth', () =>
+          countFilesContaining(repoPath, auditFiles, freshnessPattern),
+        ),
         Math.max(auditFiles.length, 1),
         0.2,
         'ratio',
@@ -3794,24 +3938,30 @@ function collectB6PrivilegedOpsGatingEvidence(
   const findings: WitanCriterionSignalPayload['findings'] = [];
 
   const docFiles = repoFiles.filter((file) => /\.(md|mdx)$/i.test(file));
-  const humanGateDoc = docFiles.find((file) =>
-    fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN),
+  // Scoped to 'human_gate_documented': feeds only that metric and the evidence anchor below.
+  const humanGateDoc = withContentReadSignal('B6', 'human_gate_documented', () =>
+    docFiles.find((file) => fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN)),
   );
 
   const implFiles = repoFiles.filter(isImplementationFile);
-  const gatedPrivilegeCheckFile = implFiles.find(
-    (file) =>
-      fileContains(repoPath, file, GATED_PRIVILEGE_CHECK_PATTERN) &&
-      fileContains(repoPath, file, SET_ROLE_PATTERN),
+  // Scoped to 'fail_closed_privilege_check'.
+  const gatedPrivilegeCheckFile = withContentReadSignal('B6', 'fail_closed_privilege_check', () =>
+    implFiles.find(
+      (file) =>
+        fileContains(repoPath, file, GATED_PRIVILEGE_CHECK_PATTERN) &&
+        fileContains(repoPath, file, SET_ROLE_PATTERN),
+    ),
   );
   // Un-overridable kill-switch / fail-safe ordering (goal_cejel_rubric_refinement_from_lua_2026-07-06):
   // a named governance/safety toggle whose falsy state triggers an immediate guard-clause
   // return/throw, so no lower-priority config can proceed past it. Bounded, positive-only —
-  // its absence never lowers the score.
-  const killSwitchFile = implFiles.find(
-    (file) =>
-      fileContains(repoPath, file, KILL_SWITCH_NAME_PATTERN) &&
-      fileContains(repoPath, file, KILL_SWITCH_FAIL_CLOSED_PATTERN),
+  // its absence never lowers the score. Scoped to 'kill_switch_fail_safe_present'.
+  const killSwitchFile = withContentReadSignal('B6', 'kill_switch_fail_safe_present', () =>
+    implFiles.find(
+      (file) =>
+        fileContains(repoPath, file, KILL_SWITCH_NAME_PATTERN) &&
+        fileContains(repoPath, file, KILL_SWITCH_FAIL_CLOSED_PATTERN),
+    ),
   );
 
   // goal_cejel_calibration_fix_with_strict_gate_2026-07-06: most external repos have no
@@ -3821,101 +3971,129 @@ function collectB6PrivilegedOpsGatingEvidence(
   // merges. This is the OSS-observable analogue of "privileged operations stay human-gated";
   // credit it as (weaker) positive evidence instead of defaulting straight to not_applicable.
   const codeownersFile = repoFiles.find((file) => /(^|\/)CODEOWNERS$/.test(file));
-  const reviewGateDoc = docFiles.find((file) =>
-    fileContains(repoPath, file, REQUIRED_REVIEW_PATTERN),
+  // Scoped to 'protected_path_review_gate': codeownersFile above is filename-only.
+  const reviewGateDoc = withContentReadSignal('B6', 'protected_path_review_gate', () =>
+    docFiles.find((file) => fileContains(repoPath, file, REQUIRED_REVIEW_PATTERN)),
   );
   const protectedPathReviewGate = codeownersFile ?? reviewGateDoc;
 
-  // Only files that actually execute SQL are candidates for an ungated escalation finding —
-  // a runbook or doc comment that merely names the GRANT a human should run is not code
-  // executing it, and is excluded below anyway once it carries the human-gate marker.
-  const executableFiles = implFiles.filter((file) =>
-    fileContains(repoPath, file, SQL_EXEC_PATTERN),
-  );
-  const historicalUngatedEscalationFiles = executableFiles.filter((file) => {
-    if (useV39Detectors && !fileHasExecutedPrivilegeEscalation(repoPath, file)) return false;
-    const hasEscalation =
-      fileContains(repoPath, file, ROLE_MEMBERSHIP_GRANT_PATTERN) ||
-      fileContains(repoPath, file, SUPERUSER_ESCALATION_PATTERN);
-    if (!hasEscalation) return false;
-    return !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN);
-  });
-  const v21ExecutedEscalationFiles = useV21ExecutedEscalations
-    ? repoFiles.filter(
-        (file) =>
-          isV39AuthoredProductionPath(file) &&
-          (fileHasV21RawSqlEscalation(repoPath, file) ||
-            (isImplementationFile(file) && fileHasV21DriverEscalation(repoPath, file))),
-      )
-    : [];
-  const v21ExecutedEscalationFileSet = new Set(v21ExecutedEscalationFiles);
-  const ungatedEscalationFiles = [
-    ...new Set([...historicalUngatedEscalationFiles, ...v21ExecutedEscalationFiles]),
-  ].filter((file) => !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN));
-  // A GRANT statement asserted inside a test file exercises the detector itself, not a
-  // production self-execution path — exclude it from both the finding set and the
-  // production cleanliness metric.
-  const productionUngatedEscalationFiles = ungatedEscalationFiles.filter((file) =>
-    useV39Detectors ? isV39AuthoredProductionPath(file) : !isTestOrFixturePath(file),
-  );
+  // Scoped to 'privilege_escalation_cleanliness': the whole ungated-escalation pipeline below is
+  // A2's secret-matcher pattern applied to B6 — the clearest case of a finding (critical
+  // severity) that genuinely depends on file content, not merely the metric. An unreadable file
+  // here must abstain both the metric and any finding it could have produced, never silently
+  // report "clean" from a file whose escalation grant was never seen
+  // (goal_cejel_v23_instrument_all_criteria_2026-09-07).
+  const { executableFiles, v21ExecutedEscalationFileSet, productionUngatedEscalationFiles } =
+    withContentReadSignal('B6', 'privilege_escalation_cleanliness', () => {
+      // Only files that actually execute SQL are candidates for an ungated escalation finding —
+      // a runbook or doc comment that merely names the GRANT a human should run is not code
+      // executing it, and is excluded below anyway once it carries the human-gate marker.
+      const executable = implFiles.filter((file) => fileContains(repoPath, file, SQL_EXEC_PATTERN));
+      const historicalUngated = executable.filter((file) => {
+        if (useV39Detectors && !fileHasExecutedPrivilegeEscalation(repoPath, file)) return false;
+        const hasEscalation =
+          fileContains(repoPath, file, ROLE_MEMBERSHIP_GRANT_PATTERN) ||
+          fileContains(repoPath, file, SUPERUSER_ESCALATION_PATTERN);
+        if (!hasEscalation) return false;
+        return !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN);
+      });
+      const v21Executed = useV21ExecutedEscalations
+        ? repoFiles.filter(
+            (file) =>
+              isV39AuthoredProductionPath(file) &&
+              (fileHasV21RawSqlEscalation(repoPath, file) ||
+                (isImplementationFile(file) && fileHasV21DriverEscalation(repoPath, file))),
+          )
+        : [];
+      const v21ExecutedSet = new Set(v21Executed);
+      const ungated = [...new Set([...historicalUngated, ...v21Executed])].filter(
+        (file) => !fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN),
+      );
+      // A GRANT statement asserted inside a test file exercises the detector itself, not a
+      // production self-execution path — exclude it from both the finding set and the
+      // production cleanliness metric.
+      const productionUngated = ungated.filter((file) =>
+        useV39Detectors ? isV39AuthoredProductionPath(file) : !isTestOrFixturePath(file),
+      );
+      return {
+        executableFiles: executable,
+        v21ExecutedEscalationFileSet: v21ExecutedSet,
+        productionUngatedEscalationFiles: productionUngated,
+      };
+    });
 
+  // Each evidence pointer below is hashed from the same file its signal already read
+  // successfully above — wrapped anyway so a TOCTOU re-read failure belongs to that signal
+  // rather than an unattributed B6-wide skip.
   if (humanGateDoc) {
-    evidence.push(
-      evidenceForRelative(
-        repoPath,
-        humanGateDoc,
-        'artifact',
-        'Documents privileged operations as human-executed/gated',
+    withContentReadSignal('B6', 'human_gate_documented', () =>
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          humanGateDoc,
+          'artifact',
+          'Documents privileged operations as human-executed/gated',
+        ),
       ),
     );
   }
   if (gatedPrivilegeCheckFile) {
-    evidence.push(
-      evidenceForRelative(
-        repoPath,
-        gatedPrivilegeCheckFile,
-        'artifact',
-        'Fail-closed privilege-membership check before role elevation',
+    withContentReadSignal('B6', 'fail_closed_privilege_check', () =>
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          gatedPrivilegeCheckFile,
+          'artifact',
+          'Fail-closed privilege-membership check before role elevation',
+        ),
       ),
     );
   }
   if (killSwitchFile) {
-    evidence.push(
-      evidenceForRelative(
-        repoPath,
-        killSwitchFile,
-        'artifact',
-        'Un-overridable kill-switch / fail-safe governance toggle',
+    withContentReadSignal('B6', 'kill_switch_fail_safe_present', () =>
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          killSwitchFile,
+          'artifact',
+          'Un-overridable kill-switch / fail-safe governance toggle',
+        ),
       ),
     );
   }
   if (protectedPathReviewGate) {
-    evidence.push(
-      evidenceForRelative(
-        repoPath,
-        protectedPathReviewGate,
-        'artifact',
-        'CODEOWNERS/required-review gate on protected paths',
+    // Unlike the others above, codeownersFile (when chosen over reviewGateDoc) is filename-only
+    // and was never read before this point — a genuinely new read, not a re-read.
+    withContentReadSignal('B6', 'protected_path_review_gate', () =>
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          protectedPathReviewGate,
+          'artifact',
+          'CODEOWNERS/required-review gate on protected paths',
+        ),
       ),
     );
   }
-  for (const file of productionUngatedEscalationFiles.slice(0, 5)) {
-    const isV21ExecutedShape = v21ExecutedEscalationFileSet.has(file);
-    findings.push({
-      severity: 'critical',
-      summary: isV21ExecutedShape
-        ? 'This file contains an authored administrative SQL statement — role-membership grant, SUPERUSER escalation, or schema-wide table privilege grant — or executes one through a direct database-driver call, and does not itself contain text matching the human-gate marker pattern.'
-        : 'This file executes a role-membership GRANT or SUPERUSER escalation and does not itself contain text matching the human-gate marker pattern.',
-      evidence: evidenceForRelative(
-        repoPath,
-        file,
-        'artifact',
-        isV21ExecutedShape
-          ? 'Ungated authored or directly executed administrative SQL statement'
-          : 'Ungated privilege-escalation statement',
-      ),
-    });
-  }
+  withContentReadSignal('B6', 'privilege_escalation_cleanliness', () => {
+    for (const file of productionUngatedEscalationFiles.slice(0, 5)) {
+      const isV21ExecutedShape = v21ExecutedEscalationFileSet.has(file);
+      findings.push({
+        severity: 'critical',
+        summary: isV21ExecutedShape
+          ? 'This file contains an authored administrative SQL statement — role-membership grant, SUPERUSER escalation, or schema-wide table privilege grant — or executes one through a direct database-driver call, and does not itself contain text matching the human-gate marker pattern.'
+          : 'This file executes a role-membership GRANT or SUPERUSER escalation and does not itself contain text matching the human-gate marker pattern.',
+        evidence: evidenceForRelative(
+          repoPath,
+          file,
+          'artifact',
+          isV21ExecutedShape
+            ? 'Ungated authored or directly executed administrative SQL statement'
+            : 'Ungated privilege-escalation statement',
+        ),
+      });
+    }
+  });
 
   if (evidence.length === 0 && findings.length === 0) {
     return buildNotApplicableSignal(
@@ -3959,7 +4137,7 @@ function collectB6PrivilegedOpsGatingEvidence(
     humanGateDoc != null ||
     gatedPrivilegeCheckFile != null ||
     executableFiles.length > 0 ||
-    v21ExecutedEscalationFiles.length > 0;
+    v21ExecutedEscalationFileSet.size > 0;
 
   return {
     criterionId: 'B6',

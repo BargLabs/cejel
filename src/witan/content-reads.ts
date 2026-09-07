@@ -25,7 +25,11 @@ interface ContentReadSession {
   readonly affectedSignals: Set<string>;
   readonly unattributedCriteria: Set<WitanCriterionId>;
   criterion?: WitanCriterionId;
-  signal?: string;
+  // A single read can legitimately feed more than one named signal (e.g. A4 parses one
+  // dependency manifest into three separate ratio metrics). Attributing that read to every
+  // signal it feeds abstains all of them and leaves the rest of the criterion intact, which is
+  // still strictly narrower than the whole-criterion fallback and never narrower than the truth.
+  signals?: readonly string[];
 }
 
 export interface TrackedContentReads<T> {
@@ -63,8 +67,11 @@ function recordSkip(
   if (!session) return;
   if (affectsCurrentCriterion && session.criterion) {
     session.affectedCriteria.add(session.criterion);
-    if (session.signal) {
-      session.affectedSignals.add(contentReadSignalKey(session.criterion, session.signal));
+    const signals = session.signals;
+    if (signals && signals.length > 0) {
+      for (const signal of signals) {
+        session.affectedSignals.add(contentReadSignalKey(session.criterion, signal));
+      }
     } else {
       session.unattributedCriteria.add(session.criterion);
     }
@@ -166,14 +173,34 @@ export function withContentReadSignal<T>(
   signalId: string,
   collect: () => T,
 ): T {
+  return withContentReadSignals(criterionId, [signalId], collect);
+}
+
+/**
+ * Multi-signal form of withContentReadSignal, for a read whose result genuinely feeds several
+ * named signals of the same criterion and cannot be split further (A4 parses each dependency
+ * manifest once and derives pinned_dependency_ratio, declared_version_range_ratio and
+ * dependency_count_sanity from the same specs). A skip inside `collect` abstains every listed
+ * signal — never fewer — so this can only ever narrow the abstention to a set that really did
+ * depend on the unreadable file. Passing an empty list would silently mean "unattributed", which
+ * is a caller mistake rather than a meaningful request, so it is rejected outright.
+ */
+export function withContentReadSignals<T>(
+  criterionId: WitanCriterionId,
+  signalIds: readonly string[],
+  collect: () => T,
+): T {
+  if (signalIds.length === 0) {
+    throw new Error('Cejel invariant: withContentReadSignals requires at least one signal id');
+  }
   const session = activeSession;
   if (!session || session.criterion !== criterionId) return collect();
-  const previous = session.signal;
-  session.signal = signalId;
+  const previous = session.signals;
+  session.signals = signalIds;
   try {
     return collect();
   } finally {
-    session.signal = previous;
+    session.signals = previous;
   }
 }
 
