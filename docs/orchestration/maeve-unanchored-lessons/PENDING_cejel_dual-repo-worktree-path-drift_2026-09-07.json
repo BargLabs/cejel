@@ -1,0 +1,15 @@
+[
+  {
+    "statement": "In a dual-repo goal (session hosted in one repo's worktree, editing a different target repo), path habit from pre-worktree exploration silently carries into the mutation phase. Incident: executing goal_cejel_v23_pem_private_key_grammar_2026-09-06 from an alfred worktree targeting cejel, early exploration used the operator's shared cejel checkout; after creating the correct isolated cejel worktree, ~9 Edit calls kept targeting the shared-checkout path out of habit. Discovered ~20 min later when the worktree showed none of the changes; the shared checkout was on a stranger's branch (tmp/verify-v1-tag) with my uncommitted diff on top, then changed branch again moments later -- a concurrent session was actively using it. No commit/push occurred; reverted via git checkout --, redone against the worktree. No fix commit exists -- procedural, not code. Rule: right after creating a target repo's worktree, re-root every path there and verify with one write+read-back first.",
+    "scope": ["dev-task"],
+    "tags": [
+      "shared-checkout-mutation",
+      "dual-repo-goal",
+      "worktree-path-drift",
+      "near-miss-self-caught",
+      "concurrent-checkout-hazard"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-07T00:00:00.000Z"
+  }
+]
