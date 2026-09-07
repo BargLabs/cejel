@@ -113,6 +113,36 @@ describe('Cejel scan attestation', () => {
     expect(html).not.toContain('unknown @ abcdef1234567890');
   });
 
+  it('continues to verify an attestation with no githubRunAttempt (local/non-Action scan)', () => {
+    const report = fixtureReport();
+    const statement = createWitanAttestation(report, ATTESTATION_OPTIONS);
+
+    expect(statement.predicate.githubRunAttempt).toBeUndefined();
+    expect(JSON.stringify(statement)).not.toContain('githubRunAttempt');
+    expect(verifyWitanAttestationBinding(statement, report)).toEqual({
+      valid: true,
+      errors: [],
+    });
+  });
+
+  it('records githubRunAttempt when supplied, without changing the report digest', () => {
+    const report = fixtureReport();
+    const withoutAttempt = createWitanAttestation(report, ATTESTATION_OPTIONS);
+    const withAttempt = createWitanAttestation(report, {
+      ...ATTESTATION_OPTIONS,
+      githubRunAttempt: '2',
+    });
+
+    expect(withoutAttempt.predicate.githubRunAttempt).toBeUndefined();
+    expect(withAttempt.predicate.githubRunAttempt).toBe('2');
+    expect(withAttempt.subject[0]?.digest.sha256).toBe(withoutAttempt.subject[0]?.digest.sha256);
+    expect(withAttempt.predicate.report.sha256).toBe(withoutAttempt.predicate.report.sha256);
+    expect(verifyWitanAttestationBinding(withAttempt, report)).toEqual({
+      valid: true,
+      errors: [],
+    });
+  });
+
   it('records each run timestamp in the attestation without changing the report digest', () => {
     const report = fixtureReport();
     const first = createWitanAttestation(report, ATTESTATION_OPTIONS);

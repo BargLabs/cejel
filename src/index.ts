@@ -42,6 +42,11 @@ export interface WitanCliOptions {
    * Omitted by every ordinary invocation, which stays on the calibrated public default.
    */
   rubricPin?: string;
+  /**
+   * GITHUB_RUN_ATTEMPT, forwarded by the GitHub Action (see action/run.mjs). Never set by an
+   * ordinary local invocation; never defaulted.
+   */
+  runAttempt?: string;
 }
 
 export type CejelCliInvocation =
@@ -59,7 +64,8 @@ export type CliFlagKind =
   | 'ingest'
   | 'name'
   | 'productName'
-  | 'rubricPin';
+  | 'rubricPin'
+  | 'runAttempt';
 
 interface CliFlagSpec {
   tokens: readonly string[];
@@ -105,6 +111,13 @@ export const CLI_FLAG_SPECS = [
     description:
       'EXPLICIT OPT-IN: pin a rubric other than the calibrated default (see docs); prospective rubrics carry no calibration claim',
     kind: 'rubricPin',
+  },
+  {
+    tokens: ['--run-attempt'],
+    value: '<n>',
+    description:
+      'record which CI run attempt produced this certificate (set by the GitHub Action; omit otherwise)',
+    kind: 'runAttempt',
   },
   {
     tokens: ['--quiet'],
@@ -255,7 +268,11 @@ async function runWitanCli(
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
   });
-  const attestation = createWitanAttestation(report, { toolVersion: cliVersion(), generatedAt });
+  const attestation = createWitanAttestation(report, {
+    toolVersion: cliVersion(),
+    generatedAt,
+    ...(options.runAttempt ? { githubRunAttempt: options.runAttempt } : {}),
+  });
 
   mkdirSync(options.outDir, { recursive: true });
   writeFileSync(join(options.outDir, 'report.json'), serializeWitanReport(report), 'utf8');
@@ -266,7 +283,11 @@ async function runWitanCli(
   );
   writeFileSync(
     join(options.outDir, 'certificate.html'),
-    renderWitanHtmlReport(report, { cliVersion: cliVersion(), generatedAt }),
+    renderWitanHtmlReport(report, {
+      cliVersion: cliVersion(),
+      generatedAt,
+      ...(options.runAttempt ? { runAttempt: options.runAttempt } : {}),
+    }),
     'utf8',
   );
   writeFileSync(
@@ -396,6 +417,7 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
   let showHelp = false;
   let showVersion = false;
   let rubricPin: string | undefined;
+  let runAttempt: string | undefined;
   const ingestPatterns: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -483,6 +505,16 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
           index += 1;
           break;
         }
+        case 'runAttempt': {
+          const value = args[index + 1];
+          if (!value) throw new Error('Missing value for --run-attempt');
+          if (!/^[1-9][0-9]*$/.test(value)) {
+            throw new Error(`--run-attempt must be a positive integer, got: ${value}`);
+          }
+          runAttempt = value;
+          index += 1;
+          break;
+        }
       }
       continue;
     }
@@ -510,6 +542,7 @@ export function parseArgs(args: readonly string[]): WitanCliOptions {
     showVersion,
     ingestPatterns,
     ...(rubricPin ? { rubricPin } : {}),
+    ...(runAttempt ? { runAttempt } : {}),
   };
 }
 

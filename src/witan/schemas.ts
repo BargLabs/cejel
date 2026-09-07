@@ -506,6 +506,11 @@ export const WitanAttestationStatementSchema = z
         // explicit report contract version.
         reportFormatVersion: z.string().regex(/^1\.\d+$/).optional(),
         rubricVersion: z.string().min(1).max(120),
+        // Only present when the scan ran under the GitHub Action (GITHUB_RUN_ATTEMPT observed in
+        // the runner environment). Absent, never fabricated or defaulted to "1", for a local CLI
+        // or any other CI. Not part of report.json: it is per-invocation, not per-repository-
+        // state, and report.json's reproducibility guarantee excludes exactly that kind of field.
+        githubRunAttempt: z.string().regex(/^[1-9][0-9]*$/).optional(),
         repository: z
           .object({
             productSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/),

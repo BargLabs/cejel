@@ -31,6 +31,8 @@ import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './rubric-
 export interface WitanMarkdownReportOptions {
   /** Version of the Cejel CLI/server that produced this certificate. */
   cliVersion?: string;
+  /** GITHUB_RUN_ATTEMPT, when the scan ran under the GitHub Action. Absent otherwise. */
+  runAttempt?: string;
 }
 
 export function renderWitanMarkdownReport(
@@ -95,6 +97,7 @@ export function renderWitanMarkdownReport(
     `- Product: ${report.productSlug}`,
     `- Product identity: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`,
     `- CLI: ${options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded'}`,
+    ...(options.runAttempt ? [`- Run attempt: ${options.runAttempt}`] : []),
     `- Rubric: ${report.rubricVersion}`,
     // Gated on the rubric actually being prospective — a calibrated (v17) report's Markdown
     // stays byte-identical to before --rubric-pin existed.
