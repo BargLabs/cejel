@@ -14,6 +14,9 @@ not a new principle.
 scoring and is handled separately as a rubric-versioned experiment — see
 `docs/experiments/a2-secret-posture-content-context-v23-2026-09-04/preregistration.md`
 ("Track B"). This ADR is Track A only.
+**Provenance:** this document was written 2026-09-07, from the intent already recorded in issues
+#264, #265, and #266, after implementation. It records the operator's 2026-09-04 ruling; it is not
+a preregistration made in advance of the work it describes, and must not be read as one.
 
 ---
 
