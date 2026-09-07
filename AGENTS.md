@@ -73,20 +73,18 @@ for five native targets on GitHub releases.
 
 ## Recording lessons
 
-When a session identifies a defect, a correction, a false claim, or a rule that would prevent a
-recurrence, record it in this repository as part of the PR you are already opening — not as a chat
-attachment, and not staged to `lab_notes/_maeve/`, which is for agents that cannot commit.
+**This repository has no local Maeve lesson store — do not stage a lesson record here.**
+`src/__tests__/maeve-lesson-delivery.test.ts` fails CI on any lesson-shaped JSON committed to this
+repository, at any path, by design: staging is raw and pre-classification, this repository is
+public, and some of what a session earns here touches closed-class material (see the IP boundary
+above), so the guard fails closed rather than let that material accumulate in a public tree. An
+earlier version of this section described staging a record here for a sync process to promote into
+alfred's `maeve-lesson-batches/` — that route has no mechanism behind it and never worked; do not
+attempt it, and do not re-litigate the guard as a bug to route around.
 
-Stage the record as part of the PR in this repository, then promote it: sync discovers batches
-only in alfred's `docs/orchestration/maeve-lesson-batches/`, named `cejel_<topic>_<date>.json` —
-the exact `cejel_` filename prefix is load-bearing, and a batch that exists only in this
-repository is invisible to sync. Records with no qualifying fix commit go to alfred's
-`maeve-unanchored-lessons/`. Anchor only to a commit
-already on `origin/main` — a squash merge rewrites a branch SHA and orphans any anchor pointing at
-it — and confirm the commit's diff exhibits what the summary claims. The seed schema is a JSON
-array with `statement` (≤1000 chars), `scope[]`, `tags[]`, `anchors[]`, `lastSeenAt`; unknown fields
-are silently stripped at ingestion, so fold anything essential into `statement` before writing.
-Cite the commit, never an author.
+When a session identifies a defect, a correction, a false claim, or a rule that would prevent a
+recurrence, state it in plain prose in the session's handback. Whoever receives the handback stages
+it. Do not write it only to an agent's own private session memory, which the estate cannot read.
 
 ## Before you commit
 

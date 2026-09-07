@@ -73,6 +73,18 @@ of all static analysis and are priced in; false assertions are not.
 - **Preregistration commits stay strict ancestors of result commits.** Never edit a
   preregistration after a run. Corrections go in errata.
 
+## Recording lessons
+
+**This repository has no local Maeve lesson store.** `src/__tests__/maeve-lesson-delivery.test.ts`
+fails CI on any lesson-shaped JSON committed here, by design: staging is raw and
+pre-classification, this repository is public, and some of what a session earns here touches
+closed-class material (see the IP boundary above), so the guard fails closed rather than let that
+material accumulate in a public tree. This is not a defect to route around.
+
+A lesson earned while working in Cejel belongs in the session's handback, stated in plain prose —
+not staged in this repository under any path, and not written only to an agent's own private
+session memory, which the estate cannot read. Whoever receives the handback stages it.
+
 ## Conventions
 
 - Explicit paths on `git commit`. Never `git commit -am`.
