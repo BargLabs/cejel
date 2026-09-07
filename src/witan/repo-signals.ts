@@ -5686,6 +5686,52 @@ function isV23CoverageConfig(repoPath: string, file: string): boolean {
   return isCoverageConfig(repoPath, file);
 }
 
+function coverageConfigurationDecision(
+  repoPath: string,
+  file: string,
+): CoverageDetectorDecision | null {
+  const detectorState = isV23CoverageConfig(repoPath, file) ? 'collects' : 'none';
+  if (/(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
+    const rawContents = readRepoText(join(repoPath, file), 'utf8');
+    const contents = stripJavaScriptComments(rawContents);
+    const match = /(?:^|[{,])\s*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im.exec(contents);
+    if (!match) return null;
+    return {
+      path: file,
+      source: 'runner-configuration',
+      locator: 'coverage',
+      evidence: rawContents.slice(match.index, match.index + match[0].length).trim(),
+      detectorRecognized: true,
+      detectorState,
+    };
+  }
+  if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
+    const rawContents = readRepoText(join(repoPath, file), 'utf8');
+    const contents = stripJavaScriptComments(rawContents);
+    const match = /(?:^|[{,])\s*["']?(collectCoverage|coverageThreshold|coverageProvider|coverageDirectory)["']?\s*:\s*([^,\r\n}]*)/m.exec(
+      contents,
+    );
+    if (!match) return null;
+    return {
+      path: file,
+      source: 'runner-configuration',
+      locator: match[1] ?? 'coverage',
+      evidence: rawContents.slice(match.index, match.index + match[0].length).trim(),
+      detectorRecognized: true,
+      detectorState,
+    };
+  }
+  if (detectorState === 'none') return null;
+  return {
+    path: file,
+    source: 'runner-configuration',
+    locator: 'coverage',
+    evidence: file,
+    detectorRecognized: true,
+    detectorState,
+  };
+}
+
 function packageJsonHasStaticCoverageTooling(repoPath: string, file: string): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
@@ -5697,12 +5743,26 @@ function packageJsonHasStaticCoverageTooling(repoPath: string, file: string): bo
   });
 }
 
-type CoverageCommandState = 'none' | 'collects' | 'unresolved';
+export type CoverageCommandState = 'none' | 'collects' | 'unresolved';
 
-interface CoverageConfigurationAnalysis {
+// Observability seam for review evidence: `evidence` preserves the source fact while the
+// detector-prefixed fields label Cejel's interpretation. This is intentionally not attached to a
+// certificate or presentation surface.
+export interface CoverageDetectorDecision {
+  readonly path: string;
+  readonly source: 'ci-run' | 'package-script' | 'recipe-command' | 'runner-configuration';
+  readonly locator: string;
+  /** Raw repository evidence. Callers must sanitize it before presentation or persistence. */
+  readonly evidence: string;
+  readonly detectorRecognized: boolean;
+  readonly detectorState: CoverageCommandState;
+}
+
+export interface CoverageConfigurationAnalysis {
   readonly coverageFiles: string[];
   readonly unresolvedFiles: string[];
   readonly hasCoverageCommand: boolean;
+  readonly detectorDecisions: readonly CoverageDetectorDecision[];
 }
 
 interface PackageScriptReferences {
@@ -5718,7 +5778,7 @@ interface RecipeTarget {
 // Coverage absence is an assertion, so command-derived coverage needs two independent facts:
 // a coverage-capable runner owns an enabling flag, and the command is reachable from a test entry
 // point. Mentions, upload-only commands, unused scripts, and dependencies alone prove neither.
-function analyzeCoverageConfiguration(
+export function analyzeCoverageConfiguration(
   repoPath: string,
   repoFiles: readonly string[],
   authoredOnly = false,
@@ -5730,13 +5790,23 @@ function analyzeCoverageConfiguration(
   const coverageFiles = new Set<string>();
   const unresolvedFiles = new Set<string>();
   const ciCommandsByFile = new Map<string, string[]>();
+  const detectorDecisions: CoverageDetectorDecision[] = [];
   let hasCoverageCommand = false;
 
   for (const file of eligibleFiles.filter(isCiWorkflow)) {
     const commands = extractCiRunCommands(readRepoText(join(repoPath, file), 'utf8'));
     ciCommandsByFile.set(file, commands);
+    const commandDecisions = commands.map((command, index) =>
+      coverageDetectorDecision(repoPath, eligibleSet, {
+        path: file,
+        source: 'ci-run',
+        locator: String(index),
+        command,
+      }),
+    );
+    detectorDecisions.push(...commandDecisions);
     const state = combineCoverageCommandStates(
-      commands.map((command) => coverageCommandState(repoPath, eligibleSet, command)),
+      commandDecisions.map((decision) => decision.detectorState),
     );
     if (state === 'collects') {
       coverageFiles.add(file);
@@ -5755,6 +5825,7 @@ function analyzeCoverageConfiguration(
         eligibleSet,
         file,
         file === 'package.json' ? ciCommands : [],
+        detectorDecisions,
       );
       if (packageState === 'collects') {
         coverageFiles.add(file);
@@ -5763,11 +5834,19 @@ function analyzeCoverageConfiguration(
       if (packageState === 'unresolved') unresolvedFiles.add(file);
       continue;
     }
-    if (isV23CoverageConfig(repoPath, file)) coverageFiles.add(file);
+    const configurationDecision = coverageConfigurationDecision(repoPath, file);
+    if (configurationDecision) detectorDecisions.push(configurationDecision);
+    if (configurationDecision?.detectorState === 'collects') coverageFiles.add(file);
   }
 
   for (const file of eligibleFiles.filter(isRecipeFile)) {
-    const state = recipeCoverageState(repoPath, eligibleSet, file, ciCommands);
+    const state = recipeCoverageState(
+      repoPath,
+      eligibleSet,
+      file,
+      ciCommands,
+      detectorDecisions,
+    );
     if (state === 'collects') {
       coverageFiles.add(file);
       hasCoverageCommand = true;
@@ -5780,6 +5859,7 @@ function analyzeCoverageConfiguration(
     coverageFiles: [...coverageFiles].sort(),
     unresolvedFiles: [...unresolvedFiles].sort(),
     hasCoverageCommand,
+    detectorDecisions,
   };
 }
 
@@ -5850,6 +5930,7 @@ function packageScriptCoverageState(
   repoFiles: ReadonlySet<string>,
   packageJson: string,
   ciCommands: readonly string[],
+  detectorDecisions: CoverageDetectorDecision[],
 ): CoverageCommandState {
   const scripts = readPackageScripts(join(repoPath, packageJson));
   if (scripts.size === 0) return 'none';
@@ -5880,7 +5961,14 @@ function packageScriptCoverageState(
     if (command === undefined) continue;
     visited.add(name);
 
-    const state = coverageCommandState(repoPath, repoFiles, command);
+    const decision = coverageDetectorDecision(repoPath, repoFiles, {
+      path: packageJson,
+      source: 'package-script',
+      locator: name,
+      command,
+    });
+    detectorDecisions.push(decision);
+    const state = decision.detectorState;
     if (state === 'collects') return 'collects';
     if (state === 'unresolved') unresolved = true;
 
@@ -5982,6 +6070,7 @@ function recipeCoverageState(
   repoFiles: ReadonlySet<string>,
   file: string,
   ciCommands: readonly string[],
+  detectorDecisions: CoverageDetectorDecision[],
 ): CoverageCommandState {
   const targets = readRecipeTargets(readRepoText(join(repoPath, file), 'utf8'));
   const roots = new Set(['test', 'tests', 'check'].filter((target) => targets.has(target)));
@@ -6002,8 +6091,17 @@ function recipeCoverageState(
     const target = targets.get(name);
     if (!target) continue;
     visited.add(name);
+    const commandDecisions = target.commands.map((command, index) =>
+      coverageDetectorDecision(repoPath, repoFiles, {
+        path: file,
+        source: 'recipe-command',
+        locator: `${name}:${index}`,
+        command,
+      }),
+    );
+    detectorDecisions.push(...commandDecisions);
     const state = combineCoverageCommandStates(
-      target.commands.map((command) => coverageCommandState(repoPath, repoFiles, command)),
+      commandDecisions.map((decision) => decision.detectorState),
     );
     if (state === 'collects') return 'collects';
     if (state === 'unresolved') unresolved = true;
@@ -6045,29 +6143,42 @@ function readRecipeTargets(contents: string): Map<string, RecipeTarget> {
   return targets;
 }
 
-function coverageCommandState(
+interface CoverageCommandEvaluation {
+  readonly recognized: boolean;
+  readonly state: CoverageCommandState;
+}
+
+function coverageCommandEvaluation(
   repoPath: string,
   repoFiles: ReadonlySet<string>,
   command: string,
   depth = 0,
-): CoverageCommandState {
-  if (depth > 4) return containsPotentialCoverageFlag(command) ? 'unresolved' : 'none';
+): CoverageCommandEvaluation {
+  if (depth > 4) {
+    const recognized = containsPotentialCoverageFlag(command);
+    return { recognized, state: recognized ? 'unresolved' : 'none' };
+  }
   const normalized = normalizeCoverageCommandPrefixes(command);
   const segments = normalized.splitShellOperators
     ? splitShellCommandSegments(normalized.segment)
     : [normalized.segment];
-  const states = segments.map((rawSegment) => {
+  const evaluations = segments.map((rawSegment): CoverageCommandEvaluation => {
     const candidate = normalizeCoverageCommandPrefixes(rawSegment);
-    if (commandInvokesCoverageTool(candidate.segment)) return 'collects' as const;
+    if (commandInvokesCoverageTool(candidate.segment)) {
+      return { recognized: true, state: 'collects' };
+    }
     const words = shellWords(candidate.segment);
-    if (words.length === 0) return 'none' as const;
+    if (words.length === 0) return { recognized: false, state: 'none' };
     const direct = coverageFlagCommandState(words);
-    if (direct !== 'none') return direct;
-    if (isRecognizedCoverageFlagRunner(words)) return 'none' as const;
+    if (direct !== 'none') return { recognized: true, state: direct };
+    const hasCoverageSyntax = containsPotentialCoverageFlag(candidate.segment);
+    if (isRecognizedCoverageFlagRunner(words)) {
+      return { recognized: hasCoverageSyntax, state: 'none' };
+    }
 
     const wrapper = reachableShellWrapper(words, repoFiles);
     if (wrapper) {
-      return coverageCommandState(
+      return coverageCommandEvaluation(
         repoPath,
         repoFiles,
         readRepoText(join(repoPath, wrapper), 'utf8'),
@@ -6087,17 +6198,43 @@ function coverageCommandState(
       ],
     );
     if (
-      containsPotentialCoverageFlag(candidate.segment) &&
+      hasCoverageSyntax &&
       potentialFlagState !== 'none' &&
       executable &&
       /(?:test|spec|runner)/i.test(executable) &&
       !/(?:docs?|map|report|upload|codecov|coveralls)/i.test(executable)
     ) {
-      return 'unresolved' as const;
+      return { recognized: true, state: 'unresolved' };
     }
-    return 'none' as const;
+    return { recognized: false, state: 'none' };
   });
-  return combineCoverageCommandStates(states);
+  return {
+    recognized: evaluations.some((evaluation) => evaluation.recognized),
+    state: combineCoverageCommandStates(
+      evaluations.map((evaluation) => evaluation.state),
+    ),
+  };
+}
+
+function coverageDetectorDecision(
+  repoPath: string,
+  repoFiles: ReadonlySet<string>,
+  input: {
+    readonly path: string;
+    readonly source: CoverageDetectorDecision['source'];
+    readonly locator: string;
+    readonly command: string;
+  },
+): CoverageDetectorDecision {
+  const evaluation = coverageCommandEvaluation(repoPath, repoFiles, input.command);
+  return {
+    path: input.path,
+    source: input.source,
+    locator: input.locator,
+    evidence: input.command,
+    detectorRecognized: evaluation.recognized,
+    detectorState: evaluation.state,
+  };
 }
 
 function combineCoverageCommandStates(states: readonly CoverageCommandState[]): CoverageCommandState {
