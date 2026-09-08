@@ -1269,7 +1269,12 @@ describe('filesystem boundary — tracked symlinks are not repository evidence',
     expect(input.contentReadSummary?.byReason.excludedByExtension).toBe(0);
   });
 
-  it('abstains the criterion when an oversized tracked file could change an absence claim', () => {
+  it('measures the criterion from readable content when an oversized tracked file is skipped, rather than abstaining by path shape (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08, defect 1)', () => {
+    // Before that fix, a too-large lockfile — caught only at file-inventory time, before any
+    // collector runs — force-abstained A4 wholesale via a path-shape guess
+    // (affectedCriteriaForUnavailablePath), even though A4 had a perfectly readable manifest
+    // (package.json) to measure from. The size cap and its disclosure are unchanged; the skip
+    // just no longer pre-empts the collector.
     const dir = makeTmpRepo();
     writeFile(dir, 'package.json', JSON.stringify({ name: 'oversized-lockfile-fixture' }));
     writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
@@ -1284,15 +1289,104 @@ describe('filesystem boundary — tracked symlinks are not repository evidence',
     const a4 = input.signals?.find((signal) => signal.criterionId === 'A4');
 
     expect(input.contentReadSummary?.byReason.tooLarge).toBe(1);
-    expect(input.contentReadSummary?.affectedCriteria).toContain('A4');
-    expect(input.scanLimitations).toEqual([
-      expect.stringContaining('1 criterion abstained'),
-    ]);
-    expect(a4).toMatchObject({
-      insufficientData: true,
-      findings: [],
-      positiveEvidence: [],
+    expect(input.contentReadSummary?.affectedCriteria ?? []).not.toContain('A4');
+    expect(input.scanLimitations ?? []).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('criterion abstained')]),
+    );
+    expect(a4?.insufficientData).toBeUndefined();
+    expect(a4?.metrics?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('composite guard: adding an oversized file no criterion depends on leaves the certificate byte-identical (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08)', () => {
+    // The field instance this goal fixes: a repository holding a small, fully-answering README
+    // scored 3.1/4.0 measuring 9/9 criteria under 0.4.5, then 1.5/4.0 measuring 5/10 under 0.4.7
+    // at the SAME commit — the only difference was two oversized .txt test-data fixtures that
+    // happened to path-shape-match A5 and four other criteria, wiping them wholesale at 0 in the
+    // composite denominator even though every one of them had real, readable evidence. This
+    // fixture reproduces the shape (not the exact repository) and asserts the certificate cannot
+    // move when an oversized, functionally-irrelevant file is added.
+    function buildFixture(dir: string): void {
+      writeFile(
+        dir,
+        'package.json',
+        JSON.stringify({
+          name: 'composite-guard-fixture',
+          scripts: { test: 'vitest run' },
+          dependencies: { left: '1.0.0' },
+        }),
+      );
+      writeFile(dir, 'package-lock.json', '{}\n');
+      writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
+      writeFile(
+        dir,
+        'src/index.test.ts',
+        "import { expect, it } from 'vitest';\nit('works', () => expect(1).toBe(1));\n",
+      );
+      writeFile(dir, 'README.md', '# composite-guard-fixture\nDoes a thing.\n');
+      writeFile(
+        dir,
+        '.github/workflows/ci.yml',
+        'on: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n',
+      );
+    }
+
+    const baselineDir = makeTmpRepo();
+    buildFixture(baselineDir);
+    const baseline = scoreRepoWithPublicCejel({
+      productSlug: 'composite-guard-fixture',
+      productDisplayName: 'Composite Guard Fixture',
+      repoPath: baselineDir,
+      generatedAt: '2026-09-08T00:00:00.000Z',
     });
+
+    const oversizedDir = makeTmpRepo();
+    buildFixture(oversizedDir);
+    // Doc-shaped and test-data-shaped by extension (the exact path shapes the removed heuristic
+    // matched to A5/A1/A2), but no collector's evidence for this fixture actually depends on it.
+    writeFile(oversizedDir, 'testdata/large-fixture.txt', 'x'.repeat(512_001));
+    const withOversizedFile = scoreRepoWithPublicCejel({
+      productSlug: 'composite-guard-fixture',
+      productDisplayName: 'Composite Guard Fixture',
+      repoPath: oversizedDir,
+      generatedAt: '2026-09-08T00:00:00.000Z',
+    });
+
+    expect(withOversizedFile.overallScore).toBe(baseline.overallScore);
+    expect(withOversizedFile.codeTrustScore).toBe(baseline.codeTrustScore);
+    expect(withOversizedFile.processTrustScore).toBe(baseline.processTrustScore);
+    const measuredCount = (report: typeof baseline) =>
+      report.criteria.filter(
+        (criterion) => criterion.status !== 'insufficient_data' && criterion.status !== 'not_applicable',
+      ).length;
+    expect(measuredCount(withOversizedFile)).toBe(measuredCount(baseline));
+  });
+
+  it('disclosure guard: a size-declined skip is never worded as "could not be read" (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08, defect 2, third surface)', () => {
+    // The certificate must not tell the reader a file was unreadable when Cejel itself declined
+    // to read it under its own size limit — that is the exact conflation a design partner's
+    // certificate surfaced (scanLimitations said "could not be read" beside
+    // contentReadSummary.byReason showing unreadable: 0, tooLarge: 4).
+    const dir = makeTmpRepo();
+    writeFile(dir, 'package.json', JSON.stringify({ name: 'disclosure-guard-fixture' }));
+    writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
+    writeFile(dir, 'package-lock.json', 'x'.repeat(512_001));
+
+    const input = buildWitanInputFromRepo({
+      productSlug: 'disclosure-guard-fixture',
+      productDisplayName: 'Disclosure Guard Fixture',
+      repoPath: dir,
+      generatedAt: '2026-09-08T00:00:00.000Z',
+    });
+
+    expect(input.contentReadSummary?.byReason.tooLarge).toBeGreaterThan(0);
+    expect(input.contentReadSummary?.byReason.unreadable).toBe(0);
+    const surfaces = [
+      ...(input.scanLimitations ?? []),
+      ...(input.signals ?? []).map((signal) => signal.notes ?? ''),
+    ];
+    for (const text of surfaces) {
+      expect(text).not.toMatch(/could not be read/i);
+    }
   });
 
   it('does not read or cite a tracked README symlink whose target escapes the checkout', () => {

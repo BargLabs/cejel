@@ -267,6 +267,7 @@ async function runWitanCli(
     ...(effectiveRubricVersion ? { rubricVersion: effectiveRubricVersion } : {}),
     ingestPatterns: options.ingestPatterns,
     warnOnEmptyIngestMatch: !options.quiet,
+    toolVersion: cliVersion(),
   });
   const attestation = createWitanAttestation(report, {
     toolVersion: cliVersion(),

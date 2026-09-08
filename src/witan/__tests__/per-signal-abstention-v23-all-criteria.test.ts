@@ -281,7 +281,13 @@ describe.skipIf(!canDenyReadAccess)('v23 per-signal abstention — A2 through B6
     expect(b6?.notes).toContain('privilege_escalation_cleanliness');
   });
 
-  it('the unattributable-skip fallback still wipes a criterion wholesale under v23 (too-large file at inventory time, e.g. an oversize lockfile)', () => {
+  it('a too-large lockfile at inventory time no longer force-abstains A4 by path shape (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08, defect 1)', () => {
+    // Before that fix, this oversized lockfile never entering repoFiles meant no collector could
+    // ever attribute the skip to a specific signal, so affectedCriteriaForUnavailablePath's
+    // path-shape guess force-wiped A4 wholesale regardless of how many of A4's signals this goal
+    // has since instrumented — even though A4 had a perfectly readable manifest to measure from.
+    // The size cap still applies (still skipped and disclosed as 'too_large'); it just no longer
+    // pre-empts the collector that would otherwise measure from readable content.
     const dir = makeTmpRepo();
     writeFile(dir, 'package.json', JSON.stringify({ name: 'unattributed-fixture' }));
     writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
@@ -290,16 +296,9 @@ describe.skipIf(!canDenyReadAccess)('v23 per-signal abstention — A2 through B6
     const { input } = signalAt(dir, WITAN_RUBRIC_VERSION_V23, 'A4');
     const a4 = (input.signals ?? []).find((signal) => signal.criterionId === 'A4');
 
-    expect(input.contentReadSummary?.affectedCriteria).toContain('A4');
-    // This path-shape heuristic (a file too large to even enter the file inventory) can never be
-    // attributed to a specific signal — no per-criterion collector ever runs against a file that
-    // never made it into repoFiles — so it must force the conservative whole-criterion wipe
-    // regardless of how many of A4's signals this goal has since instrumented.
-    expect(a4).toMatchObject({
-      insufficientData: true,
-      metrics: [],
-      findings: [],
-      positiveEvidence: [],
-    });
+    expect(input.contentReadSummary?.byReason.tooLarge).toBe(1);
+    expect(input.contentReadSummary?.affectedCriteria ?? []).not.toContain('A4');
+    expect(a4?.insufficientData).toBeUndefined();
+    expect(a4?.metrics?.length ?? 0).toBeGreaterThan(0);
   });
 });

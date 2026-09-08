@@ -392,9 +392,10 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(firstReportJson).toBe(secondReportJson);
     // Normalized report with certificate explanation metadata, deleting only repo.path. This
     // locks every score, verdict, criterion, metric explanation, finding, evidence hash, and
-    // remaining byte of the report.
+    // remaining byte of the report. Pin updated for 0.4.8's new toolVersion field
+    // (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08) — see the CHANGELOG entry.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'e5ca23ceb458ff289d822ec5d9ec3de46979661dd6287cdd5a1eccc4b4b5a835',
+      '5ae04c6e320c170e8f6dc6052681b9c9a21c9624c35053868abdfb3224006465',
     );
   });
 

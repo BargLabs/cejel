@@ -215,6 +215,17 @@ export const WitanCriterionMetricSchema = z
   })
   .strict();
 
+// Mirrors ContentReadSkipReason in content-reads.ts (that module imports this type back rather
+// than redeclaring it, so the two can never drift).
+export const WitanContentReadSkipReasonSchema = z.enum([
+  'unreadable',
+  'too_large',
+  'excluded_by_extension',
+  'denied_path',
+  'non_regular_file',
+]);
+export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReasonSchema>;
+
 export const WitanCriterionSignalSchema = z
   .object({
     criterionId: WitanCriterionIdSchema,
@@ -226,10 +237,21 @@ export const WitanCriterionSignalSchema = z
     // A collector reached relevant files but could not read their contents. This is a
     // measurement gap, never negative evidence: scoreCriterion maps it to insufficient_data.
     insufficientData: z.literal(true).optional(),
+    // Why insufficientData is true. Omitted (or 'unreadable'/'denied_path') means an
+    // environmental read failure — evidence Cejel expected to see and could not; that stays in
+    // the composite denominator at score 0 so losing evidence never flatters the certificate
+    // (ADR-0001 does not cover this case — it is genuine evidence loss). 'too_large',
+    // 'excluded_by_extension', and 'non_regular_file' are self-imposed coverage limits Cejel
+    // chose itself: those are excluded from the composite exactly like ordinary
+    // insufficient_data (ADR-0001: coverage is disclosed, never discounts a score).
+    insufficientDataReason: WitanContentReadSkipReasonSchema.optional(),
   })
   .strict()
   .refine((signal) => !(signal.notApplicable && signal.insufficientData), {
     message: 'A criterion cannot be both not applicable and insufficient data.',
+  })
+  .refine((signal) => signal.insufficientDataReason === undefined || signal.insufficientData === true, {
+    message: 'insufficientDataReason may only be set alongside insufficientData: true.',
   });
 
 export const WitanContentReadSummarySchema = z
@@ -391,6 +413,13 @@ const WitanReportCommonSchema = z.object({
   archetype: WitanRepoArchetypeSchema.optional(),
   scanLimitations: z.array(z.string().min(1).max(1000)).max(16).optional(),
   contentReadSummary: WitanContentReadSummarySchema.optional(),
+  // The @cejel/cejel version that produced this report. Absent on reports from before this
+  // field existed and on any caller that does not supply one (createWitanReport never defaults
+  // it). Constant within an installed version, so re-running the same version on the same
+  // commit stays byte-stable (the exact property v0.3.1 removed generatedAt to protect); it
+  // differs across versions, which lets a consumer key incremental reuse on it
+  // (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08).
+  toolVersion: z.string().min(1).max(80).optional(),
 });
 
 const WitanScoredReportSchema = WitanReportCommonSchema.extend({
@@ -451,7 +480,9 @@ export const WitanReportSchema = z.preprocess((value) => {
 
 export const WITAN_ATTESTATION_STATEMENT_TYPE = 'https://in-toto.io/Statement/v1' as const;
 export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/scan/v1' as const;
-export const WITAN_REPORT_FORMAT_VERSION = '1.0' as const;
+// 1.1 (0.4.8, goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08): report.json gained an
+// optional toolVersion field. See WitanReportCommonSchema.toolVersion.
+export const WITAN_REPORT_FORMAT_VERSION = '1.1' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

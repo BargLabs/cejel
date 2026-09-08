@@ -16,6 +16,50 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.8]
+
+### Fixed
+
+- **A repository content skip under Cejel's own 512,000-byte read limit could abstain criteria it
+  had readable evidence for, and those abstentions were then scored 0 in the composite — affected
+  0.4.6 and 0.4.7.** Two compounding defects:
+  - A file over the size limit was mapped to affected rubric criteria by **path shape** (a
+    dependency-manifest-shaped, CI-shaped, test-shaped, implementation-shaped, doc-shaped, or
+    audit-shaped filename) at file-inventory time, before any criterion's collector ran on the
+    files that *were* readable — pre-emptively wiping a criterion even when other readable content
+    fully answered it. Removed: a criterion now abstains only when its own collector genuinely has
+    no readable evidence to measure from.
+  - The abstention this produced was recorded with the same `insufficientData` flag as a genuine
+    read failure (a file Cejel could not read at all), so the scorer could not tell "declined under
+    the size limit" from "expected to read this and could not" — and treated both as evidence loss,
+    keeping the abstained criterion in the composite denominator at a punitive 0 instead of
+    excluding it like ordinary `insufficient_data`. `report.json`'s `signals` now carry the skip
+    **reason**: `unreadable`/`denied_path` (or no reason recorded, the historical conservative
+    default) stay a genuine read failure and remain in the composite at 0; `too_large`,
+    `excluded_by_extension`, and `non_regular_file` are Cejel's own disclosed coverage limits and
+    are excluded from the composite exactly like ordinary `insufficient_data` — never scored.
+  - Measured effect, a design partner's same-commit comparison at rubric v17: **3.1/4.0 measuring
+    9/9 criteria under 0.4.5, 1.5/4.0 measuring 5/10 criteria under 0.4.7** — the only difference
+    was two oversized test-data fixtures whose path shape mapped to five criteria that each had
+    real, readable evidence.
+  - What 0.4.8 does instead: an oversized or extension-excluded file's skip is disclosed in
+    `contentReadSummary` and never moves the score; every criterion measures from whatever content
+    Cejel actually read. ADR-0001: coverage is disclosed, never discounts a score.
+- The certificate's disclosure text no longer says a file "could not be read" when Cejel itself
+  declined to read it under the size limit or an extension exclusion — that phrasing is now
+  reserved for genuine read failures (`unreadable`/`denied_path`). A size-declined or
+  extension-excluded skip is worded as declined under Cejel's own limit, distinctly from an
+  unreadable file.
+
+### Added
+
+- `report.json` gains an optional `toolVersion` field recording the `@cejel/cejel` version that
+  produced the report (bumps the report contract to `reportFormatVersion` 1.1, carried on
+  `attestation.json`). Constant within a version — re-running the same installed version on the
+  same commit stays byte-identical, the same property v0.3.1 removed `generatedAt` to protect —
+  and differs across versions, letting an external consumer key incremental reuse on it. Absent
+  from historical reports and from any caller that does not supply one.
+
 ## [0.4.7] — 2026-09-07
 
 ### Added

@@ -20,6 +20,8 @@ export interface CejelScanOptions {
   ingestPatterns?: readonly string[];
   /** Warn on stderr when an explicit ingest pattern matches no files. */
   warnOnEmptyIngestMatch?: boolean;
+  /** The running @cejel/cejel version, carried onto report.json's toolVersion. Not defaulted. */
+  toolVersion?: string;
 }
 
 export interface CejelScanResult {
@@ -51,6 +53,7 @@ export function runCejelScan(options: CejelScanOptions): CejelScanResult {
     // are third-party repositories and must opt in explicitly.
     autoDiscoverIngest: true,
     warnOnEmptyIngestMatch: options.warnOnEmptyIngestMatch,
+    ...(options.toolVersion ? { toolVersion: options.toolVersion } : {}),
   });
   const summary = buildWitanCliSummary(report);
 

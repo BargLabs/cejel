@@ -62,7 +62,7 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
     async ({ path, format }) => {
       let result: CejelScanResult;
       try {
-        result = runCejelScan({ repoPath: resolve(path) });
+        result = runCejelScan({ repoPath: resolve(path), toolVersion: identity.version });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return {
