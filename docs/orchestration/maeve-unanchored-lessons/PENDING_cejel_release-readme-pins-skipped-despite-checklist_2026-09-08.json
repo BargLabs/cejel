@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A documented, multi-item release checklist step executed correctly by hand across several prior releases can still be skipped on a later one -- being written down and followed before does not prevent recurrence. Incident: cejel commit a6bf7d7 ('release: 0.4.8') bumped package.json/server.json/published-versions.json to 0.4.8 but left six README distribution-pin mentions (Windows signing note, npm distribution note, two Docker/OCI run examples, OpenClaw MCP example) at 0.4.7, though docs/release-process.md documents the step and every prior cut (0.4.4-0.4.7, e.g. commit 8354ffd) bumped all six together. CI's validate:distribution caught the mismatch and blocked PR #295's merge until fixed in commit 0a421ae. Rule: what actually prevents a checklist item from being dropped is a mechanical check that re-derives every occurrence from one intended-version source of truth and fails loud on mismatch -- not the checklist's track record.",
+    "scope": ["dev-task"],
+    "tags": [
+      "release-checklist-gap",
+      "manual-process-drift",
+      "ci-caught-before-main",
+      "version-pin-drift",
+      "checklist-track-record-is-not-a-guarantee"
+    ],
+    "anchors": [
+      {
+        "commit": "0a421aee550161c7c58d085e45024060e65e68d6",
+        "pr": 295,
+        "summary": "Fixed the release/0.4.8 -> main PR after CI's validate:distribution blocked it: bumped the six README distribution-pin mentions from 0.4.7 to 0.4.8 that release commit a6bf7d7 had skipped, matching the pattern every prior release cut followed in its own version-bump commit."
+      }
+    ],
+    "lastSeenAt": "2026-09-08T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind":"pr-merged","repository":"BargLabs/cejel","number":295}
+  }
+]
