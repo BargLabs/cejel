@@ -1,4 +1,4 @@
-# ADR-0003 (proposed): Establish a relying-party-verifiable trust anchor for evidence bindings
+# ADR-0023 (proposed): Establish a relying-party-verifiable trust anchor for evidence bindings
 
 **Status:** Proposed — no customer reliance claim until implemented  
 **Date:** 2026-08-11  

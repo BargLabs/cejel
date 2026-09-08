@@ -3,8 +3,8 @@
 **Status:** Accepted for the presentation workstream. One item (W2b) deferred to a rubric cycle.
 **Date:** 2026-08-12
 **Deciders:** Houman Azimi-Nejadi
-**Supersedes:** nothing. Complements proposed ADR-0003 (trust anchor and signing model); see
-*Boundary against ADR-0003* below.
+**Supersedes:** nothing. Complements proposed ADR-0023 (trust anchor and signing model); see
+*Boundary against ADR-0023* below.
 **Origin:** review by Thomas Peterson, Partnerships Lead, 12 August 2026 — the first non-engineer
 to read a Cejel certificate cold.
 
@@ -210,16 +210,16 @@ contract, so they ship together:
 6. Confirm historical report/attestation pairs containing `repo.path` still verify.
 7. Document that new reports gain cross-path determinism while old pairs remain valid.
 
-## Boundary against ADR-0003 — what `cejel render` does not prove
+## Boundary against ADR-0023 — what `cejel render` does not prove
 
-ADR-0003 (proposed) states: *"No unsigned local attestation may be described as an Arista-style
+ADR-0023 (proposed) states: *"No unsigned local attestation may be described as an Arista-style
 publisher anchor or as a relying-party-verifiable certificate."*
 
 **`cejel render` does not create one, and must never be described as though it does.**
 
 Reconstruction proves **rendering fidelity**: that this HTML is what this report produces. It does
 **not** prove **authenticity** — anyone can re-render a forged report and get a self-consistent
-certificate. Authenticity still requires the trust anchor ADR-0003 defers.
+certificate. Authenticity still requires the trust anchor ADR-0023 defers.
 
 Claimable: *"the certificate is a deterministic rendering of the bound report; you can regenerate
 it from the report and attestation and confirm that what you read matches what was bound."*
@@ -302,7 +302,8 @@ and matters for any future W2b design — absence of a required metric makes cal
 ## Housekeeping hazard found while filing this
 
 The accepted and proposed ADR series share a number space — accepted `0002` and proposed `0002` are
-different decisions. This record is numbered 0019 to avoid colliding with proposed `0003`, which it
+different decisions. This record is numbered 0019 to avoid colliding with proposed `0023` (formerly numbered `0003`
+at the time this note was filed), which it
 complements. Recommend renumbering the proposed series into its own range before the collision
 causes a misfiled citation.
 
