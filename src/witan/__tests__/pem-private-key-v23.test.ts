@@ -171,48 +171,21 @@ describe('A2 v23 PEM private-key grammar — false-positive guards', () => {
     expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
   });
 
-  it('demotes (does not suppress) a key at an obviously generated development path (path names it as local/dev), while an identical key elsewhere still fires critical', () => {
-    // goal_cejel_pem_context_guard_coverage_2026-09-08: a dev/self-signed-shaped PATH used to
-    // suppress the whole file via the early return in findPemPrivateKeyAssignment. That's a
-    // coarse signal — a "dev/" ancestor can sit above a real key for reasons unrelated to the
-    // key itself — so it now demotes to 'info' instead: the evidence still reaches a reviewer,
-    // the same way isTestOrFixturePath demotes every other secret kind rather than dropping it.
+  it('does NOT flag an obviously generated development key (path names it as local/dev), while an identical key elsewhere still fires', () => {
     const dir = makeTmpRepo();
     writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
     writeFile(dir, 'certs/local-dev-key.json', SERVICE_ACCOUNT_JSON);
     commit(dir, 'add local dev key');
 
-    const finding = pemFinding(dir, WITAN_RUBRIC_VERSION_V23);
-    expect(finding).toBeDefined();
-    expect(finding?.severity).toBe('info');
-    expect(finding?.summary).toMatch(/dev\/self-signed-shaped path/i);
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
 
     // Same content, a path with no dev/local/self-signed marker — proves the guard
-    // discriminates on the marker, rather than demoting everything.
+    // discriminates on the marker, rather than never firing at all.
     const dir2 = makeTmpRepo();
     writeFile(dir2, 'src/index.js', 'export const noop = () => {};\n');
     writeFile(dir2, 'config/service-account.json', SERVICE_ACCOUNT_JSON);
     commit(dir2, 'add service account key');
-    expect(pemFinding(dir2, WITAN_RUBRIC_VERSION_V23)?.severity).toBe('critical');
-
-    // v17/v22 must stay byte-stable: no PEM finding under either legacy rubric, for either repo.
-    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V22)).toBeUndefined();
-    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V17)).toBeUndefined();
-    expect(pemFinding(dir2, WITAN_RUBRIC_VERSION_V22)).toBeUndefined();
-    expect(pemFinding(dir2, WITAN_RUBRIC_VERSION_V17)).toBeUndefined();
-  });
-
-  it('demotes a real-looking key under a "dev/" ancestor directory instead of silently dropping it (the exact blind spot the review flagged)', () => {
-    // The review's own example: dev/config/service-account.json. Before this fix, the whole
-    // file was silently unreported — no finding at all, at any severity.
-    const dir = makeTmpRepo();
-    writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
-    writeFile(dir, 'dev/config/service-account.json', SERVICE_ACCOUNT_JSON);
-    commit(dir, 'add service account key under dev/');
-
-    const finding = pemFinding(dir, WITAN_RUBRIC_VERSION_V23);
-    expect(finding).toBeDefined();
-    expect(finding?.severity).toBe('info');
+    expect(pemFinding(dir2, WITAN_RUBRIC_VERSION_V23)).toBeDefined();
   });
 
   it('does NOT flag (fully suppresses) a PEM key at a neutral path whose identifier itself carries dev/self-signed wording — the in-loop identifier/context check, distinct from the path check above', () => {

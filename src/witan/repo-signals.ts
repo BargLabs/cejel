@@ -2429,17 +2429,8 @@ function collectA2IsolationEvidence(
     const isTestPath = isTestOrFixturePath(committedSecret.path);
     const isDefaultAdmin = committedSecret.match.kind === 'default_admin';
     const isPemPrivateKey = committedSecret.match.kind === 'pem_private_key';
-    // A dev/self-signed-shaped ancestor path (see DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN)
-    // demotes rather than suppresses — goal_cejel_pem_context_guard_coverage_2026-09-08. A
-    // path substring is a coarse signal (a "dev/" directory can sit above a real key for
-    // reasons unrelated to the key itself), so the evidence still reaches a reviewer at
-    // 'info' instead of vanishing the way findPemPrivateKeyAssignment used to drop it.
-    const isDevOrSelfSignedPemPath =
-      isPemPrivateKey &&
-      !isTestPath &&
-      DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN.test(committedSecret.path);
     findings.push({
-      severity: isTestPath || isDevOrSelfSignedPemPath ? 'info' : 'critical',
+      severity: isTestPath ? 'info' : 'critical',
       summary: isDefaultAdmin
         ? isTestPath
           ? `Default administrative credential in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production deployment default; verify.`
@@ -2447,9 +2438,7 @@ function collectA2IsolationEvidence(
         : isPemPrivateKey
           ? isTestPath
             ? `PEM-formatted private key in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production leak; verify.`
-            : isDevOrSelfSignedPemPath
-              ? `PEM-formatted private key at a dev/self-signed-shaped path (${committedSecret.path}) — likely throwaway material, not a production leak; verify.`
-              : 'A PEM-formatted private key appears committed in the scanned repository.'
+            : 'A PEM-formatted private key appears committed in the scanned repository.'
           : isTestPath
             ? `Secret-shaped value in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production leak; verify.`
             : 'Secret-shaped value appears committed in the scanned repository.',
@@ -2497,18 +2486,12 @@ function collectA2IsolationEvidence(
     const historyPath = historySecretScan.evidence.path ?? '';
     const isTestPath = isTestOrFixturePath(historyPath);
     const isPemPrivateKey = historySecretScan.secretKind === 'pem_private_key';
-    // See the matching committed-secret branch above for why a dev/self-signed-shaped path
-    // demotes rather than suppresses (goal_cejel_pem_context_guard_coverage_2026-09-08).
-    const isDevOrSelfSignedPemPath =
-      isPemPrivateKey && !isTestPath && DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN.test(historyPath);
     findings.push({
-      severity: isTestPath || isDevOrSelfSignedPemPath ? 'info' : 'critical',
+      severity: isTestPath ? 'info' : 'critical',
       summary: isPemPrivateKey
         ? isTestPath
           ? `PEM-formatted private key in git history for a test/fixture file (${historyPath}) — likely fixture data, not a production leak; verify.`
-          : isDevOrSelfSignedPemPath
-            ? `PEM-formatted private key in git history at a dev/self-signed-shaped path (${historyPath}) — likely throwaway material, not a production leak; verify.`
-            : 'A PEM-formatted private key appears in recent git history.'
+          : 'A PEM-formatted private key appears in recent git history.'
         : isTestPath
           ? `Secret-shaped value in git history for a test/fixture file (${historyPath}) — likely fixture data, not a production leak; verify.`
           : 'Secret-shaped value appears in recent git history.',
@@ -7658,14 +7641,11 @@ function isBarePemKeyFile(file: string): boolean {
   return BARE_PEM_KEY_FILE_PATTERN.test(file);
 }
 // A committed self-signed/local-dev key is a routine, low-value artifact (see e.g. Debian's
-// ssl-cert-snakeoil convention) — checked against the identifier and a small surrounding-line
-// window (see scanForPemPrivateKeyMatch) plus, separately, the full file path (see the
-// severity computation in collectA2IsolationEvidence: a path match demotes to 'info' rather
-// than suppressing outright — see the "suppress vs demote" note below scanForPemPrivateKeyMatch
-// for why the two checks are treated differently). Lookarounds (not \b) treat "_"/"-" as
-// boundaries too, so "self_signed_key" and "local-dev.pem" both match, not just space-delimited
-// prose. "staging" is deliberately not in this list: unlike "dev"/"local"/"self-signed", a
-// staging path names a real, reachable deployment environment, not routine throwaway material.
+// ssl-cert-snakeoil convention) — checked against the identifier, a small surrounding-line
+// window, and the file path itself. Lookarounds (not \b) treat "_"/"-" as boundaries too, so
+// "self_signed_key" and "local-dev.pem" both match, not just space-delimited prose. "staging" is
+// deliberately not in this list: unlike "dev"/"local"/"self-signed", a staging path names a
+// real, reachable deployment environment, not routine throwaway material.
 const DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN =
   /(?<![A-Za-z0-9])(?:dev|development|local|localhost|self[-_]?signed|snakeoil|insecure|dummy|sample|demo|placeholder|fixture|generated)(?![A-Za-z0-9])/i;
 // A key documented as rotated/revoked in its own surrounding context is retired material, not
@@ -7689,16 +7669,6 @@ function isPlausiblePemKeyBody(rawBody: string): boolean {
 // FP guard, or null. Shared by both the identifier-prefixed grammar and the bare-key-file
 // fallback below so the FP-guard logic (dev/self-signed context, rotated/revoked context,
 // plausible body) and the evidence-metadata computation exist in exactly one place.
-//
-// Suppress vs demote (goal_cejel_pem_context_guard_coverage_2026-09-08): this in-loop check
-// suppresses outright on an identifier/context match — a tight, ~9-line window of text that
-// names THIS specific key as dev/self-signed/insecure is direct, local evidence about the
-// secret itself, the same class of high-precision signal ROTATED_OR_REVOKED_KEY_CONTEXT_PATTERN
-// already suppresses on. The file-path check (formerly here too, now only in the severity
-// computation inside collectA2IsolationEvidence) is coarser — a "dev/" ancestor directory can
-// sit above a file for reasons unrelated to the key inside it — so that one demotes to 'info'
-// instead: a real key still surfaces to a reviewer, mirroring how isTestOrFixturePath demotes
-// every other secret kind rather than dropping it.
 function scanForPemPrivateKeyMatch(
   pattern: RegExp,
   contents: string,
@@ -7748,18 +7718,17 @@ function scanForPemPrivateKeyMatch(
 }
 
 // Returns the first PEM-formatted private-key assignment in `contents` that survives every FP
-// guard, or null — never a fabricated match. `file` is the path being scanned: used to decide
-// whether the identifier-free bare-key-file fallback applies (id_rsa, *.pem, *.key have no
-// `identifier =` wrapper at all). The path-based fixture/doc/generated exclusion itself already
-// happened upstream, before this function is ever called. A dev/self-signed-shaped path does
-// NOT suppress here — that check moved to the severity computation in
-// collectA2IsolationEvidence, which demotes rather than drops (see the "suppress vs demote"
-// note on scanForPemPrivateKeyMatch above).
+// guard, or null — never a fabricated match. `file` is the path being scanned: used for the
+// dev/self-signed path check, and to decide whether the identifier-free bare-key-file fallback
+// applies (id_rsa, *.pem, *.key have no `identifier =` wrapper at all). The path-based
+// fixture/doc/generated exclusion itself already happened upstream, before this function is
+// ever called.
 function findPemPrivateKeyAssignment(
   contents: string,
   file: string,
 ): RealSecretAssignmentMatch | null {
   if (!contents.includes('-----BEGIN')) return null;
+  if (DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN.test(file)) return null;
   const lines = contents.split('\n');
   const assignmentMatch = scanForPemPrivateKeyMatch(
     PEM_PRIVATE_KEY_ASSIGNMENT_PATTERN,
