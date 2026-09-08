@@ -240,4 +240,101 @@ describe('A2 v23 PEM private-key grammar — performance sanity', () => {
     expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
     expect(performance.now() - startedAt).toBeLessThan(2_000);
   });
+
+  // Regression for the fingerprint-review fix: before the body capture was bounded, a file
+  // containing many unterminated "-----BEGIN ... PRIVATE KEY-----" markers (no matching END)
+  // made the lazy body quantifier backtrack across the rest of the file from every such start
+  // position — measured directly at clearly super-linear growth (~61ms to ~3.7s as input
+  // doubled ~165KB to ~1.3MB) before the {0,32768} bound was added.
+  it('scans a file with many unterminated BEGIN markers without pathological backtracking', () => {
+    const dir = makeTmpRepo();
+    writeFile(
+      dir,
+      'src/generated-unterminated.txt',
+      `${'a=-----BEGIN PRIVATE KEY-----\n'.repeat(20_000)}`,
+    );
+    commit(dir, 'add file with unterminated PEM markers');
+
+    const startedAt = performance.now();
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
+    expect(performance.now() - startedAt).toBeLessThan(2_000);
+  });
+});
+
+describe('A2 v23 PEM private-key grammar — review-fix regressions', () => {
+  it('flags a real key at a "staging" path (staging is a real deployment environment, not routine dev/self-signed material)', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
+    writeFile(dir, 'config/staging-service-account.json', SERVICE_ACCOUNT_JSON);
+    commit(dir, 'add staging service account key');
+
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeDefined();
+  });
+
+  it('flags a bare standalone key file with no identifier/assignment wrapper (id_rsa)', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
+    const raw = Array.from({ length: 24 }, (_, i) => `witan-synthetic-id-rsa-${i}`).join('|');
+    const body = Buffer.from(raw, 'utf8').toString('base64');
+    const wrappedLines: string[] = [];
+    for (let i = 0; i < body.length; i += 64) wrappedLines.push(body.slice(i, i + 64));
+    writeFile(
+      dir,
+      'deploy/id_rsa',
+      ['-----BEGIN RSA PRIVATE KEY-----', ...wrappedLines, '-----END RSA PRIVATE KEY-----'].join(
+        '\n',
+      ) + '\n',
+    );
+    commit(dir, 'add bare key file');
+
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeDefined();
+  });
+
+  it('does NOT flag a bare-BEGIN/END block with no assignment wrapper in a non-key-shaped file (the identifier-free fallback is scoped to key-shaped basenames only)', () => {
+    const dir = makeTmpRepo();
+    const raw = Array.from({ length: 24 }, (_, i) => `witan-synthetic-comment-pem-${i}`).join('|');
+    const body = Buffer.from(raw, 'utf8').toString('base64');
+    const wrappedLines: string[] = [];
+    for (let i = 0; i < body.length; i += 64) wrappedLines.push(`// ${body.slice(i, i + 64)}`);
+    writeFile(
+      dir,
+      'src/pem-example.ts',
+      [
+        '// Example PEM block, not a real assignment:',
+        '// -----BEGIN PRIVATE KEY-----',
+        ...wrappedLines,
+        '// -----END PRIVATE KEY-----',
+      ].join('\n') + '\n',
+    );
+    commit(dir, 'add comment mentioning PEM text with no assignment wrapper');
+
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
+  });
+
+  it('does not double-report the same PEM key as both a committed secret and a git-history secret when only its assignment wrapper changed between commits', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
+    const original = `{
+  "type": "service_account",
+  "private_key": "${syntheticPemJsonValue()}"
+}
+`;
+    writeFile(dir, 'config/service-account.json', original);
+    commit(dir, 'add service account key');
+
+    // Same PEM value, byte-identical — only the surrounding identifier changes. A correct
+    // dedup fingerprints the secret value alone, so this reformat must not surface as a
+    // second, distinct finding alongside the current-tree one.
+    const reformatted = `{
+  "type": "service_account",
+  "privateKey": "${syntheticPemJsonValue()}"
+}
+`;
+    writeFile(dir, 'config/service-account.json', reformatted);
+    commit(dir, 'reformat identifier casing');
+
+    const findings = a2Signal(dir, WITAN_RUBRIC_VERSION_V23)?.findings ?? [];
+    const pemFindings = findings.filter((finding) => /PEM-formatted private key/i.test(finding.summary));
+    expect(pemFindings).toHaveLength(1);
+  });
 });
