@@ -24,13 +24,15 @@ import type {
 } from './schemas.js';
 
 import {
+  classifyAbstentionReason,
+  type ContentReadSkipReason,
   contentReadSignalKey,
   readRepoText,
   readRepoTextPrefix,
   recordContentSkip,
-  recordContentSkipForCriteria,
   recordFilesystemSkip,
   trackContentReads,
+  type TrackedContentReads,
   withContentReadCriterion,
   withContentReadSignal,
   withContentReadSignals,
@@ -216,18 +218,56 @@ export interface BuildWitanInputOptions {
   domainCollectors?: readonly WitanDomainSignalCollector[];
 }
 
+// A repository content skip is a read FAILURE (Cejel expected to read something and could not)
+// only for 'unreadable'/'denied_path', or when no reason was recorded at all — the historical
+// conservative default. 'too_large', 'excluded_by_extension', and 'non_regular_file' are
+// self-imposed coverage limits Cejel chose itself and must be described and scored differently
+// (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08): disclosed, never a "could not be read"
+// claim, and never counted as evidence loss in the composite.
 function wholesaleCriterionAbstention(
   signal: WitanCriterionSignalPayload,
+  reasons?: ReadonlySet<ContentReadSkipReason>,
 ): WitanCriterionSignalPayload {
+  const { insufficientDataReason } = classifyAbstentionReason(reasons);
   return {
     criterionId: signal.criterionId,
     positiveEvidence: [],
     findings: [],
     metrics: [],
     insufficientData: true as const,
+    ...(insufficientDataReason !== undefined ? { insufficientDataReason } : {}),
     notes:
-      'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+      insufficientDataReason !== undefined
+        ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
+        : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
+}
+
+/** Union of every skip reason recorded against a criterion, whether unattributed or signal-scoped. */
+function skipReasonsForCriterion(
+  criterionId: WitanCriterionId,
+  tracked: Pick<
+    TrackedContentReads<unknown>,
+    'criterionSkipReasons' | 'signalSkipReasons'
+  >,
+): Set<ContentReadSkipReason> {
+  const combined = new Set<ContentReadSkipReason>(tracked.criterionSkipReasons.get(criterionId) ?? []);
+  const prefix = contentReadSignalKey(criterionId, '');
+  for (const [key, reasons] of tracked.signalSkipReasons) {
+    if (!key.startsWith(prefix)) continue;
+    for (const reason of reasons) combined.add(reason);
+  }
+  return combined;
+}
+
+/** Union of every skip reason recorded against a specific named signal within a criterion. */
+function skipReasonsForSignal(
+  criterionId: WitanCriterionId,
+  signalName: string,
+  tracked: Pick<TrackedContentReads<unknown>, 'signalSkipReasons'>,
+): Set<ContentReadSkipReason> | undefined {
+  const reasons = tracked.signalSkipReasons.get(contentReadSignalKey(criterionId, signalName));
+  return reasons ? new Set(reasons) : undefined;
 }
 
 export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanReportInputPayload {
@@ -239,14 +279,26 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   // byte-for-byte — this branch is untouched by the per-signal work
   // (goal_cejel_v23_per_signal_abstention_2026-09-06).
   if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {
-    const signals = (tracked.value.signals ?? []).map((signal) =>
-      affectedCriteria.has(signal.criterionId) ? wholesaleCriterionAbstention(signal) : signal,
-    );
-    const affectedCount = affectedCriteria.size;
+    const readFailureCriteria: WitanCriterionId[] = [];
+    const coverageLimitedCriteria: WitanCriterionId[] = [];
+    const signals = (tracked.value.signals ?? []).map((signal) => {
+      if (!affectedCriteria.has(signal.criterionId)) return signal;
+      const reasons = skipReasonsForCriterion(signal.criterionId, tracked);
+      const { insufficientDataReason } = classifyAbstentionReason(reasons);
+      (insufficientDataReason !== undefined ? coverageLimitedCriteria : readFailureCriteria).push(
+        signal.criterionId,
+      );
+      return wholesaleCriterionAbstention(signal, reasons);
+    });
     const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
-    if (affectedCount > 0 && scanLimitations.length < 16) {
+    if (readFailureCriteria.length > 0 && scanLimitations.length < 16) {
       scanLimitations.push(
-        `${affectedCount} ${affectedCount === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+        `${readFailureCriteria.length} ${readFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+      );
+    }
+    if (coverageLimitedCriteria.length > 0 && scanLimitations.length < 16) {
+      scanLimitations.push(
+        `${coverageLimitedCriteria.length} ${coverageLimitedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy — a disclosed coverage limit, not a read failure. This does not affect the composite score.`,
       );
     }
     return {
@@ -262,13 +314,20 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   // could NOT be attributed to one named signal (tracked.unattributedCriteria) — that keeps the
   // conservative, honest default for every criterion this goal did not instrument (only A1's
   // coverage_percent and non_hollow_test_share signals are signal-scoped today).
-  const wholesaleAbstainedCriteria: WitanCriterionId[] = [];
-  const partiallyAbstainedSignals: string[] = [];
+  const wholesaleAbstainedReadFailureCriteria: WitanCriterionId[] = [];
+  const wholesaleAbstainedCoverageLimitedCriteria: WitanCriterionId[] = [];
+  const partiallyAbstainedReadFailureSignals: string[] = [];
+  const partiallyAbstainedCoverageLimitedSignals: string[] = [];
   const signals = (tracked.value.signals ?? []).map((signal) => {
     if (!affectedCriteria.has(signal.criterionId)) return signal;
     if (tracked.unattributedCriteria.has(signal.criterionId)) {
-      wholesaleAbstainedCriteria.push(signal.criterionId);
-      return wholesaleCriterionAbstention(signal);
+      const reasons = tracked.criterionSkipReasons.get(signal.criterionId);
+      const { insufficientDataReason } = classifyAbstentionReason(reasons);
+      (insufficientDataReason !== undefined
+        ? wholesaleAbstainedCoverageLimitedCriteria
+        : wholesaleAbstainedReadFailureCriteria
+      ).push(signal.criterionId);
+      return wholesaleCriterionAbstention(signal, reasons);
     }
     const prefix = contentReadSignalKey(signal.criterionId, '');
     const affectedNames = [...tracked.affectedSignals]
@@ -278,7 +337,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       // Invariant: affectedCriteria only grows alongside affectedSignals or
       // unattributedCriteria (content-reads.ts), so this should be unreachable — fall back to
       // the conservative wipe rather than silently trust an inconsistent tracker.
-      wholesaleAbstainedCriteria.push(signal.criterionId);
+      wholesaleAbstainedReadFailureCriteria.push(signal.criterionId);
       return wholesaleCriterionAbstention(signal);
     }
     const affectedNameSet = new Set(affectedNames);
@@ -287,29 +346,56 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       metrics.length > 0 ||
       (signal.positiveEvidence?.length ?? 0) > 0 ||
       (signal.findings?.length ?? 0) > 0;
-    if (!anythingSurvives) {
-      wholesaleAbstainedCriteria.push(signal.criterionId);
-      return wholesaleCriterionAbstention(signal);
-    }
+    const droppedReasons = new Set<ContentReadSkipReason>();
     for (const name of affectedNames) {
-      partiallyAbstainedSignals.push(`${signal.criterionId}.${name}`);
+      for (const reason of skipReasonsForSignal(signal.criterionId, name, tracked) ?? []) {
+        droppedReasons.add(reason);
+      }
+    }
+    if (!anythingSurvives) {
+      const { insufficientDataReason } = classifyAbstentionReason(droppedReasons);
+      (insufficientDataReason !== undefined
+        ? wholesaleAbstainedCoverageLimitedCriteria
+        : wholesaleAbstainedReadFailureCriteria
+      ).push(signal.criterionId);
+      return wholesaleCriterionAbstention(signal, droppedReasons);
+    }
+    const { insufficientDataReason } = classifyAbstentionReason(droppedReasons);
+    const isReadFailure = insufficientDataReason === undefined;
+    for (const name of affectedNames) {
+      (isReadFailure
+        ? partiallyAbstainedReadFailureSignals
+        : partiallyAbstainedCoverageLimitedSignals
+      ).push(`${signal.criterionId}.${name}`);
     }
     return {
       ...signal,
       metrics,
-      notes: `Cejel abstained on ${[...affectedNames].sort().join(', ')} in this criterion because that content could not be read; other signals in this criterion were computed from readable files and are unaffected.`,
+      notes: isReadFailure
+        ? `Cejel abstained on ${[...affectedNames].sort().join(', ')} in this criterion because that content could not be read; other signals in this criterion were computed from readable files and are unaffected.`
+        : `Cejel declined ${[...affectedNames].sort().join(', ')} in this criterion under the repository content size limit or an extension exclusion; other signals in this criterion were computed from readable files and are unaffected. This is a disclosed coverage limit, not a read failure.`,
     };
   });
 
   const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
-  if (wholesaleAbstainedCriteria.length > 0 && scanLimitations.length < 16) {
+  if (wholesaleAbstainedReadFailureCriteria.length > 0 && scanLimitations.length < 16) {
     scanLimitations.push(
-      `${wholesaleAbstainedCriteria.length} ${wholesaleAbstainedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read and the affected signal could not be isolated. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
+      `${wholesaleAbstainedReadFailureCriteria.length} ${wholesaleAbstainedReadFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read and the affected signal could not be isolated. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
     );
   }
-  if (partiallyAbstainedSignals.length > 0 && scanLimitations.length < 16) {
+  if (wholesaleAbstainedCoverageLimitedCriteria.length > 0 && scanLimitations.length < 16) {
     scanLimitations.push(
-      `${partiallyAbstainedSignals.length} ${partiallyAbstainedSignals.length === 1 ? 'signal' : 'signals'} abstained because its own repository content could not be read, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedSignals].sort().join(', ')}.`,
+      `${wholesaleAbstainedCoverageLimitedCriteria.length} ${wholesaleAbstainedCoverageLimitedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy, and the affected signal could not be isolated. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.`,
+    );
+  }
+  if (partiallyAbstainedReadFailureSignals.length > 0 && scanLimitations.length < 16) {
+    scanLimitations.push(
+      `${partiallyAbstainedReadFailureSignals.length} ${partiallyAbstainedReadFailureSignals.length === 1 ? 'signal' : 'signals'} abstained because its own repository content could not be read, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedReadFailureSignals].sort().join(', ')}.`,
+    );
+  }
+  if (partiallyAbstainedCoverageLimitedSignals.length > 0 && scanLimitations.length < 16) {
+    scanLimitations.push(
+      `${partiallyAbstainedCoverageLimitedSignals.length} ${partiallyAbstainedCoverageLimitedSignals.length === 1 ? 'signal' : 'signals'} declined under the repository content size limit or an extension exclusion, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedCoverageLimitedSignals].sort().join(', ')}. This is a disclosed coverage limit, not a read failure.`,
     );
   }
 
@@ -4729,12 +4815,14 @@ function parseGitTrackedFiles(
         continue;
       }
       if (stat.size > MAX_REPOSITORY_CONTENT_BYTES) {
-        const affectedCriteria = affectedCriteriaForUnavailablePath(file);
-        if (affectedCriteria.length > 0) {
-          recordContentSkipForCriteria(fullPath, 'too_large', affectedCriteria, true);
-        } else {
-          recordContentSkip(fullPath, 'too_large', true);
-        }
+        // Cejel's own 512,000-byte content-read ceiling, not a read failure: the skip is counted
+        // and disclosed in contentReadSummary, but it must never pre-emptively abstain criteria
+        // by the file's path shape before any collector has run on the files that ARE readable
+        // (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08, defect 1 — a repository holding a
+        // 6.3KB README that fully answers A5 was abstaining A5 anyway because two unrelated
+        // oversized .txt fixtures also map to A5 by extension). Each collector decides for itself,
+        // from whatever content it actually receives, whether it has enough to measure.
+        recordContentSkip(fullPath, 'too_large', true);
         continue;
       }
     } catch (error: unknown) {
@@ -4747,40 +4835,6 @@ function parseGitTrackedFiles(
     files.push(file);
   }
   return files.sort();
-}
-
-function affectedCriteriaForUnavailablePath(file: string): WitanCriterionId[] {
-  const affected = new Set<WitanCriterionId>();
-  if (isDependencyManifest(file) || isLockfile(file)) affected.add('A4');
-  if (isCiWorkflow(file)) {
-    affected.add('A1');
-    affected.add('A3');
-    affected.add('B2');
-    affected.add('B3');
-  }
-  if (isDeployConfig(file)) {
-    affected.add('A3');
-    affected.add('B2');
-  }
-  if (isTestFile(file)) {
-    affected.add('A1');
-    affected.add('A2');
-  }
-  if (isImplementationFile(file)) {
-    affected.add('A1');
-    affected.add('A2');
-    affected.add('A3');
-    affected.add('B1');
-    affected.add('B6');
-  }
-  if (/\.(?:md|mdx|rst|txt)$/i.test(file)) {
-    affected.add('A5');
-    affected.add('B4');
-    affected.add('B5');
-    affected.add('B6');
-  }
-  if (isAuditFile(file)) affected.add('B5');
-  return [...affected];
 }
 
 function directoryInventory(repoPath: string): string[] {
@@ -4955,12 +5009,9 @@ function visitRepoDir(
     }
     const repoRelativePath = relative(repoPath, fullPath);
     if (size > MAX_REPOSITORY_CONTENT_BYTES) {
-      const affectedCriteria = affectedCriteriaForUnavailablePath(repoRelativePath);
-      if (affectedCriteria.length > 0) {
-        recordContentSkipForCriteria(fullPath, 'too_large', affectedCriteria);
-      } else {
-        recordContentSkip(fullPath, 'too_large');
-      }
+      // See the matching comment in parseGitTrackedFiles: this is Cejel's own size ceiling, not
+      // a read failure, and must not pre-emptively abstain criteria by path shape.
+      recordContentSkip(fullPath, 'too_large');
       continue;
     }
     if (!isPotentialContentPath(repoRelativePath)) {

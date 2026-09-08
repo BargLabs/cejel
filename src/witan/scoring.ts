@@ -9,6 +9,7 @@ import {
   WITAN_RUBRIC_VERSION_V8,
   WITAN_TRADING_RUBRIC_VERSION_V0,
   type WitanConsumedSignalSummary,
+  type WitanContentReadSkipReason,
   type WitanCriterionId,
   type WitanCriterionMetric,
   type WitanCriterionScore,
@@ -86,15 +87,28 @@ export function createWitanReport(
   input: WitanReportInputPayload,
   inputSignals?: readonly WitanInputSignal[],
   rubric: readonly WitanRubricCriterion[] = WITAN_RUBRIC,
+  // The running @cejel/cejel version, per-invocation and not part of the scan input — a caller
+  // property, like inputSignals, never something a collector derives from the repository.
+  // Constant across re-runs of the same installed version (report.json's byte-stability
+  // guarantee, same property v0.3.1 removed generatedAt to protect), and differs across
+  // versions, which is what it exists for (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08).
+  toolVersion?: string,
 ): WitanReport {
   const parsedInput = WitanReportInputSchema.parse(input);
   const signalsByCriterion = mergeSignalsByCriterion(parsedInput.signals);
-  // A read-failure abstention is different from an ordinarily absent signal. It remains
-  // unmeasured in the criterion output, but retains its zero contribution in the category
-  // denominator so losing evidence can never improve the certificate's composite.
+  // A read-failure abstention (Cejel expected to read a file and the filesystem refused — reason
+  // 'unreadable'/'denied_path', or no reason recorded at all, which is the same conservative
+  // default this code has always applied) is different from an ordinarily absent signal. It
+  // remains unmeasured in the criterion output, but retains its zero contribution in the category
+  // denominator so losing evidence can never improve the certificate's composite. A *self-imposed*
+  // coverage limit Cejel chose itself (reason 'too_large', 'excluded_by_extension', or
+  // 'non_regular_file') is NOT a read failure: that skip is disclosed in contentReadSummary and
+  // excluded from the composite exactly like ordinary insufficient_data — the criterion measures
+  // from whatever content Cejel did read (ADR-0001: coverage is disclosed, never discounts a
+  // score; goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08).
   const readFailureAbstentions = new Set(
     [...signalsByCriterion.values()]
-      .filter((signal) => signal.insufficientData === true)
+      .filter((signal) => signal.insufficientData === true && !isSelfImposedAbstention(signal))
       .map((signal) => signal.criterionId),
   );
   const hasInputSignals = inputSignals != null && inputSignals.length > 0;
@@ -250,6 +264,7 @@ export function createWitanReport(
     // unaffected by archetype, only presentation layers (badge/terminal/verdict) key off it.
     ...(parsedInput.archetype ? { archetype: parsedInput.archetype } : {}),
     ...(insufficientSourceReason ? { insufficientSourceReason } : {}),
+    ...(toolVersion ? { toolVersion } : {}),
   });
 }
 
@@ -359,6 +374,24 @@ function statusAfterInputAdjustment(
     : nativeStatus;
 }
 
+// Reasons insufficientData can carry that are self-imposed coverage limits Cejel chose itself
+// (never a read failure): see the WitanCriterionSignalSchema.insufficientDataReason comment.
+const SELF_IMPOSED_ABSTENTION_REASONS: ReadonlySet<WitanContentReadSkipReason> = new Set([
+  'too_large',
+  'excluded_by_extension',
+  'non_regular_file',
+]);
+
+// True only when the signal's insufficientData is explicitly and exclusively attributable to a
+// self-imposed coverage limit. A missing reason keeps the historical conservative default (treat
+// as a read failure) so any signal producer that predates this field is unaffected.
+function isSelfImposedAbstention(signal: WitanCriterionSignal): boolean {
+  return (
+    signal.insufficientDataReason !== undefined &&
+    SELF_IMPOSED_ABSTENTION_REASONS.has(signal.insufficientDataReason)
+  );
+}
+
 function mergeSignalsByCriterion(
   signals: readonly WitanCriterionSignal[],
 ): Map<WitanCriterionSignal['criterionId'], WitanCriterionSignal> {
@@ -371,16 +404,33 @@ function mergeSignalsByCriterion(
       continue;
     }
 
+    const existingAbstains = existing.insufficientData === true;
+    const signalAbstains = signal.insufficientData === true;
+    // Read-failure abstention wins on merge: partial sibling evidence cannot turn an incomplete
+    // criterion into a score. Among the abstaining siblings, a genuine read failure (missing
+    // reason, 'unreadable', or 'denied_path') always wins over a self-imposed coverage limit —
+    // losing real evidence must never be masked by a merge with a sibling that merely hit a size
+    // or extension limit. Only when EVERY abstaining sibling is self-imposed does the merged
+    // result stay self-imposed (and therefore excluded from the composite).
+    const abstentionReason = !existingAbstains && !signalAbstains
+      ? undefined
+      : [existing, signal]
+          .filter((candidate) => candidate.insufficientData === true)
+          .some((candidate) => !isSelfImposedAbstention(candidate))
+        ? undefined
+        : (signal.insufficientDataReason ?? existing.insufficientDataReason);
+
     merged.set(signal.criterionId, {
       criterionId: signal.criterionId,
       positiveEvidence: [...existing.positiveEvidence, ...signal.positiveEvidence],
       findings: [...existing.findings, ...signal.findings],
       metrics: [...(existing.metrics ?? []), ...(signal.metrics ?? [])],
       notes: signal.notes ?? existing.notes,
-      // Read-failure abstention wins on merge: partial sibling evidence cannot turn an
-      // incomplete criterion into a score. Otherwise N/A retains its historical precedence.
-      ...(existing.insufficientData === true || signal.insufficientData === true
-        ? { insufficientData: true as const }
+      ...(existingAbstains || signalAbstains
+        ? {
+            insufficientData: true as const,
+            ...(abstentionReason !== undefined ? { insufficientDataReason: abstentionReason } : {}),
+          }
         : existing.notApplicable === true || signal.notApplicable === true
           ? { notApplicable: true as const }
           : {}),

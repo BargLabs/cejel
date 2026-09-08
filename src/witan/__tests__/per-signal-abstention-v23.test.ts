@@ -123,15 +123,12 @@ describe.skipIf(!canDenyReadAccess)('v23 per-signal abstention', () => {
     }
   });
 
-  it('a criterion with no signal-scoped skip still abstains wholesale under v23 (conservative fallback)', () => {
-    // A too-large lockfile is caught by the path-shape heuristic in
-    // affectedCriteriaForUnavailablePath at file-inventory time, before any criterion's
-    // collector runs — it can never be attributed to a specific signal (no collector ever sees
-    // a file that never entered repoFiles), so it must force the conservative whole-criterion
-    // wipe for A4 regardless of how many of A4's own signals are instrumented with
-    // withContentReadSignal (see goal_cejel_v23_instrument_all_criteria_2026-09-07, which
-    // instrumented A4's pinned/range/sanity/automation signals; this fixture is deliberately
-    // outside that instrumentation's reach).
+  it('a too-large lockfile no longer force-abstains A4 by path shape (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08, defect 1)', () => {
+    // Before that fix, affectedCriteriaForUnavailablePath caught this oversized lockfile at
+    // file-inventory time, before any criterion's collector ran, and force-wiped A4 wholesale —
+    // even though A4 had a perfectly readable manifest to measure from. The size cap still
+    // applies (the lockfile is still skipped and disclosed as 'too_large'), but the skip no
+    // longer pre-empts A4's own collector: A4 measures from whatever content it did read.
     const dir = makeTmpRepo();
     writeFile(dir, 'package.json', JSON.stringify({ name: 'unattributed-fixture' }));
     writeFile(dir, 'src/index.ts', 'export const implementation = true;\n');
@@ -140,7 +137,9 @@ describe.skipIf(!canDenyReadAccess)('v23 per-signal abstention', () => {
     const { input } = a1SignalAt(dir, WITAN_RUBRIC_VERSION_V23);
     const a4 = (input.signals ?? []).find((signal) => signal.criterionId === 'A4');
 
-    expect(input.contentReadSummary?.affectedCriteria).toContain('A4');
-    expect(a4).toMatchObject({ insufficientData: true, metrics: [], findings: [], positiveEvidence: [] });
+    expect(input.contentReadSummary?.byReason.tooLarge).toBe(1);
+    expect(input.contentReadSummary?.affectedCriteria ?? []).not.toContain('A4');
+    expect(a4?.insufficientData).toBeUndefined();
+    expect(a4?.metrics?.length ?? 0).toBeGreaterThan(0);
   });
 });

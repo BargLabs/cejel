@@ -28,6 +28,8 @@ export interface PublicCejelScoreOptions {
   /** Opt in to untrusted `.cejel/inputs` authored by the scanned repository. Default: false. */
   autoDiscoverIngest?: boolean;
   warnOnEmptyIngestMatch?: boolean;
+  /** The running @cejel/cejel version, carried onto report.json's toolVersion. Not defaulted. */
+  toolVersion?: string;
 }
 
 // Public scans fail closed rather than silently truncate when external evidence exceeds either
@@ -51,7 +53,12 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
   const inputSignals = resolvePublicIngestSignals(options);
-  const report = createWitanReport(input, inputSignals.length > 0 ? inputSignals : undefined);
+  const report = createWitanReport(
+    input,
+    inputSignals.length > 0 ? inputSignals : undefined,
+    undefined,
+    options.toolVersion,
+  );
   if (report.verdict !== 'insufficient_source' || !isWitanNoMeasurementAbstention(report)) {
     return report;
   }

@@ -3,14 +3,27 @@ import { resolve } from 'node:path';
 
 import { MAX_REPOSITORY_CONTENT_BYTES } from '../filesystem-limits.js';
 
-import type { WitanContentReadSummary, WitanCriterionId } from './schemas.js';
+import type {
+  WitanContentReadSkipReason,
+  WitanContentReadSummary,
+  WitanCriterionId,
+} from './schemas.js';
 
-export type ContentReadSkipReason =
-  | 'unreadable'
-  | 'too_large'
-  | 'excluded_by_extension'
-  | 'denied_path'
-  | 'non_regular_file';
+// Alias kept for this module's own readability; identical to the schema type so the two can
+// never drift (schemas.ts is the single source of truth for the literal union).
+export type ContentReadSkipReason = WitanContentReadSkipReason;
+
+// A repository read failure (unreadable, denied_path) is environmental: Cejel tried to read a
+// file it believed was in scope and the filesystem refused. That is evidence loss and must never
+// flatter a certificate (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08). A skip for
+// too_large, excluded_by_extension, or non_regular_file is self-imposed by Cejel's own declared
+// limits — it is a disclosed coverage boundary, not a failure to read something Cejel expected to
+// see, and must never move a score.
+const READ_FAILURE_REASONS: ReadonlySet<ContentReadSkipReason> = new Set(['unreadable', 'denied_path']);
+
+export function isReadFailureReason(reason: ContentReadSkipReason): boolean {
+  return READ_FAILURE_REASONS.has(reason);
+}
 
 interface ContentReadSession {
   readonly counts: Record<ContentReadSkipReason, number>;
@@ -24,6 +37,11 @@ interface ContentReadSession {
   // unattributed skip could have tainted anything in that criterion's output.
   readonly affectedSignals: Set<string>;
   readonly unattributedCriteria: Set<WitanCriterionId>;
+  // Every skip reason that contributed to each unattributed criterion / signal above, keyed the
+  // same way. Lets buildWitanInputFromRepo tell a genuine read failure (unreadable) apart from a
+  // self-imposed coverage limit (too_large, non_regular_file) when it builds the abstention.
+  readonly criterionSkipReasons: Map<WitanCriterionId, Set<ContentReadSkipReason>>;
+  readonly signalSkipReasons: Map<string, Set<ContentReadSkipReason>>;
   criterion?: WitanCriterionId;
   // A single read can legitimately feed more than one named signal (e.g. A4 parses one
   // dependency manifest into three separate ratio metrics). Attributing that read to every
@@ -38,6 +56,32 @@ export interface TrackedContentReads<T> {
   readonly affectedCriteria: ReadonlySet<WitanCriterionId>;
   readonly affectedSignals: ReadonlySet<string>;
   readonly unattributedCriteria: ReadonlySet<WitanCriterionId>;
+  readonly criterionSkipReasons: ReadonlyMap<WitanCriterionId, ReadonlySet<ContentReadSkipReason>>;
+  readonly signalSkipReasons: ReadonlyMap<string, ReadonlySet<ContentReadSkipReason>>;
+}
+
+/**
+ * Classifies why a criterion or signal is wholesale-abstaining, from the union of skip reasons
+ * that contributed to it. Returns `{}` (no override) when any contributing reason is a genuine
+ * read failure — the caller's existing conservative default (read failure, stays in the composite
+ * denominator) applies. Returns a self-imposed `insufficientDataReason` only when every
+ * contributing reason is a disclosed coverage limit, never a read failure.
+ */
+export function classifyAbstentionReason(
+  reasons: ReadonlySet<ContentReadSkipReason> | undefined,
+): { insufficientDataReason?: ContentReadSkipReason } {
+  if (!reasons || reasons.size === 0) return {};
+  for (const reason of reasons) {
+    if (isReadFailureReason(reason)) return {};
+  }
+  // Deterministic, most-descriptive-first choice among the self-imposed reasons present.
+  const priority: readonly ContentReadSkipReason[] = [
+    'too_large',
+    'excluded_by_extension',
+    'non_regular_file',
+  ];
+  const chosen = priority.find((reason) => reasons.has(reason));
+  return chosen ? { insufficientDataReason: chosen } : {};
 }
 
 /** Composite key used in affectedSignals; exported so callers never hand-format it. */
@@ -49,6 +93,19 @@ export function contentReadSignalKey(criterionId: WitanCriterionId, signalId: st
 // therefore gives nested scans isolation without adding an async runtime capability to the
 // offline scoring closure.
 let activeSession: ContentReadSession | undefined;
+
+function addSkipReason<K>(
+  map: Map<K, Set<ContentReadSkipReason>>,
+  key: K,
+  reason: ContentReadSkipReason,
+): void {
+  const existing = map.get(key);
+  if (existing) {
+    existing.add(reason);
+  } else {
+    map.set(key, new Set([reason]));
+  }
+}
 
 function errnoClass(error: unknown): string | null {
   if (typeof error !== 'object' || error === null || !('code' in error)) return null;
@@ -70,10 +127,13 @@ function recordSkip(
     const signals = session.signals;
     if (signals && signals.length > 0) {
       for (const signal of signals) {
-        session.affectedSignals.add(contentReadSignalKey(session.criterion, signal));
+        const key = contentReadSignalKey(session.criterion, signal);
+        session.affectedSignals.add(key);
+        addSkipReason(session.signalSkipReasons, key, reason);
       }
     } else {
       session.unattributedCriteria.add(session.criterion);
+      addSkipReason(session.criterionSkipReasons, session.criterion, reason);
     }
   }
   if (deduplicate) {
@@ -115,6 +175,8 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
       affectedCriteria: existing.affectedCriteria,
       affectedSignals: existing.affectedSignals,
       unattributedCriteria: existing.unattributedCriteria,
+      criterionSkipReasons: existing.criterionSkipReasons,
+      signalSkipReasons: existing.signalSkipReasons,
     };
   }
   const session: ContentReadSession = {
@@ -130,6 +192,8 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
     affectedCriteria: new Set(),
     affectedSignals: new Set(),
     unattributedCriteria: new Set(),
+    criterionSkipReasons: new Map(),
+    signalSkipReasons: new Map(),
   };
   activeSession = session;
   try {
@@ -140,6 +204,8 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
       affectedCriteria: session.affectedCriteria,
       affectedSignals: session.affectedSignals,
       unattributedCriteria: session.unattributedCriteria,
+      criterionSkipReasons: session.criterionSkipReasons,
+      signalSkipReasons: session.signalSkipReasons,
     };
   } finally {
     activeSession = undefined;
@@ -209,27 +275,6 @@ export function recordContentSkip(
   reason: Exclude<ContentReadSkipReason, 'unreadable'>,
   deduplicate = false,
 ): void {
-  recordSkip(path, reason, undefined, false, deduplicate);
-}
-
-/** Record an inventory-time omission whose path shape identifies affected rubric criteria. */
-export function recordContentSkipForCriteria(
-  path: string,
-  reason: Exclude<ContentReadSkipReason, 'unreadable'>,
-  criteria: readonly WitanCriterionId[],
-  deduplicate = false,
-): void {
-  const session = activeSession;
-  if (session) {
-    for (const criterion of criteria) {
-      session.affectedCriteria.add(criterion);
-      // This path names criteria directly from a path-shape heuristic, never from an active
-      // withContentReadSignal scope — it can never be attributed to one signal, so it must force
-      // the conservative whole-criterion fallback rather than silently leaving the criterion out
-      // of unattributedCriteria (which would make v23 wrongly treat it as fully attributed).
-      session.unattributedCriteria.add(criterion);
-    }
-  }
   recordSkip(path, reason, undefined, false, deduplicate);
 }
 

@@ -153,3 +153,55 @@ describe('public ingest resource budgets', () => {
     ).toThrow(/finding candidates.*10,000.*retained ingest finding budget/i);
   });
 });
+
+// goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08: report.json gained an optional
+// toolVersion field, populated from the caller (never derived from the scan itself), so an
+// external consumer (e.g. a leaderboard's incremental-reuse cache key) can tell which cejel
+// version produced a given report — constant within a version (report.json stays byte-stable
+// across re-runs of the same version) and different across versions (the whole point).
+describe('report.json toolVersion (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08)', () => {
+  it('carries the caller-supplied toolVersion verbatim', () => {
+    const repoPath = makeFixtureRepo();
+    const report = scoreRepoWithPublicCejel({
+      repoPath,
+      productSlug: 'rubric-selector-fixture',
+      productDisplayName: 'Rubric Selector Fixture',
+      generatedAt: GENERATED_AT,
+      toolVersion: '0.4.8',
+    });
+
+    expect(report.toolVersion).toBe('0.4.8');
+  });
+
+  it('omits toolVersion entirely when the caller does not supply one', () => {
+    const repoPath = makeFixtureRepo();
+    const report = scoreRepoWithPublicCejel({
+      repoPath,
+      productSlug: 'rubric-selector-fixture',
+      productDisplayName: 'Rubric Selector Fixture',
+      generatedAt: GENERATED_AT,
+    });
+
+    expect(report).not.toHaveProperty('toolVersion');
+  });
+
+  it('is constant across re-runs of the same version, keeping report.json byte-stable', () => {
+    const repoPath = makeFixtureRepo();
+    const first = scoreRepoWithPublicCejel({
+      repoPath,
+      productSlug: 'rubric-selector-fixture',
+      productDisplayName: 'Rubric Selector Fixture',
+      generatedAt: GENERATED_AT,
+      toolVersion: '0.4.8',
+    });
+    const second = scoreRepoWithPublicCejel({
+      repoPath,
+      productSlug: 'rubric-selector-fixture',
+      productDisplayName: 'Rubric Selector Fixture',
+      generatedAt: GENERATED_AT,
+      toolVersion: '0.4.8',
+    });
+
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+});

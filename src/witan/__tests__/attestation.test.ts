@@ -8,6 +8,7 @@ import {
 } from '../attestation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
+import { WITAN_REPORT_FORMAT_VERSION } from '../schemas.js';
 
 const GENERATED_AT = '2026-07-16T12:00:00.000Z';
 const ATTESTATION_OPTIONS = { toolVersion: '0.1.4', generatedAt: GENERATED_AT };
@@ -53,7 +54,7 @@ describe('Cejel scan attestation', () => {
     expect(first.subject[0]?.digest.sha256).toBe(hashWitanReport(report));
     expect(first.predicate.report.sha256).toBe(hashWitanReport(report));
     expect(first.predicate.generatedAt).toBe(GENERATED_AT);
-    expect(first.predicate.reportFormatVersion).toBe('1.0');
+    expect(first.predicate.reportFormatVersion).toBe(WITAN_REPORT_FORMAT_VERSION);
     expect(JSON.stringify(first)).not.toContain('/private/local/path');
     expect(verifyWitanAttestationBinding(first, report)).toEqual({ valid: true, errors: [] });
   });
