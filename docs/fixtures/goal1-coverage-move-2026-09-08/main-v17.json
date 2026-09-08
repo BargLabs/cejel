@@ -1,0 +1,1957 @@
+{
+  "A10_ci_direct": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "CI workflow runs the test suite",
+          "path": ".github/workflows/ci.yml",
+          "line": 1,
+          "contentHash": "1db55236921c3ad8aeb45a1a24c9ce18960a72478d269720c905f868264063a6"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": ".github/workflows/ci.yml",
+            "line": 1,
+            "contentHash": "1db55236921c3ad8aeb45a1a24c9ce18960a72478d269720c905f868264063a6"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A11_pytest_cov": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "71ee7ad93d6fa07a699b23683998940a305fa60713bf773e5c787db6672b1dc2"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "71ee7ad93d6fa07a699b23683998940a305fa60713bf773e5c787db6672b1dc2"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A12_node_experimental_coverage": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "66aa848425595f15ddf7e4f4f71a6e8dbe6ad97996af2150ae93f623b2a51582"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "66aa848425595f15ddf7e4f4f71a6e8dbe6ad97996af2150ae93f623b2a51582"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A1_direct_nyc": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "5c124efc5efa9137016aeabcb3f193e0afd27a997fbfe52c625301425315b39c"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "5c124efc5efa9137016aeabcb3f193e0afd27a997fbfe52c625301425315b39c"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "5c124efc5efa9137016aeabcb3f193e0afd27a997fbfe52c625301425315b39c"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A2_flag_jest_on": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "7b91898b19ea0b54dfab84dced76099b44510d3fb2413873cc1239d408000925"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "7b91898b19ea0b54dfab84dced76099b44510d3fb2413873cc1239d408000925"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A3_flag_jest_negated": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "8cd8b5842019cb0b57ad39203403f4d8807fd1fa102f47261d9e95d095e8b6d6"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "8cd8b5842019cb0b57ad39203403f4d8807fd1fa102f47261d9e95d095e8b6d6"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A4_flag_eq_false": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "6fbcf0d8ffd536a91766f980ca4fb5c2d429ab6458f6b6d678c2fe76057d11f4"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "6fbcf0d8ffd536a91766f980ca4fb5c2d429ab6458f6b6d678c2fe76057d11f4"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A5_flag_conflict": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "516ee8ee061a4bc6d61f48e8e239d1fcd8f4c748968aa46865c271876340dead"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "516ee8ee061a4bc6d61f48e8e239d1fcd8f4c748968aa46865c271876340dead"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A6_runner_no_flag": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "0436fe54dad81a72b473a31a7f96f6df8ad65c3bdad9ceb72bf2ee90b1892927"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "0436fe54dad81a72b473a31a7f96f6df8ad65c3bdad9ceb72bf2ee90b1892927"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A7_unclear_flag_heuristic": {
+    "a1": null,
+    "scanLimitations": []
+  },
+  "A8_dynamic_unresolved": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "f40cf731d61130f44e73c442de1d7654449c25ce9de72232df073a45c0620c6a"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "f40cf731d61130f44e73c442de1d7654449c25ce9de72232df073a45c0620c6a"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "A9_wrapper_reachable": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "artifact",
+          "label": "Reviewable source anchor (1/1 sampled files readable; 1/1 source-shaped files criterion-ratable)",
+          "path": "scripts/run-tests.sh",
+          "line": 1,
+          "contentHash": "a287ec0a62aa8452bbcc5889268ac3e857c16f0af2081e0e3992208e9a9a0613"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "critical",
+          "summary": "Reviewable source is present, but the bounded directory walk matched no concrete test file, configured test runner, CI test command, or coverage configuration.",
+          "evidence": {
+            "kind": "artifact",
+            "label": "Reviewable source anchor (1/1 sampled files readable; 1/1 source-shaped files criterion-ratable)",
+            "path": "scripts/run-tests.sh",
+            "line": 1,
+            "contentHash": "a287ec0a62aa8452bbcc5889268ac3e857c16f0af2081e0e3992208e9a9a0613"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to criterion-ratable implementation source."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 0,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 0
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "No concrete test files were present to establish non-hollow test behavior."
+        }
+      ],
+      "notes": "V17 authenticated absence: 1 criterion-ratable of 1 source-shaped files; sampled 1; 1 representative-text files."
+    },
+    "scanLimitations": []
+  },
+  "B1_vitest_object_true": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "vitest.config.js",
+          "line": 1,
+          "contentHash": "13a89883e587eb36ceecfce06cf1634354fa8f2c1d4edb69a3e13fff8ef6946b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "2cc33b4c3eca67be71869a269cea257035893e43770bcfc2ed237a85b494dd26"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "vitest.config.js",
+          "line": 1,
+          "contentHash": "13a89883e587eb36ceecfce06cf1634354fa8f2c1d4edb69a3e13fff8ef6946b"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "2cc33b4c3eca67be71869a269cea257035893e43770bcfc2ed237a85b494dd26"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "B2_vitest_false": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "vitest.config.js",
+          "line": 1,
+          "contentHash": "e77a2b4e5babc27d392aaa17e896a4d994f1dae3291812bc1fc65b28a053a220"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "6b4bc456122dcb389366181b30a92b96ab6fb05a3b4d0b17dc0abf9a055da566"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "vitest.config.js",
+          "line": 1,
+          "contentHash": "e77a2b4e5babc27d392aaa17e896a4d994f1dae3291812bc1fc65b28a053a220"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "6b4bc456122dcb389366181b30a92b96ab6fb05a3b4d0b17dc0abf9a055da566"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "B3_jest_collectCoverage_true": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "jest.config.js",
+          "line": 1,
+          "contentHash": "9b80832e0078f4a5cfa1f2961bf11e30b36974af4e9cba0d585cae17143a9ae5"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "ab0f8adf749972887eb333019a3e9b20e0b67eaac6b73f7551b3ccfcac6cde51"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "jest.config.js",
+          "line": 1,
+          "contentHash": "9b80832e0078f4a5cfa1f2961bf11e30b36974af4e9cba0d585cae17143a9ae5"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "jest.config.js",
+            "line": 1,
+            "contentHash": "9b80832e0078f4a5cfa1f2961bf11e30b36974af4e9cba0d585cae17143a9ae5"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "B4_jest_collectCoverage_false": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "jest.config.js",
+          "line": 1,
+          "contentHash": "f11942c692d06f37ff22fbf32b3746e01cf52f29680bb8641dacc620cbedc30b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "f78ade2d50d064747fcee8be2254a4440a843167614c578f507b1201c57281bb"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "jest.config.js",
+          "line": 1,
+          "contentHash": "f11942c692d06f37ff22fbf32b3746e01cf52f29680bb8641dacc620cbedc30b"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "jest.config.js",
+            "line": 1,
+            "contentHash": "f11942c692d06f37ff22fbf32b3746e01cf52f29680bb8641dacc620cbedc30b"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 2,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "B5_package_nyc_static": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "a911959da4e8aa0fe3976c148d5bb171fe08c946ea3bd70d0c5b9f4e3405607d"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "a911959da4e8aa0fe3976c148d5bb171fe08c946ea3bd70d0c5b9f4e3405607d"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "a911959da4e8aa0fe3976c148d5bb171fe08c946ea3bd70d0c5b9f4e3405607d"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "B6_nycrc_file": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "70fa16fcfbc78addd6f3c805452cfaa91c664de675d23f182d663184876c05be"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "package.json",
+            "line": 1,
+            "contentHash": "70fa16fcfbc78addd6f3c805452cfaa91c664de675d23f182d663184876c05be"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "B7_pyproject_toml": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "pyproject.toml",
+          "line": 1,
+          "contentHash": "691cdcda3745a50bff002a28defbfe4aba0525e680e1335becbd258f386bc4aa"
+        },
+        {
+          "kind": "coverage",
+          "label": "Coverage configuration",
+          "path": "pyproject.toml",
+          "line": 1,
+          "contentHash": "691cdcda3745a50bff002a28defbfe4aba0525e680e1335becbd258f386bc4aa"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "pyproject.toml",
+            "line": 1,
+            "contentHash": "691cdcda3745a50bff002a28defbfe4aba0525e680e1335becbd258f386bc4aa"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 0
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "C1_makefile_test_nyc": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "Makefile",
+          "line": 1,
+          "contentHash": "d1f3f23bea8aeebe3b0ac31c04d46071f0ef7dafa69daf54fb06bb3dc914f137"
+        }
+      ],
+      "findings": [
+        {
+          "severity": "warning",
+          "summary": "A test runner is configured, but the bounded directory walk matched no concrete test file.",
+          "evidence": {
+            "kind": "test_run",
+            "label": "Configured test runner",
+            "path": "Makefile",
+            "line": 1,
+            "contentHash": "d1f3f23bea8aeebe3b0ac31c04d46071f0ef7dafa69daf54fb06bb3dc914f137"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 0,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 0
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 0,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  },
+  "C2_makefile_ci_reachable": {
+    "a1": null,
+    "scanLimitations": []
+  },
+  "C3_justfile_test": {
+    "a1": null,
+    "scanLimitations": []
+  },
+  "C4_makefile_unreachable": {
+    "a1": null,
+    "scanLimitations": []
+  },
+  "E1_no_coverage": {
+    "a1": {
+      "criterionId": "A1",
+      "positiveEvidence": [
+        {
+          "kind": "test_run",
+          "label": "Detected test file",
+          "path": "src/example.test.js",
+          "line": 1,
+          "contentHash": "f4a03e474025b427d47609ac777a25746e2d2235229d2a1ab917685e7a9b9c9b"
+        },
+        {
+          "kind": "test_run",
+          "label": "Configured test runner",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "b90b05882b80799839ad7c1c6f1dd35faa85d1c1d0fbc4a9d529a839ac1785f2"
+        },
+        {
+          "kind": "test_run",
+          "label": "Lean built-in test toolchain (e.g. node:test) — no heavy transitive test dependency",
+          "path": "package.json",
+          "line": 1,
+          "contentHash": "b90b05882b80799839ad7c1c6f1dd35faa85d1c1d0fbc4a9d529a839ac1785f2"
+        }
+      ],
+      "findings": [],
+      "metrics": [
+        {
+          "name": "test_to_source_ratio",
+          "label": "Test-to-source file ratio",
+          "value": 1,
+          "max": 1,
+          "kind": "saturating_count",
+          "weight": 0.3,
+          "unit": "ratio",
+          "description": "Measures how much concrete test surface exists relative to implementation surface."
+        },
+        {
+          "name": "coverage_percent",
+          "label": "Static coverage percentage",
+          "value": 0,
+          "max": 100,
+          "weight": 0.3,
+          "unit": "percent",
+          "description": "Uses a static coverage report value or configured threshold when present, without running tests."
+        },
+        {
+          "name": "verification_script_ratio",
+          "label": "Verification script ratio",
+          "value": 1,
+          "max": 4,
+          "kind": "saturating_count",
+          "weight": 0.25,
+          "unit": "ratio",
+          "description": "Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.",
+          "presentation": {
+            "components": [
+              {
+                "label": "test command",
+                "count": 1
+              },
+              {
+                "label": "coverage command",
+                "count": 0
+              },
+              {
+                "label": "lint command",
+                "count": 0
+              },
+              {
+                "label": "type-check command",
+                "count": 0
+              },
+              {
+                "label": "test-runner configuration",
+                "count": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "non_hollow_test_share",
+          "label": "Non-hollow test share",
+          "value": 1,
+          "max": 1,
+          "weight": 0.15,
+          "unit": "ratio",
+          "description": "Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator."
+        }
+      ],
+      "notes": "A1 is detected from real test files, test runner configuration, and optional coverage configuration."
+    },
+    "scanLimitations": []
+  }
+}
