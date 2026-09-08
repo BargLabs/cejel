@@ -1,0 +1,17 @@
+[
+  {
+    "statement": "A pre-emptive abstention keyed on a file's path shape (filename pattern), decided before any per-criterion collector runs, discards readable evidence the collector would otherwise have found and measured. Incident: cejel's repo-signal inventory pass mapped an oversized (over its own declared content-read size cap) file to affected rubric criteria by filename shape alone (dependency-manifest-shaped, CI-shaped, test-shaped, implementation-shaped, doc-shaped, audit-shaped) at file-inventory time, wiping the whole criterion wholesale even when other readable content -- e.g. a small, fully-answering README -- already satisfied it. Field instance: a repository holding a 6.3KB README that fully answered rubric criterion A5 was abstaining A5 anyway, because two unrelated oversized .txt test-data fixtures also matched A5's doc-extension path shape. Measured effect on a design partner's same-commit comparison: 3.1/4.0 measuring 9/9 criteria under the unaffected version, 1.5/4.0 measuring 5/10 under the affected version. Fix: delete the path-shape mapping function and its call sites entirely; let each criterion's own collector decide, from whatever content it actually receives, whether it has enough evidence to measure -- a collector with zero readable evidence already returns null or an explicit not-applicable signal in every criterion this codebase has (audited all ten), so nothing needed to fabricate a false measurement in the gap. Rule: a scoring/coverage system should never guess which measurement a skipped input would have affected by the input's shape or name; only the actual downstream consumer (the collector, the check, the rule) that would have used that input can honestly determine whether its absence changes anything.",
+    "scope": ["dev-task"],
+    "tags": [
+      "preemptive-abstention",
+      "path-shape-heuristic",
+      "coverage-vs-measurement",
+      "false-negative-from-guessing",
+      "scoring-defect"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-08T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind":"pr-merged","repository":"BargLabs/cejel","number":294}
+  }
+]
