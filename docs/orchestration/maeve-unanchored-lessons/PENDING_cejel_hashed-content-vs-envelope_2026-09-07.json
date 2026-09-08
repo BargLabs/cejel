@@ -16,6 +16,8 @@
         "summary": "Track A5 rider: github.run_attempt placed only in attestation.json's predicate, never report.json; squash-merge carries both that placement and the two-run byte-comparison proof test added on handback."
       }
     ],
-    "lastSeenAt": "2026-09-07T00:00:00.000Z"
+    "lastSeenAt": "2026-09-07T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind":"pr-merged","repository":"BargLabs/cejel","number":282}
   }
 ]
