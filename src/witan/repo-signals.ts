@@ -366,6 +366,13 @@ function buildWitanInputFromRepoUntracked(
   const usesV22PackageStartEntrypoint =
     rubricVersion === WITAN_RUBRIC_VERSION_V22 || rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;
+  // Explicit-only (goal_cejel_v23_pem_private_key_grammar_2026-09-06): a PEM-formatted
+  // private-key value assigned to an identifier (e.g. a service-account JSON's
+  // "private_key" field) is a dedicated grammar, not an extension of the shared
+  // SECRET_IDENTIFIER_KEYWORD_PATTERN/findRealSecretAssignments path every other rubric
+  // version also uses — v17 and v22 must stay byte-stable, so this never inherits forward
+  // the way usesV17DetectorClosure does; it is checked against V23 alone.
+  const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -454,6 +461,7 @@ function buildWitanInputFromRepoUntracked(
     usesV21ExecutedEscalations,
     usesV22PackageStartEntrypoint,
     usesV23CommandCoverage,
+    usesV23PemPrivateKeyGrammar,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1536,6 +1544,7 @@ function collectRepoSignals(
   useV21ExecutedEscalations: boolean,
   useV22PackageStartEntrypoint: boolean,
   useV23CommandCoverage: boolean,
+  useV23PemPrivateKeyGrammar: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1567,6 +1576,7 @@ function collectRepoSignals(
       useV36Detectors,
       useV39Detectors,
       useV47Detectors,
+      useV23PemPrivateKeyGrammar,
       useV18NativeRls,
       inventoryAbsenceContext,
       scanLimitations,
@@ -2108,6 +2118,7 @@ function collectA2IsolationEvidence(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors: boolean,
+  useV23PemPrivateKeyGrammar: boolean,
   useV18NativeRls: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext,
   scanLimitations: Set<string>,
@@ -2152,6 +2163,7 @@ function collectA2IsolationEvidence(
           useV36Detectors,
           useV39Detectors,
           useV47Detectors,
+          useV23PemPrivateKeyGrammar,
         );
         if (!found) continue;
         match_ = { path, match: found };
@@ -2159,7 +2171,9 @@ function collectA2IsolationEvidence(
       }
       const fingerprintsByPath = new Map<string, ReadonlySet<string>>();
       if (useV27Detectors) {
-        for (const path of repoFiles.filter((candidate) => isCredentialHistoryPath(candidate))) {
+        for (const path of repoFiles.filter((candidate) =>
+          isCredentialHistoryPath(candidate, useV36Detectors, useV23PemPrivateKeyGrammar),
+        )) {
           fingerprintsByPath.set(
             path,
             new Set(
@@ -2169,6 +2183,7 @@ function collectA2IsolationEvidence(
                 useV36Detectors,
                 useV39Detectors,
                 useV47Detectors,
+                useV23PemPrivateKeyGrammar,
               ),
             ),
           );
@@ -2193,6 +2208,7 @@ function collectA2IsolationEvidence(
           useV36Detectors,
           useV39Detectors,
           useV47Detectors,
+          useV23PemPrivateKeyGrammar,
         );
   const hasConfirmedSecretFinding = committedSecret != null || historySecretScan?.evidence != null;
 
@@ -2412,15 +2428,20 @@ function collectA2IsolationEvidence(
   if (committedSecret) {
     const isTestPath = isTestOrFixturePath(committedSecret.path);
     const isDefaultAdmin = committedSecret.match.kind === 'default_admin';
+    const isPemPrivateKey = committedSecret.match.kind === 'pem_private_key';
     findings.push({
       severity: isTestPath ? 'info' : 'critical',
       summary: isDefaultAdmin
         ? isTestPath
           ? `Default administrative credential in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production deployment default; verify.`
           : 'An explicit default administrative credential appears committed in production configuration.'
-        : isTestPath
-          ? `Secret-shaped value in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production leak; verify.`
-          : 'Secret-shaped value appears committed in the scanned repository.',
+        : isPemPrivateKey
+          ? isTestPath
+            ? `PEM-formatted private key in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production leak; verify.`
+            : 'A PEM-formatted private key appears committed in the scanned repository.'
+          : isTestPath
+            ? `Secret-shaped value in a test/fixture file (${committedSecret.path}) — likely fixture data, not a production leak; verify.`
+            : 'Secret-shaped value appears committed in the scanned repository.',
       evidence: evidenceForRelativeAtLine(
         repoPath,
         committedSecret.path,
@@ -2428,7 +2449,9 @@ function collectA2IsolationEvidence(
         secretEvidenceLabel(
           isDefaultAdmin
             ? 'Committed default administrative credential'
-            : 'Committed secret-shaped value',
+            : isPemPrivateKey
+              ? 'Committed PEM-formatted private key'
+              : 'Committed secret-shaped value',
           committedSecret.match,
         ),
         committedSecret.match.line,
@@ -2462,11 +2485,16 @@ function collectA2IsolationEvidence(
   if (historySecretScan?.evidence) {
     const historyPath = historySecretScan.evidence.path ?? '';
     const isTestPath = isTestOrFixturePath(historyPath);
+    const isPemPrivateKey = historySecretScan.secretKind === 'pem_private_key';
     findings.push({
       severity: isTestPath ? 'info' : 'critical',
-      summary: isTestPath
-        ? `Secret-shaped value in git history for a test/fixture file (${historyPath}) — likely fixture data, not a production leak; verify.`
-        : 'Secret-shaped value appears in recent git history.',
+      summary: isPemPrivateKey
+        ? isTestPath
+          ? `PEM-formatted private key in git history for a test/fixture file (${historyPath}) — likely fixture data, not a production leak; verify.`
+          : 'A PEM-formatted private key appears in recent git history.'
+        : isTestPath
+          ? `Secret-shaped value in git history for a test/fixture file (${historyPath}) — likely fixture data, not a production leak; verify.`
+          : 'Secret-shaped value appears in recent git history.',
       evidence: historySecretScan.evidence,
     });
   } else if (historySecretScan?.truncated) {
@@ -4419,6 +4447,15 @@ const SET_ROLE_PATTERN = /\bset\s+(local\s+)?role\b/i;
 // which is detected separately by presence alone.
 const REQUIRED_REVIEW_PATTERN = /required review|branch protection|protected branch/i;
 const HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT = 5_000;
+// v23-only: V23_KEY_SHAPED_JSON_PATH_PATTERN's bare "key" alternative also matches ordinary
+// non-credential *.json basenames (sort-key.json, cache-key.json, license-key.json,
+// public-key.json, ...) — a path-only heuristic can't tell those apart from a real
+// service-account key export. Walked most-recent-first, a history with many such files would
+// let that noise consume the whole HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT budget before an
+// older genuine leak on a base-classified path (isCredentialHistoryPath) is ever reached. Paths
+// that qualify ONLY through the v23 widening (not through any base check) draw from this smaller
+// budget instead, so they can never crowd out the established candidate set.
+const V23_PEM_WIDENED_HISTORY_BLOB_LIMIT = 500;
 // Keyword may appear ANYWHERE in the identifier left of `=`/`:` (not just immediately
 // before it) so `stripe_secret_key`, `myApiKey`, `access_token_value` are caught, not just
 // bare `secret =` / `apiKey =` (goal_cejel_launch_hardening_combined_2026-07-06, Phase 2 FN
@@ -7558,12 +7595,159 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   return pattern.test(readRepoText(fullPath, 'utf8'));
 }
 
+// ---- v23-only: PEM-formatted private-key assignment grammar -------------------------------
+// (goal_cejel_v23_pem_private_key_grammar_2026-09-06). SECRET_IDENTIFIER_KEYWORD_PATTERN above
+// requires "secret", "token", "api_key", "password" or "access_key" in the identifier —
+// "private_key" (the canonical GCP/AWS service-account-JSON field name) matches none of those.
+// And even a matching identifier's value would not survive findRealSecretAssignments' capture:
+// that loop stops the value at the first real quote or whitespace character, which a PEM
+// block trips on its own embedded newline (real, or a JSON string's literal `\n` two-character
+// escape makes no difference — [\s\S] below spans both) and on the literal space inside
+// "PRIVATE KEY" itself. This is why it is a dedicated, whole-file grammar rather than an
+// extension of the shared keyword/value scan — and why it is threaded as its own
+// useV23PemPrivateKeyGrammar flag through every call site instead of folding into
+// useV39Detectors/useV47Detectors: v17 and v22 must stay byte-stable, and this closure was
+// never part of either.
+//
+// FP discipline: a public key or certificate can never match (the pattern requires the
+// literal substring "PRIVATE KEY", which "PUBLIC KEY" and "CERTIFICATE" do not contain).
+// Documentation examples, __fixtures__/test-fixture paths, and generated/vendor paths are
+// already excluded upstream by the same isV47AuthoredProductionPath gate every other secret
+// check in this file uses (see the authoredProductionPath check in collectA2IsolationEvidence)
+// — this grammar adds no path filtering of its own for those. What it does add locally is
+// what those upstream gates cannot know from a path alone: an identifier/context match for
+// "dev"/"self-signed"/"snakeoil"-shaped material, and a nearby "rotated"/"revoked" annotation.
+// The body capture is bounded (not an unbounded `[\s\S]*?`): with no bound, a file containing
+// several unterminated "-----BEGIN ... PRIVATE KEY-----" markers (no matching END) makes the
+// engine re-attempt an ever-shrinking suffix scan from every such start position, which
+// measures as clearly super-linear (super-linear time on repeated-unterminated-marker input —
+// verified directly: ~61ms to ~3.7s as input doubled from ~165KB to ~1.3MB). 32KB is far more
+// than any real PEM private key (even RSA-8192 is a few KB), so this bound never truncates a
+// genuine match while capping worst-case per-position work to a constant.
+const PEM_PRIVATE_KEY_ASSIGNMENT_PATTERN =
+  /(?:["'])?([A-Za-z_$][\w$.-]*)(?:["'])?\s*[:=]\s*(?:\|[-+0-9]*\s*\r?\n[ \t]*)?["'`]?-----BEGIN((?: (?:RSA|DSA|EC|OPENSSH|ENCRYPTED))? PRIVATE KEY)-----([\s\S]{0,32768}?)-----END\2-----/g;
+// A bare key file (id_rsa, server.key, some-cert.pem) has no `identifier =`/`identifier:`
+// wrapper at all — isCredentialHistoryPath already treats these basenames as scan-eligible, but
+// the assignment grammar above never matched their content. This is the same regex with that
+// leading identifier/operator prefix made optional, used only for basenames shaped like a
+// standalone key file (see isBarePemKeyFile) so the wider, prefix-free match never runs against
+// arbitrary source/doc/log content. Same shape as PEM_PRIVATE_KEY_ASSIGNMENT_PATTERN minus the
+// leading identifier/operator group — so the key-type backreference is \1 here (there is no
+// group before it), not \2.
+const BARE_PEM_PRIVATE_KEY_PATTERN =
+  /["'`]?-----BEGIN((?: (?:RSA|DSA|EC|OPENSSH|ENCRYPTED))? PRIVATE KEY)-----([\s\S]{0,32768}?)-----END\1-----/g;
+const BARE_PEM_KEY_FILE_PATTERN = /(?:^|\/)id_(?:rsa|dsa|ecdsa|ed25519)$|\.(?:pem|key)$/i;
+function isBarePemKeyFile(file: string): boolean {
+  return BARE_PEM_KEY_FILE_PATTERN.test(file);
+}
+// A committed self-signed/local-dev key is a routine, low-value artifact (see e.g. Debian's
+// ssl-cert-snakeoil convention) — checked against the identifier, a small surrounding-line
+// window, and the file path itself. Lookarounds (not \b) treat "_"/"-" as boundaries too, so
+// "self_signed_key" and "local-dev.pem" both match, not just space-delimited prose. "staging" is
+// deliberately not in this list: unlike "dev"/"local"/"self-signed", a staging path names a
+// real, reachable deployment environment, not routine throwaway material.
+const DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN =
+  /(?<![A-Za-z0-9])(?:dev|development|local|localhost|self[-_]?signed|snakeoil|insecure|dummy|sample|demo|placeholder|fixture|generated)(?![A-Za-z0-9])/i;
+// A key documented as rotated/revoked in its own surrounding context is retired material, not
+// a live leak — an honest abstention in the direction of fewer false positives, per this
+// goal's binding FP-discipline constraint, even at some cost to recall.
+const ROTATED_OR_REVOKED_KEY_CONTEXT_PATTERN =
+  /(?<![A-Za-z0-9])(?:rotated|revoked|expired|deprecated|compromised|invalidated|superseded)(?![A-Za-z0-9])|do[-_ ]not[-_ ]use|no longer valid/i;
+
+// A real PEM body is a long run of base64 characters (plus real/escaped newlines and
+// indentation, stripped before this check runs) — never a short placeholder, an all-filler
+// run, or a synthetic fixture alphabet. Reuses the same placeholder heuristics every other
+// secret value in this file is judged by, rather than inventing a parallel notion of "fake".
+function isPlausiblePemKeyBody(rawBody: string): boolean {
+  const normalized = rawBody.replace(/\\[nr]|[\r\n\s]/g, '');
+  if (normalized.length < 40) return false;
+  if (!/^[A-Za-z0-9+/=]+$/.test(normalized)) return false;
+  return !isPlaceholderSecretValue(normalized);
+}
+
+// Runs one compiled PEM pattern over `contents` and returns the first match that survives every
+// FP guard, or null. Shared by both the identifier-prefixed grammar and the bare-key-file
+// fallback below so the FP-guard logic (dev/self-signed context, rotated/revoked context,
+// plausible body) and the evidence-metadata computation exist in exactly one place.
+function scanForPemPrivateKeyMatch(
+  pattern: RegExp,
+  contents: string,
+  lines: readonly string[],
+  hasIdentifierGroup: boolean,
+): RealSecretAssignmentMatch | null {
+  pattern.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(contents)) !== null) {
+    const full = match[0];
+    // PEM_PRIVATE_KEY_ASSIGNMENT_PATTERN captures (identifier, keyType, body);
+    // BARE_PEM_PRIVATE_KEY_PATTERN has no identifier group, so it captures (keyType, body).
+    const identifier = hasIdentifierGroup ? (match[1] ?? '') : '';
+    const body = (hasIdentifierGroup ? match[3] : match[2]) ?? '';
+    const line = contents.slice(0, match.index).split('\n').length;
+    const contextLines = lines.slice(Math.max(0, line - 5), line + 4).join('\n');
+    const isDevOrSelfSigned = DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN.test(
+      `${identifier}\n${contextLines}`,
+    );
+    const isRotatedOrRevoked = ROTATED_OR_REVOKED_KEY_CONTEXT_PATTERN.test(contextLines);
+    if (isPlausiblePemKeyBody(body) && !isDevOrSelfSigned && !isRotatedOrRevoked) {
+      // The evidence value is the PEM block itself (armor + body), not `full` — `full` also
+      // contains the identifier and assignment syntax, which would otherwise (a) make
+      // characterClasses/valueLength describe the wrapper rather than the secret, and (b) make
+      // the fingerprint sensitive to unrelated edits to that wrapper, breaking the
+      // current-tree/history dedup this match feeds (see currentFingerprints callers below).
+      const value = full.slice(full.indexOf('-----BEGIN'));
+      const characterClasses = [
+        /[a-z]/.test(value) ? 'lower' : '',
+        /[A-Z]/.test(value) ? 'upper' : '',
+        /\d/.test(value) ? 'digit' : '',
+        /[^A-Za-z0-9]/.test(value) ? 'symbol' : '',
+      ]
+        .filter(Boolean)
+        .join('+');
+      return {
+        identifier,
+        line,
+        valueLength: value.length,
+        characterClasses: characterClasses || 'other',
+        valueFingerprint: createHash('sha256').update(value).digest('hex'),
+        kind: 'pem_private_key',
+      };
+    }
+  }
+  return null;
+}
+
+// Returns the first PEM-formatted private-key assignment in `contents` that survives every FP
+// guard, or null — never a fabricated match. `file` is the path being scanned: used for the
+// dev/self-signed path check, and to decide whether the identifier-free bare-key-file fallback
+// applies (id_rsa, *.pem, *.key have no `identifier =` wrapper at all). The path-based
+// fixture/doc/generated exclusion itself already happened upstream, before this function is
+// ever called.
+function findPemPrivateKeyAssignment(
+  contents: string,
+  file: string,
+): RealSecretAssignmentMatch | null {
+  if (!contents.includes('-----BEGIN')) return null;
+  if (DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN.test(file)) return null;
+  const lines = contents.split('\n');
+  const assignmentMatch = scanForPemPrivateKeyMatch(
+    PEM_PRIVATE_KEY_ASSIGNMENT_PATTERN,
+    contents,
+    lines,
+    true,
+  );
+  if (assignmentMatch) return assignmentMatch;
+  if (!isBarePemKeyFile(file)) return null;
+  return scanForPemPrivateKeyMatch(BARE_PEM_PRIVATE_KEY_PATTERN, contents, lines, false);
+}
+
 function findCommittedSecretInFile(
   repoPath: string,
   file: string,
   useV36Detectors = false,
   useV39Detectors = false,
   useV47Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
 ): RealSecretAssignmentMatch | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
@@ -7581,6 +7765,10 @@ function findCommittedSecretInFile(
     allowCredentialNamedDigest: useV36Detectors,
   });
   if (secret) return secret;
+  if (useV23PemPrivateKeyGrammar) {
+    const pemSecret = findPemPrivateKeyAssignment(secretScanContents, file);
+    if (pemSecret) return pemSecret;
+  }
   if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
     const weakCredential = findWeakExplicitEnvCredential(secretScanContents);
     if (weakCredential) return weakCredential;
@@ -7720,6 +7908,7 @@ function findSecretFingerprintsInFile(
   useV36Detectors = false,
   useV39Detectors = false,
   useV47Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
 ): string[] {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return [];
@@ -7737,6 +7926,10 @@ function findSecretFingerprintsInFile(
     Number.POSITIVE_INFINITY,
     { allowCredentialNamedDigest: useV36Detectors },
   ).map(({ valueFingerprint }) => valueFingerprint);
+  if (useV23PemPrivateKeyGrammar) {
+    const pemSecret = findPemPrivateKeyAssignment(scanContents, file);
+    if (pemSecret) fingerprints.push(pemSecret.valueFingerprint);
+  }
   if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
     const weakCredential = findWeakExplicitEnvCredential(scanContents);
     if (weakCredential) fingerprints.push(weakCredential.valueFingerprint);
@@ -7754,7 +7947,7 @@ interface RealSecretAssignmentMatch {
   valueLength: number;
   characterClasses: string;
   valueFingerprint: string;
-  kind?: 'secret' | 'default_admin';
+  kind?: 'secret' | 'default_admin' | 'pem_private_key';
 }
 
 interface SecretAssignmentOptions {
@@ -7943,6 +8136,11 @@ function isSecretIdentifierCharacter(characterCode: number): boolean {
 interface HistorySecretScanResult {
   // A confirmed high-entropy secret value found in a historical blob — critical.
   evidence: WitanEvidencePointer | null;
+  // The `kind` of the match `evidence` was built from (mirrors RealSecretAssignmentMatch['kind']
+  // — e.g. 'pem_private_key'), carried alongside `evidence` rather than recovered by matching
+  // substrings in `evidence.label`, so a future wording change to that label can never silently
+  // reclassify the finding. Only meaningful when `evidence` is non-null.
+  secretKind: RealSecretAssignmentMatch['kind'] | null;
   // A non-template .env file path was tracked in history, but no confirmed secret
   // value was found in the scanned content — at most a warning, never a critical
   // ("bare path", not a "value"). Templates never reach this: isCredentialHistoryPath
@@ -7974,14 +8172,17 @@ function collectHistorySecretEvidence(
   useV36Detectors = false,
   useV39Detectors = false,
   useV47Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
 ): HistorySecretScanResult {
   const historyEntries = readCredentialHistoryEntries(
     repoPath,
     scanLimitations,
     useV36Detectors,
+    useV23PemPrivateKeyGrammar,
   );
   const head = excludeHead ? readGitHead(repoPath) : null;
   let scannedFiles = 0;
+  let v23WidenedOnlyScanned = 0;
   let envPathEvidence: WitanEvidencePointer | null = null;
   for (const entry of historyEntries) {
     if (head && entry.commit === head) continue;
@@ -7995,10 +8196,22 @@ function collectHistorySecretEvidence(
     ) {
       continue;
     }
-    if (scannedFiles >= HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT) {
-      return { evidence: null, envPathEvidence, truncated: true };
+    // Draws from the small, separate v23-widened budget instead of the main one — see
+    // V23_PEM_WIDENED_HISTORY_BLOB_LIMIT above — so it can never crowd out base-classified
+    // candidates from HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT.
+    const isV23WidenedOnly =
+      useV23PemPrivateKeyGrammar &&
+      isV23PemCredentialHistoryPath(historyPathBasename(entry.path.toLowerCase())) &&
+      !isCredentialHistoryPath(entry.path, useV36Detectors, false);
+    if (isV23WidenedOnly) {
+      if (v23WidenedOnlyScanned >= V23_PEM_WIDENED_HISTORY_BLOB_LIMIT) continue;
+      v23WidenedOnlyScanned += 1;
+    } else {
+      if (scannedFiles >= HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT) {
+        return { evidence: null, secretKind: null, envPathEvidence, truncated: true };
+      }
+      scannedFiles += 1;
     }
-    scannedFiles += 1;
     const contents = readGitBlob(repoPath, entry.commit, entry.path, scanLimitations);
     if (!contents) continue;
     const scanContents = prepareCredentialScanContents(
@@ -8012,6 +8225,12 @@ function collectHistorySecretEvidence(
     let secretMatch = findRealSecretAssignment(scanContents, currentFingerprints, {
       allowCredentialNamedDigest: useV36Detectors,
     });
+    if (!secretMatch && useV23PemPrivateKeyGrammar) {
+      const pemMatch = findPemPrivateKeyAssignment(scanContents, entry.path);
+      if (pemMatch && !currentFingerprints.has(pemMatch.valueFingerprint)) {
+        secretMatch = pemMatch;
+      }
+    }
     if (
       !secretMatch &&
       useV39Detectors &&
@@ -8026,11 +8245,17 @@ function collectHistorySecretEvidence(
       return {
         evidence: {
           kind: 'secret_scan',
-          label: secretEvidenceLabel('Committed secret in recent git history', secretMatch),
+          label: secretEvidenceLabel(
+            secretMatch.kind === 'pem_private_key'
+              ? 'Committed PEM-formatted private key in recent git history'
+              : 'Committed secret in recent git history',
+            secretMatch,
+          ),
           path: entry.path,
           line: secretMatch.line,
           contentHash: entry.commit,
         },
+        secretKind: secretMatch.kind ?? null,
         envPathEvidence,
         truncated: false,
       };
@@ -8044,7 +8269,7 @@ function collectHistorySecretEvidence(
       };
     }
   }
-  return { evidence: null, envPathEvidence, truncated: false };
+  return { evidence: null, secretKind: null, envPathEvidence, truncated: false };
 }
 
 interface GitHistoryEntry {
@@ -8056,6 +8281,7 @@ function readCredentialHistoryEntries(
   repoPath: string,
   scanLimitations: Set<string>,
   useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
 ): GitHistoryEntry[] {
   const entries: GitHistoryEntry[] = [];
   const seen = new Set<string>();
@@ -8105,7 +8331,7 @@ function readCredentialHistoryEntries(
           scanLimitations.add(CONTROL_CHARACTER_HISTORY_PATH_LIMITATION);
           continue;
         }
-        if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
+        if (!isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)) continue;
         appendEntry({ commit: currentCommit, path });
       }
     }
@@ -8115,6 +8341,7 @@ function readCredentialHistoryEntries(
     repoPath,
     scanLimitations,
     useV36Detectors,
+    useV23PemPrivateKeyGrammar,
   )) {
     appendEntry(entry);
   }
@@ -8126,11 +8353,13 @@ function readDeletedCredentialHistoryEntries(
   repoPath: string,
   scanLimitations: Set<string>,
   useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
 ): GitHistoryEntry[] {
   const deletedPaths = readDeletedCredentialHistoryPaths(
     repoPath,
     scanLimitations,
     useV36Detectors,
+    useV23PemPrivateKeyGrammar,
   );
   const entries: GitHistoryEntry[] = [];
   const seen = new Set<string>();
@@ -8149,6 +8378,7 @@ function readDeletedCredentialHistoryPaths(
   repoPath: string,
   scanLimitations: Set<string>,
   useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
 ): string[] {
   const historyResult = execGit(
     [
@@ -8177,7 +8407,7 @@ function readDeletedCredentialHistoryPaths(
       continue;
     }
     if (!path || seen.has(path)) continue;
-    if (!isCredentialHistoryPath(path, useV36Detectors)) continue;
+    if (!isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)) continue;
     seen.add(path);
     paths.push(path);
   }
@@ -8204,7 +8434,32 @@ function readHistoryCommitsForPath(
     .filter((line) => /^[0-9a-f]{40}$/i.test(line));
 }
 
-function isCredentialHistoryPath(path: string, _useV36Detectors = false): boolean {
+// v23-only (goal_cejel_v23_pem_private_key_grammar_2026-09-06): a service-account key export
+// (GCP/AWS-style) is conventionally named around "key" or "service-account", not "secret" or
+// "credential" — the cycle-12 miss was exactly this shape, and isCredentialHistoryPath's prior
+// path candidate set excludes it, so the blob is never even read for the value grammar below to
+// reject or accept. Narrowly widened to basenames that are both ".json" AND key-shaped, rather
+// than every ".json" in history, to keep the history-scan blob-read cost bounded — the same
+// reasoning that keeps the rest of this candidate set to a short, specific list.
+const V23_KEY_SHAPED_JSON_PATH_PATTERN =
+  /(?<![A-Za-z0-9])(?:service[-_]?account|private[-_]?key|creds?|key)(?![A-Za-z0-9])/i;
+
+// Shared by isCredentialHistoryPath and isV23PemCredentialHistoryPath so a future hardening of
+// basename extraction here (e.g. also splitting on `\` for Windows-style paths) is inherited by
+// both instead of being applied to one and silently missed on the other.
+function historyPathBasename(lowerPath: string): string {
+  return lowerPath.split('/').at(-1) ?? lowerPath;
+}
+
+function isV23PemCredentialHistoryPath(basename: string): boolean {
+  return basename.endsWith('.json') && V23_KEY_SHAPED_JSON_PATH_PATTERN.test(basename);
+}
+
+function isCredentialHistoryPath(
+  path: string,
+  _useV36Detectors = false,
+  useV23PemPrivateKeyGrammar = false,
+): boolean {
   if (isHardExcludedPath(path)) return false;
   // Note: template paths (.env.example etc.) are intentionally NOT excluded here —
   // a real secret can still leak through a template path (e.g. committed, then later
@@ -8213,11 +8468,11 @@ function isCredentialHistoryPath(path: string, _useV36Detectors = false): boolea
   // not — see isPlaceholderSecretValue's ALL_CAPS_SNAKE_PLACEHOLDER_PATTERN for how
   // genuine template placeholder VALUES are told apart from real leaked values.
   const lowerPath = path.toLowerCase();
-  const basename = lowerPath.split('/').at(-1) ?? lowerPath;
+  const basename = historyPathBasename(lowerPath);
   if (/\.env(?:\.|$)/.test(basename)) {
     return true;
   }
-  return (
+  if (
     lowerPath.includes('secret') ||
     lowerPath.includes('credential') ||
     basename.endsWith('.pem') ||
@@ -8225,7 +8480,10 @@ function isCredentialHistoryPath(path: string, _useV36Detectors = false): boolea
     basename === 'id_rsa' ||
     basename.endsWith('.p12') ||
     basename.endsWith('.pfx')
-  );
+  ) {
+    return true;
+  }
+  return useV23PemPrivateKeyGrammar && isV23PemCredentialHistoryPath(basename);
 }
 
 // Non-template .env-shaped path — explicitly excludes .env.example/.sample/.template/.dist,
