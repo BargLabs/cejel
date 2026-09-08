@@ -24,6 +24,6 @@ checklist. Current commercial and evidence boundaries are governed by `docs/stan
 ADR-0001, and the active proposed ADR register.
 
 In particular, a hash or signature binds a report to stated inputs; it does not establish that the
-repository is safe. A Barg Labs signing authority remains deferred under proposed ADR-0003.
+repository is safe. A Barg Labs signing authority remains deferred under proposed ADR-0023.
 
 **CONSTRAINTS-VERSION: 2026-08-01.3**

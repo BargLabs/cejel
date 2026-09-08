@@ -1,17 +1,17 @@
 # ADR-0021 (proposed): Signature mechanism for evidence bindings
 
-**Status:** Proposed — mechanism only; anchor selection is governed by proposed ADR-0003
+**Status:** Proposed — mechanism only; anchor selection is governed by proposed ADR-0023
 **Date:** 2026-08-13
 **Extends:** ADR-0019 (certificate is a relying-party artifact); subordinate to proposed
-ADR-0003 (trust anchor and signing model)
+ADR-0023 (trust anchor and signing model)
 
 ## Context
 
-Proposed ADR-0003 establishes the binding-only evidence model: a trust anchor signs or records
+Proposed ADR-0023 establishes the binding-only evidence model: a trust anchor signs or records
 the binding among repository revision, scanner artifact, rubric/configuration, report digest,
 and decision — never a verdict — and defers *which* anchor signs to per-workflow selection
 (customer CI, independent reviewer, or vendor), explicitly deferring any Barg Labs signing
-authority. What ADR-0003 leaves open is the mechanism: when an anchor does sign, what exactly
+authority. What ADR-0023 leaves open is the mechanism: when an anchor does sign, what exactly
 is signed, with what primitive, and how a relying party verifies it offline.
 
 A matching digest proves the report reproduces; only a verifiable signature over the binding
@@ -21,9 +21,9 @@ layer up.
 
 ## Proposed decision
 
-Whichever anchor a workflow names under ADR-0003, the signature mechanism is uniform:
+Whichever anchor a workflow names under ADR-0023, the signature mechanism is uniform:
 
-1. **Payload.** A canonical encoding of the ADR-0003 binding fields: repository revision/tree,
+1. **Payload.** A canonical encoding of the ADR-0023 binding fields: repository revision/tree,
    scanner artifact digest, rubric/configuration identifiers, report digest, decision
    identifier, limitations reference, and issuance timestamp. The binding, nothing else.
 2. **Primitive.** SSH signatures (`ssh-keygen -Y sign`, dedicated namespace `cejel-binding`).
@@ -37,16 +37,16 @@ Whichever anchor a workflow names under ADR-0003, the signature mechanism is uni
    identity; `--require-authorization` makes absence or failure fatal for relying parties that
    demand it. Unsigned artifacts remain valid and verify exactly as today.
 5. **Claim semantics — stated in the artifact.** The signature attests that the named identity
-   bound these artifacts at this time, per ADR-0003's binding-only rule. It does not attest
+   bound these artifacts at this time, per ADR-0023's binding-only rule. It does not attest
    correctness of findings, endorsement of the subject, or safety, compliance, completeness,
    or fitness for purpose.
 
 ## Consequences
 
 - Anchor-agnostic: the same verification path serves customer-CI, independent-reviewer, and
-  vendor anchors, so ADR-0003's per-workflow selection carries no per-anchor tooling cost.
+  vendor anchors, so ADR-0023's per-workflow selection carries no per-anchor tooling cost.
 - The anchor operating the keys carries rotation, revocation, and publication burden —
-  ADR-0003's deferral of a Barg Labs authority is unchanged by this ADR.
+  ADR-0023's deferral of a Barg Labs authority is unchanged by this ADR.
 - Schema gains one optional field; backward-compatible; ships in a minor release (0.5.x),
   never a patch.
 - The plain-English surface must explain the signature in relying-party language; the 2026-08
@@ -54,7 +54,7 @@ Whichever anchor a workflow names under ADR-0003, the signature mechanism is uni
 
 ## Evidence gates
 
-Implementation begins only when an ADR-0003 anchor selection is made for a named workflow with
+Implementation begins only when an ADR-0023 anchor selection is made for a named workflow with
 a relying party who requests binding verification, or a paid-pilot success criterion names it.
 Until implemented, no cejel surface may imply bindings are identity-attested.
 
