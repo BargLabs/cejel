@@ -10,6 +10,8 @@
       "concurrent-checkout-hazard"
     ],
     "anchors": [],
-    "lastSeenAt": "2026-09-07T00:00:00.000Z"
+    "lastSeenAt": "2026-09-07T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind":"anchorless-by-nature","reason":"A dual-repo worktree path-discipline lesson; no single code artifact fixes it."}
   }
 ]

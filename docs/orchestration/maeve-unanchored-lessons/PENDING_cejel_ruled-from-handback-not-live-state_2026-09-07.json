@@ -21,6 +21,8 @@
         "summary": "Gave cejel a real, age-bounded local Maeve lesson holding directory with a harvest-and-drain design, open concurrently while the operator separately ruled (in a different channel) that cejel should have no local store, without checking open PRs first."
       }
     ],
-    "lastSeenAt": "2026-09-07T00:00:00.000Z"
+    "lastSeenAt": "2026-09-07T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind":"pr-merged","repository":"BargLabs/cejel","number":287}
   }
 ]
