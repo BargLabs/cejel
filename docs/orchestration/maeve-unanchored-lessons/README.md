@@ -13,6 +13,11 @@ byte-for-byte and schema-validated exactly as an alfred-authored seed would be, 
 *this* directory in a follow-up PR — the delivery is only complete once both land (mirrors the
 manual precedent: alfred #1345 copied a cejel lesson in, cejel #284 dropped it).
 
+The 1000-char `statement` cap that shape enforces is checked only by alfred's harvester at
+delivery time, not by anything in this repo today — so a seed that exceeds it can still merge to
+`main` here undetected, and then blocks the entire harvest batch (not just itself) when alfred
+next tries to pull it in.
+
 A file sitting here for more than 7 days is presumed undelivered, not merely "listed": both
 `src/__tests__/maeve-lesson-delivery.test.ts` (this repo's own CI) and alfred's cross-repo
 `scripts/maeve-lesson-delivery-guard.mjs` (`lessonHoldingMaxAgeDays: 7` for cejel in
