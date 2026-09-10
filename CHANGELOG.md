@@ -2,6 +2,10 @@
 
 All notable changes to `cejel` are recorded here.
 
+## Unreleased
+
+- Remove the stale prospective-rubric board and its certificates from this repository. The README now points to the single board on cejel.dev and acknowledges the withdrawal. A public-surface guard checks all three site formats and refuses a second scored copy.
+
 Cejel has two version tracks. This file covers **CLI releases** — changes to the binary,
 npm package, GitHub Action, Docker image, and MCP server. Changes to the **scoring rubric**
 are tracked separately in
