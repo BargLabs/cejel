@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "An unbounded character class in front of an alternation or inside a repeated group can hang on unforeseen input; a scanner that spins on its input has stopped being a scanner. Cejel env-template filename matching used an ambiguous repeated dotted group. Replacing repetition with one optional group retains the language because the character class already accepts dots. The initially prescribed dot-excluding class changed classifications and was withdrawn after the equivalence gate found counterexamples. Preserve legitimate edge cases and prove bounded execution with an interruptible adversarial guard, rather than assuming a regex simplification is equivalent.",
+    "scope": [
+      "cejel",
+      "regex",
+      "scan-input"
+    ],
+    "tags": [
+      "redos",
+      "compatibility",
+      "regression-guard"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 299
+    }
+  }
+]
