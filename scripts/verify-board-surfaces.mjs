@@ -1,11 +1,35 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export const SITE = 'https://cejel.dev/leaderboard/';
 const BOARD_FILES = ['leaderboard.md', 'leaderboard.html', 'index.html'];
 const RETAINED_FILES = new Set(['README.md', 'corpus.json', 'RUBRIC_CHANGELOG.md']);
+
+// Immutable explanation, from the withdrawal heading up to (but excluding) Status.
+// Independently normalized live Markdown and HTML on 2026-09-10: 1662 characters,
+// identical SHA-256. Status may evolve; the claim, finding, scope and condition may not.
+const WITHDRAWAL_SHA256 = 'b112d06837c66ee269b46fdb8c844ea9d7816095d0666419702717ee582752e4';
+
+export function withdrawalDigest(text) {
+  const visible = text.replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  const section = /2026-08-18:\s*scores withdrawn and why([\s\S]*?)Status:/i.exec(visible)?.[1];
+  if (!section) return null;
+  const entities = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ', middot: '·' };
+  const normalized = section.replace(/<[^>]*>/g, '')
+    .replace(/&(#x[0-9a-f]+|#\d+|amp|quot|apos|lt|gt|nbsp|middot);/gi, (match, entity) => {
+      if (entity.startsWith('#')) {
+        const value = entity[1].toLowerCase() === 'x'
+          ? Number.parseInt(entity.slice(2), 16) : Number.parseInt(entity.slice(1), 10);
+        return value <= 0x10ffff ? String.fromCodePoint(value) : match;
+      }
+      return entities[entity.toLowerCase()];
+    }).replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
+  return createHash('sha256').update(normalized, 'utf8').digest('hex');
+}
 
 export function parseSurface(name, text) {
   const plain = text.replace(/<[^>]*>/g, ' ').replace(/&(?:nbsp|middot);/g, ' ');
@@ -19,7 +43,7 @@ export function parseSurface(name, text) {
     if (values.length !== 1) throw new Error(`${name}: expected exactly one ${key} header, found ${values.length}`);
     fields[key] = values[0];
   }
-  return { name, ...fields, withdrawal: /2026-08-18:\s*scores withdrawn and why/i.test(plain) };
+  return { name, ...fields, withdrawal: withdrawalDigest(text) === WITHDRAWAL_SHA256 };
 }
 
 export function compareSurfaces(surfaces) {
@@ -30,7 +54,7 @@ export function compareSurfaces(surfaces) {
       if (surface[key] !== surfaces[0][key]) errors.push(`${surface.name}: ${key} ${surface[key]} != ${surfaces[0][key]}`);
     }
     // The withdrawal is permanent, including after a corrected run replaces the scores.
-    if (!surface.withdrawal) errors.push(`${surface.name}: missing 2026-08-18 withdrawal record`);
+    if (!surface.withdrawal) errors.push(`${surface.name}: missing or changed 2026-08-18 withdrawal record`);
   }
   return errors;
 }

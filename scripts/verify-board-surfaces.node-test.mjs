@@ -3,11 +3,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { assertSiteOnly, compareSurfaces, parseSurface, SITE, verifyBoardSurfaces } from './verify-board-surfaces.mjs';
+import { assertSiteOnly, compareSurfaces, parseSurface, SITE, verifyBoardSurfaces, withdrawalDigest } from './verify-board-surfaces.mjs';
 
 const header = '- Run date: 2026-08-25T01:09:08.813Z\n- Cejel version: @cejel/cejel@0.4.5 (published)\n- Rubric version: witan-rubric-v17-2026-07-24\n## History\n### 2026-08-18: scores withdrawn and why\n';
 test('compares every header and requires withdrawal even after republication', () => {
-  const good = parseSurface('site', header);
+  // compareSurfaces consumes parsed records; body integrity is tested separately below.
+  const good = { ...parseSurface('site', header), withdrawal: true };
   assert.deepEqual(compareSurfaces([good, { ...good, name: 'mirror' }]), []);
   for (const [key, value] of [['version', '@cejel/cejel@0.2.1'], ['rubric', 'witan-rubric-v18-prospective-2026-07-25'], ['date', '2026-07-27T01:48:38.955Z']]) {
     assert.equal(compareSurfaces([good, { ...good, name: 'mirror', [key]: value }]).length, 1);
@@ -42,9 +43,11 @@ test('reads all three site formats and fails closed on an unreadable surface', a
     const site = join(root, 'site'); mkdirSync(site);
     for (const name of ['leaderboard.md', 'leaderboard.html', 'index.html']) writeFileSync(join(site, name), header);
     const good = await verifyBoardSurfaces(root, site);
-    assert.equal(good.surfaces.length, 3); assert.deepEqual(good.errors, []);
+    assert.equal(good.surfaces.length, 3);
+    assert.equal(good.errors.length, 3);
+    assert.ok(good.errors.every((error) => error.includes('withdrawal')));
     writeFileSync(join(site, 'index.html'), header.replace('0.4.5', '0.2.1'));
-    assert.equal((await verifyBoardSurfaces(root, site)).errors.length, 1);
+    assert.equal((await verifyBoardSurfaces(root, site)).errors.length, 4);
     rmSync(join(site, 'index.html'));
     await assert.rejects(() => verifyBoardSurfaces(root, site), /ENOENT/);
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -52,4 +55,13 @@ test('reads all three site formats and fails closed on an unreadable surface', a
 
 test('withdrawal heading without the explanation cannot satisfy preservation', () => {
   assert.equal(parseSurface('body-deleted', header).withdrawal, false);
+});
+
+test('record normalization preserves body content across formats and ignores mutable status', () => {
+  const markdown = '### 2026-08-18: scores withdrawn and why\n**Claim.** A `public` scorer & its scope.\n**Status:** pending';
+  const html = '<h3>2026-08-18: scores withdrawn and why</h3><p><strong>Claim.</strong> A <code>public</code> scorer &amp; its scope.</p><p><strong>Status:</strong> met</p>';
+  assert.equal(withdrawalDigest(markdown), withdrawalDigest(html));
+  assert.notEqual(withdrawalDigest(markdown), withdrawalDigest(markdown.replace('its scope.', '')));
+  assert.equal(withdrawalDigest('<!--' + markdown + '-->'), null);
+  assert.equal(withdrawalDigest('<script>' + markdown + '</script>'), null);
 });
