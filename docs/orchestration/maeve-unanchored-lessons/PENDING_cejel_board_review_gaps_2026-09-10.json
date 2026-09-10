@@ -1,0 +1,21 @@
+[
+  {
+    "statement": "A preservation guard must validate the substance of a record, not just its title: deleting an entire withdrawal explanation while retaining its heading must fail. A digest of the normalized immutable explanation can preserve the claim, finding, withdrawn scope and republication condition across rendering formats while allowing a separate status field to evolve. Removing an artifact also requires auditing executable consumers, not just their tests; a green historical fixture does not prove the real harness still runs. When a preregistered harness cannot operate after removal, explicitly retire the current-checkout invocation and name a supported frozen revision rather than skipping its binding checks.",
+    "scope": [
+      "dev-task"
+    ],
+    "tags": [
+      "regression-guard",
+      "withdrawal-record",
+      "artifact-consumers"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 301
+    }
+  }
+]

@@ -55,6 +55,7 @@ test('reads all three site formats and fails closed on an unreadable surface', a
 
 test('withdrawal heading without the explanation cannot satisfy preservation', () => {
   assert.equal(parseSurface('body-deleted', header).withdrawal, false);
+  assert.equal(parseSurface('status-retained', header + '**Status:** MET').withdrawal, false);
 });
 
 test('record normalization preserves body content across formats and ignores mutable status', () => {

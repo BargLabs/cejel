@@ -260,3 +260,97 @@ No merge, package release or site deployment was performed. No CI wait or full t
 Branch: `codex/public-board-surface-20260910`.
 Draft PR: https://github.com/BargLabs/cejel/pull/301.
 Next-session preview: `alfred reap` (not run; isolated clone, not a managed worktree).
+
+## PR review corrections
+
+Review of `c0bd4e3` found two defects in this implementation. First, the new guard
+recognized only the withdrawal heading, allowing the entire explanation to disappear.
+Second, moving the placement test to historical Git reads left the real rescore harness
+failing against a deleted HEAD tree.
+
+The guard now pins SHA-256 `b112d06837c66ee269b46fdb8c844ea9d7816095d0666419702717ee582752e4`
+of the normalized immutable withdrawal explanation: the claim, established failure,
+withdrawn scope and republication condition. Live Markdown and HTML independently
+normalized to the same 1662 characters. Formatting and entity normalization are permitted;
+the mutable Status paragraph is outside the pin. Body deletion or changes fail, including
+when the title and Status remain. Comments and script/style blocks cannot supply the record.
+No private implementation text was copied into a fixture; only the digest is committed.
+
+The current-checkout rescore invocation is explicitly retired. It fails before any source
+checkout with `historical_rescore_requires_frozen_checkout` and gives this preparation:
+
+```sh
+git worktree add --detach <new-directory> e09f82174c80867e3e2ee7871a16fcc4d55901fa
+```
+
+Install that revision's pinned dependencies and invoke the harness there using its pinned
+`tsx` and the original arguments. This preserves its original strict ancestry, clean-tree,
+source-binding, corpus-hash and reports-tree checks; no binding is redirected or skipped.
+The revision is the pre-removal snapshot already used by the placement regression.
+No checkout or historical rescore was run automatically.
+
+Regression commands:
+
+```sh
+node --test scripts/verify-board-surfaces.node-test.mjs scripts/b4-commit-year-v19-paired-rescore.node-test.mjs
+node scripts/validate-distribution-metadata.mjs
+node scripts/verify-board-surfaces.mjs
+```
+
+At test-only commit `861c2d2`, both new regressions failed (8 passed, 2 failed).
+After fixes, output:
+
+```text
+✔ placement excludes publisher-owned, scoreless, and low-confidence rows (0.600042ms)
+✔ placement reproduces the frozen prospective-v18 board (215.1545ms)
+✔ decision requires 24 completed, stable rows and permits at most three raw changes (0.617375ms)
+✔ markdown renders every row explicitly (0.291333ms)
+✔ current checkout retires rescore execution with an actionable frozen-revision path (29.769459ms)
+✔ compares every header and requires withdrawal even after republication (1.112084ms)
+✔ missing or duplicate headers fail instead of certifying an empty comparison (0.106292ms)
+✔ site-only policy refuses a reintroduced report, even without a board index (1.836709ms)
+✔ reads all three site formats and fails closed on an unreadable surface (1.969083ms)
+✔ withdrawal heading without the explanation cannot satisfy preservation (0.058208ms)
+✔ record normalization preserves body content across formats and ignores mutable status (0.388667ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 284.661333
+Distribution metadata agrees on npm v0.4.8, MCP Registry v0.4.8, and OCI v0.4.8 for io.github.BargLabs/cejel.
+Validated explicit permissions blocks in 12 GitHub workflows.
+{
+  "surfaces": [
+    {
+      "name": "site/leaderboard.md",
+      "version": "@cejel/cejel@0.4.5",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "date": "2026-08-25T01:09:08.813Z",
+      "withdrawal": true
+    },
+    {
+      "name": "site/leaderboard.html",
+      "version": "@cejel/cejel@0.4.5",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "date": "2026-08-25T01:09:08.813Z",
+      "withdrawal": true
+    },
+    {
+      "name": "site/index.html",
+      "version": "@cejel/cejel@0.4.5",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "date": "2026-08-25T01:09:08.813Z",
+      "withdrawal": true
+    }
+  ],
+  "errors": []
+}
+BOARD SURFACES: OK — 3 artifacts checked, 0 violations
+```
+
+Fast preflight completed successfully before each review-fix commit. The additional lesson
+records the two distinct implementation errors; the card author's 926-character statement
+remains unchanged. Site deployment, package release and merge remain outside this work.
