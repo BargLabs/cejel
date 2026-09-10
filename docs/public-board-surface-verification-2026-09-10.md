@@ -25,6 +25,9 @@ site has received the separate 0.4.8 regeneration. Versions, run date and rubric
 independently compared across all three formats on each surface.
 
 Of 24 rows, **one overall score differs** (Alfred, -0.1 site minus repository).
+The same 24-row comparison also checked both headline sub-scores. Only Alfred differs:
+code trust 2.6 → 3.1 (+0.5), process trust 3.9 → 3.3 (-0.6). All three headline
+fields match on every other row.
 23 rows have numeric scores on both surfaces; carddemo abstains on both. These values
 are a dated discrepancy record, not a republication of the withdrawn scores as current.
 
@@ -252,7 +255,7 @@ copy of the artifact; leaving an unmaintained copy keeps making the withdrawn cl
 Not covered: edits or deployments in the separate site repository; whether anyone cited
 the withdrawn numbers elsewhere; the separate grandfathered label-class-file inventory
 (the card's historical 53 count was not re-enumerated); npm releases or rubric changes.
-No merge or publication was performed. No CI wait or full test suite was run.
+No merge, package release or site deployment was performed. No CI wait or full test suite was run.
 
 Branch: `codex/public-board-surface-20260910`.
 Draft PR: https://github.com/BargLabs/cejel/pull/301.
