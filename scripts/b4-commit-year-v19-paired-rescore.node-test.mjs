@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import test from 'node:test';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -215,4 +215,20 @@ test('markdown renders every row explicitly', () => {
     rows,
   });
   assert.equal(markdown.match(/^\| repo-/gm)?.length, 24);
+});
+
+test('current checkout retires rescore execution with an actionable frozen-revision path', () => {
+  assert.throws(() => execFileSync(process.execPath, [
+    join(REPO_ROOT, 'scripts/b4-commit-year-v19-paired-rescore.mjs'),
+    '--checkout-root', '/tmp/cejel-unused-rescore-checkout',
+    '--private-alfred-source', '/tmp/cejel-unused-rescore-source',
+    '--json', '/tmp/cejel-unused-rescore.json',
+    '--markdown', '/tmp/cejel-unused-rescore.md',
+  ], { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), (error) => {
+    assert.match(error.stderr, /historical_rescore_requires_frozen_checkout/);
+    assert.match(error.stderr, /git worktree add --detach/);
+    assert.match(error.stderr, /e09f82174c80867e3e2ee7871a16fcc4d55901fa/);
+    assert.doesNotMatch(error.stderr, /does not exist in/);
+    return true;
+  });
 });

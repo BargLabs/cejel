@@ -49,3 +49,7 @@ test('reads all three site formats and fails closed on an unreadable surface', a
     await assert.rejects(() => verifyBoardSurfaces(root, site), /ENOENT/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('withdrawal heading without the explanation cannot satisfy preservation', () => {
+  assert.equal(parseSurface('body-deleted', header).withdrawal, false);
+});
