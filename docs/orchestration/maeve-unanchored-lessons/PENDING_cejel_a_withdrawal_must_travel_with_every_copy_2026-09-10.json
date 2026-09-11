@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A record published to more than one public surface has as many chances to go stale as it has surfaces, and the one no pipeline regenerates is the one strangers read. A withdrawal is a claim about a specific artifact, so it must travel with every copy of that artifact or the uncorrected copies keep making the withdrawn claim. 2026-09-10 cejel: cejel.dev served the 2026-08-25 board (@cejel/cejel@0.4.5, rubric v17) carrying the 2026-08-18 withdrawal record, while the public BargLabs/cejel repo still shipped a 2026-07-27 board (0.2.1, witan-rubric-v18-prospective) with zero occurrences of the word withdraw, linked from README.md:198 as the leaderboard the repo ships, and restating in the next lines the sealed-public-scorer reproducibility sentence that the withdrawal had established as false. The staging step wrote one surface and not the other. Moves when the surfaces are single-sourced or the stale copy is removed.",
+    "scope": [
+      "dev-task"
+    ],
+    "tags": [
+      "public-surface",
+      "withdrawal-record",
+      "claims-discipline",
+      "multi-surface-staleness",
+      "leaderboard",
+      "cejel"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 301
+    }
+  }
+]

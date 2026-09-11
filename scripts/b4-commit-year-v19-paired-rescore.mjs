@@ -438,6 +438,19 @@ export function renderMarkdown(result) {
 async function main() {
   const options = parseArguments(process.argv.slice(2));
 
+  // The current repository intentionally no longer distributes scored board artifacts.
+  // Do not redirect a preregistered binding to a different revision or skip its tree check.
+  if (!existsSync(join(ROOT, 'leaderboard/reports'))) {
+    throw new Error(
+      'historical_rescore_requires_frozen_checkout: this invocation is retired in the current checkout. ' +
+      'Create the pre-removal snapshot with: git worktree add --detach <new-directory> ' +
+      'e09f82174c80867e3e2ee7871a16fcc4d55901fa. Install its pinned dependencies and run ' +
+      'this command there with your original arguments. Its preregistration ancestry, source, ' +
+      'corpus and reports-tree checks remain mandatory. No checkout was created automatically.',
+    );
+  }
+
+
   // This ancestry proof intentionally precedes the first read of corpus.json and every source
   // checkout. The hard-coded anchor is the immutable merged preregistration commit.
   const executionCommit = assertStrictPreregistrationAncestry();

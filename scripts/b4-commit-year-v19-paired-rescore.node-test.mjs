@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import test from 'node:test';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,11 @@ import {
 } from './b4-commit-year-v19-paired-rescore.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// Historical placement regression: read the immutable pre-removal snapshot, not a live board.
+function frozenArtifact(path) {
+  return execFileSync('git', ['show', `e09f82174c80867e3e2ee7871a16fcc4d55901fa:${path}`], { cwd: REPO_ROOT, encoding: 'utf8' });
+}
 
 function report(overallScore, score = 3) {
   return {
@@ -52,10 +57,10 @@ test('placement excludes publisher-owned, scoreless, and low-confidence rows', (
 });
 
 test('placement reproduces the frozen prospective-v18 board', () => {
-  const corpus = JSON.parse(readFileSync(join(REPO_ROOT, 'leaderboard/corpus.json'), 'utf8'));
+  const corpus = JSON.parse(frozenArtifact('leaderboard/corpus.json'));
   const rows = corpus.entries.map((entry, corpusIndex) => {
     const value = JSON.parse(
-      readFileSync(join(REPO_ROOT, 'leaderboard/reports', `${entry.name}.json`), 'utf8'),
+      frozenArtifact(`leaderboard/reports/${entry.name}.json`),
     );
     const byCategory = [];
     let measured = 0;
@@ -210,4 +215,20 @@ test('markdown renders every row explicitly', () => {
     rows,
   });
   assert.equal(markdown.match(/^\| repo-/gm)?.length, 24);
+});
+
+test('current checkout retires rescore execution with an actionable frozen-revision path', () => {
+  assert.throws(() => execFileSync(process.execPath, [
+    join(REPO_ROOT, 'scripts/b4-commit-year-v19-paired-rescore.mjs'),
+    '--checkout-root', '/tmp/cejel-unused-rescore-checkout',
+    '--private-alfred-source', '/tmp/cejel-unused-rescore-source',
+    '--json', '/tmp/cejel-unused-rescore.json',
+    '--markdown', '/tmp/cejel-unused-rescore.md',
+  ], { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), (error) => {
+    assert.match(error.stderr, /historical_rescore_requires_frozen_checkout/);
+    assert.match(error.stderr, /git worktree add --detach/);
+    assert.match(error.stderr, /e09f82174c80867e3e2ee7871a16fcc4d55901fa/);
+    assert.doesNotMatch(error.stderr, /does not exist in/);
+    return true;
+  });
 });

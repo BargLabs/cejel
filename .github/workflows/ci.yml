@@ -30,6 +30,10 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run build
       - run: pnpm run validate:distribution
+      - name: Check public board surfaces
+        run: |
+          node --test scripts/verify-board-surfaces.node-test.mjs scripts/b4-commit-year-v19-paired-rescore.node-test.mjs
+          node scripts/verify-board-surfaces.mjs
       - run: pnpm test
 
       - name: Self-certify (dogfood)

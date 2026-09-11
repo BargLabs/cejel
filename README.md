@@ -20,12 +20,8 @@ portable, offline trust certificate that aggregates them. Pipe in SARIF-compatib
 (MunaTrust, Snyk, Semgrep, CodeQL, Codex) plus OpenSSF Scorecard, and get one shareable
 certificate + badge over all of them. See "Aggregate your scanners" below.
 
-> Dogfooded in production. Cejel is run continuously on Barg Labs' own multi-product
-> monorepo — the ten-product studio it was built inside — which it currently scores
-> 3.3/4.0 on its rubric-native certificate. That transparency snapshot opts into prospective
-> v18; the public CLI default remains calibrated v17. On the comparative board, our code sits
-> outside the ranked population and receives no verdict band. We score ourselves before
-> asking you to score yourself.
+> Cejel is used on Barg Labs’ own code. The [public board](https://cejel.dev/leaderboard/)
+> labels publisher-owned snapshots separately from the ranked public repositories.
 
 ### Rubric calibration policy
 
@@ -195,17 +191,15 @@ attestation.
 
 ## Leaderboard
 
-This repo ships the [Cejel OSS trust leaderboard](./leaderboard/leaderboard.md): elite OSS
-projects, the public Cejel repository itself, and one explicitly labeled transparency
-snapshot from the private studio monorepo where Cejel was built, with a per-repository
-evidence report for every row under [`leaderboard/reports/`](./leaderboard/reports/). The
-board is also hosted at [cejel.dev](https://cejel.dev). Every score is produced by the same
-sealed public scorer used by `npx @cejel/cejel@latest .`; no private domain collector contributes.
-For each public-repository row, check out the immutable source commit printed in its report
-and run the public scorer to reproduce the score, verdict, measured coverage, and evidence.
-The private Alfred snapshot discloses its limitation instead: its source commit and withheld
-locations are not publicly available, so that row is not independently reproducible and is
-not presented as a public-repository self-score.
+The [Cejel OSS trust leaderboard](https://cejel.dev/leaderboard/) is hosted on cejel.dev,
+which is the single current board. This repository no longer distributes a second copy of
+its scores or certificates. The board records its producing package version, rubric,
+run date, pinned public revisions, and reproduction instructions for that particular run.
+The private Alfred transparency snapshot is not independently reproducible.
+
+The site's History section preserves the **2026-08-18 withdrawal**: the earlier
+sealed-public-scorer reproducibility claim was false. The stale prospective-rubric copy
+previously linked here has been removed; it must not be treated as current evidence.
 
 ### Redaction policy
 
@@ -680,7 +674,7 @@ published in public.
 
 **No rubric change re-scores you silently.** Every change to scoring behavior requires a
 `WITAN_RUBRIC_VERSION` bump and a corpus-wide before/after delta published in
-[`docs/leaderboard/RUBRIC_CHANGELOG.md`](../../docs/leaderboard/RUBRIC_CHANGELOG.md) — score,
+[`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) — score,
 verdict, and rank for every repository, "no repository moved" stated explicitly when that is
 the result. A build that changes scoring without both fails; see that file's `v2` entry for
 the home-field fix above as the first rubric change recorded this way.
