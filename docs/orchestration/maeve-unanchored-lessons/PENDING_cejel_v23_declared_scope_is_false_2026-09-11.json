@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A rubric-version constant's \"adds only X\" comment is hand-maintained, while the gates on that constant are code-maintained elsewhere — nothing forces them to agree, so a new gate added under an existing version silently invalidates the declaration. Cejel's WITAN_RUBRIC_VERSION_V23 comment claimed it \"adds only\" A1 command-flag coverage, but three v23-specific mechanisms were gated on it, including per-signal (not whole-criterion) abstention — a semantics change to what a non-finding means, the least visible of the three. An auto-derived manifest distinguishing \"version-specific\" from \"inherited\" gates was rejected as brittle: inheritance chains here split their two deciding version references across different source lines, defeating a same-line regex. Fix: corrected prose plus a test pinning the version-constant reference count in the gated file, failing loud if a gate is added without updating the declaration; verified red with a throwaway fourth marker.",
+    "scope": [
+      "cejel",
+      "witan",
+      "documentation-drift"
+    ],
+    "tags": [
+      "false-claim",
+      "declared-scope",
+      "regression-guard"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-11T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 302
+    }
+  }
+]
