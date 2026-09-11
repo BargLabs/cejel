@@ -66,9 +66,14 @@ export const WITAN_RUBRIC_VERSION_V21 = 'witan-rubric-v21-prospective-2026-08-10
 // package start command. The public default remains v17.
 export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10';
 
-// Prospective A1 command-flag coverage closure. V23 inherits v22 and adds only bounded
-// recognition of coverage-capable test-runner flags on commands reachable from a test entry
-// point. The public default remains v17.
+// Prospective free-core v23 rubric. V23 inherits v22 detector/scoring behavior and adds three
+// v23-specific mechanisms, gated in src/witan/repo-signals.ts on WITAN_RUBRIC_VERSION_V23 alone
+// (not part of the v18-v22 inheritance chains): (1) bounded recognition of coverage-capable
+// test-runner flags on commands reachable from a test entry point (`usesV23CommandCoverage`);
+// (2) recognition of PEM-formatted private-key assignments as a dedicated secret grammar
+// (`usesV23PemPrivateKeyGrammar`); and (3) per-signal, rather than whole-criterion, abstention
+// when repository content can't be read — a semantics change to what a non-finding means, not a
+// detector addition. The public default remains v17.
 export const WITAN_RUBRIC_VERSION_V23 = 'witan-rubric-v23-prospective-2026-09-06';
 
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
