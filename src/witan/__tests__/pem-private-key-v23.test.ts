@@ -228,6 +228,45 @@ describe('A2 v23 PEM private-key grammar — false-positive guards', () => {
 
     expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
   });
+
+  // The two guards below sit at a path that cannot match
+  // DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN itself ("config/service-account*.json" — no
+  // dev/development/local/localhost/self-signed/snakeoil/insecure/dummy/sample/demo/
+  // placeholder/fixture/generated substring), so the early findPemPrivateKeyAssignment
+  // path-based return cannot be what suppresses the finding. The dev signal instead comes only
+  // from scanForPemPrivateKeyMatch's in-loop isDevOrSelfSigned check — the identifier in the
+  // first case, a nearby context line in the second — proving that branch is reachable and
+  // covered independently of the path check.
+  it('does NOT flag a PEM private key whose identifier itself carries dev wording, at a neutral path', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
+    const devIdentifierJson = `{
+  "type": "service_account",
+  "project_id": "synthetic-example-project",
+  "dev_private_key": "${syntheticPemJsonValue()}",
+  "client_email": "synthetic-svc@synthetic-example-project.iam.gserviceaccount.com"
+}
+`;
+    writeFile(dir, 'config/service-account-keys.json', devIdentifierJson);
+    commit(dir, 'add key under a dev-named identifier');
+
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
+  });
+
+  it('does NOT flag a PEM private key whose neutral identifier sits near a context line describing it as self-signed, at a neutral path', () => {
+    const dir = makeTmpRepo();
+    writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
+    const selfSignedContextJson = `{
+  "type": "service_account",
+  "note": "this is a self-signed certificate used for internal testing purposes",
+  "private_key": "${syntheticPemJsonValue()}"
+}
+`;
+    writeFile(dir, 'config/service-account-notes.json', selfSignedContextJson);
+    commit(dir, 'add key with a self-signed note nearby');
+
+    expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
+  });
 });
 
 describe('A2 v23 PEM private-key grammar — performance sanity', () => {
