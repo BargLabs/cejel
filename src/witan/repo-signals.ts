@@ -4763,9 +4763,9 @@ const PLACEHOLDER_SECRET_PATTERN =
 // for documenting expected env vars, never a secret leak. Any placeholder value it carries is
 // by definition not a real credential, so template paths must never be scanned as a secret
 // source (current tree OR git history) — see goal_cejel_calibration_findings_precision_2026-07-06.
-const ENV_TEMPLATE_PATTERN = /(^|\/)\.env(?:\.[^/]+)*\.(?:example|sample|template|dist)$/i;
+const ENV_TEMPLATE_PATTERN = /(^|\/)\.env(?:\.[^/]+)?\.(?:example|sample|template|dist)$/i;
 const ENV_TEMPLATE_PATTERN_V47 =
-  /(^|\/)\.env(?:\.[^/]+)*\.(?:example|sample|template|dist|exemplo|ejemplo|exemple|esempio|beispiel|voorbeeld)$/i;
+  /(^|\/)\.env(?:\.[^/]+)?\.(?:example|sample|template|dist|exemplo|ejemplo|exemple|esempio|beispiel|voorbeeld)$/i;
 
 function isEnvTemplatePath(path: string, useV47Detectors = false): boolean {
   return (useV47Detectors ? ENV_TEMPLATE_PATTERN_V47 : ENV_TEMPLATE_PATTERN).test(path);

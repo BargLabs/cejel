@@ -16,6 +16,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.9]
+
+### Fixed
+
+- Fixed a reproduced scan hang on a legal 255-byte filename in the default scan path,
+  shared by the CLI and MCP servers. The environment-template filename classifiers
+  now use one optional segment instead of an ambiguous repeated group. No scoring
+  behaviour changed: both classifiers retain their previous filename language,
+  including consecutive dots and the V47 translated suffixes.
+
 ## [0.4.8]
 
 ### Fixed
