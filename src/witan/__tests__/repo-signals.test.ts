@@ -1460,3 +1460,161 @@ describe('Guard 3 — no vendor name defines the scheduled-health-workflow dimen
     expect(collectorSource).not.toMatch(literalWorkflowFilenamePattern);
   });
 });
+
+// goal_cejel_detector_false_assertions_0_4_9_2026-09-14, finding 1: a package.json "test"
+// script was credited by KEY PRESENCE ONLY, so the npm-generated placeholder
+// (`"test": "echo \"Error: no test specified\" && exit 1"`) scored identically to a real test
+// runner in both A1's verification_script_ratio and B3's ci_script_depth. Fixed by requiring
+// TEST_RUNNER_PATTERN content match on the "test" script specifically.
+describe('Guard — npm placeholder test script is not credited as a test capability', () => {
+  it('B3 ci_script_depth does not credit a package.json test script that is the npm default placeholder', () => {
+    const repo = makeTmpRepo();
+    writeFile(
+      repo,
+      'package.json',
+      JSON.stringify({
+        name: 'placeholder-test-repo',
+        scripts: {
+          test: 'echo "Error: no test specified" && exit 1',
+          lint: 'eslint .',
+          typecheck: 'tsc --noEmit',
+          build: 'tsup',
+        },
+      }),
+    );
+    writeFile(repo, 'src/index.js', 'export const x = 1;\n');
+
+    const b3 = signalFor(repo, 'B3');
+    const ciScriptDepth = b3?.metrics?.find((m) => m.name === 'ci_script_depth');
+    expect(ciScriptDepth?.presentation?.components).toEqual(
+      expect.arrayContaining([{ label: 'package script: test', count: 0 }]),
+    );
+    // lint/typecheck/build remain presence-credited — only "test" carries a universal npm
+    // auto-generated placeholder, so only "test" gets a content check.
+    expect(ciScriptDepth?.value).toBe(3);
+  });
+
+  it('a real test-runner script is still credited', () => {
+    const repo = makeTmpRepo();
+    writeFile(
+      repo,
+      'package.json',
+      JSON.stringify({
+        name: 'real-test-repo',
+        scripts: { test: 'vitest run' },
+      }),
+    );
+    writeFile(repo, 'src/index.js', 'export const x = 1;\n');
+
+    const b3 = signalFor(repo, 'B3');
+    const ciScriptDepth = b3?.metrics?.find((m) => m.name === 'ci_script_depth');
+    expect(ciScriptDepth?.presentation?.components).toEqual(
+      expect.arrayContaining([{ label: 'package script: test', count: 1 }]),
+    );
+  });
+});
+
+// goal_cejel_detector_false_assertions_0_4_9_2026-09-14, finding 2: the PR-template matcher
+// only recognized the single-file form (pull_request_template.md); GitHub's directory form
+// (.github/PULL_REQUEST_TEMPLATE/<name>.md) was reported as no template at all.
+describe('Guard — PR template directory form is recognized', () => {
+  it('recognizes the single-file form', () => {
+    const repo = makeTmpRepo();
+    writeFile(repo, 'PULL_REQUEST_TEMPLATE.md', '# PR template\n');
+    writeFile(repo, 'src/index.js', 'export const x = 1;\n');
+
+    const b2 = signalFor(repo, 'B2');
+    expect(b2?.positiveEvidence).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: 'Pull request template' })]),
+    );
+  });
+
+  it('recognizes the directory form', () => {
+    const repo = makeTmpRepo();
+    writeFile(repo, '.github/PULL_REQUEST_TEMPLATE/feature.md', '# Feature template\n');
+    writeFile(repo, 'src/index.js', 'export const x = 1;\n');
+
+    const b2 = signalFor(repo, 'B2');
+    expect(b2?.positiveEvidence).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: 'Pull request template' })]),
+    );
+  });
+});
+
+// goal_cejel_detector_false_assertions_0_4_9_2026-09-14, finding 3 (reproduced): on a repo
+// with a package-level "typecheck" script but no test files, A1 fell through to
+// buildA1AuthenticatedAbsenceSignal, which zeroed the ENTIRE verification_script_ratio
+// (including lint/typecheck/coverage, none of which depend on test-file presence), while B3
+// independently credited the same typecheck script — A1 and B3 reached opposite conclusions
+// about the same package.json fact on the same revision. Fixed by threading the real
+// verification-script components (and their count) into the authenticated-absence branch
+// instead of hardcoding zeros; test_to_source_ratio and non_hollow_test_share correctly stay
+// zero since no test files exist.
+describe('Guard — A1 and B3 agree on package-level lint/typecheck scripts with no tests present', () => {
+  // The authenticated-absence branch this guard targets only exists under V17 detectors
+  // (buildWitanInputFromRepo gates reviewableSourceProof on usesV17Detectors); the V9 default
+  // used by signalFor() above never reaches it, so these two tests need V17 explicitly.
+  function signalForV17(dir: string, id: string) {
+    const input = buildWitanInputFromRepo({
+      productSlug: 'test',
+      productDisplayName: 'Test',
+      repoPath: dir,
+      generatedAt: '2026-06-26T00:00:00.000Z',
+      rubricVersion: WITAN_RUBRIC_VERSION_V17,
+    });
+    return (input.signals ?? []).find((s) => s.criterionId === id) ?? null;
+  }
+
+  it('A1 credits the type-check and lint scripts even when it falls through to the authenticated-absence branch', () => {
+    const repo = makeTmpRepo();
+    writeFile(
+      repo,
+      'package.json',
+      JSON.stringify({
+        name: 'typecheck-only-repo',
+        scripts: { lint: 'eslint .', typecheck: 'tsc --noEmit' },
+      }),
+    );
+    writeFile(repo, 'src/index.js', 'export const x = 1;\n');
+
+    const a1 = signalForV17(repo, 'A1');
+    const b3 = signalForV17(repo, 'B3');
+    expect(a1?.notes).toContain('authenticated absence');
+
+    const a1Ratio = a1?.metrics?.find((m) => m.name === 'verification_script_ratio');
+    expect(a1Ratio?.presentation?.components).toEqual(
+      expect.arrayContaining([
+        { label: 'type-check command', count: 1 },
+        { label: 'lint command', count: 1 },
+      ]),
+    );
+
+    const b3Depth = b3?.metrics?.find((m) => m.name === 'ci_script_depth');
+    expect(b3Depth?.presentation?.components).toEqual(
+      expect.arrayContaining([{ label: 'package script: type-check', count: 1 }]),
+    );
+
+    // The two criteria must not disagree about the same underlying fact.
+    const a1CreditsTypecheck =
+      a1Ratio?.presentation?.components?.find((c) => c.label === 'type-check command')?.count ===
+      1;
+    const b3CreditsTypecheck =
+      b3Depth?.presentation?.components?.find((c) => c.label === 'package script: type-check')
+        ?.count === 1;
+    expect(a1CreditsTypecheck).toBe(b3CreditsTypecheck);
+  });
+
+  it('test_to_source_ratio and non_hollow_test_share correctly stay zero when there are truly no test files', () => {
+    const repo = makeTmpRepo();
+    writeFile(
+      repo,
+      'package.json',
+      JSON.stringify({ name: 'typecheck-only-repo', scripts: { typecheck: 'tsc --noEmit' } }),
+    );
+    writeFile(repo, 'src/index.js', 'export const x = 1;\n');
+
+    const a1 = signalForV17(repo, 'A1');
+    expect(a1?.metrics?.find((m) => m.name === 'test_to_source_ratio')?.value).toBe(0);
+    expect(a1?.metrics?.find((m) => m.name === 'non_hollow_test_share')?.value).toBe(0);
+  });
+});
