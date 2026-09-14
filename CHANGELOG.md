@@ -29,6 +29,27 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   now use one optional segment instead of an ambiguous repeated group. No scoring
   behaviour changed: both classifiers retain their previous filename language,
   including consecutive dots and the V47 translated suffixes.
+- **Script-depth scoring credited a `package.json` `test` script by key presence only, so the
+  npm-generated placeholder (`"test": "echo \"Error: no test specified\" && exit 1"`) scored
+  identically to a real test runner.** Both A1's verification-script signal and B3's
+  CI-script-depth signal now require the `test` script's *content* to match a known test-runner
+  invocation, the same content check already used elsewhere to detect a configured test runner.
+  `lint`/`typecheck`/`build` scripts remain presence-checked — none has an equivalent universal
+  auto-generated placeholder.
+- The pull-request-template detector recognized only the single-file form
+  (`pull_request_template.md`); the directory form
+  (`.github/PULL_REQUEST_TEMPLATE/<name>.md`, GitHub's documented way to offer multiple
+  templates) is now recognized too.
+- **On a revision with a package-level `lint`/`typecheck` script but no test files, A1 fell
+  through to its authenticated-absence path, which zeroed its entire verification-script signal
+  — including `lint` and `typecheck`, neither of which depends on test-file presence — while B3
+  independently credited the same scripts. A1 and B3 reported opposite conclusions about the
+  same package.json fact on the same revision.** A1's authenticated-absence path now credits
+  the same lint/typecheck/coverage signals B3 credits; only the test-file-dependent metrics
+  (test-to-source ratio, non-hollow test share) stay at zero when no test files exist.
+- Corrected `docs/format-stability.md`'s stated `predicate.reportFormatVersion` from `1.0` to
+  `1.1`, matching the version Cejel currently emits. A guard test now fails the build if the
+  documented value and the code constant drift apart again.
 
 ## [0.4.8]
 

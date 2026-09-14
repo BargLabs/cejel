@@ -1851,12 +1851,23 @@ function collectA1TestIntegrityEvidence(
   const ciHasTypecheckCommand = ciWorkflows.some((file) =>
     fileContains(repoPath, file, CI_TYPECHECK_COMMAND_PATTERN),
   );
-  const verificationScriptCount = [
-    packageScripts.has('test') || Boolean(ciTestWorkflow),
-    coverageAnalysis.hasCoverageCommand,
-    packageScripts.has('lint') || ciHasLintCommand,
-    packageScripts.has('typecheck') || ciHasTypecheckCommand,
-  ].filter(Boolean).length;
+  // Built once and reused verbatim by both the normal return below and the authenticated-
+  // absence branch (buildA1AuthenticatedAbsenceSignal) — these four signals derive from
+  // package.json/CI content, not from test-file presence, so a repo with zero test files can
+  // still legitimately have a real lint/typecheck/coverage setup; zeroing them out just
+  // because no test *files* exist previously made A1 flatly contradict B3, which credits the
+  // same package scripts directly (goal_cejel_detector_false_assertions_0_4_9_2026-09-14
+  // finding 3).
+  const verificationScriptComponents = [
+    { label: 'test command', count: hasCredibleTestScript(packageScripts) || Boolean(ciTestWorkflow) ? 1 : 0 },
+    { label: 'coverage command', count: coverageAnalysis.hasCoverageCommand ? 1 : 0 },
+    { label: 'lint command', count: packageScripts.has('lint') || ciHasLintCommand ? 1 : 0 },
+    {
+      label: 'type-check command',
+      count: packageScripts.has('typecheck') || ciHasTypecheckCommand ? 1 : 0,
+    },
+  ];
+  const verificationScriptCount = verificationScriptComponents.filter((c) => c.count > 0).length;
   // A lean/built-in test toolchain (e.g. Node's `node:test`) with no heavy transitive test
   // dependency is a positive supply-chain signal, not a "no coverage tool" ding — it has no
   // separate coverage-config file by design (goal_cejel_rubric_refinement_from_lua_2026-07-06).
@@ -1955,6 +1966,8 @@ function collectA1TestIntegrityEvidence(
           reviewableSourceProof,
           repoFiles.length,
           inventoryAbsenceContext,
+          verificationScriptComponents,
+          runnerFiles.length,
         )
       : null;
   }
@@ -2072,19 +2085,7 @@ function collectA1TestIntegrityEvidence(
         'saturating_count',
         {
           components: [
-            {
-              label: 'test command',
-              count: packageScripts.has('test') || Boolean(ciTestWorkflow) ? 1 : 0,
-            },
-            { label: 'coverage command', count: coverageAnalysis.hasCoverageCommand ? 1 : 0 },
-            {
-              label: 'lint command',
-              count: packageScripts.has('lint') || ciHasLintCommand ? 1 : 0,
-            },
-            {
-              label: 'type-check command',
-              count: packageScripts.has('typecheck') || ciHasTypecheckCommand ? 1 : 0,
-            },
+            ...verificationScriptComponents,
             { label: 'test-runner configuration', count: runnerFiles.length },
           ],
         },
@@ -2111,6 +2112,8 @@ function buildA1AuthenticatedAbsenceSignal(
   proof: ReviewableSourceProof,
   inventoryCount: number,
   inventoryAbsenceContext: InventoryAbsenceContext,
+  verificationScriptComponents: ReadonlyArray<{ label: string; count: number }>,
+  runnerFileCount: number,
 ): WitanCriterionSignalPayload {
   const sourcePath = proof.firstReadablePath;
   if (!sourcePath) {
@@ -2163,7 +2166,12 @@ function buildA1AuthenticatedAbsenceSignal(
       metric(
         'verification_script_ratio',
         'Verification script ratio',
-        0,
+        // Zero test FILES does not mean zero verification signal: a lint/typecheck/coverage
+        // script or CI command is a real, independently-observable fact from package.json/CI
+        // content and must be credited here the same way B3 credits it, or A1 flatly
+        // contradicts B3 on the same repository fact (goal_cejel_detector_false_assertions_
+        // 0_4_9_2026-09-14 finding 3).
+        verificationScriptComponents.filter((c) => c.count > 0).length + runnerFileCount,
         4,
         0.25,
         'ratio',
@@ -2171,11 +2179,8 @@ function buildA1AuthenticatedAbsenceSignal(
         'saturating_count',
         {
           components: [
-            { label: 'test command', count: 0 },
-            { label: 'coverage command', count: 0 },
-            { label: 'lint command', count: 0 },
-            { label: 'type-check command', count: 0 },
-            { label: 'test-runner configuration', count: 0 },
+            ...verificationScriptComponents,
+            { label: 'test-runner configuration', count: runnerFileCount },
           ],
         },
       ),
@@ -2192,7 +2197,9 @@ function buildA1AuthenticatedAbsenceSignal(
     notes:
       `V17 authenticated absence: ${proof.eligibleSourceFileCount} criterion-ratable of ` +
       `${proof.sourceShapedFileCount} source-shaped files; sampled ${proof.sampledFileCount}; ` +
-      `${proof.readableSampledFileCount} representative-text files.`,
+      `${proof.readableSampledFileCount} representative-text files. Verification-script signals ` +
+      `(lint/typecheck/coverage/CI commands) are independent of test-file presence and are ` +
+      `still credited above where detected.`,
   };
 }
 
@@ -3703,8 +3710,11 @@ function collectB2PrTraceEvidence(
   repoFiles: readonly string[],
 ): WitanCriterionSignalPayload | null {
   const workflows = repoFiles.filter(isCiWorkflow);
+  // GitHub recognizes both the single-file form (pull_request_template.md) and the directory
+  // form (.github/PULL_REQUEST_TEMPLATE/<name>.md, used to offer multiple templates) — matching
+  // only the file form reported a repo using the directory form as having no PR template.
   const prTemplate = repoFiles.find((file) =>
-    /(^|\/)(pull_request_template|PULL_REQUEST_TEMPLATE)\.md$/.test(file),
+    /(^|\/)(pull_request_template|PULL_REQUEST_TEMPLATE)(\.md$|\/[^/]+\.md$)/.test(file),
   );
   const branchProtectionDoc = repoFiles.find((file) =>
     /branch.*protection|review.*gate|CODEOWNERS/i.test(file),
@@ -3832,7 +3842,9 @@ function collectB3CiDisciplineEvidence(
     CI_TYPECHECK_COMMAND_PATTERN,
     CI_BUILD_COMMAND_PATTERN,
   ];
-  const scriptDepth = ['test', 'lint', 'typecheck', 'build'].filter((s) => scripts.has(s)).length;
+  const scriptDepth = ['test', 'lint', 'typecheck', 'build'].filter((s) =>
+    s === 'test' ? hasCredibleTestScript(scripts) : scripts.has(s),
+  ).length;
   // Scoped to 'ci_script_depth': computed once here and reused below for both the metric value
   // and its presentation components, so a read failure abstains the metric instead of leaving
   // the redisplayed components silently recomputed outside the tracked scope.
@@ -3872,7 +3884,7 @@ function collectB3CiDisciplineEvidence(
           components: [
             ...['test', 'lint', 'typecheck', 'build'].map((name) => ({
               label: `package script: ${name === 'typecheck' ? 'type-check' : name}`,
-              count: scripts.has(name) ? 1 : 0,
+              count: (name === 'test' ? hasCredibleTestScript(scripts) : scripts.has(name)) ? 1 : 0,
             })),
             ...CI_COMMAND_CATEGORIES.map((_pattern, index) => ({
               label: `repository CI command: ${['test', 'lint', 'type-check', 'build'][index]}`,
@@ -4430,6 +4442,17 @@ const NAME_SHAPED_TEST_FILE_PATTERN_V17 = /\.tftest\.hcl$|\.bats$|(^|\/)test[^/]
 
 const TEST_RUNNER_PATTERN =
   /\b(vitest|jest|mocha|ava|tap|pytest|go test|cargo test|rspec|phpunit|gradle test|mvn test|node\s+--test|node:test)\b/i;
+// A package script matching only by KEY NAME ("test") credits an npm-generated placeholder
+// (`"test": "echo \"Error: no test specified\" && exit 1"`) identically to a real test suite —
+// npm writes that exact placeholder into every `npm init` package.json by default, so presence
+// alone is not evidence of a test capability. Requiring TEST_RUNNER_PATTERN content match here
+// closes that false-assertion gap for both A1's verification_script_ratio and B3's
+// ci_script_depth, which both credit a "test" package script. lint/typecheck/build carry no
+// equivalent universal auto-generated placeholder, so presence remains the check for those.
+function hasCredibleTestScript(scripts: Map<string, string>): boolean {
+  const script = scripts.get('test');
+  return script != null && TEST_RUNNER_PATTERN.test(script);
+}
 // Language-agnostic "CI actually runs the test suite" signal — shared by A1 (test integrity)
 // and B3 (CI discipline) so a repo whose tests only run inside a CI workflow (the normal
 // shape for Python/Go/Rust/Java, which have no package.json to hold an npm "test" script)
