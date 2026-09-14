@@ -24,7 +24,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Fixed a reproduced scan hang on a legal 255-byte filename in the default scan path,
+- **A file withheld by Cejel's own content size ceiling was deleted from the scanned file list
+  before any collector saw it, so a signal whose pattern would have matched that file reported a
+  plain absence instead of abstaining.** The skip was counted and disclosed in
+  `contentReadSummary`, but nothing told the collector a file had been withheld from it: a
+  `repoFiles.some(...)` over a list the file was removed from returns false, identically to a
+  repository that genuinely lacks the thing. Under the prospective `witan-rubric-v23` rubric, a
+  withheld path (over the size limit, not a regular file, unreadable, or excluded by policy) is
+  now recorded and can abstain a signal — but only a signal whose *own* file-selection test
+  admits that path, so an oversized file a signal was never going to open still abstains nothing.
+  Covers A3's `health_readiness_route` and `observability_depth`. The calibrated public default
+  (`witan-rubric-v17`) and v22 are unchanged. Counts in `contentReadSummary` are unchanged.
   shared by the CLI and MCP servers. The environment-template filename classifiers
   now use one optional segment instead of an ambiguous repeated group. No scoring
   behaviour changed: both classifiers retain their previous filename language,

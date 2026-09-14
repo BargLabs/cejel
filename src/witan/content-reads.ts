@@ -42,6 +42,14 @@ interface ContentReadSession {
   // self-imposed coverage limit (too_large, non_regular_file) when it builds the abstention.
   readonly criterionSkipReasons: Map<WitanCriterionId, Set<ContentReadSkipReason>>;
   readonly signalSkipReasons: Map<string, Set<ContentReadSkipReason>>;
+  // Repo-relative paths that Cejel deleted from the repository file list before any collector
+  // could walk it, keyed to every reason that withheld them. A collector cannot notice that it
+  // lacked a file it was never told about: `repoFiles.some(...)` over a list the path was removed
+  // from returns false, identically to a repository that genuinely has no such file. This
+  // register is what lets a signal ask whether its OWN test would have matched a withheld path.
+  // It is additional state — the contentReadSummary counts are recorded by recordSkip exactly as
+  // before and are never derived from, or altered by, anything here.
+  readonly withheldPaths: Map<string, Set<ContentReadSkipReason>>;
   criterion?: WitanCriterionId;
   // A single read can legitimately feed more than one named signal (e.g. A4 parses one
   // dependency manifest into three separate ratio metrics). Attributing that read to every
@@ -113,6 +121,31 @@ function errnoClass(error: unknown): string | null {
   return typeof code === 'string' && /^E[A-Z0-9_]+$/.test(code) ? code : null;
 }
 
+/**
+ * Attaches a skip to a criterion, narrowed to named signals when the caller can name them. The
+ * scope is passed explicitly rather than read off the session so a collector can attribute a skip
+ * that happened earlier, outside its own scope — which is exactly the withheld-path case: the file
+ * was dropped during the repository file walk, long before any criterion scope existed.
+ */
+function attributeSkip(
+  session: ContentReadSession,
+  criterion: WitanCriterionId,
+  signals: readonly string[] | undefined,
+  reason: ContentReadSkipReason,
+): void {
+  session.affectedCriteria.add(criterion);
+  if (signals && signals.length > 0) {
+    for (const signal of signals) {
+      const key = contentReadSignalKey(criterion, signal);
+      session.affectedSignals.add(key);
+      addSkipReason(session.signalSkipReasons, key, reason);
+    }
+  } else {
+    session.unattributedCriteria.add(criterion);
+    addSkipReason(session.criterionSkipReasons, criterion, reason);
+  }
+}
+
 function recordSkip(
   path: string,
   reason: ContentReadSkipReason,
@@ -123,18 +156,7 @@ function recordSkip(
   const session = activeSession;
   if (!session) return;
   if (affectsCurrentCriterion && session.criterion) {
-    session.affectedCriteria.add(session.criterion);
-    const signals = session.signals;
-    if (signals && signals.length > 0) {
-      for (const signal of signals) {
-        const key = contentReadSignalKey(session.criterion, signal);
-        session.affectedSignals.add(key);
-        addSkipReason(session.signalSkipReasons, key, reason);
-      }
-    } else {
-      session.unattributedCriteria.add(session.criterion);
-      addSkipReason(session.criterionSkipReasons, session.criterion, reason);
-    }
+    attributeSkip(session, session.criterion, session.signals, reason);
   }
   if (deduplicate) {
     const key = `${resolve(path)}\u0000${reason}\u0000${errno ?? ''}`;
@@ -194,6 +216,7 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
     unattributedCriteria: new Set(),
     criterionSkipReasons: new Map(),
     signalSkipReasons: new Map(),
+    withheldPaths: new Map(),
   };
   activeSession = session;
   try {
@@ -276,6 +299,71 @@ export function recordContentSkip(
   deduplicate = false,
 ): void {
   recordSkip(path, reason, undefined, false, deduplicate);
+}
+
+export interface WithheldRepoPath {
+  /** Path relative to the scanned repository root, as it would have appeared in repoFiles. */
+  readonly path: string;
+  readonly reasons: ReadonlySet<ContentReadSkipReason>;
+}
+
+/**
+ * Remembers a repo-relative path that the repository file walk removed from the list collectors
+ * receive. Call this ALONGSIDE the recordContentSkip/recordFilesystemSkip that already counts the
+ * skip — this function records no count of its own, so contentReadSummary is byte-identical
+ * whether or not it is called. Only paths that are genuinely absent from the walked list belong
+ * here: a path the walk still pushes (excluded_by_extension) is visible to collectors and is not
+ * withheld from anything.
+ */
+export function registerWithheldRepoPath(
+  relativePath: string,
+  reason: ContentReadSkipReason,
+): void {
+  const session = activeSession;
+  if (!session) return;
+  addSkipReason(session.withheldPaths, relativePath, reason);
+}
+
+/** Every path withheld from the walked file list so far, for tests and diagnostics. */
+export function withheldRepoPaths(): readonly WithheldRepoPath[] {
+  const session = activeSession;
+  if (!session) return [];
+  return [...session.withheldPaths]
+    .map(([path, reasons]) => ({ path, reasons: reasons as ReadonlySet<ContentReadSkipReason> }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+/**
+ * Abstains `signalId` for every withheld path that `wouldHaveRead` — the signal's OWN test for
+ * which files it reads — admits, and returns whether any did.
+ *
+ * The earned-match requirement is the entire point. Abstaining a criterion because a withheld
+ * file's path SHAPE mapped to it, before any collector ran, over-abstained repositories whose
+ * readable files fully answered the criterion (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08,
+ * defect 1). That fix stands. What it could not do is tell a collector that a file was withheld
+ * from it, so a pattern that would have matched the withheld file reported a plain absence. This
+ * closes that gap without reopening the other: the predicate handed in here must be the same one
+ * the signal uses to select files to read, never an extension map, a criterion association, or a
+ * path-shape heuristic.
+ *
+ * The reason is carried through unchanged, so classifyAbstentionReason still separates a
+ * self-imposed coverage limit (too_large, non_regular_file) from a genuine read failure
+ * (unreadable, denied_path) exactly as it does for a collector-path skip.
+ */
+export function abstainSignalOnWithheldPaths(
+  criterionId: WitanCriterionId,
+  signalId: string,
+  wouldHaveRead: (relativePath: string) => boolean,
+): boolean {
+  const session = activeSession;
+  if (!session) return false;
+  let abstained = false;
+  for (const [path, reasons] of session.withheldPaths) {
+    if (!wouldHaveRead(path)) continue;
+    abstained = true;
+    for (const reason of reasons) attributeSkip(session, criterionId, [signalId], reason);
+  }
+  return abstained;
 }
 
 export function recordFilesystemSkip(
