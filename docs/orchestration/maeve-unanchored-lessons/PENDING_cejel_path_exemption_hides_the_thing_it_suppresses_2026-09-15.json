@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "A path-based exemption added to suppress a detector's false positives silently converts them into false negatives on the same paths, and the trade is invisible because only the noise it removed is observable. Cejel's A2 secret scan exempted docs/, lessons/, cookbooks/ and every .md/.mdx/.rst/.adoc file, so placeholder credentials in documentation stopped flagging — and so did a real credential committed there, in the one place an attacker would most like a blind spot. The exemption also missed every instructional path nobody enumerated (tutorials/, guides/, docs-site sources), so it did not even fix what it was added for. Fix: classify the matched VALUE and a bounded window of its own file's text, never the path, and add a third outcome — abstain with a stated reason — for values that clear neither the placeholder vocabulary nor the confident-credential bar. Guard written first: identical bytes under src/ and under docs/ must produce identical evidence apart from the path field.",
+    "scope": [
+      "cejel",
+      "witan",
+      "secret-detection"
+    ],
+    "tags": [
+      "false-positive",
+      "false-negative",
+      "path-heuristic",
+      "abstention"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 307
+    }
+  }
+]
