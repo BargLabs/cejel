@@ -20,6 +20,34 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Example, placeholder and dummy credentials written into documentation, tutorials and learning
+  pages scored as real committed secrets, so A2 asserted a secrets-posture problem that did not
+  exist.** A certificate that asserts something false is a category worse than one that misses
+  something, which is why this is a fix rather than a precision tweak. The existing mitigation was
+  path-based — `docs/`, `documentation/`, `lessons/`, `cookbooks/` and every `.md`/`.mdx`/`.rst`/
+  `.adoc` file were removed from A2's current-tree secret scan — and a path rule cannot tell a
+  placeholder written into a documentation page from a live credential accidentally committed to
+  one. It silences the second in order to suppress the first, and it leaves every instructional
+  path it does not enumerate (`tutorials/`, `guides/`, documentation-site sources) flagging
+  placeholders as before.
+  Under the new prospective `witan-rubric-v24` rubric, A2 classifies a secret-shaped value from
+  the value itself and a bounded window of its own file's text, never from the file's path,
+  directory or extension. Three outcomes: an intrinsically instructional value produces no
+  finding; a value clearing the unchanged high-confidence bar flags at unchanged severity
+  *wherever it lives*, so a real credential committed under `docs/` now flags where it previously
+  could not be seen at all; and a value Cejel cannot classify from content **abstains** — the
+  `secret_cleanliness` metric is withheld, not scored clean, with the reason stated in the
+  certificate. An abstention never removes a zero that a confirmed finding earned. Git history
+  scanning is unchanged.
+  v24 is explicit-only via `cejel scan --rubric-pin witan-rubric-v24-prospective-2026-09-15`,
+  inherits no calibration claim, and inherits v22 rather than v23 so that v23's four
+  v23-specific mechanisms stay v23-specific. The calibrated public default
+  (`witan-rubric-v17`), v22 and v23 are unchanged. The preregistered paired rescore for this
+  change is written and has not been run: see
+  `docs/experiments/a2-secret-posture-content-context-v24-2026-09-15/preregistration.md`.
+
 ## [0.4.9]
 
 ### Fixed
