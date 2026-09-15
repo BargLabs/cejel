@@ -18,43 +18,53 @@
   "boardCheck": [
     {
       "name": "react",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3,
       "baseOverall": 3,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "vue",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.9,
       "baseOverall": 2.9,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "svelte",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3.1,
       "baseOverall": 3.1,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "django",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3.2,
       "baseOverall": 3.2,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "flask",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.9,
       "baseOverall": 2.9,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "fastapi",
@@ -62,33 +72,46 @@
       "headShaMatch": true,
       "boardOverall": 3.1,
       "baseOverall": 3,
-      "diffCriteria": [
-        "A4"
+      "headline": [
+        "overallScore 3.1 to 3",
+        "codeTrustScore 3 to 2.8"
+      ],
+      "criteria": [
+        "A4 3.6/verified to 3.4/verified"
+      ],
+      "metrics": [
+        "A4.lockfile_coverage only in left"
       ]
     },
     {
       "name": "express",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3,
       "baseOverall": 3,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "vite",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3.4,
       "baseOverall": 3.4,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "esbuild",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.5,
       "baseOverall": 2.5,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "biomejs",
@@ -96,90 +119,112 @@
       "headShaMatch": true,
       "boardOverall": 3,
       "baseOverall": 3,
-      "diffCriteria": [
-        "A1",
-        "B4"
+      "headline": [],
+      "criteria": [],
+      "metrics": [
+        "B4.audit_artifact_depth 16 to 15",
+        "B4.audit_freshness_depth 2 to 1"
       ]
     },
     {
       "name": "requests",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.9,
       "baseOverall": 2.9,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "pydantic",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3.2,
       "baseOverall": 3.2,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "axios",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3.3,
       "baseOverall": 3.3,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "zod",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 3.2,
       "baseOverall": 3.2,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "scorecard",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.9,
       "baseOverall": 2.9,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "ripgrep",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.1,
       "baseOverall": 2.1,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "guava",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 1.9,
       "baseOverall": 1.9,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "cobra",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.5,
       "baseOverall": 2.5,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "sinatra",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.4,
       "baseOverall": 2.4,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "automapper",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.2,
       "baseOverall": 2.2,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "fmt",
@@ -187,17 +232,22 @@
       "headShaMatch": true,
       "boardOverall": 2.6,
       "baseOverall": 2.6,
-      "diffCriteria": [
-        "A1"
+      "headline": [],
+      "criteria": [],
+      "metrics": [
+        "A1.non_hollow_test_share 29 to 28",
+        "A1.test_to_source_ratio 55 to 54"
       ]
     },
     {
       "name": "carddemo",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": null,
       "baseOverall": null,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     },
     {
       "name": "alfred",
@@ -205,17 +255,21 @@
       "headShaMatch": true,
       "boardOverall": 3.2,
       "baseOverall": 3.2,
-      "diffCriteria": [
-        "A3"
+      "headline": [],
+      "criteria": [],
+      "metrics": [
+        "A3.rollback_safety_depth 806 to 753"
       ]
     },
     {
       "name": "cejel",
-      "status": "DIFFERS",
+      "status": "base-reproduces-board",
       "headShaMatch": true,
       "boardOverall": 2.8,
       "baseOverall": 2.8,
-      "diffCriteria": []
+      "headline": [],
+      "criteria": [],
+      "metrics": []
     }
   ],
   "delta": [

@@ -12,7 +12,11 @@ Human rendering of `paired-result.json`. The public entry is
   commit and verified with `git rev-parse HEAD` before scoring; the private row from a local
   clone at the commit the published board pins (`95e05c33`).
 - Both arms scored on one macOS host within one hour, from source via `pnpm exec tsx`
-  (`harness/score-arm.ts`), compared by `harness/compare.mjs`.
+  (`harness/score-arm.ts`), compared by `harness/compare.mjs`. Exact invocation: `harness/RUN.md`.
+- Public rows fetched `--depth=1`; both arms see the same one-commit history (see RUN.md).
+- Not preregistered: measured post hoc in one session; the expected-value paragraph in the
+  rubric entry was written from the checkouts before the comparison ran but is not a separate
+  ancestor commit, so that ordering is not git-verifiable.
 - Cross-check: the published `@cejel/cejel@0.4.8` npm artifact, run on a Linux container
   against django at its pinned commit, reproduced the baseline arm exactly (overall 3.2, code
   2.6, process 3.8, B3 3.6, `ci_script_depth` 3).
@@ -26,9 +30,14 @@ placement, no other criterion or metric moved.
 
 ## Baseline vs the published board
 
-The board on cejel.dev predates 0.4.8 on four rows (fastapi A4 `lockfile_coverage` 1 →
-abstained, headline 3.1 → 3.0; biomejs B4 audit counts; fmt A1 test counts; alfred A3
-rollback count). See `paired-result.json` → `boardCheck`.
+Compared at scoring level (headline, per-criterion score/status, per-metric value): 20 of 24
+rows reproduce the board. Four predate 0.4.8: fastapi A4 `lockfile_coverage` 1 → abstained,
+A4 3.6 → 3.4, overall 3.1 → 3.0, code trust 3.0 → 2.8; biomejs B4 `audit_artifact_depth`
+16 → 15, `audit_freshness_depth` 2 → 1; fmt A1 `non_hollow_test_share` 29 → 28,
+`test_to_source_ratio` 55 → 54; alfred A3 `rollback_safety_depth` 806 → 753. See
+`paired-result.json` → `boardCheck`. (The first version of this check compared whole objects
+and reported DIFFERS on all 24 rows because 0.4.8 added a `derivation` field to findings; it
+was rewritten after review and now reproduces exactly the four rows found by hand.)
 
 ## Not committed
 

@@ -22,5 +22,17 @@
       "kind": "awaiting-fix",
       "reason": "Anchors to the squash commit of the 0.4.9 records PR, which discloses the over-reach in RUBRIC_CHANGELOG.md; a later PR that teaches the check to recognise delegation, if the operator rules for it, supersedes this anchor."
     }
+  },
+  {
+    "statement": "A reproduction check that compares whole report objects fires on every row the moment any field is added between the two producers, and a check that fires regardless of input examined nothing. The 0.4.9 delta harness's baseline-vs-published-board check compared entire reports; 0.4.8 had added a `derivation` field to every finding, so it said DIFFERS on 24 of 24 rows while the real four discrepancies were found by hand and the automation was quoted as if it had found them. The reviewer caught it, not the author. The same harness imported its scanner by a path that resolved only after being copied to a worktree root, so 'run via pnpm exec tsx' was true of the run and false of the committed file. Rule: compare at the level the claim is made (headline, per-criterion score/status, per-metric value), state the expected pass count before running, verify the check reproduces what a hand inspection found (20 of 24, four named), and print the resolved scanner path and git HEAD before the first number.",
+    "scope": ["cejel", "measurement-harness", "reproduction-check", "corpus-delta", "self-review"],
+    "tags": ["vacuous-check", "whole-object-compare", "schema-drift", "reviewer-caught", "import-path-only-works-when-copied"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Anchors to the squash commit of the 0.4.9 records PR (cejel #306), whose second commit rewrites compare.mjs to scoring-level comparison and score-arm.ts to resolve the scanner from CEJEL_SRC with the path printed first."
+    }
   }
 ]
