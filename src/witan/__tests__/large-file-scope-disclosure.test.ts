@@ -108,4 +108,16 @@ describe('large-implementation-file scan-limitation disclosure', () => {
       expect.arrayContaining([expect.stringContaining('large implementation file')]),
     );
   });
+
+  it('v23: the per-signal notes text names the size limit specifically, not the old size-limit-or-extension disjunction', () => {
+    // The aggregate scanLimitations line above was split to name the cause specifically
+    // (checked in the first test in this file); the individual signal's own `notes:` field —
+    // the text attached directly to the criterion a reader is actually looking at — kept the
+    // pre-split disjunctive wording for every case, so the two could describe the same signal
+    // two different ways in two different places.
+    const { a3 } = scan(serviceWithOversizedHealthRouteFile(), WITAN_RUBRIC_VERSION_V23);
+
+    expect(a3?.notes).toContain('under the repository content size limit');
+    expect(a3?.notes).not.toContain('an extension exclusion');
+  });
 });
