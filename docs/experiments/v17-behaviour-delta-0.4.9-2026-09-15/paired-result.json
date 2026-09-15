@@ -1,0 +1,831 @@
+{
+  "summary": {
+    "rows": 24,
+    "errors": 0,
+    "reportIdentical": 21,
+    "anyCriterionMoved": 1,
+    "anyMetricMoved": 3,
+    "headlineMoved": 1,
+    "base": {
+      "srcHead": "76063924da7a7f6ceabad526e0076d7d1769d188",
+      "packageVersion": "0.4.8"
+    },
+    "cand": {
+      "srcHead": "fe4210af8039b93277ec5e30c8119a9cb3a74dfc",
+      "packageVersion": "0.4.8"
+    }
+  },
+  "boardCheck": [
+    {
+      "name": "react",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3,
+      "baseOverall": 3,
+      "diffCriteria": []
+    },
+    {
+      "name": "vue",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.9,
+      "baseOverall": 2.9,
+      "diffCriteria": []
+    },
+    {
+      "name": "svelte",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.1,
+      "baseOverall": 3.1,
+      "diffCriteria": []
+    },
+    {
+      "name": "django",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.2,
+      "baseOverall": 3.2,
+      "diffCriteria": []
+    },
+    {
+      "name": "flask",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.9,
+      "baseOverall": 2.9,
+      "diffCriteria": []
+    },
+    {
+      "name": "fastapi",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.1,
+      "baseOverall": 3,
+      "diffCriteria": [
+        "A4"
+      ]
+    },
+    {
+      "name": "express",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3,
+      "baseOverall": 3,
+      "diffCriteria": []
+    },
+    {
+      "name": "vite",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.4,
+      "baseOverall": 3.4,
+      "diffCriteria": []
+    },
+    {
+      "name": "esbuild",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.5,
+      "baseOverall": 2.5,
+      "diffCriteria": []
+    },
+    {
+      "name": "biomejs",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3,
+      "baseOverall": 3,
+      "diffCriteria": [
+        "A1",
+        "B4"
+      ]
+    },
+    {
+      "name": "requests",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.9,
+      "baseOverall": 2.9,
+      "diffCriteria": []
+    },
+    {
+      "name": "pydantic",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.2,
+      "baseOverall": 3.2,
+      "diffCriteria": []
+    },
+    {
+      "name": "axios",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.3,
+      "baseOverall": 3.3,
+      "diffCriteria": []
+    },
+    {
+      "name": "zod",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.2,
+      "baseOverall": 3.2,
+      "diffCriteria": []
+    },
+    {
+      "name": "scorecard",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.9,
+      "baseOverall": 2.9,
+      "diffCriteria": []
+    },
+    {
+      "name": "ripgrep",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.1,
+      "baseOverall": 2.1,
+      "diffCriteria": []
+    },
+    {
+      "name": "guava",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 1.9,
+      "baseOverall": 1.9,
+      "diffCriteria": []
+    },
+    {
+      "name": "cobra",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.5,
+      "baseOverall": 2.5,
+      "diffCriteria": []
+    },
+    {
+      "name": "sinatra",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.4,
+      "baseOverall": 2.4,
+      "diffCriteria": []
+    },
+    {
+      "name": "automapper",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.2,
+      "baseOverall": 2.2,
+      "diffCriteria": []
+    },
+    {
+      "name": "fmt",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.6,
+      "baseOverall": 2.6,
+      "diffCriteria": [
+        "A1"
+      ]
+    },
+    {
+      "name": "carddemo",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": null,
+      "baseOverall": null,
+      "diffCriteria": []
+    },
+    {
+      "name": "alfred",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 3.2,
+      "baseOverall": 3.2,
+      "diffCriteria": [
+        "A3"
+      ]
+    },
+    {
+      "name": "cejel",
+      "status": "DIFFERS",
+      "headShaMatch": true,
+      "boardOverall": 2.8,
+      "baseOverall": 2.8,
+      "diffCriteria": []
+    }
+  ],
+  "delta": [
+    {
+      "name": "react",
+      "visibility": "public",
+      "base": {
+        "overall": 3,
+        "code": 2.1,
+        "process": 3.9,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 3/6",
+        "placement": "9",
+        "reportSha256": "8ff626b7f501036c75396b83c8d2cb7a74d813571af1d10503cb7cf02b1f6f6c"
+      },
+      "cand": {
+        "overall": 3,
+        "code": 2.1,
+        "process": 3.9,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 3/6",
+        "placement": "9",
+        "reportSha256": "8ff626b7f501036c75396b83c8d2cb7a74d813571af1d10503cb7cf02b1f6f6c"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "vue",
+      "visibility": "public",
+      "base": {
+        "overall": 2.9,
+        "code": 2.4,
+        "process": 3.4,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "11",
+        "reportSha256": "039168e34dbbf6496b7e44840275635ee053b3a670559b3ef3bb1c86241462b9"
+      },
+      "cand": {
+        "overall": 2.9,
+        "code": 2.4,
+        "process": 3.4,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "11",
+        "reportSha256": "039168e34dbbf6496b7e44840275635ee053b3a670559b3ef3bb1c86241462b9"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "svelte",
+      "visibility": "public",
+      "base": {
+        "overall": 3.1,
+        "code": 2.9,
+        "process": 3.3,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "4",
+        "reportSha256": "d862d49b653b9ec32e70a2c98e73666871863de39a8a8f593df51d2114935553"
+      },
+      "cand": {
+        "overall": 3.1,
+        "code": 2.9,
+        "process": 3.3,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "4",
+        "reportSha256": "d862d49b653b9ec32e70a2c98e73666871863de39a8a8f593df51d2114935553"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "django",
+      "visibility": "public",
+      "base": {
+        "overall": 3.2,
+        "code": 2.6,
+        "process": 3.8,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "afe10f1fcb6be5e97fd0cf97202ad04362b95e955e91452309c6c68bf442235e"
+      },
+      "cand": {
+        "overall": 3.1,
+        "code": 2.6,
+        "process": 3.6,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "6095921697fe048be17fd314cae36faaea0d99615e1ca1ce96438c8843ed9a7e"
+      },
+      "movedCriteria": [
+        "B3 3.6/verified to 3.1/verified"
+      ],
+      "movedMetrics": [
+        "B3.ci_script_depth 3 to 2"
+      ],
+      "reportIdentical": false
+    },
+    {
+      "name": "flask",
+      "visibility": "public",
+      "base": {
+        "overall": 2.9,
+        "code": 2.7,
+        "process": 3,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "8",
+        "reportSha256": "61907ee3bdde059858875310af0ec5aed258f370c65be853eb0a2e09cec60e57"
+      },
+      "cand": {
+        "overall": 2.9,
+        "code": 2.7,
+        "process": 3,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "8",
+        "reportSha256": "61907ee3bdde059858875310af0ec5aed258f370c65be853eb0a2e09cec60e57"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "fastapi",
+      "visibility": "public",
+      "base": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 2/5; process_trust 3/6",
+        "placement": "unranked",
+        "reportSha256": "1caeb401a5e81925c4445ec9a3803b58049058c31057fcf10daf3be8bff6e2c9"
+      },
+      "cand": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 2/5; process_trust 3/6",
+        "placement": "unranked",
+        "reportSha256": "1caeb401a5e81925c4445ec9a3803b58049058c31057fcf10daf3be8bff6e2c9"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "express",
+      "visibility": "public",
+      "base": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 2/5; process_trust 3/6",
+        "placement": "unranked",
+        "reportSha256": "4db29217a28037684f8c519bddba4b1845eee49088dbd15886f49f5859ffdcb7"
+      },
+      "cand": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 2/5; process_trust 3/6",
+        "placement": "unranked",
+        "reportSha256": "4db29217a28037684f8c519bddba4b1845eee49088dbd15886f49f5859ffdcb7"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "vite",
+      "visibility": "public",
+      "base": {
+        "overall": 3.4,
+        "code": 2.8,
+        "process": 4,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 3/6",
+        "placement": "1",
+        "reportSha256": "f1cb1273755982a47a38a84e54a68b30104e00ea3068fbc358f9833f62271bd1"
+      },
+      "cand": {
+        "overall": 3.4,
+        "code": 2.8,
+        "process": 4,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 3/6",
+        "placement": "1",
+        "reportSha256": "dee16586bd374f825f729d69b5ca1a6728c343bb52e34f33bc4845dbd500f03f"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [
+        "B3.ci_script_depth 5 to 4"
+      ],
+      "reportIdentical": false
+    },
+    {
+      "name": "esbuild",
+      "visibility": "public",
+      "base": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.4,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "13",
+        "reportSha256": "8f9cd6766058262dad35a17b6854cceafb80d44068f79be608114226f301c6ac"
+      },
+      "cand": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.4,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "13",
+        "reportSha256": "8f9cd6766058262dad35a17b6854cceafb80d44068f79be608114226f301c6ac"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "biomejs",
+      "visibility": "public",
+      "base": {
+        "overall": 3,
+        "code": 2.9,
+        "process": 3,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 4/6",
+        "placement": "6",
+        "reportSha256": "f47592bedaeba6b18b20852747ca9d5998e251f51467d3dacc387c888afd9a12"
+      },
+      "cand": {
+        "overall": 3,
+        "code": 2.9,
+        "process": 3,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 4/6",
+        "placement": "6",
+        "reportSha256": "f47592bedaeba6b18b20852747ca9d5998e251f51467d3dacc387c888afd9a12"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "requests",
+      "visibility": "public",
+      "base": {
+        "overall": 2.9,
+        "code": 2.4,
+        "process": 3.4,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 4/6",
+        "placement": "7",
+        "reportSha256": "e0599609e37b7d50979aae370e7d336bc83efb6693736d54055afc8b9468f390"
+      },
+      "cand": {
+        "overall": 2.9,
+        "code": 2.4,
+        "process": 3.4,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 4/6",
+        "placement": "7",
+        "reportSha256": "e0599609e37b7d50979aae370e7d336bc83efb6693736d54055afc8b9468f390"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "pydantic",
+      "visibility": "public",
+      "base": {
+        "overall": 3.2,
+        "code": 2.9,
+        "process": 3.5,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "3",
+        "reportSha256": "095806db883a42fa8093ec022917d93cb0d3d19da4b311fe90c195bcaf7b3d03"
+      },
+      "cand": {
+        "overall": 3.2,
+        "code": 2.9,
+        "process": 3.5,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "3",
+        "reportSha256": "095806db883a42fa8093ec022917d93cb0d3d19da4b311fe90c195bcaf7b3d03"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "axios",
+      "visibility": "public",
+      "base": {
+        "overall": 3.3,
+        "code": 2.6,
+        "process": 3.9,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 4/6",
+        "placement": "2",
+        "reportSha256": "a70f5adf061aec873112db63998778dde2f5672416c20062fce0d9cdd25b95da"
+      },
+      "cand": {
+        "overall": 3.3,
+        "code": 2.6,
+        "process": 3.9,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 4/6",
+        "placement": "2",
+        "reportSha256": "a70f5adf061aec873112db63998778dde2f5672416c20062fce0d9cdd25b95da"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "zod",
+      "visibility": "public",
+      "base": {
+        "overall": 3.2,
+        "code": 3.1,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "5",
+        "reportSha256": "6d084744692e79471b8ff7615a24ae7d9f8df5b416fc3b3bc6e9ed5759c60690"
+      },
+      "cand": {
+        "overall": 3.2,
+        "code": 3.1,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "5",
+        "reportSha256": "6d084744692e79471b8ff7615a24ae7d9f8df5b416fc3b3bc6e9ed5759c60690"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "scorecard",
+      "visibility": "public",
+      "base": {
+        "overall": 2.9,
+        "code": 2.2,
+        "process": 3.6,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "10",
+        "reportSha256": "3fcb858c35a2e0a7ee95cf05e9ab6d03b39261d65af4652e2b670167a8971676"
+      },
+      "cand": {
+        "overall": 2.9,
+        "code": 2.2,
+        "process": 3.6,
+        "verdict": "conditional",
+        "coverage": "code_trust 4/5; process_trust 3/6",
+        "placement": "10",
+        "reportSha256": "3fcb858c35a2e0a7ee95cf05e9ab6d03b39261d65af4652e2b670167a8971676"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "ripgrep",
+      "visibility": "public",
+      "base": {
+        "overall": 2.1,
+        "code": 2.1,
+        "process": 2,
+        "verdict": "at_risk",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "14",
+        "reportSha256": "fec4c51a504c01e4b3742dd9b8c30e2e6cda56a3fa5f0d37a04d111e729250a2"
+      },
+      "cand": {
+        "overall": 2.1,
+        "code": 2.1,
+        "process": 2,
+        "verdict": "at_risk",
+        "coverage": "code_trust 3/5; process_trust 3/6",
+        "placement": "14",
+        "reportSha256": "fec4c51a504c01e4b3742dd9b8c30e2e6cda56a3fa5f0d37a04d111e729250a2"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "guava",
+      "visibility": "public",
+      "base": {
+        "overall": 1.9,
+        "code": 1.6,
+        "process": 2.2,
+        "verdict": "at_risk",
+        "coverage": "code_trust 3/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "8c71cfe6cc33d7dc870277f2df0f5a5e5f9e32a29cedf3ade771a3bd4ff27343"
+      },
+      "cand": {
+        "overall": 1.9,
+        "code": 1.6,
+        "process": 2.2,
+        "verdict": "at_risk",
+        "coverage": "code_trust 3/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "8c71cfe6cc33d7dc870277f2df0f5a5e5f9e32a29cedf3ade771a3bd4ff27343"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "cobra",
+      "visibility": "public",
+      "base": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.3,
+        "verdict": "conditional",
+        "coverage": "code_trust 2/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "44c34037fffc9282aa0624574938d0dbcb22064b3b9be389a130be373db1725c"
+      },
+      "cand": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.3,
+        "verdict": "conditional",
+        "coverage": "code_trust 2/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "44c34037fffc9282aa0624574938d0dbcb22064b3b9be389a130be373db1725c"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "sinatra",
+      "visibility": "public",
+      "base": {
+        "overall": 2.4,
+        "code": 2,
+        "process": 2.8,
+        "verdict": "at_risk",
+        "coverage": "code_trust 2/5; process_trust 4/6",
+        "placement": "unranked",
+        "reportSha256": "a5b5bcc5be99dd973be0862c32f1a783d59137c66b82d3ed98213ddbc3a6432c"
+      },
+      "cand": {
+        "overall": 2.4,
+        "code": 2,
+        "process": 2.8,
+        "verdict": "at_risk",
+        "coverage": "code_trust 2/5; process_trust 4/6",
+        "placement": "unranked",
+        "reportSha256": "a5b5bcc5be99dd973be0862c32f1a783d59137c66b82d3ed98213ddbc3a6432c"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "automapper",
+      "visibility": "public",
+      "base": {
+        "overall": 2.2,
+        "code": 2,
+        "process": 2.3,
+        "verdict": "at_risk",
+        "coverage": "code_trust 3/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "2bf5b71af3b5dc94ca5debaad0baa57cb70da2325e7228dece554945a1eb4d00"
+      },
+      "cand": {
+        "overall": 2.2,
+        "code": 2,
+        "process": 2.3,
+        "verdict": "at_risk",
+        "coverage": "code_trust 3/5; process_trust 2/6",
+        "placement": "unranked",
+        "reportSha256": "2bf5b71af3b5dc94ca5debaad0baa57cb70da2325e7228dece554945a1eb4d00"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "fmt",
+      "visibility": "public",
+      "base": {
+        "overall": 2.6,
+        "code": 2,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 4/6",
+        "placement": "12",
+        "reportSha256": "56e3eb6a366e70bda32936866cfbbade0c38c8d47f0ff2696e3d5a1d07d2d795"
+      },
+      "cand": {
+        "overall": 2.6,
+        "code": 2,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 3/5; process_trust 4/6",
+        "placement": "12",
+        "reportSha256": "56e3eb6a366e70bda32936866cfbbade0c38c8d47f0ff2696e3d5a1d07d2d795"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "carddemo",
+      "visibility": "public",
+      "base": {
+        "overall": null,
+        "code": null,
+        "process": null,
+        "verdict": "insufficient_source",
+        "coverage": "code_trust 0/5; process_trust 0/6",
+        "placement": "unrated",
+        "reportSha256": "cdac208d1d9f0aac4ce2ea23e7b4b8a618906eb5a102699fcd062f43e0ad7c92"
+      },
+      "cand": {
+        "overall": null,
+        "code": null,
+        "process": null,
+        "verdict": "insufficient_source",
+        "coverage": "code_trust 0/5; process_trust 0/6",
+        "placement": "unrated",
+        "reportSha256": "cdac208d1d9f0aac4ce2ea23e7b4b8a618906eb5a102699fcd062f43e0ad7c92"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    },
+    {
+      "name": "alfred",
+      "visibility": "private",
+      "base": {
+        "overall": 3.2,
+        "code": 3.1,
+        "process": 3.3,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 4/6",
+        "placement": "transparency",
+        "reportSha256": "63182a3f396172aacb5ce79aa0b44f62e55338d5535b442cd2cec493a8adb497"
+      },
+      "cand": {
+        "overall": 3.2,
+        "code": 3.1,
+        "process": 3.3,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 4/6",
+        "placement": "transparency",
+        "reportSha256": "402007c056b550e1ecd5a73156f0096014f86436e6ef52b5ffcdde7a75d5d60e"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [
+        "B3.ci_script_depth 5 to 4"
+      ],
+      "reportIdentical": false
+    },
+    {
+      "name": "cejel",
+      "visibility": "public",
+      "base": {
+        "overall": 2.8,
+        "code": 2.3,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 3/6",
+        "placement": "transparency",
+        "reportSha256": "ac15a8ba19d3fdbc01168e24a96a95a7cebaa4d68fd97300b271b42b1dddfe38"
+      },
+      "cand": {
+        "overall": 2.8,
+        "code": 2.3,
+        "process": 3.2,
+        "verdict": "conditional",
+        "coverage": "code_trust 5/5; process_trust 3/6",
+        "placement": "transparency",
+        "reportSha256": "ac15a8ba19d3fdbc01168e24a96a95a7cebaa4d68fd97300b271b42b1dddfe38"
+      },
+      "movedCriteria": [],
+      "movedMetrics": [],
+      "reportIdentical": true
+    }
+  ]
+}
