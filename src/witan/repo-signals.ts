@@ -70,6 +70,7 @@ import {
   WITAN_RUBRIC_VERSION_V21,
   WITAN_RUBRIC_VERSION_V22,
   WITAN_RUBRIC_VERSION_V23,
+  WITAN_RUBRIC_VERSION_V24,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -80,7 +81,8 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V23
+    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V24
   );
 }
 
@@ -435,24 +437,30 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V23;
+    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V24;
   const usesV19CommitYear =
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V23;
+    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V24;
   const usesV20A3ExplicitGaps =
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V23;
+    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V24;
   const usesV21ExecutedEscalations =
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V23;
+    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V24;
   const usesV22PackageStartEntrypoint =
-    rubricVersion === WITAN_RUBRIC_VERSION_V22 || rubricVersion === WITAN_RUBRIC_VERSION_V23;
+    rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V24;
   const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   // Explicit-only (goal_cejel_v23_pem_private_key_grammar_2026-09-06): a PEM-formatted
   // private-key value assigned to an identifier (e.g. a service-account JSON's
@@ -468,6 +476,13 @@ function buildWitanInputFromRepoUntracked(
   // over-abstention goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08 removed. v17 (the public
   // default) and v22 stay byte-stable.
   const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;
+  // Explicit-only (goal_cejel_secret_posture_context_track_b_2026-09-15): A2's current-tree
+  // secret scan decides "real credential or documentation example?" from the matched value and a
+  // bounded window of its own file's text instead of from the file's path. This is checked
+  // against V24 alone and never inherits: v17 (the public default) and v22 stay byte-stable, and
+  // v23's own four mechanisms are declared v23-specific, so v24 is a v22 descendant, not a v23
+  // one. See the WITAN_RUBRIC_VERSION_V24 declaration in rubric-version.ts.
+  const usesV24SecretContentContext = rubricVersion === WITAN_RUBRIC_VERSION_V24;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -558,6 +573,7 @@ function buildWitanInputFromRepoUntracked(
     usesV23CommandCoverage,
     usesV23PemPrivateKeyGrammar,
     usesV23WithheldPathAbstention,
+    usesV24SecretContentContext,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1642,6 +1658,7 @@ function collectRepoSignals(
   useV23CommandCoverage: boolean,
   useV23PemPrivateKeyGrammar: boolean,
   useV23WithheldPathAbstention: boolean,
+  useV24SecretContentContext: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1674,6 +1691,7 @@ function collectRepoSignals(
       useV39Detectors,
       useV47Detectors,
       useV23PemPrivateKeyGrammar,
+      useV24SecretContentContext,
       useV18NativeRls,
       inventoryAbsenceContext,
       scanLimitations,
@@ -2224,6 +2242,7 @@ function collectA2IsolationEvidence(
   useV39Detectors: boolean,
   useV47Detectors: boolean,
   useV23PemPrivateKeyGrammar: boolean,
+  useV24SecretContentContext: boolean,
   useV18NativeRls: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext,
   scanLimitations: Set<string>,
@@ -2245,21 +2264,44 @@ function collectA2IsolationEvidence(
   // of a finding that genuinely depends on file content (goal_cejel_v23_instrument_all_
   // criteria_2026-09-07) — an unreadable file here must abstain the committed-secret finding
   // and the secret_cleanliness metric, never silently report "clean" from a file it never saw.
-  const { committedSecret, currentSecretFingerprintsByPath } = withContentReadSignal(
-    'A2',
-    'secret_cleanliness',
-    () => {
+  const { committedSecret, ambiguousSecret, currentSecretFingerprintsByPath } =
+    withContentReadSignal('A2', 'secret_cleanliness', () => {
       let match_: { path: string; match: RealSecretAssignmentMatch } | undefined;
+      let ambiguous_: { path: string; match: RealSecretAssignmentMatch } | undefined;
       for (const path of repoFiles) {
-        const authoredProductionPath = useV47Detectors
-          ? isV47AuthoredProductionPath(path)
-          : useV39Detectors
-            ? isV39AuthoredProductionPath(path)
-            : isAuthoredProductionPath(path);
+        // v24: the credential-specific path exemptions do not decide this scan. The shared
+        // non-production/generated/vendor inventory rule (isAuthoredProductionPath) is unchanged
+        // — widening that is a different question about what a repository's source IS, not about
+        // how a matched credential value is classified.
+        const authoredProductionPath = useV24SecretContentContext
+          ? isAuthoredProductionPath(path)
+          : useV47Detectors
+            ? isV47AuthoredProductionPath(path)
+            : useV39Detectors
+              ? isV39AuthoredProductionPath(path)
+              : isAuthoredProductionPath(path);
         if (
-          isIgnoredScanFile(path, useV47Detectors) ||
+          (useV24SecretContentContext
+            ? isV24IgnoredScanFile(path)
+            : isIgnoredScanFile(path, useV47Detectors)) ||
           (useV33Detectors && !authoredProductionPath)
         ) {
+          continue;
+        }
+        if (useV24SecretContentContext) {
+          const classified = findV24ClassifiedSecretInFile(
+            repoPath,
+            path,
+            useV36Detectors,
+            useV39Detectors,
+            useV47Detectors,
+          );
+          if (!classified) continue;
+          if (classified.classification === 'real') {
+            match_ = { path, match: classified.match };
+            break;
+          }
+          ambiguous_ ??= { path, match: classified.match };
           continue;
         }
         const found = findCommittedSecretInFile(
@@ -2294,9 +2336,15 @@ function collectA2IsolationEvidence(
           );
         }
       }
-      return { committedSecret: match_, currentSecretFingerprintsByPath: fingerprintsByPath };
-    },
-  );
+      return {
+        committedSecret: match_,
+        // A confidently real match anywhere in the tree supersedes every ambiguous one: the
+        // abstention exists for repositories Cejel could not classify, not as a way for one
+        // unclassifiable value to withhold a metric a confirmed leak already decided.
+        ambiguousSecret: match_ ? undefined : ambiguous_,
+        currentSecretFingerprintsByPath: fingerprintsByPath,
+      };
+    });
   // Current-tree and ancestor-history evidence are independent propositions. A current secret
   // must not suppress a distinct deleted/rotated credential finding from history. V8 excludes
   // HEAD and any still-current value fingerprints from the history pass, so unchanged credentials
@@ -2587,6 +2635,23 @@ function collectA2IsolationEvidence(
       }),
     );
   }
+  if (ambiguousSecret) {
+    // The third outcome. Deliberately `info` and deliberately NOT a critical: a critical asserts a
+    // leak, and the whole point of this branch is that Cejel has not established one. The
+    // withholding of `secret_cleanliness` below is what makes it an abstention rather than a
+    // decorative note — a warning-with-a-clean-metric would be the silent pass in disguise.
+    findings.push({
+      severity: 'info',
+      summary: `Secret-shaped value with an ambiguous content context — Cejel abstains on secret cleanliness rather than assert either a committed credential or a clean result, because ${ambiguousSecret.match.classificationReason ?? 'its classification is undetermined'}.`,
+      evidence: evidenceForRelativeAtLine(
+        repoPath,
+        ambiguousSecret.path,
+        'secret_scan',
+        secretEvidenceLabel('Unclassified secret-shaped value', ambiguousSecret.match),
+        ambiguousSecret.match.line,
+      ),
+    });
+  }
   if (historySecretScan?.evidence) {
     const historyPath = historySecretScan.evidence.path ?? '';
     const isTestPath = isTestOrFixturePath(historyPath);
@@ -2670,17 +2735,27 @@ function collectA2IsolationEvidence(
   // For non-multi-tenant repos, RLS and tenant-scope are irrelevant: omit those
   // metrics entirely so a secret-clean single-tenant repo is never scored as critical
   // for absence of isolation mechanisms it does not need.
-  const secretCleanliness = findings.some((finding) => finding.severity === 'critical') ? 0 : 1;
+  const hasCriticalFinding = findings.some((finding) => finding.severity === 'critical');
+  const secretCleanliness = hasCriticalFinding ? 0 : 1;
+  // v24 withholds the metric — never scores it 0, never scores it 1 — when the current-tree scan
+  // ended on a value it could not classify and nothing else produced a critical. A zero earned by
+  // a confirmed finding is never removed this way.
+  const abstainsSecretCleanliness =
+    useV24SecretContentContext && ambiguousSecret != null && !hasCriticalFinding;
   const baseMetrics: WitanCriterionMetric[] = [
-    metric(
-      'secret_cleanliness',
-      'Secret cleanliness',
-      secretCleanliness,
-      1,
-      isMultiTenant ? 0.25 : 0.7,
-      'clean',
-      'Credits absence of committed or recent-history secret findings in the static scan.',
-    ),
+    ...(abstainsSecretCleanliness
+      ? []
+      : [
+          metric(
+            'secret_cleanliness',
+            'Secret cleanliness',
+            secretCleanliness,
+            1,
+            isMultiTenant ? 0.25 : 0.7,
+            'clean',
+            'Credits absence of committed or recent-history secret findings in the static scan.',
+          ),
+        ]),
     metric(
       'env_handling_depth',
       'Environment handling depth',
@@ -2762,9 +2837,16 @@ function collectA2IsolationEvidence(
     positiveEvidence: evidence,
     findings,
     metrics: [...baseMetrics, ...isolationMetrics, ...cryptoMetrics],
-    notes: useV18NativeRls
-      ? 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported. Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies.'
-      : 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported.',
+    notes: [
+      useV18NativeRls
+        ? 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported. Positive multi-tenancy credit is derived only from this repository’s own CREATE POLICY USING/WITH CHECK clauses; no fixed tenant-token vocabulary can create isolation credit. A conservative schema premise is retained only to fail closed when a tenant-shaped schema has zero RLS policies.'
+        : 'History secret scanning covers all reachable git history for credential-pattern paths unless the explicit credential-blob safety valve is reported.',
+      ...(abstainsSecretCleanliness
+        ? [
+            'Cejel abstained on secret cleanliness: the current-tree scan matched a secret-shaped value it could not classify from content as either a credential or an example. The metric is withheld rather than scored; every other A2 signal is unaffected.',
+          ]
+        : []),
+    ].join(' '),
   };
 }
 
@@ -7719,6 +7801,20 @@ function isIgnoredScanFile(file: string, useV47Detectors = false): boolean {
   );
 }
 
+// v24-only. README.md and CHANGELOG.md are documentation pages, and excluding them BY NAME is the
+// same class of path rule this rubric exists to remove: the README is where a placeholder is most
+// likely and, for exactly that reason, the last place anyone would look for a real credential.
+// Lockfiles and `.env` templates stay excluded — a lockfile is a generated artifact (the same
+// family as GENERATED_OR_VENDOR_PATH_PATTERN, which v24 does not touch), and an
+// `.env.example`/`.sample`/`.template` is placeholder content by definition, which is a claim
+// about content rather than a claim about a directory.
+function isV24IgnoredScanFile(file: string): boolean {
+  return (
+    /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(file) ||
+    isEnvTemplatePath(file, true)
+  );
+}
+
 function findRootPackageJson(repoFiles: readonly string[]): string | null {
   return repoFiles.includes('package.json') ? 'package.json' : null;
 }
@@ -7922,6 +8018,82 @@ function findCommittedSecretInFile(
     : null;
 }
 
+interface V24ClassifiedCommittedSecret {
+  readonly match: RealSecretAssignmentMatch;
+  readonly classification: Exclude<V24SecretClassification, 'no_finding'>;
+}
+
+/**
+ * v24-only current-tree secret scan. Same assignment grammar and same content preparation as
+ * findCommittedSecretInFile; only the value gate differs.
+ */
+function findV24ClassifiedSecretInFile(
+  repoPath: string,
+  file: string,
+  useV36Detectors: boolean,
+  useV39Detectors: boolean,
+  useV47Detectors: boolean,
+): V24ClassifiedCommittedSecret | null {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return null;
+  const contents = readRepoText(fullPath, 'utf8');
+  const isTestCredentialConfiguration =
+    useV39Detectors && isLikelyTestCredentialConfiguration(file, contents);
+  const secretScanContents = prepareCredentialScanContents(
+    contents,
+    file,
+    useV36Detectors,
+    useV39Detectors,
+    useV47Detectors,
+  );
+  // The context window reads the RAW file, not the prepared copy. Every preparation step maps one
+  // line to one replacement line, so line numbers are identical between the two — but v39's
+  // comment stripping blanks exactly the lines that most often carry the instructional marker
+  // (`# replace this with your own key`). Classifying against the stripped copy would discard the
+  // evidence this mechanism exists to read.
+  const rawLines = contents.split(/\r?\n/);
+  const classifyFor =
+    (wanted: Exclude<V24SecretClassification, 'no_finding'>) =>
+    (value: string, identifier: string, line: number): V24ClassificationOutcome => {
+      const outcome = classifyV24SecretShapedValue(
+        value,
+        identifier,
+        line,
+        rawLines,
+        useV36Detectors,
+      );
+      return outcome.classification === wanted ? outcome : V24_NO_FINDING;
+    };
+
+  // Two bounded passes, not one. A single pass stopping at the first match of either kind would
+  // let one unclassifiable value earlier in the file pre-empt a genuine leak below it. The first
+  // pass stops at the first confidently real value, so the cost of the common (clean) case is one
+  // extra linear scan and the cost of the flagging case is unchanged.
+  const real = findRealSecretAssignment(secretScanContents, new Set(), {
+    allowCredentialNamedDigest: useV36Detectors,
+    classifyValue: classifyFor('real'),
+  });
+  if (real) return { match: real, classification: 'real' };
+
+  if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
+    const weakCredential = findWeakExplicitEnvCredential(secretScanContents);
+    if (weakCredential) return { match: weakCredential, classification: 'real' };
+  }
+  const defaultAdministrative =
+    useV36Detectors && !isTestCredentialConfiguration
+      ? findDefaultAdministrativeCredential(secretScanContents)
+      : null;
+  if (defaultAdministrative) {
+    return { match: defaultAdministrative, classification: 'real' };
+  }
+
+  const ambiguous = findRealSecretAssignment(secretScanContents, new Set(), {
+    allowCredentialNamedDigest: useV36Detectors,
+    classifyValue: classifyFor('ambiguous'),
+  });
+  return ambiguous ? { match: ambiguous, classification: 'ambiguous' } : null;
+}
+
 function prepareCredentialScanContents(
   contents: string,
   file: string,
@@ -8092,10 +8264,20 @@ interface RealSecretAssignmentMatch {
   characterClasses: string;
   valueFingerprint: string;
   kind?: 'secret' | 'default_admin' | 'pem_private_key';
+  /** v24-only; absent on every other rubric, which is what keeps v17 and v22 byte-stable. */
+  classification?: Exclude<V24SecretClassification, 'no_finding'>;
+  classificationReason?: string;
 }
 
 interface SecretAssignmentOptions {
   allowCredentialNamedDigest?: boolean;
+  /**
+   * v24-only. When supplied, the classifier's verdict replaces the fixed
+   * `!isPlaceholderSecretValue(value) && looksLikeSecretValue(value)` value gate: it widens what
+   * counts as a candidate and decides among no_finding / real / ambiguous. Absent on every other
+   * rubric, so the legacy branch below is reached unchanged.
+   */
+  classifyValue?: (value: string, identifier: string, line: number) => V24ClassificationOutcome;
 }
 
 function findRealSecretAssignment(
@@ -8168,13 +8350,16 @@ function findRealSecretAssignments(
         // The former global assignment expression consumed the complete raw value before looking
         // for another assignment. Preserve that behavior and avoid rescans inside the value.
         nextSearchIndex = cursor;
-        if (
-          !isPlaceholderSecretValue(value) &&
-          (looksLikeSecretValue(value) ||
-            (options.allowCredentialNamedDigest === true &&
-              isLikelyDigestOrHash(value) &&
-              isExplicitCredentialIdentifier(identifier)))
-        ) {
+        const outcome: V24ClassificationOutcome = options.classifyValue
+          ? options.classifyValue(value, identifier, line)
+          : !isPlaceholderSecretValue(value) &&
+              (looksLikeSecretValue(value) ||
+                (options.allowCredentialNamedDigest === true &&
+                  isLikelyDigestOrHash(value) &&
+                  isExplicitCredentialIdentifier(identifier)))
+            ? V24_REAL
+            : V24_NO_FINDING;
+        if (outcome.classification !== 'no_finding') {
           const valueFingerprint = createHash('sha256').update(value).digest('hex');
           const characterClasses = [
             /[a-z]/.test(value) ? 'lower' : '',
@@ -8191,6 +8376,17 @@ function findRealSecretAssignments(
               valueLength: value.length,
               characterClasses: characterClasses || 'other',
               valueFingerprint,
+              // Only ever set on the v24 classifier path; the legacy branch above yields V24_REAL,
+              // whose `reason` is undefined, so these two keys stay absent exactly as before.
+              ...(options.classifyValue
+                ? {
+                    classification: outcome.classification as Exclude<
+                      V24SecretClassification,
+                      'no_finding'
+                    >,
+                    ...(outcome.reason ? { classificationReason: outcome.reason } : {}),
+                  }
+                : {}),
             });
             if (matches.length >= maximumMatches) return matches;
           }
@@ -8720,6 +8916,198 @@ function isSyntheticFixtureSecretValue(value: string): boolean {
     value.includes('abcdefghijklmnopqrstuvwxyz0123456789') ||
     value.includes('abcdefghijklmnopqrst')
   );
+}
+
+// ---- v24-only: A2 content-context classification of secret-shaped values -------------------
+// (goal_cejel_secret_posture_context_track_b_2026-09-15.) Every rubric up to v23 answers part of
+// "is this matched value a real credential?" from the file's PATH: V39_NON_PRODUCTION_CREDENTIAL_
+// PATH_PATTERN and V47_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN delete docs/, documentation/,
+// lessons/, cookbooks/ and every .md/.mdx/.rst/.adoc file from A2's current-tree secret scan. That
+// rule is disqualified by design, not by defect: it cannot tell a placeholder written into a
+// documentation page from a live credential accidentally committed to one, and it silences the
+// second in order to suppress the first. A real secret under docs/ must still flag.
+//
+// v24 replaces it with a classification of the value itself plus a bounded window of that file's
+// own text, producing exactly one of three outcomes:
+//
+//   no_finding — the value is intrinsically instructional, or below the candidate net entirely;
+//   real       — the value clears the unchanged v22 high-confidence bar, flagged at unchanged
+//                severity and evidence wherever it lives;
+//   ambiguous  — Cejel cannot decide from content, and abstains `secret_cleanliness` with a
+//                stated reason instead of reporting a silent pass.
+//
+// SIGNALS THE CLASSIFIER USES: the matched value's own composition — word structure against a
+// closed committed gazetteer, character classes, Shannon entropy, filler runs, template
+// interpolation, a documented vendor test-mode prefix combined with a placeholder-shaped body —
+// and a ±3-line window of the same file's raw text matched against a closed committed
+// instructional-marker vocabulary.
+//
+// SIGNALS IT DELIBERATELY DOES NOT USE: the file's path, directory name, or extension; the
+// repository's name, archetype, language, or size; the assigned identifier's resemblance to a
+// path; and anything outside the file being scanned. Identical bytes therefore produce an
+// identical verdict wherever they live — asserted directly in a2-secret-content-context-v24.test.ts
+// rather than inferred from the absence of a path read here.
+type V24SecretClassification = 'no_finding' | 'real' | 'ambiguous';
+
+interface V24ClassificationOutcome {
+  readonly classification: V24SecretClassification;
+  readonly reason?: string;
+}
+
+const V24_NO_FINDING: V24ClassificationOutcome = { classification: 'no_finding' };
+const V24_REAL: V24ClassificationOutcome = { classification: 'real' };
+
+// Both reasons are reproduced verbatim in the emitted finding, so a certificate reader sees why
+// Cejel declined to answer rather than a bare "insufficient_data".
+const V24_AMBIGUOUS_INSTRUCTIONAL_REASON =
+  'the value clears the confident real-secret bar but sits in an instructional context, and a committed example is indistinguishable from a pasted live credential by content alone';
+const V24_AMBIGUOUS_UNCLASSIFIED_REASON =
+  'the value clears neither the placeholder vocabulary nor the confident real-secret bar, so Cejel has no basis to call it either a credential or an example';
+
+const V24_CONTEXT_LINE_RADIUS = 3;
+// Each window line is truncated before matching. The marker pattern is a flat literal alternation
+// with no nested quantifier, but a minified or generated file can still be one megabyte-long line
+// and there is no instructional marker worth finding past the first few hundred characters
+// (docs/filename-redos-verification-2026-09-10.md discipline).
+const V24_CONTEXT_LINE_SCAN_LIMIT = 400;
+
+// Closed, explicit, version-controlled instructional vocabulary. Reviewable in the pull request,
+// never inferred at runtime, never extended from repository content.
+const V24_INSTRUCTIONAL_MARKER_PATTERN =
+  /replace (?:this|it|the|with|these|your)|your own|for example|example only|sample value|placeholder|dummy value|not a real|not real|do not use this|never commit|for illustration|paste your|copy your|insert your|fill in|shown here/i;
+
+// The same discipline for the value itself: a credential is never a sequence of ordinary English
+// instruction words, however long or mixed-case it is. Lexical shape alone cannot separate
+// `ReplaceThisWithYourOwnApiKeyValue1234567890` from a token — word composition can
+// (alfred_pr_lessons_2026-07-09, entry 22).
+const V24_PLACEHOLDER_WORD_GAZETTEER: ReadonlySet<string> = new Set([
+  'a', 'actual', 'add', 'api', 'application', 'before', 'change', 'changeme', 'console', 'copy',
+  'credential', 'dashboard', 'demo', 'do', 'docs', 'documentation', 'dummy', 'enter', 'example',
+  'fake', 'fill', 'for', 'from', 'generate', 'get', 'goes', 'here', 'hidden', 'in', 'insert',
+  'instead', 'key', 'live', 'me', 'my', 'not', 'of', 'obtain', 'omitted', 'on', 'own', 'paste',
+  'password', 'placeholder', 'production', 'provide', 'put', 'real', 'redacted', 'removed',
+  'replace', 'running', 'sample', 'secret', 'set', 'supply', 'the', 'this', 'to', 'token',
+  'tutorial', 'type', 'use', 'value', 'with', 'your',
+]);
+
+const V24_TEMPLATE_INTERPOLATION_PATTERN =
+  /\{\{[^{}]{1,64}\}\}|\$\{[^{}]{1,64}\}|%\([A-Za-z_][A-Za-z0-9_]{0,63}\)s|^<[^<>]{1,64}>$|^\$[A-Z][A-Z0-9_]{2,63}$/;
+
+// Publicly documented vendor test-mode prefixes. The prefix ALONE never qualifies a value: a real
+// key is routinely copy-pasted into a variable whose name says `test`, so the body must itself be
+// placeholder-shaped.
+const V24_VENDOR_TEST_MODE_PREFIX_PATTERN = /^(?:sk|pk|rk|whsec)_test_/i;
+
+// The candidate net — deliberately wider than `looksLikeSecretValue`, because the whole point of
+// the third outcome is that values BETWEEN "obviously an example" and "confidently a credential"
+// stop disappearing silently.
+const V24_CANDIDATE_VALUE_PATTERN = /^[A-Za-z0-9/+_.:~-]{16,}$/;
+const V24_CANDIDATE_MINIMUM_ENTROPY_PER_CHAR = 3;
+// A value that is plainly a REFERENCE to a credential rather than a credential: a dotted
+// identifier chain (`process.env.API_KEY`, `settings.SECRET_KEY`), a URL, or a filesystem path.
+// Without these the candidate net would abstain on the single most common CORRECT way to handle a
+// secret, which would make the abstention worthless noise rather than a signal.
+const V24_CREDENTIAL_REFERENCE_PATTERN =
+  /^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)+$/;
+const V24_URL_OR_FILESYSTEM_VALUE_PATTERN = /^(?:[a-z][a-z0-9+.-]{0,31}:\/\/|\.{0,2}\/|~\/)/i;
+
+/**
+ * Splits a value into words on separators, camelCase boundaries, and letter/digit boundaries.
+ * The last of those matters: `...ApiKeyValue1234567890` is one instructional phrase with a filler
+ * digit run glued to its final word, and without that split the whole value fails the gazetteer on
+ * a token (`Value1234567890`) that is not a word at all.
+ */
+function splitV24ValueWords(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([A-Za-z])(\d)/g, '$1 $2')
+    .replace(/(\d)([A-Za-z])/g, '$1 $2')
+    .split(/[^A-Za-z0-9]+/)
+    .filter((word) => word.length > 0);
+}
+
+/**
+ * True when every alphabetic word in the value is drawn from the committed gazetteer and there are
+ * at least three of them. Requiring EVERY word (not a majority) is what keeps this safe: a real
+ * credential would have to be composed entirely of common instruction words to collide.
+ */
+function isV24InstructionalPhraseValue(value: string): boolean {
+  const words = splitV24ValueWords(value);
+  if (words.length < 3) return false;
+  let alphabeticWords = 0;
+  for (const word of words) {
+    if (/^\d+$/.test(word)) continue;
+    if (!V24_PLACEHOLDER_WORD_GAZETTEER.has(word.toLowerCase())) return false;
+    alphabeticWords += 1;
+  }
+  return alphabeticWords >= 3;
+}
+
+/**
+ * Value-intrinsic placeholder evidence. This is the ONLY branch that can clear a value to a silent
+ * no-finding, so it reads nothing but the value: an instructional phrase, an unfilled template
+ * interpolation, or a vendor test-mode prefix over a placeholder-shaped body. Surrounding prose can
+ * never reach this branch — prose next to a real-looking value abstains instead.
+ */
+function isV24IntrinsicPlaceholderValue(value: string): boolean {
+  if (isPlaceholderSecretValue(value)) return true;
+  if (isV24InstructionalPhraseValue(value)) return true;
+  if (V24_TEMPLATE_INTERPOLATION_PATTERN.test(value)) return true;
+  if (V24_VENDOR_TEST_MODE_PREFIX_PATTERN.test(value)) {
+    const body = value.replace(V24_VENDOR_TEST_MODE_PREFIX_PATTERN, '');
+    return isPlaceholderSecretValue(body) || isV24InstructionalPhraseValue(body);
+  }
+  return false;
+}
+
+function isV24CandidateSecretValue(value: string): boolean {
+  if (!V24_CANDIDATE_VALUE_PATTERN.test(value)) return false;
+  if (V24_CREDENTIAL_REFERENCE_PATTERN.test(value)) return false;
+  if (V24_URL_OR_FILESYSTEM_VALUE_PATTERN.test(value)) return false;
+  if (isLikelyDigestOrHash(value)) return false;
+  const classCount = [/[a-z]/, /[A-Z]/, /[0-9]/, /[+/_.:~-]/].filter((pattern) =>
+    pattern.test(value),
+  ).length;
+  if (classCount < 2) return false;
+  return shannonEntropyPerChar(value) >= V24_CANDIDATE_MINIMUM_ENTROPY_PER_CHAR;
+}
+
+function hasV24InstructionalContext(rawLines: readonly string[], line: number): boolean {
+  const start = Math.max(0, line - 1 - V24_CONTEXT_LINE_RADIUS);
+  const end = Math.min(rawLines.length, line + V24_CONTEXT_LINE_RADIUS);
+  for (let index = start; index < end; index += 1) {
+    const candidate = (rawLines[index] ?? '').slice(0, V24_CONTEXT_LINE_SCAN_LIMIT);
+    if (V24_INSTRUCTIONAL_MARKER_PATTERN.test(candidate)) return true;
+  }
+  return false;
+}
+
+function classifyV24SecretShapedValue(
+  value: string,
+  identifier: string,
+  line: number,
+  rawLines: readonly string[],
+  allowCredentialNamedDigest: boolean,
+): V24ClassificationOutcome {
+  if (isV24IntrinsicPlaceholderValue(value)) return V24_NO_FINDING;
+  // Rule 3 of the protocol: a match satisfying no intrinsic placeholder signal is evaluated
+  // against the EXISTING high-confidence bar, unchanged. Context can move it to an abstention but
+  // must never downgrade it to a silent pass.
+  const clearsRealBar =
+    looksLikeSecretValue(value) ||
+    (allowCredentialNamedDigest &&
+      isLikelyDigestOrHash(value) &&
+      isExplicitCredentialIdentifier(identifier));
+  const instructionalContext = hasV24InstructionalContext(rawLines, line);
+  if (clearsRealBar) {
+    return instructionalContext
+      ? { classification: 'ambiguous', reason: V24_AMBIGUOUS_INSTRUCTIONAL_REASON }
+      : V24_REAL;
+  }
+  if (!isV24CandidateSecretValue(value)) return V24_NO_FINDING;
+  if (instructionalContext) return V24_NO_FINDING;
+  return { classification: 'ambiguous', reason: V24_AMBIGUOUS_UNCLASSIFIED_REASON };
 }
 
 function hasSuspiciousDependencies(
