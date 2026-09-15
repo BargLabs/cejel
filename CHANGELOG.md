@@ -35,8 +35,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   implementation file that exceeded the repository content size limit" — when it is the reason a
   signal has nothing to measure, instead of folding into the generic coverage-limit sentence used
   for an extension exclusion or a non-regular file. Covers A3's `health_readiness_route` and
-  `observability_depth` today, the two signals that already attribute a withheld path to
-  themselves.
+  `observability_depth` and `prod_readiness_primitives` today, the three signals that attribute a
+  withheld path to themselves.
 
 ### Scoring under the calibrated default
 
@@ -83,9 +83,10 @@ rather than adjusted.
   withheld path (over the size limit, not a regular file, unreadable, or excluded by policy) is
   now recorded and can abstain a signal — but only a signal whose *own* file-selection test
   admits that path, so an oversized file a signal was never going to open still abstains nothing.
-  **This mechanism covers exactly two signals, A3's `health_readiness_route` and
-  `observability_depth`, and nothing else**: every other signal that filters the file list still
-  reports a plain absence when its matching file was withheld. The calibrated public default
+  **This mechanism covers exactly three signals, all in A3: `health_readiness_route`,
+  `observability_depth` and `prod_readiness_primitives`, and nothing else**: every other signal
+  that filters the file list still reports a plain absence when its matching file was withheld —
+  including A5's claim-source reads, where the behaviour was originally demonstrated. The calibrated public default
   (`witan-rubric-v17`) and v22 are unchanged. Counts in `contentReadSummary` are unchanged.
 - Fixed a reproduced scan hang on a legal 255-byte filename in the default scan path, shared by
   the CLI and MCP servers. The environment-template filename classifiers now use one optional
