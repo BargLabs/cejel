@@ -11,6 +11,10 @@ import { join, resolve } from 'node:path';
 const ROOT = resolve(process.env.HOME ?? '', 'tmp/cejel-049-delta');
 const SITE_REPORTS = resolve(process.env.HOME ?? '', 'projects/cejel-site/leaderboard/reports');
 const PUBLISHER_OWNED = new Set(['alfred', 'cejel']);
+// Arm directory names under out/. Defaults reproduce the committed run; override to compare a
+// different pair (e.g. LEFT_ARM=base RIGHT_ARM=combined) without editing this file. The object
+// keys stay base/cand so the emitted delta.json shape is stable across runs.
+const ARM = { base: process.env.LEFT_ARM ?? 'base', cand: process.env.RIGHT_ARM ?? 'cand' };
 const corpus = JSON.parse(readFileSync(join(ROOT, 'corpus.json'), 'utf8'));
 const read = (arm, name) => JSON.parse(readFileSync(join(ROOT, 'out', arm, `${name}.json`), 'utf8'));
 const manifest = (arm) => JSON.parse(readFileSync(join(ROOT, 'out', arm, '_manifest.json'), 'utf8'));
@@ -57,9 +61,9 @@ const rows = [];
 for (const e of corpus.entries) {
   const row = { name: e.name, visibility: e.visibility };
   for (const arm of ['base', 'cand']) {
-    const m = manifest(arm).rows.find((r) => r.name === e.name);
+    const m = manifest(ARM[arm]).rows.find((r) => r.name === e.name);
     if (!m?.ok) { row[arm] = { error: m?.error ?? 'missing' }; continue; }
-    const report = read(arm, e.name);
+    const report = read(ARM[arm], e.name);
     row[arm] = { report, cov: coverage(report), cmp: comparableScore(report) };
   }
   rows.push(row);
@@ -161,7 +165,7 @@ const summary = {
   anyCriterionMoved: delta.filter((d) => d.movedCriteria?.length).length,
   anyMetricMoved: delta.filter((d) => d.movedMetrics?.length).length,
   headlineMoved: delta.filter((d) => d.base && (d.base.overall !== d.cand.overall || d.base.verdict !== d.cand.verdict || d.base.placement !== d.cand.placement)).length,
-  base: manifest('base'), cand: manifest('cand'),
+  base: manifest(ARM.base), cand: manifest(ARM.cand),
 };
 writeFileSync(join(ROOT, 'delta.json'), JSON.stringify({ summary: { ...summary, base: { srcHead: summary.base.srcHead, packageVersion: summary.base.packageVersion }, cand: { srcHead: summary.cand.srcHead, packageVersion: summary.cand.packageVersion } }, boardCheck, delta }, null, 2));
 writeFileSync(join(ROOT, 'delta.md'), lines.join('\n') + '\n');
