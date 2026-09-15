@@ -17,9 +17,11 @@ section, which this changelog continues.
 **Status.** Disclosed behaviour change under the existing calibrated public default. **Not a
 recalibration** — the v17 calibration frame is retired and this entry does not touch it. The
 rubric identifier does not change. `WITAN_RUBRIC_VERSION` was deliberately not bumped by the
-author of this entry; whether it should have been is handed to the operator below.
+author of this entry; whether it should have been is handed to the operator below. Unlike the
+two entries below it, this delta was **preregistered**: expected values were committed before
+the comparison ran, and the result matched them in full.
 
-**What changed.** Three fixes in CLI release 0.4.9 change how a repository scores under
+**What changed.** Five changes in CLI release 0.4.9 change how a repository scores under
 `witan-rubric-v17-2026-07-24` with no change to the identifier. None is gated on rubric
 version; each applies to every rubric, the calibrated default included.
 
@@ -34,6 +36,26 @@ version; each applies to every rubric, the calibrated default included.
    only the test-file-dependent metrics stay at zero.
 3. **Pull-request-template directory form (direction: up).** `.github/PULL_REQUEST_TEMPLATE/<name>.md`
    read as no template; it is now recognised alongside the single-file form.
+4. **A3 observability-depth pattern widening (direction: up).** The file-content pattern behind
+   `A3.observability_depth` matched a vendor-product list (`sentry`, `otel`, `opentelemetry`,
+   `datadog`, `prometheus`, `logtail`) plus the generic substrings `logger` and `metrics`, and so
+   missed the common Node structured-logging libraries (`pino`, `winston`, `bunyan`), the Express
+   request-logging convention (`morgan`) and the request-correlation idiom (`correlation`,
+   `request` or `trace` plus an optional separator and `id`, and `AsyncLocalStorage`). All of
+   those now match, each word-bounded.
+5. **A3 `prod_readiness_primitives` error boundary (direction: up).** The "error boundary"
+   component matched a frontend filename convention only (`error-boundary.*`,
+   `*.error.(tsx|jsx|ts|js)`) and read no file content, so an Express error-handling middleware
+   layer — which can live in any file under any name — never moved it. It now also recognises the
+   canonical four-argument `(err, req, res, next)` signature by content, across implementation
+   files, checked only when the filename convention finds nothing.
+
+Two further changes in this release are **not capable of moving a score under the calibrated
+default** and are recorded so that the list above is not mistaken for the whole release: the
+health/readiness route widening (gated on `useV20ExplicitGaps`, prospective `witan-rubric-v20`+,
+and feeding an info-severity absence finding rather than a scored metric), and the `too_large`
+abstention-disclosure split (gated to prospective `witan-rubric-v23`). Both were measured rather
+than assumed inert: they moved nothing, as predicted.
 
 **Why the cited guard did not fire, stated plainly.** The rubric-rescore-protocol guard this
 changelog's preamble cites lives in the source monorepo (BargLabs/alfred,
@@ -55,8 +77,11 @@ passes 4/4 against 0.4.9, naming the metric and direction each time.
 **Measurement.** All 24 corpus rows at their pinned commits (`leaderboard/corpus.json`,
 sha256 `dc723f53…`, byte-identical to the corpus the v19 protocol froze), scored twice from
 source with the calibrated default, `generatedAt` fixed, on one machine within one hour:
-baseline `7606392` (the `v0.4.8` commit) and candidate `fe4210a` (`origin/main`, the 0.4.9
-candidate). The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
+baseline `7606392` (the `v0.4.8` commit) and candidate `a34da1a`, which is `fe4210a`
+(`origin/main`) with both remaining 0.4.9 scoring branches merged in — the A3 runtime-pattern
+coverage work (`aa57822b`) and the certificate scope disclosure work (`afb82ff3`). Both merge
+into `origin/main` with no conflicts; the candidate arm is content-identical to the tree that
+ships once they land. The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
 exactly on the row that moved most (django: 3.2 / 2.6 / 3.8, B3 3.6, `ci_script_depth` 3), so
 the baseline is what a customer has, not an assumption about it. Canonical evidence:
 `docs/experiments/v17-behaviour-delta-0.4.9-2026-09-15/paired-result.json`; the harness that
@@ -64,45 +89,66 @@ produced it is beside it. Raw per-row reports were retained locally and not comm
 private row's report is not public; the public rows' reports are reproducible from the
 harness).
 
-**Not preregistered — said plainly.** This repository's convention for a measurement whose
+**Preregistered, and the prediction held.** This repository's convention for a measurement whose
 result matters is a preregistration commit that is a strict ancestor of the result commit
-(`docs/standing-constraints.md`, Guard 5; the v19 entry above shows the shape). This delta was
-not run that way: it was measured post hoc, in one session, and the expected-value paragraph
-below was written from the checkouts before `compare.mjs` ran but sits in the same commit as
-the result, so that ordering is not git-verifiable. Read this as a **measured disclosure of a
-change that had already merged**, not as a preregistered result. The next delta of this kind
-should land its expected values as a separate ancestor commit first.
+(`docs/standing-constraints.md`, Guard 5). The two entries below this one could not claim that
+and said so. This one can: `PREREGISTRATION.md` in the experiment directory was committed as
+`0f80959`, before `compare.mjs` ran, naming both arms, all five score-capable changes, the rows
+expected to move and the exact metric values expected. The measured result matched it in full —
+the same four rows, the same two metrics, the same single headline change, the same 20
+byte-identical reports — so no gap between prediction and result had to be explained away, and
+none was closed by adjusting anything.
 
-**Expected values, written from the checkouts before the comparison ran.** For change 1, the rows expected to move are
-those whose `test` script contains no runner the content check names: from the corpus
-`package.json` files, django (`grunt test --verbose`), vite (`pnpm test-unit && pnpm
-test-serve && pnpm test-build`) and the private alfred row — **3 rows, all down**. Every other
-JavaScript row names a runner (`vitest`, `mocha`, `jest-cli.js`, `npm run test:vitest`) and
-was expected not to move. For change 2, the only row on A1's authenticated-absence path is
-carddemo, which has no `package.json` — **0 rows**. For change 3, no corpus checkout contains
-a `.github/PULL_REQUEST_TEMPLATE/` directory — **0 rows**. An empty result for changes 2 and 3
-is therefore the expected value, checked against the checkouts, not a convenient absence.
+**Expected values, committed before the comparison ran** (`PREREGISTRATION.md`, `0f80959`).
+For change 1, the rows expected to move are those whose `test` script contains no runner the
+content check names: from the corpus `package.json` files, django (`grunt test --verbose`), vite
+(`pnpm test-unit && pnpm test-serve && pnpm test-build`) and the private alfred row — **3 rows,
+all down**. Every other JavaScript row names a runner (`vitest`, `mocha`, `jest-cli.js`,
+`npm run test:vitest`) and was expected not to move. For change 2, the only row on A1's
+authenticated-absence path is carddemo, which has no `package.json` — **0 rows**. For change 3,
+no corpus checkout contains a `.github/PULL_REQUEST_TEMPLATE/` directory — **0 rows**. For
+change 4, A3 is `not_applicable` on 17 of 24 rows, leaving seven that can move on any A3 signal
+at all; of those, the widened pattern selects a file the old one did not on react and alfred
+only — **2 rows, both up**. vue's single candidate file matches `requestIdleCallback`, which the
+shipped word-bounded `\b(?:correlation|request|trace)[-_]?id\b` correctly rejects; axios's three
+candidates already matched the existing terms and two are test files the implementation-file
+filter excludes; vite, scorecard and cejel contain none; svelte contains two matching files but
+its A3 is `not_applicable`. For change 5, no file in any of the seven A3-applicable rows matches
+the four-argument `(err, req, res, next)` pattern — **0 rows**. An empty result for changes 2, 3
+and 5 is therefore the expected value, checked against the checkouts, not a convenient absence.
 
-**Result.** 24 of 24 rows completed in both arms. **21 reports byte-identical. 3 rows moved,
-all on `B3.ci_script_depth`, all downward, exactly the 3 predicted; 0 rows moved on any other
-criterion or metric.** One headline changed: django 3.2 → 3.1 overall (process 3.8 → 3.6, B3
-3.6 → 3.1), verdict and placement unchanged (unranked, low-confidence coverage). vite and
-alfred lost one `ci_script_depth` point each with no score change (the metric saturates).
-No verdict changed. No placement changed. Changes 2 and 3 moved nothing on this corpus, which
-is what the checkouts predicted — not evidence that they move nothing in general: the guard's
-fixtures show both moving up on the shapes they were written for.
+**Result.** 24 of 24 rows completed in both arms. **20 reports byte-identical. 4 rows moved,
+exactly the 4 predicted, on exactly the 2 predicted metrics: `B3.ci_script_depth` down on
+django, vite and alfred, and `A3.observability_depth` up on react (68 → 108) and alfred
+(64 → 73).** One headline changed: django 3.2 → 3.1 overall (process 3.8 → 3.6, B3 3.6 → 3.1),
+verdict and placement unchanged (unranked, low-confidence coverage). vite and alfred lost one
+`ci_script_depth` point each with no score change (the metric saturates), and neither
+observability movement changed a criterion score or status (react's A3 stays 2.3/warning,
+alfred's 3.6/verified). No verdict changed. No placement changed. No coverage figure changed.
+Changes 2, 3 and 5 moved nothing on this corpus, which is what the checkouts predicted — not
+evidence that they move nothing in general: the guard fixtures shipped with each change show
+them moving on the shapes they were written for. The four pinned shapes in
+`src/witan/__tests__/v17-scoring-surface-golden.test.ts` stay 4/4 green on the candidate, as
+predicted, and the two guards shipped with changes 4 and 5 pass on it (20 assertions across the
+three files).
 
 **Finding: the content check over-reaches, disclosed rather than adjusted.** None of the three
-rows that moved carries the placeholder the fix was written for. All three run a real test
-entrypoint that delegates to a runner the check's allowlist does not name. The fix converted
-"credits a placeholder" into "does not credit a delegating script" — a new false assertion of
-the absence of a test capability, in the direction that lowers a score. Per the constraint
-that governs this entry, nothing was adjusted to shrink the delta: the check ships as written,
-the three rows move, and this paragraph says why. **Operator decision:** whether the check
-should recognise delegation (a `test` script that is not the npm placeholder, or one that
+rows that moved on `ci_script_depth` carries the placeholder that fix was written for. All three
+run a real test entrypoint that delegates to a runner the check's allowlist does not name. The
+fix converted "credits a placeholder" into "does not credit a delegating script" — a new false
+assertion of the absence of a test capability, in the direction that lowers a score. Per the
+constraint that governs this entry, nothing was adjusted to shrink the delta: the check ships as
+written, the three rows move, and this paragraph says why. **Operator decision:** whether the
+check should recognise delegation (a `test` script that is not the npm placeholder, or one that
 invokes `npm run`/`pnpm`/`turbo`/`grunt`/`make`), which would need its own entry here and a
 re-pin of the guard; and separately whether a behaviour change of this kind under a fixed
 identifier should have forced a rubric version bump. Neither is decided by this entry.
+
+**Note on the two upward metric movements.** `observability_depth` is a raw count of matching
+files, so react's 68 → 108 and alfred's 64 → 73 are the same repositories at the same commits
+counted by a wider pattern, not repositories that became more observable. The count is not
+comparable across releases as a quantity, and neither movement crossed a score band. A board
+republished on 0.4.9 will show the new counts on those two rows with unchanged scores.
 
 **Prior undisclosed movement found while measuring.** Checking the baseline arm against the
 board published on cejel.dev at scoring level (headline, per-criterion score/status, per-metric
@@ -120,17 +166,19 @@ of input, because 0.4.8 added a `derivation` field to every finding; the four ro
 found by hand and the check was then rewritten to compare at scoring level, which reproduces
 exactly those four — review finding on #306.)
 
+
 **Measurement limits.** Public rows were fetched with `--depth=1`; both arms score the same
 shallow checkouts, so the base → candidate delta is unaffected, but history-dependent signals
 (A2's recent-history secret scan, B4's commit-year freshness) saw one commit of history, as in
 the v19 protocol. `harness/RUN.md` records the exact invocation and a verification that the
 committed harness reproduces the candidate arm from its committed location.
 
-**Full v0.4.8 → 0.4.9 candidate delta under witan-rubric-v17-2026-07-24 (all 24 rows):**
+
+**Full v0.4.8 → 0.4.9 delta under witan-rubric-v17-2026-07-24 (all 24 rows, candidate = main + both remaining 0.4.9 scoring branches):**
 
 | Repository | Overall | Code trust | Process trust | Verdict | Coverage | Board placement | Criteria that moved (score/status) | Metrics that moved |
 |---|---:|---:|---:|---|---|---|---|---|
-| react | 3 | 2.1 | 3.9 | Conditional | code_trust 5/5; process_trust 3/6 | 9 | identical | none |
+| react | 3 | 2.1 | 3.9 | Conditional | code_trust 5/5; process_trust 3/6 | 9 | none (report differs elsewhere) | A3.observability_depth 68 to 108 |
 | vue | 2.9 | 2.4 | 3.4 | Conditional | code_trust 4/5; process_trust 3/6 | 11 | identical | none |
 | svelte | 3.1 | 2.9 | 3.3 | Conditional | code_trust 4/5; process_trust 3/6 | 4 | identical | none |
 | django | 3.2 to 3.1 | 2.6 | 3.8 to 3.6 | Conditional | code_trust 3/5; process_trust 2/6 | unranked | B3 3.6/verified to 3.1/verified | B3.ci_script_depth 3 to 2 |
@@ -152,7 +200,7 @@ committed harness reproduces the candidate arm from its committed location.
 | automapper | 2.2 | 2 | 2.3 | At risk | code_trust 3/5; process_trust 2/6 | unranked | identical | none |
 | fmt | 2.6 | 2 | 3.2 | Conditional | code_trust 3/5; process_trust 4/6 | 12 | identical | none |
 | carddemo | scoreless | scoreless | scoreless | Insufficient source | code_trust 0/5; process_trust 0/6 | unrated | identical | none |
-| alfred | 3.2 | 3.1 | 3.3 | Conditional | code_trust 5/5; process_trust 4/6 | transparency | none (report differs elsewhere) | B3.ci_script_depth 5 to 4 |
+| alfred | 3.2 | 3.1 | 3.3 | Conditional | code_trust 5/5; process_trust 4/6 | transparency | none (report differs elsewhere) | A3.observability_depth 64 to 73; B3.ci_script_depth 5 to 4 |
 | cejel | 2.8 | 2.3 | 3.2 | Conditional | code_trust 5/5; process_trust 3/6 | transparency | identical | none |
 
 ## witan-rubric-v19-prospective-2026-08-09 — recovery GO

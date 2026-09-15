@@ -23,9 +23,12 @@ Two source worktrees, one per arm:
 
 ```
 git worktree add --detach .worktrees/rescore-base-v0.4.8 v0.4.8      # 7606392
-git worktree add --detach .worktrees/rescore-cand-fe4210a fe4210a   # candidate
+git worktree add --detach .worktrees/combined-049 fe4210a           # candidate: main + both
+( cd .worktrees/combined-049 \
+  && git merge --no-gpg-sign --no-edit origin/stream/yellow/20260915-141422-goal_cejel_a3_runtime_pattern_coverage_0 \
+  && git merge --no-gpg-sign --no-edit origin/stream/yellow/20260915-141447-goal_cejel_certificate_scope_disclosure_ )
 ( cd .worktrees/rescore-base-v0.4.8 && pnpm install --frozen-lockfile )
-( cd .worktrees/rescore-cand-fe4210a && pnpm install --frozen-lockfile )
+( cd .worktrees/combined-049 && pnpm install --frozen-lockfile )
 ```
 
 Score each arm **from inside its worktree** (the scanner is resolved from the working
@@ -35,19 +38,24 @@ package version before any number):
 ```
 H=$PWD/docs/experiments/v17-behaviour-delta-0.4.9-2026-09-15/harness
 ( cd .worktrees/rescore-base-v0.4.8    && ARM=base pnpm exec tsx "$H/score-arm.ts" )
-( cd .worktrees/rescore-cand-fe4210a   && ARM=cand pnpm exec tsx "$H/score-arm.ts" )
-node "$H/compare.mjs"       # writes $DELTA_ROOT/delta.json and delta.md
+( cd .worktrees/combined-049          && ARM=combined pnpm exec tsx "$H/score-arm.ts" )
+LEFT_ARM=base RIGHT_ARM=combined node "$H/compare.mjs"   # writes $DELTA_ROOT/delta.json, delta.md
 ```
 
 `compare.mjs` compares the two arms at scoring level (headline, per-criterion score/status,
 per-metric value; symmetric, so a criterion or metric present on only one side is reported) and
 checks the base arm against the published board reports at
-`~/projects/cejel-site/leaderboard/reports/<name>.json` at the same level. Expected output for
-the committed record: `24/24` rows, `21` byte-identical, `3` rows with a moved metric
-(`B3.ci_script_depth`: django, vite, alfred), board check `20/24 reproduce` with fastapi,
-biomejs, fmt and alfred differing.
+`~/projects/cejel-site/leaderboard/reports/<name>.json` at the same level. `LEFT_ARM`/`RIGHT_ARM` name the directories under `out/` and default to `base`/`cand`. Expected
+output for the committed record: `24/24` rows, `20` byte-identical, `4` rows with a moved metric
+(`B3.ci_script_depth`: django, vite, alfred; `A3.observability_depth`: react, alfred), one moved
+headline (django), board check `20/24 reproduce` with fastapi, biomejs, fmt and alfred
+differing.
 
 Verification that the committed harness runs from its committed location: on 2026-09-15 the
 candidate arm was re-scored from this path into a fresh `DELTA_ROOT` and all 24 reports were
 identical to the originals (`toolVersion` masked, since the version bump commit sits between
 the two runs).
+
+Verification for the combined record: on 2026-09-15 `compare.mjs` was run from this committed
+path against `out/base` and `out/combined` and its `delta.json` was byte-identical to the
+committed `paired-result.json`.

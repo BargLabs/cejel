@@ -40,18 +40,25 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Scoring under the calibrated default
 
-Three of the fixes below change how repositories score under `witan-rubric-v17-2026-07-24`,
+Five of the fixes below change how repositories score under `witan-rubric-v17-2026-07-24`,
 the calibrated public default, without any change to the rubric identifier: the `test`-script
 content check in both A1's `verification_script_ratio` and B3's `ci_script_depth` (scores
-down), A1's authenticated-absence credits (scores up), and the pull-request-template directory
-form in B2 (scores up). The full 24-row before/after corpus delta,
-per criterion and per metric, is in
+down), A1's authenticated-absence credits (scores up), the pull-request-template directory
+form in B2 (scores up), and two A3 production-readiness widenings — the observability-depth
+file pattern and the `prod_readiness_primitives` error-boundary check (both up). The
+health/readiness-route widening and the `too_large` abstention-disclosure split ship in this
+release too but are gated to prospective rubrics and cannot move a score under the calibrated
+default; the entry below confirms by measurement that they did not. The full 24-row
+before/after corpus delta, per criterion and per metric, is in
 [`leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17"](./leaderboard/RUBRIC_CHANGELOG.md).
-Measured result: 3 of 24 repositories moved (django, vite, and the private alfred row), all on
-one metric, `B3.ci_script_depth`, all downward; 21 reports are byte-identical. That entry also
-records that the two upward changes moved no corpus row and why, that the rescore guard the
-changelog cites could not have fired for this repository, and one over-reach in the
-content check that is handed to the operator rather than adjusted.
+Measured result: 4 of 24 repositories moved — django, vite and the private alfred row on
+`B3.ci_script_depth`, all downward, and react and the alfred row on
+`A3.observability_depth`, both upward with no score change; 20 reports are byte-identical, and
+one headline moved (django, 3.2 to 3.1). The delta was preregistered before it was run and the
+result matched the prediction in full. That entry also records that three of the five changes
+moved no corpus row and why, that the rescore guard the changelog cites could not have fired
+for this repository, and one over-reach in the content check that is handed to the operator
+rather than adjusted.
 
 ### Changed
 

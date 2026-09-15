@@ -2,16 +2,16 @@
   "summary": {
     "rows": 24,
     "errors": 0,
-    "reportIdentical": 21,
+    "reportIdentical": 20,
     "anyCriterionMoved": 1,
-    "anyMetricMoved": 3,
+    "anyMetricMoved": 4,
     "headlineMoved": 1,
     "base": {
       "srcHead": "76063924da7a7f6ceabad526e0076d7d1769d188",
       "packageVersion": "0.4.8"
     },
     "cand": {
-      "srcHead": "fe4210af8039b93277ec5e30c8119a9cb3a74dfc",
+      "srcHead": "a34da1ad06550f7626ee2134551641de487afd62",
       "packageVersion": "0.4.8"
     }
   },
@@ -292,11 +292,13 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 3/6",
         "placement": "9",
-        "reportSha256": "8ff626b7f501036c75396b83c8d2cb7a74d813571af1d10503cb7cf02b1f6f6c"
+        "reportSha256": "3e378ff867bd4652cfdc3ccc18942a98319967a59e38f73186ab87b81699d3e6"
       },
       "movedCriteria": [],
-      "movedMetrics": [],
-      "reportIdentical": true
+      "movedMetrics": [
+        "A3.observability_depth 68 to 108"
+      ],
+      "reportIdentical": false
     },
     {
       "name": "vue",
@@ -848,10 +850,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 4/6",
         "placement": "transparency",
-        "reportSha256": "402007c056b550e1ecd5a73156f0096014f86436e6ef52b5ffcdde7a75d5d60e"
+        "reportSha256": "a34cc162a538b452ac2ec39a2b12fd4294e399d558896a6b5d273822b4809403"
       },
       "movedCriteria": [],
       "movedMetrics": [
+        "A3.observability_depth 64 to 73",
         "B3.ci_script_depth 5 to 4"
       ],
       "reportIdentical": false
