@@ -176,6 +176,22 @@ describe('A3 observability depth — structured-logging/correlation idioms beyon
     });
     expect(observabilityDepth(after)).toBe(0);
   });
+
+  it('negative guard: prose mentioning Winston, Pino, or Bunyan by name does not score as logging tooling', () => {
+    // Bare, case-insensitive pino|winston|bunyan|morgan matched a human name in a comment just as
+    // readily as the npm package it was meant to name — a repository with none of these libraries
+    // installed still scored nonzero on observability_depth. Real usage is always lowercase (an
+    // import/require of the actual package); a capitalized mention is prose, not tooling.
+    const after = scanA3({
+      ...SERVICE,
+      'src/team.js':
+        '// as Winston Churchill once said, never surrender\n' +
+        '// ask Pino about the deploy schedule\n' +
+        '// named after Paul Bunyan the lumberjack\n' +
+        'module.exports = { owner: "team-a" };\n',
+    });
+    expect(observabilityDepth(after)).toBe(0);
+  });
 });
 
 describe('A3 error boundary — the Express four-argument error-middleware signature', () => {
@@ -220,6 +236,40 @@ describe('A3 error boundary — the Express four-argument error-middleware signa
     });
 
     expect(primitivesValue(after)).toBe(primitivesValue(before) + 1);
+  });
+
+  it('a generic-typed request parameter (Request<Params, ResBody, ReqBody>) also moves the count', () => {
+    // The type-annotation group previously stopped at the first comma, which sits INSIDE a
+    // generic type argument list on a realistic Express+TypeScript handler — the exact "fixed
+    // the exact spelling, the finding did not move" gap this card exists to close, reintroduced
+    // one layer down by the fix itself.
+    const before = scanA3(SERVICE);
+    const after = scanA3({
+      ...SERVICE,
+      'src/errorHandler.ts':
+        'export function errorHandler(err: Error, req: Request<ParamsDictionary, unknown, Body>, res: Response, next: NextFunction) {\n' +
+        '  res.status(500).json({ message: err.message });\n' +
+        '}\n',
+    });
+
+    expect(primitivesValue(after)).toBe(primitivesValue(before) + 1);
+  });
+
+  it('negative guard: an unregistered, unexported four-argument stub does not count as an error boundary', () => {
+    // A shape match alone credited tutorial boilerplate that declares the canonical parameter
+    // names and is never wired into the app -- neither passed to `.use(`, nor exported for
+    // another file to register. Contrast with the positive case above, which IS reachable
+    // (module.exports = errorHandler) and must keep counting.
+    const before = scanA3(SERVICE);
+    const after = scanA3({
+      ...SERVICE,
+      'src/scratch.js':
+        'function errorHandler(err, req, res, next) {\n' +
+        "  res.status(500).json({ message: err.message });\n" +
+        '}\n',
+    });
+
+    expect(primitivesValue(after)).toBe(primitivesValue(before));
   });
 
   it('negative guard: an ordinary two-argument request handler does not count as an error boundary', () => {
