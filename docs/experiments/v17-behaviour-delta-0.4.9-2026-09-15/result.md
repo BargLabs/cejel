@@ -4,9 +4,9 @@ Human rendering of `paired-result.json`. The public entry is
 `leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17-2026-07-24".
 
 - Baseline arm: cejel source at `7606392` (the `v0.4.8` commit), `package.json` 0.4.8.
-- Candidate arm: cejel source at `a34da1a` — `fe4210a` (`origin/main` on 2026-09-15) with both
-  remaining 0.4.9 scoring branches merged in: A3 runtime-pattern coverage (`aa57822b`) and
-  certificate scope disclosure (`afb82ff3`). Both merge with no conflicts; the arm is
+- Candidate arm: cejel source at `fde615c` — `fe4210a` (`origin/main` on 2026-09-15) with both
+  remaining 0.4.9 scoring branches merged in at their post-review heads: A3 runtime-pattern
+  coverage (`6aec928`) and certificate scope disclosure (`153218d`). Both merge with no conflicts; the arm is
   content-identical to the tree 0.4.9 ships once they land. `package.json` 0.4.8 in both arms.
 - Rubric: `witan-rubric-v17-2026-07-24` (calibrated public default) in both arms.
 - `generatedAt` fixed at `2026-09-15T00:00:00.000Z` in both arms.
@@ -17,10 +17,13 @@ Human rendering of `paired-result.json`. The public entry is
 - Both arms scored on one macOS host within one hour, from source via `pnpm exec tsx`
   (`harness/score-arm.ts`), compared by `harness/compare.mjs`. Exact invocation: `harness/RUN.md`.
 - Public rows fetched `--depth=1`; both arms see the same one-commit history (see RUN.md).
-- Preregistered: `PREREGISTRATION.md`, committed as `0f80959` before `compare.mjs` ran, naming
+- Preregistered twice: `PREREGISTRATION.md` (`0f80959`) for the first candidate tree, and
+  `PREREGISTRATION-2.md` (`680b9d3`) for this one after both PRs took review-fix commits. Each was
+  committed before its `compare.mjs` run, naming
   both arms, all five score-capable changes and the exact metric values expected. The measured
-  result matched it in full. Guard 5 satisfied: the preregistration commit is a strict ancestor
-  of this result commit.
+  and each result matched its prediction in full. The second run is byte-identical to the first
+  on all 24 rows once `toolVersion` is excluded, so no figure below changed. Guard 5 satisfied:
+  both preregistration commits are strict ancestors of this result commit.
 - Cross-check: the published `@cejel/cejel@0.4.8` npm artifact, run on a Linux container
   against django at its pinned commit, reproduced the baseline arm exactly (overall 3.2, code
   2.6, process 3.8, B3 3.6, `ci_script_depth` 3).
