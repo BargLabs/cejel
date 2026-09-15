@@ -22,6 +22,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.9]
 
+### Added
+
+- **Every certificate now states its own scope, in its own voice.** Scoring only the repository
+  tree at one pinned revision is deliberate and correct — a certificate that reached outside that
+  tree could not be reproduced by whoever received it — but nothing on the certificate previously
+  told a reader which kind of statement they were holding: a repository whose test suite lives in
+  a separate repository, run by its own CI, was reported (correctly) as having zero test files
+  against its source files, and a reader had no way to tell that statement apart from a claim
+  about the whole system. The "How to read this certificate" section on every surface (HTML,
+  Markdown, terminal) now opens with a standing scope line: the certificate describes the pinned
+  tree, not the system it belongs to, and evidence outside that tree is neither seen nor claimed
+  to be absent. This is additive — no finding's wording changed.
+- Under the prospective `witan-rubric-v23` rubric, a large implementation file that exceeds the
+  content-read size limit now gets its own named disclosure line — "declined a large
+  implementation file that exceeded the repository content size limit" — when it is the reason a
+  signal has nothing to measure, instead of folding into the generic coverage-limit sentence used
+  for an extension exclusion or a non-regular file. Covers A3's `health_readiness_route` and
+  `observability_depth` today, the two signals that already attribute a withheld path to
+  themselves.
+
 ### Fixed
 
 - **A file withheld by Cejel's own content size ceiling was deleted from the scanned file list
