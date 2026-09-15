@@ -12,16 +12,43 @@ import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V22 } from '../rubric-ve
 // touches rubric-version.ts (a file repo-signals.ts imports from) but must produce byte-identical
 // v17 and v22 scan output — only the V23 declaration comment and this test suite change. Rather
 // than assume a comment-only diff is behavior-inert, this pins the exact sha256 of the v17 and
-// v22 buildWitanInputFromRepo() output against a deterministic fixture (fixed commit identity,
-// author/committer date, and message so the git commit hash — and therefore the JSON output — is
-// reproducible across runs and machines). The expected hashes were captured by running this same
-// fixture against the pre-fix origin/main code before making any change in this PR.
+// v22 buildWitanInputFromRepo() output against a deterministic fixture.
+//
+// "Deterministic" has to be earned, not assumed. The output embeds repo.headSha, so the fixture
+// COMMIT hash is part of every pinned value — and the first version of this file let that commit
+// inherit the running machine's global git config. On any machine with commit.gpgsign=true the
+// commit object grew a `gpgsig` block from that machine's own key, the commit hash became
+// machine-specific, and both pins failed identically on origin/main from a macOS host and from a
+// Linux container (2026-09-15) while passing on CI, which has no signing key. A guard that reads
+// red on every developer machine and green only on CI is not guarding anything a developer can
+// see. So: every git call below runs with the global and system config masked, identity and dates
+// supplied through the environment, and the commit explicitly unsigned. The fixture commit hash
+// is then asserted first, by name, so a future environmental drift fails as "fixture not
+// reproducible" rather than masquerading as a scan-output change.
+
+// Masks ~/.gitconfig and /etc/gitconfig (signing, hooks path, default branch, autocrlf, …) so the
+// fixture depends only on what this file states.
+const HERMETIC_GIT_ENV: NodeJS.ProcessEnv = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_AUTHOR_NAME: 'Test',
+  GIT_AUTHOR_EMAIL: 'test@test.com',
+  GIT_COMMITTER_NAME: 'Test',
+  GIT_COMMITTER_EMAIL: 'test@test.com',
+  GIT_AUTHOR_DATE: '2026-09-11T00:00:00+00:00',
+  GIT_COMMITTER_DATE: '2026-09-11T00:00:00+00:00',
+  TZ: 'UTC',
+};
+
+function git(dir: string, args: string[]): string {
+  return execFileSync('git', args, { cwd: dir, env: HERMETIC_GIT_ENV, encoding: 'utf8' });
+}
 
 function makeTmpRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'witan-v23-scope-fixture-'));
-  execFileSync('git', ['init', '--quiet'], { cwd: dir });
-  execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir });
-  execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  git(dir, ['init', '--quiet', '--initial-branch=main']);
   return dir;
 }
 
@@ -31,13 +58,11 @@ function writeFile(dir: string, rel: string, content: string): void {
   writeFileSync(full, content, 'utf8');
 }
 
-function commitAll(dir: string, message: string, date: string): void {
-  execFileSync('git', ['add', '-A'], { cwd: dir });
-  execFileSync('git', ['commit', '-m', message], {
-    cwd: dir,
-    stdio: 'ignore',
-    env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
-  });
+function commitAll(dir: string, message: string): void {
+  git(dir, ['add', '-A']);
+  // --no-gpg-sign is belt-and-braces over the masked config: an unsigned commit's hash is a
+  // function of tree + identity + dates + message and nothing on the machine.
+  git(dir, ['commit', '--quiet', '--no-gpg-sign', '-m', message]);
 }
 
 function buildFixtureRepo(): string {
@@ -58,12 +83,23 @@ function buildFixtureRepo(): string {
     "import { expect, it } from 'vitest';\nit('works', () => expect(1).toBe(1));\n",
   );
   writeFile(dir, 'README.md', '# fixture\n');
-  commitAll(dir, 'initial commit', '2026-09-11T00:00:00+00:00');
+  commitAll(dir, 'initial commit');
   return dir;
 }
 
+// The hash of the unsigned fixture commit above. Recorded so a drift in the FIXTURE fails by that
+// name instead of surfacing as a mysterious scan-output change: if this assertion fails, nothing
+// below it is interpretable, and the cause is the environment (git version, a config this file
+// failed to mask), not repo-signals.ts.
+const FIXTURE_HEAD_SHA = 'ba2f0ef8c102ea735794b27f7aea5b5ba547263a';
+
 function hashFor(rubricVersion: string): string {
   const dir = buildFixtureRepo();
+  const headSha = git(dir, ['rev-parse', 'HEAD']).trim();
+  expect(
+    headSha,
+    'fixture commit is not reproducible on this machine — the scan-output pins below cannot be interpreted until this is',
+  ).toBe(FIXTURE_HEAD_SHA);
   const input = buildWitanInputFromRepo({
     productSlug: 'v23-scope-fixture',
     productDisplayName: 'v23 scope fixture',
@@ -74,6 +110,10 @@ function hashFor(rubricVersion: string): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }
 
+// These pins are UNCHANGED from the original capture: with the fixture made hermetic, a macOS host
+// (commit.gpgsign=true, gpg.format=ssh) and a Linux container (same) both reproduce them exactly
+// on origin/main da90785 (2026-09-15) — which is also the proof that the original capture was
+// taken from an unsigned commit, and that the machine-dependence was entirely the fixture's.
 describe('v23 declared-scope fix leaves v17/v22 scan output byte-identical', () => {
   it('v17 output hash is unchanged', () => {
     expect(hashFor(WITAN_RUBRIC_VERSION_V17)).toBe(
