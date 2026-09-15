@@ -60,6 +60,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Corrected `docs/format-stability.md`'s stated `predicate.reportFormatVersion` from `1.0` to
   `1.1`, matching the version Cejel currently emits. A guard test now fails the build if the
   documented value and the code constant drift apart again.
+- **Three A3 production-readiness signals each recognized only one narrow spelling of the
+  capability they name, so a user who fixed the exact gap a finding described saw the finding
+  unchanged on rerun.** All three widenings are bounded to public-documentation idioms:
+  - The (prospective, `witan-rubric-v20`+) health/readiness-route pattern required the route
+    literal to contain nothing but the bare keyword. It now also recognizes the Kubernetes
+    convention (`/healthz`, `/readyz`, `/livez`), a mount prefix (`/api/health`), a suffix
+    (`/health/live`), and a template literal with an interpolated prefix
+    (`` `${BASE_PATH}/health` ``). A route defined by a router mounted at `/health` with its own
+    relative `/` handler is a cross-expression case this pattern still cannot see — a stated,
+    not silent, limitation.
+  - Observability depth counted files against a vendor-product list (Sentry, Datadog,
+    Prometheus, ...) plus `logger`/`metrics`, which missed the most common Node
+    structured-logging libraries (`pino`, `winston`, `bunyan`), the Express request-logging
+    convention (`morgan`), and the request-correlation idiom (`correlationId`/`requestId`/
+    `traceId`/`x-request-id`/`AsyncLocalStorage`). `httpLogger` and `@opentelemetry/*` imports
+    were already covered as substrings of the existing `logger`/`opentelemetry` terms.
+  - The `prod_readiness_primitives` "error boundary" component matched only a frontend/React
+    filename convention (`error-boundary.*`, `*.error.(tsx|jsx|ts|js)`) and read no file content,
+    so an Express error-handling middleware layer — which can live in any file, under any name —
+    never moved it. It now also recognizes the canonical four-argument
+    `(err, req, res, next)` signature (optionally TypeScript-typed) by content, wherever it
+    appears in an implementation file, checked only when the filename convention finds nothing.
 
 ## [0.4.8]
 

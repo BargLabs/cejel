@@ -3041,12 +3041,37 @@ function collectA3ProdReadinessEvidence(
       (!useV27Detectors || isAuthoredProductionPath(file)) &&
       /error-boundary|error\.(tsx|jsx|ts|js)$/.test(file),
   );
-  const errorBoundary = errorBoundaries[0];
+  // The filename check above is a frontend/React convention (error-boundary.*, error.tsx) and
+  // does not read content, so an Express error-handling middleware layer — which can live in any
+  // file, under any name — was invisible to it: fixing the exact gap a finding named changed
+  // nothing. Widened with a content-based check across implementation files, same predicate
+  // shape as observabilityDepthReads above, run only when the filename check found nothing so a
+  // repository already credited by filename never pays for an extra content scan.
+  const errorMiddlewareContentReads = (file: string): boolean =>
+    (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file);
+  const expressErrorMiddlewareFile =
+    errorBoundaries.length > 0
+      ? undefined
+      : withContentReadSignal('A3', 'prod_readiness_primitives', () =>
+          repoFiles.find(
+            (file) =>
+              errorMiddlewareContentReads(file) &&
+              fileContains(repoPath, file, EXPRESS_ERROR_MIDDLEWARE_PATTERN),
+          ),
+        );
+  const hasErrorBoundarySignal = errorBoundaries.length > 0 || expressErrorMiddlewareFile !== undefined;
+  const errorBoundary = errorBoundaries[0] ?? expressErrorMiddlewareFile;
+  // Widened past a vendor-product list plus two generic words, which missed the most common
+  // Node structured-logging libraries (pino, winston, bunyan), the Express request-logging
+  // convention (morgan), and the request-correlation idiom (correlationId/requestId/traceId,
+  // under whichever separator style the repo uses) — none of which spell a vendor name.
+  // `httpLogger` and `@opentelemetry/*` imports are already covered: they contain the existing
+  // `logger` / `opentelemetry` substrings respectively, so this widening does not touch them.
   const observabilityCount = withContentReadSignal('A3', 'observability_depth', () =>
     countFilesContaining(
       repoPath,
       repoFiles.filter(observabilityDepthReads),
-      /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail/i,
+      /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail|\bpino\b|\bwinston\b|\bbunyan\b|\bmorgan\b|\b(?:correlation|request|trace)[-_]?id\b|\basynclocalstorage\b/i,
     ),
   );
   // Same seam as health_readiness_route: a withheld implementation file cannot be counted, and an
@@ -3228,7 +3253,7 @@ function collectA3ProdReadinessEvidence(
           deployConfigs.length > 0,
           envTemplate,
           healthChecks.length > 0,
-          errorBoundaries.length > 0,
+          hasErrorBoundarySignal,
         ].filter(Boolean).length,
         6,
         0.55,
@@ -3245,7 +3270,7 @@ function collectA3ProdReadinessEvidence(
             { label: 'deployment configuration', count: deployConfigs.length > 0 ? 1 : 0 },
             { label: 'environment template', count: envTemplate ? 1 : 0 },
             { label: 'health or readiness signal', count: healthChecks.length > 0 ? 1 : 0 },
-            { label: 'error boundary', count: errorBoundaries.length > 0 ? 1 : 0 },
+            { label: 'error boundary', count: hasErrorBoundarySignal ? 1 : 0 },
           ],
         },
       ),
@@ -7400,8 +7425,22 @@ const SERVER_ENTRYPOINT_PATTERN =
 // classification or treating a helper that merely constructs an unbound server as production.
 const V20_DIRECT_HTTP_SERVER_PATTERN =
   /\b(?:http|https)\.createServer\s*\([\s\S]{0,1500}?\)\.listen\s*\(\s*(?:PORT|port|\d+)/;
+// Widened from an exact `["'`]/(health|ready|...)["'`]` match, which required the route
+// literal to contain nothing but the bare keyword. That missed the Kubernetes convention
+// (/healthz, /readyz, /livez), any mount prefix (/api/health), and any suffix (/health/live) —
+// all public-documentation idioms, not narrow spellings. Still bounded to a single path segment
+// on each side of the keyword so it cannot cross string boundaries or read like arbitrary prose;
+// a route defined by a router mounted at '/health' with its own relative '/' handler is a
+// cross-expression case this pattern still cannot see (goal_cejel_a3_runtime_pattern_coverage,
+// stated as out of scope).
 const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
-  /["'`]\/(?:health|ready|readiness|live|liveness)["'`]/i;
+  /["'`][\w${}./-]{0,60}\/(?:(?:health|ready|live)z?|readiness|liveness)(?=["'`/])/i;
+// Express recognizes error-handling middleware by arity alone — any four-parameter
+// function/arrow is treated as an error handler — but the canonical public-documentation form
+// names the parameters (err, req, res, next), optionally TypeScript-typed. Matching by name
+// rather than bare arity keeps this from firing on an unrelated four-parameter function.
+const EXPRESS_ERROR_MIDDLEWARE_PATTERN =
+  /\(\s*(?:err|error)(?:\s*:\s*[^,()]+)?\s*,\s*(?:req|request)(?:\s*:\s*[^,()]+)?\s*,\s*(?:res|response)(?:\s*:\s*[^,()]+)?\s*,\s*next(?:\s*:\s*[^,()]+)?\s*\)\s*(?:=>|\{)/i;
 const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
 const RACK_CONFIG_RUN_PATTERN = /^\s*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
 const RUNTIME_CONTAINER_COMMAND_PATTERN =
