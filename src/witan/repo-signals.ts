@@ -319,7 +319,8 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   const wholesaleAbstainedReadFailureCriteria: WitanCriterionId[] = [];
   const wholesaleAbstainedCoverageLimitedCriteria: WitanCriterionId[] = [];
   const partiallyAbstainedReadFailureSignals: string[] = [];
-  const partiallyAbstainedCoverageLimitedSignals: string[] = [];
+  const partiallyAbstainedLargeFileSignals: string[] = [];
+  const partiallyAbstainedOtherCoverageLimitedSignals: string[] = [];
   const signals = (tracked.value.signals ?? []).map((signal) => {
     if (!affectedCriteria.has(signal.criterionId)) return signal;
     if (tracked.unattributedCriteria.has(signal.criterionId)) {
@@ -362,44 +363,114 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       ).push(signal.criterionId);
       return wholesaleCriterionAbstention(signal, droppedReasons);
     }
-    const { insufficientDataReason } = classifyAbstentionReason(droppedReasons);
-    const isReadFailure = insufficientDataReason === undefined;
+    // 'too_large' gets its own bucket (named separately from the general coverage-limit bucket
+    // below): a large implementation file that exceeded the read limit is a case where the
+    // tree's own conclusion (no evidence found for this signal) is defensible about what was
+    // read and misleading about the file that was not
+    // (goal_cejel_certificate_scope_disclosure_0_4_9_2026-09-14).
+    //
+    // Classified per NAME, from that name's own skip reasons — not from droppedReasons above,
+    // which is the UNION across every affected name in this signal. A signal whose predicate
+    // matched an oversized file for one name and a separately extension-excluded file for
+    // another has two names with two different, individually unambiguous reasons; classifying
+    // the union once and routing every name through that single verdict mislabeled the second
+    // name with the first name's cause. Only split at the per-signal/per-name level, not the
+    // wholesale level above: 'too_large' only ever reaches classifyAbstentionReason here, via
+    // abstainSignalOnWithheldPaths, which always narrows to a named signal — it never leaves a
+    // criterion in tracked.unattributedCriteria.
+    const nameBuckets = new Map<
+      string,
+      'read-failure' | 'too-large' | 'other-coverage'
+    >();
     for (const name of affectedNames) {
-      (isReadFailure
+      const nameReasons = skipReasonsForSignal(signal.criterionId, name, tracked);
+      const { insufficientDataReason: nameReason } = classifyAbstentionReason(nameReasons);
+      const bucket =
+        nameReason === undefined
+          ? 'read-failure'
+          : nameReason === 'too_large'
+            ? 'too-large'
+            : 'other-coverage';
+      nameBuckets.set(name, bucket);
+      (bucket === 'read-failure'
         ? partiallyAbstainedReadFailureSignals
-        : partiallyAbstainedCoverageLimitedSignals
+        : bucket === 'too-large'
+          ? partiallyAbstainedLargeFileSignals
+          : partiallyAbstainedOtherCoverageLimitedSignals
       ).push(`${signal.criterionId}.${name}`);
     }
+    // notes is one sentence covering every affected name in this signal, so it can only be as
+    // specific as the names agree with each other: uniform bucket gets the matching specific
+    // wording (the fix for the aggregate scanLimitations line below applies here too, not just
+    // there), a genuine mix falls back to the honest disjunctive wording rather than naming a
+    // cause that doesn't cover every affected name.
+    const distinctBuckets = new Set(nameBuckets.values());
+    const uniformBucket = distinctBuckets.size === 1 ? [...distinctBuckets][0] : undefined;
+    const affectedList = [...affectedNames].sort().join(', ');
+    const notes =
+      uniformBucket === 'read-failure'
+        ? `Cejel abstained on ${affectedList} in this criterion because that content could not be read; other signals in this criterion were computed from readable files and are unaffected.`
+        : uniformBucket === 'too-large'
+          ? `Cejel declined ${affectedList} in this criterion under the repository content size limit; other signals in this criterion were computed from readable files and are unaffected. This is a disclosed coverage limit, not a read failure.`
+          : uniformBucket === 'other-coverage'
+            ? `Cejel declined ${affectedList} in this criterion under an extension exclusion or a non-regular-file skip; other signals in this criterion were computed from readable files and are unaffected. This is a disclosed coverage limit, not a read failure.`
+            : `Cejel abstained on ${affectedList} in this criterion for a mix of reasons — some content could not be read, some was declined under the repository content size limit or an extension exclusion; other signals in this criterion were computed from readable files and are unaffected.`;
     return {
       ...signal,
       metrics,
-      notes: isReadFailure
-        ? `Cejel abstained on ${[...affectedNames].sort().join(', ')} in this criterion because that content could not be read; other signals in this criterion were computed from readable files and are unaffected.`
-        : `Cejel declined ${[...affectedNames].sort().join(', ')} in this criterion under the repository content size limit or an extension exclusion; other signals in this criterion were computed from readable files and are unaffected. This is a disclosed coverage limit, not a read failure.`,
+      notes,
     };
   });
 
   const scanLimitations = [...(tracked.value.scanLimitations ?? [])];
-  if (wholesaleAbstainedReadFailureCriteria.length > 0 && scanLimitations.length < 16) {
-    scanLimitations.push(
+  const candidateScanLimitations: string[] = [];
+  if (wholesaleAbstainedReadFailureCriteria.length > 0) {
+    candidateScanLimitations.push(
       `${wholesaleAbstainedReadFailureCriteria.length} ${wholesaleAbstainedReadFailureCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content could not be read and the affected signal could not be isolated. Counts and errno classes are recorded in contentReadSummary; file paths are intentionally omitted.`,
     );
   }
-  if (wholesaleAbstainedCoverageLimitedCriteria.length > 0 && scanLimitations.length < 16) {
-    scanLimitations.push(
+  if (wholesaleAbstainedCoverageLimitedCriteria.length > 0) {
+    candidateScanLimitations.push(
       `${wholesaleAbstainedCoverageLimitedCriteria.length} ${wholesaleAbstainedCoverageLimitedCriteria.length === 1 ? 'criterion' : 'criteria'} abstained because relevant repository content was declined under the repository content size limit or excluded from scanning by policy, and the affected signal could not be isolated. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.`,
     );
   }
-  if (partiallyAbstainedReadFailureSignals.length > 0 && scanLimitations.length < 16) {
-    scanLimitations.push(
+  if (partiallyAbstainedReadFailureSignals.length > 0) {
+    candidateScanLimitations.push(
       `${partiallyAbstainedReadFailureSignals.length} ${partiallyAbstainedReadFailureSignals.length === 1 ? 'signal' : 'signals'} abstained because its own repository content could not be read, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedReadFailureSignals].sort().join(', ')}.`,
     );
   }
-  if (partiallyAbstainedCoverageLimitedSignals.length > 0 && scanLimitations.length < 16) {
-    scanLimitations.push(
-      `${partiallyAbstainedCoverageLimitedSignals.length} ${partiallyAbstainedCoverageLimitedSignals.length === 1 ? 'signal' : 'signals'} declined under the repository content size limit or an extension exclusion, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedCoverageLimitedSignals].sort().join(', ')}. This is a disclosed coverage limit, not a read failure.`,
+  if (partiallyAbstainedLargeFileSignals.length > 0) {
+    candidateScanLimitations.push(
+      `${partiallyAbstainedLargeFileSignals.length} ${partiallyAbstainedLargeFileSignals.length === 1 ? 'signal' : 'signals'} declined a large implementation file that exceeded the repository content size limit, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedLargeFileSignals].sort().join(', ')}. That file is undercounted, not scored as clean or absent — this is a disclosed coverage limit, not a read failure.`,
     );
   }
+  if (partiallyAbstainedOtherCoverageLimitedSignals.length > 0) {
+    candidateScanLimitations.push(
+      `${partiallyAbstainedOtherCoverageLimitedSignals.length} ${partiallyAbstainedOtherCoverageLimitedSignals.length === 1 ? 'signal' : 'signals'} declined under an extension exclusion or a non-regular-file skip, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedOtherCoverageLimitedSignals].sort().join(', ')}. This is a disclosed coverage limit, not a read failure.`,
+    );
+  }
+  // Each of the five candidates above used to be gated by its own independent
+  // `scanLimitations.length < 16` check, evaluated sequentially against the same mutating array
+  // — splitting one combined bucket into large-file/other-coverage (this PR) made a fifth
+  // candidate exist, so a repository already at 15 entries could have the fourth push consume
+  // the last slot and the fifth silently vanish with no sign anything was dropped. Computing the
+  // full candidate list first and reserving one slot for an explicit truncation notice when it
+  // doesn't all fit turns that into a disclosed omission instead of a silent one — the D4 shape
+  // this repository's own doctrine treats as a worse defect than the recall gap it would hide.
+  const availableSlots = Math.max(0, 16 - scanLimitations.length);
+  if (candidateScanLimitations.length <= availableSlots) {
+    scanLimitations.push(...candidateScanLimitations);
+  } else if (availableSlots > 0) {
+    const keep = availableSlots - 1;
+    scanLimitations.push(...candidateScanLimitations.slice(0, keep));
+    scanLimitations.push(
+      `${candidateScanLimitations.length - keep} additional disclosed scan limitation(s) omitted at the 16-entry cap — see contentReadSummary for full counts.`,
+    );
+  }
+  // availableSlots === 0: the array arrived already at the cap from limitations recorded
+  // elsewhere in the pipeline before this function ran. There is no slot left even for a
+  // truncation notice; this is the schema's own hard boundary (scanLimitations.max(16)), not a
+  // gap this function can close on its own.
 
   return {
     ...tracked.value,

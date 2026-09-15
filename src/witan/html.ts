@@ -232,6 +232,7 @@ function renderRelyingPartySummary(summary: RelyingPartySummary): string {
   return `<section class="relying-party-summary" aria-labelledby="relying-party-heading">
       <h2 id="relying-party-heading">How to read this certificate</h2>
       <dl>
+        <div><dt>Scope</dt><dd>${escapeHtml(summary.scope)}</dd></div>
         <div><dt>What was examined</dt><dd>${escapeHtml(summary.examined)}</dd></div>
         <div><dt>What was established</dt><dd>${escapeHtml(summary.established)}</dd></div>
         <div><dt>What was not established</dt><dd>${escapeHtml(summary.notEstablished)}</dd></div>

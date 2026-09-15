@@ -540,6 +540,47 @@ part of the scoring guarantee. If the tracked-file inventory fails unexpectedly,
 HTML, and markdown certificates declare that the scanner used its bounded directory fallback
 instead of silently presenting the two inventories as equivalent.
 
+## What a certificate's scope means
+
+A certificate scores the repository tree at one pinned revision, and only that tree. That
+boundary is deliberate: a certificate that reached outside the pinned tree could not be
+reproduced by whoever receives it, and reproducibility is the entire product. Scoring only the
+pinned tree is correct — the gap was that nothing on the certificate itself told a reader which
+kind of statement they were holding. A repository whose regression suite lives in a separate
+repository, checked out and run by its own CI, is correctly reported as having zero test files
+against its source files. That statement is true about the tree and false about the system, and a
+reader with no other context cannot tell the difference.
+
+Every certificate now carries a standing scope line, in the "How to read this certificate"
+section on every surface (HTML, Markdown, terminal), regardless of verdict: the certificate is a
+statement about the repository tree at the pinned revision, not about the system that tree
+belongs to, and evidence outside that tree is neither seen nor claimed to be absent. This is
+additive, not a hedge — a finding that says evidence was not found in this tree stays exactly as
+stated.
+
+Four specific situations can make the tree's own conclusion misleading about the system it
+belongs to:
+
+- **A test suite kept in a separate repository.** Not detectable from inside the pinned tree —
+  there is no reliable signal that a sibling repository exists. Covered by the standing scope
+  line above, not a conditional disclosure.
+- **CI configuration that changes into a different working directory before running its checks.**
+  Also not detectable without executing the CI job itself, which the offline scanner does not do.
+  Covered by the standing scope line above.
+- **A large implementation file that exceeds the read limit.** This one is detectable, and
+  disclosed conditionally when it happens: when a file above the size ceiling is the reason a
+  specific signal has nothing to measure, the certificate's scan-limitations section names it —
+  "declined a large implementation file that exceeded the repository content size limit" — rather
+  than folding it into the generic coverage-limit sentence used for an extension exclusion or a
+  non-regular file. Today this fires for two A3 signals (health/readiness route detection and
+  observability-marker counting); it extends to more signals as they adopt the same per-signal
+  attribution.
+- **A recognized-but-nonfunctional package script**, such as npm's auto-generated
+  `"test": "echo \"Error: no test specified\" && exit 1"` placeholder being credited the same as a
+  real test runner. This was a detector defect, not a scope-disclosure gap — Cejel now checks the
+  `test` script's content against known test-runner invocations rather than crediting it by key
+  presence alone, so no separate disclosure line is needed for it.
+
 ## Help validate Cejel
 
 Cejel does not collect telemetry. External validation is therefore opt-in and inspectable:
