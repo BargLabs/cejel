@@ -1,0 +1,26 @@
+[
+  {
+    "statement": "A no-silent-rescore guard keyed to a version string, whose golden fixture does not contain the shape that changed, in a different repository from the scanner that shipped, is a check that reports on something it did not examine. Three 0.4.9 fixes changed scoring under the calibrated default witan-rubric-v17 with no identifier bump; the cited guard lives in alfred, keys on WITAN_RUBRIC_VERSION, pins a fixture with `test: 'vitest run'` and test files, and runs against a diverged copy of the scanner — it could not fire. Measuring all 24 corpus rows found 3 moved under v17 in 0.4.9 and, checking the baseline against the published board, that 0.4.8 had already moved a headline (fastapi 3.1 to 3.0) with no entry either. Rule: a scoring guard must pin fixtures that exercise each behaviour a release changes, in the repository that ships, and a release that touches any file the scanner reads from must re-score the corpus before the version bump, not after a reader notices.",
+    "scope": ["cejel", "witan", "rubric-changelog", "release-process", "regression-guard"],
+    "tags": ["silent-rescore", "guard-keyed-to-version-string", "fixture-does-not-cover-shape", "wrong-repository", "corpus-delta"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Anchors to the squash commit of the 0.4.9 records PR that adds the RUBRIC_CHANGELOG entry and src/witan/__tests__/v17-scoring-surface-golden.test.ts."
+    }
+  },
+  {
+    "statement": "A fix for a false positive that is measured only on the shape it was written for can ship a false negative in the opposite direction, and only a corpus-wide delta shows it. The test-script content check was written so npm's placeholder (`echo \"Error: no test specified\" && exit 1`) stops scoring as a test capability; its guard tests used the placeholder and `vitest run`. Re-scoring the 24-row corpus found the placeholder on zero rows and three rows losing B3.ci_script_depth for real, delegating test scripts (`grunt test --verbose`, `pnpm test-unit && …`, a monorepo task runner) that the runner allowlist does not name. The fix converted 'credits a placeholder' into 'does not credit delegation' — a new false assertion of absence, in the direction that lowers a score. Rule: a detector change earns its guard against the shapes it will meet on the corpus, not only the shape that motivated it; run the corpus before declaring the fix bounded.",
+    "scope": ["cejel", "witan", "detector-scoring", "package-scripts", "corpus-delta"],
+    "tags": ["over-correction", "allowlist-false-negative", "delegating-test-script", "measure-on-corpus"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Anchors to the squash commit of the 0.4.9 records PR, which discloses the over-reach in RUBRIC_CHANGELOG.md; a later PR that teaches the check to recognise delegation, if the operator rules for it, supersedes this anchor."
+    }
+  }
+]
