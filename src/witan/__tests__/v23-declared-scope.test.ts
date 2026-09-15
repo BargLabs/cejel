@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 // guard and risks the "wrong manifest is worse than honest prose" failure mode. Instead this
 // pins two things that DO fail loud on drift:
 //
-// 1. The three known v23-specific markers still exist verbatim in repo-signals.ts.
+// 1. The known v23-specific markers still exist verbatim in repo-signals.ts.
 // 2. The *total* count of WITAN_RUBRIC_VERSION_V23 references in repo-signals.ts is unchanged.
 //    Any change to that count — a fourth v23-specific mechanism, an extended inheritance chain,
 //    a removed gate — trips this test and forces a human to re-check whether the V23 comment in
@@ -38,20 +38,26 @@ function readRepoSignalsSource(): string {
 // (v17, v22, every other rubric) or only the specific signal(s) it affects (v23 only) — a
 // semantics change to what a non-finding means, and the one of the three least visible in a
 // plain read of the file.
+// Mechanism 4 (withheld-path abstention) has the same bare-equality shape as mechanisms 1 and 2.
+// It is v23-only for a reason worth restating here: it attributes a skip for a file the
+// repository walk deleted from repoFiles, and only mechanism 3 can attach that skip to the single
+// signal that would have read the file. On any other rubric the same attribution would route
+// through the wholesale-wipe branch and abstain a whole criterion over one oversized file.
 const KNOWN_V23_SPECIFIC_MARKERS = [
   'const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
   'const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
   'if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {',
+  'const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
 ] as const;
 
 // Total occurrences of WITAN_RUBRIC_VERSION_V23 in repo-signals.ts today: 1 import + 6
 // inherited-chain references (usesV17DetectorClosure, usesV18NativeRls, usesV19CommitYear,
-// usesV20A3ExplicitGaps, usesV21ExecutedEscalations, usesV22PackageStartEntrypoint) + the 3
-// v23-specific markers above = 10.
-const EXPECTED_TOTAL_V23_REFERENCES = 10;
+// usesV20A3ExplicitGaps, usesV21ExecutedEscalations, usesV22PackageStartEntrypoint) + the 4
+// v23-specific markers above = 11.
+const EXPECTED_TOTAL_V23_REFERENCES = 11;
 
 describe('v23 declared-scope manifest (docs/orchestration/goal_cejel_v23_declared_scope_is_false_2026-09-11.md)', () => {
-  it('the three known v23-specific gates are still present verbatim in repo-signals.ts', () => {
+  it('the known v23-specific gates are still present verbatim in repo-signals.ts', () => {
     const source = readRepoSignalsSource();
     for (const marker of KNOWN_V23_SPECIFIC_MARKERS) {
       expect(source.includes(marker), `expected marker not found: ${marker}`).toBe(true);

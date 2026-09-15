@@ -24,6 +24,7 @@ import type {
 } from './schemas.js';
 
 import {
+  abstainSignalOnWithheldPaths,
   classifyAbstentionReason,
   type ContentReadSkipReason,
   contentReadSignalKey,
@@ -31,6 +32,7 @@ import {
   readRepoTextPrefix,
   recordContentSkip,
   recordFilesystemSkip,
+  registerWithheldRepoPath,
   trackContentReads,
   type TrackedContentReads,
   withContentReadCriterion,
@@ -459,6 +461,13 @@ function buildWitanInputFromRepoUntracked(
   // version also uses — v17 and v22 must stay byte-stable, so this never inherits forward
   // the way usesV17DetectorClosure does; it is checked against V23 alone.
   const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;
+  // Explicit-only for the same reason, and one more: a withheld-path abstention is only safe
+  // because v23 can attach it to the one signal that would have read the file. Every other rubric
+  // routes an attributed skip through the wholesale-wipe branch above, so inheriting this forward
+  // would abstain a whole criterion over a single oversized file — which is the criterion-wide
+  // over-abstention goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08 removed. v17 (the public
+  // default) and v22 stay byte-stable.
+  const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -548,6 +557,7 @@ function buildWitanInputFromRepoUntracked(
     usesV22PackageStartEntrypoint,
     usesV23CommandCoverage,
     usesV23PemPrivateKeyGrammar,
+    usesV23WithheldPathAbstention,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1631,6 +1641,7 @@ function collectRepoSignals(
   useV22PackageStartEntrypoint: boolean,
   useV23CommandCoverage: boolean,
   useV23PemPrivateKeyGrammar: boolean,
+  useV23WithheldPathAbstention: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1675,6 +1686,7 @@ function collectRepoSignals(
       useV27Detectors,
       useV20A3ExplicitGaps,
       useV22PackageStartEntrypoint,
+      useV23WithheldPathAbstention,
       inventoryAbsenceContext,
     ),
   );
@@ -2912,6 +2924,7 @@ function collectA3ProdReadinessEvidence(
   useV27Detectors: boolean,
   useV20ExplicitGaps = false,
   useV22PackageStartEntrypoint = false,
+  useV23WithheldPathAbstention = false,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
   const v20DirectHttpEntrypoint = useV20ExplicitGaps
@@ -2978,6 +2991,12 @@ function collectA3ProdReadinessEvidence(
     ),
   );
   const healthCheck = healthChecks[0];
+  // The file-selection half of each repoFiles-walking content-pattern signal below, named once so
+  // the live filter and the withheld-path check use literally the same test and cannot drift.
+  const healthReadinessRouteReads = (file: string): boolean =>
+    isAuthoredProductionPath(file) && isImplementationFile(file);
+  const observabilityDepthReads = (file: string): boolean =>
+    (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file);
   // Scoped to 'health_readiness_route': feeds only the (info-severity) health/readiness-route
   // absence finding below, never a scored metric.
   const { hasV20HealthOrReadinessRoute, hasV22PackageStartHealthOrReadinessRoute } =
@@ -2986,8 +3005,7 @@ function collectA3ProdReadinessEvidence(
         useV20ExplicitGaps &&
         repoFiles.some(
           (file) =>
-            isAuthoredProductionPath(file) &&
-            isImplementationFile(file) &&
+            healthReadinessRouteReads(file) &&
             fileContains(repoPath, file, V20_HEALTH_OR_READINESS_ROUTE_PATTERN),
         ),
       hasV22PackageStartHealthOrReadinessRoute:
@@ -2998,6 +3016,18 @@ function collectA3ProdReadinessEvidence(
           V20_HEALTH_OR_READINESS_ROUTE_PATTERN,
         ),
     }));
+  // A file Cejel withheld from repoFiles never reaches the .some() above, so the health-route
+  // pattern that would have been run against it silently returns false — indistinguishable from a
+  // repository that genuinely has no health route, and reported below as a finding of absence.
+  // Abstain instead, but only on a match this signal earned: the predicate consulted is this
+  // signal's own file-selection test, so an oversized file the signal would never have opened
+  // still abstains nothing (that is the path-shape over-abstention the 0.4.8 fix removed, and it
+  // stays removed). Gated on useV20ExplicitGaps because below that rubric the signal reads no
+  // repoFiles at all and so loses nothing to a withheld path.
+  const healthReadinessRouteWithheld =
+    useV23WithheldPathAbstention &&
+    useV20ExplicitGaps &&
+    abstainSignalOnWithheldPaths('A3', 'health_readiness_route', healthReadinessRouteReads);
   const serverEntrypoint =
     v22PackageStartHttpEntrypoint ??
     findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
@@ -3015,13 +3045,17 @@ function collectA3ProdReadinessEvidence(
   const observabilityCount = withContentReadSignal('A3', 'observability_depth', () =>
     countFilesContaining(
       repoPath,
-      repoFiles.filter(
-        (file) =>
-          (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file),
-      ),
+      repoFiles.filter(observabilityDepthReads),
       /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail/i,
     ),
   );
+  // Same seam as health_readiness_route: a withheld implementation file cannot be counted, and an
+  // under-count is reported as a lower observability score rather than as missing evidence. The
+  // return value is unused because this metric IS named observability_depth, so the recorded
+  // abstention drops it in buildWitanInputFromRepo without the collector doing anything further.
+  if (useV23WithheldPathAbstention) {
+    abstainSignalOnWithheldPaths('A3', 'observability_depth', observabilityDepthReads);
+  }
   const rollbackSafetyCount = withContentReadSignal('A3', 'rollback_safety_depth', () =>
     countFilesContaining(
       repoPath,
@@ -3128,6 +3162,12 @@ function collectA3ProdReadinessEvidence(
       }
     } else if (
       serverEntrypoint &&
+      // An absence finding is an assertion that Cejel looked and found nothing. When a file this
+      // signal would have read was withheld, Cejel did not look at everything it selected, so the
+      // honest output is the recorded abstention above and no finding — never "declares no health
+      // or readiness route". This is the whole defect: insufficient_data must not be emitted as a
+      // finding of absence.
+      !healthReadinessRouteWithheld &&
       withContentReadSignal('A3', 'health_readiness_route', () =>
         fileContains(
           repoPath,
@@ -4822,19 +4862,29 @@ function parseGitTrackedFiles(
   repoPath: string,
   output: string,
   includeHardExcluded: boolean,
+  // Set only for the list the per-criterion collectors actually walk (repoFiles). The inventory
+  // and monorepo-root passes list a different scope — the monorepo pass is even relative to a
+  // different root — so registering their drops would offer collectors paths they were never
+  // going to read, and an earned match against one of those would be a fabricated abstention.
+  registerWithheld = false,
 ): string[] {
   const files: string[] = [];
+  const withhold = (file: string, reason: ContentReadSkipReason): void => {
+    if (registerWithheld) registerWithheldRepoPath(file, reason);
+  };
   for (const file of output.trim().split('\n')) {
     if (file.length === 0) continue;
     const fullPath = join(repoPath, file);
     if (!includeHardExcluded && isHardExcludedPath(file)) {
       recordContentSkip(fullPath, 'denied_path', true);
+      withhold(file, 'denied_path');
       continue;
     }
     try {
       const stat = lstatSync(fullPath);
       if (!stat.isFile()) {
         recordContentSkip(fullPath, 'non_regular_file', true);
+        withhold(file, 'non_regular_file');
         continue;
       }
       if (stat.size > MAX_REPOSITORY_CONTENT_BYTES) {
@@ -4844,12 +4894,20 @@ function parseGitTrackedFiles(
         // (goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08, defect 1 — a repository holding a
         // 6.3KB README that fully answers A5 was abstaining A5 anyway because two unrelated
         // oversized .txt fixtures also map to A5 by extension). Each collector decides for itself,
-        // from whatever content it actually receives, whether it has enough to measure.
+        // from whatever content it actually receives, whether it has enough to measure — but it
+        // can only decide that about a file it knows existed, so the path is also registered as
+        // withheld and a signal whose own file-selection test admits it abstains on that basis
+        // alone (abstainSignalOnWithheldPaths).
         recordContentSkip(fullPath, 'too_large', true);
+        withhold(file, 'too_large');
         continue;
       }
     } catch (error: unknown) {
+      // deniedContext is false here, so a recorded skip is always 'unreadable' — a genuine read
+      // failure of a tracked file. recordFilesystemSkip rethrows anything without an errno, so
+      // reaching the next line means the skip was recorded under that reason.
       recordFilesystemSkip(fullPath, error, false, true);
+      withhold(file, 'unreadable');
       continue;
     }
     if (!isPotentialContentPath(file)) {
@@ -4871,7 +4929,7 @@ function collectRepoFileInventory(repoPath: string): RepoFileInventory {
   const tracked = readGitTrackedFileOutput(repoPath);
   if (tracked.ok) {
     return {
-      repoFiles: parseGitTrackedFiles(repoPath, tracked.stdout, false),
+      repoFiles: parseGitTrackedFiles(repoPath, tracked.stdout, false, true),
       inventoryFiles: parseGitTrackedFiles(repoPath, tracked.stdout, true),
       repoFileInventoryScope: 'tracked-scan-eligible',
       scanLimitations: [],
@@ -5000,6 +5058,14 @@ function visitRepoDir(
     recordFilesystemSkip(dirPath, error, true);
     return;
   }
+  // The three skips in this loop that drop a DIRECTORY (the readdirSync catch above, the
+  // skip-list name below, and the cross-device check) are deliberately not registered as withheld
+  // paths. A withheld-path abstention has to be earned by running the signal's own test against
+  // the path, and the contents of a directory Cejel did not descend into are unknown — no
+  // predicate can establish that a signal would have matched something inside it. Registering the
+  // directory itself would abstain on a path no signal was ever going to read. These remain
+  // disclosed as counts in contentReadSummary; see the PR that added this comment for the
+  // denied_path finding.
   for (const entry of entries) {
     const fullPath = join(dirPath, entry.name);
     if (shouldSkipDir(entry.name)) {
@@ -5019,8 +5085,10 @@ function visitRepoDir(
       visitRepoDir(repoPath, fullPath, files, rootDevice);
       continue;
     }
+    const repoRelativePath = relative(repoPath, fullPath);
     if (!entry.isFile()) {
       recordContentSkip(fullPath, 'non_regular_file');
+      registerWithheldRepoPath(repoRelativePath, 'non_regular_file');
       continue;
     }
     let size: number;
@@ -5028,13 +5096,15 @@ function visitRepoDir(
       size = statSync(fullPath).size;
     } catch (error: unknown) {
       recordFilesystemSkip(fullPath, error);
+      registerWithheldRepoPath(repoRelativePath, 'unreadable');
       continue;
     }
-    const repoRelativePath = relative(repoPath, fullPath);
     if (size > MAX_REPOSITORY_CONTENT_BYTES) {
       // See the matching comment in parseGitTrackedFiles: this is Cejel's own size ceiling, not
-      // a read failure, and must not pre-emptively abstain criteria by path shape.
+      // a read failure, and must not pre-emptively abstain criteria by path shape — but the path
+      // is registered as withheld so a signal whose own test admits it can abstain on that.
       recordContentSkip(fullPath, 'too_large');
+      registerWithheldRepoPath(repoRelativePath, 'too_large');
       continue;
     }
     if (!isPotentialContentPath(repoRelativePath)) {
