@@ -70,6 +70,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     lines.splice(
       3,
       0,
+      `Scope: ${relyingPartySummary.scope}`,
       `What was examined: ${relyingPartySummary.examined}`,
       `What was established: ${relyingPartySummary.established}`,
       `What was not established: ${relyingPartySummary.notEstablished}`,

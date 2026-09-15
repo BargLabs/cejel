@@ -71,6 +71,13 @@ DOM nesting, CSS classes, styling, prose, ordering, and truncation for display a
 Machine consumers must use `report.json` plus `attestation.json`; HTML is a human rendering and is
 not the gate API.
 
+The "How to read this certificate" section (HTML, Markdown, and terminal) carries a standing scope
+line, present on every certificate regardless of verdict: the certificate is a statement about the
+repository tree at the pinned revision, not about the system that tree belongs to, and evidence
+outside that tree is neither seen nor claimed to be absent. Its exact wording is experimental prose
+(see the DOM-nesting/prose note above) — a gate consumes `scanLimitations` and `contentReadSummary`
+from `report.json`, never this sentence.
+
 `summary.json`, `badge.json`, `badge.svg`, and terminal text are convenience presentations unless a
 separate schema explicitly says otherwise. `badge.json.schemaVersion` versions only the badge
 endpoint shape.

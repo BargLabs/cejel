@@ -8,6 +8,7 @@ import {
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   CERTIFICATE_METRIC_REGISTRY,
+  CERTIFICATE_SCOPE_NOTICE,
 } from '../certificate-presentation.js';
 import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
@@ -76,6 +77,47 @@ describe('caller-context product identity label', () => {
     for (const output of humanReadableOutputs(reportFixture([]))) {
       expect(output).toContain(CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE);
     }
+  });
+});
+
+// goal_cejel_certificate_scope_disclosure_0_4_9_2026-09-14: standing, non-conditional — this
+// notice must appear on every certificate regardless of verdict or scan limitations, because the
+// tree-vs-system boundary it names is true of every scan, not just a limited one. Unlike the
+// scanLimitations entries below, there is no "does not trigger" counterpart fixture: this line
+// cannot be silently dropped by a later renderer change without this guard failing.
+describe('certificate scope notice', () => {
+  it('appears on HTML, Markdown, and terminal certificate surfaces for a fully-scored report', () => {
+    for (const output of humanReadableOutputs(reportFixture([criterion({ id: 'A1', category: 'code_trust' })]))) {
+      expect(output).toContain(CERTIFICATE_SCOPE_NOTICE);
+    }
+  });
+
+  it('appears even when the report abstains entirely (insufficient_source)', () => {
+    const scored = reportFixture([]);
+    const abstained: WitanReport = {
+      productSlug: scored.productSlug,
+      productDisplayName: scored.productDisplayName,
+      repo: scored.repo,
+      rubricVersion: scored.rubricVersion,
+      criteria: scored.criteria,
+      verdict: 'insufficient_source',
+      codeTrustScore: null,
+      processTrustScore: null,
+      overallScore: null,
+      insufficientSourceReason: 'no ratable source found',
+    };
+    for (const output of humanReadableOutputs(abstained)) {
+      expect(output).toContain(CERTIFICATE_SCOPE_NOTICE);
+    }
+  });
+
+  it('states the tree/system boundary without weakening a finding — it is additive, not a hedge', () => {
+    // The notice never mentions a score, a finding, or a specific criterion: it is scope
+    // context that sits beside the evidence, not language that qualifies any single assertion.
+    expect(CERTIFICATE_SCOPE_NOTICE.toLowerCase()).not.toMatch(/score|finding|criterion/);
+    expect(CERTIFICATE_SCOPE_NOTICE).toContain('pinned');
+    expect(CERTIFICATE_SCOPE_NOTICE).toContain('neither seen');
+    expect(CERTIFICATE_SCOPE_NOTICE).toContain('nor claimed to be absent');
   });
 });
 

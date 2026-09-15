@@ -13,6 +13,7 @@ export interface CertificateGlossaryEntry {
 }
 
 export interface RelyingPartySummary {
+  scope: string;
   examined: string;
   established: string;
   notEstablished: string;
@@ -21,6 +22,20 @@ export interface RelyingPartySummary {
 
 export const CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE =
   'Product name and slug are caller context and are excluded from certificate byte-comparison claims.';
+
+// Standing, non-conditional scope statement: appears on every certificate, scored or abstained,
+// because the boundary it names — a pinned tree, not the system that tree belongs to — is true of
+// every scan Cejel runs, not just the ones with a disclosed limitation. Scoring only the pinned
+// tree is deliberate and correct (a certificate that reached outside it could not be reproduced by
+// whoever received it); the gap this closes is that nothing on the artifact previously told the
+// reader which kind of statement — about the tree, or about the system — they were holding. A
+// finding that says evidence was not found in this tree stays exactly as stated; this notice adds
+// the boundary alongside it rather than softening it.
+export const CERTIFICATE_SCOPE_NOTICE =
+  'This certificate is a statement about the repository tree at the revision pinned above, not ' +
+  'about the system that tree is part of. Evidence outside that tree — for example, a test suite ' +
+  'kept in a separate repository, or CI configuration that changes into a different working ' +
+  'directory before running its checks — is neither seen by this scan nor claimed to be absent.';
 
 // Every metric emitted by the repository detector must be registered here before it can compile.
 // The glossary guard below then requires a reader-facing definition for every registered name.
@@ -707,6 +722,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   );
 
   return {
+    scope: CERTIFICATE_SCOPE_NOTICE,
     examined: `Cejel examined the repository evidence recorded for ${report.productDisplayName}${revision} under ${report.rubricVersion}.`,
     established: `The report established measured results for ${measured.length} of ${applicable.length} applicable rubric dimensions and recorded ${findings} evidence-backed finding${findings === 1 ? '' : 's'}.`,
     notEstablished: gaps.join(' '),

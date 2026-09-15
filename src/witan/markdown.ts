@@ -119,6 +119,7 @@ export function renderWitanMarkdownReport(
     '',
     '## How to read this certificate',
     '',
+    `- Scope: ${relyingPartySummary.scope}`,
     `- What was examined: ${relyingPartySummary.examined}`,
     `- What was established: ${relyingPartySummary.established}`,
     `- What was not established: ${relyingPartySummary.notEstablished}`,

@@ -319,7 +319,8 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   const wholesaleAbstainedReadFailureCriteria: WitanCriterionId[] = [];
   const wholesaleAbstainedCoverageLimitedCriteria: WitanCriterionId[] = [];
   const partiallyAbstainedReadFailureSignals: string[] = [];
-  const partiallyAbstainedCoverageLimitedSignals: string[] = [];
+  const partiallyAbstainedLargeFileSignals: string[] = [];
+  const partiallyAbstainedOtherCoverageLimitedSignals: string[] = [];
   const signals = (tracked.value.signals ?? []).map((signal) => {
     if (!affectedCriteria.has(signal.criterionId)) return signal;
     if (tracked.unattributedCriteria.has(signal.criterionId)) {
@@ -364,10 +365,20 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
     }
     const { insufficientDataReason } = classifyAbstentionReason(droppedReasons);
     const isReadFailure = insufficientDataReason === undefined;
+    // 'too_large' gets its own bucket (named separately from the general coverage-limit bucket
+    // below): a large implementation file that exceeded the read limit is a case where the
+    // tree's own conclusion (no evidence found for this signal) is defensible about what was
+    // read and misleading about the file that was not
+    // (goal_cejel_certificate_scope_disclosure_0_4_9_2026-09-14). Only split at the per-signal
+    // level, not the wholesale level above: 'too_large' only ever reaches
+    // classifyAbstentionReason here, via abstainSignalOnWithheldPaths, which always narrows to a
+    // named signal — it never leaves a criterion in tracked.unattributedCriteria.
     for (const name of affectedNames) {
       (isReadFailure
         ? partiallyAbstainedReadFailureSignals
-        : partiallyAbstainedCoverageLimitedSignals
+        : insufficientDataReason === 'too_large'
+          ? partiallyAbstainedLargeFileSignals
+          : partiallyAbstainedOtherCoverageLimitedSignals
       ).push(`${signal.criterionId}.${name}`);
     }
     return {
@@ -395,9 +406,14 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       `${partiallyAbstainedReadFailureSignals.length} ${partiallyAbstainedReadFailureSignals.length === 1 ? 'signal' : 'signals'} abstained because its own repository content could not be read, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedReadFailureSignals].sort().join(', ')}.`,
     );
   }
-  if (partiallyAbstainedCoverageLimitedSignals.length > 0 && scanLimitations.length < 16) {
+  if (partiallyAbstainedLargeFileSignals.length > 0 && scanLimitations.length < 16) {
     scanLimitations.push(
-      `${partiallyAbstainedCoverageLimitedSignals.length} ${partiallyAbstainedCoverageLimitedSignals.length === 1 ? 'signal' : 'signals'} declined under the repository content size limit or an extension exclusion, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedCoverageLimitedSignals].sort().join(', ')}. This is a disclosed coverage limit, not a read failure.`,
+      `${partiallyAbstainedLargeFileSignals.length} ${partiallyAbstainedLargeFileSignals.length === 1 ? 'signal' : 'signals'} declined a large implementation file that exceeded the repository content size limit, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedLargeFileSignals].sort().join(', ')}. That file is undercounted, not scored as clean or absent — this is a disclosed coverage limit, not a read failure.`,
+    );
+  }
+  if (partiallyAbstainedOtherCoverageLimitedSignals.length > 0 && scanLimitations.length < 16) {
+    scanLimitations.push(
+      `${partiallyAbstainedOtherCoverageLimitedSignals.length} ${partiallyAbstainedOtherCoverageLimitedSignals.length === 1 ? 'signal' : 'signals'} declined under an extension exclusion or a non-regular-file skip, while other signals in the same criterion were unaffected: ${[...partiallyAbstainedOtherCoverageLimitedSignals].sort().join(', ')}. This is a disclosed coverage limit, not a read failure.`,
     );
   }
 
