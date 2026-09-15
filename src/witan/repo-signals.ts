@@ -3041,13 +3041,57 @@ function collectA3ProdReadinessEvidence(
       (!useV27Detectors || isAuthoredProductionPath(file)) &&
       /error-boundary|error\.(tsx|jsx|ts|js)$/.test(file),
   );
-  const errorBoundary = errorBoundaries[0];
+  // The filename check above is a frontend/React convention (error-boundary.*, error.tsx) and
+  // does not read content, so an Express error-handling middleware layer — which can live in any
+  // file, under any name — was invisible to it: fixing the exact gap a finding named changed
+  // nothing. Widened with a content-based check across implementation files, same predicate as
+  // observabilityDepthReads above (named once so the two cannot drift), run only when the
+  // filename check found nothing so a repository already credited by filename never pays for an
+  // extra content scan.
+  //
+  // A shape match alone credits a fully dead, never-registered stub (tutorial boilerplate that
+  // declares a four-argument handler and never wires it in). Requiring the file to also either
+  // register middleware (`.use(`) or make the handler reachable from elsewhere (`export`/
+  // `module.exports`) excludes that case while still crediting the two real-world registration
+  // idioms this repo's own fixtures use: an inline `app.use((err, req, res, next) => ...)` and a
+  // named handler declared in one file and wired via `app.use(errorHandler)` in another.
+  const expressErrorMiddlewareFile =
+    errorBoundaries.length > 0
+      ? undefined
+      : withContentReadSignal('A3', 'prod_readiness_primitives', () =>
+          repoFiles.find(
+            (file) =>
+              observabilityDepthReads(file) &&
+              fileContains(repoPath, file, EXPRESS_ERROR_MIDDLEWARE_PATTERN) &&
+              fileContains(repoPath, file, EXPRESS_MIDDLEWARE_REACHABLE_PATTERN),
+          ),
+        );
+  const errorBoundary = errorBoundaries[0] ?? expressErrorMiddlewareFile;
+  // A withheld implementation file cannot be read by this content scan either, so a match it
+  // would have earned is otherwise reported as a plain "no error boundary" absence rather than
+  // missing evidence — same seam as health_readiness_route and observability_depth below.
+  // Skipped when a filename-based match already exists: the content scan is n/a there (line
+  // 3053 above never runs it) and has nothing to abstain.
+  if (useV23WithheldPathAbstention && errorBoundaries.length === 0) {
+    abstainSignalOnWithheldPaths('A3', 'prod_readiness_primitives', observabilityDepthReads);
+  }
+  // Widened past a vendor-product list plus two generic words, which missed the most common
+  // Node structured-logging libraries (pino, winston, bunyan), the Express request-logging
+  // convention (morgan), and the request-correlation idiom (correlationId/requestId/traceId,
+  // under whichever separator style the repo uses) — none of which spell a vendor name.
+  // `httpLogger` and `@opentelemetry/*` imports are already covered: they contain the existing
+  // `logger` / `opentelemetry` substrings respectively, so this widening does not touch them.
+  //
+  // The four package names are matched case-sensitively (no /i on that half), never merged into
+  // the case-insensitive vendor-list half above: those are npm identifiers, always written
+  // lowercase in an import/require, unlike "Sentry"/"Datadog" which are also correctly-cased
+  // proper nouns in prose. Case-insensitive on all four credited a repository whose comments
+  // merely mentioned a person named Winston, Pino, or Bunyan with no logging tooling at all.
   const observabilityCount = withContentReadSignal('A3', 'observability_depth', () =>
-    countFilesContaining(
-      repoPath,
-      repoFiles.filter(observabilityDepthReads),
-      /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail/i,
-    ),
+    countFilesMatchingAny(repoPath, repoFiles.filter(observabilityDepthReads), [
+      /sentry|otel|opentelemetry|datadog|prometheus|metrics|logger|logtail|\b(?:correlation|request|trace)[-_]?id\b|\basynclocalstorage\b/i,
+      /\b(?:pino|winston|bunyan|morgan)\b/,
+    ]),
   );
   // Same seam as health_readiness_route: a withheld implementation file cannot be counted, and an
   // under-count is reported as a lower observability score rather than as missing evidence. The
@@ -3101,8 +3145,24 @@ function collectA3ProdReadinessEvidence(
       ),
     );
   }
-  if (errorBoundary)
-    evidence.push(evidenceForRelative(repoPath, errorBoundary, 'prod_check', 'Error boundary'));
+  if (errorBoundary) {
+    // A filename-based match (errorBoundaries) is presence evidence — evidenceForRelative's
+    // firstMeaningfulLine fallback is honest there, since no specific line was matched. A
+    // content-based match (expressErrorMiddlewareFile) DID earn a specific line; using the same
+    // presence-style helper for it reintroduces the exact "reports line 1" defect
+    // evidenceForRelativeAtLine's own doc comment names as previously fixed.
+    evidence.push(
+      errorBoundary === expressErrorMiddlewareFile
+        ? evidenceForRelativeAtLine(
+            repoPath,
+            errorBoundary,
+            'prod_check',
+            'Error boundary',
+            findFirstMatchingLine(repoPath, errorBoundary, EXPRESS_ERROR_MIDDLEWARE_PATTERN),
+          )
+        : evidenceForRelative(repoPath, errorBoundary, 'prod_check', 'Error boundary'),
+    );
+  }
 
   // Anchor on the server entrypoint file when it is the only reason the N/A
   // gate passed but no other A3 signal produced evidence. Without this anchor
@@ -3228,7 +3288,7 @@ function collectA3ProdReadinessEvidence(
           deployConfigs.length > 0,
           envTemplate,
           healthChecks.length > 0,
-          errorBoundaries.length > 0,
+          errorBoundary !== undefined,
         ].filter(Boolean).length,
         6,
         0.55,
@@ -3245,7 +3305,7 @@ function collectA3ProdReadinessEvidence(
             { label: 'deployment configuration', count: deployConfigs.length > 0 ? 1 : 0 },
             { label: 'environment template', count: envTemplate ? 1 : 0 },
             { label: 'health or readiness signal', count: healthChecks.length > 0 ? 1 : 0 },
-            { label: 'error boundary', count: errorBoundaries.length > 0 ? 1 : 0 },
+            { label: 'error boundary', count: errorBoundary !== undefined ? 1 : 0 },
           ],
         },
       ),
@@ -5241,6 +5301,19 @@ function measureNonHollowTestShare(
 
 function countFilesContaining(repoPath: string, files: readonly string[], pattern: RegExp): number {
   return files.filter((file) => fileContains(repoPath, file, pattern)).length;
+}
+
+// Counts files matching ANY of several patterns, never double-counting a file that matches more
+// than one — a single RegExp with an `i` flag cannot mix case-insensitive and case-sensitive
+// alternatives, so a caller that needs both (e.g. case-insensitive vendor-product words plus
+// case-sensitive npm package identifiers) passes them as separate patterns here instead.
+function countFilesMatchingAny(
+  repoPath: string,
+  files: readonly string[],
+  patterns: readonly RegExp[],
+): number {
+  return files.filter((file) => patterns.some((pattern) => fileContains(repoPath, file, pattern)))
+    .length;
 }
 
 function countPatternMatches(repoPath: string, files: readonly string[], pattern: RegExp): number {
@@ -7400,8 +7473,35 @@ const SERVER_ENTRYPOINT_PATTERN =
 // classification or treating a helper that merely constructs an unbound server as production.
 const V20_DIRECT_HTTP_SERVER_PATTERN =
   /\b(?:http|https)\.createServer\s*\([\s\S]{0,1500}?\)\.listen\s*\(\s*(?:PORT|port|\d+)/;
+// Widened from an exact `["'`]/(health|ready|...)["'`]` match, which required the route
+// literal to contain nothing but the bare keyword. That missed the Kubernetes convention
+// (/healthz, /readyz, /livez), any mount prefix (/api/health), and any suffix (/health/live) —
+// all public-documentation idioms, not narrow spellings. Still bounded to a single path segment
+// on each side of the keyword so it cannot cross string boundaries or read like arbitrary prose;
+// a route defined by a router mounted at '/health' with its own relative '/' handler is a
+// cross-expression case this pattern still cannot see (goal_cejel_a3_runtime_pattern_coverage,
+// stated as out of scope).
 const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
-  /["'`]\/(?:health|ready|readiness|live|liveness)["'`]/i;
+  /["'`][\w${}./-]{0,60}\/(?:(?:health|ready|live)z?|readiness|liveness)(?=["'`/])/i;
+// Express recognizes error-handling middleware by arity alone — any four-parameter
+// function/arrow is treated as an error handler — but the canonical public-documentation form
+// names the parameters (err, req, res, next), optionally TypeScript-typed. Matching by name
+// rather than bare arity keeps this from firing on an unrelated four-parameter function.
+//
+// The type-annotation group tolerates one level of generic type arguments (`Request<P, ResBody,
+// ReqBody>`) by treating a balanced `<...>` span as a single atom the surrounding comma-split
+// cannot see inside — a bare `[^,()]+` stops at the first comma INSIDE the generic, so a
+// realistic Express+TypeScript handler typed with route/response/body generics never matched.
+// Does not handle nested generics (`Foo<Bar<Baz, Qux>>`); that is a documented limit, not silent.
+const EXPRESS_ERROR_MIDDLEWARE_PATTERN =
+  /\(\s*(?:err|error)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:req|request)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:res|response)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*next(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*\)\s*(?:=>|\{)/i;
+// A parameter-shape match alone also matches a fully dead, never-registered stub. Requiring the
+// same file to show some sign the handler is reachable — passed directly to `.use(`, or exported
+// so another file could import and register it — excludes tutorial boilerplate copy-pasted into
+// an unrelated file with nothing else referencing it, without requiring the wiring call site
+// itself to be in the same file (frequently isn't: a named handler declared in one file is
+// commonly registered via `app.use(errorHandler)` in the app's entrypoint).
+const EXPRESS_MIDDLEWARE_REACHABLE_PATTERN = /\.use\s*\(|\bmodule\.exports\b|\bexport\s+(?:default\b|function\b|const\b)/;
 const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
 const RACK_CONFIG_RUN_PATTERN = /^\s*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
 const RUNTIME_CONTAINER_COMMAND_PATTERN =

@@ -107,7 +107,11 @@ describe('v23 withheld-path abstention — a file Cejel withheld can abstain the
     // ...and the criterion still scores. A self-imposed coverage limit must not wipe A3, and it
     // must not put A3 in the composite denominator at zero.
     expect(a3?.insufficientData).toBeUndefined();
-    expect(a3?.metrics?.some((metric) => metric.name === 'prod_readiness_primitives')).toBe(true);
+    // prod_readiness_primitives is now ALSO legitimately abstained here: #308 wired the same
+    // withheld-path check for its content-based error-middleware scan, which reads the identical
+    // "any authored implementation file" predicate as health_readiness_route above, so this
+    // fixture's one oversized file abstains both signals, not just the one this test names.
+    expect(a3?.metrics?.some((metric) => metric.name === 'prod_readiness_primitives')).toBe(false);
     expect(a3?.metrics?.some((metric) => metric.name === 'prod_workflow_depth')).toBe(true);
   });
 
@@ -185,5 +189,38 @@ describe('v23 withheld-path abstention — a file Cejel withheld can abstain the
         );
       }
     }
+  });
+
+  // goal_cejel_a3_runtime_pattern_coverage_0_4_9_2026-09-14: the content-based Express
+  // error-middleware scan #308 added reads repoFiles exactly like health_readiness_route and
+  // observability_depth above, but shipped without a call into abstainSignalOnWithheldPaths — an
+  // oversized error-handler file was silently uncredited rather than abstained, the same false
+  // "no error boundary" absence the withheld-path mechanism exists to prevent everywhere else.
+  it('abstains prod_readiness_primitives when the only error-handler-shaped file is withheld, instead of asserting absence', () => {
+    const handler =
+      'module.exports = function errorHandler(err, req, res, next) {\n' +
+      '  res.status(500).json({ message: err.message });\n' +
+      '};\n';
+    const files: Readonly<Record<string, string>> = {
+      'package.json': '{"scripts":{"start":"node src/main.js","typecheck":"tsc --noEmit"}}\n',
+      'src/main.js': "import http from 'node:http';\nhttp.createServer((request, response) => response.end(request.method)).listen(5300);\n",
+      // Not named error-boundary.* or *.error.js, so the filename check finds nothing and this
+      // fixture isolates to the new content-based scan, same as #308's own positive tests.
+      'src/errorHandler.js': handler + '// '.padEnd(OVERSIZED_BYTES - handler.length, 'x') + '\n',
+    };
+
+    const { input, signal } = scan(files, WITAN_RUBRIC_VERSION_V23);
+    const a3 = signal('A3');
+
+    expect(input.contentReadSummary?.byReason.tooLarge).toBe(1);
+    expect(input.contentReadSummary?.affectedCriteria).toContain('A3');
+    // The defect: the metric silently omitted 1 of 6 real components (the withheld file WOULD
+    // have earned the error-boundary credit) with no attribution — indistinguishable from a
+    // repository that genuinely has no error handling. Abstained instead: the composite metric
+    // is dropped, not silently under-counted, matching health_readiness_route/observability_depth's
+    // own wiring immediately above in this file.
+    expect(a3?.insufficientData).toBeUndefined();
+    expect(a3?.metrics?.find((m) => m.name === 'prod_readiness_primitives')).toBeUndefined();
+    expect(a3?.notes).toContain('prod_readiness_primitives');
   });
 });
