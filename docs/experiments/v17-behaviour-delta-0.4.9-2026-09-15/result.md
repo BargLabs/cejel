@@ -4,9 +4,11 @@ Human rendering of `paired-result.json`. The public entry is
 `leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17-2026-07-24".
 
 - Baseline arm: cejel source at `7606392` (the `v0.4.8` commit), `package.json` 0.4.8.
-- Candidate arm: cejel source at `fde615c` — `fe4210a` (`origin/main` on 2026-09-15) with both
-  remaining 0.4.9 scoring branches merged in at their post-review heads: A3 runtime-pattern
-  coverage (`6aec928`) and certificate scope disclosure (`153218d`). Both merge with no conflicts; the arm is
+- Candidate arm: `fe4210a` (`origin/main` on 2026-09-15) with both remaining 0.4.9 scoring
+  branches merged in at their post-review heads. Both were squash-merged, so on `main` that work
+  is `dad7841` (A3 runtime-pattern coverage) and `90371ea` (certificate scope disclosure), with
+  `2af3407` the release commit. Verified after the merges: no non-test file under `src/` differs
+  between the scored tree and `main`, so the scanner measured is the scanner shipped. Both merge with no conflicts; the arm is
   content-identical to the tree 0.4.9 ships once they land. `package.json` 0.4.8 in both arms.
 - Rubric: `witan-rubric-v17-2026-07-24` (calibrated public default) in both arms.
 - `generatedAt` fixed at `2026-09-15T00:00:00.000Z` in both arms.

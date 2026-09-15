@@ -77,10 +77,14 @@ passes 4/4 against 0.4.9, naming the metric and direction each time.
 **Measurement.** All 24 corpus rows at their pinned commits (`leaderboard/corpus.json`,
 sha256 `dc723f53…`, byte-identical to the corpus the v19 protocol froze), scored twice from
 source with the calibrated default, `generatedAt` fixed, on one machine within one hour:
-baseline `7606392` (the `v0.4.8` commit) and candidate `fde615c`, which is `fe4210a`
-(`origin/main`) with both remaining 0.4.9 scoring branches merged in at their post-review heads —
-the A3 runtime-pattern coverage work (`6aec928`) and the certificate scope disclosure work
-(`153218d`). Both merge
+baseline `7606392` (the `v0.4.8` commit) and a candidate tree built by merging both remaining
+0.4.9 scoring branches into `fe4210a` at their post-review heads. Those branches were squash-merged,
+so the commits that carry that work on `main` are `dad7841` (A3 runtime-pattern coverage) and
+`90371ea` (certificate scope disclosure), and the release commit is `2af3407`. **The candidate tree
+that was scored and the tree that shipped are the same scanner**: no non-test file under `src/`
+differs between them, verified by diff after the merges landed — the only differing files are this
+release's own records, the version bump, and two test files (the scoring-surface golden guard and
+the `toolVersion` pin), none of which the scanner reads. Both merge
 into `origin/main` with no conflicts; the candidate arm is content-identical to the tree that
 ships once they land. The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
 exactly on the row that moved most (django: 3.2 / 2.6 / 3.8, B3 3.6, `ci_script_depth` 3), so
