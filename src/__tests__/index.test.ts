@@ -397,8 +397,12 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // match this fixture's actual output; verified against a two-run diff against the pre-0.4.8
     // pin (e5ca23ceb458ff289d822ec5d9ec3de46979661dd6287cdd5a1eccc4b4b5a835) showing the only
     // delta is the added toolVersion field, and reproduced identically outside vitest.
+    // Re-pinned for 0.4.9: the 0.4.8 build of this fixture hashes to the previous pin
+    // (b081a329f112522105b221b9a104de33dc69ddf36c7396ec37661f1e658f2ecb) and the 0.4.9 build
+    // to the value below; a diff of the two pretty-printed reports is exactly one line,
+    // `"toolVersion": "0.4.8"` -> `"0.4.9"` (2026-09-15, release/0.4.9-records).
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'b081a329f112522105b221b9a104de33dc69ddf36c7396ec37661f1e658f2ecb',
+      'ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4',
     );
   });
 

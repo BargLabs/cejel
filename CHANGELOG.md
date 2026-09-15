@@ -2,10 +2,6 @@
 
 All notable changes to `cejel` are recorded here.
 
-## Unreleased
-
-- Remove the stale prospective-rubric board and its certificates from this repository. The README now points to the single board on cejel.dev and acknowledges the withdrawal. A public-surface guard checks all three site formats and refuses a second scored copy.
-
 Cejel has two version tracks. This file covers **CLI releases** — changes to the binary,
 npm package, GitHub Action, Docker image, and MCP server. Changes to the **scoring rubric**
 are tracked separately in
@@ -42,6 +38,40 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `observability_depth` today, the two signals that already attribute a withheld path to
   themselves.
 
+### Scoring under the calibrated default
+
+Five of the fixes below change how repositories score under `witan-rubric-v17-2026-07-24`,
+the calibrated public default, without any change to the rubric identifier: the `test`-script
+content check in both A1's `verification_script_ratio` and B3's `ci_script_depth` (scores
+down), A1's authenticated-absence credits (scores up), the pull-request-template directory
+form in B2 (scores up), and two A3 production-readiness widenings — the observability-depth
+file pattern and the `prod_readiness_primitives` error-boundary check (both up). The
+health/readiness-route widening and the `too_large` abstention-disclosure split ship in this
+release too but are gated to prospective rubrics and cannot move a score under the calibrated
+default; the entry below confirms by measurement that they did not. The full 24-row
+before/after corpus delta, per criterion and per metric, is in
+[`leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17"](./leaderboard/RUBRIC_CHANGELOG.md).
+Measured result: 4 of 24 repositories moved — django, vite and the private alfred row on
+`B3.ci_script_depth`, all downward, and react and the alfred row on
+`A3.observability_depth`, both upward with no score change; 20 reports are byte-identical, and
+one headline moved (django, 3.2 to 3.1). The delta was preregistered before it was run and the
+result matched the prediction in full. That entry also records that three of the five changes
+moved no corpus row and why, that the rescore guard the changelog cites could not have fired
+for this repository, and one over-reach in the content check that is handed to the operator
+rather than adjusted.
+
+### Changed
+
+- Removed the stale prospective-rubric board and its certificates from this repository. The
+  README now points to the single board on cejel.dev and acknowledges the withdrawal. A
+  public-surface guard checks all three site formats and refuses a second scored copy.
+- Corrected the `witan-rubric-v23` declaration comment, which claimed v23 "adds only bounded
+  recognition of coverage-capable test-runner flags" while the scanner gates three v23-specific
+  mechanisms on it: A1 command-flag coverage, A2 PEM private-key grammar, and per-signal rather
+  than whole-criterion abstention. The declaration now names all three, and a
+  declared-scope guard fails the build if a fourth mechanism is gated on v23 without being
+  declared. No scoring behaviour changed under any rubric.
+
 ### Fixed
 
 - **A file withheld by Cejel's own content size ceiling was deleted from the scanned file list
@@ -53,19 +83,27 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   withheld path (over the size limit, not a regular file, unreadable, or excluded by policy) is
   now recorded and can abstain a signal — but only a signal whose *own* file-selection test
   admits that path, so an oversized file a signal was never going to open still abstains nothing.
-  Covers A3's `health_readiness_route` and `observability_depth`. The calibrated public default
+  **This mechanism covers exactly two signals, A3's `health_readiness_route` and
+  `observability_depth`, and nothing else**: every other signal that filters the file list still
+  reports a plain absence when its matching file was withheld. The calibrated public default
   (`witan-rubric-v17`) and v22 are unchanged. Counts in `contentReadSummary` are unchanged.
-  shared by the CLI and MCP servers. The environment-template filename classifiers
-  now use one optional segment instead of an ambiguous repeated group. No scoring
-  behaviour changed: both classifiers retain their previous filename language,
-  including consecutive dots and the V47 translated suffixes.
+- Fixed a reproduced scan hang on a legal 255-byte filename in the default scan path, shared by
+  the CLI and MCP servers. The environment-template filename classifiers now use one optional
+  segment instead of an ambiguous repeated group. No scoring behaviour changed: both classifiers
+  retain their previous filename language, including consecutive dots and the V47 translated
+  suffixes.
 - **Script-depth scoring credited a `package.json` `test` script by key presence only, so the
   npm-generated placeholder (`"test": "echo \"Error: no test specified\" && exit 1"`) scored
   identically to a real test runner.** Both A1's verification-script signal and B3's
   CI-script-depth signal now require the `test` script's *content* to match a known test-runner
   invocation, the same content check already used elsewhere to detect a configured test runner.
   `lint`/`typecheck`/`build` scripts remain presence-checked — none has an equivalent universal
-  auto-generated placeholder.
+  auto-generated placeholder. **Known over-reach, disclosed rather than adjusted:** the content
+  check names specific runners, so a real `test` script that delegates to one it does not name
+  (`grunt test`, `pnpm test-unit && …`, a monorepo task runner's `test` task) is also no longer
+  credited. That is what moved the three corpus rows in the rubric changelog entry. Whether the
+  check should recognise delegation is an operator decision recorded there; this release ships
+  the check as written.
 - The pull-request-template detector recognized only the single-file form
   (`pull_request_template.md`); the directory form
   (`.github/PULL_REQUEST_TEMPLATE/<name>.md`, GitHub's documented way to offer multiple
