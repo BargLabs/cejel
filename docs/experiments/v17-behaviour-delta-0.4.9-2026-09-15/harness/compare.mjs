@@ -66,19 +66,73 @@ for (const e of corpus.entries) {
 }
 for (const arm of ['base', 'cand']) placements(rows.filter((r) => !r[arm].error), arm);
 
-// base vs published board
+// Scoring-level view of a report: headline, per-criterion score/status, per-metric value.
+// This is the level at which "same score" is a meaningful claim. Whole-report equality is NOT:
+// 0.4.8 added a `derivation` field to every finding, so an older report differs from a newer
+// one on byte content while agreeing on every number — the first version of this check compared
+// whole objects and reported DIFFERS on all 24 rows regardless of input (review finding on
+// cejel #306).
+function scoringView(report) {
+  return {
+    headSha: report.repo?.headSha,
+    overallScore: report.overallScore,
+    codeTrustScore: report.codeTrustScore,
+    processTrustScore: report.processTrustScore,
+    verdict: report.verdict,
+    criteria: [...report.criteria]
+      .sort((l, r) => l.id.localeCompare(r.id))
+      .map((c) => ({
+        id: c.id,
+        score: c.score,
+        status: c.status,
+        metrics: [...(c.metrics ?? [])].sort((l, r) => l.name.localeCompare(r.name)).map((m) => ({ name: m.name, value: m.value })),
+      })),
+  };
+}
+
+// Symmetric per-criterion / per-metric diff between two reports. Reports criteria or metrics
+// present on only one side, not just those removed from the first (the first version walked the
+// base report only, so a candidate-only criterion or metric would have gone unreported).
+function scoringDiff(left, right) {
+  const L = scoringView(left), R = scoringView(right);
+  const criteria = [];
+  const metrics = [];
+  const ids = new Set([...L.criteria.map((c) => c.id), ...R.criteria.map((c) => c.id)]);
+  for (const id of [...ids].sort()) {
+    const l = L.criteria.find((c) => c.id === id), r = R.criteria.find((c) => c.id === id);
+    if (!l) { criteria.push(`${id} only in right`); continue; }
+    if (!r) { criteria.push(`${id} only in left`); continue; }
+    if (l.score !== r.score || l.status !== r.status) criteria.push(`${id} ${fmt(l.score)}/${l.status} to ${fmt(r.score)}/${r.status}`);
+    const names = new Set([...l.metrics.map((m) => m.name), ...r.metrics.map((m) => m.name)]);
+    for (const name of [...names].sort()) {
+      const lm = l.metrics.find((m) => m.name === name), rm = r.metrics.find((m) => m.name === name);
+      if (!lm) { metrics.push(`${id}.${name} only in right`); continue; }
+      if (!rm) { metrics.push(`${id}.${name} only in left`); continue; }
+      if (cj(lm.value) !== cj(rm.value)) metrics.push(`${id}.${name} ${fmt(lm.value)} to ${fmt(rm.value)}`);
+    }
+  }
+  const headline = [];
+  for (const k of ['overallScore', 'codeTrustScore', 'processTrustScore', 'verdict']) if (cj(L[k]) !== cj(R[k])) headline.push(`${k} ${fmt(L[k])} to ${fmt(R[k])}`);
+  return { headline, criteria, metrics, scoringIdentical: headline.length + criteria.length + metrics.length === 0 };
+}
+
+// base vs published board, at scoring level
 const boardCheck = [];
 for (const r of rows) {
   const p = join(SITE_REPORTS, `${r.name}.json`);
   if (!existsSync(p) || r.base.error) { boardCheck.push({ name: r.name, status: 'no-board-report-or-base-error' }); continue; }
   const board = JSON.parse(readFileSync(p, 'utf8'));
-  const strip = (rep) => ({ criteria: rep.criteria, overallScore: rep.overallScore, codeTrustScore: rep.codeTrustScore, processTrustScore: rep.processTrustScore, verdict: rep.verdict, headSha: rep.repo?.headSha });
-  const same = cj(strip(board)) === cj(strip(r.base.report));
-  const diffCriteria = same ? [] : board.criteria.map((c) => {
-    const b = r.base.report.criteria.find((x) => x.id === c.id);
-    return b && cj({ s: c.score, st: c.status, m: c.metrics }) !== cj({ s: b.score, st: b.status, m: b.metrics }) ? c.id : null;
-  }).filter(Boolean);
-  boardCheck.push({ name: r.name, status: same ? 'base-reproduces-board' : 'DIFFERS', headShaMatch: board.repo?.headSha === r.base.report.repo?.headSha, boardOverall: board.overallScore, baseOverall: r.base.report.overallScore, diffCriteria });
+  const d = scoringDiff(board, r.base.report);
+  boardCheck.push({
+    name: r.name,
+    status: d.scoringIdentical ? 'base-reproduces-board' : 'DIFFERS',
+    headShaMatch: board.repo?.headSha === r.base.report.repo?.headSha,
+    boardOverall: board.overallScore,
+    baseOverall: r.base.report.overallScore,
+    headline: d.headline,
+    criteria: d.criteria,
+    metrics: d.metrics,
+  });
 }
 
 const delta = [];
@@ -92,18 +146,9 @@ for (const r of rows) {
     continue;
   }
   const b = r.base.report, c = r.cand.report;
-  const movedCriteria = [];
-  const movedMetrics = [];
-  for (const cb of b.criteria) {
-    const cc = c.criteria.find((x) => x.id === cb.id);
-    if (!cc) { movedCriteria.push(`${cb.id} removed`); continue; }
-    if (cb.score !== cc.score || cb.status !== cc.status) movedCriteria.push(`${cb.id} ${fmt(cb.score)}/${cb.status} to ${fmt(cc.score)}/${cc.status}`);
-    for (const mb of cb.metrics ?? []) {
-      const mc = (cc.metrics ?? []).find((x) => x.name === mb.name);
-      if (!mc) { movedMetrics.push(`${cb.id}.${mb.name} removed`); continue; }
-      if (cj({ v: mb.value, s: mb.status, sc: mb.score }) !== cj({ v: mc.value, s: mc.status, sc: mc.score })) movedMetrics.push(`${cb.id}.${mb.name} ${fmt(mb.value)} to ${fmt(mc.value)}`);
-    }
-  }
+  const d = scoringDiff(b, c);
+  const movedCriteria = d.criteria;
+  const movedMetrics = d.metrics;
   const identical = cj({ ...b, generatedAt: null }) === cj({ ...c, generatedAt: null });
   delta.push({ name: r.name, visibility: r.visibility, base: { overall: b.overallScore, code: b.codeTrustScore, process: b.processTrustScore, verdict: b.verdict, coverage: r.base.cov.text, placement: r.base.placement, reportSha256: sha(cj(b)) }, cand: { overall: c.overallScore, code: c.codeTrustScore, process: c.processTrustScore, verdict: c.verdict, coverage: r.cand.cov.text, placement: r.cand.placement, reportSha256: sha(cj(c)) }, movedCriteria, movedMetrics, reportIdentical: identical });
   const cell = (x, y) => (String(x) === String(y) ? `${x}` : `${x} to ${y}`);
@@ -121,4 +166,6 @@ const summary = {
 writeFileSync(join(ROOT, 'delta.json'), JSON.stringify({ summary: { ...summary, base: { srcHead: summary.base.srcHead, packageVersion: summary.base.packageVersion }, cand: { srcHead: summary.cand.srcHead, packageVersion: summary.cand.packageVersion } }, boardCheck, delta }, null, 2));
 writeFileSync(join(ROOT, 'delta.md'), lines.join('\n') + '\n');
 console.log(JSON.stringify({ ...summary, base: summary.base.srcHead.slice(0, 8), cand: summary.cand.srcHead.slice(0, 8) }));
-console.log('board check:', boardCheck.map((b) => `${b.name}:${b.status}${b.diffCriteria?.length ? '(' + b.diffCriteria.join(',') + ')' : ''}`).join(' '));
+const reproduces = boardCheck.filter((b) => b.status === 'base-reproduces-board').length;
+console.log(`board check: ${reproduces}/${boardCheck.length} rows reproduce the published board at scoring level`);
+for (const b of boardCheck) if (b.status !== 'base-reproduces-board') console.log(`  ${b.name}: ${b.status} headline=[${(b.headline ?? []).join('; ')}] criteria=[${(b.criteria ?? []).join('; ')}] metrics=[${(b.metrics ?? []).join('; ')}]`);

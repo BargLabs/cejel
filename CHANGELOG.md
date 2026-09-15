@@ -42,8 +42,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Three of the fixes below change how repositories score under `witan-rubric-v17-2026-07-24`,
 the calibrated public default, without any change to the rubric identifier: the `test`-script
-content check (scores down), A1's authenticated-absence credits (scores up), and the
-pull-request-template directory form (scores up). The full 24-row before/after corpus delta,
+content check in both A1's `verification_script_ratio` and B3's `ci_script_depth` (scores
+down), A1's authenticated-absence credits (scores up), and the pull-request-template directory
+form in B2 (scores up). The full 24-row before/after corpus delta,
 per criterion and per metric, is in
 [`leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17"](./leaderboard/RUBRIC_CHANGELOG.md).
 Measured result: 3 of 24 repositories moved (django, vite, and the private alfred row), all on

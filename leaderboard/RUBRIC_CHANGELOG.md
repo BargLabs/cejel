@@ -64,7 +64,16 @@ produced it is beside it. Raw per-row reports were retained locally and not comm
 private row's report is not public; the public rows' reports are reproducible from the
 harness).
 
-**Expected values, stated before the result.** For change 1, the rows expected to move are
+**Not preregistered — said plainly.** This repository's convention for a measurement whose
+result matters is a preregistration commit that is a strict ancestor of the result commit
+(`docs/standing-constraints.md`, Guard 5; the v19 entry above shows the shape). This delta was
+not run that way: it was measured post hoc, in one session, and the expected-value paragraph
+below was written from the checkouts before `compare.mjs` ran but sits in the same commit as
+the result, so that ordering is not git-verifiable. Read this as a **measured disclosure of a
+change that had already merged**, not as a preregistered result. The next delta of this kind
+should land its expected values as a separate ancestor commit first.
+
+**Expected values, written from the checkouts before the comparison ran.** For change 1, the rows expected to move are
 those whose `test` script contains no runner the content check names: from the corpus
 `package.json` files, django (`grunt test --verbose`), vite (`pnpm test-unit && pnpm
 test-serve && pnpm test-build`) and the private alfred row — **3 rows, all down**. Every other
@@ -96,13 +105,26 @@ re-pin of the guard; and separately whether a behaviour change of this kind unde
 identifier should have forced a rubric version bump. Neither is decided by this entry.
 
 **Prior undisclosed movement found while measuring.** Checking the baseline arm against the
-board published on cejel.dev showed the board predates 0.4.8: four rows differ at the metric
-level (fastapi A4 `lockfile_coverage` 1 → abstained, taking its headline 3.1 → 3.0; biomejs
-B4 audit counts; fmt A1 test counts; alfred A3 rollback count), all consistent with 0.4.8's
-abstention-scoring change, which shipped with a CHANGELOG line and no entry here. So the
-published board already disagrees with the shipped 0.4.8 binary on one headline score, and
-this entry is the second undisclosed v17 movement in two releases, not the first. Republishing
-the board is release execution and is not done here.
+board published on cejel.dev at scoring level (headline, per-criterion score/status, per-metric
+value) showed 20 of 24 rows reproduce and the board predates 0.4.8 on four: fastapi A4
+`lockfile_coverage` 1 → abstained, A4 3.6 → 3.4, headline overall 3.1 → 3.0 and code trust
+3.0 → 2.8; biomejs B4 `audit_artifact_depth` 16 → 15 and `audit_freshness_depth` 2 → 1;
+fmt A1 `non_hollow_test_share` 29 → 28 and `test_to_source_ratio` 55 → 54; alfred A3
+`rollback_safety_depth` 806 → 753 — the last three at metric level with no score change. All
+are consistent with 0.4.8's abstention-scoring change, which shipped with a CHANGELOG line and
+no entry here. So the published board already disagrees with the shipped 0.4.8 binary on one
+headline score, and this entry is the second undisclosed v17 movement in two releases, not the
+first. Republishing the board is release execution and is not done here. (The first version
+of this check compared whole report objects and reported a difference on all 24 rows regardless
+of input, because 0.4.8 added a `derivation` field to every finding; the four rows above were
+found by hand and the check was then rewritten to compare at scoring level, which reproduces
+exactly those four — review finding on #306.)
+
+**Measurement limits.** Public rows were fetched with `--depth=1`; both arms score the same
+shallow checkouts, so the base → candidate delta is unaffected, but history-dependent signals
+(A2's recent-history secret scan, B4's commit-year freshness) saw one commit of history, as in
+the v19 protocol. `harness/RUN.md` records the exact invocation and a verification that the
+committed harness reproduces the candidate arm from its committed location.
 
 **Full v0.4.8 → 0.4.9 candidate delta under witan-rubric-v17-2026-07-24 (all 24 rows):**
 

@@ -1,22 +1,39 @@
-// Runs from inside a cejel worktree (base or candidate) via `pnpm exec tsx`, so it
-// scores with THAT worktree's src/witan. Same corpus, same checkouts, same
-// generatedAt, rubric = calibrated public default (v17). Writes one report per row.
+// Scores every corpus row with ONE cejel source tree's scanner. Run it once per arm, each time
+// from inside the worktree whose scanner should be measured (see RUN.md beside this file):
+//
+//   cd <cejel worktree at the arm's commit> && ARM=base pnpm exec tsx <path to this file>
+//
+// The scanner is resolved from CEJEL_SRC, defaulting to the current working directory, and
+// the resolved path plus its git HEAD are printed before any number — so a mis-pointed run is
+// visible in its first line, never inferred from its output. (The first committed version of
+// this file imported `./src/witan/public-scan.ts` relative to itself, which resolves only when
+// the file is copied to a worktree root — how it was actually run — and throws
+// ERR_MODULE_NOT_FOUND from where it is committed. Review finding on cejel #306.)
+//
+// Same corpus, same checkouts, same generatedAt, rubric = calibrated public default (v17).
+// Writes one report per row plus _manifest.json.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { scoreRepoWithPublicCejel } from './src/witan/public-scan.ts';
+import { pathToFileURL } from 'node:url';
 
 const ARM = process.env.ARM;
-if (!ARM) throw new Error('ARM env required');
-const ROOT = resolve(process.env.HOME ?? '', 'tmp/cejel-049-delta');
+if (!ARM) throw new Error('ARM env required (base | cand)');
+const CEJEL_SRC = resolve(process.env.CEJEL_SRC ?? process.cwd());
+const scannerPath = join(CEJEL_SRC, 'src/witan/public-scan.ts');
+if (!existsSync(scannerPath)) {
+  throw new Error(`no scanner at ${scannerPath} — run from a cejel worktree or set CEJEL_SRC to one`);
+}
+const { scoreRepoWithPublicCejel } = (await import(pathToFileURL(scannerPath).href)) as typeof import('../../../../src/witan/public-scan.ts');
+const ROOT = resolve(process.env.DELTA_ROOT ?? resolve(process.env.HOME ?? '', 'tmp/cejel-049-delta'));
 const OUT = join(ROOT, 'out', ARM);
 mkdirSync(OUT, { recursive: true });
 const corpus = JSON.parse(readFileSync(join(ROOT, 'corpus.json'), 'utf8'));
 const GENERATED_AT = '2026-09-15T00:00:00.000Z';
 const RUBRIC = 'witan-rubric-v17-2026-07-24';
-const srcHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-console.log(`arm=${ARM} src=${srcHead.slice(0, 8)} package.version=${pkg.version} rubric=${RUBRIC}`);
+const srcHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: CEJEL_SRC, encoding: 'utf8' }).trim();
+const pkg = JSON.parse(readFileSync(join(CEJEL_SRC, 'package.json'), 'utf8'));
+console.log(`arm=${ARM} scanner=${scannerPath} src=${srcHead.slice(0, 8)} package.version=${pkg.version} rubric=${RUBRIC} generatedAt=${GENERATED_AT}`);
 
 const manifest: Record<string, unknown>[] = [];
 for (const entry of corpus.entries) {
