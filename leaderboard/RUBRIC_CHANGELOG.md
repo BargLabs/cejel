@@ -77,9 +77,10 @@ passes 4/4 against 0.4.9, naming the metric and direction each time.
 **Measurement.** All 24 corpus rows at their pinned commits (`leaderboard/corpus.json`,
 sha256 `dc723f53…`, byte-identical to the corpus the v19 protocol froze), scored twice from
 source with the calibrated default, `generatedAt` fixed, on one machine within one hour:
-baseline `7606392` (the `v0.4.8` commit) and candidate `a34da1a`, which is `fe4210a`
-(`origin/main`) with both remaining 0.4.9 scoring branches merged in — the A3 runtime-pattern
-coverage work (`aa57822b`) and the certificate scope disclosure work (`afb82ff3`). Both merge
+baseline `7606392` (the `v0.4.8` commit) and candidate `fde615c`, which is `fe4210a`
+(`origin/main`) with both remaining 0.4.9 scoring branches merged in at their post-review heads —
+the A3 runtime-pattern coverage work (`6aec928`) and the certificate scope disclosure work
+(`153218d`). Both merge
 into `origin/main` with no conflicts; the candidate arm is content-identical to the tree that
 ships once they land. The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
 exactly on the row that moved most (django: 3.2 / 2.6 / 3.8, B3 3.6, `ci_script_depth` 3), so
@@ -92,14 +93,21 @@ harness).
 **Preregistered, and the prediction held.** This repository's convention for a measurement whose
 result matters is a preregistration commit that is a strict ancestor of the result commit
 (`docs/standing-constraints.md`, Guard 5). The two entries below this one could not claim that
-and said so. This one can: `PREREGISTRATION.md` in the experiment directory was committed as
-`0f80959`, before `compare.mjs` ran, naming both arms, all five score-capable changes, the rows
-expected to move and the exact metric values expected. The measured result matched it in full —
-the same four rows, the same two metrics, the same single headline change, the same 20
-byte-identical reports — so no gap between prediction and result had to be explained away, and
-none was closed by adjusting anything.
+and said so. This one can, twice: `PREREGISTRATION.md` was committed as `0f80959`
+before the first `compare.mjs` run, and `PREREGISTRATION-2.md` as `680b9d3` before the re-run
+against both PRs' post-review heads. Each names both arms, the score-capable changes, the rows
+expected to move and the exact metric values expected. Each measured result matched its
+prediction in full; the second is byte-identical to the first on all 24 rows once `toolVersion`
+is excluded, so the review fixes changed no figure here. What the first prediction named is what
+both runs measured: the same four rows, the same two metrics, the same single headline change,
+the same 20 byte-identical reports. No gap between prediction and result had to be explained
+away, and none was closed by adjusting anything. Preregistration 2 also withdrew an expectation
+before its run rather than after: an earlier, looser approximation of #308's widened
+error-middleware pattern matched one file in vite, and the pattern as committed matches none, so
+the prediction of a vite movement was retracted in the preregistration commit itself.
 
-**Expected values, committed before the comparison ran** (`PREREGISTRATION.md`, `0f80959`).
+**Expected values, committed before the comparison ran** (`PREREGISTRATION.md`, `0f80959`; the
+re-run's are in `PREREGISTRATION-2.md`, `680b9d3`).
 For change 1, the rows expected to move are those whose `test` script contains no runner the
 content check names: from the corpus `package.json` files, django (`grunt test --verbose`), vite
 (`pnpm test-unit && pnpm test-serve && pnpm test-build`) and the private alfred row — **3 rows,
