@@ -41,9 +41,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   optional `rubricBehaviourFingerprint` field beside it is a `sha256:` digest of the
   scoring-relevant output of a committed corpus of synthetic repositories under that rubric, so
   two certificates naming the same rubric can be checked for behavioural agreement rather than
-  assumed into it. Additive-optional: consumers bound to report format 1.0 or 1.1 are unaffected,
-  reports produced by earlier versions do not carry the field, and their existing attestations
-  remain valid. `report.json` is still byte-identical for the same version at the same revision —
+  assumed into it. Additive-optional: consumers following the report-format v1 rule to ignore
+  unknown optional fields remain compatible. Readers with strict field allowlists must add
+  support for this field; the published-package board reader needed that update during release
+  verification. Reports produced by earlier versions do not carry the field, and their existing
+  attestations remain valid. `report.json` is still byte-identical for the same version at the same revision —
   the value depends on `rubricVersion` alone. See `docs/format-stability.md`.
 - **A guard that can see a scoring change made under an unchanged rubric identifier.**
   `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` scores thirteen committed synthetic

@@ -94,7 +94,9 @@ of defect this entry is about.
 `rubricVersion`, so rubric identity and behavioural identity are separately checkable by whoever
 receives the certificate rather than only by this project's CI. That bumps the report contract to
 `reportFormatVersion` 1.2 (`docs/format-stability.md`); the field is additive-optional, so a
-consumer bound to 1.0 or 1.1 is unaffected. **Reports produced by earlier versions do not carry
+consumer following the v1 contract to ignore unknown optional fields remains compatible.
+Strict field-allowlist readers require an update; release verification found the
+published-package board reader rejecting this new key until its schema was updated. **Reports produced by earlier versions do not carry
 the field and their existing attestations remain valid** — absence means "produced before report
 format 1.2", never "behaviour unknown and therefore suspect". The value is a committed constant
 rather than something recomputed per scan (recomputing it costs thirteen git repositories and
