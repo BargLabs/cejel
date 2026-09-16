@@ -1,0 +1,54 @@
+[
+  {
+    "statement": "A control keyed on a declared identifier cannot detect a change made beneath that identifier, and the more trusted the identifier, the longer the gap survives — because nobody re-derives what the trusted name is standing in for. Cejel's rubric changelog enforced itself with a guard that fires when WITAN_RUBRIC_VERSION changes; five scoring changes shipped under an unchanged v17 and it was silent, correctly by its own definition. The guard was not weak, it was answering a different question than everyone believed. When a control's trigger is a name somebody chooses, ask what it would take to make the tracked thing change while the name does not; if that is cheap, the control measures authorial diligence, not the property. Replace it with a measurement of the property.",
+    "scope": ["cejel", "witan", "rubric-version", "guards"],
+    "tags": ["identifier-keyed-control", "guard-answers-a-different-question", "declared-vs-measured"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 313
+    }
+  },
+  {
+    "statement": "A guard whose remedy is prose nobody can mechanically check will be resolved by whichever branch is cheapest, and re-pinning a number is always cheapest. Cejel's new behaviour-fingerprint guard says the resolution is a changelog entry; nothing in the test made anyone write one. The fix was to make the pin and the record share a value: every pinned digest must appear verbatim in the public changelog, and a digest is not guessable in advance, so the only way to move a pin is with that document open. Bind the artifact you want written to something the person cannot produce without writing it. This cannot check that the prose is honest and does not claim to — it makes the prose unavoidable, which is the checkable half.",
+    "scope": ["cejel", "witan", "guards", "release-records"],
+    "tags": ["cheapest-path-to-green", "bind-the-remedy-to-the-pin", "unfalsifiable-remedy"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 313
+    }
+  },
+  {
+    "statement": "Re-pinning a golden hash because a field was added is indistinguishable, at review time, from re-pinning it because scoring moved — the reviewer sees two opaque hashes and a comment claiming the difference. Assert the claim instead: carry BOTH the new hash and the pre-change hash, the latter recomputed with only the added field removed, so the test proves on every run that nothing else moved. Cejel did this for five moved pins when report.json gained a field. A comment saying 'the only delta is the new field' is a promise; a second assertion is a check, and the check survives the next person who needs a re-pin.",
+    "scope": ["cejel", "witan", "golden-fixtures", "report-format"],
+    "tags": ["re-pin-hides-a-change", "assert-the-delta-not-the-claim", "two-hash-discipline"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 313
+    }
+  },
+  {
+    "statement": "A fixture that announces itself as synthetic is correctly ignored by the detector it was written to exercise, and the resulting silence reads as 'the detector does not fire' rather than 'the fixture was rejected'. Cejel's PEM private-key fixture carried the words 'synthetic' and 'fixture' in the surrounding JSON; A2's own dev/self-signed/placeholder context filter rejected it, and A2 stayed not-applicable under every rubric until the words were moved out of the file and into the corpus that describes it. State a fixture's provenance where a READER reads it, never inside the bytes the detector reads, and when a detector-exercising fixture produces no result, first check whether the detector refused it before concluding it missed it.",
+    "scope": ["cejel", "witan", "fixtures", "secret-detection"],
+    "tags": ["fixture-rejected-not-missed", "provenance-in-the-wrong-layer", "silent-negative-fixture"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 313
+    }
+  }
+]
