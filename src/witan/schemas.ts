@@ -407,6 +407,16 @@ const WitanReportCommonSchema = z.object({
   productDisplayName: z.string().min(1).max(120),
   repo: WitanRepoRefSchema,
   rubricVersion: z.string().min(1).max(120),
+  // The BEHAVIOURAL identity of the rubric named above, beside its NAME. `rubricVersion` is an
+  // identifier the tool's author controls and can leave unchanged across a scoring change (this
+  // happened under witan-rubric-v17-2026-07-24 in 0.4.9 — see leaderboard/RUBRIC_CHANGELOG.md).
+  // This field is the sha256 of the scoring-relevant output of a fixed committed fixture corpus
+  // under that rubric, so two certificates naming the same rubric can be checked for behavioural
+  // agreement rather than assumed into it. See src/witan/rubric-fingerprint.ts for exactly what
+  // the digest covers, what it excludes, and what it does not claim. Optional and absent —
+  // never fabricated — for any rubric this build has no measurement for, and absent on every
+  // report emitted before report format 1.2; those artifacts' attestations remain valid.
+  rubricBehaviourFingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
   // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
   criteria: z.array(WitanCriterionScoreSchema).min(1),
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
@@ -482,7 +492,11 @@ export const WITAN_ATTESTATION_STATEMENT_TYPE = 'https://in-toto.io/Statement/v1
 export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/scan/v1' as const;
 // 1.1 (0.4.8, goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08): report.json gained an
 // optional toolVersion field. See WitanReportCommonSchema.toolVersion.
-export const WITAN_REPORT_FORMAT_VERSION = '1.1' as const;
+// 1.2 (goal_cejel_rubric_behaviour_fingerprint_2026-09-15): report.json gained an optional
+// rubricBehaviourFingerprint field beside rubricVersion. Additive-optional under the report
+// format v1 rule; a 1.0/1.1 consumer that ignores fields it does not recognise is unaffected,
+// and reports produced before this version simply do not carry it.
+export const WITAN_REPORT_FORMAT_VERSION = '1.2' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

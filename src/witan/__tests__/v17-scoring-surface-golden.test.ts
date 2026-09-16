@@ -30,6 +30,19 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // system config masked, identity and dates via env, commits unsigned, fixture commit sha
 // asserted first so environmental drift fails as "fixture not reproducible", never as a
 // scoring change.
+//
+// Re-pinned once, for report format 1.2 (goal_cejel_rubric_behaviour_fingerprint_2026-09-15):
+// report.json gained `rubricBehaviourFingerprint`, so every full-report hash below moved while
+// every pinned METRIC stayed put. That split is the point — the metric pins are the scoring
+// assertion and the hash pins are the byte assertion, and a format change moves only the second.
+// The mechanical proof that the added field is the whole delta is in
+// src/__tests__/index.test.ts ("byte-identical report artifacts"), which deletes exactly that key
+// and recovers the 0.4.9 bytes. Recorded in leaderboard/RUBRIC_CHANGELOG.md, 2026-09-16 entry.
+//
+// This file is now the narrow, per-shape guard; the broad one is
+// rubric-behaviour-fingerprint.test.ts, which scores a thirteen-fixture corpus under every
+// selectable rubric. Both stay: this one names the exact 0.4.9 metrics and directions, which a
+// digest cannot.
 
 const HERMETIC_GIT_ENV: NodeJS.ProcessEnv = {
   ...process.env,
@@ -83,7 +96,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: 'c031d17f2cc56a38ca1fc4d1b77daa18f5b14abbe071cc5a56e1b9389b01ff83',
+    reportSha256: '7e9c7cbf7d9e8f0b1ca447ca8b42ec3615d8513e06c2164583aa7be9d51840dd',
     // v0.4.8: ci_script_depth 5. The CI workflow still credits A1's test command (`npm test`
     // in ci.yml), so A1.verification_script_ratio is 3 on both sides — only B3 moves.
     pinnedMetrics: { 'B3.ci_script_depth': 4, 'A1.verification_script_ratio': 3 },
@@ -103,7 +116,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: 'e581f21bec10b462c8388c4ddc16fa8585e5e0591e021d17c7e61aba7613bee5',
+    reportSha256: '60fe4d3762c96820669b526f9ac59503c2ebd1f2dd171cf7d690ae2475fd4688',
     // v0.4.8: ci_script_depth 3, verification_script_ratio 2, overall 1.4 (now 1.1).
     pinnedMetrics: { 'B3.ci_script_depth': 2, 'A1.verification_script_ratio': 1 },
   },
@@ -122,7 +135,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: '320dbe33b3ce26483d79f56f022e2d1afdac61f04d233117e67a3fac04025632',
+    reportSha256: 'f8563bde4d02b210d1a6118abd6f73c123e4f686bdd72c7bc0e8faf7bd6e959c',
     // v0.4.8: verification_script_ratio 0, A1 score 0, overall 0.8 (now 2 / 0.5 / 0.9).
     pinnedMetrics: { 'A1.verification_script_ratio': 2 },
   },
@@ -139,7 +152,7 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: 'f560cf535210f3c9f87e4a7badc6f239b210c3f71f27afe9685aef1aaf893e31',
+    reportSha256: 'cdd35ca03149707985d2130731b4d0f7c9d3953c74a341854097c3d30c2b9c94',
     // v0.4.8: pr_trace_primitives 1, B2 score 1.6, overall 1.3 (now 2 / 3.2 / 1.7).
     pinnedMetrics: { 'B2.pr_trace_primitives': 2 },
   },

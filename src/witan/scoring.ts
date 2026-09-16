@@ -31,6 +31,7 @@ import {
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
+import { rubricBehaviourFingerprint } from './rubric-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
   WITAN_RUBRIC_VERSION_V10,
@@ -244,6 +245,15 @@ export function createWitanReport(
     productDisplayName: parsedInput.productDisplayName,
     repo: parsedInput.repo,
     rubricVersion: parsedInput.rubricVersion,
+    // Behavioural identity beside the rubric's name, so a reader holding two certificates can
+    // check whether the scoring that produced them agrees instead of inferring it from a string
+    // the tool's author controls. Derived only from parsedInput.rubricVersion, so it is a
+    // property of the (build, rubric) pair and not of this invocation: two runs of the same
+    // installed version at the same revision stay byte-identical. Absent, never fabricated, for
+    // a rubric this build carries no measurement for.
+    ...(rubricBehaviourFingerprint(parsedInput.rubricVersion)
+      ? { rubricBehaviourFingerprint: rubricBehaviourFingerprint(parsedInput.rubricVersion) }
+      : {}),
     verdict: abstained ? 'insufficient_source' : witanVerdictForScore(overallScore),
     codeTrustScore: abstained ? null : codeTrustScore,
     processTrustScore: abstained ? null : processTrustScore,

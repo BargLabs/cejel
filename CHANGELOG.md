@@ -16,6 +16,25 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`report.json` now states the rubric's behaviour, not only its name** (report format `1.1` →
+  `1.2`). `rubricVersion` is an identifier this project's authors control: it says which rubric a
+  build believed it ran, and it stayed unchanged through five scoring changes in 0.4.9. The new
+  optional `rubricBehaviourFingerprint` field beside it is a `sha256:` digest of the
+  scoring-relevant output of a committed corpus of synthetic repositories under that rubric, so
+  two certificates naming the same rubric can be checked for behavioural agreement rather than
+  assumed into it. Additive-optional: consumers bound to report format 1.0 or 1.1 are unaffected,
+  reports produced by earlier versions do not carry the field, and their existing attestations
+  remain valid. `report.json` is still byte-identical for the same version at the same revision —
+  the value depends on `rubricVersion` alone. See `docs/format-stability.md`.
+- **A guard that can see a scoring change made under an unchanged rubric identifier.**
+  `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` scores thirteen committed synthetic
+  fixtures under every selectable rubric and fails when the measured result leaves its pin,
+  naming the rubric and the criteria that moved. It never reads `rubricVersion` to decide whether
+  anything changed. Full account, including what it does not cover: the 2026-09-16 entry in
+  [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md).
+
 ## [0.4.9]
 
 ### Added

@@ -1,0 +1,212 @@
+{
+  "witan-rubric-v17-2026-07-24": {
+    "criteria": {
+      "A1": "90a3726ff5831947d7cd97624578d7f529eca13a488f44775d9f9d67c4842c87",
+      "A2": "e671772659d38c0b73d657bef59df726d16d9be466748bafdada6aea277d29df",
+      "A3": "b22ca4ba67564a6b635432c516d174b52ee9957cbd139bc4af8cf70f0456db36",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "80e904c070b77c6d4ea5a6708bb767e5278cb4ae796dda9d88580d5bae18158f",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "7fa668ad382538c556909128e9888a8083195f200c94eb3e22ef3b482df2e01d",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "105b0ae748fe56658878b9fb40419b9926ff68cb288ecf7414814a09a3b3d8a7"
+    },
+    "reports": {
+      "complete-node-service": "4134c71d1f4fe4cd2780fc79b84525fc7f918f761b7b58e73520ed34670df52d",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "e45f5b368b079465f965c8980897fe7f8d730932e6b9710d90e7efc21d6a0034",
+      "direct-http-entrypoint-no-health": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "start-declared-http-entrypoint": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "stale-audit-trail": "76968d26c14b2756787bd7af55b0a022daa41a56e376ff6c50ee70e14a4a9590"
+    }
+  },
+  "witan-rubric-v18-prospective-2026-07-25": {
+    "criteria": {
+      "A1": "90a3726ff5831947d7cd97624578d7f529eca13a488f44775d9f9d67c4842c87",
+      "A2": "89588c9903606084f0073208a351a5d2d037c47399ff49da92b6644c8ca02bc7",
+      "A3": "b22ca4ba67564a6b635432c516d174b52ee9957cbd139bc4af8cf70f0456db36",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "80e904c070b77c6d4ea5a6708bb767e5278cb4ae796dda9d88580d5bae18158f",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "7fa668ad382538c556909128e9888a8083195f200c94eb3e22ef3b482df2e01d",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "105b0ae748fe56658878b9fb40419b9926ff68cb288ecf7414814a09a3b3d8a7"
+    },
+    "reports": {
+      "complete-node-service": "36b70ba115668f31790470cd21c4591123e90b94d607c74f268dd4e92b86dfe0",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "eaa0e74692db378981a8c05aaff5d6663d35f5c2f1745753d2812de455e0e6c0",
+      "direct-http-entrypoint-no-health": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "start-declared-http-entrypoint": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "stale-audit-trail": "76968d26c14b2756787bd7af55b0a022daa41a56e376ff6c50ee70e14a4a9590"
+    }
+  },
+  "witan-rubric-v19-prospective-2026-08-09": {
+    "criteria": {
+      "A1": "90a3726ff5831947d7cd97624578d7f529eca13a488f44775d9f9d67c4842c87",
+      "A2": "89588c9903606084f0073208a351a5d2d037c47399ff49da92b6644c8ca02bc7",
+      "A3": "b22ca4ba67564a6b635432c516d174b52ee9957cbd139bc4af8cf70f0456db36",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "80e904c070b77c6d4ea5a6708bb767e5278cb4ae796dda9d88580d5bae18158f",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "0a1c5ed7a47ae04b6caab2dad6ad86f6c651a4314ba75890161de4c5795d6450",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "105b0ae748fe56658878b9fb40419b9926ff68cb288ecf7414814a09a3b3d8a7"
+    },
+    "reports": {
+      "complete-node-service": "36b70ba115668f31790470cd21c4591123e90b94d607c74f268dd4e92b86dfe0",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "eaa0e74692db378981a8c05aaff5d6663d35f5c2f1745753d2812de455e0e6c0",
+      "direct-http-entrypoint-no-health": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "start-declared-http-entrypoint": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "stale-audit-trail": "e4e61d838eb79e7f2b34020c4cef4a5452d7930a150b9cc6c51ae9a680252a0e"
+    }
+  },
+  "witan-rubric-v20-prospective-2026-08-10": {
+    "criteria": {
+      "A1": "90a3726ff5831947d7cd97624578d7f529eca13a488f44775d9f9d67c4842c87",
+      "A2": "89588c9903606084f0073208a351a5d2d037c47399ff49da92b6644c8ca02bc7",
+      "A3": "3b71dd924de988bb28b0baf81c5d7b219a237b0e3123a5eea74a17520bdc0047",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "80e904c070b77c6d4ea5a6708bb767e5278cb4ae796dda9d88580d5bae18158f",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "0a1c5ed7a47ae04b6caab2dad6ad86f6c651a4314ba75890161de4c5795d6450",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "105b0ae748fe56658878b9fb40419b9926ff68cb288ecf7414814a09a3b3d8a7"
+    },
+    "reports": {
+      "complete-node-service": "36b70ba115668f31790470cd21c4591123e90b94d607c74f268dd4e92b86dfe0",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "eaa0e74692db378981a8c05aaff5d6663d35f5c2f1745753d2812de455e0e6c0",
+      "direct-http-entrypoint-no-health": "cf9531b9dedd453a37ee6177b87fd434b88fe7fa83fc69450956447702c06af7",
+      "start-declared-http-entrypoint": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "stale-audit-trail": "e4e61d838eb79e7f2b34020c4cef4a5452d7930a150b9cc6c51ae9a680252a0e"
+    }
+  },
+  "witan-rubric-v21-prospective-2026-08-10": {
+    "criteria": {
+      "A1": "90a3726ff5831947d7cd97624578d7f529eca13a488f44775d9f9d67c4842c87",
+      "A2": "89588c9903606084f0073208a351a5d2d037c47399ff49da92b6644c8ca02bc7",
+      "A3": "3b71dd924de988bb28b0baf81c5d7b219a237b0e3123a5eea74a17520bdc0047",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "80e904c070b77c6d4ea5a6708bb767e5278cb4ae796dda9d88580d5bae18158f",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "0a1c5ed7a47ae04b6caab2dad6ad86f6c651a4314ba75890161de4c5795d6450",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "314b271be79b84be748bc28925ed1881cb2c66523b35e925afd435bc59f270f7"
+    },
+    "reports": {
+      "complete-node-service": "36b70ba115668f31790470cd21c4591123e90b94d607c74f268dd4e92b86dfe0",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "eaa0e74692db378981a8c05aaff5d6663d35f5c2f1745753d2812de455e0e6c0",
+      "direct-http-entrypoint-no-health": "cf9531b9dedd453a37ee6177b87fd434b88fe7fa83fc69450956447702c06af7",
+      "start-declared-http-entrypoint": "0f863293f02dfc32aa0e35fee62968c7224c745d9f190ed5b0c3272696cff8ef",
+      "stale-audit-trail": "e4e61d838eb79e7f2b34020c4cef4a5452d7930a150b9cc6c51ae9a680252a0e"
+    }
+  },
+  "witan-rubric-v22-prospective-2026-08-10": {
+    "criteria": {
+      "A1": "90a3726ff5831947d7cd97624578d7f529eca13a488f44775d9f9d67c4842c87",
+      "A2": "89588c9903606084f0073208a351a5d2d037c47399ff49da92b6644c8ca02bc7",
+      "A3": "562b6630c0efed3775fa07a0ff077fb118b809cb3c67e8750c63c66575ec5801",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "80e904c070b77c6d4ea5a6708bb767e5278cb4ae796dda9d88580d5bae18158f",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "0a1c5ed7a47ae04b6caab2dad6ad86f6c651a4314ba75890161de4c5795d6450",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "314b271be79b84be748bc28925ed1881cb2c66523b35e925afd435bc59f270f7"
+    },
+    "reports": {
+      "complete-node-service": "36b70ba115668f31790470cd21c4591123e90b94d607c74f268dd4e92b86dfe0",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "9e9b82f73a04263c86a1f7a9fc928b0897b2e2f38c7baede01677fd02708d7ce",
+      "privileged-migrations": "eaa0e74692db378981a8c05aaff5d6663d35f5c2f1745753d2812de455e0e6c0",
+      "direct-http-entrypoint-no-health": "cf9531b9dedd453a37ee6177b87fd434b88fe7fa83fc69450956447702c06af7",
+      "start-declared-http-entrypoint": "270e5c3f5c25ab3b8cb16abf958a9fddaecd6301db5448119755bac29d2df1d2",
+      "stale-audit-trail": "e4e61d838eb79e7f2b34020c4cef4a5452d7930a150b9cc6c51ae9a680252a0e"
+    }
+  },
+  "witan-rubric-v23-prospective-2026-09-06": {
+    "criteria": {
+      "A1": "21ffb70433ba603015ff4ea85ee7ff80d300e35ae7e105329b9c00e1f1c1e8e3",
+      "A2": "89588c9903606084f0073208a351a5d2d037c47399ff49da92b6644c8ca02bc7",
+      "A3": "562b6630c0efed3775fa07a0ff077fb118b809cb3c67e8750c63c66575ec5801",
+      "A4": "7a5033ddf4fe9baf75968c533ae4a57e32d5bc03e4bc178a22bd9a19bfa036d3",
+      "A5": "3d72c2fed9a7a7183eb3e5f88587872550938f75bf6b736ec3fe3324974f63b2",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "a661934a8fcfb51e9b06ff3beab8454d6455d78dbb4aaee805a415e929a7ab1f",
+      "B3": "09b60649a08e84ce7b124e43dabe291e8bbf225bacc8408054fbf5a37e540289",
+      "B4": "0a1c5ed7a47ae04b6caab2dad6ad86f6c651a4314ba75890161de4c5795d6450",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "314b271be79b84be748bc28925ed1881cb2c66523b35e925afd435bc59f270f7"
+    },
+    "reports": {
+      "complete-node-service": "36b70ba115668f31790470cd21c4591123e90b94d607c74f268dd4e92b86dfe0",
+      "minimal-source-no-process": "cf5de09e3a9aca441c93989a3292805beebeee9b9129fb163d22c8ca1e803f8d",
+      "committed-secret-and-pem": "482e6fafd7d097d8a22983644297ae15e82897f7c6808bda8cb0157cdaae487a",
+      "placeholder-test-script": "5b6f46d05707afb98deacec47a9cc787213c5a12e5e9d2eca04f05ffb1aa5d3a",
+      "lint-typecheck-no-tests": "cc758a60e0bf5c8d11ae97e63fdde34616c5a5cfa98ab1bbb4ce1f56c63dbe0e",
+      "pr-template-directory-form": "62b54ad494b4fdb1e635fddf3ed2d9ac3078228bbb3da0e3dce124478c33938f",
+      "python-service": "5020fe29a7c53dea943b31ecfc6a19767c38d62371e2a317ef511036bd51781d",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "ba59fbe5b7065e182050ecf2fb7f534de40533f5331c018b96b18d3205689e80",
+      "privileged-migrations": "eaa0e74692db378981a8c05aaff5d6663d35f5c2f1745753d2812de455e0e6c0",
+      "direct-http-entrypoint-no-health": "cf9531b9dedd453a37ee6177b87fd434b88fe7fa83fc69450956447702c06af7",
+      "start-declared-http-entrypoint": "270e5c3f5c25ab3b8cb16abf958a9fddaecd6301db5448119755bac29d2df1d2",
+      "stale-audit-trail": "e4e61d838eb79e7f2b34020c4cef4a5452d7930a150b9cc6c51ae9a680252a0e"
+    }
+  }
+}
