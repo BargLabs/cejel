@@ -23,9 +23,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 export const ALLOWED_SIGNERS_PATH = join(REPO_ROOT, 'docs/security/allowed-signers');
 export const GUARDED_PATH_PREFIXES = ['docs/calibration/'];
+export const GUARDED_PATHS = ['FREEZE.md'];
 
 export function isGuardedPath(file) {
-  return GUARDED_PATH_PREFIXES.some((prefix) => file.startsWith(prefix));
+  return GUARDED_PATHS.includes(file) || GUARDED_PATH_PREFIXES.some((prefix) => file.startsWith(prefix));
 }
 
 // A signer line is `<principal> <keytype> <base64>`; comments and blanks carry no authority.
@@ -34,11 +35,11 @@ export function parseAllowedSigners(contents) {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith('#'))
-    .filter((line) => line.split(/\s+/).length >= 3);
+    .filter((line) => /^\S+\s+(?:\S+\s+)?(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-\S+|sk-\S+)\s+[A-Za-z0-9+/]+={0,2}(?:\s|$)/.test(line));
 }
 
 export function summarize(commits) {
-  const unverified = commits.filter((commit) => commit.status !== 'G');
+  const unverified = commits.filter((commit) => commit.status !== 'G' || commit.ok === false);
   return {
     examinedCommitCount: commits.length,
     verifiedCount: commits.length - unverified.length,
@@ -60,6 +61,23 @@ const git = (args) =>
   execFileSync('git', [...gitVerifyArgs(ALLOWED_SIGNERS_PATH), ...args], {
     encoding: 'utf8',
   }).trim();
+
+// Shared by the range gate and the measurement-freeze transition reader. A good GPG
+// signature is not membership in this SSH allowlist: require the SSH envelope too.
+export function verifyCommit(sha, allowedSignersPath = ALLOWED_SIGNERS_PATH) {
+  if (!existsSync(allowedSignersPath)) {
+    throw new Error('unreadable docs/security/allowed-signers: file missing');
+  }
+  if (!parseAllowedSigners(readFileSync(allowedSignersPath, 'utf8')).length) {
+    throw new Error('unreadable docs/security/allowed-signers: names no key');
+  }
+  const run = (args) => execFileSync('git', [...gitVerifyArgs(allowedSignersPath), ...args], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  const [status, subject] = run(['show', '-s', '--format=%G?%n%s', sha]).split('\n');
+  const ssh = /^gpgsig -----BEGIN SSH SIGNATURE-----$/m.test(run(['cat-file', 'commit', sha]).split('\n\n')[0]);
+  return { sha: sha.slice(0, 8), status, subject, ok: status === 'G' && ssh };
+}
 
 export function main(argv = process.argv) {
   const range = argv[2];
@@ -96,8 +114,8 @@ export function main(argv = process.argv) {
   for (const sha of shas) {
     const files = git(['show', '--name-only', '--format=', sha]).split('\n').filter(Boolean);
     if (!files.some(isGuardedPath)) continue;
-    const [status, subject] = git(['show', '-s', '--format=%G?%n%s', sha]).split('\n');
-    commits.push({ sha: sha.slice(0, 8), status, subject, files: files.filter(isGuardedPath) });
+    const verified = verifyCommit(sha);
+    commits.push({ ...verified, files: files.filter(isGuardedPath) });
   }
 
   const result = summarize(commits);
@@ -113,7 +131,7 @@ export function main(argv = process.argv) {
     );
   }
   process.stderr.write(
-    '\nEvery commit touching docs/calibration/ must carry a signature from a key in\n' +
+    '\nEvery commit touching docs/calibration/ or FREEZE.md must carry a signature from a key in\n' +
       'docs/security/allowed-signers. %G?=N is unsigned; E is signed by a key this repository\n' +
       'does not list. A squash merge substitutes GitHub\'s web-flow key and produces E — merge\n' +
       'calibration PRs with --merge, never --squash.\n',

@@ -34,7 +34,7 @@ attestation.
 ## What the gate does
 
 `scripts/check-calibration-signatures.mjs`, run on every pull request that touches a guarded path,
-requires each commit touching `docs/calibration/**` to carry a signature from a key in
+requires each commit touching `docs/calibration/**` or root `FREEZE.md` to carry a signature from a key in
 `docs/security/allowed-signers`. It fails closed: a missing or key-less allowed-signers file is a
 failure rather than a skip, because "nobody may sign" must never read the same as "anybody may".
 `E` fails exactly as `N` does — accepting `E` would have passed the whole history above and
@@ -52,3 +52,5 @@ attestation is overstating it, and should cite this page alongside.
 
 The gate also says nothing about *content*. It establishes that a listed key signed the commit, and
 nothing about whether the measurement in it is sound. Provenance is not correctness.
+
+Marker supersession uses the same verifier; see [measurement freeze](../measurement-freeze.md) for the chain, parent-pinned allowlist, and operator transition commands.

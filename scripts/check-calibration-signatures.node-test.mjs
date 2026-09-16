@@ -19,6 +19,12 @@ test('docs/calibration is guarded and neighbouring doc paths are not', () => {
   assert.deepEqual(GUARDED_PATH_PREFIXES, ['docs/calibration/']);
 });
 
+test('root FREEZE.md is guarded without prefix-matching neighbouring files', () => {
+  assert.equal(isGuardedPath('FREEZE.md'), true);
+  assert.equal(isGuardedPath('FREEZE.md.backup'), false);
+  assert.equal(isGuardedPath('docs/FREEZE.md'), false);
+});
+
 test('a comments-only allowed-signers file names no signer, so the guard cannot pass on it', () => {
   const contents = ['# no keys yet', '', '   ', '# another comment'].join('\n');
   assert.deepEqual(parseAllowedSigners(contents), []);
@@ -28,6 +34,7 @@ test('a malformed signer line is not counted as a key', () => {
   // Two fields is a principal and a keytype with no key material. Counting it would let a typo
   // satisfy the "at least one signer" precondition.
   assert.deepEqual(parseAllowedSigners('operator@example.com ssh-ed25519'), []);
+  assert.deepEqual(parseAllowedSigners('this names no key'), []);
   assert.equal(parseAllowedSigners('operator@example.com ssh-ed25519 AAAAC3Nz').length, 1);
 });
 
