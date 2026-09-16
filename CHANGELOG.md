@@ -41,9 +41,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   optional `rubricBehaviourFingerprint` field beside it is a `sha256:` digest of the
   scoring-relevant output of a committed corpus of synthetic repositories under that rubric, so
   two certificates naming the same rubric can be checked for behavioural agreement rather than
-  assumed into it. Additive-optional: consumers bound to report format 1.0 or 1.1 are unaffected,
-  reports produced by earlier versions do not carry the field, and their existing attestations
-  remain valid. `report.json` is still byte-identical for the same version at the same revision —
+  assumed into it. Additive-optional: consumers following the report-format v1 rule to ignore
+  unknown optional fields remain compatible. Readers with strict field allowlists must add
+  support for this field; the published-package board reader needed that update during release
+  verification. Reports produced by earlier versions do not carry the field, and their existing
+  attestations remain valid. `report.json` is still byte-identical for the same version at the same revision —
   the value depends on `rubricVersion` alone. See `docs/format-stability.md`.
 - **A guard that can see a scoring change made under an unchanged rubric identifier.**
   `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` scores thirteen committed synthetic
@@ -90,8 +92,10 @@ before/after corpus delta, per criterion and per metric, is in
 [`leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17"](./leaderboard/RUBRIC_CHANGELOG.md).
 Measured result: 4 of 24 repositories moved — django, vite and the private alfred row on
 `B3.ci_script_depth`, all downward, and react and the alfred row on
-`A3.observability_depth`, both upward with no score change; 20 reports are byte-identical, and
-one headline moved (django, 3.2 to 3.1). The delta was preregistered before it was run and the
+`A3.observability_depth`, both upward with no score change; one headline moved (django, 3.2 to 3.1).
+All 24 reports differ at byte level: report format 1.1 → 1.2 adds
+`rubricBehaviourFingerprint` to every report. That format change is separate from the
+four rows with scoring-metric changes; it is not evidence that all 24 scores moved. The delta was preregistered before it was run and the
 result matched the prediction in full. That entry also records that three of the five changes
 moved no corpus row and why, that the rescore guard the changelog cites could not have fired
 for this repository, and one over-reach in the content check that is handed to the operator

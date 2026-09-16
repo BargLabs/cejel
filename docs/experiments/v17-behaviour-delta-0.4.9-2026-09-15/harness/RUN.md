@@ -59,3 +59,13 @@ the two runs).
 Verification for the combined record: on 2026-09-15 `compare.mjs` was run from this committed
 path against `out/base` and `out/combined` and its `delta.json` was byte-identical to the
 committed `paired-result.json`.
+
+## Release-tree correction — 2026-09-16
+
+The `20` byte-identical count above describes the historical pre-fingerprint candidate,
+not the shipped 0.4.9 tree. The final result in `../paired-result.json` and
+`leaderboard/RUBRIC_CHANGELOG.md` records zero byte-identical reports: all 24 carry
+`rubricBehaviourFingerprint` and report format 1.2. The four rows with metric changes
+and the single headline change are unchanged. Reproducing the historical combined arm
+above does not reproduce the release artifact. For the release, execute the published
+`@cejel/cejel@0.4.9` entry point at the same corpus pins; do not edit either preregistration.
