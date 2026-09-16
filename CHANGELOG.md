@@ -34,9 +34,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   content-read size limit now gets its own named disclosure line — "declined a large
   implementation file that exceeded the repository content size limit" — when it is the reason a
   signal has nothing to measure, instead of folding into the generic coverage-limit sentence used
-  for an extension exclusion or a non-regular file. Covers A3's `health_readiness_route` and
-  `observability_depth` and `prod_readiness_primitives` today, the three signals that attribute a
-  withheld path to themselves.
+  for an extension exclusion or a non-regular file. Covers the seven signals that attribute a
+  withheld path to themselves: A3's `health_readiness_route`, `observability_depth` and
+  `prod_readiness_primitives`, and A5's `claim_match_rate`, `claim_source_depth`,
+  `reconciliation_artifact_depth` and `negative_space_documentation`.
 
 ### Scoring under the calibrated default
 
@@ -46,9 +47,12 @@ content check in both A1's `verification_script_ratio` and B3's `ci_script_depth
 down), A1's authenticated-absence credits (scores up), the pull-request-template directory
 form in B2 (scores up), and two A3 production-readiness widenings — the observability-depth
 file pattern and the `prod_readiness_primitives` error-boundary check (both up). The
-health/readiness-route widening and the `too_large` abstention-disclosure split ship in this
-release too but are gated to prospective rubrics and cannot move a score under the calibrated
-default; the entry below confirms by measurement that they did not. The full 24-row
+health/readiness-route widening, the `too_large` abstention-disclosure split and the withheld-path
+abstention (A3's three signals and A5's four) ship in this release too but are gated to
+prospective rubrics and cannot move a score under the calibrated default; the entry below confirms
+by measurement that they did not. **The corollary is worth stating plainly rather than leaving to
+inference: a default scan still moves a score when Cejel withholds a file from its own file list.
+That is unfixed for every user who does not pass an explicit rubric pin.** The full 24-row
 before/after corpus delta, per criterion and per metric, is in
 [`leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17"](./leaderboard/RUBRIC_CHANGELOG.md).
 Measured result: 4 of 24 repositories moved — django, vite and the private alfred row on
@@ -83,11 +87,33 @@ rather than adjusted.
   withheld path (over the size limit, not a regular file, unreadable, or excluded by policy) is
   now recorded and can abstain a signal — but only a signal whose *own* file-selection test
   admits that path, so an oversized file a signal was never going to open still abstains nothing.
-  **This mechanism covers exactly three signals, all in A3: `health_readiness_route`,
-  `observability_depth` and `prod_readiness_primitives`, and nothing else**: every other signal
-  that filters the file list still reports a plain absence when its matching file was withheld —
-  including A5's claim-source reads, where the behaviour was originally demonstrated. The calibrated public default
-  (`witan-rubric-v17`) and v22 are unchanged. Counts in `contentReadSummary` are unchanged.
+  **This mechanism covers exactly seven signals and nothing else**: A3's
+  `health_readiness_route`, `observability_depth` and `prod_readiness_primitives`, and A5's
+  `claim_match_rate`, `claim_source_depth`, `reconciliation_artifact_depth` and
+  `negative_space_documentation`. Every other signal that filters the file list still reports a
+  plain absence when its matching file was withheld. Counts in `contentReadSummary` are unchanged.
+  **This applies to the prospective `witan-rubric-v23` rubric only. The calibrated public default
+  (`witan-rubric-v17`) is unchanged and still moves a score when a file is withheld from the file
+  list; so is v22. A default scan — any scan without an explicit rubric pin — behaves exactly as
+  it did in 0.4.8.** Reading this entry as a general fix would be wrong, and the reason the gate
+  has not moved is recorded in
+  [`docs/adr/proposed/0024-withheld-path-abstention-and-the-v17-default.md`](./docs/adr/proposed/0024-withheld-path-abstention-and-the-v17-default.md),
+  which is an open operator decision, not a shipped one.
+- **A5's claim-reality file counts moved when Cejel withheld a file they would have counted.**
+  A5's three metrics are file-count proxies over the scanned file list, and `claim_match_rate` is
+  implementation files over implementation-plus-claim-source files — so withholding one authored
+  implementation file removed it from both sides of the ratio and the ratio fell, with the skip
+  visible only as an anonymous count. Worse, a withheld README made A5 report "nothing is claimed
+  about this repo" — an assertion of inapplicability about a claim source Cejel declined to read.
+  Under `witan-rubric-v23`, each of A5's four file-list-walking signals now abstains on a withheld
+  path its own selection test admits, and a withheld claim source abstains the criterion outright
+  with `insufficientDataReason: 'too_large'` rather than asserting inapplicability. **Known
+  consequence, disclosed rather than adjusted:** abstaining a metric redistributes its weight over
+  the metrics that remain, so where the abstained metric was the criterion's strongest — as
+  `claim_match_rate` is, at half of A5's weight — the criterion's score falls rather than
+  staying put. That is in tension with ADR-0001 ("coverage is disclosed, never discounts a
+  score"), applies equally to A3's already-shipped wiring, and is handed to the operator in the
+  same decision record rather than resolved here. Unchanged under `witan-rubric-v17` and v22.
 - Fixed a reproduced scan hang on a legal 255-byte filename in the default scan path, shared by
   the CLI and MCP servers. The environment-template filename classifiers now use one optional
   segment instead of an ambiguous repeated group. No scoring behaviour changed: both classifiers

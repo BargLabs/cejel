@@ -14,6 +14,7 @@ only by meeting its stated evidence gates; it may also be rejected without creat
 | [0017](0017-three-report-outcomes.md) | Three report outcomes | Governance proposal | Finding, clean, or abstained with a machine-readable reason |
 | [0020](0020-evidence-confidence-and-unmeasurable-metrics.md) | Evidence confidence and unmeasurable metrics | Decision proposal | Per-metric classification committed before any delta; Layer 1 shipped and its confidence distribution published |
 | [0023](0023-trust-anchor-and-signing-model.md) | Trust anchor and signing | Decision proposal | Select and implement a relying-party-verifiable binding |
+| [0024](0024-withheld-path-abstention-and-the-v17-default.md) | Withheld-path abstention and the v17 default | Decision proposal | Operator names an option for the v17 gate and for the metric-abstention discount |
 
 The Repository Evidence Review remains the current commercial offer. It is not displaced by any
 discovery ADR without a documented decision.

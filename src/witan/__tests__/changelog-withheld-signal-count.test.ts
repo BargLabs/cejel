@@ -24,6 +24,8 @@ describe('changelog withheld-path signal count matches the source', () => {
       four: 4,
       five: 5,
       six: 6,
+      seven: 7,
+      eight: 8,
     };
     expect(WORDS[claimedWord ?? ''], `unrecognised count word "${claimedWord}"`).toBe(
       new Set(wired).size,
