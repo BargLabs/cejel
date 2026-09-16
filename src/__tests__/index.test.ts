@@ -401,9 +401,23 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // (b081a329f112522105b221b9a104de33dc69ddf36c7396ec37661f1e658f2ecb) and the 0.4.9 build
     // to the value below; a diff of the two pretty-printed reports is exactly one line,
     // `"toolVersion": "0.4.8"` -> `"0.4.9"` (2026-09-15, release/0.4.9-records).
+    // Re-pinned for report format 1.2 (goal_cejel_rubric_behaviour_fingerprint_2026-09-15): the
+    // report gained rubricBehaviourFingerprint beside rubricVersion. The assertion below is the
+    // mechanical proof that this is the ONLY delta — deleting that one key and re-serializing
+    // with the same serializer (JSON.stringify(report, null, 2), see serializeWitanReport)
+    // reproduces the previous pin byte for byte. A green suite alone would not have shown that.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4',
+      'c6aa7a5c55f2d64652da75f987a279e7ef9eb61bf3c79d94903edf9ccaf75051',
     );
+    const {
+      rubricBehaviourFingerprint,
+      ...withoutFingerprint
+    } = firstReport as { rubricBehaviourFingerprint?: string };
+    expect(rubricBehaviourFingerprint).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(
+      createHash('sha256').update(JSON.stringify(withoutFingerprint, null, 2)).digest('hex'),
+      'the 0.4.9 report bytes must be recoverable by removing exactly the one added field',
+    ).toBe('ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4');
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {

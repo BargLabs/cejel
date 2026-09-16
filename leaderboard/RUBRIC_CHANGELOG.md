@@ -3,14 +3,144 @@
 Every change to how Cejel scores a repository is recorded here, with a full before/after
 delta across the published corpus — score, verdict, and rank for every repository,
 "no repository moved" stated explicitly when that is the result. A rubric version bump
-that ships without an entry here is a bug, not a release: see the rubric-rescore-protocol
-regression guard in the source monorepo's test suite, which fails the build if
-`WITAN_RUBRIC_VERSION` changes without a matching entry below.
+that ships without an entry here is a bug, not a release.
+
+**Two controls enforce that rule, and they see different things.** The first is the
+rubric-rescore-protocol regression guard in the source monorepo's test suite, which fails the
+build if `WITAN_RUBRIC_VERSION` changes without a matching entry below. It is keyed on an
+identifier this project's own authors control, so it cannot see a scoring change made *under an
+unchanged identifier* — and that is not a hypothetical, it happened five times in 0.4.9 under the
+calibrated public default (see the entry below it, and the 2026-09-16 entry that records the
+miss). The second, added on 2026-09-16, does not read the identifier at all:
+`src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` scores a committed corpus of synthetic
+repositories under every selectable rubric and fails when the measured result moves away from a
+committed pin, naming the rubric and the criteria. Every fingerprint it pins is cited in this file,
+so re-pinning one requires writing here.
 
 This changelog exists because a public leaderboard that can silently re-score another
 repository is not a standard, it is a rumor with a number attached — see this repository's
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
+
+## 2026-09-16 — the enforcement named above could not see the change it was written to catch
+
+**Status.** No scoring change. This entry records a MISS in this changelog's own enforcement, and
+the control added to close it. No repository's score, verdict, or rank moves because of anything
+recorded here; the published corpus is untouched and was not re-scored. `WITAN_RUBRIC_VERSION`
+does not change. What changes is what can be detected, and what a certificate discloses.
+
+**The miss, stated plainly.** Until today the single enforcement this file named was a guard that
+fails the build when `WITAN_RUBRIC_VERSION` changes without a matching entry here. That guard is
+keyed on an identifier this project's own authors control. **A change to how Cejel scores a
+repository, made under an unchanged identifier, is invisible to it — not by accident, but by
+construction.** The guard is correct on its own terms and will never fire for that case.
+
+This is not a theoretical gap. On 2026-09-15, five changes in the unreleased 0.4.9 altered scoring
+under `witan-rubric-v17-2026-07-24` — the calibrated public default — with the identifier
+unchanged. Two raised scores, one lowered them, two more widened detectors. The guard did not
+fire. Nothing else noticed until a human compared two arms by hand. The entry immediately below
+this one records that delta in full; this entry records that the control which was supposed to
+compel that entry had no way of knowing it was needed.
+
+The consequence is the one this product exists to prevent. Two certificates can both say
+`witan-rubric-v17-2026-07-24`, be produced at the same revision by different tool versions, carry
+different scores, and neither artifact nor the build record says why. The recorded defence against
+a well-resourced clone is that the public calibration record gives certificates their meaning. A
+record that cannot tell when behaviour changed is not a defence.
+
+**What now detects it.** `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts`, which never
+reads `rubricVersion` to decide whether anything moved. It builds a committed corpus of thirteen
+synthetic repositories (`src/witan/__tests__/fixtures/behaviour-corpus.ts`), scores every one of
+them under every selectable rubric, projects each report down to its scoring-relevant output, and
+compares that against committed pins. The failure names the rubric that moved and the criteria
+that moved, because the pins are decomposed per criterion and per fixture before they are
+digested. It runs in CI on every pull request (about nine seconds).
+
+Per rubric, never aggregate: a combined digest would hide a change that moves a prospective rubric
+and leaves the calibrated default alone. **The v17 digest moving is the serious case, and it is
+separately visible.**
+
+**What the digest covers**: criterion scores and statuses (which is where `insufficient_data`
+surfaces), per-criterion metric values, per-criterion finding counts by severity, the repo
+archetype, `contentReadSummary`, the report verdict, the composite scores, and the
+insufficient-source abstention reason. **What it deliberately excludes**: everything
+per-invocation (product identity, repository path, `generatedAt`, `toolVersion`, and the
+fingerprint field itself), and all prose (finding summaries, metric labels, evidence labels,
+criterion notes, `scanLimitations`) — a wording improvement is not a scoring change, and a guard
+that fires on copy edits is one people learn to re-pin without reading. A finding appearing or
+disappearing still moves its severity count, so the detector change is caught while the sentence
+it produces stays editable.
+
+**What it does not claim.** A matching fingerprint says no *corpus-visible* scoring behaviour
+changed. It is not a coverage claim and must never be quoted as one. The corpus measures A1, A2,
+A3, A4, A5, B2, B3, B4 and B6. It does not measure **B1 (dispatch trace completeness)** or **B5
+(verified learning trace)**, and no fixture could: both lost their collectors in
+`witan-rubric-v3-2026-07-13` because they were reachable only from the source monorepo's own file
+paths, and no public repository scan has emitted a signal for either since. The guard asserts that
+this gap is exactly `{B1, B5}`, so it can neither widen nor quietly close.
+
+**A determinism limitation this corpus made visible.** Up to and including
+`witan-rubric-v18-prospective-2026-07-25`, B4's audit-freshness metric rates an audit artifact
+against the *scan* year rather than anything in the repository — `witan-rubric-v19` is the
+correction, and the `stale-audit-trail` fixture is where the corpus shows the difference. The
+fingerprints below are therefore measured at a pinned `generatedAt` of `2026-09-15`. For v17 and
+v18 the fingerprint is an identity for scoring *at that scan year*; a scan run in a later calendar
+year can score a repository with a dated audit trail differently under those two rubrics without
+any code changing. That has been true since v17 shipped and is not introduced here. It is written
+down here because a behaviour fingerprint that quietly depended on a clock would be the same class
+of defect this entry is about.
+
+**Emitted in the artifact.** `report.json` now carries `rubricBehaviourFingerprint` beside
+`rubricVersion`, so rubric identity and behavioural identity are separately checkable by whoever
+receives the certificate rather than only by this project's CI. That bumps the report contract to
+`reportFormatVersion` 1.2 (`docs/format-stability.md`); the field is additive-optional, so a
+consumer bound to 1.0 or 1.1 is unaffected. **Reports produced by earlier versions do not carry
+the field and their existing attestations remain valid** — absence means "produced before report
+format 1.2", never "behaviour unknown and therefore suspect". The value is a committed constant
+rather than something recomputed per scan (recomputing it costs thirteen git repositories and
+ninety-one scans); what makes it true is the guard above, which re-derives it from the corpus on
+every CI run and fails if it has drifted.
+
+**This does not weaken report reproducibility.** `report.json` remains byte-identical for the same
+tool version scanning the same revision under the same rubric. The new field is a property of the
+(build, rubric) pair, derived from nothing but `rubricVersion`; it contains no timestamp, no path,
+and no per-run state. It changes report bytes across *versions*, exactly as `toolVersion` already
+does, and not across *runs*.
+
+**The fingerprints, as of this entry.** Measured on the corpus at its pinned commits, at
+`generatedAt` `2026-09-15T00:00:00.000Z`. Changing any of these values requires a new entry in
+this file quoting the new digest — that is the mechanism that stops a re-pin from being a silent
+repair, and it is checked mechanically.
+
+| Rubric | Behaviour fingerprint |
+| --- | --- |
+| `witan-rubric-v17-2026-07-24` (calibrated public default) | `sha256:ff0f01abe8c12daa60375d0e18c1aca4a1135a55ab2a80b15f4c037bfc18b4b1` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:abc35df0fdc0749aa941f47b295059d06c96dd9800af7f79cfef2bc8dae917da` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:f670fa2cc44beef066fa38767bd587e1a16fb28b03bc904756daaea5a6465e96` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:9276ce2ce865c2d50c52882ee45bbf1df5fe3c8b6038858b4a147f7a4cedfa98` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:d86411a7fe108bba4d2b8fe7ff9d4f7f69a60f11ca0c5c3fef8e88f66a9af53a` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:1bb57dd98d29b43b170f3a4f1c8b3b379b433a2aa9df0821ab9d5115f48cfb2f` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:b558c0aa4b2f85b734bed2e077298fd55851a1086234d678f10a71cf913ec3cf` |
+
+These seven values are pairwise distinct, and the guard asserts it: the corpus can tell every
+selectable rubric apart from every other, which is the minimum evidence that it reaches what
+separates them. Each prospective rubric moves at least one criterion on at least one fixture
+relative to its predecessor — v18 on A2 (native RLS policy reading), v19 on B4 (freshness year),
+v20 on A3 (direct HTTP entrypoint), v21 on B6 (authored administrative SQL), v22 on A3
+(start-declared entrypoint), v23 on A1 (coverage-capable command flags) and A5 (withheld-path
+abstention).
+
+**What this control still cannot do.** It cannot tell whether the changelog entry a re-pin cites
+is *truthful* — only that one exists and names the new digest. It cannot see a scoring change on a
+repository shape the corpus does not contain; recall gaps are a known limitation of every static
+control here and are priced in. And it cannot detect a change made by an author willing to edit
+the guard, the corpus and this file together. It closes the specific hole that a change made in
+good faith, under an unchanged identifier, ships with nobody knowing.
+
+**Scope note.** The fixture corpus is a *detector*, not a calibration record. It is synthetic,
+invented for this purpose, and carries no precision, recall, or false-positive claim. The
+published corpus (`leaderboard/corpus.json`) remains the only thing a before/after delta in this
+file is measured on.
 
 ## 0.4.9 — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump)
 

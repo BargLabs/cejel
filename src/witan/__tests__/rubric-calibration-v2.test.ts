@@ -218,10 +218,18 @@ describe('v19 B4 freshness is bound to immutable HEAD committer metadata', () =>
     const v17 = score(WITAN_RUBRIC_VERSION_V17);
     const v18 = score(WITAN_RUBRIC_VERSION_V18);
 
-    expect({ ...v17, rubricVersion: 'historical-normalized' }).toEqual({
-      ...v18,
+    // Both IDENTITY fields are normalized away, not just the name. rubricVersion says which
+    // rubric ran; rubricBehaviourFingerprint (report format 1.2) says how that rubric behaves on
+    // the committed fixture corpus. Neither is an output of scoring THIS repository, and v17 and
+    // v18 necessarily differ on both — they are different rubrics. What this test asserts is that
+    // nothing SCORED differs, which is what "byte-compatible outside v18's native-RLS scope"
+    // meant before the fingerprint existed.
+    const normalized = (report: typeof v17) => ({
+      ...report,
       rubricVersion: 'historical-normalized',
+      rubricBehaviourFingerprint: 'historical-normalized',
     });
+    expect(normalized(v17)).toEqual(normalized(v18));
   });
 
   it('is invariant to generatedAt while v18 retains its historical run-year behavior', () => {
