@@ -407,6 +407,22 @@ const WitanReportCommonSchema = z.object({
   productDisplayName: z.string().min(1).max(120),
   repo: WitanRepoRefSchema,
   rubricVersion: z.string().min(1).max(120),
+  // The MEASURED behavioural identity of the rubric named above, sitting deliberately beside it:
+  // `rubricVersion` is a name the author controls, this is a digest of how that rubric actually
+  // scores a published synthetic corpus (src/witan/behaviour-fingerprint.ts). Two certificates
+  // naming the same rubricVersion and carrying different fingerprints were produced by tools
+  // that score differently, and a consumer can see that without our help — which is the whole
+  // point, because the version string could not tell them.
+  //
+  // Absent, never fabricated, in three cases: reports produced before this field existed (report
+  // format 1.1 and earlier); a caller-supplied rubric that is not the free-core rubric, whose
+  // criteria the corpus does not exercise; and any rubric with no pinned fingerprint. Consumers
+  // ignore fields they do not understand (report format v1 rule), so its absence is never a
+  // failure — see docs/format-stability.md.
+  rubricBehaviourFingerprint: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
   // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
   criteria: z.array(WitanCriterionScoreSchema).min(1),
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
@@ -482,7 +498,10 @@ export const WITAN_ATTESTATION_STATEMENT_TYPE = 'https://in-toto.io/Statement/v1
 export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/scan/v1' as const;
 // 1.1 (0.4.8, goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08): report.json gained an
 // optional toolVersion field. See WitanReportCommonSchema.toolVersion.
-export const WITAN_REPORT_FORMAT_VERSION = '1.1' as const;
+// 1.2 (goal_cejel_rubric_behaviour_fingerprint_2026-09-15): report.json gained an optional
+// rubricBehaviourFingerprint field. Additive-optional, same as 1.1 — a 1.1 consumer ignores it
+// and keeps working, and artifacts already emitted under 1.1 stay valid without it.
+export const WITAN_REPORT_FORMAT_VERSION = '1.2' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

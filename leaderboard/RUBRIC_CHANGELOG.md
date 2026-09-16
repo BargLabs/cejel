@@ -7,10 +7,141 @@ that ships without an entry here is a bug, not a release: see the rubric-rescore
 regression guard in the source monorepo's test suite, which fails the build if
 `WITAN_RUBRIC_VERSION` changes without a matching entry below.
 
+**That guard keys on a name, and a name cannot report on a change made beneath it.** It fires
+when `WITAN_RUBRIC_VERSION` changes. It is silent, correctly by its own definition, when scoring
+changes under an unchanged identifier — which is what 0.4.9 did, five times, under the calibrated
+public default. The detector that does not depend on anyone having renamed anything is the
+**rubric behaviour fingerprint**: a published synthetic corpus scored under every selectable
+rubric, reduced to a digest per rubric, pinned in `src/witan/behaviour-fingerprint.ts` and
+recorded in the table below. It is measured, not declared. See "Rubric behaviour fingerprints"
+immediately after this preamble for what it covers, what it cannot see, and how it is enforced.
+
 This changelog exists because a public leaderboard that can silently re-score another
 repository is not a standard, it is a rumor with a number attached — see this repository's
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
+
+## Rubric behaviour fingerprints — the current pinned values
+
+**What this is.** `rubricVersion` is a name the author of a change controls. These digests are a
+measurement of how each rubric actually scores. Ten synthetic fixtures — invented for this
+purpose, committed in `src/witan/__tests__/behaviour-corpus.ts`, derived from no real repository
+and no counterparty — are scored under every selectable rubric, and the scoring-relevant output is
+reduced to one sha256 per rubric.
+
+**The digest covers**, per criterion: id, status (where `insufficient_data` and `not_applicable`
+are expressed), score, `nativeScore`, and every metric's name, value, max and weight. Per report:
+verdict, `overallScore`, both category scores, `categoryScores`, `insufficientSourceReason`, and
+content-read skip counts by reason with the criteria they affected.
+
+**The digest deliberately excludes** everything per-invocation — product identity, repository path
+and revision, `generatedAt`, `toolVersion`, and the emitted `rubricBehaviourFingerprint` field
+itself, which would otherwise be circular — plus evidence pointers and findings (both carry
+repository paths), `contentReadSummary.unreadableByErrno` (a property of the scanning machine),
+and prose notes. **The consequence is a real limitation, stated rather than discovered later: a
+change that alters only findings or evidence wording does not move these digests unless it also
+moves a score, a status or a metric.**
+
+**Criterion coverage.** Every criterion a repository scan can measure — A1, A2, A3, A4, A5, B2,
+B3, B4, B6 — is reached with a measured (non-N/A) result by at least one fixture, asserted
+mechanically rather than claimed. **B1 (dispatch trace) and B5 (verified learning trace) are never
+measured by any repository scan**: `buildWitanInputFromRepo` returns them as `not_applicable`
+unconditionally, because no repository tree carries those process dimensions. No fixture can move
+them and none pretends to.
+
+| Rubric | Behaviour fingerprint (sha256) |
+| --- | --- |
+| `witan-rubric-v17-2026-07-24` (calibrated public default) | `2ad7a1e686ebde69a4f723f5bde12acaa37aadb0c8d1871656dece87ea953928` |
+| `witan-rubric-v18-prospective-2026-07-25` | `c532d137dde032ec1cd21b2aa91b557760c30b0eb815dce1bc5c35525b2fe08f` |
+| `witan-rubric-v19-prospective-2026-08-09` | `b945f98247e52366f53f512ada5daddfaf8eb92f31f159a64a4489b0e90ba322` |
+| `witan-rubric-v20-prospective-2026-08-10` | `9c28c5d2c191128e2eab17d297d11c8112ac4420651ed3aea233dee2eea1d010` |
+| `witan-rubric-v21-prospective-2026-08-10` | `99ecf663de92baa94276b024972c570acb84cb0e93d66b5dba57abe251e2cda6` |
+| `witan-rubric-v22-prospective-2026-08-10` | `fe859dcaabdf84489a79f8fdda039b8c0695e31e5aae11c18e6ce34eb6103402` |
+| `witan-rubric-v23-prospective-2026-09-06` | `306eb4b4e33f3d2e0c6fa7a7516fb47f8c394fadfb322dd5f433983bfb6c19c2` |
+
+These seven values are all distinct, and that is asserted: a corpus that scored two rubrics
+identically could not tell a change to one from a change to the other. The corpus separates every
+adjacent pair by the mechanism that rubric documents — v18 by A2 (native RLS credit), v19 by B4
+(commit-year audit freshness), v20 by A3 (direct Node HTTP entrypoint), v21 by B6 (executed
+administrative SQL), v22 by A3 (package `start` entrypoint), v23 by A1, A2 and A5 (coverage-command
+recognition, the PEM private-key grammar, and withheld-path abstention).
+
+**How a value here changes.** `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` fails when
+a digest moves, naming the rubric, the criteria and the fixtures. There is no script that rewrites
+the pins, and the assertions are literal equality rather than snapshots, so `vitest -u` cannot
+silence them. `rubric-behaviour-fingerprint-record.test.ts` additionally requires every pinned
+digest to appear verbatim in this file — so a digest cannot move without this table moving, and
+this table cannot move without somebody editing the document whose purpose is that a score never
+changes silently. The two acceptable resolutions are the two the failure message names: a full
+before/after delta across the published corpus, or an explicit statement that the corpus or the
+projection changed and scoring did not. This mechanism cannot check that the prose is honest. It
+can, and does, make the prose unavoidable.
+
+**These values are not a calibration claim.** A fingerprint says how a rubric scores this corpus.
+It says nothing about precision, recall, or the standing calibration status of any rubric — the
+six prospective entries above remain uncalibrated and opt-in exactly as before.
+
+## Unreleased (after 0.4.9) — this changelog's enforcement was blind to the case below it, and says so
+
+**No scoring changed in this entry.** No repository moved. No criterion, metric, status, score,
+verdict or abstention changed under any rubric, and the seven fingerprints in the table above are
+the values the current tree produces — first measurement, nothing re-pinned. This entry exists to
+record a defect in the *enforcement* this document has cited since its first line, and to name
+what now detects it.
+
+**The defect.** The preamble of this file says a rubric version bump that ships without an entry
+is a bug, and names its enforcement: a guard that fails the build if `WITAN_RUBRIC_VERSION`
+changes without a matching entry. **That guard is keyed on an identifier the author of the change
+controls.** It fires when the name changes. It cannot fire when the name does not — which is not
+a bug in the guard, it is the guard's definition, and it means the guard is structurally incapable
+of detecting the case this document most needs detected.
+
+**It happened, here, in this release.** The 0.4.9 entry immediately below records five changes
+that moved scores under `witan-rubric-v17-2026-07-24`, the calibrated public default, with the
+identifier untouched. Two raised scores, one lowered them, two more moved metrics. The guard did
+not fire. Nothing else noticed until a human read the diff. Two certificates could both say
+`witan-rubric-v17-2026-07-24`, be produced at the same revision by tools from either side of that
+release, carry different scores, and neither artifact nor the build record would say why.
+
+That is the failure mode this product exists to refuse, in the document whose entire purpose is to
+prevent it. The recorded defence against a well-resourced clone is that the public calibration
+record gives certificates their meaning; a record that cannot tell when behaviour changed is not
+a defence.
+
+**What now detects it.** Scoring behaviour is measured directly instead of inferred from a version
+string, and the measurement is published:
+
+1. **A behaviour fingerprint per rubric.** Ten synthetic fixtures scored under all seven selectable
+   rubrics, reduced to one digest each, pinned in `src/witan/behaviour-fingerprint.ts` and tabled
+   above. `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts` fails when a digest moves,
+   naming the rubric, the criteria and the fixtures, and saying in the failure message that the
+   only acceptable resolutions are a corpus delta recorded here or a stated reason the fixture
+   digest moved without scoring changing. Per rubric and never aggregated: a combined digest would
+   let a change that moves v23 and leaves v17 alone read identically to the reverse, and the v17
+   case is the serious one.
+2. **The pins cannot be regenerated quietly.** There is no regeneration script, the assertions are
+   literal equality rather than snapshots (so `vitest -u` does nothing), and
+   `rubric-behaviour-fingerprint-record.test.ts` requires every pinned digest to appear verbatim in
+   this file. Moving a pin without editing this document fails the build.
+3. **The fingerprint is on the artifact, not only in the build.** `report.json` now carries
+   `rubricBehaviourFingerprint` beside `rubricVersion`, so rubric identity and behavioural identity
+   are separately checkable by whoever receives a certificate — a consumer holding two certificates
+   can tell "same rubric, same scoring" from "same rubric, different scoring" without access to
+   this repository. Report format moves 1.1 → 1.2 (additive-optional; see
+   `docs/format-stability.md`). Artifacts produced by earlier versions do not carry the field and
+   their existing attestations remain valid.
+
+**What this does not fix.** The fingerprint is measured over a corpus, so it detects a change that
+moves that corpus. A scoring change reachable only by a repository shape no fixture contains is
+still invisible — recall against unknown shapes is not something a fixture corpus can claim, and
+this entry does not claim it. The corpus's stated coverage is above; B1 and B5 are structurally
+unreachable and named as such. The projection's exclusions (findings, evidence, prose) are listed
+above and are a real blind spot, not an oversight. What changed is that a scoring change under an
+unchanged identifier now has to get past a measurement instead of past a name.
+
+**The generalisable shape, for the record.** A control keyed on a declared identifier cannot detect
+a change made beneath that identifier, and the more trusted the identifier, the longer the gap
+survives — because nobody re-derives what the trusted name is standing in for.
 
 ## 0.4.9 — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump)
 

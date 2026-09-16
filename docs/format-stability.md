@@ -9,13 +9,22 @@ never be converted into a default pass or fail.
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
 | Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.1` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.2` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
 
 `rubricVersion` versions the evidence and scoring rubric, not the JSON container. The attestation's
 `predicate.tool.version` identifies the producing Cejel build, not a format. Consumers should retain
 all three distinctions.
+
+`rubricBehaviourFingerprint` (report format 1.2 and later) is a fourth, different thing again:
+`rubricVersion` is a *name*, and the fingerprint is a *measurement* of how the rubric under that
+name actually scores. The two are emitted side by side deliberately. Two reports naming the same
+`rubricVersion` and carrying different fingerprints were produced by tools that score differently —
+which is exactly the case a version string cannot report, and the case a gate comparing two
+certificates should treat as material. See `leaderboard/RUBRIC_CHANGELOG.md`, "Rubric behaviour
+fingerprints", for what the digest covers, what it deliberately excludes, and the current pinned
+values.
 
 The report version lives in the paired attestation so existing no-ingest `report.json` artifacts
 remain byte-identical. A gate must already retain the pair to verify that the report digest matches
@@ -35,6 +44,15 @@ Stable in report format v1:
 - external attribution: `consumedSignals`, including source, provenance, dimension, counts, score
   adjustment, and itemized findings; and
 - disclosed limitations: `scanLimitations` and `contentReadSummary` when present.
+
+Additive-optional since report format 1.2: `rubricBehaviourFingerprint`, a 64-character lowercase
+hex sha256 beside `rubricVersion`. Its **boundary**: reports produced by Cejel versions before this
+field existed do not carry it, and their attestations remain valid unchanged — absence means "this
+build did not emit a fingerprint", never "the fingerprint did not match". It is also absent, never
+fabricated, for a caller-supplied rubric outside the free-core criterion set and for any rubric with
+no pinned fingerprint. A consumer comparing two certificates may treat *differing present*
+fingerprints under an identical `rubricVersion` as a scoring difference; it must not infer anything
+from an absent one.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering

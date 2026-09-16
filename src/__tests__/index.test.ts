@@ -401,9 +401,27 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // (b081a329f112522105b221b9a104de33dc69ddf36c7396ec37661f1e658f2ecb) and the 0.4.9 build
     // to the value below; a diff of the two pretty-printed reports is exactly one line,
     // `"toolVersion": "0.4.8"` -> `"0.4.9"` (2026-09-15, release/0.4.9-records).
+    // Re-pinned again for the rubric behaviour fingerprint
+    // (goal_cejel_rubric_behaviour_fingerprint_2026-09-15): report.json gained the optional
+    // `rubricBehaviourFingerprint` field, report format 1.1 -> 1.2. The previous pin was
+    // ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4, and the assertion below
+    // this one proves the delta is exactly that one added line and nothing else — stated as an
+    // assertion rather than a comment, because a comment cannot be checked.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4',
+      '84fec83a6fd69e7277329eee5ba561d9fe79774297b9dd8a3a2e2f71306ad50f',
     );
+    const reportLines = firstReportJson.split('\n');
+    const fingerprintLines = reportLines.filter((line) =>
+      line.includes('"rubricBehaviourFingerprint"'),
+    );
+    expect(fingerprintLines, 'exactly one fingerprint line is expected').toHaveLength(1);
+    expect(
+      createHash('sha256')
+        .update(reportLines.filter((line) => !line.includes('"rubricBehaviourFingerprint"')).join('\n'))
+        .digest('hex'),
+      'removing only the rubricBehaviourFingerprint line must reproduce the pre-fingerprint pin — ' +
+        'if it does not, this re-pin carried a change that is not the new field',
+    ).toBe('ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4');
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {

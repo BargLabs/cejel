@@ -31,6 +31,7 @@ import {
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_NO_MEASUREMENT_REASON,
 } from './abstention.js';
+import { rubricBehaviourFingerprint } from './behaviour-fingerprint.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
   WITAN_RUBRIC_VERSION_V10,
@@ -239,11 +240,25 @@ export function createWitanReport(
     (noMeasurementAbstention ? WITAN_NO_MEASUREMENT_REASON : undefined);
   const abstained = insufficientSourceReason != null;
 
+  // The behavioural identity of the rubric that actually ran, emitted beside its name so a
+  // consumer holding two certificates can tell "same rubric, same scoring" from "same rubric,
+  // different scoring" without trusting the name. It is a lookup, not a computation: the digest
+  // is a constant of this build, measured against the published corpus by
+  // __tests__/rubric-behaviour-fingerprint.test.ts on every PR, so emitting it costs nothing per
+  // scan and cannot make report.json vary between two runs of the same version at the same
+  // revision. Gated on isFreeCoreRubric because the fingerprint is measured over the free-core
+  // criteria: attaching it to a caller-supplied rubric (the trading rubric) would assert
+  // something the corpus never measured. Absent, never defaulted, when unpinned.
+  const behaviourFingerprint = isFreeCoreRubric
+    ? rubricBehaviourFingerprint(parsedInput.rubricVersion)
+    : undefined;
+
   return WitanReportSchema.parse({
     productSlug: parsedInput.productSlug,
     productDisplayName: parsedInput.productDisplayName,
     repo: parsedInput.repo,
     rubricVersion: parsedInput.rubricVersion,
+    ...(behaviourFingerprint ? { rubricBehaviourFingerprint: behaviourFingerprint } : {}),
     verdict: abstained ? 'insufficient_source' : witanVerdictForScore(overallScore),
     codeTrustScore: abstained ? null : codeTrustScore,
     processTrustScore: abstained ? null : processTrustScore,

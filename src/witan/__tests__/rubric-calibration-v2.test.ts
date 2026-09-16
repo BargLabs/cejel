@@ -218,10 +218,18 @@ describe('v19 B4 freshness is bound to immutable HEAD committer metadata', () =>
     const v17 = score(WITAN_RUBRIC_VERSION_V17);
     const v18 = score(WITAN_RUBRIC_VERSION_V18);
 
-    expect({ ...v17, rubricVersion: 'historical-normalized' }).toEqual({
-      ...v18,
+    // Both rubric IDENTITY fields are normalized away, and only those two. `rubricVersion` is
+    // the rubric's name; `rubricBehaviourFingerprint` is the measured identity of that same
+    // rubric (src/witan/behaviour-fingerprint.ts) and necessarily differs between v17 and v18,
+    // because the two rubrics DO score differently in general — that is what the fingerprint is
+    // for. Neither is an output of scoring this fixture, which is what "byte-compatible" is
+    // asserting: every score, status, metric, finding and evidence pointer below is identical.
+    const normalizeRubricIdentity = (report: ReturnType<typeof score>) => ({
+      ...report,
       rubricVersion: 'historical-normalized',
+      rubricBehaviourFingerprint: 'historical-normalized',
     });
+    expect(normalizeRubricIdentity(v17)).toEqual(normalizeRubricIdentity(v18));
   });
 
   it('is invariant to generatedAt while v18 retains its historical run-year behavior', () => {

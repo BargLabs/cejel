@@ -59,6 +59,13 @@ interface Fixture {
   readonly files: Record<string, string>;
   readonly fixtureHeadSha: string;
   readonly reportSha256: string;
+  /**
+   * The same report with `rubricBehaviourFingerprint` removed, which is byte-for-byte the report
+   * this fixture produced before that field existed — so this value is literally the 0.4.9 pin,
+   * unchanged. See the re-pin note above `FIXTURES`: carrying both hashes is what turns "the only
+   * delta is the added field" from a claim in a comment into an assertion.
+   */
+  readonly reportSha256WithoutFingerprint: string;
   /** criterionId.metricName -> pinned value */
   readonly pinnedMetrics: Record<string, number | null>;
 }
@@ -66,6 +73,14 @@ interface Fixture {
 const TEST_FILE = "import { expect, it } from 'vitest';\nit('works', () => expect(1).toBe(1));\n";
 const CI = 'name: ci\non: [push]\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n';
 
+// RE-PINNED ONCE, for a NON-SCORING reason, recorded here rather than left to be rediscovered:
+// goal_cejel_rubric_behaviour_fingerprint_2026-09-15 added the optional
+// `rubricBehaviourFingerprint` field to report.json (report format 1.1 -> 1.2). Every whole-report
+// hash below therefore moved. No score, status, metric or verdict did — `pinnedMetrics` below is
+// untouched, and `reportSha256WithoutFingerprint` carries the EXACT 0.4.9 pin each fixture had
+// before, asserted below after removing only that one field. If a future reader wonders whether
+// this re-pin smuggled a scoring change through, that second hash is the answer and the test
+// proves it on every run.
 const FIXTURES: readonly Fixture[] = [
   {
     // 0.4.9 change 1, direction DOWN, the shape that moved django/vite/alfred on the corpus:
@@ -83,7 +98,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: 'c031d17f2cc56a38ca1fc4d1b77daa18f5b14abbe071cc5a56e1b9389b01ff83',
+    reportSha256: 'd7e42ceb2c9aa26641afd6b3b113d030abba7f518b08e882fb70d020a3c1a259',
+    reportSha256WithoutFingerprint: 'c031d17f2cc56a38ca1fc4d1b77daa18f5b14abbe071cc5a56e1b9389b01ff83',
     // v0.4.8: ci_script_depth 5. The CI workflow still credits A1's test command (`npm test`
     // in ci.yml), so A1.verification_script_ratio is 3 on both sides — only B3 moves.
     pinnedMetrics: { 'B3.ci_script_depth': 4, 'A1.verification_script_ratio': 3 },
@@ -103,7 +119,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: 'e581f21bec10b462c8388c4ddc16fa8585e5e0591e021d17c7e61aba7613bee5',
+    reportSha256: '82a0006b0f77f5234d87b70b97057a12d9e42c78aa2cf37c62d7848bccbd09f0',
+    reportSha256WithoutFingerprint: 'e581f21bec10b462c8388c4ddc16fa8585e5e0591e021d17c7e61aba7613bee5',
     // v0.4.8: ci_script_depth 3, verification_script_ratio 2, overall 1.4 (now 1.1).
     pinnedMetrics: { 'B3.ci_script_depth': 2, 'A1.verification_script_ratio': 1 },
   },
@@ -122,7 +139,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: '320dbe33b3ce26483d79f56f022e2d1afdac61f04d233117e67a3fac04025632',
+    reportSha256: 'ee4d12876a50d6be5d800bc0be47b8025d58e224fe9fafa064276fb1ad27375e',
+    reportSha256WithoutFingerprint: '320dbe33b3ce26483d79f56f022e2d1afdac61f04d233117e67a3fac04025632',
     // v0.4.8: verification_script_ratio 0, A1 score 0, overall 0.8 (now 2 / 0.5 / 0.9).
     pinnedMetrics: { 'A1.verification_script_ratio': 2 },
   },
@@ -139,7 +157,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: 'f560cf535210f3c9f87e4a7badc6f239b210c3f71f27afe9685aef1aaf893e31',
+    reportSha256: '97fccb03661da0d725b211451d5f55914b4c4c84e8a13c9445dc0abda39fa4f1',
+    reportSha256WithoutFingerprint: 'f560cf535210f3c9f87e4a7badc6f239b210c3f71f27afe9685aef1aaf893e31',
     // v0.4.8: pr_trace_primitives 1, B2 score 1.6, overall 1.3 (now 2 / 3.2 / 1.7).
     pinnedMetrics: { 'B2.pr_trace_primitives': 2 },
   },
@@ -183,6 +202,18 @@ describe('v17 scoring surface is pinned — a behaviour change under the calibra
       expect(observed, `${fixture.name}: a pinned v17 metric moved — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toEqual(fixture.pinnedMetrics);
       const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
       expect(hash, `${fixture.name}: v17 report changed under an unchanged rubric identifier — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toBe(fixture.reportSha256);
+      // The same report minus the additive rubricBehaviourFingerprint field must still hash to
+      // the pin this fixture carried before that field existed. This is what keeps the one
+      // non-scoring re-pin in this file honest, permanently: a future change that moves scoring
+      // AND adds a field cannot hide behind "it was just the new field".
+      const { rubricBehaviourFingerprint: _fingerprint, ...withoutFingerprint } = report as Record<
+        string,
+        unknown
+      >;
+      expect(
+        createHash('sha256').update(JSON.stringify(withoutFingerprint)).digest('hex'),
+        `${fixture.name}: with rubricBehaviourFingerprint removed this report no longer matches its pre-fingerprint pin — something other than that field changed`,
+      ).toBe(fixture.reportSha256WithoutFingerprint);
     });
   }
 });
