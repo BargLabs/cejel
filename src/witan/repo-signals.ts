@@ -3925,7 +3925,7 @@ function collectB2PrTraceEvidence(
   // form (.github/PULL_REQUEST_TEMPLATE/<name>.md, used to offer multiple templates) — matching
   // only the file form reported a repo using the directory form as having no PR template.
   const prTemplate = repoFiles.find((file) =>
-    /(^|\/)(pull_request_template|PULL_REQUEST_TEMPLATE)(\.md$)/.test(file),
+    /(^|\/)(pull_request_template|PULL_REQUEST_TEMPLATE)(\.md$|\/[^/]+\.md$)/.test(file),
   );
   const branchProtectionDoc = repoFiles.find((file) =>
     /branch.*protection|review.*gate|CODEOWNERS/i.test(file),
