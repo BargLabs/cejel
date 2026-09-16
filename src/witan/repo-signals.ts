@@ -1776,6 +1776,7 @@ function collectRepoSignals(
       repoPath,
       repoFiles,
       useV27Detectors,
+      useV23WithheldPathAbstention,
       inventoryAbsenceContext,
     ),
   );
@@ -3704,8 +3705,44 @@ function collectA5ClaimRealityEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   useV27Detectors: boolean,
+  useV23WithheldPathAbstention: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
+  // A5's three metrics are file-count proxies over repoFiles, and a file Cejel withheld from that
+  // list under its own content ceiling never reaches any of the filters below: the count simply
+  // comes back one lower, indistinguishable from a repository that does not have the file.
+  // `claim_match_rate` is implementation files over implementation-plus-claim-source files, so a
+  // withheld implementation file leaves BOTH sides of the ratio and the ratio itself falls —
+  // silently, with the skip disclosed only as an anonymous count in contentReadSummary. That is
+  // the demonstrated instance of the same seam #304 closed for A3's health_readiness_route.
+  //
+  // Abstain the affected signal instead, on an EARNED match only: each predicate handed to
+  // abstainSignalOnWithheldPaths below is the signal's own file-selection test, shared by
+  // reference with the live filter, never an extension map or a path-shape heuristic — the
+  // over-abstention goal_cejel_0_4_8_abstention_scoring_fix_2026-09-08 removed stays removed.
+  //
+  // Placed before the not-applicable return below deliberately: a withheld README is the case
+  // where this criterion asserts "nothing is claimed about this repo" about a repository whose
+  // claim source Cejel declined to read, which is a false assertion rather than a low score.
+  const claimImplementationReads = claimImplementationFileReads(useV27Detectors);
+  if (useV23WithheldPathAbstention) {
+    abstainSignalOnWithheldPaths(
+      'A5',
+      'claim_match_rate',
+      (file) => claimImplementationReads(file) || isClaimSourceFile(file),
+    );
+    abstainSignalOnWithheldPaths('A5', 'claim_source_depth', isClaimSourceFile);
+    abstainSignalOnWithheldPaths(
+      'A5',
+      'reconciliation_artifact_depth',
+      isClaimRealityReconciliationPath,
+    );
+    abstainSignalOnWithheldPaths(
+      'A5',
+      'negative_space_documentation',
+      isNegativeSpaceDocCandidate,
+    );
+  }
   const reconciliationArtifacts = useV27Detectors
     ? findClaimRealityReconciliationArtifacts(repoPath, repoFiles)
     : [];
@@ -3732,6 +3769,9 @@ function collectA5ClaimRealityEvidence(
     );
   }
 
+  // Same predicate object the withheld-path check above consulted: findClaimImplementationFiles
+  // is claimImplementationFileReads applied to the list, so the live filter and the abstention
+  // test cannot diverge.
   const implementationFiles = findClaimImplementationFiles(repoFiles, useV27Detectors);
   if (implementationFiles.length === 0) return null;
   const implementationFile = implementationFiles[0];
@@ -3777,7 +3817,7 @@ function collectA5ClaimRealityEvidence(
   const negativeSpaceCandidates = new Set([
     claimDoc,
     ...allDocFiles,
-    ...repoFiles.filter((file) => /(^|\/)(SECURITY|THREAT[_-]?MODEL)\.md$/i.test(file)),
+    ...repoFiles.filter(isSecurityOrThreatModelDoc),
   ]);
   // Scoped to 'negative_space_documentation': feeds no metric (A5's three metrics are all
   // file-count proxies, never content-derived — see this goal's report), only the evidence
@@ -6160,25 +6200,45 @@ export function findPackagedApplicationPremiseFiles(
     .filter((file) => packageJsonDescribesPackagedApplication(repoPath, file, repoFiles));
 }
 
+// The file-selection half of each repoFiles-walking A5 signal, named once so the live filter and
+// the withheld-path check consult literally the same test and cannot drift — the same discipline
+// A3's healthReadinessRouteReads/observabilityDepthReads follow. Each is a path test only: it is
+// the predicate that decides which files the signal looks at, never a content judgement, and
+// never an extension map or a criterion association (see abstainSignalOnWithheldPaths).
+export function isClaimSourceFile(file: string): boolean {
+  return /^(?:README|readme)\.md$/.test(file) || /^docs\/[^/]+\.(?:md|mdx)$/.test(file);
+}
+
+export function isClaimRealityReconciliationPath(file: string): boolean {
+  return /(^|\/)claim[-_]reality[-_]reconciliation\.(?:md|mdx|json)$/i.test(file);
+}
+
+export function isSecurityOrThreatModelDoc(file: string): boolean {
+  return /(^|\/)(SECURITY|THREAT[_-]?MODEL)\.md$/i.test(file);
+}
+
+export function isNegativeSpaceDocCandidate(file: string): boolean {
+  return isClaimSourceFile(file) || isSecurityOrThreatModelDoc(file);
+}
+
+export function claimImplementationFileReads(authoredOnly: boolean): (file: string) => boolean {
+  return (file) =>
+    isImplementationFile(file) && (!authoredOnly || isAuthoredProductionPath(file));
+}
+
 export function findClaimSourceFiles(repoFiles: readonly string[]): string[] {
-  return repoFiles
-    .filter(
-      (file) => /^(?:README|readme)\.md$/.test(file) || /^docs\/[^/]+\.(?:md|mdx)$/.test(file),
-    )
-    .sort((left, right) => {
-      const leftRootReadme = /^(?:README|readme)\.md$/.test(left);
-      const rightRootReadme = /^(?:README|readme)\.md$/.test(right);
-      return Number(rightRootReadme) - Number(leftRootReadme) || left.localeCompare(right);
-    });
+  return repoFiles.filter(isClaimSourceFile).sort((left, right) => {
+    const leftRootReadme = /^(?:README|readme)\.md$/.test(left);
+    const rightRootReadme = /^(?:README|readme)\.md$/.test(right);
+    return Number(rightRootReadme) - Number(leftRootReadme) || left.localeCompare(right);
+  });
 }
 
 export function findClaimImplementationFiles(
   repoFiles: readonly string[],
   authoredOnly = false,
 ): string[] {
-  return repoFiles.filter(
-    (file) => isImplementationFile(file) && (!authoredOnly || isAuthoredProductionPath(file)),
-  );
+  return repoFiles.filter(claimImplementationFileReads(authoredOnly));
 }
 
 export function findClaimRealityReconciliationArtifacts(
@@ -6186,7 +6246,7 @@ export function findClaimRealityReconciliationArtifacts(
   repoFiles: readonly string[],
 ): string[] {
   return repoFiles
-    .filter((file) => /(^|\/)claim[-_]reality[-_]reconciliation\.(?:md|mdx|json)$/i.test(file))
+    .filter(isClaimRealityReconciliationPath)
     .filter((file) => isAuthenticatedClaimRealityArtifact(repoPath, file));
 }
 
