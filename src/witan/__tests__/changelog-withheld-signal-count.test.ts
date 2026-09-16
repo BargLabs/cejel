@@ -15,9 +15,19 @@ describe('changelog withheld-path signal count matches the source', () => {
     expect(wired.length).toBeGreaterThan(0);
     const changelog = readFileSync('CHANGELOG.md', 'utf8');
     const claim = changelog.match(/This mechanism covers exactly (\w+) signals?/);
-    expect(claim, 'the changelog must state how many signals the mechanism covers').not.toBeNull();
-    const WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-    expect(WORDS[claim![1]]).toBe(new Set(wired).size);
+    const claimedWord = claim?.[1];
+    expect(claimedWord, 'the changelog must state how many signals the mechanism covers').toBeDefined();
+    const WORDS: Record<string, number | undefined> = {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+    };
+    expect(WORDS[claimedWord ?? ''], `unrecognised count word "${claimedWord}"`).toBe(
+      new Set(wired).size,
+    );
     for (const signal of new Set(wired)) {
       expect(changelog, `changelog must name the wired signal ${signal}`).toContain(signal);
     }
