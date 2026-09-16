@@ -36,5 +36,25 @@
       "repository": "BargLabs/cejel",
       "number": 324
     }
+  },
+  {
+    "statement": "A download-and-checksum recipe must stop execution when either download or verification fails. A site recipe that prints a checksum result and then independently runs chmod and the binary can execute a leftover or corrupt file after verification fails. Prefix the recipe with fail-fast shell behavior and test a deliberately wrong checksum to prove the executable is never invoked; also run the real release URL recipe and report a missing asset as a failure rather than a completed verification.",
+    "scope": [
+      "cejel",
+      "release",
+      "consumer-recipes"
+    ],
+    "tags": [
+      "checksum-failure",
+      "fail-closed-execution"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 324
+    }
   }
 ]
