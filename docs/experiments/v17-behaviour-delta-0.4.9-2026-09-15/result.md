@@ -4,12 +4,7 @@ Human rendering of `paired-result.json`. The public entry is
 `leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17-2026-07-24".
 
 - Baseline arm: cejel source at `7606392` (the `v0.4.8` commit), `package.json` 0.4.8.
-- Candidate arm: `fe4210a` (`origin/main` on 2026-09-15) with both remaining 0.4.9 scoring
-  branches merged in at their post-review heads. Both were squash-merged, so on `main` that work
-  is `dad7841` (A3 runtime-pattern coverage) and `90371ea` (certificate scope disclosure), with
-  `2af3407` the release commit. Verified after the merges: no non-test file under `src/` differs
-  between the scored tree and `main`, so the scanner measured is the scanner shipped. Both merge with no conflicts; the arm is
-  content-identical to the tree 0.4.9 ships once they land. `package.json` 0.4.8 in both arms.
+- Candidate arm: cejel source at `9df6f31`, the tree this release tags.
 - Rubric: `witan-rubric-v17-2026-07-24` (calibrated public default) in both arms.
 - `generatedAt` fixed at `2026-09-15T00:00:00.000Z` in both arms.
 - Corpus: `leaderboard/corpus.json`, sha256 `dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00`
@@ -32,7 +27,8 @@ Human rendering of `paired-result.json`. The public entry is
 
 ## Result
 
-24/24 rows completed in both arms. 20 reports byte-identical. 4 rows moved, exactly the 4
+24/24 rows completed in both arms. 0 reports byte-identical (report format 1.1 to 1.2 adds
+`rubricBehaviourFingerprint` to all 24; not a scoring difference — see the rubric entry). 4 rows moved, exactly the 4
 predicted, on exactly the 2 predicted metrics.
 
 `B3.ci_script_depth`, all down: django 3 → 2 (B3 3.6 → 3.1, process 3.8 → 3.6, overall

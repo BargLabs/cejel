@@ -2,7 +2,7 @@
   "summary": {
     "rows": 24,
     "errors": 0,
-    "reportIdentical": 20,
+    "reportIdentical": 0,
     "anyCriterionMoved": 1,
     "anyMetricMoved": 4,
     "headlineMoved": 1,
@@ -11,8 +11,8 @@
       "packageVersion": "0.4.8"
     },
     "cand": {
-      "srcHead": "fde615cd29569ef7ee99eac6cf8634c293f5361c",
-      "packageVersion": "0.4.8"
+      "srcHead": "9df6f311c3b8d26045441829341b6c111c45980a",
+      "packageVersion": "0.4.9"
     }
   },
   "boardCheck": [
@@ -292,7 +292,7 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 3/6",
         "placement": "9",
-        "reportSha256": "3e378ff867bd4652cfdc3ccc18942a98319967a59e38f73186ab87b81699d3e6"
+        "reportSha256": "5a8210c16f1731b52f72a278e36115f68c93a09686700f62fd0f84a359d6014b"
       },
       "movedCriteria": [],
       "movedMetrics": [
@@ -319,11 +319,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 4/5; process_trust 3/6",
         "placement": "11",
-        "reportSha256": "039168e34dbbf6496b7e44840275635ee053b3a670559b3ef3bb1c86241462b9"
+        "reportSha256": "01a0845da66766b60a06930d2c19ba9ab43096c167db9e0a0eb59e769112f437"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "svelte",
@@ -344,11 +344,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 4/5; process_trust 3/6",
         "placement": "4",
-        "reportSha256": "d862d49b653b9ec32e70a2c98e73666871863de39a8a8f593df51d2114935553"
+        "reportSha256": "f3678933a841d5b6981c6fd1baa6cb412997c70f86c53dda1d06978f315f3733"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "django",
@@ -369,7 +369,7 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 2/6",
         "placement": "unranked",
-        "reportSha256": "6095921697fe048be17fd314cae36faaea0d99615e1ca1ce96438c8843ed9a7e"
+        "reportSha256": "74fba82fb48ce043a7f8c9024dce487e980ba9e0e2dd5aea2026b9a0619ebec0"
       },
       "movedCriteria": [
         "B3 3.6/verified to 3.1/verified"
@@ -398,11 +398,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 4/5; process_trust 3/6",
         "placement": "8",
-        "reportSha256": "61907ee3bdde059858875310af0ec5aed258f370c65be853eb0a2e09cec60e57"
+        "reportSha256": "7d0af355301439a2f4bf33e4d2c8b4c51cec0d840255b7c5ee7a5675f3050fcb"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "fastapi",
@@ -423,11 +423,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 2/5; process_trust 3/6",
         "placement": "unranked",
-        "reportSha256": "1caeb401a5e81925c4445ec9a3803b58049058c31057fcf10daf3be8bff6e2c9"
+        "reportSha256": "b7e5f871828aaf912b003be0ed16515a84f3f7ccaaacd8b10b878427b2e1b9f9"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "express",
@@ -448,11 +448,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 2/5; process_trust 3/6",
         "placement": "unranked",
-        "reportSha256": "4db29217a28037684f8c519bddba4b1845eee49088dbd15886f49f5859ffdcb7"
+        "reportSha256": "3912d5d1a3ef449830922fbc64155f8150c10b596cc5f5a6da8e221b4a394d71"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "vite",
@@ -473,7 +473,7 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 3/6",
         "placement": "1",
-        "reportSha256": "dee16586bd374f825f729d69b5ca1a6728c343bb52e34f33bc4845dbd500f03f"
+        "reportSha256": "42e529bb47c9ce90d909faddf0d787c1d7dad197e4f2cda2ecf82b88af256e29"
       },
       "movedCriteria": [],
       "movedMetrics": [
@@ -500,11 +500,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 3/6",
         "placement": "13",
-        "reportSha256": "8f9cd6766058262dad35a17b6854cceafb80d44068f79be608114226f301c6ac"
+        "reportSha256": "bb1a6f06dbe28072aaeb0238c1e9802de223a93c5689587123d5242a8a66b44b"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "biomejs",
@@ -525,11 +525,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 4/6",
         "placement": "6",
-        "reportSha256": "f47592bedaeba6b18b20852747ca9d5998e251f51467d3dacc387c888afd9a12"
+        "reportSha256": "b008abfed5b94a5e6768cc8529a3041be7a25625b5060dfb8f8a2d6bd85a5cb1"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "requests",
@@ -550,11 +550,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 4/6",
         "placement": "7",
-        "reportSha256": "e0599609e37b7d50979aae370e7d336bc83efb6693736d54055afc8b9468f390"
+        "reportSha256": "021ab83070127064f0d3a71d22ca69eef121ecc049049bccd7285b0fc22b1b75"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "pydantic",
@@ -575,11 +575,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 3/6",
         "placement": "3",
-        "reportSha256": "095806db883a42fa8093ec022917d93cb0d3d19da4b311fe90c195bcaf7b3d03"
+        "reportSha256": "28ec83e778cfdf7230ef9e162847ca4dc428437761e8fb5b4acc5913048225f2"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "axios",
@@ -600,11 +600,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 4/6",
         "placement": "2",
-        "reportSha256": "a70f5adf061aec873112db63998778dde2f5672416c20062fce0d9cdd25b95da"
+        "reportSha256": "3f06488e1945c5555018246c5334a05321d8fda6db3e7065cde380dda44c5695"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "zod",
@@ -625,11 +625,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 3/6",
         "placement": "5",
-        "reportSha256": "6d084744692e79471b8ff7615a24ae7d9f8df5b416fc3b3bc6e9ed5759c60690"
+        "reportSha256": "4f836f7ca489c8df8e890ccc805c56bba5d4267739c9cefd07d1874a5ff58ab1"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "scorecard",
@@ -650,11 +650,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 4/5; process_trust 3/6",
         "placement": "10",
-        "reportSha256": "3fcb858c35a2e0a7ee95cf05e9ab6d03b39261d65af4652e2b670167a8971676"
+        "reportSha256": "86c7e1b5f86fa98b8a652f783db449a1317a2f7be9defcc5b5698ed387b11efb"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "ripgrep",
@@ -675,11 +675,11 @@
         "verdict": "at_risk",
         "coverage": "code_trust 3/5; process_trust 3/6",
         "placement": "14",
-        "reportSha256": "fec4c51a504c01e4b3742dd9b8c30e2e6cda56a3fa5f0d37a04d111e729250a2"
+        "reportSha256": "93762afaf0c05bd69d8a89dee61bd42563bfd3f3a582bd98cb9a5e467153e318"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "guava",
@@ -700,11 +700,11 @@
         "verdict": "at_risk",
         "coverage": "code_trust 3/5; process_trust 2/6",
         "placement": "unranked",
-        "reportSha256": "8c71cfe6cc33d7dc870277f2df0f5a5e5f9e32a29cedf3ade771a3bd4ff27343"
+        "reportSha256": "51f4b99da866186858595ddb47c372e394ee3b1a8cccf0b5fd9821a9d4edf9e2"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "cobra",
@@ -725,11 +725,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 2/5; process_trust 2/6",
         "placement": "unranked",
-        "reportSha256": "44c34037fffc9282aa0624574938d0dbcb22064b3b9be389a130be373db1725c"
+        "reportSha256": "e5d8ba9482f7ca35b25a2dfc6711efde528d7fdfc5aefa5c75f316292cc6580e"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "sinatra",
@@ -750,11 +750,11 @@
         "verdict": "at_risk",
         "coverage": "code_trust 2/5; process_trust 4/6",
         "placement": "unranked",
-        "reportSha256": "a5b5bcc5be99dd973be0862c32f1a783d59137c66b82d3ed98213ddbc3a6432c"
+        "reportSha256": "f2c79ba0b66e10fd027bf60835a609a1424548b5e016ad41bbe13f13737e69ba"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "automapper",
@@ -775,11 +775,11 @@
         "verdict": "at_risk",
         "coverage": "code_trust 3/5; process_trust 2/6",
         "placement": "unranked",
-        "reportSha256": "2bf5b71af3b5dc94ca5debaad0baa57cb70da2325e7228dece554945a1eb4d00"
+        "reportSha256": "9625ded69270fa22ccd740436bb06ce53aed38bf62fc91cd844dface126e645d"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "fmt",
@@ -800,11 +800,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 3/5; process_trust 4/6",
         "placement": "12",
-        "reportSha256": "56e3eb6a366e70bda32936866cfbbade0c38c8d47f0ff2696e3d5a1d07d2d795"
+        "reportSha256": "35d0fee864b9ea8d82adc0edee93681707186f64997a6e183accae04dd53412e"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "carddemo",
@@ -825,11 +825,11 @@
         "verdict": "insufficient_source",
         "coverage": "code_trust 0/5; process_trust 0/6",
         "placement": "unrated",
-        "reportSha256": "cdac208d1d9f0aac4ce2ea23e7b4b8a618906eb5a102699fcd062f43e0ad7c92"
+        "reportSha256": "062ddbdb35962dcc1eb9367ad460fa2b80236ad0593c6e89dc0638e9d6cf21c1"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     },
     {
       "name": "alfred",
@@ -850,7 +850,7 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 4/6",
         "placement": "transparency",
-        "reportSha256": "a34cc162a538b452ac2ec39a2b12fd4294e399d558896a6b5d273822b4809403"
+        "reportSha256": "d129da16cf3609f7c9e4c6a41d49ea7a1dde58f6f5a7475c5c68f9d6063b7bfa"
       },
       "movedCriteria": [],
       "movedMetrics": [
@@ -878,11 +878,11 @@
         "verdict": "conditional",
         "coverage": "code_trust 5/5; process_trust 3/6",
         "placement": "transparency",
-        "reportSha256": "ac15a8ba19d3fdbc01168e24a96a95a7cebaa4d68fd97300b271b42b1dddfe38"
+        "reportSha256": "3740848d07cb1927c0fefccc0860d06f28aff4569602d86bf5cf086d9b415622"
       },
       "movedCriteria": [],
       "movedMetrics": [],
-      "reportIdentical": true
+      "reportIdentical": false
     }
   ]
 }

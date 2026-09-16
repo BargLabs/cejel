@@ -207,16 +207,11 @@ passes 4/4 against 0.4.9, naming the metric and direction each time.
 **Measurement.** All 24 corpus rows at their pinned commits (`leaderboard/corpus.json`,
 sha256 `dc723f53…`, byte-identical to the corpus the v19 protocol froze), scored twice from
 source with the calibrated default, `generatedAt` fixed, on one machine within one hour:
-baseline `7606392` (the `v0.4.8` commit) and a candidate tree built by merging both remaining
-0.4.9 scoring branches into `fe4210a` at their post-review heads. Those branches were squash-merged,
-so the commits that carry that work on `main` are `dad7841` (A3 runtime-pattern coverage) and
-`90371ea` (certificate scope disclosure), and the release commit is `2af3407`. **The candidate tree
-that was scored and the tree that shipped are the same scanner**: no non-test file under `src/`
-differs between them, verified by diff after the merges landed — the only differing files are this
-release's own records, the version bump, and two test files (the scoring-surface golden guard and
-the `toolVersion` pin), none of which the scanner reads. Both merge
-into `origin/main` with no conflicts; the candidate arm is content-identical to the tree that
-ships once they land. The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
+baseline `7606392` (the `v0.4.8` commit) and `9df6f31`, the tree this release tags. The candidate
+arm is the release tree itself, re-scored after every 0.4.9 change had landed, so there is no gap
+between the tree measured and the tree shipped to reason about. The scoring work it carries
+arrived as `dad7841` (A3 runtime-pattern coverage), `90371ea` (certificate scope disclosure) and
+`cfd9b16` (the behaviour fingerprint and report format 1.2). The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
 exactly on the row that moved most (django: 3.2 / 2.6 / 3.8, B3 3.6, `ci_script_depth` 3), so
 the baseline is what a customer has, not an assumption about it. Canonical evidence:
 `docs/experiments/v17-behaviour-delta-0.4.9-2026-09-15/paired-result.json`; the harness that
@@ -259,7 +254,7 @@ its A3 is `not_applicable`. For change 5, no file in any of the seven A3-applica
 the four-argument `(err, req, res, next)` pattern — **0 rows**. An empty result for changes 2, 3
 and 5 is therefore the expected value, checked against the checkouts, not a convenient absence.
 
-**Result.** 24 of 24 rows completed in both arms. **20 reports byte-identical. 4 rows moved,
+**Result.** 24 of 24 rows completed in both arms. **0 reports byte-identical — see the note below, which is not a scoring result. 4 rows moved,
 exactly the 4 predicted, on exactly the 2 predicted metrics: `B3.ci_script_depth` down on
 django, vite and alfred, and `A3.observability_depth` up on react (68 → 108) and alfred
 (64 → 73).** One headline changed: django 3.2 → 3.1 overall (process 3.8 → 3.6, B3 3.6 → 3.1),
@@ -285,6 +280,20 @@ check should recognise delegation (a `test` script that is not the npm placehold
 invokes `npm run`/`pnpm`/`turbo`/`grunt`/`make`), which would need its own entry here and a
 re-pin of the guard; and separately whether a behaviour change of this kind under a fixed
 identifier should have forced a rubric version bump. Neither is decided by this entry.
+
+**Why no report is byte-identical, and why that is not a scoring statement.** Every one of the
+24 reports differs from its 0.4.8 counterpart at byte level, because 0.4.9 adds
+`rubricBehaviourFingerprint` beside `rubricVersion` and moves the report format from 1.1 to 1.2.
+All 24 carry the new field. An earlier draft of this entry recorded 20 of 24 byte-identical,
+measured before that field existed; the number was true of the tree measured and false of the
+tree that ships, so it is corrected here rather than left to read as a scoring claim.
+
+The scoring result is unchanged by it: the same four rows move, on the same two metrics, by the
+same amounts, and the baseline still reproduces the published board on 20 of 24 rows. That split
+is the point — the metric comparison is the scoring assertion and the byte comparison is a
+format assertion, and a format change moves only the second. From 0.4.9 the fingerprint is the
+better instrument for the question the byte count was standing in for: whether two reports were
+produced by the same scoring, rather than by the same bytes.
 
 **Note on the two upward metric movements.** `observability_depth` is a raw count of matching
 files, so react's 68 → 108 and alfred's 64 → 73 are the same repositories at the same commits
