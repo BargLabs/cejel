@@ -311,5 +311,6 @@ Test Files  87 passed (87)
 Tests       1353 passed (1353)
 ```
 
-The structural offline-boundary check passed in that full run. The full-suite
-count includes the added lesson record's validation.
+The structural offline-boundary check passed in that full run. Comparing the
+per-file reports attributes the increase from 1,352 to 1,353 to
+`bare-npx-invocation-guard.test.ts` (166 to 167 tests), not to the lesson array.
