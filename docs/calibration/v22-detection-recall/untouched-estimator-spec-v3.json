@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 3,
+  "supersedes": "untouched-estimator-spec-v2.json",
+  "confidenceLevel": 0.95,
+  "intervalMethod": "repository-clustered-stratified-percentile-bootstrap",
+  "bootstrapReplicates": 10000,
+  "bootstrapSeed": "cejel-untouched-estimators-2026-07-18-v2",
+  "bootstrapDrawAlgorithm": "For zero-based replicate b, lexicographically sorted cell h, and zero-based draw d, SHA-256(UTF8(seed + NUL + b + NUL + h + NUL + d)); interpret digest bytes 0..7 as unsigned big-endian 64-bit integer and select index modulo the lexicographically sorted cell repository count. Draw exactly the cell repository count with replacement. Reuse the resulting repository multiplicities for every metric in that replicate.",
+  "quantileMethod": "R-type-7",
+  "minimumValidReplicateShare": 0.99,
+  "minimumClustersPerBootstrapCell": 30,
+  "candidateWeight": 1,
+  "controlWeight": "eligiblePopulationSize/sampleSize",
+  "controlSamplingStratum": "waveId*ruleId; every candidate-bearing stratum is mandatory; zero eligible controls require the exact tuple N=0,n=0,pi=0,d=0; each sampled control must match its declared tuple",
+  "clusterId": "githubHost*normalizedOwner*normalizedRepository",
+  "missingRulePolicy": "inconclusive-no-go",
+  "missingRulePolicyDetail": "A rule/wave with zero eligible candidates or zero eligible controls in the final draw resolves via the exact tuple N=0,n=0,pi=0,d=0 on the empty side (the same convention already established for controls in untouched-estimator-spec-v2.json's controlSamplingStratum, reused unmodified for both candidate- and control-side zero-population strata in v3), and is excluded from the aggregate headline figure and reported separately in the validity verdict, never pooled into another rule's estimate.",
+  "controlInsufficientContext": {
+    "maximumAggregateDesignWeightedShare": 0.2,
+    "gateFailure": "inconclusive-no-go",
+    "rationale": "Cycle-12 estimation protocol section 3, decided: the ceilings carry forward as-is because they are adjudicability gates, not a function of the candidate population that shifted between fork-era and pin-truth scans. Never re-derived from expected or observed labels.",
+    "perRuleWaveSmallStratumFloor": {
+      "decidedOption": "cycle-12-estimation-protocol.md section 3, forced amendment, option (a)",
+      "rule": "A rule/wave's control-side wave voids when insufficientContextCount >= minimumInsufficientContextCount AND (insufficientContextCount / n) > maximumShare, where n is the raw sampled control case count for that rule/wave stratum.",
+      "minimumInsufficientContextCount": 2,
+      "maximumShare": 0.25,
+      "equivalentForm": "Algebraically identical to insufficientContextCount > max(1, maximumShare * n) for every integer n >= 1 and every integer 0 <= insufficientContextCount <= n, including every boundary where maximumShare * n lands on an integer.",
+      "singletonStratumLimit": "For n = 1 this floor is inert by construction: minimumInsufficientContextCount (2) can never be satisfied by a stratum of size 1, so the per-rule-wave floor mathematically cannot fire on a singleton. The aggregate maximumAggregateDesignWeightedShare ceiling above is the only guard on singleton strata. This is a documented limit of the floor, stated here rather than discovered later — not a bug to fix by changing the formula."
+    }
+  },
+  "completedLabelSeal": "sealed/labels-sha256.json must exactly bind sealed/completed-review.csv and the review hash manifest, including external negative-control artifacts, before key access or scoring",
+  "implementationSeal": "cohort hashes.json must bind every tracked file under packages/witan/src, packages/shared/src, and packages/witan/scripts plus root/workspace/package manifests, lockfile, and TypeScript configuration; scanning and scoring both require and record the exact out-of-band SHA-256 of hashes.json recorded after metadata freeze; repository paths resolve from the Git top-level so the seal is package-cwd and squash/rebase safe; both fail closed on mismatch",
+  "checkoutFileBoundary": "tracked non-symlink regular files whose canonical paths remain inside the immutable checkout",
+  "crossWaveAggregation": "pool weighted record contributions across completed waves before each bootstrap replicate"
+}
