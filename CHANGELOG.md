@@ -16,6 +16,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+
+## [0.4.9]
+
 ### Added
 
 - **`docs/calibration/**` is an authority path in this repository, and nothing here could
@@ -31,7 +34,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   "signed" and "unverifiable" look identical to anyone who does not check by hand. The guard
   establishes provenance, never correctness.
 
-### Added
 
 - **`report.json` now states the rubric's behaviour, not only its name** (report format `1.1` →
   `1.2`). `rubricVersion` is an identifier this project's authors control: it says which rubric a
@@ -50,9 +52,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   anything changed. Full account, including what it does not cover: the 2026-09-16 entry in
   [`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md).
 
-## [0.4.9]
-
-### Added
 
 - **Every certificate now states its own scope, in its own voice.** Scoring only the repository
   tree at one pinned revision is deliberate and correct — a certificate that reached outside that
