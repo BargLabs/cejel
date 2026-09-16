@@ -87,3 +87,11 @@ test('a shallow checkout cannot turn missing declaration history into no freeze'
   const r = spawnSync(process.execPath, [script, '--full-tree'], { cwd: shallow, encoding: 'utf8' });
   assert.equal(r.status, 1); assert.match(r.stderr, /unreadable declaration history/);
 });
+
+test('PR diff uses merge-base so newer base changes are not attributed to the PR', t => {
+  const f = fixture(t); f.put('src/witan/repo-signals.ts', 'new base source'); const newerBase = f.commit();
+  f.git('checkout', '-q', '--detach', f.base);
+  f.put('src/witan/__tests__/control.test.ts', 'branch test'); f.commit();
+  const r = f.run('--base', newerBase, '--head', 'HEAD');
+  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /changedPaths=1/);
+});

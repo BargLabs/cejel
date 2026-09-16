@@ -71,7 +71,8 @@ function main() {
   const inventory = list(git('ls-tree', '-rz', '--name-only', pin, '--', ...marker.frozenPaths)).filter(frozen);
   if (!inventory.length) throw new Error(`expected nonzero frozen source files; found 0 window=${marker.window} record=${authority}`);
   // --no-renames exposes both endpoints: moving frozen source out of scope still refuses.
-  const changed = list(git('diff', '--no-renames', '--name-only', '-z', full ? pin : base, head, '--'));
+  const diffBase = full ? pin : git('merge-base', base, head).trim();
+  const changed = list(git('diff', '--no-renames', '--name-only', '-z', diffBase, head, '--'));
   const offending = changed.filter(frozen);
   if (declared !== null && headMarker !== declared) offending.push('FREEZE.md');
   const paths = [...new Set(offending)].sort();
