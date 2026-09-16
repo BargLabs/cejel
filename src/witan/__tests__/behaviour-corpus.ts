@@ -250,7 +250,7 @@ export const BEHAVIOUR_FIXTURES: readonly BehaviourFixture[] = [
   {
     name: 'd-overclaiming-readme',
     intent:
-      'A README asserting verification and production-readiness the tree does not support — A5 claim-vs-reality, and A3 production-readiness gaps.',
+      'A README asserting verification and production-readiness the tree does not support (A5 claim-vs-reality), an npm placeholder test script, and GitHub\'s DIRECTORY form of the pull-request template (B2) — the shape 0.4.9 changed under an unchanged v17 identifier.',
     exercises: ['A3', 'A5', 'B2'],
     commitDate: '2024-02-08T09:00:00+00:00',
     headSha: 'b4b250c77cf094f27db5aabb24cee17233b74961',
