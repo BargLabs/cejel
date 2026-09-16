@@ -207,9 +207,11 @@ passes 4/4 against 0.4.9, naming the metric and direction each time.
 **Measurement.** All 24 corpus rows at their pinned commits (`leaderboard/corpus.json`,
 sha256 `dc723f53…`, byte-identical to the corpus the v19 protocol froze), scored twice from
 source with the calibrated default, `generatedAt` fixed, on one machine within one hour:
-baseline `7606392` (the `v0.4.8` commit) and `9df6f31`, the tree this release tags. The candidate
-arm is the release tree itself, re-scored after every 0.4.9 change had landed, so there is no gap
-between the tree measured and the tree shipped to reason about. The scoring work it carries
+baseline `7606392` (the `v0.4.8` commit) and `9df6f31`, the final measured scoring tree.
+The immutable `v0.4.9` tag resolves to `cd75fc435d33bccc84293c8d1ce1a5a99685d6c0`.
+A comparison of these two candidate commits finds only the CLI changelog, this rubric
+changelog, and the paired-result JSON/Markdown record changed; no scorer or package source
+changed. The candidate arm was re-scored after every 0.4.9 code change had landed. The scoring work it carries
 arrived as `dad7841` (A3 runtime-pattern coverage), `90371ea` (certificate scope disclosure) and
 `cfd9b16` (the behaviour fingerprint and report format 1.2). The published `@cejel/cejel@0.4.8` npm artifact reproduces the baseline arm
 exactly on the row that moved most (django: 3.2 / 2.6 / 3.8, B3 3.6, `ci_script_depth` 3), so

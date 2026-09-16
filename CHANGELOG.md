@@ -90,8 +90,10 @@ before/after corpus delta, per criterion and per metric, is in
 [`leaderboard/RUBRIC_CHANGELOG.md` § "0.4.9 — behaviour change under witan-rubric-v17"](./leaderboard/RUBRIC_CHANGELOG.md).
 Measured result: 4 of 24 repositories moved — django, vite and the private alfred row on
 `B3.ci_script_depth`, all downward, and react and the alfred row on
-`A3.observability_depth`, both upward with no score change; 20 reports are byte-identical, and
-one headline moved (django, 3.2 to 3.1). The delta was preregistered before it was run and the
+`A3.observability_depth`, both upward with no score change; one headline moved (django, 3.2 to 3.1).
+All 24 reports differ at byte level: report format 1.1 → 1.2 adds
+`rubricBehaviourFingerprint` to every report. That format change is separate from the
+four rows with scoring-metric changes; it is not evidence that all 24 scores moved. The delta was preregistered before it was run and the
 result matched the prediction in full. That entry also records that three of the five changes
 moved no corpus row and why, that the rescore guard the changelog cites could not have fired
 for this repository, and one over-reach in the content check that is handed to the operator
