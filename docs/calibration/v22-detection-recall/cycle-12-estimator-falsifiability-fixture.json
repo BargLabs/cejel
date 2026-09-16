@@ -1,0 +1,39 @@
+{
+  "fixtureId": "cycle-12-estimator-falsifiability-v1",
+  "purpose": "Synthetic, non-production input for the v3 estimator's weighting/aggregation arithmetic. Exercises untouched-estimator-spec's candidateWeight=1 and controlWeight=eligiblePopulationSize/sampleSize formula in isolation from the bootstrap CI machinery. Not derived from any real cohort, repository, or label — ruleId is deliberately unreal so it cannot be mistaken for production data.",
+  "schemaVersion": 1,
+  "stratum": {
+    "ruleId": "FIXTURE-SANITY-CHECK-DO-NOT-TREAT-AS-REAL-RULE",
+    "candidateWeight": 1,
+    "eligiblePopulationSize": 12,
+    "sampleSize": 4,
+    "controlWeightFormula": "eligiblePopulationSize / sampleSize",
+    "controlWeight": 3
+  },
+  "sampledCandidates": {
+    "n": 3,
+    "positive": 2,
+    "negative": 1
+  },
+  "sampledControls": {
+    "n": 4,
+    "positive": 1,
+    "negative": 3
+  },
+  "expected": {
+    "formula": "(candidateWeight * candidatePositive + controlWeight * controlPositive) / (candidateWeight * nCandidates + controlWeight * nControls)",
+    "numerator": 5,
+    "denominator": 15,
+    "estimateExact": "1/3",
+    "estimateDecimal": 0.3333333333333333,
+    "tolerance": 1e-9
+  },
+  "knownWrongOutputsForContext": {
+    "note": "Not asserted against directly — recorded so a future maintainer can see the fixture is discriminating, i.e. would actually fail under these plausible bugs, not just under an arbitrary one.",
+    "controlWeightDroppedToOne": 0.42857142857142855,
+    "candidateAndControlWeightsSwapped": 0.5384615384615384,
+    "controlsExcludedEntirely": 0.6666666666666666
+  },
+  "verifiedBy": "hand computation + fractions.Fraction cross-check, 2026-09-04, exact rational arithmetic, no floating-point rounding in the derivation",
+  "wireUpInstructions": "At v3 estimator implementation time, add a test (suggested path: packages/witan/src/__tests__/cycle-12-estimator-falsifiability.test.ts) that feeds this fixture's stratum/sampledCandidates/sampledControls into the estimator's point-estimate function in isolation (no bootstrap replicate loop required for this check) and asserts the output equals expected.estimateDecimal within expected.tolerance. The test must fail on any of the three knownWrongOutputsForContext values, not just on a crash. This fixture covers only the weighting/aggregation arithmetic; it does not exercise the bootstrap CI or seeded replicate draw, which need their own falsifiability fixture before cycle-12's confidence intervals are trusted."
+}
