@@ -1,0 +1,21 @@
+# SSH signing keys whose signatures make a cejel calibration record an attestation rather than
+# a note. One line per signer: <principal> <keytype> <base64-key>, the format
+# `git config gpg.ssh.allowedSignersFile` reads.
+#
+# This file names no key on purpose. Admitting one is an authority decision and belongs to the
+# operator, not to an agent: the key added here is what this repository will thereafter accept as
+# the operator's hand. `scripts/check-calibration-signatures.mjs` fails closed while the file is
+# empty, so the guard refuses its own pull request until a key is added.
+#
+# To add yours, print the public key that signs your commits and append it, then commit that line
+# yourself, signed:
+#
+#   git config --get user.signingkey
+#   printf '%s %s\n' "<your-email>" "$(cat <path-to-key>.pub)" >> docs/security/allowed-signers
+#
+# An agent must not write a key into this file.
+#
+# What this file does not do: reach backwards. Every commit that touched docs/calibration/ before
+# this gate reported %G? of N or E, and none reported G. They are listed in docs/security/README.md
+# and stay unverifiable. This file governs what comes after it.
+houman3@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBgdHNcEcsxu3vP0oLtFD5aBORsfUHP3ivBPpS5OdqA7 houman3@gmail.com

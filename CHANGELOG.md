@@ -18,6 +18,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`docs/calibration/**` is an authority path in this repository, and nothing here could
+  establish that authority.** Measured across every commit that has ever touched it: five
+  unsigned, three signed by a key this repository does not list, none verifiable. No
+  allowed-signers file existed and no check read a signature, so the `--merge`-not-`--squash`
+  discipline that protects a calibration signature preserved something no reader could confirm.
+  A signature guard now verifies every commit touching a guarded path against
+  `docs/security/allowed-signers`, failing closed on a missing or key-less file — "nobody may
+  sign" must not read the same as "anybody may" — and treating a signature from an unlisted key
+  exactly as it treats an unsigned commit. It is forward-only: `docs/security/README.md` lists
+  the eight earlier commits and states that they remain permanently unverifiable, because
+  "signed" and "unverifiable" look identical to anyone who does not check by hand. The guard
+  establishes provenance, never correctness.
+
+### Added
+
 - **`report.json` now states the rubric's behaviour, not only its name** (report format `1.1` →
   `1.2`). `rubricVersion` is an identifier this project's authors control: it says which rubric a
   build believed it ran, and it stayed unchanged through five scoring changes in 0.4.9. The new
