@@ -16,6 +16,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Measurement-freeze markers can be superseded by an explicit predecessor chain and
+  an operator SSH signature. Deletion, unsigned edits, conflicting successors, and
+  scoring-source changes still refuse. The live pin is unchanged.
+
 
 ## [0.4.9]
 

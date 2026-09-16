@@ -34,7 +34,7 @@ attestation.
 ## What the gate does
 
 `scripts/check-calibration-signatures.mjs`, run on every pull request that touches a guarded path,
-requires each commit touching `docs/calibration/**` to carry a signature from a key in
+requires each commit touching `docs/calibration/**` or root `FREEZE.md` to carry a signature from a key in
 `docs/security/allowed-signers`. It fails closed: a missing or key-less allowed-signers file is a
 failure rather than a skip, because "nobody may sign" must never read the same as "anybody may".
 `E` fails exactly as `N` does — accepting `E` would have passed the whole history above and
@@ -52,3 +52,27 @@ attestation is overstating it, and should cite this page alongside.
 
 The gate also says nothing about *content*. It establishes that a listed key signed the commit, and
 nothing about whether the measurement in it is sound. Provenance is not correctness.
+
+Marker supersession uses the same verifier; see [measurement freeze](../measurement-freeze.md) for the chain, parent-pinned allowlist, and operator transition commands.
+
+## Allowlist bootstrap provenance — reverified 2026-09-16
+
+The initial `docs/security/allowed-signers` file was introduced by
+`77fd3d27850fa928bcea70ba5fae622e8bda4465`, the squash merge of #318. With the
+repository's SSH allowlist explicitly configured, local Git reports `%G?=E` and
+key id `B5690EEEBB952194` (GitHub web-flow). This is not an operator SSH signature
+verifiable under that allowlist. `E` describes this verification environment;
+it does not claim that no one can cryptographically verify GitHub's signature.
+
+The forward transition check trusts the parent commit's allowlist. That blocks a
+transition from adding its own key in the same commit, but it does not independently
+establish the identity or authorization of the initial enrolled key. Initial key
+admission remains a bootstrap trust decision, separate from the eight historical
+calibration records listed above.
+
+The operator may re-establish that decision with an explicitly reviewed enrollment
+acknowledgement, recording how the key was independently authenticated and preserving
+an operator-signed commit without squashing. A later signature proves possession
+of the signing key; it does not by itself establish the signer's identity or
+retroactively turn `77fd3d2` into an operator-signed admission. This proposal only
+discloses the boundary. It neither changes the allowlist nor signs an acknowledgement.
