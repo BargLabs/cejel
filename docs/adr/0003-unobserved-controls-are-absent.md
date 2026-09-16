@@ -1,6 +1,6 @@
 # ADR-0003 — An unobserved control is absent
 
-**Status:** Accepted (2026-09-08)
+**Status:** Accepted — implemented (the insufficient_data/absence-handling core assertion; lineage per alfred:ADR-0013), confirmed 2026-09-08
 **Date:** 2026-08-11
 **Related:** ADR-0001 (coverage is disclosed, never discounted); D-series exact-signature taxonomy D1–D5; proposed rule D6.
 
