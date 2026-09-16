@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   ALLOWED_SIGNERS_PATH,
   GUARDED_PATH_PREFIXES,
@@ -76,12 +78,9 @@ test('the documented invocation refuses instead of exiting 0 in silence', () => 
 });
 
 test('verification is pinned to the repository allowed-signers, not to ambient config', () => {
-  // The first cut read %G? from plain `git log`, so verification used whatever
-  // gpg.ssh.allowedSignersFile the environment set: a developer's personal file locally, and
-  // nothing on a CI runner, where every commit returns E and the guard refuses correctly signed
-  // records forever. Measured on the commit that admitted the operator key: U under ambient
-  // config, G under the repository's file. Same commit, two verdicts, and the guard was reading
-  // the wrong one.
+  // Plain git log inherits a developer's personal allowlist, or no allowlist on
+  // CI. Bind the repository file explicitly; a signed commit alone is not proof
+  // that the signer belongs to this repository's enrolled SSH keys.
   assert.deepEqual(gitVerifyArgs('/repo/docs/security/allowed-signers'), [
     '-c',
     'gpg.ssh.allowedSignersFile=/repo/docs/security/allowed-signers',
@@ -99,4 +98,52 @@ test('the pinned file is the one the guard reports its signer count from', () =>
   );
   assert.match(source, /gitVerifyArgs\(ALLOWED_SIGNERS_PATH\)/);
   assert.match(source, /readFileSync\(ALLOWED_SIGNERS_PATH, 'utf8'\)/);
+});
+
+test('a trusted OpenPGP G signature cannot satisfy the SSH allowlist', t => {
+  // Real disposable GPG key + trusted keyring: status G must be true so only the
+  // SSH-envelope defence can reject. Removing `&& ssh` must make this test fail.
+  // Keep the path short enough for macOS gpg-agent Unix socket limits.
+  const root = mkdtempSync(join(tmpdir(), 'ce-'));
+  const repo = join(root, 'repo');
+  const keyring = join(root, 'gnupg');
+  mkdirSync(repo); mkdirSync(keyring, { mode: 0o700 });
+  const env = { ...process.env, GNUPGHOME: keyring, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+  const run = (command, args) => execFileSync(command, args, {
+    cwd: repo, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  t.after(() => {
+    spawnSync('gpgconf', ['--homedir', keyring, '--kill', 'gpg-agent'], { env });
+    rmSync(root, { recursive: true, force: true });
+  });
+  run('gpg', ['--batch', '--pinentry-mode', 'loopback', '--passphrase', '',
+    '--quick-generate-key', 'Envelope Fixture <envelope@example.invalid>', 'ed25519', 'sign', '0']);
+  run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', join(root, 'ssh-key')]);
+  run('git', ['init', '-q']);
+  run('git', ['config', 'user.name', 'Envelope Fixture']);
+  run('git', ['config', 'user.email', 'envelope@example.invalid']);
+  run('git', ['config', 'gpg.format', 'openpgp']);
+  run('git', ['config', 'user.signingkey', 'envelope@example.invalid']);
+  mkdirSync(join(repo, 'docs/security'), { recursive: true });
+  mkdirSync(join(repo, 'scripts'));
+  const allowlist = join(repo, 'docs/security/allowed-signers');
+  writeFileSync(allowlist, `fixture@example.invalid ${readFileSync(join(root, 'ssh-key.pub'), 'utf8')}`);
+  // Exercise the real CLI with its repository-relative allowlist, not a second reader.
+  copyFileSync(fileURLToPath(new URL('./check-calibration-signatures.mjs', import.meta.url)),
+    join(repo, 'scripts/check-calibration-signatures.mjs'));
+  run('git', ['add', '.']);
+  run('git', ['commit', '--no-gpg-sign', '-qm', 'fixture baseline']);
+  const base = run('git', ['rev-parse', 'HEAD']);
+  writeFileSync(join(repo, 'FREEZE.md'), '{}\n');
+  run('git', ['add', 'FREEZE.md']);
+  run('git', ['commit', '-S', '-qm', 'GPG signed marker']);
+  const sha = run('git', ['rev-parse', 'HEAD']);
+  assert.equal(run('git', [...gitVerifyArgs(allowlist), 'show', '-s', '--format=%G?', sha]), 'G');
+  assert.match(run('git', ['cat-file', 'commit', sha]), /^gpgsig -----BEGIN PGP SIGNATURE-----$/m);
+  const result = spawnSync(process.execPath, ['scripts/check-calibration-signatures.mjs', `${base}..${sha}`], {
+    cwd: repo, env, encoding: 'utf8',
+  });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /examinedCommitCount=1 verified=0 signers=1/);
+  assert.match(result.stderr, /calibration_signature_unverified: [0-9a-f]+ %G\?=G "GPG signed marker" touches FREEZE\.md/);
 });

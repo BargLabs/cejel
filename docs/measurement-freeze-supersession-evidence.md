@@ -244,3 +244,72 @@ calibration/experiment edit, merge, or branch-protection change is part of this
 proposal. [Operator transition commands](measurement-freeze.md#operator-transition-after-this-proposal-is-reviewed-and-landed)
 are the remaining live action. The signed amendment commit id must be supplied by
 the operator; it was not present in the request.
+
+## Independent-review follow-up: SSH envelope
+
+The reviewer found that replacing `ok: status === 'G' && ssh` with
+`ok: status === 'G'` left the original 42 tests green. The added regression creates
+an actual disposable OpenPGP key and trusted keyring, signs a root `FREEZE.md`
+commit, and asserts Git itself reports `G` with a PGP envelope. It then invokes the
+real calibration-signature CLI and requires refusal naming `FREEZE.md`, `%G?=G`,
+and `examinedCommitCount=1 verified=0 signers=1`. There is no mocked verifier in this
+new case. Missing GnuPG is a failed test, not a skipped control.
+
+Exact mutation in a temporary copy, leaving the proposal's implementation intact:
+
+```diff
+- return { sha: sha.slice(0, 8), status, subject, ok: status === 'G' && ssh };
++ return { sha: sha.slice(0, 8), status, subject, ok: status === 'G' };
+```
+
+```sh
+node --test --test-reporter=tap --test-name-pattern='trusted OpenPGP' scripts/check-calibration-signatures.node-test.mjs
+```
+
+Mutation RED (captured exit 1; fixture setup succeeded and Git reported G):
+
+```text
+not ok 1 - a trusted OpenPGP G signature cannot satisfy the SSH allowlist
+error: calibration_signature_guard examinedCommitCount=1 verified=1 signers=1
+actual: 0
+expected: 1
+# tests 1
+# pass 0
+# fail 1
+```
+
+Restored implementation GREEN:
+
+```text
+node --test --test-reporter=tap scripts/check-calibration-signatures.node-test.mjs scripts/check-measurement-freeze.node-test.mjs
+exit=0
+# tests 43
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+```
+
+The initial sandboxed GPG attempt could not connect to its temporary agent. The
+verified runs used permission for that isolated agent socket and a short temporary
+path suitable for Unix socket limits. No real operator keyring was used.
+
+The allowlist bootstrap was also re-derived after fetching main at
+`e4010efb8de0f357403b19900ce58c2dbde2e259`: introduction commit
+`77fd3d27850fa928bcea70ba5fae622e8bda4465` reports `E` with web-flow key id
+`B5690EEEBB952194` in this environment. The disclosure in `docs/security/README.md`
+separates initial enrollment trust from forward signature verification. A stale
+test comment claiming this admission commit returned G was removed. No trust file
+or production guard logic changed in this follow-up.
+
+Follow-up build/full-suite verification:
+
+```text
+pnpm build: exit=0, Build success
+pnpm test: exit=0
+Test Files  87 passed (87)
+Tests       1353 passed (1353)
+```
+
+The structural offline-boundary check passed in that full run. The full-suite
+count includes the added lesson record's validation.

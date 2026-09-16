@@ -15,5 +15,20 @@
     ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z"
+  },
+  {
+    "statement": "Independent review of the measurement-freeze proposal found that removing the SSH-envelope condition from status === G && ssh broke no test. Real SSH signatures and E/N rejection controls cannot isolate the GPG-versus-SSH boundary: it needs a genuinely trusted OpenPGP signature for which Git reports G, followed by a guard refusal attributable only to the envelope. Every added defence needs a targeted mutation check: remove that predicate in a temporary copy and verify its independent test fails for the expected reason. A green suite is not evidence that each defence is protected against removal.",
+    "scope": [
+      "cejel",
+      "signature-guard",
+      "tests"
+    ],
+    "tags": [
+      "mutation-testing",
+      "independent-review",
+      "uncovered-defence"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z"
   }
 ]
