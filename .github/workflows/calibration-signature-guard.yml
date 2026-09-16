@@ -9,7 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  guard:
+  # Named, not `guard`: branch protection selects a required check by its context name, and
+  # label-class-path-guard.yml already exposes one called `guard`. Two contexts with one name
+  # cannot be told apart in settings, so requiring either is ambiguous and can be satisfied by
+  # the wrong workflow reporting. The name is the address; it has to be unique.
+  calibration-signature:
+    name: calibration-signature
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
