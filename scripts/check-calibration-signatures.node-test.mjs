@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import {
+  ALLOWED_SIGNERS_PATH,
   GUARDED_PATH_PREFIXES,
+  gitVerifyArgs,
   isGuardedPath,
   parseAllowedSigners,
   summarize,
@@ -63,4 +66,30 @@ test('the documented invocation refuses instead of exiting 0 in silence', () => 
   assert.equal(run.status, 2);
   assert.match(run.stderr, /usage: node scripts\/check-calibration-signatures\.mjs/);
   assert.equal(run.stdout, '');
+});
+
+test('verification is pinned to the repository allowed-signers, not to ambient config', () => {
+  // The first cut read %G? from plain `git log`, so verification used whatever
+  // gpg.ssh.allowedSignersFile the environment set: a developer's personal file locally, and
+  // nothing on a CI runner, where every commit returns E and the guard refuses correctly signed
+  // records forever. Measured on the commit that admitted the operator key: U under ambient
+  // config, G under the repository's file. Same commit, two verdicts, and the guard was reading
+  // the wrong one.
+  assert.deepEqual(gitVerifyArgs('/repo/docs/security/allowed-signers'), [
+    '-c',
+    'gpg.ssh.allowedSignersFile=/repo/docs/security/allowed-signers',
+  ]);
+  assert.ok(ALLOWED_SIGNERS_PATH.endsWith('docs/security/allowed-signers'));
+});
+
+test('the pinned file is the one the guard reports its signer count from', () => {
+  // Counting signers from one file while verifying against another is the same defect wearing a
+  // different hat: the count would say "1 signer configured" while git consulted a file that
+  // listed none.
+  const source = readFileSync(
+    fileURLToPath(new URL('./check-calibration-signatures.mjs', import.meta.url)),
+    'utf8',
+  );
+  assert.match(source, /gitVerifyArgs\(ALLOWED_SIGNERS_PATH\)/);
+  assert.match(source, /readFileSync\(ALLOWED_SIGNERS_PATH, 'utf8'\)/);
 });

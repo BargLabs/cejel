@@ -47,7 +47,19 @@ export function summarize(commits) {
   };
 }
 
-const git = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+// Every verification runs with the repository's allowed-signers pinned on the command line.
+// Reading %G? without it asks git to verify against whatever gpg.ssh.allowedSignersFile the
+// ambient environment happens to set: a developer's personal file locally, and nothing at all on
+// a CI runner, where every commit would come back E and the guard would refuse correctly signed
+// records forever. The file named in docs/security is the authority, so it is the file consulted.
+export const gitVerifyArgs = (allowedSignersPath) => [
+  '-c',
+  `gpg.ssh.allowedSignersFile=${allowedSignersPath}`,
+];
+const git = (args) =>
+  execFileSync('git', [...gitVerifyArgs(ALLOWED_SIGNERS_PATH), ...args], {
+    encoding: 'utf8',
+  }).trim();
 
 export function main(argv = process.argv) {
   const range = argv[2];
