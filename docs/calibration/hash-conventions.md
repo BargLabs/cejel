@@ -80,3 +80,8 @@ documentation.
   the design this document was written to support.
 - `docs/calibration/free-core-v50/holdout-reveal-2026-08-18.md` — the v17 frame's
   retroactive reveal; its `manifest_sha256` is computed by exactly the scheme above.
+- [`docs/calibration/v22-detection-recall/`](v22-detection-recall/README.md) — the cycle-12
+  detection-recall measurement record. Its cohort selection commitment is specified under this
+  scheme (canonical object, code-unit ordering, `manifest_sha256` self-excluded) but **its
+  digest value is owed and not yet computed** — the specification is published so the value is
+  fixed in advance, and the record says so in place rather than leaving a blank.
