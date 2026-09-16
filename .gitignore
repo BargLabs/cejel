@@ -8,6 +8,7 @@ coverage/
 .pnpm-store/
 notes.md
 .worktrees/
+.goal-streams/
 
 # Commercial material must never reach this repository.
 # github.com/BargLabs/cejel is PUBLIC. docs/commercial/ holds named prospects, outreach logs,
