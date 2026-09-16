@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import {
   GUARDED_PATH_PREFIXES,
@@ -48,4 +50,17 @@ test('an empty range reports the count it examined, so a vacuous pass is legible
   const result = summarize([]);
   assert.equal(result.ok, true);
   assert.equal(result.examinedCommitCount, 0);
+});
+
+test('the documented invocation refuses instead of exiting 0 in silence', () => {
+  // The first cut of this guard split the CLI into a second file, so the path named in the
+  // README and in this file's own header was a pure library: running it printed nothing and
+  // exited 0. A guard whose documented command always passes is the defect this guard exists
+  // to close, reproduced inside it. Asserted on the real entry point, not on a copy.
+  const run = spawnSync(process.execPath, [fileURLToPath(new URL('./check-calibration-signatures.mjs', import.meta.url))], {
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /usage: node scripts\/check-calibration-signatures\.mjs/);
+  assert.equal(run.stdout, '');
 });

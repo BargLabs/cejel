@@ -22,5 +22,5 @@ jobs:
         run: node --test scripts/check-calibration-signatures.node-test.mjs
       - name: Verify every calibration commit in this pull request
         run: |
-          node scripts/check-calibration-signatures-main.mjs \
+          node scripts/check-calibration-signatures.mjs \
             "origin/${{ github.base_ref }}...HEAD"
