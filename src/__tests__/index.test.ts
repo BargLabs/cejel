@@ -406,8 +406,16 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // mechanical proof that this is the ONLY delta — deleting that one key and re-serializing
     // with the same serializer (JSON.stringify(report, null, 2), see serializeWitanReport)
     // reproduces the previous pin byte for byte. A green suite alone would not have shown that.
+    // Re-pinned for 0.4.10 (goal_cejel_release_0_4_10_provenance_restored_2026-09-17): the only
+    // change in that release that can reach this fixture is the version bump. Reproduced outside
+    // vitest, building this fixture and scanning it twice against the same tree with only
+    // package.json's version differing: at 0.4.9 the fixture reproduces the two previous pins
+    // (c6aa7a5c... and ad75e37f...) byte for byte, at 0.4.10 it produces the two values below,
+    // and a line-by-line diff of the two 289-line pretty-printed reports differs on exactly one
+    // line, `"toolVersion": "0.4.9"` -> `"0.4.10"`. Both reports are 289 lines; the
+    // rubricBehaviourFingerprint line is identical across them.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'c6aa7a5c55f2d64652da75f987a279e7ef9eb61bf3c79d94903edf9ccaf75051',
+      'e61c3e5b3e90ebbae5f1bf92123c12e0909960eca11f1392f9d41bc8fce2f09f',
     );
     const {
       rubricBehaviourFingerprint,
@@ -416,8 +424,8 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(rubricBehaviourFingerprint).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(
       createHash('sha256').update(JSON.stringify(withoutFingerprint, null, 2)).digest('hex'),
-      'the 0.4.9 report bytes must be recoverable by removing exactly the one added field',
-    ).toBe('ad75e37f5de8eb12c3296ae7b397772d9b12d603a584399fa17339ad7e4707d4');
+      'the 0.4.10 report bytes must be recoverable by removing exactly the one added field',
+    ).toBe('dfadd9f5950b141ea2654c5b85fba43b71a4234ca0139e4480c4042085ce2918');
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {
