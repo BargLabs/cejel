@@ -67,6 +67,31 @@ A claim about state requires reading the state back from something that did not 
 currency therefore belongs to an independent, read-only verifier: publisher outputs and the
 publisher's own record may be subjects of comparison, but never the verifier's source of truth.
 
+### A bypassable control is not a control — npm publish, 0.4.9
+
+*Added 17 September 2026, incident: `@cejel/cejel@0.4.9`, published 16 September 2026.*
+
+npm publish runs only through [`publish-npm.yml`](../.github/workflows/publish-npm.yml). A version
+on the registry without attestations is a failed release regardless of whether it installs: 0.4.9
+installs, runs, and produced report output matching the native binaries on the test fixture, and it
+still carries publisher `cejel` rather than GitHub Actions, no `gitHead`, and no attestation, so
+nothing binds the published artifact to the tagged build. npm versions are immutable, so a release
+published outside the workflow cannot be repaired — only superseded. Before every release, check
+three things and record what was observed rather than what was assumed: the exact trusted-publisher
+identity on the package (owner, repository, and workflow filename, not "trusted publishing is on"),
+the account's token inventory, and the saved publishing-access setting that disallows bypass-2FA
+tokens.
+
+Those controls close the bypass-token path. They do not make workflow publishing exclusive: npm
+still permits a maintainer holding the account's second factor to publish a version manually. See
+<https://docs.npmjs.com/trusted-publishers/> — trusted publishing authorizes a workflow to publish
+without a long-lived token; it does not revoke any other principal's authority to publish.
+Workflow-only publication is therefore operator policy enforced by discipline and detected after the
+fact, not an exclusivity guarantee enforced by the registry. Write it down that way, and do not let
+a currency verifier's pass be read as prevention: the release-currency verifier reported 12 of 13 on
+0.4.9 and caught the missing provenance after publication, which is exactly what a detective control
+does and exactly what a preventive control would have made unnecessary.
+
 ## Required site binary-link step
 
 After the GitHub Release is published, update the single current-release record in the site source

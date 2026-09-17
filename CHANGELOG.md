@@ -16,6 +16,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+
+## [0.4.10] — 2026-09-17
+
+### Release integrity
+
+**0.4.9 was published to npm by hand, by me, from a machine holding the package token, outside the workflow that generates provenance.** The registry shows publisher `cejel` rather than GitHub Actions, no `gitHead`, and no attestation. The package installs and runs as 0.4.9 and its report output matched the native binaries on the test fixture, but nothing proves the whole artifact came from the tagged build, and a consumer who requires provenance is right to reject it. It cannot be repaired: npm versions are immutable. I will publish 0.4.10 through `publish-npm.yml` with `--provenance` and verify its attestation after publication. The account now lists no access tokens, trusted publishing is configured for that workflow, and the package disallows bypass-2FA tokens. This closes the bypass-token path; it does not make workflow publishing exclusive, because npm still permits a maintainer to publish manually with 2FA. I will publish releases through the workflow and verify their attestations before advancing any other release surface. The release-currency verifier reported 12 of 13 on 0.4.9 and caught it; it did not prevent it. A workflow that is correct but can be bypassed is not an exclusive control. The settings change restricts token access; manual publication remains a residual path, and I will not claim it has been eliminated.
+
 ### Fixed
 
 - Measurement-freeze markers can be superseded by an explicit predecessor chain and

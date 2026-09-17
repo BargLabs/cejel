@@ -36,7 +36,10 @@ untouched holdout, every preregistered gate to pass, and a separately recorded p
 
 ### Measured recall (bounded)
 
-> **Measured recall (bounded).** Cejel publishes no general detection-recall figure. On a frozen,
+> **Measured recall (bounded).** Cejel publishes one cohort-level in-scope detection-recall
+> figure, for the prospective v22 rubric, in `docs/calibration/v22-detection-recall/`; no general
+> figure exists, and the three quantities called recall are set side by side on
+> cejel.dev/methodology. On a frozen,
 > preregistered, in-scope held-out fixture set of 30 named defects, the released public default
 > (v17, tree `a857f0b3`) cited **16/30**, two-sided 95% Wilson interval **[36.1%, 69.8%]**; the
 > prospective v22 detector (commit `8a289ea`, tree `10960a03`) cited **24/30**, two-sided 95%
