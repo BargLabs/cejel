@@ -36,7 +36,10 @@ untouched holdout, every preregistered gate to pass, and a separately recorded p
 
 ### Measured recall (bounded)
 
-> **Measured recall (bounded).** Cejel publishes no general detection-recall figure. On a frozen,
+> **Measured recall (bounded).** Cejel publishes one cohort-level in-scope detection-recall
+> figure, for the prospective v22 rubric, in `docs/calibration/v22-detection-recall/`; no general
+> figure exists, and the three quantities called recall are set side by side on
+> cejel.dev/methodology. On a frozen,
 > preregistered, in-scope held-out fixture set of 30 named defects, the released public default
 > (v17, tree `a857f0b3`) cited **16/30**, two-sided 95% Wilson interval **[36.1%, 69.8%]**; the
 > prospective v22 detector (commit `8a289ea`, tree `10960a03`) cited **24/30**, two-sided 95%
@@ -89,7 +92,7 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 ```
 
 > **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
-> 0.4.9 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> 0.4.10 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
 > GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM and an
@@ -112,7 +115,7 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** Cejel `0.4.9` is the coordinated release version for npm,
+> **Distribution note:** Cejel `0.4.10` is the coordinated release version for npm,
 > standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry.
 
 `npx` can reuse a stale cached package. Force the current npm release with the `@latest`
@@ -174,16 +177,16 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.4.9`:
+**Docker / OCI.** The current container release is `0.4.10`:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.4.9
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.4.10
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.4.9 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.4.10 .
 ```
 
 The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
@@ -513,7 +516,7 @@ The OCI image is an alternative when Docker is the preferred execution boundary.
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.9"]}'
+npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.4.10"]}'
 npx -y openclaw@latest mcp doctor cejel-oci --probe
 ```
 
