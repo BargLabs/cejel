@@ -76,11 +76,15 @@ function declaration(head) {
       }
       const defect = signature(ref);
       if (defect) defects.push(defect);
+      // A closure is a transition, never an initial declaration. Its closing commit is
+      // verified here with the predecessor-pinned allowlist alongside its chain.
       if (defects.length) throw new Error(`FREEZE.md ${ref}: ${defects.join('; ')} ${provenance(prior.marker)}`);
     } else if (marker.supersedes !== undefined) {
       throw new Error('FREEZE.md supersedes has no predecessor in declaration history');
+    } else if (marker.closure !== undefined) {
+      throw new Error('FREEZE.md closure requires a predecessor in declaration history');
     }
-    state = { ref, bytes, marker, lineage: [...(prior?.lineage ?? []), ref] };
+    state = { ref, bytes, marker, closureVerified: Boolean(prior && marker.closure), lineage: [...(prior?.lineage ?? []), ref] };
     states.set(ref, state);
   }
   if (state && markerAt(head) !== state.bytes) throw new Error('FREEZE.md supersedes history does not resolve to HEAD');
@@ -94,6 +98,16 @@ function parseMarker(bytes) {
       !a?.repository || !a.record || !/^[0-9a-f]{40}$/.test(a.signedCommit) ||
       JSON.stringify(marker.frozenPaths) !== '["src/witan/"]' || !marker.closingConditions) {
     throw new Error('unreadable FREEZE.md: window, pin, declaring record, signed commit, src/witan/ scope and closing conditions required');
+  }
+  if (marker.closure !== undefined) {
+    const closure = marker.closure;
+    const by = closure?.closedBy;
+    if (!closure || typeof closure !== 'object' || Array.isArray(closure) ||
+        typeof closure.closedAt !== 'string' || Number.isNaN(Date.parse(closure.closedAt)) ||
+        !by || typeof by !== 'object' || Array.isArray(by) || !by.repository || !by.record ||
+        !/^[0-9a-f]{40}$/.test(by.signedCommit)) {
+      throw new Error('unreadable FREEZE.md: closure requires closedAt and closedBy repository, record, and signed commit');
+    }
   }
   return marker;
 }
@@ -132,6 +146,13 @@ function main() {
   if (bytes === null) { console.log(`freeze PASS: no freeze declared; history inspected head=${head}`); return; }
   const marker = parseMarker(bytes);
   const authority = `${marker.authority.repository}:${marker.authority.record}@${marker.authority.signedCommit}`;
+  // Never infer closure from FREEZE.md at HEAD: only declaration() can set this after
+  // validating the predecessor chain and the closing commit's parent-pinned signature.
+  if (declared?.closureVerified) {
+    const closure = declared.marker.closure;
+    console.log(`freeze PASS closed window=${marker.window} closedAt=${closure.closedAt} closedBy=${closure.closedBy.repository}:${closure.closedBy.record}@${closure.closedBy.signedCommit}`);
+    return;
+  }
   const pin = revision(marker.pinnedRevision);
   const inventory = list(git('ls-tree', '-rz', '--name-only', pin, '--', ...marker.frozenPaths)).filter(frozen);
   if (!inventory.length) throw new Error(`expected nonzero frozen source files; found 0 window=${marker.window} record=${authority}`);
