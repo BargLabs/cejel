@@ -56,6 +56,18 @@ function parseDocumentedFlagTokens(help: string): CliFlagToken[] {
   });
 }
 
+// The help text now documents flags for three commands, and CLI_FLAG_SPECS describes only the
+// scan flags. Slice the help by section so the scan-flag equality check keeps its exact meaning
+// and the verify/issue flags get a check of their own rather than none.
+function helpSection(help: string, heading: string): string {
+  const lines = help.split('\n');
+  const start = lines.indexOf(`${heading}:`);
+  if (start === -1) throw new Error(`cejel --help has no "${heading}:" section`);
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.trim().length === 0);
+  return (end === -1 ? rest : rest.slice(0, end)).join('\n');
+}
+
 const FLAG_KIND_BY_TOKEN = new Map<CliFlagToken, CliFlagKind>(
   CLI_FLAG_SPECS.flatMap((spec) => spec.tokens.map((token) => [token, spec.kind] as const)),
 );
@@ -248,7 +260,7 @@ describe('cejel install-from-tarball (published artifact)', () => {
     expect(version).toBe(`${PACKAGE_MANIFEST.version}\n`);
     expect(shortVersion).toBe(version);
 
-    const documentedFlags = parseDocumentedFlagTokens(help);
+    const documentedFlags = parseDocumentedFlagTokens(helpSection(help, 'Scan options'));
     expect(new Set(documentedFlags)).toEqual(new Set(CLI_FLAG_TOKENS));
 
     for (const flag of documentedFlags) {
@@ -331,6 +343,51 @@ describe('cejel install-from-tarball (published artifact)', () => {
     expect(() =>
       execFileSync(binPath, ['.', 'ignored-path'], { cwd: targetRepo, stdio: 'pipe' }),
     ).toThrow(/Command failed/);
+  });
+
+  // Same guarantee the scan-flag check above gives, for the two commands CLI_FLAG_SPECS does not
+  // describe: a flag documented in --help is a flag the installed artifact actually accepts.
+  // Every verify/issue flag takes a value, so omitting the value must produce "Missing value for
+  // <flag>" — never "Unknown Cejel ... flag", which is what a documented-but-unwired flag gives.
+  it('accepts every verify and issue flag it documents', () => {
+    const help = execFileSync(binPath, ['--help'], { encoding: 'utf8' });
+    const cases: ReadonlyArray<readonly [string, readonly string[]]> = [
+      ['Verify options', ['verify', 'report.json', 'attestation.json']],
+      ['Issue options', ['issue', '.']],
+    ];
+
+    for (const [heading, prefix] of cases) {
+      const flags = parseDocumentedFlagTokens(helpSection(help, heading));
+      expect(flags.length).toBeGreaterThan(0);
+      for (const flag of flags) {
+        let stderr = '';
+        expect(() => {
+          try {
+            execFileSync(binPath, [...prefix, flag], { stdio: 'pipe' });
+          } catch (error: unknown) {
+            stderr = String((error as { stderr?: Buffer }).stderr ?? '');
+            throw error;
+          }
+        }).toThrow();
+        expect(stderr, `${heading} documents ${flag}`).toContain(`Missing value for ${flag}`);
+      }
+    }
+  });
+
+  // A relying party must be able to check an issuance signature with no network call, which
+  // means the allowed-signers list and the revocations file travel inside the published package.
+  it('ships the issuance signers and revocations files an offline verifier needs', () => {
+    const signers = readFileSync(
+      join(installDir, INSTALLED_PACKAGE_DIR, 'docs', 'security', 'issuer-signers'),
+      'utf8',
+    );
+    expect(signers).toContain('issuance@barglabs.ai');
+
+    const revocations = readFileSync(
+      join(installDir, INSTALLED_PACKAGE_DIR, 'docs', 'security', 'issuer-revocations'),
+      'utf8',
+    );
+    expect(revocations).toContain('APPEND-ONLY');
   });
 
   it('ships LICENSE in the installed package (AGPL-3.0-only)', () => {

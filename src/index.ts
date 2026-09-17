@@ -1,16 +1,25 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { WitanReportSchema } from './witan/index.js';
 import {
+  WITAN_ISSUANCE_PRINCIPAL,
+  WITAN_ISSUANCE_SIGNATURE_NAMESPACE,
   createWitanAttestation,
+  createWitanIssuanceStatement,
+  findIssuerRevocation,
+  parseIssuerPublicKey,
+  parseIssuerRevocations,
   renderWitanBadgeEndpoint,
   renderWitanBadgeSvg,
   renderWitanHtmlReport,
+  serializeWitanIssuance,
   serializeWitanReport,
   verifyWitanAttestationBinding,
+  verifyWitanIssuanceBinding,
+  verifyWitanIssuanceSignature,
 } from './witan/index.js';
 import {
   WITAN_RUBRIC_VERSION_V22,
@@ -49,11 +58,62 @@ export interface WitanCliOptions {
   runAttempt?: string;
 }
 
+/**
+ * `cejel issue` re-runs the scan and records a reproduction. It never signs and never reads a
+ * private key: `keyPath` names the issuer's PUBLIC key, used only to record the fingerprint the
+ * relying party will check and to print the exact ssh-agent signing command.
+ */
+export interface CejelIssueOptions {
+  repoPath: string;
+  reportPath: string;
+  attestationPath: string;
+  keyPath: string;
+  engagementRef: string;
+  outDir: string;
+  productName?: string;
+  productDisplayName?: string;
+  rubricPin?: string;
+  ingestPatterns: string[];
+}
+
+export interface CejelVerifyInvocation {
+  command: 'verify';
+  reportPath: string;
+  attestationPath: string;
+  /** Present only when the caller supplied an issuance pair. */
+  issuancePath?: string;
+  issuanceSignaturePath?: string;
+  /** Overrides for the published files, for a relying party holding their own copies. */
+  signersPath?: string;
+  revocationsPath?: string;
+}
+
 export type CejelCliInvocation =
   | { command: 'scan'; options: WitanCliOptions }
-  | { command: 'verify'; reportPath: string; attestationPath: string };
+  | CejelVerifyInvocation
+  | { command: 'issue'; options: CejelIssueOptions };
 
 const DEFAULT_OUT_DIR = '.cejel';
+
+const ISSUER_SIGNERS_FILE = 'issuer-signers';
+const ISSUER_REVOCATIONS_FILE = 'issuer-revocations';
+// dist/index.js resolves the first candidate; src/index.ts under tsx/vitest resolves the second.
+// Both files are listed in package.json "files", so an npm consumer has them without a network
+// call — which is the whole point of publishing the allowed-signers list.
+const SECURITY_FILE_CANDIDATES = ['../docs/security/', '../../docs/security/'] as const;
+
+function resolveBundledSecurityFile(name: string): string | undefined {
+  for (const prefix of SECURITY_FILE_CANDIDATES) {
+    let candidate: string;
+    try {
+      candidate = fileURLToPath(new URL(`${prefix}${name}`, import.meta.url));
+    } catch {
+      continue;
+    }
+    if (existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
 
 export type CliFlagKind =
   | 'help'
@@ -201,14 +261,35 @@ export const USAGE = `cejel — a trust certificate for your codebase
 Usage:
   npx ${NPX_PACKAGE_NAME} [path] [options]
   npx ${NPX_PACKAGE_NAME} scan [path] [options]
-  npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json>
+  npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig]
+  npx ${NPX_PACKAGE_NAME} issue [path] --report <report.json> --attestation <attestation.json> --key <key.pub> --engagement-ref <ref>
 
 Commands:
   scan    score a repository (default when the command is omitted)
-  verify  verify report/attestation binding only; no signature or signer identity check
+  verify  verify the report/attestation binding; with an issuance pair, also check the issuer
+          signature against docs/security/${ISSUER_SIGNERS_FILE} and docs/security/${ISSUER_REVOCATIONS_FILE}
+  issue   re-run this version at the certificate's revision and, only if report.json reproduces
+          byte for byte, write an unsigned issuance.json for the issuer to sign through ssh-agent
 
 Scan options:
 ${usageOptions}
+
+Verify options:
+  --signers <file>       use this allowed-signers file instead of the published one
+  --revocations <file>   use this revocations file instead of the published one
+
+Issue options:
+  --report <file>        the report.json being countersigned (required)
+  --attestation <file>   the attestation.json beside it (required)
+  --key <file>           the issuer PUBLIC key (.pub); a private key file is refused (required)
+  --engagement-ref <id>  opaque issuer-chosen identifier; never a counterparty name (required)
+  --out <dir>            where issuance.json is written (default: the report.json directory)
+  --product-name <name>  pass exactly what the original scan used, or the bytes will not reproduce
+  --name <display>       pass exactly what the original scan used, or the bytes will not reproduce
+  --rubric-pin <version> pass exactly what the original scan used, or the bytes will not reproduce
+  --ingest <file>        pass exactly what the original scan used, or the bytes will not reproduce
+
+cejel never signs and never reads private key material.
 
 Runs entirely offline. No code leaves your machine.
 Docs: https://cejel.dev
@@ -243,7 +324,10 @@ async function runWitanCli(
 ): Promise<number> {
   const invocation = parseCliInvocation(args);
   if (invocation.command === 'verify') {
-    return runVerifyBinding(invocation.reportPath, invocation.attestationPath);
+    return runVerifyBinding(invocation);
+  }
+  if (invocation.command === 'issue') {
+    return runIssue(invocation.options);
   }
 
   const options = invocation.options;
@@ -339,24 +423,164 @@ export function parseCliInvocation(args: readonly string[]): CejelCliInvocation 
     if (verifyArgs.some((arg) => arg === '-v' || arg === '--version')) {
       return { command: 'scan', options: parseArgs(['--version']) };
     }
-    if (verifyArgs.length !== 2) {
-      throw new Error(`Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json>`);
+    return parseVerifyArgs(verifyArgs);
+  }
+  if (command === 'issue') {
+    const issueArgs = args.slice(1);
+    if (issueArgs.some((arg) => arg === '-h' || arg === '--help')) {
+      return { command: 'scan', options: parseArgs(['--help']) };
     }
-    const [reportPath, attestationPath] = verifyArgs;
-    if (!reportPath || !attestationPath) {
-      throw new Error(`Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json>`);
+    if (issueArgs.some((arg) => arg === '-v' || arg === '--version')) {
+      return { command: 'scan', options: parseArgs(['--version']) };
     }
-    return {
-      command: 'verify',
-      reportPath: resolve(reportPath),
-      attestationPath: resolve(attestationPath),
-    };
+    return { command: 'issue', options: parseIssueArgs(issueArgs) };
   }
   return { command: 'scan', options: parseArgs(args) };
 }
 
-function runVerifyBinding(reportPath: string, attestationPath: string): number {
-  const reportArtifact = readJsonArtifact(reportPath, 'report');
+const VERIFY_USAGE = () =>
+  `Usage: npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig] [--signers <file>] [--revocations <file>]`;
+
+export function parseVerifyArgs(args: readonly string[]): CejelVerifyInvocation {
+  const positionals: string[] = [];
+  let signersPath: string | undefined;
+  let revocationsPath: string | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) continue;
+    if (arg === '--signers' || arg === '--revocations') {
+      const value = args[index + 1];
+      if (!value) throw new Error(`Missing value for ${arg}`);
+      if (arg === '--signers') signersPath = resolve(value);
+      else revocationsPath = resolve(value);
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith('-')) throw new Error(`Unknown Cejel verify flag: ${arg}`);
+    positionals.push(arg);
+  }
+
+  // Two artifacts, or four. Three is a truncated issuance pair, and a signature this command
+  // silently did not check is exactly the failure mode issuance exists to remove.
+  if (positionals.length !== 2 && positionals.length !== 4) throw new Error(VERIFY_USAGE());
+  const [reportPath, attestationPath, issuancePath, issuanceSignaturePath] = positionals;
+  if (!reportPath || !attestationPath) throw new Error(VERIFY_USAGE());
+
+  return {
+    command: 'verify',
+    reportPath: resolve(reportPath),
+    attestationPath: resolve(attestationPath),
+    ...(issuancePath ? { issuancePath: resolve(issuancePath) } : {}),
+    ...(issuanceSignaturePath
+      ? { issuanceSignaturePath: resolve(issuanceSignaturePath) }
+      : {}),
+    ...(signersPath ? { signersPath } : {}),
+    ...(revocationsPath ? { revocationsPath } : {}),
+  };
+}
+
+export function parseIssueArgs(args: readonly string[]): CejelIssueOptions {
+  let repoPath: string | undefined;
+  let reportPath: string | undefined;
+  let attestationPath: string | undefined;
+  let keyPath: string | undefined;
+  let engagementRef: string | undefined;
+  let outDir: string | undefined;
+  let productName: string | undefined;
+  let productDisplayName: string | undefined;
+  let rubricPin: string | undefined;
+  const ingestPatterns: string[] = [];
+
+  function takeValue(arg: string, index: number): string {
+    const value = args[index];
+    if (!value) throw new Error(`Missing value for ${arg}`);
+    return value;
+  }
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === undefined) continue;
+    switch (arg) {
+      case '--report':
+        reportPath = resolve(takeValue(arg, index + 1));
+        index += 1;
+        continue;
+      case '--attestation':
+        attestationPath = resolve(takeValue(arg, index + 1));
+        index += 1;
+        continue;
+      case '--key':
+        keyPath = resolve(takeValue(arg, index + 1));
+        index += 1;
+        continue;
+      case '--engagement-ref':
+        engagementRef = takeValue(arg, index + 1).trim();
+        index += 1;
+        continue;
+      case '--out':
+      case '--out-dir':
+        outDir = resolve(takeValue(arg, index + 1));
+        index += 1;
+        continue;
+      case '--product-name':
+        productName = takeValue(arg, index + 1).trim();
+        index += 1;
+        continue;
+      case '--name':
+        productDisplayName = takeValue(arg, index + 1).trim();
+        index += 1;
+        continue;
+      case '--rubric-pin': {
+        const value = takeValue(arg, index + 1);
+        assertSelectableRubricVersion(value);
+        rubricPin = value;
+        index += 1;
+        continue;
+      }
+      case '--ingest':
+        ingestPatterns.push(takeValue(arg, index + 1));
+        index += 1;
+        continue;
+      default:
+        break;
+    }
+    if (arg.startsWith('-')) throw new Error(`Unknown Cejel issue flag: ${arg}`);
+    if (repoPath !== undefined) throw new Error(`Unexpected positional argument: ${arg}`);
+    repoPath = arg;
+  }
+
+  const missing = [
+    reportPath ? null : '--report',
+    attestationPath ? null : '--attestation',
+    keyPath ? null : '--key',
+    engagementRef ? null : '--engagement-ref',
+  ].filter((entry): entry is string => entry !== null);
+  if (missing.length > 0 || !reportPath || !attestationPath || !keyPath || !engagementRef) {
+    throw new Error(
+      `Cejel issue requires ${missing.join(', ')}. Usage: npx ${NPX_PACKAGE_NAME} issue [path] --report <report.json> --attestation <attestation.json> --key <key.pub> --engagement-ref <ref>`,
+    );
+  }
+  if (productName && productDisplayName) {
+    throw new Error('--product-name and --name cannot be used together');
+  }
+
+  return {
+    repoPath: resolve(repoPath ?? '.'),
+    reportPath,
+    attestationPath,
+    keyPath,
+    engagementRef,
+    outDir: outDir ?? dirname(reportPath),
+    ...(productName ? { productName } : {}),
+    ...(productDisplayName ? { productDisplayName } : {}),
+    ...(rubricPin ? { rubricPin } : {}),
+    ingestPatterns,
+  };
+}
+
+function runVerifyBinding(invocation: CejelVerifyInvocation): number {
+  const reportArtifact = readJsonArtifact(invocation.reportPath, 'report');
   const reportResult = WitanReportSchema.safeParse(reportArtifact.value);
   if (!reportResult.success) {
     const members = reportResult.error.issues.map(
@@ -368,7 +592,7 @@ function runVerifyBinding(reportPath: string, attestationPath: string): number {
     return 1;
   }
 
-  const statement = readJsonArtifact(attestationPath, 'attestation');
+  const statement = readJsonArtifact(invocation.attestationPath, 'attestation');
   const reportSha256 = createHash('sha256').update(reportArtifact.contents).digest('hex');
   const result = verifyWitanAttestationBinding(statement.value, reportResult.data, {
     reportSha256,
@@ -383,7 +607,222 @@ function runVerifyBinding(reportPath: string, attestationPath: string): number {
   }
 
   process.stdout.write('Cejel: report/attestation binding verified.\n');
-  process.stdout.write('Cejel: signature and signer identity were not verified.\n');
+
+  if (!invocation.issuancePath || !invocation.issuanceSignaturePath) {
+    process.stdout.write('Cejel: signature and signer identity were not verified.\n');
+    return 0;
+  }
+
+  const attestationSha256 = createHash('sha256').update(statement.contents).digest('hex');
+  return runVerifyIssuance(invocation, {
+    reportSha256,
+    attestationSha256,
+    productSlug: reportResult.data.productSlug,
+    issuancePath: invocation.issuancePath,
+    issuanceSignaturePath: invocation.issuanceSignaturePath,
+  });
+}
+
+interface VerifyIssuanceContext {
+  reportSha256: string;
+  attestationSha256: string;
+  productSlug: string;
+  issuancePath: string;
+  issuanceSignaturePath: string;
+}
+
+/**
+ * The three lines a relying party reads: is the signature valid, is it bound to these exact
+ * bytes, and has this report digest been withdrawn. Anything this build cannot establish prints
+ * as not established. There is no path here that prints "valid" for a signature that was not
+ * cryptographically verified against a key published in the allowed-signers file.
+ */
+function runVerifyIssuance(
+  invocation: CejelVerifyInvocation,
+  context: VerifyIssuanceContext,
+): number {
+  const issuance = readJsonArtifact(context.issuancePath, 'issuance');
+  let armoredSignature: string;
+  try {
+    armoredSignature = readFileSync(context.issuanceSignaturePath, 'utf8');
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Cejel: could not read issuance signature file ${context.issuanceSignaturePath}: ${message}`,
+    );
+  }
+
+  const signersPath = invocation.signersPath ?? resolveBundledSecurityFile(ISSUER_SIGNERS_FILE);
+  const revocationsPath =
+    invocation.revocationsPath ?? resolveBundledSecurityFile(ISSUER_REVOCATIONS_FILE);
+
+  let signatureLine: string;
+  let signatureOk = false;
+  if (!signersPath) {
+    signatureLine = `signature:  NOT VERIFIED — no ${ISSUER_SIGNERS_FILE} file was found beside this build; pass --signers <file>`;
+  } else {
+    const verdict = verifyWitanIssuanceSignature({
+      message: issuance.contents,
+      armoredSignature,
+      allowedSignersText: readFileSync(signersPath, 'utf8'),
+    });
+    switch (verdict.status) {
+      case 'valid':
+        signatureOk = true;
+        signatureLine = `signature:  valid — signed by ${verdict.principal} (${verdict.keyType}, ${verdict.fingerprint}) under namespace ${WITAN_ISSUANCE_SIGNATURE_NAMESPACE}`;
+        break;
+      case 'unlisted_key':
+        signatureLine = `signature:  SIGNED BY AN UNLISTED KEY — ${verdict.keyType} ${verdict.fingerprint} is not listed for ${WITAN_ISSUANCE_PRINCIPAL} in ${signersPath}`;
+        break;
+      case 'unsupported':
+        signatureLine = `signature:  NOT VERIFIED — ${verdict.reason}`;
+        break;
+      default:
+        signatureLine = `signature:  INVALID — ${verdict.reason}`;
+        break;
+    }
+  }
+
+  const binding = verifyWitanIssuanceBinding(issuance.value, {
+    reportSha256: context.reportSha256,
+    attestationSha256: context.attestationSha256,
+    productSlug: context.productSlug,
+  });
+  const bindingLine = binding.valid
+    ? 'binding:    valid — the issuance names the exact report.json and attestation.json supplied, and asserts reportByteIdentical: true'
+    : `binding:    INVALID — ${binding.errors.join('; ')}`;
+
+  let revocationLine: string;
+  let revocationOk = false;
+  if (!revocationsPath) {
+    revocationLine = `revocation: NOT CHECKED — no ${ISSUER_REVOCATIONS_FILE} file was found beside this build; pass --revocations <file>`;
+  } else {
+    let revocation: ReturnType<typeof findIssuerRevocation>;
+    try {
+      revocation = findIssuerRevocation(
+        parseIssuerRevocations(readFileSync(revocationsPath, 'utf8')),
+        context.reportSha256,
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stdout.write(`${signatureLine}\n${bindingLine}\n`);
+      process.stdout.write(`revocation: NOT CHECKED — ${message}\n`);
+      return 1;
+    }
+    if (revocation) {
+      revocationLine = `revocation: REVOKED — withdrawn ${revocation.date}: ${revocation.reason}`;
+    } else {
+      revocationOk = true;
+      revocationLine = `revocation: not revoked — this report digest is absent from ${revocationsPath}`;
+    }
+  }
+
+  process.stdout.write(`${signatureLine}\n${bindingLine}\n${revocationLine}\n`);
+  return signatureOk && binding.valid && revocationOk ? 0 : 1;
+}
+
+function runIssue(options: CejelIssueOptions): number {
+  const reportArtifact = readJsonArtifact(options.reportPath, 'report');
+  const reportResult = WitanReportSchema.safeParse(reportArtifact.value);
+  if (!reportResult.success) {
+    const members = reportResult.error.issues.map(
+      (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
+    );
+    process.stderr.write(
+      `Cejel: report validation failed:\n${members.map((member) => `  - ${member}`).join('\n')}\n`,
+    );
+    return 1;
+  }
+  const suppliedReport = reportResult.data;
+
+  const attestationArtifact = readJsonArtifact(options.attestationPath, 'attestation');
+  const reportSha256 = createHash('sha256').update(reportArtifact.contents).digest('hex');
+  const attestationSha256 = createHash('sha256')
+    .update(attestationArtifact.contents)
+    .digest('hex');
+  const attestationBinding = verifyWitanAttestationBinding(
+    attestationArtifact.value,
+    suppliedReport,
+    { reportSha256 },
+  );
+  if (!attestationBinding.valid) {
+    process.stderr.write(
+      `Cejel: refusing to issue — the supplied report and attestation are not bound to each other:\n${attestationBinding.errors
+        .map((error) => `  - ${error}`)
+        .join('\n')}\n`,
+    );
+    return 1;
+  }
+
+  let keyContents: string;
+  try {
+    keyContents = readFileSync(options.keyPath, 'utf8');
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cejel: could not read --key file ${options.keyPath}: ${message}`);
+  }
+  // Refused before the scan runs: a private key file must never travel further into the process
+  // than the first byte that identifies it as one.
+  const issuerKey = parseIssuerPublicKey(keyContents);
+
+  // The reproduction. Same version, same revision, same invocation: the bytes match or there is
+  // no issuance. There is deliberately no flag that downgrades this to a warning.
+  const reproduction = runCejelScan({
+    repoPath: options.repoPath,
+    ...(options.productName ? { productName: options.productName } : {}),
+    ...(options.productDisplayName ? { productDisplayName: options.productDisplayName } : {}),
+    ...(options.rubricPin ? { rubricVersion: options.rubricPin } : {}),
+    ingestPatterns: options.ingestPatterns,
+    warnOnEmptyIngestMatch: true,
+    toolVersion: cliVersion(),
+  });
+  const reproducedBytes = serializeWitanReport(reproduction.report);
+  const reproducedSha256 = createHash('sha256').update(reproducedBytes, 'utf8').digest('hex');
+  if (reproducedSha256 !== reportSha256) {
+    process.stderr.write(
+      [
+        'Cejel: refusing to issue — report.json did not reproduce byte for byte.',
+        `  supplied report.json:   sha256:${reportSha256}`,
+        `  re-run at ${options.repoPath}: sha256:${reproducedSha256}`,
+        `  this build:             @cejel/cejel ${cliVersion()}`,
+        '  Check that the checkout is at the certificate revision, that the @cejel/cejel version matches',
+        '  report.json\'s toolVersion, and that --product-name/--name/--rubric-pin/--ingest match the',
+        '  original invocation. An issuance that cannot reproduce is not issued.',
+        '',
+      ].join('\n'),
+    );
+    return 1;
+  }
+
+  const statement = createWitanIssuanceStatement(suppliedReport, {
+    reportSha256,
+    attestationSha256,
+    issuerKeyFingerprint: issuerKey.fingerprint,
+    toolVersion: cliVersion(),
+    issuedAt: new Date().toISOString(),
+    engagementRef: options.engagementRef,
+  });
+
+  mkdirSync(options.outDir, { recursive: true });
+  const issuancePath = join(options.outDir, 'issuance.json');
+  writeFileSync(issuancePath, serializeWitanIssuance(statement), 'utf8');
+
+  process.stdout.write(
+    [
+      `Cejel: reproduced report.json byte for byte (sha256:${reportSha256}).`,
+      `Wrote:\n  ${issuancePath}`,
+      '',
+      'report.json and attestation.json were not modified. Cejel does not sign and never reads a',
+      'private key. Sign through ssh-agent, with the issuer key on its token:',
+      '',
+      `  ssh-keygen -Y sign -n ${WITAN_ISSUANCE_SIGNATURE_NAMESPACE} -f ${options.keyPath} -U ${issuancePath}`,
+      '',
+      'Then verify before delivery:',
+      '',
+      `  npx ${NPX_PACKAGE_NAME} verify ${options.reportPath} ${options.attestationPath} ${issuancePath} ${issuancePath}.sig`,
+      '',
+    ].join('\n'),
+  );
   return 0;
 }
 
@@ -392,7 +831,10 @@ interface JsonArtifact {
   value: unknown;
 }
 
-function readJsonArtifact(path: string, label: 'report' | 'attestation'): JsonArtifact {
+function readJsonArtifact(
+  path: string,
+  label: 'report' | 'attestation' | 'issuance',
+): JsonArtifact {
   let contents: Buffer;
   try {
     contents = readFileSync(path);
