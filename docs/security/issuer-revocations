@@ -1,0 +1,18 @@
+# Withdrawn Cejel issuances. One line per withdrawal:
+#
+#   <report-sha256> <YYYY-MM-DD> <one sentence saying why>
+#
+# The digest is the sha256 of the exact report.json bytes the withdrawn issuance countersigned —
+# the same value `cejel verify` prints and the same value the issuance carries as its report.json
+# subject. `cejel verify` reports a listed digest as REVOKED and exits nonzero.
+#
+# APPEND-ONLY. A line here is never removed, edited, or reordered: a withdrawal that could be
+# quietly reversed is not a withdrawal. Correcting a mistaken entry means appending a second line
+# that says so, not deleting the first. This is enforced by
+# src/__tests__/issuance-revocations-append-only.test.ts, which pins the exact bytes below.
+#
+# This file is EMPTY of entries, and it ships empty on purpose. The absence of revocations is a
+# statement a reader can check, not an omission they have to infer. It ships in the npm package and
+# in every release tarball, so the check needs no network call.
+#
+# ---- entries below this line ----

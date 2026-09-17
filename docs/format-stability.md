@@ -11,6 +11,7 @@ never be converted into a default pass or fail.
 | Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
 | `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.2` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
+| `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
 
 `rubricVersion` versions the evidence and scoring rubric, not the JSON container. The attestation's
@@ -98,6 +99,41 @@ must not be guessed.
 GitHub Action from `GITHUB_RUN_ATTEMPT`): present only for a scan run under the GitHub Action,
 absent — never fabricated or defaulted — for a local CLI or any other CI. It is not part of the
 stable set above; consumers that don't recognize it ignore it per the report-format v1 rule.
+
+### `issuance.json`
+
+An issuance is a Barg Labs countersignature over a certificate that an independent party
+reproduced byte for byte. See [issuance](issuance.md) for what it asserts, what it does not, and
+how to verify it with OpenSSH alone.
+
+Four rules govern it, and they are the reason issuance is versioned separately from the report:
+
+- **Issuance is additive and optional.** It is a separate artifact written beside `report.json` and
+  `attestation.json`, never a field inside either. A consumer that knows nothing about issuance is
+  unaffected by its existence, and a certificate without one is not deficient — most have none.
+- **Earlier certificates never gain one retrospectively.** An issuance records a reproduction that
+  happened; it is produced at issuance time or not at all.
+- **Report and attestation bytes are never modified by issuance.** `report.json` and
+  `attestation.json` are byte-identical before and after. This is what keeps the report
+  reproducible and lets a reader see exactly which bytes were countersigned; it is asserted by
+  test in `src/__tests__/issuance-cli.test.ts`.
+- **`reportFormatVersion` does not move when issuance moves.** `issuanceFormatVersion` versions the
+  issuance container alone, under the same v1 rule as the report: a minor change may add optional
+  fields, and removing, renaming, requiring, or changing the meaning of a stable field requires
+  issuance format v2.
+
+Stable under the issuance/v1 predicate: the statement and predicate identifiers, both subject
+digests and their `artifact` discriminators, `issuer.name`, `issuer.keyFingerprint`, the
+`reproduction` block including `reportByteIdentical`, `issuedAt`, and `engagementRef`.
+`reportByteIdentical` is the literal `true` and has no false value: a reproduction that did not
+reproduce is a refusal to issue.
+
+Human wording in `limitations[]` is experimental prose, exactly as it is for the attestation.
+Consumers may display it but should gate on the structured fields.
+
+The signature is detached, in `issuance.json.sig`, made with `ssh-keygen -Y sign` under namespace
+`cejel-issuance`. The namespace is part of the contract: a signature made under any other namespace
+is reported as invalid, never as valid.
 
 ### `certificate.html`
 

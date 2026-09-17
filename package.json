@@ -44,7 +44,9 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/security/issuer-signers",
+    "docs/security/issuer-revocations"
   ],
   "engines": {
     "node": ">=18"

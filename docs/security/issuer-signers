@@ -1,0 +1,34 @@
+# The allowed-signers file for Cejel ISSUANCE countersignatures. One line per signer:
+# <principal> <keytype> <base64-key> [comment], the format `ssh-keygen -Y verify -f` reads.
+#
+# This is a DIFFERENT authority from docs/security/allowed-signers, which governs calibration
+# records. Issuance signatures carry the namespace `cejel-issuance`; calibration authority uses its
+# own. A key listed in one file is not thereby listed in the other, and a signature made under one
+# namespace does not verify under the other.
+#
+# Principal: issuance@barglabs.ai
+#
+# This file names no key on purpose. Admitting one is an authority decision and belongs to the
+# operator, not to an agent: the key listed here is what a relying party will thereafter accept as
+# Barg Labs' issuing hand. `cejel verify` fails closed while this file is empty — a signature made
+# by an unlisted key is reported as "signed by an unlisted key", never as valid.
+#
+# An agent must not write a key into this file.
+#
+# SUPPORTED KEY TYPES: `cejel verify` verifies `ssh-ed25519` only. Any other key type — including
+# the FIDO/hardware-backed `sk-ssh-ed25519@openssh.com` — is reported as NOT VERIFIED rather than
+# valid, and must be checked with OpenSSH directly (see docs/issuance.md). Before enrolling a key
+# here, confirm its type: enrolling one cejel cannot verify ships a certificate whose signature
+# most readers cannot check with the tool they were handed.
+#
+# To verify an issuance with OpenSSH alone, no Cejel involved:
+#
+#   ssh-keygen -Y verify -f docs/security/issuer-signers -I issuance@barglabs.ai \
+#     -n cejel-issuance -s issuance.json.sig < issuance.json
+#
+# Key rotation is recorded here, in place, with dates: a retired key keeps its line with a comment
+# giving the date it stopped being used, so a reader can still check an issuance made while it was
+# current. A line is never silently deleted.
+#
+# This file ships in the npm package and in every release tarball, so a relying party holds the
+# list without a network call.

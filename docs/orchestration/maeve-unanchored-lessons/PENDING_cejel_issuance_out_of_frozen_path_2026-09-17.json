@@ -1,0 +1,19 @@
+[
+  {
+    "statement": "A path-limited `git commit -- <pathspec>` over a staged rename (delete-old, add-new) silently drops the deletion if the old path is not itself named in the pathspec: the new path's content lands, but the old path is carried forward unchanged from the parent commit, and its staged deletion is left pending in the index for a later commit to pick up by accident or not at all. The commit succeeds with no error, so nothing signals the omission at commit time. Re-running the downstream check that cares about the old path being gone (here, a measurement-freeze guard diffing against a base revision) is what caught it — the guard still refused, listing the file that was supposedly moved away, because it still existed in HEAD. When committing a rename with an explicit pathspec (required here since `git add -A`/`git commit -am` are disallowed), name both the old and new paths, and re-verify against the downstream check rather than trusting a clean commit.",
+    "scope": [
+      "cejel",
+      "git-workflow",
+      "measurement-freeze",
+      "agent-tooling"
+    ],
+    "tags": [
+      "pathspec-commit",
+      "rename-hazard",
+      "verify-dont-trust",
+      "silent-partial-commit"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-17T00:00:00.000Z"
+  }
+]
