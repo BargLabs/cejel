@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseIssuerRevocations,
   verifyRevocationsAppendOnly,
-} from '../witan/issuance.js';
+} from '../issuance/issuance.js';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const REVOCATIONS_PATH = join(REPO_ROOT, 'docs', 'security', 'issuer-revocations');

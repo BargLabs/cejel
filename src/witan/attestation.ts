@@ -104,11 +104,8 @@ export function createWitanAttestation(
       assurance: {
         status: 'unsigned',
         issuer: 'self-generated',
-        // This statement stays self-generated and unsigned, and both fields above stay true of
-        // it. A Barg Labs countersignature is a SEPARATE artifact (issuance.json) that never
-        // modifies these bytes — see docs/issuance.md.
         signingHint:
-          'Sign this in-toto statement with your existing provenance system; verify the report digest before relying on it. A Barg Labs issuance countersignature, when one exists, is a separate issuance.json beside this file: see docs/issuance.md.',
+          'Sign this in-toto statement with your existing provenance system; verify the report digest before relying on it.',
       },
       limitations: [...ATTESTATION_LIMITATIONS],
     },

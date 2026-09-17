@@ -145,6 +145,13 @@ deleted.
 Listing a signer is an authority decision and belongs to the operator. An agent must not write a key
 into that file.
 
+## Pending
+
+`attestation.json`'s self-generated `signingHint` (in `src/witan/attestation.ts`) does not yet point
+here. `src/witan/` is frozen for the `cycle-13-v23-vs-v17` measurement window (see `FREEZE.md`), and
+that edit — a cosmetic pointer, not a scoring change — has been deferred rather than spent as a
+signed supersession. It lands once the window closes.
+
 ## Format and stability
 
 `issuance.json` carries `issuanceFormatVersion`, currently `1.0`, versioned separately from the

@@ -5,22 +5,24 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { WitanReportSchema } from './witan/index.js';
 import {
+  createWitanAttestation,
+  renderWitanBadgeEndpoint,
+  renderWitanBadgeSvg,
+  renderWitanHtmlReport,
+  serializeWitanReport,
+  verifyWitanAttestationBinding,
+} from './witan/index.js';
+import {
   WITAN_ISSUANCE_PRINCIPAL,
   WITAN_ISSUANCE_SIGNATURE_NAMESPACE,
-  createWitanAttestation,
   createWitanIssuanceStatement,
   findIssuerRevocation,
   parseIssuerPublicKey,
   parseIssuerRevocations,
-  renderWitanBadgeEndpoint,
-  renderWitanBadgeSvg,
-  renderWitanHtmlReport,
   serializeWitanIssuance,
-  serializeWitanReport,
-  verifyWitanAttestationBinding,
   verifyWitanIssuanceBinding,
   verifyWitanIssuanceSignature,
-} from './witan/index.js';
+} from './issuance/index.js';
 import {
   WITAN_RUBRIC_VERSION_V22,
   assertSelectableRubricVersion,

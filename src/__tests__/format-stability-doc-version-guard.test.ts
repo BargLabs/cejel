@@ -2,10 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  WITAN_ISSUANCE_FORMAT_VERSION,
-  WITAN_REPORT_FORMAT_VERSION,
-} from '../witan/schemas.js';
+import { WITAN_ISSUANCE_FORMAT_VERSION } from '../issuance/schemas.js';
+import { WITAN_REPORT_FORMAT_VERSION } from '../witan/schemas.js';
 
 // goal_cejel_detector_false_assertions_0_4_9_2026-09-14, finding 4: docs/format-stability.md
 // stated `predicate.reportFormatVersion` was "currently `1.0`" while schemas.ts had moved
