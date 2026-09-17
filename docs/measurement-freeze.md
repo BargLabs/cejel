@@ -56,7 +56,7 @@ Run from a clean Cejel checkout after the mechanism lands:
 
 ```sh
 git fetch origin main
-git switch -c operator/cycle-13-freeze-amendment origin/main
+git switch -c freeze/<window>-amendment-<n> origin/main
 printf 'Full signed amendment commit id in the authority repository: '
 read -r FREEZE_AUTHORITY_COMMIT
 export FREEZE_AUTHORITY_COMMIT
