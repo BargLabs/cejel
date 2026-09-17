@@ -124,6 +124,14 @@ function transition(f, pin, chain = 'valid', signed = true) {
   if (chain === 'malformed') next.supersedes = 'not an object';
   f.put('FREEZE.md', JSON.stringify(next)); return f.commit(signed);
 }
+function close(f, signed = true) {
+  const bytes = readFileSync(join(f.root, 'FREEZE.md'), 'utf8');
+  const old = JSON.parse(bytes);
+  const next = { ...old, supersedes: { markerSha256: createHash('sha256').update(bytes).digest('hex'), pinnedRevision: old.pinnedRevision }, closure: {
+    closedAt: '2026-09-17T00:00:00.000Z', closedBy: { repository: 'example/authority', record: 'docs/calibration/close.md', signedCommit: old.authority.signedCommit },
+  } };
+  f.put('FREEZE.md', JSON.stringify(next)); return f.commit(signed);
+}
 function chainRefused(result, pattern) {
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stderr, /freeze REFUSED/);
@@ -139,6 +147,20 @@ test('signed chained supersession moves the pin and governs subsequent full-tree
   assert.ok(r.stdout.includes(`pin=${pin}`), r.stdout);
   f.put('src/witan/repo-signals.ts', 'later scoring change'); f.commit();
   refused(f.run('--full-tree'), 'src/witan/repo-signals.ts');
+});
+test('signed chained closure permits a subsequent scoring-source change', t => {
+  const f = signedFixture(t); close(f); const base = f.git('rev-parse', 'HEAD');
+  f.put('src/witan/repo-signals.ts', 'permitted after closure'); f.commit();
+  const r = f.run('--base', base); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /closed/);
+});
+test('initial closure refuses whether unsigned or signed', t => {
+  for (const signed of [false, true]) {
+    const f = fixture(t, false); const signer = signing(f, signed ? 'initial-signed' : 'initial-unsigned');
+    t.after(() => { rmSync(signer.key, { force: true }); rmSync(`${signer.key}.pub`, { force: true }); });
+    f.put('docs/security/allowed-signers', signer.line); f.commit();
+    f.put('FREEZE.md', JSON.stringify({ ...f.marker, closure: { closedAt: '2026-09-17T00:00:00.000Z', closedBy: { repository: 'example/authority', record: 'docs/calibration/close.md', signedCommit: f.pin } } })); f.commit(signed);
+    chainRefused(f.run('--full-tree'), /closure requires a predecessor/);
+  }
 });
 for (const chain of ['absent', 'hash', 'pin', 'malformed']) {
   test(`signed supersession with ${chain} chain refuses with chain diagnosis`, t => {
