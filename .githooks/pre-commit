@@ -1,0 +1,55 @@
+#!/bin/bash
+# Refuse commits where a wrong-branch mistake is most expensive.
+#
+# Four branch-state incidents in the week to 2026-08-18, every one recoverable only because a
+# human or agent happened to notice: an operator signature applied to a leftover authorization
+# branch; a branch created from ambient HEAD that silently inherited merged commits and dragged an
+# unrelated PR onto an authority path; an agent committing onto an unrelated feature branch; a
+# branch pointer refused because it was checked out in a worktree.
+#
+# Convention this enforces mechanically:
+#   - never commit directly on main
+#   - operator/* branches carry operator decision records only
+# Convention it cannot enforce, and which therefore stays a rule:
+#   - create branches explicitly from origin/main, never from wherever HEAD is sitting
+#   - read `git status -sb` immediately before any commit, amend, rebase, or branch -f
+#
+# Override for a deliberate exception: CEJEL_ALLOW_BRANCH_COMMIT=1 git commit ...
+
+set -euo pipefail
+
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+
+if [ "${CEJEL_ALLOW_BRANCH_COMMIT:-}" = "1" ]; then
+  exit 0
+fi
+
+case "$branch" in
+  main|master)
+    echo "pre-commit: refusing a commit on '$branch'." >&2
+    echo "  Branch from origin/main first:  git checkout -b <name> origin/main" >&2
+    echo "  Deliberate exception:           CEJEL_ALLOW_BRANCH_COMMIT=1 git commit ..." >&2
+    exit 1
+    ;;
+  operator/*)
+    stray="$(git diff --cached --name-only | grep -v '^docs/orchestration/operator-decisions/' || true)"
+    if [ -n "$stray" ]; then
+      echo "pre-commit: '$branch' is a single-purpose operator-decision branch." >&2
+      echo "  These files do not belong on it:" >&2
+      echo "$stray" | sed 's/^/    /' >&2
+      exit 1
+    fi
+    ;;
+esac
+
+# Advisory only: committing onto a branch whose pull request has already merged was the shape of
+# two of the four incidents. Warn, never block — the check needs the network and may be wrong.
+if command -v gh >/dev/null 2>&1; then
+  state="$(gh pr view "$branch" --json state --jq .state 2>/dev/null || true)"
+  if [ "$state" = "MERGED" ]; then
+    echo "pre-commit: WARNING — '$branch' already has a MERGED pull request." >&2
+    echo "  New work here will not reach main. Consider branching from origin/main instead." >&2
+  fi
+fi
+
+exit 0
