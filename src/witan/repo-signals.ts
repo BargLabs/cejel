@@ -8141,6 +8141,7 @@ function scanForPemPrivateKeyMatch(
   contents: string,
   lines: readonly string[],
   hasIdentifierGroup: boolean,
+  classifyMatch?: (identifier: string, line: number) => V24ClassificationOutcome,
 ): RealSecretAssignmentMatch | null {
   pattern.lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -8156,7 +8157,13 @@ function scanForPemPrivateKeyMatch(
       `${identifier}\n${contextLines}`,
     );
     const isRotatedOrRevoked = ROTATED_OR_REVOKED_KEY_CONTEXT_PATTERN.test(contextLines);
-    if (isPlausiblePemKeyBody(body) && !isDevOrSelfSigned && !isRotatedOrRevoked) {
+    const outcome = classifyMatch?.(identifier, line) ?? V24_REAL;
+    if (
+      isPlausiblePemKeyBody(body) &&
+      !isDevOrSelfSigned &&
+      !isRotatedOrRevoked &&
+      outcome.classification !== 'no_finding'
+    ) {
       // The evidence value is the PEM block itself (armor + body), not `full` — `full` also
       // contains the identifier and assignment syntax, which would otherwise (a) make
       // characterClasses/valueLength describe the wrapper rather than the secret, and (b) make
@@ -8178,6 +8185,12 @@ function scanForPemPrivateKeyMatch(
         characterClasses: characterClasses || 'other',
         valueFingerprint: createHash('sha256').update(value).digest('hex'),
         kind: 'pem_private_key',
+        ...(classifyMatch
+          ? {
+              classification: outcome.classification as Exclude<V24SecretClassification, 'no_finding'>,
+              ...(outcome.reason ? { classificationReason: outcome.reason } : {}),
+            }
+          : {}),
       };
     }
   }
@@ -8193,6 +8206,7 @@ function scanForPemPrivateKeyMatch(
 function findPemPrivateKeyAssignment(
   contents: string,
   file: string,
+  classifyMatch?: (identifier: string, line: number) => V24ClassificationOutcome,
 ): RealSecretAssignmentMatch | null {
   if (!contents.includes('-----BEGIN')) return null;
   if (DEV_OR_SELF_SIGNED_KEY_CONTEXT_PATTERN.test(file)) return null;
@@ -8202,10 +8216,34 @@ function findPemPrivateKeyAssignment(
     contents,
     lines,
     true,
+    classifyMatch,
   );
   if (assignmentMatch) return assignmentMatch;
   if (!isBarePemKeyFile(file)) return null;
-  return scanForPemPrivateKeyMatch(BARE_PEM_PRIVATE_KEY_PATTERN, contents, lines, false);
+  return scanForPemPrivateKeyMatch(
+    BARE_PEM_PRIVATE_KEY_PATTERN,
+    contents,
+    lines,
+    false,
+    classifyMatch,
+  );
+}
+
+// v24 only admits assignment-shaped PEM candidates. Unlike v23's detector, it neither widens to
+// a bare key file based on its filename nor suppresses a candidate based on its path: v24's
+// disposition is determined from the candidate and raw same-file context below.
+function findV24PemPrivateKeyCandidate(
+  contents: string,
+  classifyMatch: (identifier: string, line: number) => V24ClassificationOutcome,
+): RealSecretAssignmentMatch | null {
+  if (!contents.includes('-----BEGIN')) return null;
+  return scanForPemPrivateKeyMatch(
+    PEM_PRIVATE_KEY_ASSIGNMENT_PATTERN,
+    contents,
+    contents.split('\n'),
+    true,
+    classifyMatch,
+  );
 }
 
 function findCommittedSecretInFile(
@@ -8279,12 +8317,6 @@ function findV24ClassifiedSecretInFile(
   // (`# replace this with your own key`). Classifying against the stripped copy would discard the
   // evidence this mechanism exists to read.
   const rawLines = contents.split(/\r?\n/);
-  // v24 owns its current-tree classifier, rather than inheriting v23's detector switch. Keep
-  // the dedicated PEM grammar at the same boundary as the other recognised secret grammars so a
-  // v24 scan cannot regress from a known-plausible private key merely because generic assignment
-  // matching does not assemble its multiline value.
-  const pemPrivateKey = findPemPrivateKeyAssignment(secretScanContents, file);
-  if (pemPrivateKey) return { match: pemPrivateKey, classification: 'real' };
   const classifyFor =
     (wanted: Exclude<V24SecretClassification, 'no_finding'>) =>
     (value: string, identifier: string, line: number): V24ClassificationOutcome => {
@@ -8320,11 +8352,25 @@ function findV24ClassifiedSecretInFile(
     return { match: defaultAdministrative, classification: 'real' };
   }
 
+  // The PEM grammar supplies a candidate, never a conclusion: its value already cleared the
+  // dedicated plausibility guards, but v24 still decides the disposition from the raw nearby
+  // context. In particular, a comment stripped from `secretScanContents` may require abstention.
+  const pemPrivateKey = findV24PemPrivateKeyCandidate(
+    secretScanContents,
+    (_identifier, line) => classifyV24ConfirmedSecretAtLine(rawLines, line),
+  );
+  if (pemPrivateKey?.classification === 'real') {
+    return { match: pemPrivateKey, classification: 'real' };
+  }
+
   const ambiguous = findRealSecretAssignment(secretScanContents, new Set(), {
     allowCredentialNamedDigest: useV36Detectors,
     classifyValue: classifyFor('ambiguous'),
   });
-  return ambiguous ? { match: ambiguous, classification: 'ambiguous' } : null;
+  if (ambiguous) return { match: ambiguous, classification: 'ambiguous' };
+  return pemPrivateKey?.classification === 'ambiguous'
+    ? { match: pemPrivateKey, classification: 'ambiguous' }
+    : null;
 }
 
 function prepareCredentialScanContents(
@@ -9316,6 +9362,15 @@ function hasV24InstructionalContext(rawLines: readonly string[], line: number): 
   return false;
 }
 
+function classifyV24ConfirmedSecretAtLine(
+  rawLines: readonly string[],
+  line: number,
+): V24ClassificationOutcome {
+  return hasV24InstructionalContext(rawLines, line)
+    ? { classification: 'ambiguous', reason: V24_AMBIGUOUS_INSTRUCTIONAL_REASON }
+    : V24_REAL;
+}
+
 function classifyV24SecretShapedValue(
   value: string,
   identifier: string,
@@ -9334,9 +9389,7 @@ function classifyV24SecretShapedValue(
       isExplicitCredentialIdentifier(identifier));
   const instructionalContext = hasV24InstructionalContext(rawLines, line);
   if (clearsRealBar) {
-    return instructionalContext
-      ? { classification: 'ambiguous', reason: V24_AMBIGUOUS_INSTRUCTIONAL_REASON }
-      : V24_REAL;
+    return classifyV24ConfirmedSecretAtLine(rawLines, line);
   }
   if (!isV24CandidateSecretValue(value)) return V24_NO_FINDING;
   if (instructionalContext) return V24_NO_FINDING;
