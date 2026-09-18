@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import { isPlaceholderSecretValue } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V23 } from '../rubric-version.js';
+import { WITAN_RUBRIC_VERSION_V24 } from '../rubric-version.js';
 
 const FIXTURE_DIRECTORY = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -32,7 +32,7 @@ function reportFor(repoPath: string) {
     productDisplayName: 'Synthetic template credential regression',
     repoPath,
     generatedAt: '2026-09-17T00:00:00.000Z',
-    rubricVersion: WITAN_RUBRIC_VERSION_V23,
+    rubricVersion: WITAN_RUBRIC_VERSION_V24,
   });
 }
 
@@ -49,18 +49,15 @@ function templateContents(): string {
 // the suite remains green. Once Phase B permits the source fix, the inner assertions pass and
 // Vitest reports these tests as an unexpected pass; that fail-loud transition requires replacing
 // `.fails` with ordinary tests instead of silently accepting a changed contract.
-describe('A2 template credential regression — fixtures now, implementation later', () => {
-  it('reproduces the measured current behavior without exposing fabricated values in report JSON', () => {
+describe('A2 template credential regression — v24 content classification', () => {
+  it('finds the populated template token without exposing fabricated values in report JSON', () => {
     const repoPath = makeFixtureRepo();
     try {
       const report = reportFor(repoPath);
       const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
       const reportJson = JSON.stringify(report);
 
-      expect(a2?.score).toBe(3.2);
-      expect(a2?.findings).toHaveLength(1);
-      expect(a2?.findings[0]?.severity).toBe('info');
-      expect(a2?.findings[0]?.summary).toContain('tracked non-template .env file');
+      expect(a2?.findings.some((finding) => finding.severity === 'critical')).toBe(true);
       expect(reportJson).not.toContain(templateContents());
     } finally {
       rmSync(repoPath, { recursive: true, force: true });
@@ -85,7 +82,7 @@ describe('A2 template credential regression — fixtures now, implementation lat
     }
   });
 
-  it.fails('will find a populated high-entropy token in a template-suffixed path', () => {
+  it('finds a populated high-entropy token in a template-suffixed path', () => {
     const repoPath = makeFixtureRepo();
     try {
       const findings = a2Findings(repoPath);

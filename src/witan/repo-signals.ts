@@ -8035,15 +8035,10 @@ function isIgnoredScanFile(file: string, useV47Detectors = false): boolean {
 // v24-only. README.md and CHANGELOG.md are documentation pages, and excluding them BY NAME is the
 // same class of path rule this rubric exists to remove: the README is where a placeholder is most
 // likely and, for exactly that reason, the last place anyone would look for a real credential.
-// Lockfiles and `.env` templates stay excluded — a lockfile is a generated artifact (the same
-// family as GENERATED_OR_VENDOR_PATH_PATTERN, which v24 does not touch), and an
-// `.env.example`/`.sample`/`.template` is placeholder content by definition, which is a claim
-// about content rather than a claim about a directory.
+// Lockfiles stay excluded as generated artifacts. Template suffixes are conventions, not proof
+// that values are placeholders, so v24 classifies their content like every other path.
 function isV24IgnoredScanFile(file: string): boolean {
-  return (
-    /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(file) ||
-    isEnvTemplatePath(file, true)
-  );
+  return /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(file);
 }
 
 function findRootPackageJson(repoFiles: readonly string[]): string | null {
