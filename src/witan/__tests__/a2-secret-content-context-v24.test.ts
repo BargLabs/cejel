@@ -64,6 +64,12 @@ function committedSecretFindings(dir: string, rubricVersion: string) {
   );
 }
 
+function pemPrivateKeyFindings(dir: string, rubricVersion: string) {
+  return (a2Signal(dir, rubricVersion)?.findings ?? []).filter((finding) =>
+    /PEM-formatted private key/i.test(finding.summary),
+  );
+}
+
 function abstentionFindings(dir: string, rubricVersion: string) {
   return (a2Signal(dir, rubricVersion)?.findings ?? []).filter((finding) =>
     /ambiguous content context/i.test(finding.summary),
@@ -120,6 +126,19 @@ const AMBIGUOUS_SOURCE = `export const telemetryConfig = {
 };
 `;
 
+// Recreated from pem-private-key-v23.test.ts: deterministic fixture material, never a real key.
+// This deliberately exercises the multiline PEM grammar rather than the generic token matcher.
+function syntheticPemValue(header = 'PRIVATE KEY'): string {
+  const raw = Array.from(
+    { length: 24 },
+    (_, index) => `witan-synthetic-pem-fixture-material-${index}`,
+  ).join('|');
+  const body = Buffer.from(raw, 'utf8').toString('base64');
+  const wrapped: string[] = [];
+  for (let index = 0; index < body.length; index += 64) wrapped.push(body.slice(index, index + 64));
+  return `-----BEGIN ${header}-----\n${wrapped.join('\n')}\n-----END ${header}-----\n`;
+}
+
 describe('A2 v24 content-context secret classification — a real secret under docs/ still flags', () => {
   it('flags a real-shaped credential committed to a documentation path, at full critical severity', () => {
     const dir = makeTmpRepo('witan-v24-real-in-docs-');
@@ -175,6 +194,23 @@ describe('A2 v24 content-context secret classification — a real secret under d
     expect(inDocumentation[0]?.evidence?.label).toBe(inProduction[0]?.evidence?.label);
     expect(inDocumentation[0]?.evidence?.path).toBe('docs/config/ingest.md');
     expect(inProduction[0]?.evidence?.path).toBe('src/config/ingest.ts');
+  });
+});
+
+describe('A2 v24 content-context secret classification — PEM reachability', () => {
+  it('recognizes a plausible synthetic PEM private key in a tracked non-template .env current tree', () => {
+    const dir = makeTmpRepo('witan-v24-pem-current-tree-');
+    writeFile(dir, 'src/index.ts', PRODUCT_SOURCE);
+    writeFile(dir, '.env', `PRIVATE_KEY="${syntheticPemValue()}"\n`);
+    commit(dir, 'add synthetic PEM private key');
+
+    // RED before the v24 matcher is reachable: generic assignment matching cannot recognise the
+    // multiline PEM value. GREEN: v24 emits the same dedicated critical finding v23 already
+    // produces for this known-plausible synthetic material.
+    const findings = pemPrivateKeyFindings(dir, WITAN_RUBRIC_VERSION_V24);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe('critical');
+    expect(findings[0]?.evidence?.path).toBe('.env');
   });
 });
 
