@@ -8142,6 +8142,7 @@ function scanForPemPrivateKeyMatch(
   lines: readonly string[],
   hasIdentifierGroup: boolean,
   classifyMatch?: (identifier: string, line: number) => V24ClassificationOutcome,
+  wantedClassification?: Exclude<V24SecretClassification, 'no_finding'>,
 ): RealSecretAssignmentMatch | null {
   pattern.lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -8162,7 +8163,8 @@ function scanForPemPrivateKeyMatch(
       isPlausiblePemKeyBody(body) &&
       !isDevOrSelfSigned &&
       !isRotatedOrRevoked &&
-      outcome.classification !== 'no_finding'
+      outcome.classification !== 'no_finding' &&
+      (wantedClassification === undefined || outcome.classification === wantedClassification)
     ) {
       // The evidence value is the PEM block itself (armor + body), not `full` — `full` also
       // contains the identifier and assignment syntax, which would otherwise (a) make
@@ -8235,6 +8237,7 @@ function findPemPrivateKeyAssignment(
 function findV24PemPrivateKeyCandidate(
   contents: string,
   classifyMatch: (identifier: string, line: number) => V24ClassificationOutcome,
+  wantedClassification: Exclude<V24SecretClassification, 'no_finding'>,
 ): RealSecretAssignmentMatch | null {
   if (!contents.includes('-----BEGIN')) return null;
   return scanForPemPrivateKeyMatch(
@@ -8243,6 +8246,7 @@ function findV24PemPrivateKeyCandidate(
     contents.split('\n'),
     true,
     classifyMatch,
+    wantedClassification,
   );
 }
 
@@ -8355,12 +8359,15 @@ function findV24ClassifiedSecretInFile(
   // The PEM grammar supplies a candidate, never a conclusion: its value already cleared the
   // dedicated plausibility guards, but v24 still decides the disposition from the raw nearby
   // context. In particular, a comment stripped from `secretScanContents` may require abstention.
-  const pemPrivateKey = findV24PemPrivateKeyCandidate(
+  const classifyPem = (_identifier: string, line: number) =>
+    classifyV24ConfirmedSecretAtLine(rawLines, line);
+  const realPemPrivateKey = findV24PemPrivateKeyCandidate(
     secretScanContents,
-    (_identifier, line) => classifyV24ConfirmedSecretAtLine(rawLines, line),
+    classifyPem,
+    'real',
   );
-  if (pemPrivateKey?.classification === 'real') {
-    return { match: pemPrivateKey, classification: 'real' };
+  if (realPemPrivateKey) {
+    return { match: realPemPrivateKey, classification: 'real' };
   }
 
   const ambiguous = findRealSecretAssignment(secretScanContents, new Set(), {
@@ -8368,8 +8375,13 @@ function findV24ClassifiedSecretInFile(
     classifyValue: classifyFor('ambiguous'),
   });
   if (ambiguous) return { match: ambiguous, classification: 'ambiguous' };
-  return pemPrivateKey?.classification === 'ambiguous'
-    ? { match: pemPrivateKey, classification: 'ambiguous' }
+  const ambiguousPemPrivateKey = findV24PemPrivateKeyCandidate(
+    secretScanContents,
+    classifyPem,
+    'ambiguous',
+  );
+  return ambiguousPemPrivateKey
+    ? { match: ambiguousPemPrivateKey, classification: 'ambiguous' }
     : null;
 }
 
