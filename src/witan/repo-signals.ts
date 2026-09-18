@@ -8035,8 +8035,9 @@ function isIgnoredScanFile(file: string, useV47Detectors = false): boolean {
 // v24-only. README.md and CHANGELOG.md are documentation pages, and excluding them BY NAME is the
 // same class of path rule this rubric exists to remove: the README is where a placeholder is most
 // likely and, for exactly that reason, the last place anyone would look for a real credential.
-// Lockfiles stay excluded as generated artifacts. Template suffixes are conventions, not proof
-// that values are placeholders, so v24 classifies their content like every other path.
+// Lockfiles stay excluded as generated artifacts. A confirmed populated PEM in a template file
+// shows that a suffix is only a convention, never proof of placeholder content: v24 classifies
+// template values by content and never suppresses their scan by path alone.
 function isV24IgnoredScanFile(file: string): boolean {
   return /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(file);
 }
