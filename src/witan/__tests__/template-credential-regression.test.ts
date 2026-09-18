@@ -44,21 +44,34 @@ function templateContents(): string {
   return readFileSync(join(FIXTURE_DIRECTORY, '.env.example'), 'utf8');
 }
 
+function populatedTemplateToken(): string {
+  const match = /^API_TOKEN=(.+)$/m.exec(templateContents());
+  if (!match?.[1]) throw new Error('synthetic populated token fixture is missing');
+  return match[1];
+}
+
 // These tests deliberately use Vitest's expected-failure mode. On the frozen implementation,
 // template paths are skipped before A2 reads their content, so each inner assertion fails while
 // the suite remains green. Once Phase B permits the source fix, the inner assertions pass and
 // Vitest reports these tests as an unexpected pass; that fail-loud transition requires replacing
 // `.fails` with ordinary tests instead of silently accepting a changed contract.
 describe('A2 template credential regression — v24 content classification', () => {
-  it('finds the populated template token without exposing fabricated values in report JSON', () => {
+  it('finds the populated template token', () => {
     const repoPath = makeFixtureRepo();
     try {
       const report = reportFor(repoPath);
       const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
-      const reportJson = JSON.stringify(report);
 
       expect(a2?.findings.some((finding) => finding.severity === 'critical')).toBe(true);
-      expect(reportJson).not.toContain(templateContents());
+    } finally {
+      rmSync(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it('does not expose the populated synthetic token in report JSON', () => {
+    const repoPath = makeFixtureRepo();
+    try {
+      expect(JSON.stringify(reportFor(repoPath))).not.toContain(populatedTemplateToken());
     } finally {
       rmSync(repoPath, { recursive: true, force: true });
     }
