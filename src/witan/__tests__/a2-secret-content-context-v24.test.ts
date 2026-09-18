@@ -256,21 +256,22 @@ describe('A2 v24 content-context secret classification — PEM reachability', ()
 
   it('gives the same critical disposition when the instructional PEM follows the confirmed PEM', () => {
     const dir = makeTmpRepo('witan-v24-pem-precedence-transposed-');
+    const contents = [
+      `BACKUP_PRIVATE_KEY="${syntheticPemValue('RSA PRIVATE KEY')}"`,
+      '# Replace this with your own private key.',
+      `PRIVATE_KEY="${syntheticPemValue()}"`,
+      '',
+    ].join('\n');
+    const unmarkedPemLine =
+      contents.split('\n').findIndex((line) => line.startsWith('BACKUP_PRIVATE_KEY=')) + 1;
     writeFile(dir, 'src/index.ts', PRODUCT_SOURCE);
-    writeFile(
-      dir,
-      '.env',
-      [
-        `BACKUP_PRIVATE_KEY="${syntheticPemValue('RSA PRIVATE KEY')}"`,
-        '# Replace this with your own private key.',
-        `PRIVATE_KEY="${syntheticPemValue()}"`,
-        '',
-      ].join('\n'),
-    );
+    writeFile(dir, '.env', contents);
     commit(dir, 'add unmarked and marked synthetic PEM keys');
 
     // Evidence, not document position, decides the result: any real candidate wins.
-    expect(pemPrivateKeyFindings(dir, WITAN_RUBRIC_VERSION_V24)).toHaveLength(1);
+    const findings = pemPrivateKeyFindings(dir, WITAN_RUBRIC_VERSION_V24);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence?.line).toBe(unmarkedPemLine);
     expect(secretCleanlinessMetric(dir, WITAN_RUBRIC_VERSION_V24)?.value).toBe(0);
   });
 });
