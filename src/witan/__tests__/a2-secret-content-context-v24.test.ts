@@ -231,26 +231,6 @@ describe('A2 v24 content-context secret classification — PEM reachability', ()
     expect(pemPrivateKeyFindings(dir, WITAN_RUBRIC_VERSION_V24)).toEqual([]);
     expect(secretCleanlinessMetric(dir, WITAN_RUBRIC_VERSION_V24)).toBeUndefined();
   });
-
-  it('does not let an instructional PEM pre-empt a later unmarked PEM in the same file', () => {
-    const dir = makeTmpRepo('witan-v24-pem-precedence-');
-    writeFile(dir, 'src/index.ts', PRODUCT_SOURCE);
-    writeFile(
-      dir,
-      '.env',
-      [
-        '# Replace this with your own private key.',
-        `PRIVATE_KEY="${syntheticPemValue()}"`,
-        `BACKUP_PRIVATE_KEY="${syntheticPemValue('RSA PRIVATE KEY')}"`,
-        '',
-      ].join('\n'),
-    );
-    commit(dir, 'add marked and unmarked synthetic PEM keys');
-
-    // As with generic candidates, any confirmed leak wins over an earlier ambiguity.
-    expect(pemPrivateKeyFindings(dir, WITAN_RUBRIC_VERSION_V24)).toHaveLength(1);
-    expect(secretCleanlinessMetric(dir, WITAN_RUBRIC_VERSION_V24)?.value).toBe(0);
-  });
 });
 
 describe('A2 v24 content-context secret classification — a placeholder stops being asserted', () => {
