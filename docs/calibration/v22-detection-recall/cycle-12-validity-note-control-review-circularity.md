@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # Cycle-12 measurement-validity note — control-side review circularity
 
 > **Published transcription, redacted.** Operator-signed source record, held in the private

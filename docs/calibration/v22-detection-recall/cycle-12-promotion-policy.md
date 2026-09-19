@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # Cycle-12 promotion policy
 
 > **Published transcription.** Operator-signed source record, held in the private measurement

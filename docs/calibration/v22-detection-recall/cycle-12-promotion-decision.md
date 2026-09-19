@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # Cycle-12 promotion decision — NO-GO
 
 > **Published transcription.** Operator-signed source record, held in the private measurement
