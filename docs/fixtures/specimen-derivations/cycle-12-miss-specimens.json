@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "closedDescriptionStatus": "pending-operator-input",
+  "records": [
+    {
+      "id": "template-pem",
+      "status": "evidence-pending",
+      "missingEvidence": "A reproducible run through the complete PEM plausibility gate, pinned to the exact specimen bytes. The earlier report is not sufficient evidence.",
+      "closedDescriptionProperties": []
+    },
+    {
+      "id": "coverage-node",
+      "status": "unversioned-evidence",
+      "missingEvidence": "A committed canonical specimen revision. The generated fixture observed in a shared worktree is not an auditable input.",
+      "closedDescriptionProperties": []
+    },
+    {
+      "id": "a2-history-env",
+      "status": "established-nonreproduction",
+      "measurement": "All 20 synthetic cells were detected at both measured revisions and through both current-tree and history paths.",
+      "closedDescriptionProperties": []
+    }
+  ]
+}
