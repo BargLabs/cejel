@@ -1,6 +1,6 @@
 [
   {
-    "statement": "A path-limited `git commit -- <pathspec>` over a staged rename (delete-old, add-new) silently drops the deletion if the old path is not itself named in the pathspec: the new path's content lands, but the old path is carried forward unchanged from the parent commit, and its staged deletion is left pending in the index for a later commit to pick up by accident or not at all. The commit succeeds with no error, so nothing signals the omission at commit time. Re-running the downstream check that cares about the old path being gone (here, a measurement-freeze guard diffing against a base revision) is what caught it — the guard still refused, listing the file that was supposedly moved away, because it still existed in HEAD. When committing a rename with an explicit pathspec (required here since `git add -A`/`git commit -am` are disallowed), name both the old and new paths, and re-verify against the downstream check rather than trusting a clean commit.",
+    "statement": "A path-limited `git commit -- <pathspec>` over a staged rename (delete-old, add-new) silently drops the deletion if the old path is not itself named in the pathspec: the new path's content lands, but the old path is carried forward unchanged from the parent commit, and its staged deletion is left pending in the index for a later commit to pick up by accident or not at all. The commit succeeds with no error, so nothing signals the omission at commit time. Re-running the downstream check that cares about the old path being gone (here, a measurement-freeze guard diffing against a base revision) is what caught it \u2014 the guard still refused, listing the file that was supposedly moved away, because it still existed in HEAD. When committing a rename with an explicit pathspec (required here since `git add -A`/`git commit -am` are disallowed), name both the old and new paths, and re-verify against the downstream check rather than trusting a clean commit.",
     "scope": [
       "cejel",
       "git-workflow",
@@ -14,6 +14,11 @@
       "silent-partial-commit"
     ],
     "anchors": [],
-    "lastSeenAt": "2026-09-17T00:00:00.000Z"
+    "lastSeenAt": "2026-09-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "anchorless-by-nature",
+      "reason": "This is a recurring Git invocation practice, not a missing code fix: name both old and new paths when committing a staged rename with an explicit pathspec, then verify the resulting tree with the downstream guard. No corrective implementation commit can enforce every future invocation."
+    }
   }
 ]

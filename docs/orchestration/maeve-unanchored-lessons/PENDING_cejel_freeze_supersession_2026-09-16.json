@@ -13,8 +13,22 @@
       "mutation-testing",
       "evidence-discipline"
     ],
-    "anchors": [],
-    "lastSeenAt": "2026-09-16T00:00:00.000Z"
+    "anchors": [
+      {
+        "commit": "032da6116612b69e28ab7d0b5f5d5bd68d527202",
+        "pr": 325,
+        "summary": "PR #325 implements chained signed supersession and refusal controls, including competing successors.",
+        "evidencePath": "scripts/check-measurement-freeze.node-test.mjs",
+        "evidenceQuote": "test('competing signed successors are a fork even if a merge picks one marker', t => {"
+      }
+    ],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "commit-landed",
+      "repository": "BargLabs/cejel",
+      "sha": "032da6116612b69e28ab7d0b5f5d5bd68d527202"
+    }
   },
   {
     "statement": "Independent review of the measurement-freeze proposal found that removing the SSH-envelope condition from status === G && ssh broke no test. Real SSH signatures and E/N rejection controls cannot isolate the GPG-versus-SSH boundary: it needs a genuinely trusted OpenPGP signature for which Git reports G, followed by a guard refusal attributable only to the envelope. Every added defence needs a targeted mutation check: remove that predicate in a temporary copy and verify its independent test fails for the expected reason. A green suite is not evidence that each defence is protected against removal.",
@@ -28,7 +42,21 @@
       "independent-review",
       "uncovered-defence"
     ],
-    "anchors": [],
-    "lastSeenAt": "2026-09-16T00:00:00.000Z"
+    "anchors": [
+      {
+        "commit": "e308f6271ed0365fba0c7f8009f029845df94580",
+        "pr": 325,
+        "summary": "PR #325 adds the trusted OpenPGP G fixture; its evidence record documents the SSH-envelope predicate-removal failure.",
+        "evidencePath": "scripts/check-calibration-signatures.node-test.mjs",
+        "evidenceQuote": "test('a trusted OpenPGP G signature cannot satisfy the SSH allowlist', t => {"
+      }
+    ],
+    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "commit-landed",
+      "repository": "BargLabs/cejel",
+      "sha": "e308f6271ed0365fba0c7f8009f029845df94580"
+    }
   }
 ]

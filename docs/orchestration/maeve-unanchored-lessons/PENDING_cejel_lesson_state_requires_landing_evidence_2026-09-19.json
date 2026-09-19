@@ -1,0 +1,22 @@
+[
+  {
+    "statement": "Repairing lesson metadata requires rechecking the underlying history, not assigning a state that merely satisfies the schema. A seed can describe a missing defence in the same commit that adds its regression test: Cejel freeze_supersession #1 described the uncovered SSH-envelope predicate, but e308f62 already added the trusted OpenPGP G fixture and recorded the mutation failure in merged PR #325. Verify the landed diff and ancestry before choosing awaiting-fix or a real anchor; tense and an empty anchors array do not establish current state. Keep evidence of a landed test distinct from a fresh successful test run, and keep a transport holding directory distinct from completed ingestion.",
+    "scope": [
+      "cejel",
+      "lesson-lifecycle",
+      "evidence-discipline"
+    ],
+    "tags": [
+      "verify-current-state",
+      "schema-is-not-state",
+      "landing-evidence"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "anchorless-by-nature",
+      "reason": "This is an evidence-review practice for classifying lesson records against current landed history. No single corrective code commit can replace the per-record review or prove future classifications correct."
+    }
+  }
+]
