@@ -32,7 +32,7 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
   // uncommitted or operator-held specimens. CI fetches full history.
   const registered = JSON.parse(execFileSync('git', [
     'show',
-    'bc0ee453b272ea47e04e70273d4713e6beccb060:docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json',
+    'ab2026d88ad33857aefc31044cc72d782d523231:docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json',
   ], { cwd: ROOT, encoding: 'utf8' })) as { records: RecordEntry[] };
   const expected = registered.records.map((entry) => entry.id).sort();
   if (expected.length === 0 || new Set(expected).size !== expected.length) {

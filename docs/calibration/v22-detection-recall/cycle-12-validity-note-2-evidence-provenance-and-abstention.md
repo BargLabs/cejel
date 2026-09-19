@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # Cycle-12 measurement-validity note 2 — evidence provenance, and abstention counted as miss
 
 > **Published transcription, redacted.** Operator-signed source record, held in the private
