@@ -8279,12 +8279,6 @@ function findV24ClassifiedSecretInFile(
   // (`# replace this with your own key`). Classifying against the stripped copy would discard the
   // evidence this mechanism exists to read.
   const rawLines = contents.split(/\r?\n/);
-  // v24 owns its current-tree classifier, rather than inheriting v23's detector switch. Keep
-  // the dedicated PEM grammar at the same boundary as the other recognised secret grammars so a
-  // v24 scan cannot regress from a known-plausible private key merely because generic assignment
-  // matching does not assemble its multiline value.
-  const pemPrivateKey = findPemPrivateKeyAssignment(secretScanContents, file);
-  if (pemPrivateKey) return { match: pemPrivateKey, classification: 'real' };
   const classifyFor =
     (wanted: Exclude<V24SecretClassification, 'no_finding'>) =>
     (value: string, identifier: string, line: number): V24ClassificationOutcome => {
