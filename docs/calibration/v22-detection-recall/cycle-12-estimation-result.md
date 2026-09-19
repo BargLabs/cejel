@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # Cycle-12 estimation result — the measured figure
 
 > **Published transcription, redacted.** Operator-signed source record, held in the private

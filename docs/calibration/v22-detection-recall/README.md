@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # v22 in-scope detection recall — the cycle-12 measurement record
 
 This directory is the open calibration record for the one cohort detection-recall measurement
