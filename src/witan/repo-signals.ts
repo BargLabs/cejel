@@ -2434,7 +2434,6 @@ function collectA2IsolationEvidence(
           useV39Detectors,
           useV47Detectors,
           useV23PemPrivateKeyGrammar,
-          useV24SecretContentContext,
         );
   const hasConfirmedSecretFinding = committedSecret != null || historySecretScan?.evidence != null;
 
@@ -8805,7 +8804,6 @@ function collectHistorySecretEvidence(
   useV39Detectors = false,
   useV47Detectors = false,
   useV23PemPrivateKeyGrammar = false,
-  useV24SecretContentContext = false,
 ): HistorySecretScanResult {
   const historyEntries = readCredentialHistoryEntries(
     repoPath,
@@ -8858,25 +8856,11 @@ function collectHistorySecretEvidence(
     let secretMatch = findRealSecretAssignment(scanContents, currentFingerprints, {
       allowCredentialNamedDigest: useV36Detectors,
     });
-    // v24's PEM grammar is deliberately a separate capability from v23's: it considers only
-    // assignment-shaped candidates and classifies each against the historical blob's raw context
-    // before it can become a finding. This completes the current/history path pair without
-    // inheriting v23's bare-file/path widening or its report-only disposition.
-    const v24PemMatch = useV24SecretContentContext
-      ? findV24PemPrivateKeyCandidate(
-          scanContents,
-          (_identifier, line) => classifyV24ConfirmedSecretAtLine(contents.split(/\r?\n/), line),
-          'real',
-        )
-      : null;
     if (!secretMatch && useV23PemPrivateKeyGrammar) {
       const pemMatch = findPemPrivateKeyAssignment(scanContents, entry.path);
       if (pemMatch && !currentFingerprints.has(pemMatch.valueFingerprint)) {
         secretMatch = pemMatch;
       }
-    }
-    if (!secretMatch && v24PemMatch && !currentFingerprints.has(v24PemMatch.valueFingerprint)) {
-      secretMatch = v24PemMatch;
     }
     if (
       !secretMatch &&

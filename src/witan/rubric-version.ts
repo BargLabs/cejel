@@ -92,9 +92,8 @@ export const WITAN_RUBRIC_VERSION_V23 = 'witan-rubric-v23-prospective-2026-09-06
 // and (b) every secret-shaped match is classified into exactly one of three outcomes — placeholder
 // (no finding), confident real (flags at the unchanged v22 bar, severity and evidence), or
 // ambiguous (abstains the `secret_cleanliness` metric with a stated reason instead of reporting a
-// silent pass). The history scan applies that same PEM candidate/context classification to
-// assignment-shaped historical blobs; A2's other history grammars, data-layer/RLS detection and
-// .env-presence evidence, and every other criterion are unchanged.
+// silent pass). Git history secret scanning, A2's data-layer/RLS detection and .env-presence
+// evidence, and every other criterion are unchanged.
 //
 // V24 deliberately inherits v22, NOT v23. V23's own declaration above records its four mechanisms
 // as gated on WITAN_RUBRIC_VERSION_V23 alone and mechanism 4 as not inheritable; inheriting them
