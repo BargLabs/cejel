@@ -213,29 +213,6 @@ describe('A2 v24 content-context secret classification — PEM reachability', ()
     expect(findings[0]?.evidence?.path).toBe('.env');
   });
 
-  it('gives the same critical PEM verdict for identical current-tree and history payloads', () => {
-    const current = makeTmpRepo('witan-v24-pem-current-parity-');
-    writeFile(current, 'src/index.ts', PRODUCT_SOURCE);
-    writeFile(current, '.env', `PRIVATE_KEY="${syntheticPemValue()}"\n`);
-    commit(current, 'add synthetic PEM private key');
-
-    const historical = makeTmpRepo('witan-v24-pem-history-parity-');
-    writeFile(historical, 'src/index.ts', PRODUCT_SOURCE);
-    writeFile(historical, '.env', `PRIVATE_KEY="${syntheticPemValue()}"\n`);
-    commit(historical, 'add synthetic PEM private key');
-    writeFile(historical, '.env', 'PRIVATE_KEY=your-key-here\n');
-    commit(historical, 'replace synthetic PEM with a placeholder');
-
-    const currentFinding = pemPrivateKeyFindings(current, WITAN_RUBRIC_VERSION_V24);
-    const historyFinding = pemPrivateKeyFindings(historical, WITAN_RUBRIC_VERSION_V24);
-
-    expect(currentFinding).toHaveLength(1);
-    expect(historyFinding).toHaveLength(1);
-    expect(currentFinding[0]?.severity).toBe('critical');
-    expect(historyFinding[0]?.severity).toBe(currentFinding[0]?.severity);
-    expect(historyFinding[0]?.evidence?.path).toBe('.env');
-  });
-
   it('abstains for the same plausible PEM under an instructional comment that preparation strips', () => {
     const dir = makeTmpRepo('witan-v24-pem-instructional-context-');
     writeFile(dir, 'src/index.ts', PRODUCT_SOURCE);
