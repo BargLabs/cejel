@@ -1,0 +1,7 @@
+{
+  "name": "synthetic-specimen-derivation-guard",
+  "private": true,
+  "scripts": {
+    "test": "node --test --coverage"
+  }
+}
