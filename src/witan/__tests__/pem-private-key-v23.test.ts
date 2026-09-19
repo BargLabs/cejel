@@ -120,6 +120,32 @@ describe('A2 v23 PEM private-key grammar — recognition (fails without the fix)
     expect(pemFinding(dir, WITAN_RUBRIC_VERSION_V17)).toBeUndefined();
   });
 
+  it('recognizes a plausible PEM in a template env file in both the current tree and history', () => {
+    const current = makeTmpRepo();
+    writeFile(current, 'src/index.js', 'export const noop = () => {};\n');
+    writeFile(current, '.env.example', SERVICE_ACCOUNT_JSON);
+    commit(current, 'add template environment key');
+
+    const currentFinding = pemFinding(current, WITAN_RUBRIC_VERSION_V23);
+    expect(currentFinding?.severity).toBe('critical');
+    expect(currentFinding?.evidence.path).toBe('.env.example');
+    expect(currentFinding?.evidence.line).toBeGreaterThan(0);
+    expect(pemFinding(current, WITAN_RUBRIC_VERSION_V22)).toBeUndefined();
+    expect(pemFinding(current, WITAN_RUBRIC_VERSION_V17)).toBeUndefined();
+
+    const history = makeTmpRepo();
+    writeFile(history, 'src/index.js', 'export const noop = () => {};\n');
+    commit(history, 'initial');
+    writeFile(history, '.env.example', SERVICE_ACCOUNT_JSON);
+    commit(history, 'add template environment key');
+    removeAndCommit(history, '.env.example', 'remove template environment key');
+
+    const historyFinding = pemFinding(history, WITAN_RUBRIC_VERSION_V23);
+    expect(historyFinding?.severity).toBe('critical');
+    expect(historyFinding?.evidence.path).toBe('.env.example');
+    expect(historyFinding?.evidence.line).toBeGreaterThan(0);
+  });
+
   it('recognizes a YAML block-scalar PEM assignment (Kubernetes Secret shape), not just JSON', () => {
     const dir = makeTmpRepo();
     writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');
@@ -149,6 +175,24 @@ describe('A2 v23 PEM private-key grammar — recognition (fails without the fix)
 });
 
 describe('A2 v23 PEM private-key grammar — false-positive guards', () => {
+  it('keeps placeholder-only template env content silent in both the current tree and history', () => {
+    const placeholder =
+      '{\n  "private_key": "-----BEGIN PRIVATE KEY-----\\nYOUR_KEY_HERE\\n-----END PRIVATE KEY-----\\n"\n}\n';
+    const current = makeTmpRepo();
+    writeFile(current, 'src/index.js', 'export const noop = () => {};\n');
+    writeFile(current, '.env.example', placeholder);
+    commit(current, 'add placeholder template');
+    expect(pemFinding(current, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
+
+    const history = makeTmpRepo();
+    writeFile(history, 'src/index.js', 'export const noop = () => {};\n');
+    commit(history, 'initial');
+    writeFile(history, '.env.example', placeholder);
+    commit(history, 'add placeholder template');
+    removeAndCommit(history, '.env.example', 'remove placeholder template');
+    expect(pemFinding(history, WITAN_RUBRIC_VERSION_V23)).toBeUndefined();
+  });
+
   it('does NOT flag a PEM private key inside a __fixtures__ path', () => {
     const dir = makeTmpRepo();
     writeFile(dir, 'src/index.js', 'export const noop = () => {};\n');

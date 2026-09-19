@@ -1,0 +1,14 @@
+[
+  {
+    "statement": "A path-level template exclusion before content classification produces false negatives: v23 skipped .env.example before its established plausibility and placeholder checks could inspect the value, while the history path read the same content. Keep generated and lockfile exclusions, but let v23 inspect template content through its existing checks; constrain the exception to v23 so earlier rubric versions remain stable.",
+    "scope": ["cejel", "witan", "a2", "secret-detection"],
+    "tags": ["path-before-content", "template-suppression", "current-history-asymmetry"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Awaiting review and merge of the v23 template-content current-tree fix."
+    }
+  }
+]

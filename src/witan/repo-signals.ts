@@ -2328,8 +2328,10 @@ function collectA2IsolationEvidence(
           : useV39Detectors
             ? isV39AuthoredProductionPath(path)
             : isAuthoredProductionPath(path);
+  const templateContentIsInV23Scope =
+    useV23PemPrivateKeyGrammar && isEnvTemplatePath(path, useV47Detectors);
         if (
-          isIgnoredScanFile(path, useV47Detectors) ||
+          (isIgnoredScanFile(path, useV47Detectors) && !templateContentIsInV23Scope) ||
           (useV33Detectors && !authoredProductionPath)
         ) {
           continue;

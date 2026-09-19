@@ -44,32 +44,36 @@ function templateContents(): string {
   return readFileSync(join(FIXTURE_DIRECTORY, '.env.example'), 'utf8');
 }
 
-// These tests deliberately use Vitest's expected-failure mode. On the frozen implementation,
-// template paths are skipped before A2 reads their content, so each inner assertion fails while
-// the suite remains green. Once Phase B permits the source fix, the inner assertions pass and
-// Vitest reports these tests as an unexpected pass; that fail-loud transition requires replacing
-// `.fails` with ordinary tests instead of silently accepting a changed contract.
+// Both populated controls are plausible. The PEM check removes the token first so the assertion
+// proves PEM recognition rather than the scanner's intentional first-match selection. v23 must
+// scan either populated credential in a template-suffixed path, while placeholder-only template
+// content stays silent below.
 describe('A2 template credential regression — fixtures now, implementation later', () => {
-  it('reproduces the measured current behavior without exposing fabricated values in report JSON', () => {
+  it('reports the populated template credential without exposing fabricated values in report JSON', () => {
     const repoPath = makeFixtureRepo();
     try {
       const report = reportFor(repoPath);
       const a2 = report.criteria.find((criterion) => criterion.id === 'A2');
       const reportJson = JSON.stringify(report);
 
-      expect(a2?.score).toBe(3.2);
+      expect(a2?.score).toBe(1.4);
       expect(a2?.findings).toHaveLength(1);
-      expect(a2?.findings[0]?.severity).toBe('info');
-      expect(a2?.findings[0]?.summary).toContain('tracked non-template .env file');
+      expect(a2?.findings[0]?.severity).toBe('critical');
+      expect(a2?.findings[0]?.evidence.path).toBe('.env.example');
       expect(reportJson).not.toContain(templateContents());
     } finally {
       rmSync(repoPath, { recursive: true, force: true });
     }
   });
 
-  it.fails('will find a PEM-delimited private key in .env.example', () => {
+  it('finds a PEM-delimited private key in a template-suffixed path', () => {
     const repoPath = makeFixtureRepo();
     try {
+      writeFileSync(
+        join(repoPath, '.env.example'),
+        templateContents().replace(/^API_TOKEN=.*\n?$/m, ''),
+        'utf8',
+      );
       const findings = a2Findings(repoPath);
       expect(
         findings.some(
@@ -85,7 +89,7 @@ describe('A2 template credential regression — fixtures now, implementation lat
     }
   });
 
-  it.fails('will find a populated high-entropy token in a template-suffixed path', () => {
+  it('finds a populated high-entropy token in a template-suffixed path', () => {
     const repoPath = makeFixtureRepo();
     try {
       const findings = a2Findings(repoPath);
