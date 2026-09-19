@@ -8145,6 +8145,8 @@ function findCommittedSecretInFile(
     if (pemSecret) return pemSecret;
   }
   if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
+    const databaseUrlCredential = findDatabaseUrlUserinfoCredential(secretScanContents);
+    if (databaseUrlCredential) return databaseUrlCredential;
     const weakCredential = findWeakExplicitEnvCredential(secretScanContents);
     if (weakCredential) return weakCredential;
   }
@@ -8306,6 +8308,8 @@ function findSecretFingerprintsInFile(
     if (pemSecret) fingerprints.push(pemSecret.valueFingerprint);
   }
   if (useV39Detectors && isEnvHistoryPath(file, useV36Detectors)) {
+    const databaseUrlCredential = findDatabaseUrlUserinfoCredential(scanContents);
+    if (databaseUrlCredential) fingerprints.push(databaseUrlCredential.valueFingerprint);
     const weakCredential = findWeakExplicitEnvCredential(scanContents);
     if (weakCredential) fingerprints.push(weakCredential.valueFingerprint);
   }
@@ -8473,6 +8477,54 @@ function findWeakExplicitEnvCredential(contents: string): RealSecretAssignmentMa
   return null;
 }
 
+function findDatabaseUrlUserinfoCredential(contents: string): RealSecretAssignmentMatch | null {
+  const lines = contents.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
+    if (/^\s*#/.test(line)) continue;
+    const match =
+      /^\s*(?:export\s+)?(DATABASE_URL)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))/i.exec(line);
+    const identifier = match?.[1];
+    const rawValue = match?.[2] ?? match?.[3] ?? match?.[4];
+    if (!identifier || !rawValue) continue;
+    let parsed: URL;
+    try {
+      parsed = new URL(rawValue);
+    } catch {
+      continue;
+    }
+    if (
+      (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') ||
+      !parsed.username ||
+      !parsed.password
+    ) {
+      continue;
+    }
+    let password: string;
+    try {
+      password = decodeURIComponent(parsed.password);
+    } catch {
+      continue;
+    }
+    if (isPlaceholderSecretValue(password)) continue;
+    const characterClasses = [
+      /[a-z]/.test(password) ? 'lower' : '',
+      /[A-Z]/.test(password) ? 'upper' : '',
+      /\d/.test(password) ? 'digit' : '',
+      /[^A-Za-z0-9]/.test(password) ? 'symbol' : '',
+    ]
+      .filter(Boolean)
+      .join('+');
+    return {
+      identifier,
+      line: index + 1,
+      valueLength: password.length,
+      characterClasses: characterClasses || 'other',
+      valueFingerprint: createHash('sha256').update(password).digest('hex'),
+    };
+  }
+  return null;
+}
+
 function findDefaultAdministrativeCredential(contents: string): RealSecretAssignmentMatch | null {
   const lines = contents.split(/\r?\n/);
   for (const [index, line] of lines.entries()) {
@@ -8604,6 +8656,16 @@ function collectHistorySecretEvidence(
       const pemMatch = findPemPrivateKeyAssignment(scanContents, entry.path);
       if (pemMatch && !currentFingerprints.has(pemMatch.valueFingerprint)) {
         secretMatch = pemMatch;
+      }
+    }
+    if (
+      !secretMatch &&
+      useV39Detectors &&
+      isEnvHistoryPath(entry.path, useV36Detectors, useV47Detectors)
+    ) {
+      const databaseUrlCredential = findDatabaseUrlUserinfoCredential(scanContents);
+      if (databaseUrlCredential && !currentFingerprints.has(databaseUrlCredential.valueFingerprint)) {
+        secretMatch = databaseUrlCredential;
       }
     }
     if (

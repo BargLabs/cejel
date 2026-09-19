@@ -1,0 +1,14 @@
+[
+  {
+    "statement": "A credential embedded in PostgreSQL URL userinfo does not satisfy an assignment-based token grammar: DATABASE_URL has no secret-bearing identifier, while the password is delimited by URI syntax rather than an assignment. Parse the bounded DATABASE_URL PostgreSQL URI shape, classify the decoded password with the existing placeholder policy, and feed the resulting fingerprint through both current and history paths so deduplication and redacted evidence remain intact.",
+    "scope": ["cejel", "witan", "a2", "secret-detection"],
+    "tags": ["url-userinfo", "database-url", "current-history-parity"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Awaiting review and merge of the DATABASE_URL PostgreSQL userinfo credential fix."
+    }
+  }
+]
