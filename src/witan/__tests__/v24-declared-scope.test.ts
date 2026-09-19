@@ -1,7 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { buildWitanInputFromRepo } from '../repo-signals.js';
 import {
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
@@ -34,6 +38,51 @@ const KNOWN_V24_SPECIFIC_MARKERS = [
 // usesV20A3ExplicitGaps, usesV21ExecutedEscalations, usesV22PackageStartEntrypoint) + 1 prose
 // reference in the gate's own comment + the 1 v24-specific marker above = 9.
 const EXPECTED_TOTAL_V24_REFERENCES = 9;
+
+function makeSyntheticPemRepo(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'witan-v24-declared-scope-'));
+  execFileSync('git', ['init', '--quiet'], { cwd: dir });
+  execFileSync('git', ['config', 'user.email', 'test@test.invalid'], { cwd: dir });
+  execFileSync('git', ['config', 'user.name', 'Synthetic Test'], { cwd: dir });
+  execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: dir });
+  return dir;
+}
+
+function writeAndCommit(dir: string, relativePath: string, contents: string): void {
+  const path = join(dir, relativePath);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, contents, 'utf8');
+  execFileSync('git', ['add', '--', relativePath], { cwd: dir });
+  execFileSync('git', ['commit', '--quiet', '--no-gpg-sign', '-m', 'add synthetic input'], {
+    cwd: dir,
+  });
+}
+
+function syntheticPemJsonValue(): string {
+  const material = Array.from(
+    { length: 24 },
+    (_, index) => `witan-synthetic-v24-scope-material-${index}`,
+  ).join('|');
+  const body = Buffer.from(material, 'utf8').toString('base64');
+  const wrapped: string[] = [];
+  for (let index = 0; index < body.length; index += 64) {
+    wrapped.push(body.slice(index, index + 64));
+  }
+  return `-----BEGIN PRIVATE KEY-----\\n${wrapped.join('\\n')}\\n-----END PRIVATE KEY-----\\n`;
+}
+
+function v24PemFindings(dir: string) {
+  const input = buildWitanInputFromRepo({
+    productSlug: 'synthetic-v24-declared-scope',
+    productDisplayName: 'Synthetic v24 declared scope',
+    repoPath: dir,
+    generatedAt: '2026-09-19T00:00:00.000Z',
+    rubricVersion: WITAN_RUBRIC_VERSION_V24,
+  });
+  return (input.signals ?? [])
+    .find((signal) => signal.criterionId === 'A2')
+    ?.findings.filter((finding) => /PEM-formatted private key/i.test(finding.summary));
+}
 
 describe('v24 declared scope', () => {
   it('the known v24-specific gate is present verbatim in repo-signals.ts', () => {
@@ -88,5 +137,24 @@ describe('v24 declared scope', () => {
     expect(v24Block).toContain('V24 deliberately inherits v22, NOT v23');
     expect(v24Block).toContain('V39_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN');
     expect(v24Block).toContain('The public default remains v17');
+  });
+
+  it('does not reach PEM private-key grammar without an authorized v24 scope expansion', () => {
+    const dir = makeSyntheticPemRepo();
+    try {
+      writeAndCommit(dir, 'src/index.ts', 'export const version = "1.0.0";\n');
+      writeAndCommit(
+        dir,
+        'config/service-account.json',
+        `{\n  "private_key": "${syntheticPemJsonValue()}"\n}\n`,
+      );
+
+      // This is the capability-level complement to the gate-text assertions above. Adding a
+      // direct v24 PEM matcher without changing the declaration makes this test fail, even when
+      // the matcher bypasses every version gate those assertions inspect.
+      expect(v24PemFindings(dir) ?? []).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
