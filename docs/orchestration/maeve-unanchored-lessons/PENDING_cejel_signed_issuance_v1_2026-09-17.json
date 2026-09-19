@@ -13,11 +13,25 @@
       "guard-not-weakened",
       "design-deviation"
     ],
-    "anchors": [],
-    "lastSeenAt": "2026-09-17T00:00:00.000Z"
+    "anchors": [
+      {
+        "commit": "680dd02aefe0c131fe9d6c22da9519bd8567d4ed",
+        "pr": 331,
+        "summary": "PR #331 adds pure node:crypto SSHSIG verification and cross-checks it against OpenSSH acceptance and rejection.",
+        "evidencePath": "src/issuance/__tests__/issuance.test.ts",
+        "evidenceQuote": "it('agrees with `ssh-keygen -Y verify`, the documented no-Cejel path', () => {"
+      }
+    ],
+    "lastSeenAt": "2026-09-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "commit-landed",
+      "repository": "BargLabs/cejel",
+      "sha": "680dd02aefe0c131fe9d6c22da9519bd8567d4ed"
+    }
   },
   {
-    "statement": "A parser for a security-policy file must treat a field it did not interpret as disqualifying, never as absent. An OpenSSH allowed-signers line can carry options — cert-authority, namespaces=\"...\", validity windows — that narrow or change what a key authorizes. A parser that reads the principal, key type and key while skipping the option field silently widens what verifies, and the widening is invisible because the happy path still passes. The issuance verifier keeps uninterpreted option text on the parsed entry and refuses to match against any line that carries one, so an unrecognised restriction fails closed; the same reasoning makes an empty or key-less signers file report 'signed by an unlisted key' rather than skipping the check, because 'nobody may sign' must never read the same as 'anybody may'.",
+    "statement": "A parser for a security-policy file must treat a field it did not interpret as disqualifying, never as absent. An OpenSSH allowed-signers line can carry options \u2014 cert-authority, namespaces=\"...\", validity windows \u2014 that narrow or change what a key authorizes. A parser that reads the principal, key type and key while skipping the option field silently widens what verifies, and the widening is invisible because the happy path still passes. The issuance verifier keeps uninterpreted option text on the parsed entry and refuses to match against any line that carries one, so an unrecognised restriction fails closed; the same reasoning makes an empty or key-less signers file report 'signed by an unlisted key' rather than skipping the check, because 'nobody may sign' must never read the same as 'anybody may'.",
     "scope": [
       "cejel",
       "issuance",
@@ -29,7 +43,21 @@
       "policy-file-parsing",
       "silent-widening"
     ],
-    "anchors": [],
-    "lastSeenAt": "2026-09-17T00:00:00.000Z"
+    "anchors": [
+      {
+        "commit": "680dd02aefe0c131fe9d6c22da9519bd8567d4ed",
+        "pr": 331,
+        "summary": "PR #331 disqualifies uninterpreted signer options and refuses an empty or key-less signer list.",
+        "evidencePath": "src/issuance/issuance.ts",
+        "evidenceQuote": "entry.uninterpretedOptions === undefined &&"
+      }
+    ],
+    "lastSeenAt": "2026-09-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "commit-landed",
+      "repository": "BargLabs/cejel",
+      "sha": "680dd02aefe0c131fe9d6c22da9519bd8567d4ed"
+    }
   }
 ]
