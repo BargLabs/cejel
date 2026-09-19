@@ -14,6 +14,12 @@
       "silent-partial-commit"
     ],
     "anchors": [],
-    "lastSeenAt": "2026-09-17T00:00:00.000Z"
+    "lastSeenAt": "2026-09-17T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 331
+    }
   }
 ]
