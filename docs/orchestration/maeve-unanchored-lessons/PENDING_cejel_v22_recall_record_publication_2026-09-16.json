@@ -15,7 +15,11 @@
   {
     "statement": "A commit-then-reveal design is only as available as the tool that computes its digest. Publishing the v22 recall record required a cohort selection digest, and the session had no reachable SHA-256 — shasum, openssl, git hash-object and printf were all refused — so the commitment shipped as a specification with an empty slot. The recoverable part was that seed plus method plus allocation plus sealed key already determine the drawn set exactly, which is the real commitment; the digest was only a one-step check on it. Design a membership commitment so its evidential core is the reproducible selection procedure, and treat the digest as a convenience over it, never as the thing being trusted.",
     "scope": ["cejel", "calibration", "commit-then-reveal", "disclosure"],
-    "tags": ["digest-slot-left-empty-not-filled", "procedure-is-the-commitment", "tooling-availability-is-a-design-input"],
+    "tags": [
+      "digest-slot-left-empty-not-filled",
+      "procedure-is-the-commitment",
+      "tooling-availability-is-a-design-input"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
@@ -28,7 +32,11 @@
   {
     "statement": "A dispatch card can require a read the runner's permission layer forbids, and the failure is silent unless the agent says so. This card specified reading nine signed records from alfred's origin/main and never from a working tree; every git invocation against that repository was refused, so the records were read from the working tree and the deviation was written into the PR body with the one diff command a reviewer runs to close it. The rule that survives: when a provenance instruction cannot be executed, do not substitute quietly and do not hand back empty — deliver the work, name the weaker source, and hand the reviewer the exact check that restores the guarantee.",
     "scope": ["cejel", "alfred", "orchestration", "evidence-discipline"],
-    "tags": ["provenance-instruction-unexecutable", "state-the-weaker-source", "hand-back-the-check-not-the-task"],
+    "tags": [
+      "provenance-instruction-unexecutable",
+      "state-the-weaker-source",
+      "hand-back-the-check-not-the-task"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
@@ -41,7 +49,11 @@
   {
     "statement": "Redacting a per-case defect note down to nothing destroys the lesson it exists to carry. Both cycle-12 validity notes are built on named cohort cases, which are closed until retirement, and the naive redaction leaves 'a defect occurred'. What survived the boundary and is worth more than the case id: the defect class, the rule, the count, the generalised mechanism, the direction it pushes the figure, and the requirements binding on the next cycle. Redact the identifier and the per-repository reasoning; publish the mechanism and the remedy. The exam goes out, the answer key does not, and a note stripped of its mechanism is neither.",
     "scope": ["cejel", "disclosure", "calibration", "publication"],
-    "tags": ["redact-the-identifier-not-the-mechanism", "closed-class-carve-out", "give-away-the-exam"],
+    "tags": [
+      "redact-the-identifier-not-the-mechanism",
+      "closed-class-carve-out",
+      "give-away-the-exam"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,

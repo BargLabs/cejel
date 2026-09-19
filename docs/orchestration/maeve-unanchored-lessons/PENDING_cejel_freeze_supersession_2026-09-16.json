@@ -1,18 +1,8 @@
 [
   {
     "statement": "A freeze guard that permanently binds the first marker while asking for an operator-reviewed transition has no lawful way to apply a later signed decision. Make supersession an explicit chain over the preceding marker bytes and pin, verify the changing commit with the existing operator-signature reader, and preserve refusal for unsigned edits, deletion, and competing successors. Prove the transition with disposable fixture keys; fixture signatures never authorize the live marker. Controls that already pass on baseline need targeted defence-removal runs: deleting the zero-inventory throw and removing only the __tests__ exclusion must each make its independent control fail. Do not claim every requested control is baseline RED when the original guard already implements that behaviour.",
-    "scope": [
-      "cejel",
-      "measurement-freeze",
-      "signature-guard",
-      "tests"
-    ],
-    "tags": [
-      "dual-control",
-      "supersession",
-      "mutation-testing",
-      "evidence-discipline"
-    ],
+    "scope": ["cejel", "measurement-freeze", "signature-guard", "tests"],
+    "tags": ["dual-control", "supersession", "mutation-testing", "evidence-discipline"],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
@@ -24,16 +14,8 @@
   },
   {
     "statement": "Independent review of the measurement-freeze proposal found that removing the SSH-envelope condition from status === G && ssh broke no test. Real SSH signatures and E/N rejection controls cannot isolate the GPG-versus-SSH boundary: it needs a genuinely trusted OpenPGP signature for which Git reports G, followed by a guard refusal attributable only to the envelope. Every added defence needs a targeted mutation check: remove that predicate in a temporary copy and verify its independent test fails for the expected reason. A green suite is not evidence that each defence is protected against removal.",
-    "scope": [
-      "cejel",
-      "signature-guard",
-      "tests"
-    ],
-    "tags": [
-      "mutation-testing",
-      "independent-review",
-      "uncovered-defence"
-    ],
+    "scope": ["cejel", "signature-guard", "tests"],
+    "tags": ["mutation-testing", "independent-review", "uncovered-defence"],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,

@@ -1,14 +1,8 @@
 [
   {
     "statement": "A release-identity validator gates only the strings it names literally, so prose that declares the shipping version passes green while stale. Preparing 0.4.10, scripts/validate-distribution-metadata.mjs asserted the README OCI pin equals package.json's version and rejected a stale pin, but checked the Windows signing line only for the version-free substring 'Windows signing status:' and never checked the 'Cejel `0.4.x` is the coordinated release version' distribution note. Reverting both lines to 0.4.9 against a 0.4.10 package.json still reported 'Distribution metadata agrees on npm v0.4.10'. A hand-grep was the only thing between a green validator and a stale public version claim. Assert the version inside every published statement that declares it, not only the machine-readable pin.",
-    "scope": [
-      "cejel",
-      "release"
-    ],
-    "tags": [
-      "release-identity",
-      "ungated-prose-claim"
-    ],
+    "scope": ["cejel", "release"],
+    "tags": ["release-identity", "ungated-prose-claim"],
     "anchors": [],
     "lastSeenAt": "2026-09-17T00:00:00.000Z",
     "stagingVersion": 2,
@@ -20,14 +14,8 @@
   },
   {
     "statement": "A release card that names which changelog entries promote must be reverified against the tag before the promotion is executed. The 0.4.10 card stated the calibration signature guard and the report-format-1.2 rubric behaviour fingerprint were the two [Unreleased] entries shipping in 0.4.10; `git show v0.4.9:CHANGELOG.md` shows both were already under ## [0.4.9] at tag commit cd75fc4, and [Unreleased] held only the measurement-freeze supersession fix. Executing the card literally would have republished entries a published immutable version already contains as 0.4.10 changes — a false claim about what shipped, in the release whose purpose was correcting one. Read the tagged changelog, not the card, to decide what promotes.",
-    "scope": [
-      "cejel",
-      "release"
-    ],
-    "tags": [
-      "changelog-promotion",
-      "card-premise-reverification"
-    ],
+    "scope": ["cejel", "release"],
+    "tags": ["changelog-promotion", "card-premise-reverification"],
     "anchors": [],
     "lastSeenAt": "2026-09-17T00:00:00.000Z",
     "stagingVersion": 2,

@@ -1,15 +1,8 @@
 [
   {
     "statement": "A freeze declared only in a remote record cannot stop a source change. Freeze declarations must be checked from trusted base/history bytes so deleting or editing the marker refuses rather than disabling the guard. Verify real PR paths: a claimed tests-only control can add and modify production source, and should then refuse under a non-test-source freeze instead of receiving a special exemption.",
-    "scope": [
-      "cejel",
-      "ci"
-    ],
-    "tags": [
-      "freeze",
-      "fail-closed",
-      "real-history"
-    ],
+    "scope": ["cejel", "ci"],
+    "tags": ["freeze", "fail-closed", "real-history"],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,

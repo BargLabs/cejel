@@ -1,15 +1,8 @@
 [
   {
     "statement": "Missing staging metadata does not establish that a corrective change is still awaiting a fix. Inspect the corrective diff and establish its landing on origin/main before choosing movesWhen. For squashed work, use the merged PR or its landing commit rather than an original branch commit that is not an ancestor of main. Completed fixes must not be classified as awaiting-fix merely to satisfy schema validation.",
-    "scope": [
-      "cejel",
-      "lesson-staging",
-      "git-history"
-    ],
-    "tags": [
-      "evidence-discipline",
-      "landing-evidence"
-    ],
+    "scope": ["cejel", "lesson-staging", "git-history"],
+    "tags": ["evidence-discipline", "landing-evidence"],
     "anchors": [],
     "lastSeenAt": "2026-09-19T00:00:00.000Z",
     "stagingVersion": 2,

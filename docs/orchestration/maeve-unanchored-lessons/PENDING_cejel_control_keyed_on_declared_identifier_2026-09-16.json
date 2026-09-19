@@ -2,7 +2,11 @@
   {
     "statement": "A control keyed on a declared identifier cannot detect a change made beneath that identifier, and the more trusted the identifier the longer the gap survives. Cejel's rubric changelog names one enforcement: fail the build if WITAN_RUBRIC_VERSION changes without an entry. Five scoring changes shipped under an unchanged v17 identifier and it stayed silent, correctly by its own definition, while the changelog kept citing it as the thing that makes silent re-scoring impossible. The identifier's authority is what stops anyone from checking. Ask of every control what it would do if the declared value were simply left alone, and where the answer is nothing, add a control that measures the behaviour and never reads the declaration.",
     "scope": ["cejel", "witan", "rubric-version", "guard-design"],
-    "tags": ["control-keyed-on-declared-identifier", "invisible-beneath-the-version", "measure-do-not-declare"],
+    "tags": [
+      "control-keyed-on-declared-identifier",
+      "invisible-beneath-the-version",
+      "measure-do-not-declare"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
@@ -28,7 +32,11 @@
   {
     "statement": "Fixtures written from a detector's description exercise the description, not the detector. Four fixtures here were authored to reach prospective-rubric mechanisms and three reached none of them: the v20 HTTP-entrypoint pattern wants createServer(...).listen(port) as one chained expression and the fixture split it across two statements; the v21 SQL pattern wants a role-membership grant and the fixture wrote a table grant. Every one of them scored cleanly and looked like coverage. Only diffing each rubric against its predecessor, per criterion, showed the fixtures were inert. A corpus must be shown to DISTINGUISH the things it claims to cover, not merely to contain shapes named after them.",
     "scope": ["cejel", "witan", "fixtures", "coverage"],
-    "tags": ["fixture-misses-the-mechanism", "coverage-claimed-not-measured", "diff-against-the-predecessor"],
+    "tags": [
+      "fixture-misses-the-mechanism",
+      "coverage-claimed-not-measured",
+      "diff-against-the-predecessor"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
@@ -41,7 +49,11 @@
   {
     "statement": "Putting the identifier inside the digest that is supposed to replace it silently restores the defect. The first version of this behaviour fingerprint included rubricVersion in the hashed projection, so all seven rubrics produced distinct digests and the corpus looked like it separated them; in fact four rubrics scored the corpus identically and only the embedded name differed. A digest that carries a declaration measures the declaration. Exclude the identifier, accept that behaviourally identical versions then collide, and treat the collision as the true statement it is.",
     "scope": ["cejel", "witan", "rubric-version", "guard-design"],
-    "tags": ["identifier-inside-the-behaviour-digest", "false-discrimination", "collision-is-information"],
+    "tags": [
+      "identifier-inside-the-behaviour-digest",
+      "false-discrimination",
+      "collision-is-information"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,

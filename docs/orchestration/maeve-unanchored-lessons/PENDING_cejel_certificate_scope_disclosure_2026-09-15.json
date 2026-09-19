@@ -15,7 +15,11 @@
   {
     "statement": "Before wiring a conditional disclosure line to 'when signal X fires, name the specific cause,' verify a real fixture can actually reach that branch — a classification function that CAN return a specific reason does not mean every code path that produces that reason routes through attribution. In this codebase, a too-large file is recorded as skipped, unattributed, for every tracked file at file-inventory time (before any per-criterion collector runs); only two specific signals, gated to one rubric version, ever re-claim that skip against themselves. A wholesale (whole-criterion) 'too large' abstention bucket built by splitting the existing bundled message looked reasonable from the classification code alone, but was unreachable by any real repository scan — dead code whose prose would have read as a coverage claim the scanner does not actually have. The check that caught it was writing the fixture and watching it fail to trigger, not reading the code that constructs the message.",
     "scope": ["cejel", "witan", "abstention", "content-reads", "disclosure"],
-    "tags": ["unreachable-conditional-disclosure", "dead-branch-reads-as-coverage", "verify-with-a-fixture"],
+    "tags": [
+      "unreachable-conditional-disclosure",
+      "dead-branch-reads-as-coverage",
+      "verify-with-a-fixture"
+    ],
     "anchors": [],
     "lastSeenAt": "2026-09-15T00:00:00.000Z",
     "stagingVersion": 2,
