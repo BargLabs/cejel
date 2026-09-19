@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,8 +17,8 @@ interface RecordEntry {
   missingEvidence?: string;
 }
 
-function parseRecords(): RecordEntry[] {
-  const parsed = JSON.parse(readFileSync(RECORD_PATH, 'utf8')) as {
+function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
+  const parsed = JSON.parse(readFileSync(recordPath, 'utf8')) as {
     version: number;
     closedDescriptionStatus: string;
     records: RecordEntry[];
@@ -66,6 +66,20 @@ describe('cycle-12 specimen derivation records', () => {
       'unversioned-evidence',
     );
     expect(records.find((entry) => entry.id === 'template-pem')?.status).toBe('evidence-pending');
+  });
+
+  it('refuses the real record when a required specimen entry is removed', () => {
+    const temporary = mkdtempSync(join(tmpdir(), 'cejel-specimen-record-'));
+    const mutatedRecord = join(temporary, 'cycle-12-miss-specimens.json');
+    try {
+      cpSync(RECORD_PATH, mutatedRecord);
+      const parsed = JSON.parse(readFileSync(mutatedRecord, 'utf8')) as { records: RecordEntry[] };
+      parsed.records = parsed.records.filter((entry) => entry.id !== 'coverage-node');
+      writeFileSync(mutatedRecord, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
+      expect(() => parseRecords(mutatedRecord)).toThrow('every known miss specimen requires a derivation record');
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
   });
 
   it('refuses a synthetic derivation record whose asserted property is not exhibited', () => {
