@@ -1,0 +1,22 @@
+[
+  {
+    "statement": "When a validation record gains another established state, classify established states by explicit set membership: require a measurement and forbid stale missing-evidence fields. A claim of pinned evidence must resolve a full commit SHA, read the named blob from that commit, and verify its digest. Include a valid control and independent mutations for absent pins, changed digests, changed paths, and contradictory pending fields; a validator that only rejects records does not establish a usable success path. Git batch object lookup can report an object as missing and exit zero while stderr reports corrupt object data; retain those diagnostics as unresolved rather than claiming absence. A committed-blob pin also needs a divergence control that passes while working-tree bytes differ, and fails only under a deliberate working-tree-read substitution.",
+    "scope": [
+      "cejel",
+      "tests",
+      "evidence"
+    ],
+    "tags": [
+      "evidence-pins",
+      "state-validation",
+      "mutation-tests"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-20T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await operator review and merge of the evidence-pin guard proposal on codex/card9-evidence-pin-guard; replace with the merged PR reference when assigned."
+    }
+  }
+]
