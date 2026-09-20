@@ -4,14 +4,19 @@
   "records": [
     {
       "id": "template-pem",
-      "status": "evidence-pending",
-      "missingEvidence": "A reproducible run through the complete PEM plausibility gate, pinned to the exact specimen bytes. The earlier report is not sufficient evidence.",
+      "status": "unmeasurable-by-construction",
+      "rationale": "The complete PEM plausibility gate requires a private-key-shaped payload that cannot be safely committed to this public repository; no specimen can be constructed without weakening the gate or introducing a secret-shaped corpus exception.",
       "closedDescriptionProperties": []
     },
     {
       "id": "coverage-node",
-      "status": "unversioned-evidence",
-      "missingEvidence": "A committed canonical specimen revision. The generated fixture observed in a shared worktree is not an auditable input.",
+      "status": "evidence-established",
+      "measurement": "The committed specimen's package.json test script runs tests without coverage instrumentation.",
+      "evidencePin": {
+        "revision": "1871e1afd4dbd27812d688fb7b702813af76bda7",
+        "specimenPath": "src/__tests__/fixtures/cycle-12-coverage-node/package.json",
+        "specimenDigest": "sha256:8c17ef2bde203f821b9d34e1436887fdf1a532e045e278e11d2e0e35fc802654"
+      },
       "closedDescriptionProperties": []
     },
     {
