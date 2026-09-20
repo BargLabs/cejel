@@ -15,8 +15,8 @@
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "manual-review",
-      "reason": "Behavioural lesson with no fix commit; anchor only if a change to docs/release-process.md or a runnable release checklist lands."
+      "kind": "anchorless-by-nature",
+      "reason": "This is a release-review practice: each future command set must be derived from the authoritative process document in its actual invocation context. The repository already has docs/release-process.md; no single corrective commit can prove that future handovers will read it rather than a summary."
     }
   },
   {
@@ -35,8 +35,8 @@
     "lastSeenAt": "2026-09-16T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "manual-review",
-      "reason": "Pattern is only half closed: the calibration signature gate and the measurement freeze are now required checks, but nothing yet verifies core.hooksPath is set, and the reviewer half of the pattern has no mechanism at all."
+      "kind": "awaiting-fix",
+      "reason": "The documented gap remains open: no tracked mechanism verifies core.hooksPath for fresh clones or worktrees, and no automated reader verifies the reviewer half of this control. A future Cejel guard must establish both readers before this lesson can anchor to its landed fix."
     }
   }
 ]
