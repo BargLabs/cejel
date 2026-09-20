@@ -1,5 +1,6 @@
-import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,13 +10,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RECORD_PATH = join(ROOT, 'docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json');
 const GUARD_FIXTURE = join(ROOT, 'src/__tests__/fixtures/specimen-derivation-guard');
 
-type Status = 'established-nonreproduction' | 'evidence-pending' | 'unversioned-evidence';
+type Status = 'evidence-established' | 'established-nonreproduction' | 'evidence-pending' | 'unversioned-evidence';
 interface RecordEntry {
   id: string;
   status: Status;
   closedDescriptionProperties: string[];
   measurement?: string;
   missingEvidence?: string;
+  evidencePin?: { revision: string; specimenPath: string; specimenDigest: string };
 }
 
 function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
@@ -29,7 +31,8 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
   }
   // Read the registered inventory from an immutable ancestor, not the mutable record
   // being checked. This is completeness against this registration only, not against
-  // uncommitted or operator-held specimens. CI fetches full history.
+  // uncommitted or operator-held specimens. The pinned ab2026d8… commit must
+  // remain reachable; CI must fetch full history (actions/checkout fetch-depth: 0).
   const registered = JSON.parse(execFileSync('git', [
     'show',
     'ab2026d88ad33857aefc31044cc72d782d523231:docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json',
@@ -45,14 +48,63 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
     if (entry.closedDescriptionProperties.length !== 0) {
       throw new Error('closed description properties must remain absent from this public record');
     }
-    if (entry.status === 'established-nonreproduction' && !entry.measurement) {
+    const established = new Set<Status>(['established-nonreproduction', 'evidence-established']);
+    if (established.has(entry.status) && !entry.measurement?.trim()) {
       throw new Error(`${entry.id} lacks its required measurement`);
     }
-    if (entry.status !== 'established-nonreproduction' && !entry.missingEvidence) {
+    if (established.has(entry.status) && Object.hasOwn(entry, 'missingEvidence')) {
+      throw new Error(`${entry.id} must not retain missingEvidence`);
+    }
+    if (!established.has(entry.status) && !entry.missingEvidence?.trim()) {
       throw new Error(`${entry.id} lacks named missing evidence`);
     }
   }
+  for (const entry of parsed.records) {
+    if (entry.status === 'evidence-established') assertEvidencePin(entry);
+  }
   return parsed.records;
+}
+
+function assertEvidencePin(entry: RecordEntry, repository = ROOT): void {
+  const pin = entry.evidencePin;
+  if (!pin) throw new Error(`${entry.id} lacks evidencePin`);
+  if (![pin.revision, pin.specimenPath, pin.specimenDigest].every(
+    (value) => typeof value === 'string' && value.trim().length > 0,
+  )) throw new Error(`${entry.id} evidencePin fields must be populated`);
+  if (!/^[0-9a-f]{40}$/.test(pin.revision)) {
+    throw new Error(`${entry.id} evidencePin revision must be a full 40-hex commit SHA`);
+  }
+  const git = (args: string[], input?: string): Buffer => {
+    const result = spawnSync('git', args, { cwd: repository, input, stdio: ['pipe', 'pipe', 'pipe'] });
+    // Git can emit corruption errors yet return status 0 with a batch "missing"
+    // response. Such diagnostics are not evidence that the object is absent.
+    if (result.error || result.status !== 0 || result.stderr?.length) {
+      throw new Error(`${entry.id} evidencePin unresolved measurement: git ${args.join(' ')} failed: ${result.stderr?.toString() || result.error?.message || `status=${result.status}, signal=${result.signal}`}`);
+    }
+    return result.stdout;
+  };
+  const objectType = (object: string): string | undefined => {
+    // Batch mode reports missing objects as data; process failures stay unresolved.
+    const result = git(['cat-file', '--batch-check=%(objecttype)'], `${object}\n`).toString().trimEnd();
+    if (result === `${object} missing`) return undefined;
+    if (['commit', 'tree', 'blob', 'tag'].includes(result)) return result;
+    throw new Error(`${entry.id} evidencePin unresolved measurement: unexpected git object response: ${result}`);
+  };
+  if (objectType(pin.revision) !== 'commit') {
+    throw new Error(`${entry.id} evidencePin revision must resolve to a commit`);
+  }
+  if (/[\r\n]/.test(pin.specimenPath) || pin.specimenPath.startsWith('/') || pin.specimenPath.includes('\\') ||
+      pin.specimenPath.split('/').some((part) => ['', '.', '..'].includes(part))) {
+    throw new Error(`${entry.id} evidencePin specimenPath must be repo-relative`);
+  }
+  const object = `${pin.revision}:${pin.specimenPath}`;
+  if (objectType(object) !== 'blob') {
+    throw new Error(`${entry.id} evidencePin specimenPath must name a blob at the pinned revision`);
+  }
+  const blob = git(['cat-file', 'blob', object]);
+  if (`sha256:${createHash('sha256').update(blob).digest('hex')}` !== pin.specimenDigest) {
+    throw new Error(`${entry.id} evidencePin digest mismatch`);
+  }
 }
 
 function assertSyntheticFixture(directory = GUARD_FIXTURE, expectedCommand = 'node --test --coverage'): void {
@@ -123,5 +175,108 @@ describe('cycle-12 specimen derivation records', () => {
     } finally {
       rmSync(temporary, { recursive: true, force: true });
     }
+  });
+});
+
+// These exercise the pin validator with an existing public guard fixture only.
+// They do not promote either open specimen's evidence status.
+describe('established evidence pins', () => {
+  // This pinned 9ce92fc1… commit must remain reachable; CI must fetch full history
+  // (actions/checkout fetch-depth: 0), as for the registered-inventory ancestor above.
+  const revision = '9ce92fc16afefe2c69116e9b25b03d01847196f4';
+  const specimenPath = 'src/__tests__/fixtures/specimen-derivation-guard/package.json';
+  const blob = execFileSync('git', ['cat-file', 'blob', `${revision}:${specimenPath}`], { cwd: ROOT });
+  const specimenDigest = `sha256:${createHash('sha256').update(blob).digest('hex')}`;
+
+  function check(mutate: (entry: RecordEntry) => void = () => {}): RecordEntry[] {
+    const temporary = mkdtempSync(join(tmpdir(), 'cejel-evidence-pin-'));
+    try {
+      const parsed = JSON.parse(readFileSync(RECORD_PATH, 'utf8')) as { records: RecordEntry[] };
+      const entry = parsed.records.find((record) => record.id === 'coverage-node')!;
+      entry.status = 'evidence-established';
+      entry.measurement = 'Pin-validator control only; no specimen qualification claimed.';
+      delete entry.missingEvidence;
+      entry.evidencePin = { revision, specimenPath, specimenDigest };
+      mutate(entry);
+      const path = join(temporary, 'record.json');
+      writeFileSync(path, JSON.stringify(parsed));
+      return parseRecords(path);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts a valid committed-blob pin', () => {
+    expect(check().find((entry) => entry.id === 'coverage-node')?.evidencePin)
+      .toEqual({ revision, specimenPath, specimenDigest });
+  });
+
+  it('ignores divergent working-tree bytes', () => {
+    const path = join(ROOT, specimenPath);
+    const original = readFileSync(path);
+    expect(original).toEqual(blob);
+    try {
+      writeFileSync(path, Buffer.concat([blob, Buffer.from('\nworking-tree divergence\n')]));
+      expect(readFileSync(path)).not.toEqual(blob);
+      expect(() => check()).not.toThrow();
+    } finally {
+      writeFileSync(path, original);
+      expect(readFileSync(path)).toEqual(blob);
+    }
+  });
+
+  it.each(['missing git directory', 'corrupt object'])('reports %s as unresolved with git stderr', (scenario) => {
+    const repository = mkdtempSync(join(tmpdir(), 'cejel-pin-git-failure-'));
+    try {
+      if (scenario === 'corrupt object') {
+        execFileSync('git', ['init', '--quiet', repository]);
+        const directory = join(repository, '.git', 'objects', revision.slice(0, 2));
+        mkdirSync(directory);
+        writeFileSync(join(directory, revision.slice(2)), 'invalid loose object');
+      }
+      const entry: RecordEntry = {
+        id: 'pin-validator-control', status: 'evidence-established', closedDescriptionProperties: [],
+        evidencePin: { revision, specimenPath, specimenDigest },
+      };
+      const diagnostic = spawnSync('git', ['cat-file', '--batch-check=%(objecttype)'], {
+        cwd: repository, input: `${revision}\n`,
+      }).stderr.toString();
+      expect(diagnostic.length).toBeGreaterThan(0);
+      expect(() => assertEvidencePin(entry, repository)).toThrow(
+        `unresolved measurement: git cat-file --batch-check=%(objecttype) failed: ${diagnostic}`,
+      );
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  });
+
+  const mutations: [string, (entry: RecordEntry) => void, string][] = [
+    ['absent pin', (entry) => { delete entry.evidencePin; }, 'lacks evidencePin'],
+    ['empty pin field', (entry) => { entry.evidencePin!.specimenPath = ''; }, 'fields must be populated'],
+    ['changed digest', (entry) => {
+      const digest = entry.evidencePin!.specimenDigest;
+      entry.evidencePin!.specimenDigest = `sha256:${digest[7] === '0' ? '1' : '0'}${digest.slice(8)}`;
+    }, 'digest mismatch'],
+    ['different committed file', (entry) => { entry.evidencePin!.specimenPath = 'package.json'; }, 'digest mismatch'],
+    ['stale missing evidence', (entry) => { entry.missingEvidence = 'old pending text'; }, 'must not retain missingEvidence'],
+    ['empty missing evidence field', (entry) => { entry.missingEvidence = ''; }, 'must not retain missingEvidence'],
+    ['absent measurement', (entry) => { delete entry.measurement; }, 'lacks its required measurement'],
+    ['blank measurement', (entry) => { entry.measurement = ' '; }, 'lacks its required measurement'],
+    ['abbreviated revision', (entry) => { entry.evidencePin!.revision = revision.slice(0, 8); }, 'full 40-hex commit SHA'],
+    ['unresolvable revision', (entry) => { entry.evidencePin!.revision = '0'.repeat(40); }, 'must resolve to a commit'],
+    ['tree revision', (entry) => {
+      entry.evidencePin!.revision = execFileSync('git', ['rev-parse', `${revision}^{tree}`], { cwd: ROOT, encoding: 'utf8' }).trim();
+    }, 'must resolve to a commit'],
+    ['missing committed path', (entry) => { entry.evidencePin!.specimenPath = 'absent-card9-specimen'; }, 'must name a blob'],
+    ['directory path', (entry) => { entry.evidencePin!.specimenPath = 'src'; }, 'must name a blob'],
+    ['absolute path', (entry) => { entry.evidencePin!.specimenPath = '/package.json'; }, 'must be repo-relative'],
+    ['closed properties', (entry) => { entry.closedDescriptionProperties = ['synthetic mutation']; },
+      'closed description properties must remain absent from this public record'],
+    ['legacy established stale evidence', (entry) => {
+      entry.status = 'established-nonreproduction'; entry.missingEvidence = 'old pending text';
+    }, 'must not retain missingEvidence'],
+  ];
+  it.each(mutations)('refuses %s for its own reason', (_name, mutate, reason) => {
+    expect(() => check(mutate)).toThrow(reason);
   });
 });
