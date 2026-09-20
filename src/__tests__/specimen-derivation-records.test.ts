@@ -9,14 +9,21 @@ import { describe, expect, it } from 'vitest';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RECORD_PATH = join(ROOT, 'docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json');
 const GUARD_FIXTURE = join(ROOT, 'src/__tests__/fixtures/specimen-derivation-guard');
+const COVERAGE_NODE_FIXTURE = join(ROOT, 'src/__tests__/fixtures/cycle-12-coverage-node');
 
-type Status = 'evidence-established' | 'established-nonreproduction' | 'evidence-pending' | 'unversioned-evidence';
+type Status =
+  | 'evidence-established'
+  | 'established-nonreproduction'
+  | 'evidence-pending'
+  | 'unversioned-evidence'
+  | 'unmeasurable-by-construction';
 interface RecordEntry {
   id: string;
   status: Status;
   closedDescriptionProperties: string[];
   measurement?: string;
   missingEvidence?: string;
+  rationale?: string;
   evidencePin?: { revision: string; specimenPath: string; specimenDigest: string };
 }
 
@@ -55,8 +62,22 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
     if (established.has(entry.status) && Object.hasOwn(entry, 'missingEvidence')) {
       throw new Error(`${entry.id} must not retain missingEvidence`);
     }
+    if (entry.status === 'unmeasurable-by-construction') {
+      if (!entry.rationale?.trim()) throw new Error(`${entry.id} lacks its required rationale`);
+      if (Object.hasOwn(entry, 'evidencePin')) {
+        throw new Error(`${entry.id} must not retain evidencePin`);
+      }
+      if (Object.hasOwn(entry, 'measurement')) {
+        throw new Error(`${entry.id} must not retain measurement`);
+      }
+      if (Object.hasOwn(entry, 'missingEvidence')) {
+        throw new Error(`${entry.id} must not retain missingEvidence`);
+      }
+    }
     if (!established.has(entry.status) && !entry.missingEvidence?.trim()) {
-      throw new Error(`${entry.id} lacks named missing evidence`);
+      if (entry.status !== 'unmeasurable-by-construction') {
+        throw new Error(`${entry.id} lacks named missing evidence`);
+      }
     }
   }
   for (const entry of parsed.records) {
@@ -122,13 +143,14 @@ function assertSyntheticFixture(directory = GUARD_FIXTURE, expectedCommand = 'no
 describe('cycle-12 specimen derivation records', () => {
   it('covers the immutable registered inventory and names evidence states honestly', () => {
     const records = parseRecords();
+    expect(records).toHaveLength(3);
     expect(records.find((entry) => entry.id === 'a2-history-env')?.status).toBe(
       'established-nonreproduction',
     );
-    expect(records.find((entry) => entry.id === 'coverage-node')?.status).toBe(
-      'unversioned-evidence',
+    expect(records.find((entry) => entry.id === 'coverage-node')?.status).toBe('evidence-established');
+    expect(records.find((entry) => entry.id === 'template-pem')?.status).toBe(
+      'unmeasurable-by-construction',
     );
-    expect(records.find((entry) => entry.id === 'template-pem')?.status).toBe('evidence-pending');
   });
 
   it('refuses the real record when a required specimen entry is removed', () => {
@@ -162,6 +184,10 @@ describe('cycle-12 specimen derivation records', () => {
     expect(() => assertSyntheticFixture(GUARD_FIXTURE, 'node --test --experimental-test-coverage')).toThrow(
       'derivation record assertion is not exhibited',
     );
+  });
+
+  it('accepts the coverage-node specimen property: tests run without coverage instrumentation', () => {
+    assertSyntheticFixture(COVERAGE_NODE_FIXTURE, 'node --test');
   });
 
   it('refuses a specimen with a required element stripped while its record remains intact', () => {
@@ -277,6 +303,39 @@ describe('established evidence pins', () => {
     }, 'must not retain missingEvidence'],
   ];
   it.each(mutations)('refuses %s for its own reason', (_name, mutate, reason) => {
+    expect(() => check(mutate)).toThrow(reason);
+  });
+});
+
+describe('unmeasurable-by-construction status', () => {
+  function check(mutate: (entry: RecordEntry) => void = () => {}): RecordEntry[] {
+    const temporary = mkdtempSync(join(tmpdir(), 'cejel-unmeasurable-'));
+    try {
+      const parsed = JSON.parse(readFileSync(RECORD_PATH, 'utf8')) as { records: RecordEntry[] };
+      const entry = parsed.records.find((record) => record.id === 'template-pem')!;
+      mutate(entry);
+      const path = join(temporary, 'record.json');
+      writeFileSync(path, JSON.stringify(parsed));
+      return parseRecords(path);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts the valid permanent-unmeasurability record', () => {
+    const entry = check().find((record) => record.id === 'template-pem');
+    expect(entry?.status).toBe('unmeasurable-by-construction');
+    expect(entry?.rationale).toMatch(/cannot be safely committed/);
+  });
+
+  it.each([
+    ['absent rationale', (entry: RecordEntry) => { delete entry.rationale; }, 'lacks its required rationale'],
+    ['evidence pin', (entry: RecordEntry) => {
+      entry.evidencePin = { revision: '0'.repeat(40), specimenPath: 'x', specimenDigest: 'sha256:x' };
+    }, 'must not retain evidencePin'],
+    ['measurement', (entry: RecordEntry) => { entry.measurement = 'nothing measured'; }, 'must not retain measurement'],
+    ['missing evidence', (entry: RecordEntry) => { entry.missingEvidence = 'not available'; }, 'must not retain missingEvidence'],
+  ])('refuses %s for its own reason', (_name, mutate, reason) => {
     expect(() => check(mutate)).toThrow(reason);
   });
 });
