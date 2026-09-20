@@ -1,0 +1,7 @@
+{
+  "name": "cycle-12-coverage-node-specimen",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
