@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -9,13 +10,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RECORD_PATH = join(ROOT, 'docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json');
 const GUARD_FIXTURE = join(ROOT, 'src/__tests__/fixtures/specimen-derivation-guard');
 
-type Status = 'established-nonreproduction' | 'evidence-pending' | 'unversioned-evidence';
+type Status = 'evidence-established' | 'established-nonreproduction' | 'evidence-pending' | 'unversioned-evidence';
 interface RecordEntry {
   id: string;
   status: Status;
   closedDescriptionProperties: string[];
   measurement?: string;
   missingEvidence?: string;
+  evidencePin?: { revision: string; specimenPath: string; specimenDigest: string };
 }
 
 function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
@@ -45,14 +47,53 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
     if (entry.closedDescriptionProperties.length !== 0) {
       throw new Error('closed description properties must remain absent from this public record');
     }
-    if (entry.status === 'established-nonreproduction' && !entry.measurement) {
+    const established = new Set<Status>(['established-nonreproduction', 'evidence-established']);
+    if (established.has(entry.status) && !entry.measurement?.trim()) {
       throw new Error(`${entry.id} lacks its required measurement`);
     }
-    if (entry.status !== 'established-nonreproduction' && !entry.missingEvidence) {
+    if (established.has(entry.status) && Object.hasOwn(entry, 'missingEvidence')) {
+      throw new Error(`${entry.id} must not retain missingEvidence`);
+    }
+    if (!established.has(entry.status) && !entry.missingEvidence?.trim()) {
       throw new Error(`${entry.id} lacks named missing evidence`);
     }
   }
+  for (const entry of parsed.records) {
+    if (entry.status === 'evidence-established') assertEvidencePin(entry);
+  }
   return parsed.records;
+}
+
+function assertEvidencePin(entry: RecordEntry): void {
+  const pin = entry.evidencePin;
+  if (!pin) throw new Error(`${entry.id} lacks evidencePin`);
+  if (![pin.revision, pin.specimenPath, pin.specimenDigest].every(
+    (value) => typeof value === 'string' && value.trim().length > 0,
+  )) throw new Error(`${entry.id} evidencePin fields must be populated`);
+  if (!/^[0-9a-f]{40}$/.test(pin.revision)) {
+    throw new Error(`${entry.id} evidencePin revision must be a full 40-hex commit SHA`);
+  }
+  const git = (args: string[]) => execFileSync('git', args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    if (git(['cat-file', '-t', pin.revision]).toString().trim() !== 'commit') throw new Error();
+  } catch {
+    throw new Error(`${entry.id} evidencePin revision must resolve to a commit`);
+  }
+  if (pin.specimenPath.startsWith('/') || pin.specimenPath.includes('\\') ||
+      pin.specimenPath.split('/').some((part) => ['', '.', '..'].includes(part))) {
+    throw new Error(`${entry.id} evidencePin specimenPath must be repo-relative`);
+  }
+  const object = `${pin.revision}:${pin.specimenPath}`;
+  let blob: Buffer;
+  try {
+    if (git(['cat-file', '-t', object]).toString().trim() !== 'blob') throw new Error();
+    blob = git(['cat-file', 'blob', object]);
+  } catch {
+    throw new Error(`${entry.id} evidencePin specimenPath must name a blob at the pinned revision`);
+  }
+  if (`sha256:${createHash('sha256').update(blob).digest('hex')}` !== pin.specimenDigest) {
+    throw new Error(`${entry.id} evidencePin digest mismatch`);
+  }
 }
 
 function assertSyntheticFixture(directory = GUARD_FIXTURE, expectedCommand = 'node --test --coverage'): void {
@@ -123,5 +164,67 @@ describe('cycle-12 specimen derivation records', () => {
     } finally {
       rmSync(temporary, { recursive: true, force: true });
     }
+  });
+});
+
+// These exercise the pin validator with an existing public guard fixture only.
+// They do not promote either open specimen's evidence status.
+describe('established evidence pins', () => {
+  const revision = '9ce92fc16afefe2c69116e9b25b03d01847196f4';
+  const specimenPath = 'src/__tests__/fixtures/specimen-derivation-guard/package.json';
+  const blob = execFileSync('git', ['cat-file', 'blob', `${revision}:${specimenPath}`], { cwd: ROOT });
+  const specimenDigest = `sha256:${createHash('sha256').update(blob).digest('hex')}`;
+
+  function check(mutate: (entry: RecordEntry) => void = () => {}): RecordEntry[] {
+    const temporary = mkdtempSync(join(tmpdir(), 'cejel-evidence-pin-'));
+    try {
+      const parsed = JSON.parse(readFileSync(RECORD_PATH, 'utf8')) as { records: RecordEntry[] };
+      const entry = parsed.records.find((record) => record.id === 'coverage-node')!;
+      entry.status = 'evidence-established';
+      entry.measurement = 'Pin-validator control only; no specimen qualification claimed.';
+      delete entry.missingEvidence;
+      entry.evidencePin = { revision, specimenPath, specimenDigest };
+      mutate(entry);
+      const path = join(temporary, 'record.json');
+      writeFileSync(path, JSON.stringify(parsed));
+      return parseRecords(path);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts a valid committed-blob pin', () => {
+    expect(check().find((entry) => entry.id === 'coverage-node')?.evidencePin)
+      .toEqual({ revision, specimenPath, specimenDigest });
+  });
+
+  const mutations: [string, (entry: RecordEntry) => void, string][] = [
+    ['absent pin', (entry) => { delete entry.evidencePin; }, 'lacks evidencePin'],
+    ['empty pin field', (entry) => { entry.evidencePin!.specimenPath = ''; }, 'fields must be populated'],
+    ['changed digest', (entry) => {
+      const digest = entry.evidencePin!.specimenDigest;
+      entry.evidencePin!.specimenDigest = `sha256:${digest[7] === '0' ? '1' : '0'}${digest.slice(8)}`;
+    }, 'digest mismatch'],
+    ['different committed file', (entry) => { entry.evidencePin!.specimenPath = 'package.json'; }, 'digest mismatch'],
+    ['stale missing evidence', (entry) => { entry.missingEvidence = 'old pending text'; }, 'must not retain missingEvidence'],
+    ['empty missing evidence field', (entry) => { entry.missingEvidence = ''; }, 'must not retain missingEvidence'],
+    ['absent measurement', (entry) => { delete entry.measurement; }, 'lacks its required measurement'],
+    ['blank measurement', (entry) => { entry.measurement = ' '; }, 'lacks its required measurement'],
+    ['abbreviated revision', (entry) => { entry.evidencePin!.revision = revision.slice(0, 8); }, 'full 40-hex commit SHA'],
+    ['unresolvable revision', (entry) => { entry.evidencePin!.revision = '0'.repeat(40); }, 'must resolve to a commit'],
+    ['tree revision', (entry) => {
+      entry.evidencePin!.revision = execFileSync('git', ['rev-parse', `${revision}^{tree}`], { cwd: ROOT, encoding: 'utf8' }).trim();
+    }, 'must resolve to a commit'],
+    ['missing committed path', (entry) => { entry.evidencePin!.specimenPath = 'absent-card9-specimen'; }, 'must name a blob'],
+    ['directory path', (entry) => { entry.evidencePin!.specimenPath = 'src'; }, 'must name a blob'],
+    ['absolute path', (entry) => { entry.evidencePin!.specimenPath = '/package.json'; }, 'must be repo-relative'],
+    ['closed properties', (entry) => { entry.closedDescriptionProperties = ['synthetic mutation']; },
+      'closed description properties must remain absent from this public record'],
+    ['legacy established stale evidence', (entry) => {
+      entry.status = 'established-nonreproduction'; entry.missingEvidence = 'old pending text';
+    }, 'must not retain missingEvidence'],
+  ];
+  it.each(mutations)('refuses %s for its own reason', (_name, mutate, reason) => {
+    expect(() => check(mutate)).toThrow(reason);
   });
 });
