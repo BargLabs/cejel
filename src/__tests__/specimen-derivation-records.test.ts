@@ -238,10 +238,12 @@ describe('established evidence pins', () => {
         id: 'pin-validator-control', status: 'evidence-established', closedDescriptionProperties: [],
         evidencePin: { revision, specimenPath, specimenDigest },
       };
+      const diagnostic = spawnSync('git', ['cat-file', '--batch-check=%(objecttype)'], {
+        cwd: repository, input: `${revision}\n`,
+      }).stderr.toString();
+      expect(diagnostic.length).toBeGreaterThan(0);
       expect(() => assertEvidencePin(entry, repository)).toThrow(
-        scenario === 'corrupt object'
-          ? /unresolved measurement:[\s\S]*error:[\s\S]*corrupt/
-          : /unresolved measurement:[\s\S]*fatal: not a git repository/,
+        `unresolved measurement: git cat-file --batch-check=%(objecttype) failed: ${diagnostic}`,
       );
     } finally {
       rmSync(repository, { recursive: true, force: true });
