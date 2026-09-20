@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -75,12 +75,13 @@ function assertEvidencePin(entry: RecordEntry, repository = ROOT): void {
     throw new Error(`${entry.id} evidencePin revision must be a full 40-hex commit SHA`);
   }
   const git = (args: string[], input?: string): Buffer => {
-    try {
-      return execFileSync('git', args, { cwd: repository, input, stdio: ['pipe', 'pipe', 'pipe'] });
-    } catch (cause) {
-      const failure = cause as Error & { stderr?: Buffer | string };
-      throw new Error(`${entry.id} evidencePin unresolved measurement: git ${args.join(' ')} failed: ${failure.stderr?.toString() || failure.message}`);
+    const result = spawnSync('git', args, { cwd: repository, input, stdio: ['pipe', 'pipe', 'pipe'] });
+    // Git can emit corruption errors yet return status 0 with a batch "missing"
+    // response. Such diagnostics are not evidence that the object is absent.
+    if (result.error || result.status !== 0 || result.stderr?.length) {
+      throw new Error(`${entry.id} evidencePin unresolved measurement: git ${args.join(' ')} failed: ${result.stderr?.toString() || result.error?.message || `status=${result.status}, signal=${result.signal}`}`);
     }
+    return result.stdout;
   };
   const objectType = (object: string): string | undefined => {
     // Batch mode reports missing objects as data; process failures stay unresolved.
