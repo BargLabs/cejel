@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "Repairing selected seed metadata does not establish that a whole-directory harvest can pass. Cejel PR #338 corrected five move conditions, but the actual harvester then found another statement above its 1000-character cap; the destination formatter also rejected source formatting. The completed delivery shortened that statement, reconciled formatting without changing parsed records, and compared every source file to the landed destination before draining. Validate the complete selection at staging time with the same validator used by delivery, read the index bytes that will be committed, and distinguish no records examined from a nonempty valid batch.",
+    "scope": ["cejel", "lesson-staging", "delivery"],
+    "tags": ["whole-selection", "canonical-validator", "index-bytes"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 338}
+  }
+]

@@ -13,10 +13,24 @@ byte-for-byte and schema-validated exactly as an alfred-authored seed would be, 
 *this* directory in a follow-up PR — the delivery is only complete once both land (mirrors the
 manual precedent: alfred #1345 copied a cejel lesson in, cejel #284 dropped it).
 
-The 1000-char `statement` cap that shape enforces is checked only by alfred's harvester at
-delivery time, not by anything in this repo today — so a seed that exceeds it can still merge to
-`main` here undetected, and then blocks the entire harvest batch (not just itself) when alfred
-next tries to pull it in.
+The pre-commit hook validates added or modified seed files from the Git index using
+Alfred's `validateMaeveStagedSeedBatch` directly. Set `ALFRED_REPO_ROOT` to an installed Alfred
+checkout (the default is a sibling `alfred` directory), then use the normal commit command.
+The validator enforces the statement cap, structured move condition, and repository binding;
+there is no second schema in Cejel. Deletions are outside the added/modified selection.
+
+Explicit invocations (with Cejel's development dependencies installed):
+
+```sh
+node --import tsx scripts/validate-staged-maeve-seeds.mjs --mode staged --alfred-root /path/to/alfred
+node --import tsx scripts/validate-staged-maeve-seeds.mjs --mode tree --alfred-root /path/to/alfred
+```
+
+`staged` reads index blobs; `tree` reads committed HEAD blobs. Both refuse zero examined files
+or records distinctly from a nonempty valid selection. The hook calls the validator only when
+seed additions or edits exist. Missing canonical-validator dependencies fail closed. Public CI
+checks the adapter and hook; full canonical validation requires the installed private checkout
+and is also enforced by the destination harvester. The private validator is not copied here.
 
 A file sitting here for more than 7 days is presumed undelivered, not merely "listed": both
 `src/__tests__/maeve-lesson-delivery.test.ts` (this repo's own CI) and alfred's cross-repo

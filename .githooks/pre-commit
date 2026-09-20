@@ -52,4 +52,12 @@ if command -v gh >/dev/null 2>&1; then
   fi
 fi
 
+# Validate index bytes, not possibly different worktree content. No seed additions/edits is
+# a declared non-applicable hook invocation; the validator itself refuses an empty selection.
+if git diff --cached --name-only --diff-filter=ACM -- 'docs/orchestration/maeve-unanchored-lessons/*.json' | grep -q .; then
+  repo_root="$(git rev-parse --show-toplevel)"
+  (cd "$repo_root" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE \
+    node --import tsx scripts/validate-staged-maeve-seeds.mjs --mode staged)
+fi
+
 exit 0
