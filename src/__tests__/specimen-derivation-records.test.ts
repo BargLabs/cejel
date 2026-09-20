@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +31,8 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
   }
   // Read the registered inventory from an immutable ancestor, not the mutable record
   // being checked. This is completeness against this registration only, not against
-  // uncommitted or operator-held specimens. CI fetches full history.
+  // uncommitted or operator-held specimens. The pinned ab2026d8… commit must
+  // remain reachable; CI must fetch full history (actions/checkout fetch-depth: 0).
   const registered = JSON.parse(execFileSync('git', [
     'show',
     'ab2026d88ad33857aefc31044cc72d782d523231:docs/fixtures/specimen-derivations/cycle-12-miss-specimens.json',
@@ -64,7 +65,7 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
   return parsed.records;
 }
 
-function assertEvidencePin(entry: RecordEntry): void {
+function assertEvidencePin(entry: RecordEntry, repository = ROOT): void {
   const pin = entry.evidencePin;
   if (!pin) throw new Error(`${entry.id} lacks evidencePin`);
   if (![pin.revision, pin.specimenPath, pin.specimenDigest].every(
@@ -73,24 +74,33 @@ function assertEvidencePin(entry: RecordEntry): void {
   if (!/^[0-9a-f]{40}$/.test(pin.revision)) {
     throw new Error(`${entry.id} evidencePin revision must be a full 40-hex commit SHA`);
   }
-  const git = (args: string[]) => execFileSync('git', args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-  try {
-    if (git(['cat-file', '-t', pin.revision]).toString().trim() !== 'commit') throw new Error();
-  } catch {
+  const git = (args: string[], input?: string): Buffer => {
+    try {
+      return execFileSync('git', args, { cwd: repository, input, stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch (cause) {
+      const failure = cause as Error & { stderr?: Buffer | string };
+      throw new Error(`${entry.id} evidencePin unresolved measurement: git ${args.join(' ')} failed: ${failure.stderr?.toString() || failure.message}`);
+    }
+  };
+  const objectType = (object: string): string | undefined => {
+    // Batch mode reports missing objects as data; process failures stay unresolved.
+    const result = git(['cat-file', '--batch-check=%(objecttype)'], `${object}\n`).toString().trimEnd();
+    if (result === `${object} missing`) return undefined;
+    if (['commit', 'tree', 'blob', 'tag'].includes(result)) return result;
+    throw new Error(`${entry.id} evidencePin unresolved measurement: unexpected git object response: ${result}`);
+  };
+  if (objectType(pin.revision) !== 'commit') {
     throw new Error(`${entry.id} evidencePin revision must resolve to a commit`);
   }
-  if (pin.specimenPath.startsWith('/') || pin.specimenPath.includes('\\') ||
+  if (/[\r\n]/.test(pin.specimenPath) || pin.specimenPath.startsWith('/') || pin.specimenPath.includes('\\') ||
       pin.specimenPath.split('/').some((part) => ['', '.', '..'].includes(part))) {
     throw new Error(`${entry.id} evidencePin specimenPath must be repo-relative`);
   }
   const object = `${pin.revision}:${pin.specimenPath}`;
-  let blob: Buffer;
-  try {
-    if (git(['cat-file', '-t', object]).toString().trim() !== 'blob') throw new Error();
-    blob = git(['cat-file', 'blob', object]);
-  } catch {
+  if (objectType(object) !== 'blob') {
     throw new Error(`${entry.id} evidencePin specimenPath must name a blob at the pinned revision`);
   }
+  const blob = git(['cat-file', 'blob', object]);
   if (`sha256:${createHash('sha256').update(blob).digest('hex')}` !== pin.specimenDigest) {
     throw new Error(`${entry.id} evidencePin digest mismatch`);
   }
@@ -170,6 +180,8 @@ describe('cycle-12 specimen derivation records', () => {
 // These exercise the pin validator with an existing public guard fixture only.
 // They do not promote either open specimen's evidence status.
 describe('established evidence pins', () => {
+  // This pinned 9ce92fc1… commit must remain reachable; CI must fetch full history
+  // (actions/checkout fetch-depth: 0), as for the registered-inventory ancestor above.
   const revision = '9ce92fc16afefe2c69116e9b25b03d01847196f4';
   const specimenPath = 'src/__tests__/fixtures/specimen-derivation-guard/package.json';
   const blob = execFileSync('git', ['cat-file', 'blob', `${revision}:${specimenPath}`], { cwd: ROOT });
@@ -196,6 +208,43 @@ describe('established evidence pins', () => {
   it('accepts a valid committed-blob pin', () => {
     expect(check().find((entry) => entry.id === 'coverage-node')?.evidencePin)
       .toEqual({ revision, specimenPath, specimenDigest });
+  });
+
+  it('ignores divergent working-tree bytes', () => {
+    const path = join(ROOT, specimenPath);
+    const original = readFileSync(path);
+    expect(original).toEqual(blob);
+    try {
+      writeFileSync(path, Buffer.concat([blob, Buffer.from('\nworking-tree divergence\n')]));
+      expect(readFileSync(path)).not.toEqual(blob);
+      expect(() => check()).not.toThrow();
+    } finally {
+      writeFileSync(path, original);
+      expect(readFileSync(path)).toEqual(blob);
+    }
+  });
+
+  it.each(['missing git directory', 'corrupt object'])('reports %s as unresolved with git stderr', (scenario) => {
+    const repository = mkdtempSync(join(tmpdir(), 'cejel-pin-git-failure-'));
+    try {
+      if (scenario === 'corrupt object') {
+        execFileSync('git', ['init', '--quiet', repository]);
+        const directory = join(repository, '.git', 'objects', revision.slice(0, 2));
+        mkdirSync(directory);
+        writeFileSync(join(directory, revision.slice(2)), 'invalid loose object');
+      }
+      const entry: RecordEntry = {
+        id: 'pin-validator-control', status: 'evidence-established', closedDescriptionProperties: [],
+        evidencePin: { revision, specimenPath, specimenDigest },
+      };
+      expect(() => assertEvidencePin(entry, repository)).toThrow(
+        scenario === 'corrupt object'
+          ? /unresolved measurement:[\s\S]*error:[\s\S]*corrupt/
+          : /unresolved measurement:[\s\S]*fatal: not a git repository/,
+      );
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
   });
 
   const mutations: [string, (entry: RecordEntry) => void, string][] = [
