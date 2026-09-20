@@ -1,0 +1,14 @@
+[
+  {
+    "statement": "A synthetic artifact used to diagnose a measured miss must be committed and pinned before its contents support an inventory disposition. A coverage-node specimen existed only in a shared working tree, so its command-only shape could not be reproduced from origin/main and a later diagnosis silently relied on local state. Require a public derivation record for every known miss specimen; unresolved or unversioned evidence remains an explicit state rather than becoming a detector finding or a closure.",
+    "scope": ["cejel", "measurement-provenance", "fixture-governance"],
+    "tags": ["specimen-fidelity", "origin-state", "reproducibility", "miss-inventory"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Move after the derivation-record guard and committed canonical specimen policy are merged, with a verified product commit selected as the anchor."
+    }
+  }
+]
