@@ -1,3 +1,7 @@
+---
+role: record
+---
+
 # In-scope native detection-recall experiment v4 — result (2026-08-11)
 
 Status: **CLAIM_BEARING on the fixed fixture set**
