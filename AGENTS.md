@@ -88,3 +88,12 @@ agent's own private session memory, which the estate cannot read.
 - Explicit paths on `git commit`. Never `git commit -am` — multiple agents write to these
   trees concurrently and `-am` has swept unrelated work into the wrong commit before.
 - Push any branch that has no remote ref before doing anything else with it.
+
+## Deferred notes become issues (operator, 2026-09-20)
+
+Any note, caveat, nit, follow-up or "later" a session produces and does not act on before it ends
+is filed as a GitHub issue before the session's final message: in the repository the note concerns,
+or in `houman44/lab_notes` for studio, business and counsel notes. The body is the vault note, PR or
+record that carries the evidence; the title starts with `later:`. Nothing of that kind is left only
+in chat, a handback, a PR body or a review comment. Issues are the queue; the transcript is not.
+This applies to every session type (Cowork, Claude Code, Codex, the goal runner) and to counsel.
