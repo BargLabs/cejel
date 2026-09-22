@@ -50,6 +50,17 @@ interface ContentReadSession {
   // It is additional state — the contentReadSummary counts are recorded by recordSkip exactly as
   // before and are never derived from, or altered by, anything here.
   readonly withheldPaths: Map<string, Set<ContentReadSkipReason>>;
+  // Per withheld path, every named signal (as `${criterionId}.${signalId}`) whose OWN
+  // file-selection predicate admitted that path — recorded by abstainSignalOnWithheldPaths on
+  // every call, regardless of whether the current rubric's abstention mechanism is switched on.
+  // actedOn is true only when a call that admitted the path also ran with the mechanism on: the
+  // predicate that decides the intersection and the predicate that decides whether it was acted
+  // on are the same call, so the two can never drift apart the way a certificate line computed
+  // separately from the abstention could (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+  readonly withheldPathIntersections: Map<
+    string,
+    { readonly signalsAdmitting: Set<string>; actedOn: boolean }
+  >;
   criterion?: WitanCriterionId;
   // A single read can legitimately feed more than one named signal (e.g. A4 parses one
   // dependency manifest into three separate ratio metrics). Attributing that read to every
@@ -217,6 +228,7 @@ export function trackContentReads<T>(_repoPath: string, collect: () => T): Track
     criterionSkipReasons: new Map(),
     signalSkipReasons: new Map(),
     withheldPaths: new Map(),
+    withheldPathIntersections: new Map(),
   };
   activeSession = session;
   try {
@@ -305,6 +317,16 @@ export interface WithheldRepoPath {
   /** Path relative to the scanned repository root, as it would have appeared in repoFiles. */
   readonly path: string;
   readonly reasons: ReadonlySet<ContentReadSkipReason>;
+  // Every named signal (as `${criterionId}.${signalId}`) whose own file-selection predicate
+  // admitted this path, sorted — regardless of whether the current rubric's mechanism acted on
+  // it. Empty when no signal's own test would have read this path at all.
+  readonly signalsAdmitting: readonly string[];
+  // True only when signalsAdmitting is non-empty AND the current rubric's abstention mechanism
+  // actually removed evidence tied to this path. False for an earned-but-unacted intersection
+  // (mechanism off) and for no intersection at all — the two false cases a reader must not
+  // conflate, which is why signalsAdmitting is carried alongside this rather than collapsed into
+  // it.
+  readonly actedOn: boolean;
 }
 
 /**
@@ -324,18 +346,33 @@ export function registerWithheldRepoPath(
   addSkipReason(session.withheldPaths, relativePath, reason);
 }
 
-/** Every path withheld from the walked file list so far, for tests and diagnostics. */
+/**
+ * Every path withheld from the walked file list so far, each carrying the full disclosure state:
+ * its reasons, which signals' own file-selection tests admitted it, and whether the current
+ * rubric's mechanism actually acted on that intersection. Consulted by report generation to make
+ * the withheld-path state a statement on every certificate, never merely by tests.
+ */
 export function withheldRepoPaths(): readonly WithheldRepoPath[] {
   const session = activeSession;
   if (!session) return [];
   return [...session.withheldPaths]
-    .map(([path, reasons]) => ({ path, reasons: reasons as ReadonlySet<ContentReadSkipReason> }))
+    .map(([path, reasons]) => {
+      const intersection = session.withheldPathIntersections.get(path);
+      return {
+        path,
+        reasons: reasons as ReadonlySet<ContentReadSkipReason>,
+        signalsAdmitting: intersection ? [...intersection.signalsAdmitting].sort() : [],
+        actedOn: intersection?.actedOn ?? false,
+      };
+    })
     .sort((left, right) => left.path.localeCompare(right.path));
 }
 
 /**
- * Abstains `signalId` for every withheld path that `wouldHaveRead` — the signal's OWN test for
- * which files it reads — admits, and returns whether any did.
+ * Checks `signalId`'s own file-selection test against every withheld path and, when `act` is
+ * true, abstains the signal for each one that matches. Returns whether the abstention actually
+ * fired (a match AND `act`) — never merely whether a match existed, so an existing caller that
+ * branches on the return value keeps its old behaviour unchanged when `act` is false.
  *
  * The earned-match requirement is the entire point. Abstaining a criterion because a withheld
  * file's path SHAPE mapped to it, before any collector ran, over-abstained repositories whose
@@ -346,6 +383,15 @@ export function withheldRepoPaths(): readonly WithheldRepoPath[] {
  * the signal uses to select files to read, never an extension map, a criterion association, or a
  * path-shape heuristic.
  *
+ * `act` decides only whether the match is ACTED ON (whether it changes what the signal reports);
+ * the match itself — and its disclosure via withheldRepoPaths — is always recorded, even when
+ * `act` is false (a rubric where the mechanism is switched off). This is what lets a certificate
+ * built under such a rubric still say a signal WOULD have read a withheld file, rather than
+ * staying silent because the mechanism never ran (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+ * Callers pass their own rubric-gate flag here instead of skipping the call entirely, so the
+ * disclosed intersection and the actual abstention are always computed from the same predicate
+ * call and can never drift apart.
+ *
  * The reason is carried through unchanged, so classifyAbstentionReason still separates a
  * self-imposed coverage limit (too_large, non_regular_file) from a genuine read failure
  * (unreadable, denied_path) exactly as it does for a collector-path skip.
@@ -354,16 +400,30 @@ export function abstainSignalOnWithheldPaths(
   criterionId: WitanCriterionId,
   signalId: string,
   wouldHaveRead: (relativePath: string) => boolean,
+  act: boolean,
 ): boolean {
   const session = activeSession;
   if (!session) return false;
-  let abstained = false;
+  let admitted = false;
+  const signalKey = `${criterionId}.${signalId}`;
   for (const [path, reasons] of session.withheldPaths) {
     if (!wouldHaveRead(path)) continue;
-    abstained = true;
-    for (const reason of reasons) attributeSkip(session, criterionId, [signalId], reason);
+    admitted = true;
+    const existing = session.withheldPathIntersections.get(path);
+    if (existing) {
+      existing.signalsAdmitting.add(signalKey);
+      if (act) existing.actedOn = true;
+    } else {
+      session.withheldPathIntersections.set(path, {
+        signalsAdmitting: new Set([signalKey]),
+        actedOn: act,
+      });
+    }
+    if (act) {
+      for (const reason of reasons) attributeSkip(session, criterionId, [signalId], reason);
+    }
   }
-  return abstained;
+  return admitted && act;
 }
 
 export function recordFilesystemSkip(

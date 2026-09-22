@@ -9,7 +9,7 @@ never be converted into a default pass or fail.
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
 | Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.2` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.3` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -43,7 +43,8 @@ Stable in report format v1:
   `insufficient_data`;
 - external attribution: `consumedSignals`, including source, provenance, dimension, counts, score
   adjustment, and itemized findings; and
-- disclosed limitations: `scanLimitations` and `contentReadSummary` when present.
+- disclosed limitations: `scanLimitations`, `contentReadSummary`, and `withheldPaths` when
+  present.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering
@@ -83,6 +84,29 @@ For consumers:
   freshness against the scan year. The fingerprints for those rubrics are measured at a pinned scan
   date, so for them the fingerprint is an identity for scoring at that scan year.
   `witan-rubric-v19` and later bind freshness to the scanned revision instead.
+
+#### Withheld paths
+
+`withheldPaths` (report format 1.3 and later) is an additive-optional array, one entry per
+repository path the file walk withheld from every collector before any of them ran (too_large,
+non_regular_file, unreadable, or denied_path — never excluded_by_extension, which stays visible to
+collectors and is not withheld). Each entry is
+`{ path, reason, signalsAdmitting: string[], actedOn: boolean }`: `signalsAdmitting` names every
+`${criterionId}.${signalId}` whose own file-selection test would have read that path, computed the
+same way regardless of rubric; `actedOn` is true only when the running rubric's abstention
+mechanism actually acted on that intersection.
+
+For consumers:
+
+- **Present and empty (`[]`)** means the scan withheld nothing. **Absent** means the report was
+  produced before this field existed and makes no claim either way — never read absence as "nothing
+  withheld".
+- **A non-empty `signalsAdmitting` with `actedOn: false`** means a signal would have read the
+  withheld path but the running rubric's mechanism did not abstain on it — the result the signal
+  reports may be affected by content it never saw. This is the case a certificate is otherwise
+  unable to distinguish from a genuine, complete absence.
+- **An empty `signalsAdmitting`** means no signal's own file-selection test would have read the
+  withheld path — the skip is disclosed in `contentReadSummary` but no result depends on it.
 
 ### `attestation.json`
 
