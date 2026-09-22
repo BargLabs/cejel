@@ -31,12 +31,20 @@
 //   D2   same stub inside a test file                                miss    miss    correct (dead stub)
 //   D3   same stub inside a docs example                             miss    miss    correct (dead stub)
 //   D4   commented-out `// app.use(errorHandler);` line              CREDIT  miss    BUG FIXED (see below)
+//   9    URL literal + `.use(` on one line (review follow-up)         MISS    credit  BUG FIXED (see below)
 //
 // D4 was not a missing widening — it was a pre-existing false positive. `EXPRESS_MIDDLEWARE_
 // REACHABLE_PATTERN` tested raw file text, so a commented-out `.use(` call satisfied it exactly
 // as well as a real one, crediting the same dead, never-registered stub row D1 exists to exclude.
 // Fixed by stripping `//` line comments before testing reachability
 // (`fileMatchesOutsideLineComments`).
+//
+// Row 9 is a second, review-follow-up fix to that same D4 fix: the first version of
+// `fileMatchesOutsideLineComments` stripped everything after ANY `//`, not just whole comment
+// lines, so `const base = 'https://api.example'; app.use(handler);` lost its `.use(` call to the
+// `//` inside the URL literal — a miss, not a false credit, but avoidable. Fixed by stripping
+// only lines whose first non-whitespace characters are `//`, which still catches D4 (a full-line
+// comment) without touching a `//` that appears after code on the same line.
 //
 // Row 4c is deliberately left uncredited: Express recognizes error middleware by parameter count
 // alone, so matching a three-parameter `(err, req, res)` on names would make this an arity-adjacent
@@ -288,6 +296,18 @@ describe('A3 error boundary idiom catalogue — registered handlers that must be
         'export function errorHandler(err, req, res, next) {\n' +
         '  res.status(500).json({ message: err.message });\n' +
         '}\n',
+    };
+    expect(credited(files)).toBe(true);
+  });
+
+  it('row 9: a URL string literal earlier on the same line as app.use(...) still credits (mid-line // must not be treated as a comment)', () => {
+    const files: Readonly<Record<string, string>> = {
+      ...SERVICE,
+      'src/errorHandler.js':
+        'function errorHandler(err, req, res, next) {\n' +
+        "  res.status(500).json({ message: err.message });\n" +
+        '}\n' +
+        "const base = 'https://api.example'; app.use(errorHandler);\n",
     };
     expect(credited(files)).toBe(true);
   });

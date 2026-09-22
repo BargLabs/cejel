@@ -48,6 +48,11 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // 2026-09-22): report.json gained an always-present `withheldPaths` field (empty on these
 // fixtures, none of which have an oversized/unreadable/withheld file), so every hash below moved
 // while every pinned METRIC — checked first, on the line above the hash assertion — stayed put.
+// That was originally stated only as a comment; each fixture's `oldReportSha256` (recovered from
+// `git show v0.4.10:src/witan/__tests__/v17-scoring-surface-golden.test.ts`, the last capture of
+// this file before that change) and the assertion in the loop below make it mechanical: delete
+// `withheldPaths` from the current report and re-serialize it (`JSON.stringify(report)`, matching
+// how `reportSha256` above is computed) to prove that field is the only delta.
 
 const HERMETIC_GIT_ENV: NodeJS.ProcessEnv = {
   ...process.env,
@@ -77,6 +82,8 @@ interface Fixture {
   readonly files: Record<string, string>;
   readonly fixtureHeadSha: string;
   readonly reportSha256: string;
+  /** Pre-1.3 pin (before the additive withheldPaths field), recovered from v0.4.10. */
+  readonly oldReportSha256: string;
   /** criterionId.metricName -> pinned value */
   readonly pinnedMetrics: Record<string, number | null>;
 }
@@ -102,6 +109,7 @@ const FIXTURES: readonly Fixture[] = [
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
     reportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
+    oldReportSha256: '7e9c7cbf7d9e8f0b1ca447ca8b42ec3615d8513e06c2164583aa7be9d51840dd',
     // v0.4.8: ci_script_depth 5. The CI workflow still credits A1's test command (`npm test`
     // in ci.yml), so A1.verification_script_ratio is 3 on both sides — only B3 moves.
     pinnedMetrics: { 'B3.ci_script_depth': 4, 'A1.verification_script_ratio': 3 },
@@ -122,6 +130,7 @@ const FIXTURES: readonly Fixture[] = [
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
     reportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
+    oldReportSha256: '60fe4d3762c96820669b526f9ac59503c2ebd1f2dd171cf7d690ae2475fd4688',
     // v0.4.8: ci_script_depth 3, verification_script_ratio 2, overall 1.4 (now 1.1).
     pinnedMetrics: { 'B3.ci_script_depth': 2, 'A1.verification_script_ratio': 1 },
   },
@@ -141,6 +150,7 @@ const FIXTURES: readonly Fixture[] = [
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
     reportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
+    oldReportSha256: 'f8563bde4d02b210d1a6118abd6f73c123e4f686bdd72c7bc0e8faf7bd6e959c',
     // v0.4.8: verification_script_ratio 0, A1 score 0, overall 0.8 (now 2 / 0.5 / 0.9).
     pinnedMetrics: { 'A1.verification_script_ratio': 2 },
   },
@@ -158,6 +168,7 @@ const FIXTURES: readonly Fixture[] = [
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
     reportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
+    oldReportSha256: 'cdd35ca03149707985d2130731b4d0f7c9d3953c74a341854097c3d30c2b9c94',
     // v0.4.8: pr_trace_primitives 1, B2 score 1.6, overall 1.3 (now 2 / 3.2 / 1.7).
     pinnedMetrics: { 'B2.pr_trace_primitives': 2 },
   },
@@ -201,6 +212,13 @@ describe('v17 scoring surface is pinned — a behaviour change under the calibra
       expect(observed, `${fixture.name}: a pinned v17 metric moved — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toEqual(fixture.pinnedMetrics);
       const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
       expect(hash, `${fixture.name}: v17 report changed under an unchanged rubric identifier — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toBe(fixture.reportSha256);
+
+      const { withheldPaths, ...withoutWithheldPaths } = report as unknown as Record<string, unknown>;
+      expect(withheldPaths).toEqual([]);
+      expect(
+        createHash('sha256').update(JSON.stringify(withoutWithheldPaths)).digest('hex'),
+        `${fixture.name}: the pre-1.3 report bytes must be recoverable by removing exactly the withheldPaths field`,
+      ).toBe(fixture.oldReportSha256);
     });
   }
 });
