@@ -3065,8 +3065,15 @@ function collectA3ProdReadinessEvidence(
   const healthCheck = healthChecks[0];
   // The file-selection half of each repoFiles-walking content-pattern signal below, named once so
   // the live filter and the withheld-path check use literally the same test and cannot drift.
+  // health_readiness_route also admits a `functions/` tree (Firebase/Netlify-style serverless
+  // functions convention): a real, common home for a production HTTP entrypoint that sits
+  // outside the shared isImplementationFile directory allowlist (src/app/lib/packages/cmd/
+  // include/source/Sources). Scoped to this one signal via the extra pattern rather than widening
+  // isImplementationFile itself, which also feeds observabilityDepthReads and the error-boundary
+  // content scan below — both out of scope for this card (goal_cejel_a3_health_route_idioms_v23).
   const healthReadinessRouteReads = (file: string): boolean =>
-    isAuthoredProductionPath(file) && isImplementationFile(file);
+    isAuthoredProductionPath(file) &&
+    (isImplementationFile(file) || HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN.test(file));
   const observabilityDepthReads = (file: string): boolean =>
     (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file);
   // Scoped to 'health_readiness_route': feeds only the (info-severity) health/readiness-route
@@ -7604,6 +7611,10 @@ const SERVER_ENTRYPOINT_PATTERN =
 // classification or treating a helper that merely constructs an unbound server as production.
 const V20_DIRECT_HTTP_SERVER_PATTERN =
   /\b(?:http|https)\.createServer\s*\([\s\S]{0,1500}?\)\.listen\s*\(\s*(?:PORT|port|\d+)/;
+// Firebase/Netlify-style serverless functions convention. See healthReadinessRouteReads above
+// for why this is a separate, signal-scoped pattern rather than a change to isImplementationFile.
+const HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN =
+  /(^|\/)functions\/.*\.(?:ts|tsx|js|jsx|py|go|rs|java|rb|cpp|cc|cxx|c|h|hpp|kt|swift|php)$/;
 // Widened from an exact `["'`]/(health|ready|...)["'`]` match, which required the route
 // literal to contain nothing but the bare keyword. That missed the Kubernetes convention
 // (/healthz, /readyz, /livez), any mount prefix (/api/health), and any suffix (/health/live) —
@@ -7612,8 +7623,27 @@ const V20_DIRECT_HTTP_SERVER_PATTERN =
 // a route defined by a router mounted at '/health' with its own relative '/' handler is a
 // cross-expression case this pattern still cannot see (goal_cejel_a3_runtime_pattern_coverage,
 // stated as out of scope).
+//
+// goal_cejel_a3_health_route_idioms_v23 widened this further, on fixture evidence
+// (a3-health-route-idioms.test.ts), in two bounded ways plus one new keyword:
+//   - a single `_` or `-` is now allowed directly between the mandatory leading `/` and the
+//     keyword (`/_health`, `/-/ready` already matched via the multi-segment case; `/_health` did
+//     not, and it is the same GAE/`_ah`-style convention).
+//   - a second alternative credits a BARE keyword with no leading slash at all, but only when it
+//     is the string's entire content (open quote, keyword, close quote) — the NestJS decorator
+//     idiom `@Get('health')`. Bounding it to an exact whole-string match keeps it from reading a
+//     compound word like 'my-health-data' or a directional constant.
+// `up` was added as a keyword — Rails' documented convention (`/up`) — but ONLY in the
+// slash-anchored form above, never in the bare-string alternative: an un-anchored bare 'up' also
+// matches ordinary direction/toggle literals (`'up' | 'down'`), which the slash requirement rules
+// out. `ping`, `status`, and `alive` were considered and deliberately left uncredited: they are
+// either too generic (a `/status` or `/ping` endpoint is common for meanings that have nothing to
+// do with health) or not a named, documented convention the way `/up` and `/healthz` are — see
+// the idiom table in a3-health-route-idioms.test.ts. A trailing query string (`/health?probe=1`)
+// is also deliberately left uncredited: crediting it would also credit an outbound probe/test URL
+// with a query string appended, and this signal treats a false assertion as worse than a miss.
 const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
-  /["'`][\w${}./-]{0,60}\/(?:(?:health|ready|live)z?|readiness|liveness)(?=["'`/])/i;
+  /["'`](?:[\w${}./-]{0,60}\/[_-]?(?:(?:health|ready|live)z?|readiness|liveness|up)(?=["'`/])|(?:(?:health|ready|live)z?|readiness|liveness)(?=["'`]))/i;
 // Express recognizes error-handling middleware by arity alone — any four-parameter
 // function/arrow is treated as an error handler — but the canonical public-documentation form
 // names the parameters (err, req, res, next), optionally TypeScript-typed. Matching by name
