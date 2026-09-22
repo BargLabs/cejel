@@ -3116,26 +3116,48 @@ function collectA3ProdReadinessEvidence(
   // The filename check above is a frontend/React convention (error-boundary.*, error.tsx) and
   // does not read content, so an Express error-handling middleware layer — which can live in any
   // file, under any name — was invisible to it: fixing the exact gap a finding named changed
-  // nothing. Widened with a content-based check across implementation files, same predicate as
-  // observabilityDepthReads above (named once so the two cannot drift), run only when the
+  // nothing. Widened with a content-based check across implementation files, run only when the
   // filename check found nothing so a repository already credited by filename never pays for an
   // extra content scan.
   //
+  // goal_cejel_a3_error_boundary_idioms_2026-09-22: observabilityDepthReads' directory list
+  // (src/app/lib/packages/cmd/include/source/Sources) and extension list both excluded a
+  // conventional `server/` layout root and the `.mjs`/`.cjs` extensions — real idioms
+  // (`server/plugins/errorHandler.mjs`), not a hypothetical. Widened with an OR clause scoped to
+  // this signal alone, not a change to observabilityDepthReads or isImplementationFile
+  // themselves, so observability_depth's file domain (and every other consumer of those shared
+  // predicates) is unaffected. `src/middleware/errors.ts` and `lib/http/error.middleware.js` were
+  // already admitted by observabilityDepthReads before this widening.
+  const errorBoundaryFileReads = (file: string): boolean =>
+    observabilityDepthReads(file) ||
+    ((!useV27Detectors || isAuthoredProductionPath(file)) &&
+      /(^|\/)server\//.test(file) &&
+      /\.(?:mjs|cjs)$/.test(file));
   // A shape match alone credits a fully dead, never-registered stub (tutorial boilerplate that
   // declares a four-argument handler and never wires it in). Requiring the file to also either
   // register middleware (`.use(`) or make the handler reachable from elsewhere (`export`/
-  // `module.exports`) excludes that case while still crediting the two real-world registration
-  // idioms this repo's own fixtures use: an inline `app.use((err, req, res, next) => ...)` and a
-  // named handler declared in one file and wired via `app.use(errorHandler)` in another.
+  // `module.exports`/`export class`) excludes that case while still crediting the real-world
+  // registration idioms this repo's own fixtures use: an inline
+  // `app.use((err, req, res, next) => ...)`, a named handler declared in one file and wired via
+  // `app.use(errorHandler)` in another, and a class method registered via
+  // `app.use(this.handleError.bind(this))` from an exported class.
+  //
+  // The reachability half is evaluated against the file with `//` line comments stripped first —
+  // otherwise a commented-out `// app.use(errorHandler);` line satisfies `.use(` textually despite
+  // registering nothing, crediting exactly the dead-stub shape this check exists to exclude. The
+  // shape half is left unstripped: a real declaration is never itself commented out in any fixture
+  // this signal is meant to credit, and stripping it too would only add risk for no case in scope.
+  // (Documented limit: a `//` inside a string or template literal is stripped too, same as any
+  // naive same-line comment strip; not reachable from a realistic Express registration call.)
   const expressErrorMiddlewareFile =
     errorBoundaries.length > 0
       ? undefined
       : withContentReadSignal('A3', 'prod_readiness_primitives', () =>
           repoFiles.find(
             (file) =>
-              observabilityDepthReads(file) &&
+              errorBoundaryFileReads(file) &&
               fileContains(repoPath, file, EXPRESS_ERROR_MIDDLEWARE_PATTERN) &&
-              fileContains(repoPath, file, EXPRESS_MIDDLEWARE_REACHABLE_PATTERN),
+              fileMatchesOutsideLineComments(repoPath, file, EXPRESS_MIDDLEWARE_REACHABLE_PATTERN),
           ),
         );
   const errorBoundary = errorBoundaries[0] ?? expressErrorMiddlewareFile;
@@ -3143,9 +3165,11 @@ function collectA3ProdReadinessEvidence(
   // would have earned is otherwise reported as a plain "no error boundary" absence rather than
   // missing evidence — same seam as health_readiness_route and observability_depth below.
   // Skipped when a filename-based match already exists: the content scan is n/a there (line
-  // 3053 above never runs it) and has nothing to abstain.
+  // 3053 above never runs it) and has nothing to abstain. Uses errorBoundaryFileReads, the same
+  // file-selection test the live scan above uses, so withheld-path abstention cannot drift from
+  // what the widened signal actually reads.
   if (useV23WithheldPathAbstention && errorBoundaries.length === 0) {
-    abstainSignalOnWithheldPaths('A3', 'prod_readiness_primitives', observabilityDepthReads);
+    abstainSignalOnWithheldPaths('A3', 'prod_readiness_primitives', errorBoundaryFileReads);
   }
   // Widened past a vendor-product list plus two generic words, which missed the most common
   // Node structured-logging libraries (pino, winston, bunyan), the Express request-logging
@@ -7624,15 +7648,33 @@ const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
 // cannot see inside — a bare `[^,()]+` stops at the first comma INSIDE the generic, so a
 // realistic Express+TypeScript handler typed with route/response/body generics never matched.
 // Does not handle nested generics (`Foo<Bar<Baz, Qux>>`); that is a documented limit, not silent.
+//
+// goal_cejel_a3_error_boundary_idioms_2026-09-22: the first and fourth parameter names also
+// tolerate a leading underscore (`_err`, `_next`) — the ordinary lint-driven convention for
+// marking a required-but-unused parameter, still a named four-parameter match, not an arity-only
+// one. A three-parameter form with `next` omitted entirely is deliberately NOT matched here:
+// Express recognizes error middleware by arity, so a bare `(err, req, res)` is indistinguishable
+// from ordinary middleware missing its fourth parameter by mistake, and matching on three names
+// alone is the arity-adjacent false positive this pattern exists to avoid. Stated limit, not a
+// silent gap: recorded in src/witan/__tests__/a3-error-boundary-idioms.test.ts.
 const EXPRESS_ERROR_MIDDLEWARE_PATTERN =
-  /\(\s*(?:err|error)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:req|request)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:res|response)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*next(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*\)\s*(?:=>|\{)/i;
+  /\(\s*(?:_?err|_?error)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:req|request)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:res|response)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*_?next(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*\)\s*(?:=>|\{)/i;
 // A parameter-shape match alone also matches a fully dead, never-registered stub. Requiring the
 // same file to show some sign the handler is reachable — passed directly to `.use(`, or exported
 // so another file could import and register it — excludes tutorial boilerplate copy-pasted into
 // an unrelated file with nothing else referencing it, without requiring the wiring call site
 // itself to be in the same file (frequently isn't: a named handler declared in one file is
 // commonly registered via `app.use(errorHandler)` in the app's entrypoint).
-const EXPRESS_MIDDLEWARE_REACHABLE_PATTERN = /\.use\s*\(|\bmodule\.exports\b|\bexport\s+(?:default\b|function\b|const\b)/;
+//
+// goal_cejel_a3_error_boundary_idioms_2026-09-22: `export class` added alongside the existing
+// `export default`/`function`/`const` alternatives — a class-based handler
+// (`export class ErrorService { handleError(err, req, res, next) {...} }`, registered elsewhere
+// via `app.use(svc.handleError.bind(svc))`) is a real, public-documentation Express idiom that
+// the original three alternatives did not cover. Evaluated with `//` line comments stripped
+// first (see fileMatchesOutsideLineComments) so a commented-out `.use(` cannot satisfy this
+// pattern while registering nothing.
+const EXPRESS_MIDDLEWARE_REACHABLE_PATTERN =
+  /\.use\s*\(|\bmodule\.exports\b|\bexport\s+(?:default\b|function\b|const\b|class\b)/;
 const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
 const RACK_CONFIG_RUN_PATTERN = /^\s*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
 const RUNTIME_CONTAINER_COMMAND_PATTERN =
@@ -7968,6 +8010,18 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   return pattern.test(readRepoText(fullPath, 'utf8'));
+}
+
+// Same as fileContains, but strips `//`-to-end-of-line comments before testing. Used where a
+// commented-out call (e.g. `// app.use(errorHandler);`) would otherwise satisfy a reachability
+// pattern textually while registering nothing at runtime. Naive by design: it does not parse
+// block comments or distinguish a `//` inside a string/template literal — those are a documented
+// limit, not a case any current caller needs.
+function fileMatchesOutsideLineComments(repoPath: string, file: string, pattern: RegExp): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const withoutLineComments = readRepoText(fullPath, 'utf8').replace(/\/\/.*$/gm, '');
+  return pattern.test(withoutLineComments);
 }
 
 // ---- v23-only: PEM-formatted private-key assignment grammar -------------------------------
