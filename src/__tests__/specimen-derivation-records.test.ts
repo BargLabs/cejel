@@ -16,7 +16,8 @@ type Status =
   | 'established-nonreproduction'
   | 'evidence-pending'
   | 'unversioned-evidence'
-  | 'unmeasurable-by-construction';
+  | 'unmeasurable-by-construction'
+  | 'specimen-unrepresentative';
 interface RecordEntry {
   id: string;
   status: Status;
@@ -24,6 +25,7 @@ interface RecordEntry {
   measurement?: string;
   missingEvidence?: string;
   rationale?: string;
+  representativeness?: string;
   evidencePin?: { revision: string; specimenPath: string; specimenDigest: string };
 }
 
@@ -56,11 +58,20 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
       throw new Error('closed description properties must remain absent from this public record');
     }
     const established = new Set<Status>(['established-nonreproduction', 'evidence-established']);
-    if (established.has(entry.status) && !entry.measurement?.trim()) {
+    const measured = new Set<Status>([...established, 'specimen-unrepresentative']);
+    if (measured.has(entry.status) && !entry.measurement?.trim()) {
       throw new Error(`${entry.id} lacks its required measurement`);
     }
     if (established.has(entry.status) && Object.hasOwn(entry, 'missingEvidence')) {
       throw new Error(`${entry.id} must not retain missingEvidence`);
+    }
+    if (entry.status === 'specimen-unrepresentative') {
+      if (!entry.representativeness?.trim()) {
+        throw new Error(`${entry.id} lacks its required representativeness`);
+      }
+      if (Object.hasOwn(entry, 'missingEvidence')) {
+        throw new Error(`${entry.id} must not retain missingEvidence`);
+      }
     }
     if (entry.status === 'unmeasurable-by-construction') {
       if (!entry.rationale?.trim()) throw new Error(`${entry.id} lacks its required rationale`);
@@ -74,14 +85,14 @@ function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
         throw new Error(`${entry.id} must not retain missingEvidence`);
       }
     }
-    if (!established.has(entry.status) && !entry.missingEvidence?.trim()) {
-      if (entry.status !== 'unmeasurable-by-construction') {
-        throw new Error(`${entry.id} lacks named missing evidence`);
-      }
+    if (!measured.has(entry.status) && entry.status !== 'unmeasurable-by-construction' && !entry.missingEvidence?.trim()) {
+      throw new Error(`${entry.id} lacks named missing evidence`);
     }
   }
   for (const entry of parsed.records) {
-    if (entry.status === 'evidence-established') assertEvidencePin(entry);
+    if (entry.status === 'evidence-established' || entry.status === 'specimen-unrepresentative') {
+      assertEvidencePin(entry);
+    }
   }
   return parsed.records;
 }
@@ -147,7 +158,9 @@ describe('cycle-12 specimen derivation records', () => {
     expect(records.find((entry) => entry.id === 'a2-history-env')?.status).toBe(
       'established-nonreproduction',
     );
-    expect(records.find((entry) => entry.id === 'coverage-node')?.status).toBe('evidence-established');
+    expect(records.find((entry) => entry.id === 'coverage-node')?.status).toBe(
+      'specimen-unrepresentative',
+    );
     expect(records.find((entry) => entry.id === 'template-pem')?.status).toBe(
       'unmeasurable-by-construction',
     );
@@ -335,6 +348,41 @@ describe('unmeasurable-by-construction status', () => {
     }, 'must not retain evidencePin'],
     ['measurement', (entry: RecordEntry) => { entry.measurement = 'nothing measured'; }, 'must not retain measurement'],
     ['missing evidence', (entry: RecordEntry) => { entry.missingEvidence = 'not available'; }, 'must not retain missingEvidence'],
+  ])('refuses %s for its own reason', (_name, mutate, reason) => {
+    expect(() => check(mutate)).toThrow(reason);
+  });
+});
+
+describe('specimen-unrepresentative status', () => {
+  function check(mutate: (entry: RecordEntry) => void = () => {}): RecordEntry[] {
+    const temporary = mkdtempSync(join(tmpdir(), 'cejel-unrepresentative-'));
+    try {
+      const parsed = JSON.parse(readFileSync(RECORD_PATH, 'utf8')) as { records: RecordEntry[] };
+      const entry = parsed.records.find((record) => record.id === 'coverage-node')!;
+      mutate(entry);
+      const path = join(temporary, 'record.json');
+      writeFileSync(path, JSON.stringify(parsed));
+      return parseRecords(path);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts the valid pinned but unrepresentative record', () => {
+    const entry = check().find((record) => record.id === 'coverage-node');
+    expect(entry?.status).toBe('specimen-unrepresentative');
+    expect(entry?.evidencePin).toBeDefined();
+    expect(entry?.measurement).toMatch(/detector pin/);
+    expect(entry?.representativeness).toMatch(/repository-shaped/);
+  });
+
+  it.each([
+    ['absent pin', (entry: RecordEntry) => { delete entry.evidencePin; }, 'lacks evidencePin'],
+    ['absent measurement', (entry: RecordEntry) => { delete entry.measurement; }, 'lacks its required measurement'],
+    ['blank measurement', (entry: RecordEntry) => { entry.measurement = ' '; }, 'lacks its required measurement'],
+    ['absent representativeness', (entry: RecordEntry) => { delete entry.representativeness; }, 'lacks its required representativeness'],
+    ['blank representativeness', (entry: RecordEntry) => { entry.representativeness = ' '; }, 'lacks its required representativeness'],
+    ['retained missing evidence', (entry: RecordEntry) => { entry.missingEvidence = 'stale'; }, 'must not retain missingEvidence'],
   ])('refuses %s for its own reason', (_name, mutate, reason) => {
     expect(() => check(mutate)).toThrow(reason);
   });
