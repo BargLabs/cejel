@@ -1,0 +1,22 @@
+[
+  {
+    "statement": "When a specimen is a repository-shaped tree, make its pin kind explicit and validate the kind against the committed object. Digest a deterministic recursive manifest containing mode, type, object id, and relative path with SHA-256; a tree object id is not a content digest. Exercise valid blob and tree controls, nested edits, additions, removals, mode changes, kind mismatches, missing declarations, and working-tree divergence so a passing pin constrains the committed specimen rather than merely existing.",
+    "scope": [
+      "cejel",
+      "tests",
+      "evidence"
+    ],
+    "tags": [
+      "evidence-pins",
+      "tree-digest",
+      "mutation-tests"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await operator review and merge of the Card 16 evidence-pin tree-object proposal."
+    }
+  }
+]

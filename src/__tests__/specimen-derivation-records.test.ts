@@ -26,7 +26,12 @@ interface RecordEntry {
   missingEvidence?: string;
   rationale?: string;
   representativeness?: string;
-  evidencePin?: { revision: string; specimenPath: string; specimenDigest: string };
+  evidencePin?: {
+    revision: string;
+    specimenPath: string;
+    specimenDigest: string;
+    specimenKind: 'blob' | 'tree';
+  };
 }
 
 function parseRecords(recordPath = RECORD_PATH): RecordEntry[] {
@@ -103,6 +108,9 @@ function assertEvidencePin(entry: RecordEntry, repository = ROOT): void {
   if (![pin.revision, pin.specimenPath, pin.specimenDigest].every(
     (value) => typeof value === 'string' && value.trim().length > 0,
   )) throw new Error(`${entry.id} evidencePin fields must be populated`);
+  if (pin.specimenKind !== 'blob' && pin.specimenKind !== 'tree') {
+    throw new Error(`${entry.id} evidencePin specimenKind must be declared as blob or tree`);
+  }
   if (!/^[0-9a-f]{40}$/.test(pin.revision)) {
     throw new Error(`${entry.id} evidencePin revision must be a full 40-hex commit SHA`);
   }
@@ -130,11 +138,26 @@ function assertEvidencePin(entry: RecordEntry, repository = ROOT): void {
     throw new Error(`${entry.id} evidencePin specimenPath must be repo-relative`);
   }
   const object = `${pin.revision}:${pin.specimenPath}`;
-  if (objectType(object) !== 'blob') {
-    throw new Error(`${entry.id} evidencePin specimenPath must name a blob at the pinned revision`);
+  const actualKind = objectType(object);
+  if (actualKind !== pin.specimenKind) {
+    throw new Error(`${entry.id} evidencePin specimenPath must name a ${pin.specimenKind} at the pinned revision (kind mismatch: found ${actualKind ?? 'missing'})`);
   }
-  const blob = git(['cat-file', 'blob', object]);
-  if (`sha256:${createHash('sha256').update(blob).digest('hex')}` !== pin.specimenDigest) {
+
+  let digest: string;
+  if (pin.specimenKind === 'blob') {
+    const blob = git(['cat-file', 'blob', object]);
+    digest = `sha256:${createHash('sha256').update(blob).digest('hex')}`;
+  } else {
+    // The recursive manifest is the content being pinned. Keep mode, type, object id,
+    // and path in a deterministic order; the tree object id itself is SHA-1 here.
+    const lines = git(['ls-tree', '-r', '--full-tree', object]).toString('utf8')
+      .split('\n')
+      .filter((line) => line.length > 0)
+      .sort();
+    const manifest = lines.length > 0 ? `${lines.join('\n')}\n` : '';
+    digest = `sha256:${createHash('sha256').update(manifest).digest('hex')}`;
+  }
+  if (digest !== pin.specimenDigest) {
     throw new Error(`${entry.id} evidencePin digest mismatch`);
   }
 }
@@ -235,7 +258,7 @@ describe('established evidence pins', () => {
       entry.status = 'evidence-established';
       entry.measurement = 'Pin-validator control only; no specimen qualification claimed.';
       delete entry.missingEvidence;
-      entry.evidencePin = { revision, specimenPath, specimenDigest };
+      entry.evidencePin = { revision, specimenPath, specimenDigest, specimenKind: 'blob' };
       mutate(entry);
       const path = join(temporary, 'record.json');
       writeFileSync(path, JSON.stringify(parsed));
@@ -247,7 +270,7 @@ describe('established evidence pins', () => {
 
   it('accepts a valid committed-blob pin', () => {
     expect(check().find((entry) => entry.id === 'coverage-node')?.evidencePin)
-      .toEqual({ revision, specimenPath, specimenDigest });
+      .toEqual({ revision, specimenPath, specimenDigest, specimenKind: 'blob' });
   });
 
   it('ignores divergent working-tree bytes', () => {
@@ -275,7 +298,7 @@ describe('established evidence pins', () => {
       }
       const entry: RecordEntry = {
         id: 'pin-validator-control', status: 'evidence-established', closedDescriptionProperties: [],
-        evidencePin: { revision, specimenPath, specimenDigest },
+        evidencePin: { revision, specimenPath, specimenDigest, specimenKind: 'blob' },
       };
       const diagnostic = spawnSync('git', ['cat-file', '--batch-check=%(objecttype)'], {
         cwd: repository, input: `${revision}\n`,
@@ -291,6 +314,11 @@ describe('established evidence pins', () => {
 
   const mutations: [string, (entry: RecordEntry) => void, string][] = [
     ['absent pin', (entry) => { delete entry.evidencePin; }, 'lacks evidencePin'],
+    ['absent specimen kind', (entry) => {
+      const pin = entry.evidencePin as unknown as { specimenKind?: string };
+      delete pin.specimenKind;
+    }, 'specimenKind must be declared'],
+    ['tree kind for blob path', (entry) => { entry.evidencePin!.specimenKind = 'tree'; }, 'kind mismatch'],
     ['empty pin field', (entry) => { entry.evidencePin!.specimenPath = ''; }, 'fields must be populated'],
     ['changed digest', (entry) => {
       const digest = entry.evidencePin!.specimenDigest;
@@ -320,6 +348,92 @@ describe('established evidence pins', () => {
   });
 });
 
+describe('tree evidence pins', () => {
+  const revision = '9ce92fc16afefe2c69116e9b25b03d01847196f4';
+  const specimenPath = 'src/__tests__/fixtures';
+  const nestedPath = `${specimenPath}/offline-boundary/transitive/__tests__/network-helper.ts`;
+
+  function manifestLines(): string[] {
+    return execFileSync('git', ['ls-tree', '-r', '--full-tree', `${revision}:${specimenPath}`], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).split('\n').filter((line) => line.length > 0).sort();
+  }
+
+  function digest(lines: string[]): string {
+    const manifest = lines.length > 0 ? `${lines.join('\n')}\n` : '';
+    return `sha256:${createHash('sha256').update(manifest).digest('hex')}`;
+  }
+
+  const specimenDigest = digest(manifestLines());
+
+  function check(mutate: (entry: RecordEntry) => void = () => {}): RecordEntry[] {
+    const temporary = mkdtempSync(join(tmpdir(), 'cejel-tree-evidence-pin-'));
+    try {
+      const parsed = JSON.parse(readFileSync(RECORD_PATH, 'utf8')) as { records: RecordEntry[] };
+      const entry = parsed.records.find((record) => record.id === 'coverage-node')!;
+      entry.status = 'evidence-established';
+      entry.measurement = 'Tree pin-validator control only; no specimen qualification claimed.';
+      delete entry.missingEvidence;
+      entry.evidencePin = { revision, specimenPath, specimenDigest, specimenKind: 'tree' };
+      mutate(entry);
+      const path = join(temporary, 'record.json');
+      writeFileSync(path, JSON.stringify(parsed));
+      return parseRecords(path);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts a valid recursive tree pin', () => {
+    expect(check().find((entry) => entry.id === 'coverage-node')?.evidencePin)
+      .toEqual({ revision, specimenPath, specimenDigest, specimenKind: 'tree' });
+  });
+
+  it('ignores divergent working-tree bytes inside the pinned tree', () => {
+    const path = join(ROOT, nestedPath);
+    const original = readFileSync(path);
+    const committed = execFileSync('git', ['cat-file', 'blob', `${revision}:${nestedPath}`], { cwd: ROOT });
+    expect(original).toEqual(committed);
+    try {
+      writeFileSync(path, Buffer.concat([committed, Buffer.from('\nworking-tree tree divergence\n')]));
+      expect(readFileSync(path)).not.toEqual(committed);
+      expect(() => check()).not.toThrow();
+    } finally {
+      writeFileSync(path, original);
+      expect(readFileSync(path)).toEqual(committed);
+    }
+  });
+
+  it.each([
+    ['nested file changed', (lines: string[]) => lines.map((line) => line.includes(`\t${nestedPath.slice(specimenPath.length + 1)}`) ? line.replace(/[0-9a-f]{40}\t/, `${'0'.repeat(40)}\t`) : line)],
+    ['file added', (lines: string[]) => [...lines, `100644 blob ${'0'.repeat(40)}\tadded-by-mutation.txt`].sort()],
+    ['file removed', (lines: string[]) => lines.filter((line) => !line.endsWith(`\t${nestedPath.slice(specimenPath.length + 1)}`))],
+    ['file mode changed', (lines: string[]) => lines.map((line) => line.includes(`\t${nestedPath.slice(specimenPath.length + 1)}`) ? line.replace(/^100644 /, '100755 ') : line)],
+  ] as [string, (lines: string[]) => string[]][] )('refuses %s on recursive digest mismatch', (_name, mutate) => {
+    const mutatedDigest = digest(mutate(manifestLines()));
+    expect(() => check((entry) => { entry.evidencePin!.specimenDigest = mutatedDigest; }))
+      .toThrow('digest mismatch');
+  });
+
+  it.each([
+    ['tree kind for blob path', (entry: RecordEntry) => {
+      entry.evidencePin!.specimenPath = 'src/__tests__/fixtures/specimen-derivation-guard/package.json';
+      entry.evidencePin!.specimenKind = 'tree';
+    }],
+    ['blob kind for tree path', (entry: RecordEntry) => { entry.evidencePin!.specimenKind = 'blob'; }],
+  ] as [string, (entry: RecordEntry) => void][])('refuses %s as a kind mismatch', (_name, mutate) => {
+    expect(() => check(mutate)).toThrow('kind mismatch');
+  });
+
+  it('refuses an absent specimen kind', () => {
+    expect(() => check((entry) => {
+      const pin = entry.evidencePin as unknown as { specimenKind?: string };
+      delete pin.specimenKind;
+    })).toThrow('specimenKind must be declared');
+  });
+});
+
 describe('unmeasurable-by-construction status', () => {
   function check(mutate: (entry: RecordEntry) => void = () => {}): RecordEntry[] {
     const temporary = mkdtempSync(join(tmpdir(), 'cejel-unmeasurable-'));
@@ -344,7 +458,7 @@ describe('unmeasurable-by-construction status', () => {
   it.each([
     ['absent rationale', (entry: RecordEntry) => { delete entry.rationale; }, 'lacks its required rationale'],
     ['evidence pin', (entry: RecordEntry) => {
-      entry.evidencePin = { revision: '0'.repeat(40), specimenPath: 'x', specimenDigest: 'sha256:x' };
+      entry.evidencePin = { revision: '0'.repeat(40), specimenPath: 'x', specimenDigest: 'sha256:x', specimenKind: 'blob' };
     }, 'must not retain evidencePin'],
     ['measurement', (entry: RecordEntry) => { entry.measurement = 'nothing measured'; }, 'must not retain measurement'],
     ['missing evidence', (entry: RecordEntry) => { entry.missingEvidence = 'not available'; }, 'must not retain missingEvidence'],

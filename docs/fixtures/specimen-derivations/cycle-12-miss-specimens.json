@@ -15,7 +15,8 @@
       "evidencePin": {
         "revision": "1871e1afd4dbd27812d688fb7b702813af76bda7",
         "specimenPath": "src/__tests__/fixtures/cycle-12-coverage-node/package.json",
-        "specimenDigest": "sha256:8c17ef2bde203f821b9d34e1436887fdf1a532e045e278e11d2e0e35fc802654"
+        "specimenDigest": "sha256:8c17ef2bde203f821b9d34e1436887fdf1a532e045e278e11d2e0e35fc802654",
+        "specimenKind": "blob"
       },
       "representativeness": "A repository-shaped, test-bearing context capable of exercising the concrete-test detector rule.",
       "closedDescriptionProperties": []
