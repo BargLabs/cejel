@@ -10,13 +10,14 @@
     },
     {
       "id": "coverage-node",
-      "status": "evidence-established",
-      "measurement": "The committed specimen's package.json test script runs tests without coverage instrumentation.",
+      "status": "specimen-unrepresentative",
+      "measurement": "At detector pin cfd9b16ffc94dfcb699ba433e16fa091d960906c, inputPaths [\"package.json\"] produced scanExit 0 with no target finding and a zero-test warning. The Alfred record states: \"A not-detected result from a specimen that cannot be detected says nothing about the detector.\"",
       "evidencePin": {
         "revision": "1871e1afd4dbd27812d688fb7b702813af76bda7",
         "specimenPath": "src/__tests__/fixtures/cycle-12-coverage-node/package.json",
         "specimenDigest": "sha256:8c17ef2bde203f821b9d34e1436887fdf1a532e045e278e11d2e0e35fc802654"
       },
+      "representativeness": "A repository-shaped, test-bearing context capable of exercising the concrete-test detector rule.",
       "closedDescriptionProperties": []
     },
     {
