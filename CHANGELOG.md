@@ -26,9 +26,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - a segment-internal `_`/`-` prefix directly after the route's leading slash (`/_health`);
   - the Rails convention `/up`, slash-anchored only — never as a bare decorator string, which
     would also match unrelated direction/toggle literals (`'up' | 'down'`);
-  - the NestJS decorator idiom with no leading slash (`@Get('health')`), credited only when the
-    quoted string's entire content is the bare keyword, so a compound word like `'my-health-data'`
-    still does not match;
+  - the NestJS decorator idiom with no leading slash (`@Get('health')`), requiring `@Get(...)`
+    context for bare `health`; context-free bare keywords are limited to `healthz`, `readiness`,
+    and `liveness`, so ordinary `'ready'`, `'live'`, and `'health'` strings do not match;
   - a `functions/` serverless-functions directory (Firebase/Netlify convention), added to this
     one signal's file-selection predicate rather than to the shared implementation-file allowlist
     other A3 signals also use.

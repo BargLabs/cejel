@@ -7629,10 +7629,10 @@ const HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN =
 //   - a single `_` or `-` is now allowed directly between the mandatory leading `/` and the
 //     keyword (`/_health`, `/-/ready` already matched via the multi-segment case; `/_health` did
 //     not, and it is the same GAE/`_ah`-style convention).
-//   - a second alternative credits a BARE keyword with no leading slash at all, but only when it
-//     is the string's entire content (open quote, keyword, close quote) — the NestJS decorator
-//     idiom `@Get('health')`. Bounding it to an exact whole-string match keeps it from reading a
-//     compound word like 'my-health-data' or a directional constant.
+//   - bare whole-string keywords are limited to healthz, readiness, and liveness.
+//     The common word health additionally requires `@Get('health')` decorator context.
+//     Whole-string matching alone still credits unrelated state/event/config literals such as
+//     'ready', 'live', and 'health'; the idiom suite guards those false positives.
 // `up` was added as a keyword — Rails' documented convention (`/up`) — but ONLY in the
 // slash-anchored form above, never in the bare-string alternative: an un-anchored bare 'up' also
 // matches ordinary direction/toggle literals (`'up' | 'down'`), which the slash requirement rules
@@ -7643,7 +7643,7 @@ const HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN =
 // is also deliberately left uncredited: crediting it would also credit an outbound probe/test URL
 // with a query string appended, and this signal treats a false assertion as worse than a miss.
 const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
-  /["'`](?:[\w${}./-]{0,60}\/[_-]?(?:(?:health|ready|live)z?|readiness|liveness|up)(?=["'`/])|(?:(?:health|ready|live)z?|readiness|liveness)(?=["'`]))/i;
+  /["'`](?:[\w${}./-]{0,60}\/[_-]?(?:(?:health|ready|live)z?|readiness|liveness|up)(?=["'`/])|(?:healthz|readiness|liveness)(?=["'`]))|@Get\s*\(\s*(["'`])health\1\s*\)/i;
 // Express recognizes error-handling middleware by arity alone — any four-parameter
 // function/arrow is treated as an error handler — but the canonical public-documentation form
 // names the parameters (err, req, res, next), optionally TypeScript-typed. Matching by name

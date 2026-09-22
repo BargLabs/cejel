@@ -26,7 +26,7 @@
 // | content-only name: /alive                                       | MISS   | MISS   | (stated limit — not a documented convention this card credits)
 // | Fastify fastify.get('/healthz', ...)                             | credit | credit | (already correct — leading-slash literal)
 // | Koa router.get('/health', ...)                                  | credit | credit | (already correct)
-// | NestJS @Get('health') — no leading slash                        | MISS   | credit | (WIDENED — new bare-keyword alternative, exact whole-string match only)
+// | NestJS @Get('health') — no leading slash                        | MISS   | credit | (WIDENED — Get decorator context, exact whole-string match only)
 // | Hapi { method: 'GET', path: '/health' }                         | credit | credit | (already correct)
 // | @godaddy/terminus, literal path present in the wiring call       | credit | credit | (already correct — the literal is what is credited, not the import)
 // | express-healthcheck import, no literal path anywhere in the repo | MISS   | MISS   | (stated limit — decision deferred to the handback, not implemented)
@@ -307,6 +307,14 @@ describe('A3 health/readiness route — idiom catalogue', () => {
   });
 
   describe('non-routes that must stay uncredited', () => {
+    it.each([
+      "if (status === 'ready') { doWork(); }",
+      "socket.on('live', cb);",
+      "const config = { mode: 'health' };",
+    ])('does not credit an ordinary keyword literal: %s', (source) => {
+      expectMissing(scanA3({ ...BASE, 'src/state.ts': source + '\n' }));
+    });
+
     it('a README mention of /health', () => {
       const a3 = scanA3({ ...BASE, 'README.md': 'Hit /health to check liveness.\n' });
       expectMissing(a3);
