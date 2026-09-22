@@ -3,6 +3,7 @@ import type {
   WitanCriterionScore,
   WitanFinding,
   WitanReport,
+  WitanWithheldPath,
 } from './schemas.js';
 
 export interface CertificateGlossaryEntry {
@@ -672,6 +673,70 @@ function buildNextSteps(
   return steps;
 }
 
+// A withheld file that touched no signal is indistinguishable, from the certificate alone, from a
+// disclosure that simply failed to print — unless the withheld-path state is itself a statement on
+// every certificate (goal_cejel_withheld_paths_always_disclosed_2026-09-22). report.withheldPaths
+// (report format 1.3+) makes that statement possible; this renders it as exactly one of four
+// sentences. `undefined` (a report produced before the field existed) prints nothing new here —
+// absence of the field is not evidence either way, so this never fabricates a claim about it.
+const WITHHELD_PATH_READ_FAILURE_REASONS: ReadonlySet<WitanWithheldPath['reason']> = new Set([
+  'unreadable',
+  'denied_path',
+]);
+
+const WITHHELD_PATH_REASON_LABELS: Record<WitanWithheldPath['reason'], string> = {
+  too_large: 'too large',
+  non_regular_file: 'not a regular file',
+  unreadable: 'unreadable',
+  denied_path: 'denied path',
+  excluded_by_extension: 'excluded by extension',
+};
+
+function describeWithheldReasons(entries: readonly WitanWithheldPath[]): string {
+  return [...new Set(entries.map((entry) => WITHHELD_PATH_REASON_LABELS[entry.reason]))]
+    .sort()
+    .join(', ');
+}
+
+function buildWithheldPathsGapSentence(report: WitanReport): string | undefined {
+  const withheldPaths = report.withheldPaths;
+  if (withheldPaths === undefined) return undefined;
+  if (withheldPaths.length === 0) {
+    return 'No content was withheld from any signal.';
+  }
+  const count = withheldPaths.length;
+  const entryWord = count === 1 ? 'content entry was' : 'content entries were';
+  const pronoun = count === 1 ? 'it' : 'them';
+  const reasonLabel = describeWithheldReasons(withheldPaths);
+  const intersecting = withheldPaths.filter((entry) => entry.signalsAdmitting.length > 0);
+  if (intersecting.length === 0) {
+    return (
+      `${count} ${entryWord} withheld (${reasonLabel}); no signal that would have read ${pronoun} ` +
+      `selected ${pronoun}, so no result depends on ${pronoun}.`
+    );
+  }
+  const signals = [...new Set(intersecting.flatMap((entry) => entry.signalsAdmitting))].sort();
+  const signalList = signals.join(', ');
+  const actedOn = intersecting.some((entry) => entry.actedOn);
+  if (actedOn) {
+    const qualifier = intersecting.every((entry) => !WITHHELD_PATH_READ_FAILURE_REASONS.has(entry.reason))
+      ? 'a disclosed coverage limit, not a read failure'
+      : 'content Cejel could not read';
+    return (
+      `${count} ${entryWord} withheld (${reasonLabel}); ${signalList} abstained on ${pronoun} ` +
+      `rather than assert an absence — ${qualifier}.`
+    );
+  }
+  const reportsOnWhatItRead =
+    signals.length === 1
+      ? 'that signal reports on what it read'
+      : 'these signals report on what they read';
+  return (
+    `${count} ${entryWord} withheld (${reasonLabel}); ${signalList} would have read ${pronoun}. ` +
+    `Under this rubric ${reportsOnWhatItRead}; the prospective v23 rubric abstains instead.`
+  );
+}
+
 export function buildRelyingPartySummary(report: WitanReport): RelyingPartySummary {
   const applicable = report.criteria.filter((criterion) => criterion.status !== 'not_applicable');
   const measured = applicable.filter((criterion) => criterion.status !== 'insufficient_data');
@@ -716,6 +781,10 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
     gaps.push(
       `${skipped} content entr${skipped === 1 ? 'y was' : 'ies were'} skipped for the reasons itemized in the certificate.`,
     );
+  }
+  const withheldPathsSentence = buildWithheldPathsGapSentence(report);
+  if (withheldPathsSentence !== undefined) {
+    gaps.push(withheldPathsSentence);
   }
   gaps.push(
     'Anything absent from the measured evidence was not established: no measurement and no finding are not clearance.',
