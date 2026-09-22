@@ -18,6 +18,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The (prospective, `witan-rubric-v23`) `health_readiness_route` info-severity finding missed a
+  real Express health route under several ordinary, public-documentation idioms**, cataloged and
+  regression-guarded in `src/witan/__tests__/a3-health-route-idioms.test.ts`. This finding is
+  info-severity, not a scored metric — no A3 score moves; a certificate's "what to do next" does.
+  Now also credits:
+  - a segment-internal `_`/`-` prefix directly after the route's leading slash (`/_health`);
+  - the Rails convention `/up`, slash-anchored only — never as a bare decorator string, which
+    would also match unrelated direction/toggle literals (`'up' | 'down'`);
+  - the NestJS decorator idiom with no leading slash (`@Get('health')`), requiring `@Get(...)`
+    context for bare `health`; context-free bare keywords are limited to `healthz`, `readiness`,
+    and `liveness`, so ordinary `'ready'`, `'live'`, and `'health'` strings do not match;
+  - a `functions/` serverless-functions directory (Firebase/Netlify convention), added to this
+    one signal's file-selection predicate rather than to the shared implementation-file allowlist
+    other A3 signals also use.
+
+  Deliberately left as stated limits, not silently dropped: `/ping`, `/status`, and `/alive` (too
+  generic, or not a named convention the way `/up` and `/healthz` are); a trailing query string
+  (`/health?probe=1` — crediting it would also credit an outbound probe/test URL, and a false
+  assertion is worse than a miss here); and a health-check library imported with no literal path
+  anywhere in the repo (`express-healthcheck`, `@godaddy/terminus`, `lightship`) — whether the
+  import itself should count as evidence is an open decision, not made in this change.
+
+  Two of the three file-selection examples this gap was originally reported against
+  (`src/server/health.controller.ts`, `app/api/health/route.ts`) turned out to already be
+  admitted by the existing predicate once checked against the running detector; only the
+  `functions/` case was a genuine gap.
+
 - **A certificate that withheld content could print no disclosure line at all, and a reader could
   not tell a correct no-intersection ("no signal would have read it") from a disclosure that
   simply failed to print.** On the 2026-09-21 reruns, a revision with two oversized withheld files
