@@ -1,0 +1,22 @@
+[
+  {
+    "statement": "When widening a route detector for slashless decorator paths, exact quoted-keyword matching is insufficient: ordinary state comparisons, event names, and configuration values can contain the same words. Require decorator context for common bare words and add must-not-credit fixtures alongside the positive route idiom before accepting the widening.",
+    "scope": [
+      "cejel",
+      "tests",
+      "evidence"
+    ],
+    "tags": [
+      "false-positive",
+      "health-route",
+      "regex-context"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-22T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await merge of Cejel PR #353 with the bare-keyword health-route correction."
+    }
+  }
+]

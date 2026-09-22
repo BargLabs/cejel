@@ -110,20 +110,26 @@ function hashFor(rubricVersion: string): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }
 
-// These pins are UNCHANGED from the original capture: with the fixture made hermetic, a macOS host
-// (commit.gpgsign=true, gpg.format=ssh) and a Linux container (same) both reproduce them exactly
-// on origin/main da90785 (2026-09-15) — which is also the proof that the original capture was
-// taken from an unsigned commit, and that the machine-dependence was entirely the fixture's.
+// These pins were UNCHANGED from the original capture through goal_cejel_v23_declared_scope,
+// with the fixture made hermetic reproducing them exactly on a macOS host (commit.gpgsign=true,
+// gpg.format=ssh) and a Linux container on origin/main da90785 (2026-09-15).
+//
+// goal_cejel_withheld_paths_always_disclosed_2026-09-22 moved both pins on purpose: this fixture
+// has no oversized/unreadable/withheld file, so buildWitanInputFromRepo's per-path skip and
+// scoring output are unchanged, but its return value now always carries an additive
+// `withheldPaths: []` — presence of the empty array is itself the "nothing was withheld"
+// disclosure this card adds, not a re-pinned score. Confirmed by diffing the pre/post `input`
+// objects for both rubrics: `withheldPaths: []` is the only key added, nothing else moved.
 describe('v23 declared-scope fix leaves v17/v22 scan output byte-identical', () => {
   it('v17 output hash is unchanged', () => {
     expect(hashFor(WITAN_RUBRIC_VERSION_V17)).toBe(
-      '53801b02f7cc46781c18cab43c315798f349dd90af76b42a5965e3c81f654554',
+      '56ac5957223e66c26d6026ee2506aa33308b89209140c3cfcab9876aadf49707',
     );
   });
 
   it('v22 output hash is unchanged', () => {
     expect(hashFor(WITAN_RUBRIC_VERSION_V22)).toBe(
-      '1b63a05c2c9c36c083e4dd7d12472ca27f6e4ae7ab01ab8addb8bdce7b98fbe2',
+      '8140d8d1152913a7db566d5c3383a6ade492fd4a0600838dbc7cf85cf62468ed',
     );
   });
 });

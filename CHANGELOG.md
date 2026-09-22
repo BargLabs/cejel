@@ -38,6 +38,54 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A3 suites changed output — this widening only reaches repositories that hit the newly-credited
   idioms.
 
+- **The (prospective, `witan-rubric-v23`) `health_readiness_route` info-severity finding missed a
+  real Express health route under several ordinary, public-documentation idioms**, cataloged and
+  regression-guarded in `src/witan/__tests__/a3-health-route-idioms.test.ts`. This finding is
+  info-severity, not a scored metric — no A3 score moves; a certificate's "what to do next" does.
+  Now also credits:
+  - a segment-internal `_`/`-` prefix directly after the route's leading slash (`/_health`);
+  - the Rails convention `/up`, slash-anchored only — never as a bare decorator string, which
+    would also match unrelated direction/toggle literals (`'up' | 'down'`);
+  - the NestJS decorator idiom with no leading slash (`@Get('health')`), requiring `@Get(...)`
+    context for bare `health`; context-free bare keywords are limited to `healthz`, `readiness`,
+    and `liveness`, so ordinary `'ready'`, `'live'`, and `'health'` strings do not match;
+  - a `functions/` serverless-functions directory (Firebase/Netlify convention), added to this
+    one signal's file-selection predicate rather than to the shared implementation-file allowlist
+    other A3 signals also use.
+
+  Deliberately left as stated limits, not silently dropped: `/ping`, `/status`, and `/alive` (too
+  generic, or not a named convention the way `/up` and `/healthz` are); a trailing query string
+  (`/health?probe=1` — crediting it would also credit an outbound probe/test URL, and a false
+  assertion is worse than a miss here); and a health-check library imported with no literal path
+  anywhere in the repo (`express-healthcheck`, `@godaddy/terminus`, `lightship`) — whether the
+  import itself should count as evidence is an open decision, not made in this change.
+
+  Two of the three file-selection examples this gap was originally reported against
+  (`src/server/health.controller.ts`, `app/api/health/route.ts`) turned out to already be
+  admitted by the existing predicate once checked against the running detector; only the
+  `functions/` case was a genuine gap.
+
+- **A certificate that withheld content could print no disclosure line at all, and a reader could
+  not tell a correct no-intersection ("no signal would have read it") from a disclosure that
+  simply failed to print.** On the 2026-09-21 reruns, a revision with two oversized withheld files
+  produced identical certificates under the default rubric and the prospective `witan-rubric-v23`
+  — no withheld-path line under either — leaving open whether v23's withheld-path abstention
+  correctly found no intersection or should have fired and silently did not. The certificate's
+  "What was not established" section now carries exactly one withheld-path sentence on every
+  certificate, never conditionally: "No content was withheld from any signal" when nothing was
+  withheld; a "no signal that would have read them selected them" sentence when something was
+  withheld but earns no signal's own file-selection test; the existing per-signal abstention
+  disclosure, plus the count, when the intersection is earned and `witan-rubric-v23`'s mechanism
+  acted on it; and, new for every other rubric (including the calibrated public default), a
+  sentence naming which signal *would* have read the withheld content and stating plainly that
+  this rubric reports on what it read while the prospective v23 rubric abstains instead — the exact
+  sentence the 2026-09-21 default-rubric certificate was missing if the second reading is the true
+  one. `report.json` (report format 1.3) gains an additive `withheldPaths` array — one entry per
+  withheld path, always present (empty when nothing was withheld), each carrying its skip reason,
+  every signal whose own file-selection test would have read it, and whether the running rubric's
+  mechanism acted on that intersection — computed from the same predicate calls the abstention
+  itself consults, so the disclosure and the abstention can never drift apart. No scored metric
+  moved on any fixture under any rubric.
 
 ## [0.4.10] — 2026-09-17
 

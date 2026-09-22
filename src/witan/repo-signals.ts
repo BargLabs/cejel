@@ -21,6 +21,7 @@ import type {
   WitanFinding,
   WitanRepoArchetype,
   WitanReportInputPayload,
+  WitanWithheldPath,
 } from './schemas.js';
 
 import {
@@ -38,6 +39,7 @@ import {
   withContentReadCriterion,
   withContentReadSignal,
   withContentReadSignals,
+  withheldRepoPaths,
 } from './content-reads.js';
 
 import {
@@ -480,6 +482,18 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   };
 }
 
+// Maps content-reads.ts's withheldRepoPaths() into the report.json shape. registerWithheldRepoPath
+// is called at most once per path within a single scan session (see its own doc comment), so
+// `reasons` is always exactly one value here; sorted defensively rather than assumed.
+function buildWithheldPathsReportField(): WitanWithheldPath[] {
+  return withheldRepoPaths().map(({ path, reasons, signalsAdmitting, actedOn }) => ({
+    path,
+    reason: [...reasons].sort()[0]!,
+    signalsAdmitting: [...signalsAdmitting],
+    actedOn,
+  }));
+}
+
 function buildWitanInputFromRepoUntracked(
   options: BuildWitanInputOptions,
 ): WitanReportInputPayload {
@@ -663,6 +677,9 @@ function buildWitanInputFromRepoUntracked(
     ...(scanLimitations.size > 0
       ? { scanLimitations: [...scanLimitations] }
       : {}),
+    // Always present, even as [] — presence is the "nothing was withheld" statement itself, not
+    // merely the absence of a limitation (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+    withheldPaths: buildWithheldPathsReportField(),
     signals: [
       ...coreSignals,
       ...(options.domainCollectors ?? []).map((collect) => collect(options.repoPath, repoFiles)),
@@ -3065,8 +3082,15 @@ function collectA3ProdReadinessEvidence(
   const healthCheck = healthChecks[0];
   // The file-selection half of each repoFiles-walking content-pattern signal below, named once so
   // the live filter and the withheld-path check use literally the same test and cannot drift.
+  // health_readiness_route also admits a `functions/` tree (Firebase/Netlify-style serverless
+  // functions convention): a real, common home for a production HTTP entrypoint that sits
+  // outside the shared isImplementationFile directory allowlist (src/app/lib/packages/cmd/
+  // include/source/Sources). Scoped to this one signal via the extra pattern rather than widening
+  // isImplementationFile itself, which also feeds observabilityDepthReads and the error-boundary
+  // content scan below — both out of scope for this card (goal_cejel_a3_health_route_idioms_v23).
   const healthReadinessRouteReads = (file: string): boolean =>
-    isAuthoredProductionPath(file) && isImplementationFile(file);
+    isAuthoredProductionPath(file) &&
+    (isImplementationFile(file) || HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN.test(file));
   const observabilityDepthReads = (file: string): boolean =>
     (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file);
   // Scoped to 'health_readiness_route': feeds only the (info-severity) health/readiness-route
@@ -3094,12 +3118,20 @@ function collectA3ProdReadinessEvidence(
   // Abstain instead, but only on a match this signal earned: the predicate consulted is this
   // signal's own file-selection test, so an oversized file the signal would never have opened
   // still abstains nothing (that is the path-shape over-abstention the 0.4.8 fix removed, and it
-  // stays removed). Gated on useV20ExplicitGaps because below that rubric the signal reads no
-  // repoFiles at all and so loses nothing to a withheld path.
+  // stays removed). Applicability gated on useV20ExplicitGaps because below that rubric the
+  // signal reads no repoFiles at all and so loses nothing to a withheld path — that gate is about
+  // whether the signal exists at all under this rubric, so it stays outside the call. Whether the
+  // match, once found, is ACTED ON is instead passed as the call's own `act` argument
+  // (useV23WithheldPathAbstention): the intersection is always computed and disclosed, even under
+  // a rubric where the mechanism is off (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
   const healthReadinessRouteWithheld =
-    useV23WithheldPathAbstention &&
     useV20ExplicitGaps &&
-    abstainSignalOnWithheldPaths('A3', 'health_readiness_route', healthReadinessRouteReads);
+    abstainSignalOnWithheldPaths(
+      'A3',
+      'health_readiness_route',
+      healthReadinessRouteReads,
+      useV23WithheldPathAbstention,
+    );
   const serverEntrypoint =
     v22PackageStartHttpEntrypoint ??
     findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
@@ -3166,10 +3198,15 @@ function collectA3ProdReadinessEvidence(
   // missing evidence — same seam as health_readiness_route and observability_depth below.
   // Skipped when a filename-based match already exists: the content scan is n/a there (line
   // 3053 above never runs it) and has nothing to abstain. Uses errorBoundaryFileReads, the same
-  // file-selection test the live scan above uses, so withheld-path abstention cannot drift from
-  // what the widened signal actually reads.
-  if (useV23WithheldPathAbstention && errorBoundaries.length === 0) {
-    abstainSignalOnWithheldPaths('A3', 'prod_readiness_primitives', errorBoundaryFileReads);
+  // file-selection test the live scan above uses. Always disclose an earned intersection;
+  // the rubric's own gate controls whether the mechanism acts on it.
+  if (errorBoundaries.length === 0) {
+    abstainSignalOnWithheldPaths(
+      'A3',
+      'prod_readiness_primitives',
+      errorBoundaryFileReads,
+      useV23WithheldPathAbstention,
+    );
   }
   // Widened past a vendor-product list plus two generic words, which missed the most common
   // Node structured-logging libraries (pino, winston, bunyan), the Express request-logging
@@ -3193,9 +3230,14 @@ function collectA3ProdReadinessEvidence(
   // under-count is reported as a lower observability score rather than as missing evidence. The
   // return value is unused because this metric IS named observability_depth, so the recorded
   // abstention drops it in buildWitanInputFromRepo without the collector doing anything further.
-  if (useV23WithheldPathAbstention) {
-    abstainSignalOnWithheldPaths('A3', 'observability_depth', observabilityDepthReads);
-  }
+  // Always called, with the rubric's own gate passed as `act`, so the intersection is disclosed
+  // even when this rubric does not switch the mechanism on.
+  abstainSignalOnWithheldPaths(
+    'A3',
+    'observability_depth',
+    observabilityDepthReads,
+    useV23WithheldPathAbstention,
+  );
   const rollbackSafetyCount = withContentReadSignal('A3', 'rollback_safety_depth', () =>
     countFilesContaining(
       repoPath,
@@ -3749,24 +3791,33 @@ function collectA5ClaimRealityEvidence(
   // where this criterion asserts "nothing is claimed about this repo" about a repository whose
   // claim source Cejel declined to read, which is a false assertion rather than a low score.
   const claimImplementationReads = claimImplementationFileReads(useV27Detectors);
-  if (useV23WithheldPathAbstention) {
-    abstainSignalOnWithheldPaths(
-      'A5',
-      'claim_match_rate',
-      (file) => claimImplementationReads(file) || isClaimSourceFile(file),
-    );
-    abstainSignalOnWithheldPaths('A5', 'claim_source_depth', isClaimSourceFile);
-    abstainSignalOnWithheldPaths(
-      'A5',
-      'reconciliation_artifact_depth',
-      isClaimRealityReconciliationPath,
-    );
-    abstainSignalOnWithheldPaths(
-      'A5',
-      'negative_space_documentation',
-      isNegativeSpaceDocCandidate,
-    );
-  }
+  // Always called, with the rubric's own gate passed as each call's `act` argument: the
+  // intersection is always computed and disclosed, even under a rubric where the mechanism is
+  // off (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'claim_match_rate',
+    (file) => claimImplementationReads(file) || isClaimSourceFile(file),
+    useV23WithheldPathAbstention,
+  );
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'claim_source_depth',
+    isClaimSourceFile,
+    useV23WithheldPathAbstention,
+  );
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'reconciliation_artifact_depth',
+    isClaimRealityReconciliationPath,
+    useV23WithheldPathAbstention,
+  );
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'negative_space_documentation',
+    isNegativeSpaceDocCandidate,
+    useV23WithheldPathAbstention,
+  );
   const reconciliationArtifacts = useV27Detectors
     ? findClaimRealityReconciliationArtifacts(repoPath, repoFiles)
     : [];
@@ -7628,6 +7679,10 @@ const SERVER_ENTRYPOINT_PATTERN =
 // classification or treating a helper that merely constructs an unbound server as production.
 const V20_DIRECT_HTTP_SERVER_PATTERN =
   /\b(?:http|https)\.createServer\s*\([\s\S]{0,1500}?\)\.listen\s*\(\s*(?:PORT|port|\d+)/;
+// Firebase/Netlify-style serverless functions convention. See healthReadinessRouteReads above
+// for why this is a separate, signal-scoped pattern rather than a change to isImplementationFile.
+const HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN =
+  /(^|\/)functions\/.*\.(?:ts|tsx|js|jsx|py|go|rs|java|rb|cpp|cc|cxx|c|h|hpp|kt|swift|php)$/;
 // Widened from an exact `["'`]/(health|ready|...)["'`]` match, which required the route
 // literal to contain nothing but the bare keyword. That missed the Kubernetes convention
 // (/healthz, /readyz, /livez), any mount prefix (/api/health), and any suffix (/health/live) —
@@ -7636,8 +7691,27 @@ const V20_DIRECT_HTTP_SERVER_PATTERN =
 // a route defined by a router mounted at '/health' with its own relative '/' handler is a
 // cross-expression case this pattern still cannot see (goal_cejel_a3_runtime_pattern_coverage,
 // stated as out of scope).
+//
+// goal_cejel_a3_health_route_idioms_v23 widened this further, on fixture evidence
+// (a3-health-route-idioms.test.ts), in two bounded ways plus one new keyword:
+//   - a single `_` or `-` is now allowed directly between the mandatory leading `/` and the
+//     keyword (`/_health`, `/-/ready` already matched via the multi-segment case; `/_health` did
+//     not, and it is the same GAE/`_ah`-style convention).
+//   - bare whole-string keywords are limited to healthz, readiness, and liveness.
+//     The common word health additionally requires `@Get('health')` decorator context.
+//     Whole-string matching alone still credits unrelated state/event/config literals such as
+//     'ready', 'live', and 'health'; the idiom suite guards those false positives.
+// `up` was added as a keyword — Rails' documented convention (`/up`) — but ONLY in the
+// slash-anchored form above, never in the bare-string alternative: an un-anchored bare 'up' also
+// matches ordinary direction/toggle literals (`'up' | 'down'`), which the slash requirement rules
+// out. `ping`, `status`, and `alive` were considered and deliberately left uncredited: they are
+// either too generic (a `/status` or `/ping` endpoint is common for meanings that have nothing to
+// do with health) or not a named, documented convention the way `/up` and `/healthz` are — see
+// the idiom table in a3-health-route-idioms.test.ts. A trailing query string (`/health?probe=1`)
+// is also deliberately left uncredited: crediting it would also credit an outbound probe/test URL
+// with a query string appended, and this signal treats a false assertion as worse than a miss.
 const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
-  /["'`][\w${}./-]{0,60}\/(?:(?:health|ready|live)z?|readiness|liveness)(?=["'`/])/i;
+  /["'`](?:[\w${}./-]{0,60}\/[_-]?(?:(?:health|ready|live)z?|readiness|liveness|up)(?=["'`/])|(?:healthz|readiness|liveness)(?=["'`]))|@Get\s*\(\s*(["'`])health\1\s*\)/i;
 // Express recognizes error-handling middleware by arity alone — any four-parameter
 // function/arrow is treated as an error handler — but the canonical public-documentation form
 // names the parameters (err, req, res, next), optionally TypeScript-typed. Matching by name
