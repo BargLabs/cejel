@@ -292,6 +292,24 @@ export const WitanContentReadSummarySchema = z
     }
   });
 
+// Additive, report format 1.3 (goal_cejel_withheld_paths_always_disclosed_2026-09-22): one entry
+// per repository path the file walk withheld before any collector saw it (too_large plus the
+// other reasons recordContentSkip already tracks — never excluded_by_extension, which stays
+// visible to collectors and is not withheld from anything). `signalsAdmitting` names every
+// `${criterionId}.${signalId}` whose OWN file-selection test would have read this path — computed
+// the same way regardless of rubric, so a reader can tell "no signal would have read this" from
+// "a signal would have, but this rubric doesn't abstain on it" apart from silence. `actedOn` is
+// true only when the current rubric's abstention mechanism actually acted on that intersection.
+export const WitanWithheldPathSchema = z
+  .object({
+    path: z.string().min(1).max(700),
+    reason: WitanContentReadSkipReasonSchema,
+    signalsAdmitting: z.array(z.string().min(1).max(160)),
+    actedOn: z.boolean(),
+  })
+  .strict();
+export type WitanWithheldPath = z.infer<typeof WitanWithheldPathSchema>;
+
 export const WitanRepoRefSchema = z
   .object({
     // Retained for backward-compatible verification of reports emitted through v0.4.0.
@@ -314,6 +332,10 @@ export const WitanReportInputSchema = z
     insufficientSourceReason: z.string().min(1).max(2000).optional(),
     scanLimitations: z.array(z.string().min(1).max(1000)).max(16).default([]),
     contentReadSummary: WitanContentReadSummarySchema.optional(),
+    // Always populated by buildWitanInputFromRepo, including as [] when nothing was withheld —
+    // presence with an empty array is itself the "nothing withheld" statement, distinct from
+    // absence (a report predating this field, which does not claim one way or the other).
+    withheldPaths: z.array(WitanWithheldPathSchema).default([]),
   })
   .strict();
 
@@ -423,6 +445,10 @@ const WitanReportCommonSchema = z.object({
   archetype: WitanRepoArchetypeSchema.optional(),
   scanLimitations: z.array(z.string().min(1).max(1000)).max(16).optional(),
   contentReadSummary: WitanContentReadSummarySchema.optional(),
+  // Additive-optional (report format 1.3): absent means a report produced before this field
+  // existed, never "nothing withheld" — createWitanReport always sets it (possibly to []) on any
+  // report it builds, so absence here is a legacy-report signal, not a claim about the scan.
+  withheldPaths: z.array(WitanWithheldPathSchema).optional(),
   // The @cejel/cejel version that produced this report. Absent on reports from before this
   // field existed and on any caller that does not supply one (createWitanReport never defaults
   // it). Constant within an installed version, so re-running the same version on the same
@@ -496,7 +522,11 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // rubricBehaviourFingerprint field beside rubricVersion. Additive-optional under the report
 // format v1 rule; a 1.0/1.1 consumer that ignores fields it does not recognise is unaffected,
 // and reports produced before this version simply do not carry it.
-export const WITAN_REPORT_FORMAT_VERSION = '1.2' as const;
+// 1.3 (goal_cejel_withheld_paths_always_disclosed_2026-09-22): report.json gained an optional
+// withheldPaths field. Additive-optional under the same rule; a report produced before this
+// version simply does not carry it, and a consumer that ignores fields it does not recognise is
+// unaffected.
+export const WITAN_REPORT_FORMAT_VERSION = '1.3' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

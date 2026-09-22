@@ -16,9 +16,12 @@ import { createWitanReport } from '../scoring.js';
 // Expected values are declared before either fixture is accepted or parsed.
 const EXPECTED_HEAL_LOG_SIGNAL_COUNT = 1;
 const EXPECTED_HEAL_LOG_FINDING_COUNT = 2;
-const EXPECTED_NO_INGEST_REPORT_BYTES = 2_822;
+// Re-pinned for report format 1.3 (goal_cejel_withheld_paths_always_disclosed_2026-09-22):
+// createWitanReport now always sets an additive `withheldPaths` field (here `[]`, since REPO_INPUT
+// carries no signals and no scan ever ran), which adds bytes with no other change to the report.
+const EXPECTED_NO_INGEST_REPORT_BYTES = 2_845;
 const EXPECTED_NO_INGEST_REPORT_SHA256 =
-  '1d244830182eb85407a23c94aafc4cc0dd230e14d38054850cf8763afdf8e614';
+  '329fb115155e5d341c9a492adcb77d0cdb878b7f102f6e21b1861dc330f55992';
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const DOCS_DIR = join(TEST_DIR, '..', '..', '..', 'docs');

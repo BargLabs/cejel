@@ -266,6 +266,10 @@ export function createWitanReport(
     ...(parsedInput.contentReadSummary
       ? { contentReadSummary: parsedInput.contentReadSummary }
       : {}),
+    // Always set alongside contentReadSummary: parsedInput.withheldPaths defaults to [] on the
+    // input schema, so this is never omitted for a report this build produces — its presence
+    // (even empty) is the disclosure itself (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+    withheldPaths: parsedInput.withheldPaths,
     // Only surface the full per-category map for rubrics with more than two buckets —
     // the default two-category rubric is fully represented by codeTrustScore/processTrustScore.
     ...(!abstained && categoryOrder.length > 2 ? { categoryScores: categoryScoreMap } : {}),

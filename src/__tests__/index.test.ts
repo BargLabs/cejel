@@ -414,8 +414,13 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // and a line-by-line diff of the two 289-line pretty-printed reports differs on exactly one
     // line, `"toolVersion": "0.4.9"` -> `"0.4.10"`. Both reports are 289 lines; the
     // rubricBehaviourFingerprint line is identical across them.
+    // Re-pinned for report format 1.3 (goal_cejel_withheld_paths_always_disclosed_2026-09-22):
+    // the report gained an always-present `withheldPaths` field (here `[]` — this fixture has no
+    // oversized/unreadable/withheld file). Verified the same way as the 1.2 re-pin above: this
+    // fixture has no signals dependent on it, so the only change versus the pre-1.3 pin is the
+    // three added lines for the empty array.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'e61c3e5b3e90ebbae5f1bf92123c12e0909960eca11f1392f9d41bc8fce2f09f',
+      '2747f6e92179eb4071ac67a9eaf8b2a05d14f0d251c74d26cf2f52e7ad59c747',
     );
     const {
       rubricBehaviourFingerprint,
@@ -425,7 +430,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(
       createHash('sha256').update(JSON.stringify(withoutFingerprint, null, 2)).digest('hex'),
       'the 0.4.10 report bytes must be recoverable by removing exactly the one added field',
-    ).toBe('dfadd9f5950b141ea2654c5b85fba43b71a4234ca0139e4480c4042085ce2918');
+    ).toBe('5ce5980e2f42d18936cbbe974d2a80c3041c5afe8b4b8b10cdf15910740c778f');
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {

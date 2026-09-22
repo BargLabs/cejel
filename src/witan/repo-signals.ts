@@ -21,6 +21,7 @@ import type {
   WitanFinding,
   WitanRepoArchetype,
   WitanReportInputPayload,
+  WitanWithheldPath,
 } from './schemas.js';
 
 import {
@@ -38,6 +39,7 @@ import {
   withContentReadCriterion,
   withContentReadSignal,
   withContentReadSignals,
+  withheldRepoPaths,
 } from './content-reads.js';
 
 import {
@@ -480,6 +482,18 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   };
 }
 
+// Maps content-reads.ts's withheldRepoPaths() into the report.json shape. registerWithheldRepoPath
+// is called at most once per path within a single scan session (see its own doc comment), so
+// `reasons` is always exactly one value here; sorted defensively rather than assumed.
+function buildWithheldPathsReportField(): WitanWithheldPath[] {
+  return withheldRepoPaths().map(({ path, reasons, signalsAdmitting, actedOn }) => ({
+    path,
+    reason: [...reasons].sort()[0]!,
+    signalsAdmitting: [...signalsAdmitting],
+    actedOn,
+  }));
+}
+
 function buildWitanInputFromRepoUntracked(
   options: BuildWitanInputOptions,
 ): WitanReportInputPayload {
@@ -663,6 +677,9 @@ function buildWitanInputFromRepoUntracked(
     ...(scanLimitations.size > 0
       ? { scanLimitations: [...scanLimitations] }
       : {}),
+    // Always present, even as [] — presence is the "nothing was withheld" statement itself, not
+    // merely the absence of a limitation (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+    withheldPaths: buildWithheldPathsReportField(),
     signals: [
       ...coreSignals,
       ...(options.domainCollectors ?? []).map((collect) => collect(options.repoPath, repoFiles)),
@@ -3094,12 +3111,20 @@ function collectA3ProdReadinessEvidence(
   // Abstain instead, but only on a match this signal earned: the predicate consulted is this
   // signal's own file-selection test, so an oversized file the signal would never have opened
   // still abstains nothing (that is the path-shape over-abstention the 0.4.8 fix removed, and it
-  // stays removed). Gated on useV20ExplicitGaps because below that rubric the signal reads no
-  // repoFiles at all and so loses nothing to a withheld path.
+  // stays removed). Applicability gated on useV20ExplicitGaps because below that rubric the
+  // signal reads no repoFiles at all and so loses nothing to a withheld path — that gate is about
+  // whether the signal exists at all under this rubric, so it stays outside the call. Whether the
+  // match, once found, is ACTED ON is instead passed as the call's own `act` argument
+  // (useV23WithheldPathAbstention): the intersection is always computed and disclosed, even under
+  // a rubric where the mechanism is off (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
   const healthReadinessRouteWithheld =
-    useV23WithheldPathAbstention &&
     useV20ExplicitGaps &&
-    abstainSignalOnWithheldPaths('A3', 'health_readiness_route', healthReadinessRouteReads);
+    abstainSignalOnWithheldPaths(
+      'A3',
+      'health_readiness_route',
+      healthReadinessRouteReads,
+      useV23WithheldPathAbstention,
+    );
   const serverEntrypoint =
     v22PackageStartHttpEntrypoint ??
     findServerEntrypointFile(repoPath, repoFiles, useV27Detectors) ??
@@ -3143,9 +3168,16 @@ function collectA3ProdReadinessEvidence(
   // would have earned is otherwise reported as a plain "no error boundary" absence rather than
   // missing evidence — same seam as health_readiness_route and observability_depth below.
   // Skipped when a filename-based match already exists: the content scan is n/a there (line
-  // 3053 above never runs it) and has nothing to abstain.
-  if (useV23WithheldPathAbstention && errorBoundaries.length === 0) {
-    abstainSignalOnWithheldPaths('A3', 'prod_readiness_primitives', observabilityDepthReads);
+  // 3053 above never runs it) and has nothing to abstain. Applicability gate stays outside the
+  // call; whether the mechanism ACTS on an earned match is the call's own `act` argument, always
+  // evaluated so the intersection is disclosed even when the rubric's mechanism is off.
+  if (errorBoundaries.length === 0) {
+    abstainSignalOnWithheldPaths(
+      'A3',
+      'prod_readiness_primitives',
+      observabilityDepthReads,
+      useV23WithheldPathAbstention,
+    );
   }
   // Widened past a vendor-product list plus two generic words, which missed the most common
   // Node structured-logging libraries (pino, winston, bunyan), the Express request-logging
@@ -3169,9 +3201,14 @@ function collectA3ProdReadinessEvidence(
   // under-count is reported as a lower observability score rather than as missing evidence. The
   // return value is unused because this metric IS named observability_depth, so the recorded
   // abstention drops it in buildWitanInputFromRepo without the collector doing anything further.
-  if (useV23WithheldPathAbstention) {
-    abstainSignalOnWithheldPaths('A3', 'observability_depth', observabilityDepthReads);
-  }
+  // Always called, with the rubric's own gate passed as `act`, so the intersection is disclosed
+  // even when this rubric does not switch the mechanism on.
+  abstainSignalOnWithheldPaths(
+    'A3',
+    'observability_depth',
+    observabilityDepthReads,
+    useV23WithheldPathAbstention,
+  );
   const rollbackSafetyCount = withContentReadSignal('A3', 'rollback_safety_depth', () =>
     countFilesContaining(
       repoPath,
@@ -3725,24 +3762,33 @@ function collectA5ClaimRealityEvidence(
   // where this criterion asserts "nothing is claimed about this repo" about a repository whose
   // claim source Cejel declined to read, which is a false assertion rather than a low score.
   const claimImplementationReads = claimImplementationFileReads(useV27Detectors);
-  if (useV23WithheldPathAbstention) {
-    abstainSignalOnWithheldPaths(
-      'A5',
-      'claim_match_rate',
-      (file) => claimImplementationReads(file) || isClaimSourceFile(file),
-    );
-    abstainSignalOnWithheldPaths('A5', 'claim_source_depth', isClaimSourceFile);
-    abstainSignalOnWithheldPaths(
-      'A5',
-      'reconciliation_artifact_depth',
-      isClaimRealityReconciliationPath,
-    );
-    abstainSignalOnWithheldPaths(
-      'A5',
-      'negative_space_documentation',
-      isNegativeSpaceDocCandidate,
-    );
-  }
+  // Always called, with the rubric's own gate passed as each call's `act` argument: the
+  // intersection is always computed and disclosed, even under a rubric where the mechanism is
+  // off (goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'claim_match_rate',
+    (file) => claimImplementationReads(file) || isClaimSourceFile(file),
+    useV23WithheldPathAbstention,
+  );
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'claim_source_depth',
+    isClaimSourceFile,
+    useV23WithheldPathAbstention,
+  );
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'reconciliation_artifact_depth',
+    isClaimRealityReconciliationPath,
+    useV23WithheldPathAbstention,
+  );
+  abstainSignalOnWithheldPaths(
+    'A5',
+    'negative_space_documentation',
+    isNegativeSpaceDocCandidate,
+    useV23WithheldPathAbstention,
+  );
   const reconciliationArtifacts = useV27Detectors
     ? findClaimRealityReconciliationArtifacts(repoPath, repoFiles)
     : [];
