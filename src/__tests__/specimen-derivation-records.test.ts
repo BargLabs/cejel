@@ -178,6 +178,13 @@ describe('cycle-12 specimen derivation records', () => {
   it('covers the immutable registered inventory and names evidence states honestly', () => {
     const records = parseRecords();
     expect(records).toHaveLength(3);
+    // Intended tripwire (#347): each status is pinned by literal value, so ANY status change —
+    // including a repair — turns this red until a human edits the expected literal in the same
+    // PR. A status change is a claim about evidence, and this makes that claim a reviewed diff
+    // rather than a silent record edit. Consequently green means "every status is exactly what
+    // the last reviewed edit declared", NOT "nothing has improved" and NOT "the specimens are
+    // healthy"; parseRecords() above carries the per-status structural checks. Update a literal
+    // only alongside the record change and the evidence that justifies it.
     expect(records.find((entry) => entry.id === 'a2-history-env')?.status).toBe(
       'established-nonreproduction',
     );
