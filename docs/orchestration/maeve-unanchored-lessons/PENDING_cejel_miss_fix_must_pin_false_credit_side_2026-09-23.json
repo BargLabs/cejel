@@ -1,0 +1,17 @@
+[
+  {
+    "statement": "A fix for a detector miss must be paired with a control proving it adds no false credit: narrowing an exclusion widens what gets credited. Occurrence 2026-09-23, cejel PR #358 at 87aa4d1: to stop a URL's `//` hiding a same-line `app.use(`, A3's reachability stripper was narrowed from `//`-to-end-of-line to whole `//` lines. That made a trailing comment after code (`x = 1; // app.use(errorHandler);`) count as code, crediting a never-registered handler stub under the default rubric, which main does not credit. The new fixture covered only the credit side, so CI stayed green. Fixed in 6c69204 with a `(?<!:)` lookbehind and control D5. Rule: when relaxing an exclusion, add the nearest shape it existed to reject and require it red against the relaxed version.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "detector-change"],
+    "tags": [
+      "false-credit",
+      "paired-control",
+      "mutation-testing",
+      "a3-error-boundary",
+      "review-follow-up"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 358}
+  }
+]
