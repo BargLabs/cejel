@@ -22,6 +22,134 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## Unreleased (after 0.4.10) — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump); no corpus row moved
+
+**Status.** Disclosed behaviour change under the existing calibrated public default. **Not a
+recalibration**, and the rubric identifier does not change. **No repository in the published
+corpus moved:** no score, verdict, rank, placement or coverage figure changed on any of the 24
+rows. The comparison was **preregistered**. Three of its five expected values held, and two
+failed. Neither failure concerns scoring, and both are recorded below as measured.
+
+**What changed.** Three changes since 0.4.10 alter how a repository can score under
+`witan-rubric-v17-2026-07-24`. None is gated on rubric version, so each applies to every rubric,
+including the calibrated default.
+
+1. **A2 database-URL userinfo credentials (#336, direction: down).** A populated
+   `DATABASE_URL=postgres(ql)://user:password@…` in a non-template `.env`/`.env.*` file is now a
+   committed-secret finding, in both the current-tree and the history scan, and is not
+   double-reported when unchanged across the two. The password is judged by content: a
+   placeholder-shaped password is not flagged. This change was also missing from the Unreleased
+   section of `CHANGELOG.md` and is added there with this entry.
+2. **A3 `prod_readiness_primitives` error-boundary idioms (#352, direction: up).** The content
+   check for Express error-handling middleware now also credits a first or fourth parameter
+   renamed `_err`/`_next`, a handler method on an `export class` registered via `.bind(this)`, and
+   a handler file under a `server/` root with a `.mjs`/`.cjs` extension.
+3. **A3 commented-out registration (#352, refined by #358, direction: down).** Reachability is now
+   tested with `//` comments stripped, so a commented-out `// app.use(errorHandler);` no longer
+   credits a handler that is never registered. #358 narrowed the strip so that the `//` of a URL
+   scheme (`'https://…'`) is not treated as a comment, while a trailing comment after code still
+   is. The first version of that refinement stripped only whole comment lines. That credited a
+   dead stub behind a trailing comment, and it was caught and corrected before merge.
+
+Three further changes in the same range **cannot move a score under the calibrated default**.
+They are recorded so that the list above is not mistaken for the whole release, and each was
+measured, not assumed inert. #353 widens the health/readiness-route idioms, which feed only an
+info-severity finding emitted only under prospective rubrics. #351 adds the always-present
+`withheldPaths` array (report format 1.3) and a disclosure sentence on every certificate. #331
+adds signed issuance, outside the scan path.
+
+**Measurement.** All 24 corpus rows at their pinned commits (`leaderboard/corpus.json`, sha256
+`dc723f53…`, byte-identical to the corpus the 0.4.9 delta measured). Each was scored twice from
+source with the calibrated default, with `generatedAt` fixed, on one machine: baseline `d2a8018`
+(the `v0.4.10` commit, the current release) and candidate `5ae73b2` (main after #358). No scorer
+source changed between `v0.4.9` and `v0.4.10`, so the baseline is also what 0.4.9 scored.
+Canonical evidence and the harness:
+`docs/experiments/v17-behaviour-delta-post-0.4.10-2026-09-23/`. The scoring comparison is in
+`paired-result.json` and the byte-level comparison in `bytes-result.json`. Raw per-row reports
+were kept locally and not committed, because the private row's report is not public. The public
+rows' reports are reproducible from the harness.
+
+**Preregistered.** `PREREGISTRATION.md` was committed as `12549c4` before either arm was scored.
+It names both arms, the score-capable changes, the expected value for each, and the reason for
+each expected zero, checked against the checkouts. It is a strict ancestor of the result commit.
+
+**Why nothing moved, and why that is not a claim that nothing will.** A3 is `not_applicable` on
+17 of 24 rows. Of the other seven, vite and the private row already match the error-boundary
+filename convention, so the content check never runs for them. On the remaining five, the old and
+new predicates disagree on **zero** files: the only files in the whole corpus with the
+four-parameter handler shape are express test files, and express's A3 is not applicable. For
+#336, the corpus contains no non-template `.env` file at all. Every change moves on the shapes its
+own fixture suite pins (`database-url-userinfo.test.ts`, and `a3-error-boundary-idioms.test.ts`, whose 20 cases
+include the D4/D5 dead-stub controls). A customer repository containing those shapes will
+score differently on the next release than on 0.4.10, even though no board row does. This entry
+is the disclosure for that.
+
+**Expected values that failed, stated as measured.**
+- **Board check.** Expected: the baseline reproduces the published board on 20 of 24 rows, as the
+  0.4.9 entry recorded. Measured: **24 of 24**. The board was regenerated at 0.4.9 in cejel-site
+  `026774b` on 2026-09-16, after that entry was measured, and the prediction relied on the older
+  record without checking. The measured state is the better one: the published board now agrees
+  with the current release on every row.
+- **Withheld paths.** Expected: `withheldPaths` non-empty on 24 rows. Measured: **17**. The
+  prediction treated `contentReadSummary.skipped` as the withheld count. `skipped` includes files
+  excluded by extension, which are still walked and so are not withheld from any signal. The seven
+  empty rows skip files only by extension.
+
+**Byte level.** 0 of 24 reports are byte-identical, because every candidate report carries
+`withheldPaths`. **With that one field deleted, every candidate report reproduces its baseline
+report byte for byte on 24 of 24 rows.** So #351's field is the only difference between the arms,
+as its PR stated and #358 turned into a test.
+
+**The behaviour fingerprint did not see this change, as predicted.**
+`rubricBehaviourFingerprint` is identical in both arms on all 24 rows. It is a committed constant
+per rubric (`src/witan/rubric-fingerprint.ts`), and its synthetic corpus contains none of the
+shapes these three changes act on, so a real v17 behaviour change passed under an unchanged
+fingerprint. The 2026-09-16 entry below introduced that control to catch changes under a fixed
+identifier. This is the first entry where it demonstrably could not, and the reason is fixture
+coverage, the same cause as the 0.4.9 miss. **Operator decision, not made here:** whether the
+fingerprint corpus should gain the `.env` database-URL and error-middleware shapes, which would
+move the v17 fingerprint and require a re-pin cited in this file. Also undecided: whether
+behaviour changes of this kind should force an identifier bump.
+
+**Observed while checking, not a scoring change.** On biomejs, seven withheld paths carry two
+reasons each, and the report shows only the alphabetically first. On esbuild,
+`byReason.tooLarge` counts one more event than there are oversized tracked files. Both are
+identical in the two arms. Details are in `result.md` beside the record.
+
+**Measurement limits.** Public rows are depth-1 checkouts, as in the 0.4.9 and v19 protocols, so
+history-dependent signals (A2's history scan, and with it #336's history half) see one commit in
+both arms. The published `@cejel/cejel@0.4.10` npm artifact was not executed. The baseline is the
+`v0.4.10` source commit.
+
+**Full v0.4.10 → main delta under witan-rubric-v17-2026-07-24 (all 24 rows):**
+
+| Repository | Overall | Code trust | Process trust | Verdict | Coverage | Board placement | Criteria that moved (score/status) | Metrics that moved |
+|---|---:|---:|---:|---|---|---|---|---|
+| react | 3 | 2.1 | 3.9 | Conditional | code_trust 5/5; process_trust 3/6 | 9 | none (report differs elsewhere) | none |
+| vue | 2.9 | 2.4 | 3.4 | Conditional | code_trust 4/5; process_trust 3/6 | 11 | none (report differs elsewhere) | none |
+| svelte | 3.1 | 2.9 | 3.3 | Conditional | code_trust 4/5; process_trust 3/6 | 4 | none (report differs elsewhere) | none |
+| django | 3.1 | 2.6 | 3.6 | Conditional | code_trust 3/5; process_trust 2/6 | unranked | none (report differs elsewhere) | none |
+| flask | 2.9 | 2.7 | 3 | Conditional | code_trust 4/5; process_trust 3/6 | 8 | none (report differs elsewhere) | none |
+| fastapi | 3 | 2.8 | 3.2 | Conditional | code_trust 2/5; process_trust 3/6 | unranked | none (report differs elsewhere) | none |
+| express | 3 | 2.8 | 3.2 | Conditional | code_trust 2/5; process_trust 3/6 | unranked | none (report differs elsewhere) | none |
+| vite | 3.4 | 2.8 | 4 | Conditional | code_trust 5/5; process_trust 3/6 | 1 | none (report differs elsewhere) | none |
+| esbuild | 2.5 | 2.6 | 2.4 | Conditional | code_trust 3/5; process_trust 3/6 | 13 | none (report differs elsewhere) | none |
+| biomejs | 3 | 2.9 | 3 | Conditional | code_trust 3/5; process_trust 4/6 | 6 | none (report differs elsewhere) | none |
+| requests | 2.9 | 2.4 | 3.4 | Conditional | code_trust 3/5; process_trust 4/6 | 7 | none (report differs elsewhere) | none |
+| pydantic | 3.2 | 2.9 | 3.5 | Conditional | code_trust 3/5; process_trust 3/6 | 3 | none (report differs elsewhere) | none |
+| axios | 3.3 | 2.6 | 3.9 | Conditional | code_trust 5/5; process_trust 4/6 | 2 | none (report differs elsewhere) | none |
+| zod | 3.2 | 3.1 | 3.2 | Conditional | code_trust 3/5; process_trust 3/6 | 5 | none (report differs elsewhere) | none |
+| scorecard | 2.9 | 2.2 | 3.6 | Conditional | code_trust 4/5; process_trust 3/6 | 10 | none (report differs elsewhere) | none |
+| ripgrep | 2.1 | 2.1 | 2 | At risk | code_trust 3/5; process_trust 3/6 | 14 | none (report differs elsewhere) | none |
+| guava | 1.9 | 1.6 | 2.2 | At risk | code_trust 3/5; process_trust 2/6 | unranked | none (report differs elsewhere) | none |
+| cobra | 2.5 | 2.6 | 2.3 | Conditional | code_trust 2/5; process_trust 2/6 | unranked | none (report differs elsewhere) | none |
+| sinatra | 2.4 | 2 | 2.8 | At risk | code_trust 2/5; process_trust 4/6 | unranked | none (report differs elsewhere) | none |
+| automapper | 2.2 | 2 | 2.3 | At risk | code_trust 3/5; process_trust 2/6 | unranked | none (report differs elsewhere) | none |
+| fmt | 2.6 | 2 | 3.2 | Conditional | code_trust 3/5; process_trust 4/6 | 12 | none (report differs elsewhere) | none |
+| carddemo | scoreless | scoreless | scoreless | Insufficient source | code_trust 0/5; process_trust 0/6 | unrated | none (report differs elsewhere) | none |
+| alfred | 3.2 | 3.1 | 3.3 | Conditional | code_trust 5/5; process_trust 4/6 | transparency | none (report differs elsewhere) | none |
+| cejel | 2.8 | 2.3 | 3.2 | Conditional | code_trust 5/5; process_trust 3/6 | transparency | none (report differs elsewhere) | none |
+
 ## 2026-09-16 — the enforcement named above could not see the change it was written to catch
 
 **Status.** No scoring change. This entry records a MISS in this changelog's own enforcement, and

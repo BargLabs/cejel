@@ -18,6 +18,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A2 under the default rubric missed a populated PostgreSQL password in a committed `.env`
+  file's `DATABASE_URL` (#336).** A `DATABASE_URL=postgres(ql)://user:password@…` in a
+  non-template `.env`/`.env.*` file is now a committed-secret finding, in both the current-tree
+  and the history scan, and an unchanged value is not reported twice. A placeholder-shaped
+  password is not flagged, and `.env.example`-style templates are not read. This is a change to
+  A2 under the calibrated default. It moved no row of the published corpus, which contains no
+  non-template `.env` file. See the unreleased entry in `leaderboard/RUBRIC_CHANGELOG.md`.
+
 - **A3 `prod_readiness_primitives` under the default rubric missed a real, registered Express
   global error handler.** An independent evaluator ran 0.4.10 against five pinned revisions of
   his production system; every revision reported no error boundary despite a real handler being
