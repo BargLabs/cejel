@@ -32,6 +32,7 @@
 //   D3   same stub inside a docs example                             miss    miss    correct (dead stub)
 //   D4   commented-out `// app.use(errorHandler);` line              CREDIT  miss    BUG FIXED (see below)
 //   9    URL literal + `.use(` on one line (review follow-up)         MISS    credit  BUG FIXED (see below)
+//   D5   code, then trailing `// app.use(errorHandler);` comment       miss    miss    correct (dead stub)
 //
 // D4 was not a missing widening — it was a pre-existing false positive. `EXPRESS_MIDDLEWARE_
 // REACHABLE_PATTERN` tested raw file text, so a commented-out `.use(` call satisfied it exactly
@@ -43,8 +44,9 @@
 // `fileMatchesOutsideLineComments` stripped everything after ANY `//`, not just whole comment
 // lines, so `const base = 'https://api.example'; app.use(handler);` lost its `.use(` call to the
 // `//` inside the URL literal — a miss, not a false credit, but avoidable. Fixed by stripping
-// only lines whose first non-whitespace characters are `//`, which still catches D4 (a full-line
-// comment) without touching a `//` that appears after code on the same line.
+// `//` only when it is not directly preceded by `:` (a URL scheme separator). A first attempt
+// stripped only whole `//` lines, which fixed row 9 but credited D5 — a trailing comment after code
+// — trading a miss for a false credit; D5 pins that the fix must not do so.
 //
 // Row 4c is deliberately left uncredited: Express recognizes error middleware by parameter count
 // alone, so matching a three-parameter `(err, req, res)` on names would make this an arity-adjacent
@@ -361,6 +363,20 @@ describe('A3 error boundary dead-stub shapes — must remain uncredited', () => 
         "  res.status(500).json({ message: err.message });\n" +
         '}\n' +
         '// app.use(errorHandler);\n',
+    };
+    expect(credited(files)).toBe(false);
+  });
+
+  it('D5: a trailing // app.use(...) comment after code does not make a dead stub reachable', () => {
+    // Pins the review follow-up to D4: stripping only whole `//` lines would keep this trailing
+    // comment as code and credit the dead stub.
+    const files: Readonly<Record<string, string>> = {
+      ...SERVICE,
+      'src/errorHandler.js':
+        'function errorHandler(err, req, res, next) {\n' +
+        "  res.status(500).json({ message: err.message });\n" +
+        '}\n' +
+        "const unused = true; // app.use(errorHandler); -- disabled until v2\n",
     };
     expect(credited(files)).toBe(false);
   });
