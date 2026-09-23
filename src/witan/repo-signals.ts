@@ -8088,13 +8088,17 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
 
 // Same as fileContains, but strips `//`-to-end-of-line comments before testing. Used where a
 // commented-out call (e.g. `// app.use(errorHandler);`) would otherwise satisfy a reachability
-// pattern textually while registering nothing at runtime. Naive by design: it does not parse
-// block comments or distinguish a `//` inside a string/template literal — those are a documented
-// limit, not a case any current caller needs.
+// pattern textually while registering nothing at runtime. A `//` directly preceded by `:` is the
+// scheme separator of a URL (`'https://api.example'`), not a comment, and is left alone so a
+// one-line `const base = 'https://api.example'; app.use(handler);` still matches. Every other `//`
+// strips to end of line, including a trailing comment after code (`x(); // app.use(handler);`) —
+// keeping that text would credit a dead stub, and a false credit is the worse error here. Naive by
+// design: it does not parse block comments (`/* ... */`) or other `//` inside string/template
+// literals — those are a documented limit, and fail toward a miss, never a false credit.
 function fileMatchesOutsideLineComments(repoPath: string, file: string, pattern: RegExp): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  const withoutLineComments = readRepoText(fullPath, 'utf8').replace(/\/\/.*$/gm, '');
+  const withoutLineComments = readRepoText(fullPath, 'utf8').replace(/(?<!:)\/\/.*$/gm, '');
   return pattern.test(withoutLineComments);
 }
 

@@ -429,8 +429,22 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(rubricBehaviourFingerprint).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(
       createHash('sha256').update(JSON.stringify(withoutFingerprint, null, 2)).digest('hex'),
-      'the 0.4.10 report bytes must be recoverable by removing exactly the one added field',
+      'the format-1.2 (post-0.4.10, pre-1.3) report bytes must be recoverable by removing exactly the rubricBehaviourFingerprint field',
     ).toBe('5ce5980e2f42d18936cbbe974d2a80c3041c5afe8b4b8b10cdf15910740c778f');
+
+    // The 1.3 re-pin above (goal_cejel_withheld_paths_always_disclosed_2026-09-22) was a comment
+    // claiming the only delta is the added withheldPaths field — a claim, not a proof. This makes
+    // it mechanical: delete withheldPaths from the current (1.3) report, re-serialize with the
+    // same serializer report.json is written with (serializeWitanReport, JSON.stringify(report,
+    // null, 2)), and assert equality with the pre-1.3 pin this fixture carried on origin/main
+    // f9e78b4 (git show f9e78b4:src/__tests__/index.test.ts), i.e. before goal_cejel_withheld_
+    // paths_always_disclosed_2026-09-22 touched this file.
+    const { withheldPaths, ...withoutWithheldPaths } = firstReport as { withheldPaths?: unknown };
+    expect(withheldPaths).toEqual([]);
+    expect(
+      createHash('sha256').update(JSON.stringify(withoutWithheldPaths, null, 2)).digest('hex'),
+      'the pre-1.3 report bytes must be recoverable by removing exactly the withheldPaths field',
+    ).toBe('e61c3e5b3e90ebbae5f1bf92123c12e0909960eca11f1392f9d41bc8fce2f09f');
   });
 
   it('uses --name on every written certificate surface without changing the repo slug', async () => {

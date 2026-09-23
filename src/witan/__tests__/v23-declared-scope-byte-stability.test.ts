@@ -93,20 +93,23 @@ function buildFixtureRepo(): string {
 // failed to mask), not repo-signals.ts.
 const FIXTURE_HEAD_SHA = 'ba2f0ef8c102ea735794b27f7aea5b5ba547263a';
 
-function hashFor(rubricVersion: string): string {
+function inputFor(rubricVersion: string): Record<string, unknown> {
   const dir = buildFixtureRepo();
   const headSha = git(dir, ['rev-parse', 'HEAD']).trim();
   expect(
     headSha,
     'fixture commit is not reproducible on this machine — the scan-output pins below cannot be interpreted until this is',
   ).toBe(FIXTURE_HEAD_SHA);
-  const input = buildWitanInputFromRepo({
+  return buildWitanInputFromRepo({
     productSlug: 'v23-scope-fixture',
     productDisplayName: 'v23 scope fixture',
     repoPath: dir,
     generatedAt: '2026-09-11T00:00:00.000Z',
     rubricVersion,
-  });
+  }) as unknown as Record<string, unknown>;
+}
+
+function hashOf(input: Record<string, unknown>): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }
 
@@ -118,18 +121,36 @@ function hashFor(rubricVersion: string): string {
 // has no oversized/unreadable/withheld file, so buildWitanInputFromRepo's per-path skip and
 // scoring output are unchanged, but its return value now always carries an additive
 // `withheldPaths: []` — presence of the empty array is itself the "nothing was withheld"
-// disclosure this card adds, not a re-pinned score. Confirmed by diffing the pre/post `input`
-// objects for both rubrics: `withheldPaths: []` is the only key added, nothing else moved.
-describe('v23 declared-scope fix leaves v17/v22 scan output byte-identical', () => {
-  it('v17 output hash is unchanged', () => {
-    expect(hashFor(WITAN_RUBRIC_VERSION_V17)).toBe(
+// disclosure this card adds, not a re-pinned score. That was originally stated only as a comment,
+// backed by a diff run by hand; each case below now proves it mechanically — delete
+// `withheldPaths` from the current output, re-serialize the same way (`JSON.stringify(input)`,
+// no whitespace, matching hashFor above), and assert equality with the pre-1.3 pin, recovered
+// from `git show v0.4.10:src/witan/__tests__/v23-declared-scope-byte-stability.test.ts` (the
+// last capture of this file before goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+describe('v23 declared-scope fix: v17/v22 scan output carries withheldPaths: [] and is otherwise byte-identical to the pre-1.3 capture', () => {
+  it('v17 output gained withheldPaths: [] only', () => {
+    const input = inputFor(WITAN_RUBRIC_VERSION_V17);
+    expect(hashOf(input)).toBe(
       '56ac5957223e66c26d6026ee2506aa33308b89209140c3cfcab9876aadf49707',
     );
+    const { withheldPaths, ...withoutWithheldPaths } = input;
+    expect(withheldPaths).toEqual([]);
+    expect(
+      hashOf(withoutWithheldPaths),
+      'the pre-1.3 v17 output bytes must be recoverable by removing exactly the withheldPaths field',
+    ).toBe('53801b02f7cc46781c18cab43c315798f349dd90af76b42a5965e3c81f654554');
   });
 
-  it('v22 output hash is unchanged', () => {
-    expect(hashFor(WITAN_RUBRIC_VERSION_V22)).toBe(
+  it('v22 output gained withheldPaths: [] only', () => {
+    const input = inputFor(WITAN_RUBRIC_VERSION_V22);
+    expect(hashOf(input)).toBe(
       '8140d8d1152913a7db566d5c3383a6ade492fd4a0600838dbc7cf85cf62468ed',
     );
+    const { withheldPaths, ...withoutWithheldPaths } = input;
+    expect(withheldPaths).toEqual([]);
+    expect(
+      hashOf(withoutWithheldPaths),
+      'the pre-1.3 v22 output bytes must be recoverable by removing exactly the withheldPaths field',
+    ).toBe('1b63a05c2c9c36c083e4dd7d12472ca27f6e4ae7ab01ab8addb8bdce7b98fbe2');
   });
 });

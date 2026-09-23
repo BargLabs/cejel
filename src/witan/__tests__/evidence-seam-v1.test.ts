@@ -22,6 +22,14 @@ const EXPECTED_HEAL_LOG_FINDING_COUNT = 2;
 const EXPECTED_NO_INGEST_REPORT_BYTES = 2_845;
 const EXPECTED_NO_INGEST_REPORT_SHA256 =
   '329fb115155e5d341c9a492adcb77d0cdb878b7f102f6e21b1861dc330f55992';
+// The pre-1.3 pin above's comment was a claim, not a proof. These are the pre-1.3 bytes and hash
+// this fixture carried before that change, recovered from `git show
+// v0.4.10:src/witan/__tests__/evidence-seam-v1.test.ts` — the test below deletes `withheldPaths`
+// from the current report and re-serializes it the same way (serializeWitanReport) to prove that
+// is the only delta.
+const EXPECTED_PRE_1_3_REPORT_BYTES = 2_822;
+const EXPECTED_PRE_1_3_REPORT_SHA256 =
+  '1d244830182eb85407a23c94aafc4cc0dd230e14d38054850cf8763afdf8e614';
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const DOCS_DIR = join(TEST_DIR, '..', '..', '..', 'docs');
@@ -143,7 +151,17 @@ describe('Evidence Seam v1', () => {
     expect(createHash('sha256').update(bytes, 'utf8').digest('hex')).toBe(
       EXPECTED_NO_INGEST_REPORT_SHA256,
     );
-    expect(JSON.parse(bytes)).not.toHaveProperty('consumedSignals');
+    const report = JSON.parse(bytes) as Record<string, unknown>;
+    expect(report).not.toHaveProperty('consumedSignals');
+
+    const { withheldPaths, ...withoutWithheldPaths } = report;
+    expect(withheldPaths).toEqual([]);
+    const strippedBytes = JSON.stringify(withoutWithheldPaths, null, 2);
+    expect(Buffer.byteLength(strippedBytes)).toBe(EXPECTED_PRE_1_3_REPORT_BYTES);
+    expect(
+      createHash('sha256').update(strippedBytes, 'utf8').digest('hex'),
+      'the pre-1.3 report bytes must be recoverable by removing exactly the withheldPaths field',
+    ).toBe(EXPECTED_PRE_1_3_REPORT_SHA256);
   });
 
   it('states the heal-log claim boundary verbatim', () => {
