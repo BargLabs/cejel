@@ -1,0 +1,42 @@
+[
+  {
+    "statement": "A locally good commit signature proves trust under the selected signer file, not authorization under the repository policy. Cejel preregistration commit 927579b39d2b4ffb9b6fc3d097c1f45c57a4404c reports G with the ambient personal signer file and U with docs/security/allowed-signers. Its re-signed replacement ef253a8e64e70e27c9c440bc5b3cf02167c81a4e reports G under the repository file with unchanged tree bytes and author date. Pin the repository allowlist when verifying authority records; configuring a signing key or observing ambient G does not establish repository authorization. Preserved author dates remain user-controlled metadata, not an independent timestamp.",
+    "scope": [
+      "cejel",
+      "signature-verification",
+      "repository-trust"
+    ],
+    "tags": [
+      "ambient-trust",
+      "authorization",
+      "signer-file"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "anchorless-by-nature",
+      "reason": "This lesson governs how each authority claim is verified against its own trust policy. Local signing configuration and a one-off re-sign cannot enforce this evidence practice for future claims."
+    }
+  },
+  {
+    "statement": "A signature guard can pass an unauthorized authority record by never examining its path. Cejel commit 927579b39d2b4ffb9b6fc3d097c1f45c57a4404c added a preregistration under docs/experiments/ and reports U against the repository signer file. The calibration guard covers docs/calibration/ and FREEZE.md only; running it on that commit returns success with examinedCommitCount=0 verified=0 signers=1. GitHub also recorded calibration-signature success on that exact commit. This is a concrete authority-path coverage gap, not a signature-verifier failure. Re-signing as ef253a8 fixes the individual commit but leaves the guard gap open. Inventory authority paths and test an unauthorized signature on each one before treating a green check as authorization.",
+    "scope": [
+      "cejel",
+      "signature-guard",
+      "preregistration"
+    ],
+    "tags": [
+      "authority-path-gap",
+      "vacuous-pass",
+      "unexamined-record"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Extend Cejel calibration-signature authority-path coverage to preregistrations under docs/experiments/ and add a regression proving that an unauthorized signature there is examined and refused. The individual re-sign does not close this guard gap."
+    }
+  }
+]
