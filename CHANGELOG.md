@@ -18,6 +18,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A3 `prod_readiness_primitives` under the default rubric missed a real, registered Express
+  global error handler.** An independent evaluator ran 0.4.10 against five pinned revisions of
+  his production system; every revision reported no error boundary despite a real handler being
+  present and wired in. We do not have his code, so this widens on a fixture catalogue of public
+  Express idioms instead of his specific file (`src/witan/__tests__/a3-error-boundary-idioms.test.ts`
+  has the full table). Now credited: a handler with its first parameter renamed `_err` or its
+  fourth renamed `_next`; a class method registered via `.bind(this)` from an `export class`
+  (TypeScript); and a handler file under a conventional `server/` root using a `.mjs`/`.cjs`
+  extension. Also fixed a related false positive found while building the catalogue: a
+  commented-out `// app.use(errorHandler);` line was wrongly making an otherwise-dead,
+  never-registered stub count as reachable, because the reachability check read raw file text
+  without stripping comments. Stated limits, not silently widened: a three-parameter handler with
+  `next` omitted entirely stays uncredited (Express recognizes error middleware by arity, and
+  matching on names alone there would be the arity-only false positive this detector's shape
+  pattern exists to avoid). This is a recall change on `prod_readiness_primitives` under the
+  default rubric; it carries a paired before/after delta record at unchanged corpus commits in the
+  next release (the 0.4.9 precedent, #306). No fixture in the existing v17/v22 byte-stability or
+  A3 suites changed output — this widening only reaches repositories that hit the newly-credited
+  idioms.
+
 - **The (prospective, `witan-rubric-v23`) `health_readiness_route` info-severity finding missed a
   real Express health route under several ordinary, public-documentation idioms**, cataloged and
   regression-guarded in `src/witan/__tests__/a3-health-route-idioms.test.ts`. This finding is

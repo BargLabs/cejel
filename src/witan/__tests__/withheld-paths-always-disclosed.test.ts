@@ -52,6 +52,25 @@ const PLAIN_SERVICE: Readonly<Record<string, string>> = {
 };
 
 describe('withheld-path state is a statement on every certificate, never silence', () => {
+  it.each([
+    [WITAN_RUBRIC_VERSION_V17, false],
+    [WITAN_RUBRIC_VERSION_V23, true],
+  ] as const)('discloses withheld server middleware under %s (actedOn=%s)', (rubric, actedOn) => {
+    const { report, notEstablished } = scan({
+      ...PLAIN_SERVICE,
+      'src/server.js': "const express = require('express'); const app = express(); app.listen(3000);\n",
+      'server/plugins/handler.mjs': '// ' + 'x'.repeat(OVERSIZED_BYTES),
+    }, rubric);
+
+    expect(report.withheldPaths).toEqual([{
+      path: 'server/plugins/handler.mjs',
+      reason: 'too_large',
+      signalsAdmitting: ['A3.prod_readiness_primitives'],
+      actedOn,
+    }]);
+    expect(notEstablished).toContain('A3.prod_readiness_primitives');
+  });
+
   it('sentence 1: no withheld paths at all', () => {
     const { report, notEstablished } = scan(PLAIN_SERVICE, WITAN_RUBRIC_VERSION_V17);
 
