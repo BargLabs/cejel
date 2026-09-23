@@ -1,0 +1,16 @@
+[
+  {
+    "statement": "A preregistered expectation must be derived from the current state of what it predicts, never copied from an earlier record. That record is evidence about its own date, not about now. Occurrence 2026-09-23, cejel #360 (v17 delta after 0.4.10): two of five expected values failed for exactly this reason. The board check was copied from the 0.4.9 entry (20/24), but the board had since been regenerated (cejel-site 026774b), and it measured 24/24. The withheld-path count was read off a field with a similar name (contentReadSummary.skipped, which includes extension exclusions), and it measured 17, not 24. Both were preserved as failures, not adjusted. The expected values derived fresh from the checkouts held. Rule: for each expected value, name the source it was derived from and re-read that source on the day the value is written; a number carried forward from a prior record carries its date with it.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "preregistration"],
+    "tags": [
+      "preregistration",
+      "stale-input",
+      "evidence-discipline",
+      "rubric-changelog"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 360}
+  }
+]
