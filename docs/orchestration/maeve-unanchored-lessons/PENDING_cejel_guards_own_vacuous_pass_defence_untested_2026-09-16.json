@@ -1,6 +1,6 @@
 [
   {
-    "statement": "A guard's own defence against a vacuous pass must itself be covered by a test, or it is one refactor away from silent removal. Occurrence 2026-09-16 on cejel main at cd75fc4: the measurement-freeze check correctly refuses when its frozen-file inventory is empty — `if (!inventory.length) throw new Error('expected nonzero frozen source files; found 0 ...')` — which is the line implementing 'an empty result is a claim, not a status'. Deleting that line breaks no test: the suite passes 12/12 with it gone, so the protection can be removed by anyone simplifying the file and CI stays green. Found by mutation, not by reading, because reading the file shows the guard present and correct. Rule: for every fail-loud branch a guard carries, assert the branch fires — mutate the guard and require the suite to go red. A defence nothing exercises is documentation.",
+    "statement": "A guard's own defence against a vacuous pass must itself be covered by a test, or it is one refactor away from silent removal. Occurrence 2026-09-16 on cejel main at cd75fc4: the measurement-freeze check correctly refuses when its frozen-file inventory is empty — `if (!inventory.length) throw new Error('expected nonzero frozen source files; found 0 ...')` — which is the line implementing 'an empty result is a claim, not a status'. Deleting that line breaks no test: the suite passes 12/12 with it gone, so the protection can be removed by anyone simplifying the file and CI stays green. Found by mutation, not by reading, because reading the file shows the guard present and correct. Rule: for every fail-loud branch a guard carries, assert the branch fires — mutate the guard and require the suite to go red. A defence nothing exercises is documentation. Fixed in cejel #325 (032da61), which added the test 'empty frozen inventory is unreadable, never a successful empty sweep'; re-verified 2026-09-23 on main 020bd7e by deleting the throw — that test, and only that test, goes red.",
     "scope": ["repo:BargLabs/cejel", "dev-task", "ci-guard"],
     "tags": [
       "d4",
@@ -10,15 +10,16 @@
       "measurement-freeze"
     ],
     "anchors": [],
-    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "A test in cejel scripts/check-measurement-freeze.node-test.mjs asserting that an empty frozen-file inventory refuses — it must fail when the `!inventory.length` throw is removed. Anchors to whichever cejel PR adds that test."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 325
     }
   },
   {
-    "statement": "Overlapping exclusion rules in a guard mask each other, so the suite passes while any single rule is silently unnecessary; a control case must isolate the rule it claims to exercise. Occurrence 2026-09-16 on cejel main at cd75fc4: the measurement-freeze check excludes test files from the frozen set by two independent rules — a path-part match on `__tests__`/`fixtures`, and a filename regex on `.test.`/`.spec.`. Every control path in the suite (`src/witan/__tests__/control.test.ts`, `src/witan/__tests__/fixtures/new.json`) satisfies both, so removing the `__tests__` path-part rule breaks nothing. A test helper such as `src/witan/__tests__/helpers.ts` — no `fixtures` part, no `.test.` suffix — is protected by exactly one rule that no test pins. Rule: when a predicate has N disjuncts, a control must exist that only one disjunct admits.",
+    "statement": "Overlapping exclusion rules in a guard mask each other, so the suite passes while any single rule is silently unnecessary; a control case must isolate the rule it claims to exercise. Occurrence 2026-09-16 on cejel main at cd75fc4: the measurement-freeze check excludes test files from the frozen set by two independent rules — a path-part match on `__tests__`/`fixtures`, and a filename regex on `.test.`/`.spec.`. Every control path in the suite (`src/witan/__tests__/control.test.ts`, `src/witan/__tests__/fixtures/new.json`) satisfies both, so removing the `__tests__` path-part rule breaks nothing. A test helper such as `src/witan/__tests__/helpers.ts` — no `fixtures` part, no `.test.` suffix — is protected by exactly one rule that no test pins. Rule: when a predicate has N disjuncts, a control must exist that only one disjunct admits. Fixed in cejel #325 (032da61), which added the control '__tests__/helpers.ts is excluded by its path part alone'; re-verified 2026-09-23 on main 020bd7e by removing '__tests__' from the path-part list — that control, and only that control, goes red.",
     "scope": ["repo:BargLabs/cejel", "dev-task", "ci-guard"],
     "tags": [
       "overlapping-guards",
@@ -28,11 +29,12 @@
       "test-coverage"
     ],
     "anchors": [],
-    "lastSeenAt": "2026-09-16T00:00:00.000Z",
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "A control case in cejel scripts/check-measurement-freeze.node-test.mjs using a path admitted only by the `__tests__` path-part rule (for example src/witan/__tests__/helpers.ts). Anchors to whichever cejel PR adds it."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 325
     }
   }
 ]
