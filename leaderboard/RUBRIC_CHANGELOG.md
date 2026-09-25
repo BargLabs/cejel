@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## Unreleased (after 0.4.10) — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump); no corpus row moved
+## 2026-09-25 — 0.4.11: behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump); no corpus row moved
 
 **Status.** Disclosed behaviour change under the existing calibrated public default. **Not a
 recalibration**, and the rubric identifier does not change. **No repository in the published
@@ -67,7 +67,9 @@ Canonical evidence and the harness:
 `docs/experiments/v17-behaviour-delta-post-0.4.10-2026-09-23/`. The scoring comparison is in
 `paired-result.json` and the byte-level comparison in `bytes-result.json`. Raw per-row reports
 were kept locally and not committed, because the private row's report is not public. The public
-rows' reports are reproducible from the harness.
+rows' reports are reproducible from the harness. A non-preregistered confirmation re-run of the
+same two arms on 2026-09-25 reproduced this scoring result exactly, as recorded under
+"Confirmation run, 2026-09-25" in that directory's `result.md`.
 
 **Preregistered.** `PREREGISTRATION.md` was committed as `12549c4` before either arm was scored.
 It names both arms, the score-capable changes, the expected value for each, and the reason for

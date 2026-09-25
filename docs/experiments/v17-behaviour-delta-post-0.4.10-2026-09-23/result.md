@@ -72,3 +72,29 @@ On 15 of the 17 rows with withheld content, the number of entries in `withheldPa
 
 Neither observation is a false assertion about a repository, and neither was adjusted. Both are
 recorded so that the next reader of these counters does not rediscover them.
+
+## Confirmation run, 2026-09-25
+
+On 2026-09-25 the operator re-ran the same two arms (baseline `d2a8018`, candidate `5ae73b2`,
+both at package version 0.4.10). The run was not preregistered and was done without knowledge
+of #360, which is why a second directory exists:
+`docs/experiments/v17-behaviour-delta-0.4.11-2026-09-25/` (`paired-result.json`, `delta.md`,
+`harness/RUN.md`, committed in `589b44c`). It is a confirmation, not the record. This directory
+is the record.
+
+The confirmation reproduced the scoring result exactly. Across 24 of 24 rows, zero headlines,
+criteria or metrics moved, with zero errors, and 24 of 24 board rows reproduced. This was
+checked mechanically, not by eye: a `jq` comparison of the two `paired-result.json` files agrees
+on every summary count, on both source heads, on the board-check and per-row move counts, and on
+deep equality of `delta[]` and `boardCheck[]` (release 0.4.11 preparation PR). The two files are
+also byte-identical. `harness/compare.mjs` writes no timestamp or path, so an independent re-run
+at the same arms should produce identical bytes. A copy would too, so the byte match does not
+show the second run was independent. That rests on the operator's account.
+
+The confirmation's `harness/RUN.md` does not describe the run it records. It is the 0.4.9
+record's `RUN.md` with its title, dates, harness paths and two `git worktree add` lines
+substituted (8 lines changed, 63 unchanged). It points at a harness directory that does not exist
+(`v17-behaviour-delta-0.4.9-2026-09-25`), comments the baseline as `7606392` (the v0.4.8
+commit), leaves the candidate as an unpinned `origin/main`, and keeps the 0.4.9 expected output
+(20 byte-identical, 4 rows with a moved metric, board 20/24) and the 0.4.9 release-tree
+correction. To reproduce this result, use this directory's `harness/RUN.md`, not that one.

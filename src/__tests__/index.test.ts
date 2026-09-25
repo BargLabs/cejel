@@ -419,13 +419,24 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // oversized/unreadable/withheld file). Verified the same way as the 1.2 re-pin above: this
     // fixture has no signals dependent on it, so the only change versus the pre-1.3 pin is the
     // three added lines for the empty array.
+    // Re-pinned for 0.4.11 (goal_cejel_release_0_4_11_a3_widenings_and_withheld_paths_2026-09-25):
+    // the only change in that release that reaches this fixture is the version bump. Made
+    // mechanical below rather than claimed: setting toolVersion back to "0.4.10" in place (key
+    // order unchanged) and re-serializing reproduces the pre-0.4.11 pin (2747f6e9...) byte for
+    // byte, and the two historical sub-pins further down are taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '2747f6e92179eb4071ac67a9eaf8b2a05d14f0d251c74d26cf2f52e7ad59c747',
+      '64fa14cf5e1281a50e289fbae207952a6614af8022a3a5abfa40b49aefcb136a',
     );
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.4.11');
+    const atPreviousVersion = { ...firstReport, toolVersion: '0.4.10' };
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreviousVersion, null, 2)).digest('hex'),
+      'the 0.4.10-era report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('2747f6e92179eb4071ac67a9eaf8b2a05d14f0d251c74d26cf2f52e7ad59c747');
     const {
       rubricBehaviourFingerprint,
       ...withoutFingerprint
-    } = firstReport as { rubricBehaviourFingerprint?: string };
+    } = atPreviousVersion as { rubricBehaviourFingerprint?: string };
     expect(rubricBehaviourFingerprint).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(
       createHash('sha256').update(JSON.stringify(withoutFingerprint, null, 2)).digest('hex'),
@@ -439,7 +450,9 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // null, 2)), and assert equality with the pre-1.3 pin this fixture carried on origin/main
     // f9e78b4 (git show f9e78b4:src/__tests__/index.test.ts), i.e. before goal_cejel_withheld_
     // paths_always_disclosed_2026-09-22 touched this file.
-    const { withheldPaths, ...withoutWithheldPaths } = firstReport as { withheldPaths?: unknown };
+    const { withheldPaths, ...withoutWithheldPaths } = atPreviousVersion as {
+      withheldPaths?: unknown;
+    };
     expect(withheldPaths).toEqual([]);
     expect(
       createHash('sha256').update(JSON.stringify(withoutWithheldPaths, null, 2)).digest('hex'),
