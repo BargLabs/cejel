@@ -1,0 +1,227 @@
+{
+  "summary": {
+    "rows": 24,
+    "byteIdentical": 0,
+    "rightWithNonEmptyWithheldPaths": 17,
+    "identicalWithoutWithheldPaths": 24,
+    "fingerprintEqual": 24
+  },
+  "rows": [
+    {
+      "name": "react",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 4,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "vue",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "svelte",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "django",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 77,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "flask",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "fastapi",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 7,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "express",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "vite",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 20,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "esbuild",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 3,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "biomejs",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 154,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "requests",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 4,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "pydantic",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 3,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "axios",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "zod",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 5,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "scorecard",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 5,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "ripgrep",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 1,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "guava",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 4,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "cobra",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "sinatra",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 0,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "automapper",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 1,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "fmt",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 1,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "carddemo",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 1,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "alfred",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 118,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    },
+    {
+      "name": "cejel",
+      "byteIdentical": false,
+      "leftHasWithheldPaths": false,
+      "rightWithheldPathCount": 1,
+      "identicalWithoutWithheldPaths": true,
+      "differingKeysWithoutWithheldPaths": [],
+      "fingerprintEqual": true
+    }
+  ]
+}
