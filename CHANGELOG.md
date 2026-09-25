@@ -14,7 +14,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [0.4.11] — 2026-09-25
 
 ### Fixed
 
@@ -24,7 +24,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and the history scan, and an unchanged value is not reported twice. A placeholder-shaped
   password is not flagged, and `.env.example`-style templates are not read. This is a change to
   A2 under the calibrated default. It moved no row of the published corpus, which contains no
-  non-template `.env` file. See the unreleased entry in `leaderboard/RUBRIC_CHANGELOG.md`.
+  non-template `.env` file. See the 0.4.11 entry in `leaderboard/RUBRIC_CHANGELOG.md`.
 
 - **A3 `prod_readiness_primitives` under the default rubric missed a real, registered Express
   global error handler.** An independent evaluator ran 0.4.10 against five pinned revisions of
@@ -41,8 +41,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `next` omitted entirely stays uncredited (Express recognizes error middleware by arity, and
   matching on names alone there would be the arity-only false positive this detector's shape
   pattern exists to avoid). This is a recall change on `prod_readiness_primitives` under the
-  default rubric; it carries a paired before/after delta record at unchanged corpus commits in the
-  next release (the 0.4.9 precedent, #306). No fixture in the existing v17/v22 byte-stability or
+  default rubric; it carries a paired before/after delta record at unchanged corpus commits in
+  `docs/experiments/v17-behaviour-delta-post-0.4.10-2026-09-23/`. No fixture in the existing v17/v22 byte-stability or
   A3 suites changed output — this widening only reaches repositories that hit the newly-credited
   idioms.
 
