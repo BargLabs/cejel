@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -56,7 +56,17 @@ export function isLessonShaped(raw: string): boolean {
   );
 }
 
-export function firstCommitDate(repoRoot: string, file: string): string {
+// `git ls-files` lists staged files, so a seed staged before its first commit reaches here with no
+// history (#346). Such a file is in the index but absent from HEAD: it entered the holding
+// directory now, so its age is zero. Anything else with no history — a file HEAD does carry, e.g.
+// under a shallow clone — is still unresolved and throws.
+function isStagedButUncommitted(repoRoot: string, file: string): boolean {
+  const inIndex = spawnSync('git', ['ls-files', '--error-unmatch', '--', file], { cwd: repoRoot }).status === 0;
+  const inHead = spawnSync('git', ['cat-file', '-e', `HEAD:${file}`], { cwd: repoRoot }).status === 0;
+  return inIndex && !inHead;
+}
+
+export function firstCommitDate(repoRoot: string, file: string, now: Date = new Date()): string {
   const firstCommit = execFileSync('git', ['log', '--follow', '--format=%cI', '--', file], {
     cwd: repoRoot,
     encoding: 'utf8',
@@ -66,6 +76,7 @@ export function firstCommitDate(repoRoot: string, file: string): string {
     .filter(Boolean)
     .at(-1);
   if (!firstCommit) {
+    if (isStagedButUncommitted(repoRoot, file)) return now.toISOString().slice(0, 10);
     throw new Error(`maeve_lesson_first_commit_unresolved: file=${file}`);
   }
   return firstCommit.slice(0, 10);
@@ -91,8 +102,8 @@ export function findStaleOrUndeliveredLessonDirectories({
   repoRoot,
   trackedJsonFiles,
   readFile = (file) => readFileSync(resolve(repoRoot, file), 'utf8'),
-  commitDate = (file) => firstCommitDate(repoRoot, file),
   now = () => new Date(),
+  commitDate = (file) => firstCommitDate(repoRoot, file, now()),
   configuredDirectories = CONFIGURED_LOCAL_LESSON_DIRECTORIES,
   maxHoldingAgeDays = MAX_HOLDING_AGE_DAYS,
 }: FindStaleOrUndeliveredOptions): string[] {
@@ -264,5 +275,68 @@ describe('findStaleOrUndeliveredLessonDirectories: synthetic fixtures', () => {
     } finally {
       rmSync(repoRoot, { recursive: true, force: true });
     }
+  });
+
+  describe('a seed staged before its first commit (#346)', () => {
+    const holdingFile = 'docs/orchestration/maeve-unanchored-lessons/PENDING_cejel_staged_2026-09-23.json';
+    const strayFile = 'docs/misc/PENDING_cejel_stray_2026-09-23.json';
+
+    function withRepo(run: (repoRoot: string) => void): void {
+      const repoRoot = mkdtempSync(join(tmpdir(), 'cejel-maeve-staged-'));
+      try {
+        execFileSync('git', ['init', '--quiet', '-b', 'main'], { cwd: repoRoot });
+        execFileSync('git', ['config', 'user.name', 'Test'], { cwd: repoRoot });
+        execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: repoRoot });
+        execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: repoRoot });
+        writeFileSync(join(repoRoot, 'README.md'), 'base\n');
+        execFileSync('git', ['add', 'README.md'], { cwd: repoRoot });
+        execFileSync('git', ['commit', '--quiet', '-m', 'base'], { cwd: repoRoot });
+        run(repoRoot);
+      } finally {
+        rmSync(repoRoot, { recursive: true, force: true });
+      }
+    }
+
+    function stage(repoRoot: string, file: string): void {
+      mkdirSync(join(repoRoot, dirname(file)), { recursive: true });
+      writeFileSync(join(repoRoot, file), LESSON);
+      execFileSync('git', ['add', file], { cwd: repoRoot });
+    }
+
+    it('dates a staged, uncommitted seed at the current day instead of throwing, so the holding directory is green', () => {
+      withRepo((repoRoot) => {
+        stage(repoRoot, holdingFile);
+        const now = new Date('2026-09-23T12:00:00Z');
+        expect(firstCommitDate(repoRoot, holdingFile, now)).toBe('2026-09-23');
+        expect(
+          findStaleOrUndeliveredLessonDirectories({ repoRoot, trackedJsonFiles: [holdingFile], now: () => now }),
+        ).toEqual([]);
+      });
+    });
+
+    it('still flags a staged, uncommitted seed outside every configured directory as undelivered', () => {
+      withRepo((repoRoot) => {
+        stage(repoRoot, strayFile);
+        expect(
+          findStaleOrUndeliveredLessonDirectories({
+            repoRoot,
+            trackedJsonFiles: [strayFile],
+            now: () => new Date('2026-09-23T12:00:00Z'),
+          }),
+        ).toEqual([
+          'maeve_lesson_directory_undelivered: product=cejel directory=docs/misc fileCount=1 oldest=2026-09-23',
+        ]);
+      });
+    });
+
+    it('still throws for a file with no history that the index does not carry', () => {
+      withRepo((repoRoot) => {
+        mkdirSync(join(repoRoot, dirname(holdingFile)), { recursive: true });
+        writeFileSync(join(repoRoot, holdingFile), LESSON);
+        expect(() => firstCommitDate(repoRoot, holdingFile)).toThrow(
+          `maeve_lesson_first_commit_unresolved: file=${holdingFile}`,
+        );
+      });
+    });
   });
 });
