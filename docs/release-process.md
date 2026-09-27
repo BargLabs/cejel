@@ -1,5 +1,29 @@
 # Release process
 
+## Required dispatch ref and draft-release ordering
+
+Every release workflow must run from the immutable release tag, never from `main` or a release
+branch. In the GitHub Actions UI, set **Use workflow from** to `v<major>.<minor>.<patch>`; with the
+CLI, pass `--ref v<major>.<minor>.<patch>` and the identical `release_tag` input. The checked-out
+commit, workflow source, and declared release tag must therefore all name the immutable release
+identity.
+
+Create the GitHub Release as a **draft** at that immutable tag before dispatching the binary
+workflow. Its attach job refuses a missing or published release by design; the draft is the
+explicit precondition, not a convenience created after assets exist.
+
+Run these manually dispatched workflows in this order:
+
+1. `publish-npm.yml` with `release_tag=v<major>.<minor>.<patch>`, dispatched with that same tag
+   as `--ref`.
+2. `publish-distribution.yml` with the same `release_tag` and `--ref`.
+3. `release-binaries.yml` with the same `release_tag`, `--ref`, and `attach_to_release=true`,
+   after the human-created draft exists.
+
+Do not publish the draft release until the release verification steps record the expected artifacts
+and provenance. A workflow dispatch that names the right input but runs from another ref is not a
+release of the tagged source.
+
 ## Required claim-retirement step
 
 *Added 12 August 2026.*

@@ -424,11 +424,25 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // mechanical below rather than claimed: setting toolVersion back to "0.4.10" in place (key
     // order unchanged) and re-serializing reproduces the pre-0.4.11 pin (2747f6e9...) byte for
     // byte, and the two historical sub-pins further down are taken from that restored report.
+    // Re-pinned for report format 1.4 (issue #272): each scored metric now records the exact
+    // normalized appliedWeightShare. The compact removal below is intentionally a JSON replacer,
+    // rather than object reconstruction, so it preserves every surviving key's serialization
+    // order. Removing only that additive field recovers this fixture's 1.3 bytes exactly.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '64fa14cf5e1281a50e289fbae207952a6614af8022a3a5abfa40b49aefcb136a',
+      '9052bb677ac0a17650c48c011095dbde4459f235c01b20c68d383e7aa3fe90ed',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.4.11');
-    const atPreviousVersion = { ...firstReport, toolVersion: '0.4.10' };
+    const withoutAppliedWeightSharesJson = JSON.stringify(
+      firstReport,
+      (key, value) => (key === 'appliedWeightShare' ? undefined : value),
+      2,
+    );
+    expect(
+      createHash('sha256').update(withoutAppliedWeightSharesJson).digest('hex'),
+      'the pre-1.4 report bytes must be recoverable by removing exactly metric appliedWeightShare fields',
+    ).toBe('64fa14cf5e1281a50e289fbae207952a6614af8022a3a5abfa40b49aefcb136a');
+    const preAppliedWeightReport = JSON.parse(withoutAppliedWeightSharesJson) as typeof firstReport;
+    const atPreviousVersion = { ...preAppliedWeightReport, toolVersion: '0.4.10' };
     expect(
       createHash('sha256').update(JSON.stringify(atPreviousVersion, null, 2)).digest('hex'),
       'the 0.4.10-era report bytes must be recoverable by resetting exactly the toolVersion field',

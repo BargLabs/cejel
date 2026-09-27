@@ -1,0 +1,14 @@
+[
+  {
+    "statement": "A certificate must not recompute an asserted scoring input in its presentation layer. Issue #272 found certificate weight percentages independently dividing each metric weight by the criterion total while scoring performed the same normalization elsewhere. That duplication can silently misstate the applied share after a scoring change even when tests still pass. Record the exact normalized share in the signed report data at scoring time, let renderers read it, and preserve a compatibility path for reports issued before the field existed. Pair the format change with pins proving metric values are unchanged and that stripping only the additive field recovers the prior report bytes.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "report-format", "certificate-presentation"],
+    "tags": ["provenance", "scoring", "signed-artifact", "compatibility", "regression-guard"],
+    "anchors": [],
+    "lastSeenAt": "2026-09-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await merge of the Cejel PR that resolves issue #272 by recording applied metric shares in report data."
+    }
+  }
+]

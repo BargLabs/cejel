@@ -53,6 +53,13 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // this file before that change) and the assertion in the loop below make it mechanical: delete
 // `withheldPaths` from the current report and re-serialize it (`JSON.stringify(report)`, matching
 // how `reportSha256` above is computed) to prove that field is the only delta.
+//
+// Re-pinned a third time, for report format 1.4 (issue #272): each metric-scored report gained
+// the exact `appliedWeightShare` produced by scoreMetrics()'s denominator. Every pinned METRIC is
+// still asserted before the report hash. The two staged byte assertions below prove respectively
+// that removing only those recorded shares recovers 1.3 bytes, and then removing withheldPaths
+// recovers the 1.2 bytes. This is a report-provenance addition, not a rubric or calibration
+// change.
 
 const HERMETIC_GIT_ENV: NodeJS.ProcessEnv = {
   ...process.env,
@@ -82,8 +89,10 @@ interface Fixture {
   readonly files: Record<string, string>;
   readonly fixtureHeadSha: string;
   readonly reportSha256: string;
+  /** Pre-1.4 pin (before the additive appliedWeightShare metric field). */
+  readonly preAppliedWeightReportSha256: string;
   /** Pre-1.3 pin (before the additive withheldPaths field), recovered from v0.4.10. */
-  readonly oldReportSha256: string;
+  readonly preWithheldPathsReportSha256: string;
   /** criterionId.metricName -> pinned value */
   readonly pinnedMetrics: Record<string, number | null>;
 }
@@ -108,8 +117,9 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
-    oldReportSha256: '7e9c7cbf7d9e8f0b1ca447ca8b42ec3615d8513e06c2164583aa7be9d51840dd',
+    reportSha256: '88326f58a23a2c937b4855e65595ca3058f8df91b7ddd7e2e7315315855754b5',
+    preAppliedWeightReportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
+    preWithheldPathsReportSha256: '7e9c7cbf7d9e8f0b1ca447ca8b42ec3615d8513e06c2164583aa7be9d51840dd',
     // v0.4.8: ci_script_depth 5. The CI workflow still credits A1's test command (`npm test`
     // in ci.yml), so A1.verification_script_ratio is 3 on both sides — only B3 moves.
     pinnedMetrics: { 'B3.ci_script_depth': 4, 'A1.verification_script_ratio': 3 },
@@ -129,8 +139,9 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
-    oldReportSha256: '60fe4d3762c96820669b526f9ac59503c2ebd1f2dd171cf7d690ae2475fd4688',
+    reportSha256: '8e58c41261ddcb074ba282177e003198ea7a74b924419d9c5926712cdeebaea9',
+    preAppliedWeightReportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
+    preWithheldPathsReportSha256: '60fe4d3762c96820669b526f9ac59503c2ebd1f2dd171cf7d690ae2475fd4688',
     // v0.4.8: ci_script_depth 3, verification_script_ratio 2, overall 1.4 (now 1.1).
     pinnedMetrics: { 'B3.ci_script_depth': 2, 'A1.verification_script_ratio': 1 },
   },
@@ -149,8 +160,9 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
-    oldReportSha256: 'f8563bde4d02b210d1a6118abd6f73c123e4f686bdd72c7bc0e8faf7bd6e959c',
+    reportSha256: 'aba647d8d188533c5f00e440b703dba76a00ceccc053fbdf0768fb18a589c39a',
+    preAppliedWeightReportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
+    preWithheldPathsReportSha256: 'f8563bde4d02b210d1a6118abd6f73c123e4f686bdd72c7bc0e8faf7bd6e959c',
     // v0.4.8: verification_script_ratio 0, A1 score 0, overall 0.8 (now 2 / 0.5 / 0.9).
     pinnedMetrics: { 'A1.verification_script_ratio': 2 },
   },
@@ -167,8 +179,9 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
-    oldReportSha256: 'cdd35ca03149707985d2130731b4d0f7c9d3953c74a341854097c3d30c2b9c94',
+    reportSha256: 'cfe26d2ee16e6892193135cc4cbdcf8c19a651cab0412ad18f4363c20343e2d8',
+    preAppliedWeightReportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
+    preWithheldPathsReportSha256: 'cdd35ca03149707985d2130731b4d0f7c9d3953c74a341854097c3d30c2b9c94',
     // v0.4.8: pr_trace_primitives 1, B2 score 1.6, overall 1.3 (now 2 / 3.2 / 1.7).
     pinnedMetrics: { 'B2.pr_trace_primitives': 2 },
   },
@@ -210,15 +223,35 @@ describe('v17 scoring surface is pinned — a behaviour change under the calibra
       const observed: Record<string, number | null> = {};
       for (const key of Object.keys(fixture.pinnedMetrics)) observed[key] = metricValue(report, key);
       expect(observed, `${fixture.name}: a pinned v17 metric moved — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toEqual(fixture.pinnedMetrics);
+      for (const criterion of report.criteria.filter((candidate) => candidate.metrics.length > 0)) {
+        expect(
+          criterion.metrics.every((metric) => metric.appliedWeightShare !== undefined),
+          `${fixture.name}: every metric-scored criterion must record the shares scoring applied`,
+        ).toBe(true);
+        expect(
+          criterion.metrics.reduce((sum, metric) => sum + (metric.appliedWeightShare ?? 0), 0),
+          `${fixture.name}: recorded applied shares must account for the whole scored criterion`,
+        ).toBeCloseTo(1);
+      }
       const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
       expect(hash, `${fixture.name}: v17 report changed under an unchanged rubric identifier — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toBe(fixture.reportSha256);
 
-      const { withheldPaths, ...withoutWithheldPaths } = report as unknown as Record<string, unknown>;
-      expect(withheldPaths).toEqual([]);
+      expect(report.withheldPaths).toEqual([]);
+      const withoutAppliedWeightShares = JSON.stringify(report, (key, value) =>
+        key === 'appliedWeightShare' ? undefined : value,
+      );
       expect(
-        createHash('sha256').update(JSON.stringify(withoutWithheldPaths)).digest('hex'),
-        `${fixture.name}: the pre-1.3 report bytes must be recoverable by removing exactly the withheldPaths field`,
-      ).toBe(fixture.oldReportSha256);
+        createHash('sha256').update(withoutAppliedWeightShares).digest('hex'),
+        `${fixture.name}: the pre-1.4 report bytes must be recoverable by removing exactly metric appliedWeightShare fields`,
+      ).toBe(fixture.preAppliedWeightReportSha256);
+
+      const withoutWithheldPaths = JSON.stringify(report, (key, value) =>
+        key === 'appliedWeightShare' || key === 'withheldPaths' ? undefined : value,
+      );
+      expect(
+        createHash('sha256').update(withoutWithheldPaths).digest('hex'),
+        `${fixture.name}: the pre-1.3 report bytes must be recoverable by removing exactly the withheldPaths field after stripping appliedWeightShare`,
+      ).toBe(fixture.preWithheldPathsReportSha256);
     });
   }
 });
