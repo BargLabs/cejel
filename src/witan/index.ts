@@ -13,6 +13,7 @@ export type {
 } from './attestation.js';
 export {
   LOW_CONFIDENCE_COVERAGE_THRESHOLD,
+  computeApplicableMeasuredCoverage,
   computeMeasuredCoverage,
   formatCoverageCellMarkdown,
   formatCoverageCounts,

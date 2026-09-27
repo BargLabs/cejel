@@ -1,0 +1,25 @@
+[
+  {
+    "statement": "An MCP capability that promises artifacts from the most recent scan must be tested across the transport's real request lifecycle, not only through a persistent in-process server. Occurrence 2026-09-27: Cejel's HTTP handler constructs a fresh MCP server for every request, so a successful `scan` stores `lastScan` in a discarded instance and a later HTTP `resources/read` fails with \"No scan has run yet\". Require an end-to-end scan-then-resource-read test using separate HTTP requests; either make the transport explicitly stateless and return artifacts with the scan result, or define bounded, authenticated session state before advertising last-scan resources.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "mcp-http",
+      "transport-lifecycle"
+    ],
+    "tags": [
+      "mcp",
+      "http",
+      "state-lifecycle",
+      "end-to-end-test",
+      "api-contract"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-27T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await a Cejel fix that aligns HTTP MCP artifact resources with the request lifecycle and adds a separate-request regression test."
+    }
+  }
+]

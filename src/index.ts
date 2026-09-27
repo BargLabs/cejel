@@ -31,8 +31,10 @@ import {
 export { WitanReportSchema, verifyWitanAttestationBinding };
 
 import { runCejelScan } from './scan.js';
+import { computeApplicableMeasuredCoverage } from './witan/coverage.js';
 import {
   renderMinScoreAbstentionFailure,
+  renderMinScoreCoverageFailure,
   renderMinScoreLimitationFailure,
   renderTerminalCertificate,
 } from './terminal.js';
@@ -146,7 +148,7 @@ export const CLI_FLAG_SPECS = [
   {
     tokens: ['--min-score'],
     value: '<0-4>',
-    description: 'exit nonzero below this overall score',
+    description: 'exit nonzero below this overall score or with insufficient measurement coverage',
     kind: 'minScore',
   },
   {
@@ -399,6 +401,11 @@ async function runWitanCli(
     }
     if (report.verdict === 'insufficient_source') {
       process.stderr.write(renderMinScoreAbstentionFailure(summary, options.minScore));
+      return 1;
+    }
+    const coverage = computeApplicableMeasuredCoverage(report);
+    if (coverage.lowConfidence) {
+      process.stderr.write(renderMinScoreCoverageFailure(coverage, options.minScore));
       return 1;
     }
     if (report.overallScore < options.minScore) {
