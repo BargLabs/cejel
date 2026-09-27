@@ -120,6 +120,15 @@ const AMBIGUOUS_SOURCE = `export const telemetryConfig = {
 };
 `;
 
+// V47 suppresses an Algolia browser-search key only when its local content establishes that
+// context. v24 must make that decision from the same bytes on every path, not inherit V47's
+// additional documentation-directory check.
+const ALGOLIA_PUBLIC_SEARCH_CONFIG = `export const searchConfig = {
+  provider: "algolia",
+  apiKey: "${REAL_VALUE}",
+};
+`;
+
 describe('A2 v24 content-context secret classification — a real secret under docs/ still flags', () => {
   it('flags a real-shaped credential committed to a documentation path, at full critical severity', () => {
     const dir = makeTmpRepo('witan-v24-real-in-docs-');
@@ -175,6 +184,31 @@ describe('A2 v24 content-context secret classification — a real secret under d
     expect(inDocumentation[0]?.evidence?.label).toBe(inProduction[0]?.evidence?.label);
     expect(inDocumentation[0]?.evidence?.path).toBe('docs/config/ingest.md');
     expect(inProduction[0]?.evidence?.path).toBe('src/config/ingest.ts');
+  });
+
+  it('keeps inherited V47 public-search-key preparation path-invariant', () => {
+    const production = makeTmpRepo('witan-v24-v47-search-src-');
+    writeFile(production, '.gitignore', GITIGNORE);
+    writeFile(production, 'src/index.ts', PRODUCT_SOURCE);
+    writeFile(production, 'src/search-config.ts', ALGOLIA_PUBLIC_SEARCH_CONFIG);
+    commit(production, 'add search configuration');
+
+    const documentation = makeTmpRepo('witan-v24-v47-search-docs-');
+    writeFile(documentation, '.gitignore', GITIGNORE);
+    writeFile(documentation, 'src/index.ts', PRODUCT_SOURCE);
+    writeFile(documentation, 'docs/search-config.md', ALGOLIA_PUBLIC_SEARCH_CONFIG);
+    commit(documentation, 'add search configuration');
+
+    const inProduction = committedSecretFindings(production, WITAN_RUBRIC_VERSION_V24);
+    const inDocumentation = committedSecretFindings(documentation, WITAN_RUBRIC_VERSION_V24);
+
+    // RED (pre-fix): V47 blanked this value under docs/ but not src/, although each v24
+    // classifier received identical bytes. GREEN: the content-established public search-key
+    // context controls both paths, while their observed paths remain ordinary provenance only.
+    expect(inDocumentation).toEqual([]);
+    expect(inProduction).toEqual([]);
+    expect(secretCleanlinessMetric(documentation, WITAN_RUBRIC_VERSION_V24)?.value).toBe(1);
+    expect(secretCleanlinessMetric(production, WITAN_RUBRIC_VERSION_V24)?.value).toBe(1);
   });
 });
 

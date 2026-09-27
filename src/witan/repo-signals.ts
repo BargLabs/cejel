@@ -8410,6 +8410,7 @@ function findV24ClassifiedSecretInFile(
     useV36Detectors,
     useV39Detectors,
     useV47Detectors,
+    true,
   );
   // The context window reads the RAW file, not the prepared copy. Every preparation step maps one
   // line to one replacement line, so line numbers are identical between the two — but v39's
@@ -8465,6 +8466,7 @@ function prepareCredentialScanContents(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors = false,
+  useContentOnlyPublicKeyContext = false,
 ): string {
   const withoutXamlEventNames =
     useV36Detectors && /\.xaml$/i.test(file)
@@ -8474,11 +8476,19 @@ function prepareCredentialScanContents(
     ? stripCommentAndDocumentationExamples(withoutXamlEventNames)
     : withoutXamlEventNames;
   return useV47Detectors
-    ? stripV47PublicIdentifiersAndNonCredentialValues(withoutDocumentationExamples, file)
+    ? stripV47PublicIdentifiersAndNonCredentialValues(
+        withoutDocumentationExamples,
+        file,
+        useContentOnlyPublicKeyContext,
+      )
     : withoutDocumentationExamples;
 }
 
-function stripV47PublicIdentifiersAndNonCredentialValues(contents: string, file: string): string {
+function stripV47PublicIdentifiersAndNonCredentialValues(
+  contents: string,
+  file: string,
+  useContentOnlyPublicKeyContext = false,
+): string {
   const lines = contents.split(/\r?\n/);
   return lines
     .map((line, index) => {
@@ -8486,7 +8496,12 @@ function stripV47PublicIdentifiersAndNonCredentialValues(contents: string, file:
         /^(\s*(?:export\s+)?(?:PUBLIC_)?ALGOLIA_(?:PUBLIC_)?API_KEY\s*[:=]\s*)[^\s#]+/i,
         '$1""',
       );
-      if (isPublicDocumentationSearchKeyContext(lines, index, file)) {
+      if (isPublicDocumentationSearchKeyContext(
+        lines,
+        index,
+        file,
+        useContentOnlyPublicKeyContext,
+      )) {
         sanitized = sanitized.replace(/(\bapiKey\s*[:=]\s*)(['"])[^'"]+\2/gi, '$1$2$2');
       }
       sanitized = sanitized.replace(
@@ -8511,6 +8526,7 @@ function isPublicDocumentationSearchKeyContext(
   lines: readonly string[],
   lineIndex: number,
   file: string,
+  useContentOnlyPublicKeyContext = false,
 ): boolean {
   const windowStart = Math.max(0, lineIndex - 6);
   const preceding = lines.slice(windowStart, lineIndex + 1);
@@ -8520,7 +8536,10 @@ function isPublicDocumentationSearchKeyContext(
     if (/\bdocsearch(?:Options)?\b/i.test(candidate)) return true;
     if (
       /\balgolia\b/i.test(candidate) &&
-      /(?:^|\/)(?:website|docs?)(?:\/|$)|(?:site[-_]?config|\.dumirc|docusaurus)/i.test(file)
+      (useContentOnlyPublicKeyContext ||
+        /(?:^|\/)(?:website|docs?)(?:\/|$)|(?:site[-_]?config|\.dumirc|docusaurus)/i.test(
+          file,
+        ))
     ) {
       return true;
     }
