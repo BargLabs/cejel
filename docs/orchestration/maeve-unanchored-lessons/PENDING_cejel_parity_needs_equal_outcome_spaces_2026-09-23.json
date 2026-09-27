@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "A parity test between two code paths proves nothing unless the two paths can reach the same outcomes. Otherwise it pins the one verdict both paths can reach and leaves the divergence where the judgement is hardest. Occurrence: cejel v24 PEM work at c30402a (branch codex/307-v24-pem-proposal). The current-tree path calls findV24PemPrivateKeyCandidate twice, for 'real' and 'ambiguous' (repo-signals.ts:8365, :8379). The history path calls it once, for 'real' only (:8866), and the finder returns null for any other classification. So an ambiguous historical PEM yields no finding and no abstention: a silent pass, where v24 promises to abstain. The parity test from 38264e4 ('same critical PEM verdict for identical current-tree and history payloads') passes, because it only exercises 'real'. Rule: before asserting parity, check that both outcome sets are equal. Pin the least-certain outcome, and prove the test with a mutation that removes it.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "test-design"],
+    "tags": [
+      "parity-test",
+      "outcome-space",
+      "abstention",
+      "mutation-testing",
+      "v24-pem"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await the #307-ruling change 2 (PEM history parity): an 'ambiguous' history call site with its abstention wired through, guarded by a test that an ambiguous historical PEM abstains secret_cleanliness with its stated reason, red when that call site is deleted."
+    }
+  }
+]
