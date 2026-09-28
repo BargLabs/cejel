@@ -88,3 +88,23 @@ agent's own private session memory, which the estate cannot read.
 - Explicit paths on `git commit`. Never `git commit -am` — multiple agents write to these
   trees concurrently and `-am` has swept unrelated work into the wrong commit before.
 - Push any branch that has no remote ref before doing anything else with it.
+
+## Write-through, never flush-at-compaction (operator, 2026-09-28)
+
+A session's context can be compressed between any two turns, with no warning to the agent. Anything that existed only in context is then gone, and the summary that replaces it is a lead, not a record. "Write everything down just before compaction" therefore cannot be obeyed from inside a session. The rule is write-through: nothing remains to be flushed.
+
+1. **Nothing lives only in context past the turn that produced it.** Before a turn ends, write each of these to its home:
+   - Findings, decisions, operator rulings, and numbers read from a record: a commit on your branch, pushed.
+   - Lessons: a seed in `docs/orchestration/maeve-unanchored-lessons/`.
+   - Anything deferred: a `later:` issue.
+   - Work in progress: a pushed WIP commit, which also satisfies the persist-before-verify rule.
+   A turn whose result exists only in chat is an unfinished turn.
+2. **Sessions that keep a handover** keep it current as they work, not only at close.
+3. **After a compaction,** re-read your own branch, PR and handover before acting. Treat every remembered specific as unverified until it is read from a file or from GitHub. Write down immediately anything the summary mentions that no file holds, marked as coming from the pre-compaction summary.
+4. **Mechanical backstops** on Claude Code hosts:
+   - A `PreCompact` hook snapshots the redacted transcript outside every repository.
+   - A `SessionStart` hook with matcher `compact` injects point 3.
+
+   These are the net under the rule, not a substitute for it.
+
+The canonical text lives in the operator's private lab notes; ask the operator if you need it.
