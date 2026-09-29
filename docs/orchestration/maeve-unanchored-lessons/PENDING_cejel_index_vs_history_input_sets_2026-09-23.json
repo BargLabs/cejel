@@ -1,0 +1,41 @@
+[
+  {
+    "statement": "When a guard takes its item list from one Git view and looks up each item's facts in another, such as listing files from the index with `git ls-files` and dating them from `git log`, decide explicitly what happens to an item present in the first view and absent from the second. A staged file with no commits is a real, expected state, not a corruption. Classify it on purpose, for example as age zero, and keep throwing for items that neither view explains. Otherwise the guard blocks the very commit its own workflow requires.",
+    "scope": [
+      "cejel",
+      "tests",
+      "guards"
+    ],
+    "tags": [
+      "git-index",
+      "input-set",
+      "maeve-delivery"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await operator review and merge of the #346 staged-seed dating fix."
+    }
+  },
+  {
+    "statement": "A pull request that fully implements an issue's stated requirement should close that issue in the same merge, for example with `Closes #N`. An issue left open after its fix merges looks like unstarted work and can be re-implemented or re-triaged from scratch. Before starting any issue, search the merged history for its named symbols and compare each acceptance clause against the current code.",
+    "scope": [
+      "cejel",
+      "triage"
+    ],
+    "tags": [
+      "issue-hygiene",
+      "triage",
+      "duplicate-work"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-23T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "awaiting-fix",
+      "reason": "Await operator review and merge of the triage PR that closed #354 after #357."
+    }
+  }
+]
