@@ -9,9 +9,13 @@ const BOARD_FILES = ['leaderboard.md', 'leaderboard.html', 'index.html'];
 const RETAINED_FILES = new Set(['README.md', 'corpus.json', 'RUBRIC_CHANGELOG.md']);
 
 // Immutable explanation, from the withdrawal heading up to (but excluding) Status.
-// Independently normalized live Markdown and HTML on 2026-09-10: 1662 characters,
-// identical SHA-256. Status may evolve; the claim, finding, scope and condition may not.
-const WITHDRAWAL_SHA256 = 'b112d06837c66ee269b46fdb8c844ea9d7816095d0666419702717ee582752e4';
+// Re-pinned 2026-09-28: the operator redacted the private engine path from the finding under the
+// 2026-08-18 disclosure boundary (cejel-site #97 and #100; the page carries a dated redaction note).
+// Claim, finding, scope and condition are otherwise unchanged. Live Markdown and HTML both
+// normalize to 1672 characters with this digest. Previous pin (2026-09-10, 1662 characters):
+// b112d06837c66ee269b46fdb8c844ea9d7816095d0666419702717ee582752e4.
+// Status may evolve; any other change to this text is a finding, not a re-pin.
+const WITHDRAWAL_SHA256 = '8d684b04ada204ed20ba9ac38836a26c8fa2dc6556be872adf839c9c8ba8d30b';
 
 export function withdrawalDigest(text) {
   const visible = text.replace(/<!--[\s\S]*?-->/g, '')
