@@ -1,0 +1,3102 @@
+{
+  "bindings": {
+    "baselineRubric": "witan-rubric-v22-prospective-2026-08-10",
+    "candidateRubric": "witan-rubric-v24-prospective-2026-09-15",
+    "candidateSources": {
+      "scripts/a2-v24-paired-rescore.mjs": {
+        "gitBlob": "191bfa17f09691222eaa91df5f4104c14dfcbe9e",
+        "sha256": "de32f274131ccf6eb94535049ea96c22df530f9de18d797e16204da21fbe9f62"
+      },
+      "src/witan/__tests__/fixtures/behaviour-corpus.ts": {
+        "gitBlob": "34bf848e9fd05c7cf66d443c6ebce870d684c345",
+        "sha256": "4ce273f8bf0237a7d95a733eed2b8806b6735c9a0846e7a24a9a561e22672974"
+      },
+      "src/witan/content-reads.ts": {
+        "gitBlob": "dd0f877adda3e5243ebf0c0a267a1d34e3a3511e",
+        "sha256": "333dba53d99fb50e6158536ac459075b5a046fe1b0b0ab03e67878473dfd01ab"
+      },
+      "src/witan/git-exec.ts": {
+        "gitBlob": "c9e90fd949cf9d8cbdb40c03c523be50d4016663",
+        "sha256": "15905a159049872638b15fa431890dda77819ad75c55a68f72287e935fc20b6e"
+      },
+      "src/witan/public-scan.ts": {
+        "gitBlob": "d55765a85a640c871f6fff05e62f2584d3226788",
+        "sha256": "8d575def61d9e0c2cfa5d562f0c45979e515deb5d12cec722c1470aa86f43d33"
+      },
+      "src/witan/repo-signals.ts": {
+        "gitBlob": "f2548b28436b572f5f9aef21087ac825ef661981",
+        "sha256": "0c3b85f843b94bc1ca03f4e69fe47f5d968a3a6ef901e359660655802521a1be"
+      },
+      "src/witan/rubric-version.ts": {
+        "gitBlob": "978449111de829fdb445fc938f692050247560a1",
+        "sha256": "2f9a687541957e316ca609307d6126bc1442142fe23075a84939dfec2bd8d69b"
+      },
+      "src/witan/rubric.ts": {
+        "gitBlob": "a03b85e00ccb7215b6410a5360209cf1dfdf3f41",
+        "sha256": "8205db8debd24244356fb88253413641a233699fa04d19437b85ac505e89fd1a"
+      },
+      "src/witan/schemas.ts": {
+        "gitBlob": "cd50df9a2dd4487d469686b3118bb46ec1260442",
+        "sha256": "8820d3f7a88f490513b3b4209371240662c01344244201e6a59d55055e9642e9"
+      },
+      "src/witan/scoring.ts": {
+        "gitBlob": "7de0f392b77f1820cb14465f8968b701432dd8e0",
+        "sha256": "0ed59d847f9c2c8b0a6de6d0ad418fbf09592f105cee9dbb0651d36605fda32d"
+      }
+    },
+    "corpus": {
+      "gitBlob": "d563653c6f1d7ee733693c0e9612fa52c323b162",
+      "rows": 24,
+      "sha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00"
+    },
+    "executionCommit": "0ca3a9874f9c9a6ac79b79f59d61f3f981888a3a",
+    "generatedAt": "2026-10-01T00:00:00.000Z",
+    "preregistrationCommit": "ef253a8e64e70e27c9c440bc5b3cf02167c81a4e",
+    "privateAlfredCommit": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+    "syntheticParityPreflight": {
+      "fixtures": 14,
+      "nonA2CriteriaIdentical": true
+    }
+  },
+  "decision": {
+    "bands": [
+      {
+        "dependsOnHandReview": false,
+        "id": "completion",
+        "limit": 24,
+        "measured": 24,
+        "rows": [],
+        "rule": "all 24 rows complete with no error row",
+        "withinLimit": true
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "nonA2CriterionChanges",
+        "limit": 0,
+        "measured": 0,
+        "rows": [],
+        "rule": "rows changing any criterion other than A2 (implementation failure)",
+        "withinLimit": true
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "newCriticalFalseAssertions",
+        "limit": 0,
+        "measured": 0,
+        "rows": [],
+        "rule": "rows gaining a new critical committed-secret finding that is not a genuine committed credential",
+        "upperBound": 0,
+        "withinLimit": true
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "a2Changes",
+        "limit": 8,
+        "measured": 4,
+        "rows": [
+          "django",
+          "biomejs",
+          "axios",
+          "alfred"
+        ],
+        "rule": "rows changing A2 score, status, or secret_scan finding count/kind",
+        "withinLimit": true
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "headlineScoreChanges",
+        "limit": 4,
+        "measured": 4,
+        "rows": [
+          "django",
+          "biomejs",
+          "axios",
+          "alfred"
+        ],
+        "rule": "rows changing overall, code-trust or process-trust score",
+        "withinLimit": true
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "placementChanges",
+        "limit": 2,
+        "measured": 8,
+        "rows": [
+          "react",
+          "vue",
+          "flask",
+          "biomejs",
+          "requests",
+          "pydantic",
+          "axios",
+          "scorecard"
+        ],
+        "rule": "rows changing comparative board placement",
+        "withinLimit": false
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "verdictChanges",
+        "limit": 1,
+        "measured": 0,
+        "rows": [],
+        "rule": "rows changing verdict",
+        "withinLimit": true
+      },
+      {
+        "dependsOnHandReview": false,
+        "id": "lostConfirmedTruePositives",
+        "limit": 0,
+        "measured": 0,
+        "rows": [],
+        "rule": "rows losing a committed-secret finding v22 reported that hand review confirms is genuine",
+        "upperBound": 0,
+        "withinLimit": true
+      }
+    ],
+    "counts": {
+      "completed": 24,
+      "coverageChanges": 0,
+      "errors": 0,
+      "retriedRows": 0,
+      "rows": 24
+    },
+    "handReviewPending": false,
+    "informational": {
+      "coverageChanges": []
+    },
+    "mechanicalBandsWithinLimits": false,
+    "protocolDecision": null,
+    "protocolDecisionStatus": "awaiting operator hand review"
+  },
+  "lostCriticalSecretFindings": [],
+  "newCriticalSecretFindings": [],
+  "protocol": {
+    "acquisition": {
+      "private": "git clone --local --no-hardlinks --no-checkout of the operator-supplied source, detached checkout of the pinned commit",
+      "public": "git fetch --depth=1 of the corpus-pinned commit over https, detached checkout",
+      "publicFetchDepth": 1
+    },
+    "autoDiscoveredIngest": false,
+    "explicitIngest": false,
+    "privateSourcePathsPublished": false,
+    "repositoryCodeExecuted": false,
+    "retriedRows": 0,
+    "sealedPublicScoring": true
+  },
+  "rows": [
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 0,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 1.4,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "flag",
+                "contentHash": "dda98d4dcda5d906904824b149b9d859d85e45ba12bffdeb20823554c5bf7ce7",
+                "line": 14,
+                "path": "compiler/packages/react-mcp-server/src/utils/algolia.ts",
+                "severity": "critical",
+                "summary": "Secret-shaped value appears committed in the scanned repository."
+              }
+            ],
+            "kind": "flag"
+          },
+          "status": "critical"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "9",
+        "processTrustScore": 3.9,
+        "reportSha256": "b15be2d2598d9202bc071e2f871b7427ad96b866fde8a502ae1617e0fb269453",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 0,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 1.4,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "flag",
+                "contentHash": "dda98d4dcda5d906904824b149b9d859d85e45ba12bffdeb20823554c5bf7ce7",
+                "line": 14,
+                "path": "compiler/packages/react-mcp-server/src/utils/algolia.ts",
+                "severity": "critical",
+                "summary": "Secret-shaped value appears committed in the scanned repository."
+              }
+            ],
+            "kind": "flag"
+          },
+          "status": "critical"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "8",
+        "processTrustScore": 3.9,
+        "reportSha256": "156dfbcaeacd4b70fda6cbfe86f3a515d71d6dd0689e1386e489bc3892e938e0",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "react",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "3f18b4c2e36e813a5601652fef8cf7e5919b1452882c53fc50fddeb429d70a98",
+        "candidate": "3f18b4c2e36e813a5601652fef8cf7e5919b1452882c53fc50fddeb429d70a98"
+      },
+      "sourceCommit": "c0c39a6b3907eaab35f43074949e2957a2a734c1",
+      "sourceTree": "5feee59c5eb284826c6ab6e695aa0cfd4947e9c7",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "11",
+        "processTrustScore": 3.4,
+        "reportSha256": "9a3a92024399a1679269e56d02ed0275a7307757687d019d4c652875e82e5453",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "10",
+        "processTrustScore": 3.4,
+        "reportSha256": "4c5b8edfeed81934d33d580362c714074ba72241d6a971c6fedaf3b1f30a11b3",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "vue",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "366ba2e5b27e3578b54266756d7613b1e7f706794cc642028d4ddbf8ae78c2d6",
+        "candidate": "366ba2e5b27e3578b54266756d7613b1e7f706794cc642028d4ddbf8ae78c2d6"
+      },
+      "sourceCommit": "c0606e91798c8dca4f33d101e1dd836d672592c1",
+      "sourceTree": "b96a1cb7a81f0f00765fc10d45fd74ec2471a9a5",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 1,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 2,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.6,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "4",
+        "processTrustScore": 3.3,
+        "reportSha256": "105abe18f21167b6cce3303b46c3e3c79c60eb78acfd6bba2d38185671723108",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 1,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 2,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.6,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "4",
+        "processTrustScore": 3.3,
+        "reportSha256": "7851bdb1477784b63622cc0a40caa2dbd5dcd91a44604b36b903b449fdabf2df",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "svelte",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "a7a5571c5ec91d822769a584a89b5000ef604e49a851a2c2778dbce82f8e02c1",
+        "candidate": "a7a5571c5ec91d822769a584a89b5000ef604e49a851a2c2778dbce82f8e02c1"
+      },
+      "sourceCommit": "b4d1583ae20f3869a88a731d9a265c546c099f66",
+      "sourceTree": "89780f9df819197ff266edbc632305ac9f048447",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 0,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 0,
+              "weight": 0.3
+            }
+          ],
+          "score": 2.8,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "warning"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3.1,
+        "placement": "unranked",
+        "processTrustScore": 3.6,
+        "reportSha256": "3408c7bb5d6d213e31ad47a665a267b266d5a8a692e8bc2e879c88e4f0d41b51",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 0,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 0,
+              "weight": 0.3
+            }
+          ],
+          "score": 0,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "abstain",
+                "contentHash": "6500e817a9aaae8322d43ec8cc1712fc6eedb053af7d47bed92875f811fc01a4",
+                "line": 72,
+                "path": "django/contrib/auth/admin.py",
+                "severity": "info",
+                "summary": "Secret-shaped value with an ambiguous content context — Cejel abstains on secret cleanliness rather than assert either a committed credential or a clean result, because the value clears neither the placeholder vocabulary nor the confident real-secret bar, so Cejel has no basis to call it either a credential or an example."
+              }
+            ],
+            "kind": "abstain"
+          },
+          "status": "critical"
+        },
+        "codeTrustScore": 1.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 2.6,
+        "placement": "unranked",
+        "processTrustScore": 3.6,
+        "reportSha256": "954f73a94033c43359180f8f45aa5f03701829ae8995a9eb4963ea252e12f146",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "django",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "e7c66f41cd8743b0dfc6773fdab43c6a1645b9dc9e2d3f8c4e2077f577ef9c7f",
+        "candidate": "e7c66f41cd8743b0dfc6773fdab43c6a1645b9dc9e2d3f8c4e2077f577ef9c7f"
+      },
+      "sourceCommit": "65a9f14196c338d70889bd54753370606b3fb4eb",
+      "sourceTree": "d4ef089e5923b3e50d4095e9b94aec929f93f911",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.2,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.7,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "8",
+        "processTrustScore": 3,
+        "reportSha256": "120304f173c42bef33d0173812c2b64dc9b5ad912bec624ec7d59c46b375ada4",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.2,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.7,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "7",
+        "processTrustScore": 3,
+        "reportSha256": "85e7679878ceef63e032531db41d02d25618695e8a682bb81d0d4584f23fe1d7",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "flask",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "af1dc6c6e747b82ddbeb2979adc73ef913681b1e2f07d06e3a52a8ee68bbfe04",
+        "candidate": "af1dc6c6e747b82ddbeb2979adc73ef913681b1e2f07d06e3a52a8ee68bbfe04"
+      },
+      "sourceCommit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "sourceTree": "ad6f20e03ec7f7229e1d05b7c14d10b2c67e467e",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "6f4aff535f9d1c3797fa28ef5ec6de93beaade4b16c7180fbe43bc9c8311ac78",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "f763b3c601137727c9754d9c7843df11ffd783d50df04589fe8675791ed045bc",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "fastapi",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "f0a3d76372cb8ce9fbfb47318fe67eb0a55e4efff4aad51374ebff907ace489b",
+        "candidate": "f0a3d76372cb8ce9fbfb47318fe67eb0a55e4efff4aad51374ebff907ace489b"
+      },
+      "sourceCommit": "7cb06f360dd44efac059848df1a9beee7643b018",
+      "sourceTree": "9d9053486a95090819b81193464c551b396d7aa5",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "28a5e44fc4641ffde8d81fe14b576e7b0f6d575fd224274c0f0cbd6ee7cf48b6",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "unranked",
+        "processTrustScore": 3.2,
+        "reportSha256": "4dd0ce008d011adc700e3cf3870e008f212f49729b7082de331cc0ed2adb04ec",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "express",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "64b401c5ca6cb029e4efb4fc1453f08ab02a7489fe081164aabc43382fae83af",
+        "candidate": "64b401c5ca6cb029e4efb4fc1453f08ab02a7489fe081164aabc43382fae83af"
+      },
+      "sourceCommit": "ba006766fb964571723138708eacaba0f55759cd",
+      "sourceTree": "f7dd008ae4b9fdd1c40507a9b9fd8749320be0bf",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.2,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "note",
+                "contentHash": "9036ff75734a70268ab2cfc7c986aeba9909701fbf07dd266c80bd53a9c624cd",
+                "line": 1,
+                "path": "playground/assets-sanitize/.env",
+                "severity": "info",
+                "summary": "A tracked non-template .env file is present, while the bounded scan over the tracked scan-eligible inventory matched no secret-shaped value."
+              }
+            ],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3.4,
+        "placement": "1",
+        "processTrustScore": 4,
+        "reportSha256": "eaa3bd75a370e1b399ee3012f363f121c8e25b81186bd51da8cd77498903d6b8",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.2,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "note",
+                "contentHash": "9036ff75734a70268ab2cfc7c986aeba9909701fbf07dd266c80bd53a9c624cd",
+                "line": 1,
+                "path": "playground/assets-sanitize/.env",
+                "severity": "info",
+                "summary": "A tracked non-template .env file is present, while the bounded scan over the tracked scan-eligible inventory matched no secret-shaped value."
+              }
+            ],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 3.4,
+        "placement": "1",
+        "processTrustScore": 4,
+        "reportSha256": "d4ccfde55dfa5c43b55011af8584c1cc0f14dbd13aaee862f67b676d684aaeda",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "vite",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "22af281bf9ec70be84ac88206a21970839040bd1a9e3f1a41e14ec6df0bf7f2d",
+        "candidate": "22af281bf9ec70be84ac88206a21970839040bd1a9e3f1a41e14ec6df0bf7f2d"
+      },
+      "sourceCommit": "5d95f1631bfde08ee2613a53517dd5ea5d388cda",
+      "sourceTree": "aba733d02f1fc6c672e9b4472fd5a74ead522b13",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "13",
+        "processTrustScore": 2.4,
+        "reportSha256": "09db4cd0cd14cda85b26a5eb729509562d0f1200ad72d271d0ece0993105cd5a",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "13",
+        "processTrustScore": 2.4,
+        "reportSha256": "18e8f3eb0aef8180caa4685a058e7cc5f1b46eb6d89cabdeea49a8617f0c7233",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "esbuild",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "f5801664924677d353ec257064f21815e07cf237ed19b2aee627bc83b9b1c135",
+        "candidate": "f5801664924677d353ec257064f21815e07cf237ed19b2aee627bc83b9b1c135"
+      },
+      "sourceCommit": "6ff1d8b0d8c134e867a397eef39702a223ebef9e",
+      "sourceTree": "68df3a2f84f0594c49a6302f8ab1f5a2dfa74b25",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.2,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 3,
+        "placement": "6",
+        "processTrustScore": 3,
+        "reportSha256": "64b980f524433c0f3eba6936ac401b687fa5efd3297cf2f1a62079bcf7413084",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            }
+          ],
+          "score": 1.3,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "abstain",
+                "contentHash": "d55fd42ad585a5cbb003768aa9e2210930255d7d1f7766c0b27ccaaf29b4383d",
+                "line": 177,
+                "path": "crates/biome_analyze_macros/src/group_macro.rs",
+                "severity": "info",
+                "summary": "Secret-shaped value with an ambiguous content context — Cejel abstains on secret cleanliness rather than assert either a committed credential or a clean result, because the value clears neither the placeholder vocabulary nor the confident real-secret bar, so Cejel has no basis to call it either a credential or an example."
+              }
+            ],
+            "kind": "abstain"
+          },
+          "status": "critical"
+        },
+        "codeTrustScore": 2.2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.6,
+        "placement": "11",
+        "processTrustScore": 3,
+        "reportSha256": "bcedbf7d0b9e63f775b94ee5a695af169227a982cbba433a76a41e2222ba7dd5",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "biomejs",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "a721eeb29511abba0e4d17f4d1e44d80b723f66d64feeb62b22d7a89a4388f0f",
+        "candidate": "a721eeb29511abba0e4d17f4d1e44d80b723f66d64feeb62b22d7a89a4388f0f"
+      },
+      "sourceCommit": "01bba129afefced1c04aa69592b1b7f337a7b609",
+      "sourceTree": "d6a3bb5f63cf471a2ca9c8e39bb3b73500141c2f",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "7",
+        "processTrustScore": 3.4,
+        "reportSha256": "f94487b381c791ff11a09cd84a6fcaca1a29f1cbddc1e3f19439f6a53bc1ab19",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "6",
+        "processTrustScore": 3.4,
+        "reportSha256": "8c199d4366908428416a1049b8f2231b5070e8b3fed034877aaa64bb28391456",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "requests",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "8376259626e44e449d18ddc24bfff73c40bb2dfb75412f532afa6437e60c62be",
+        "candidate": "8376259626e44e449d18ddc24bfff73c40bb2dfb75412f532afa6437e60c62be"
+      },
+      "sourceCommit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "sourceTree": "c8ba688b7e493f85ee6feae91278baf4b881fed7",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "3",
+        "processTrustScore": 3.5,
+        "reportSha256": "1d4f1c935ae04c8e70320ddf3b54a96e9cd23b49aca2324f258308dd8cc0ef18",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.9,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "2",
+        "processTrustScore": 3.5,
+        "reportSha256": "64ec6e4d40532d181cb7a02a143972043b880c87da592d67422b07141c25f05a",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "pydantic",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "24185a40ac89ce023fbf4db661b91133824f0063e44865d3ea8b4f5e7cf39e44",
+        "candidate": "24185a40ac89ce023fbf4db661b91133824f0063e44865d3ea8b4f5e7cf39e44"
+      },
+      "sourceCommit": "f59e929c999e8b2efc7b12fd0bc1685c1a186be3",
+      "sourceTree": "b5c23e6c0172aad0095af3e06042de79990a81e5",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 1,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 2,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.6,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 9,
+            "total": 11
+          }
+        },
+        "overallScore": 3.3,
+        "placement": "2",
+        "processTrustScore": 3.9,
+        "reportSha256": "2d8c2349f7f21b43afbd3aa2f31b8c3646dda442186344bbd0772629ef4ff0cd",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 1,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 2,
+              "weight": 0.3
+            }
+          ],
+          "score": 2.7,
+          "secretScan": {
+            "count": 1,
+            "findings": [
+              {
+                "class": "abstain",
+                "contentHash": "76ae30ebc6d5ab637ac5a841a7520fbbba73c17ef83cfef8147d1113f5bb01ca",
+                "line": 711,
+                "path": "index.d.cts",
+                "severity": "info",
+                "summary": "Secret-shaped value with an ambiguous content context — Cejel abstains on secret cleanliness rather than assert either a committed credential or a clean result, because the value clears neither the placeholder vocabulary nor the confident real-secret bar, so Cejel has no basis to call it either a credential or an example."
+              }
+            ],
+            "kind": "abstain"
+          },
+          "status": "info"
+        },
+        "codeTrustScore": 2.4,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 9,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "3",
+        "processTrustScore": 3.9,
+        "reportSha256": "8947d37c8582b29eeae2f2e8117194629af662a1abf5a7aacbfa69e437b1d9da",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "axios",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "146e2b6fa2d11e7390aaa4037de9ee466fb66aafb3dcb8aa5b93c53425456275",
+        "candidate": "146e2b6fa2d11e7390aaa4037de9ee466fb66aafb3dcb8aa5b93c53425456275"
+      },
+      "sourceCommit": "7a6615e421578081743161eab032d009dc6583a4",
+      "sourceTree": "45fb3f456b870e5c2ab5a5489a484af0336488eb",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 1,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 2,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.6,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 3.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "5",
+        "processTrustScore": 3.2,
+        "reportSha256": "32eec5f7f361d04b547d649c3ba45359c05d09ccde7b3ccd6f617ac7982842f8",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 1,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 2,
+              "weight": 0.3
+            }
+          ],
+          "score": 3.6,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 3.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 3.2,
+        "placement": "5",
+        "processTrustScore": 3.2,
+        "reportSha256": "d5bd3113ccd42aecdb0c09c5d8af645edc482cdb430d32941f775a26294f4185",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "zod",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "e9b450c6ec39dd0f0269ca64cf1850ed20280e0808f8493d2e67817ce5aa9046",
+        "candidate": "e9b450c6ec39dd0f0269ca64cf1850ed20280e0808f8493d2e67817ce5aa9046"
+      },
+      "sourceCommit": "912f0f51b0ced654d0069741e7160834dca742ee",
+      "sourceTree": "aa57882b5c03f77cdfc84ee44a7967f2c9c210b6",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "10",
+        "processTrustScore": 3.6,
+        "reportSha256": "456ae2c8679ee638972b875270ddca03eca334768318aa63b41e6ce4f50825dc",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 4,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.9,
+        "placement": "9",
+        "processTrustScore": 3.6,
+        "reportSha256": "30192403e08b4c2c4ef323a0f65a0faa22f12ba71e67af8623efabbe4208e8f5",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "scorecard",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "6acfd5d4563b61cbe4be55dba648990af9050f28a966477b4eca5fe0417fac7f",
+        "candidate": "6acfd5d4563b61cbe4be55dba648990af9050f28a966477b4eca5fe0417fac7f"
+      },
+      "sourceCommit": "916bfc57fa7431467a33a5a013cba3f8a0c1ec50",
+      "sourceTree": "1addbd1e8716566388747e838605c64bd3aeaffc",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.1,
+        "placement": "14",
+        "processTrustScore": 2,
+        "reportSha256": "681a758d6f2c7940f746652af4ad257b49c0851616cb33d2bf47ee5aa73ff010",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.1,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.1,
+        "placement": "14",
+        "processTrustScore": 2,
+        "reportSha256": "5803ab41ba716454dbf98b544d8e07126e1b514175ccfe17d588c87d4497d865",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "ripgrep",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "04caf69510681a693a6f3ac693b0b2fa6f97cc759ac0639a2105eabae8a52895",
+        "candidate": "04caf69510681a693a6f3ac693b0b2fa6f97cc759ac0639a2105eabae8a52895"
+      },
+      "sourceCommit": "d5b85d44057ff729a89be9c6549958c45d95aa99",
+      "sourceTree": "a862c646434a2d00f245a5b1e0187b67cd20c018",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 1.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 1.9,
+        "placement": "unranked",
+        "processTrustScore": 2.2,
+        "reportSha256": "613842f84ca467a8469ef57ae9af9906ec72f7395b8a12ccd59cd09381fff137",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 1.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 1.9,
+        "placement": "unranked",
+        "processTrustScore": 2.2,
+        "reportSha256": "431a41e32e3b3c3186f64cf7f9585d1e4f55024fb00641a02b611777f6cbe1e0",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "guava",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "0661a47773490bb3c08ff2e4d9a3163db89b3177e1e0862cf9919667e04f81bc",
+        "candidate": "0661a47773490bb3c08ff2e4d9a3163db89b3177e1e0862cf9919667e04f81bc"
+      },
+      "sourceCommit": "486837d756e6d48864620e91b0761467e2abe744",
+      "sourceTree": "493bb50a916237c1cf9f8f441d415f770d6eb207",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 4,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "1efcdcd72f82229f9b29e86d69718cb8a2d6e598a0aa42d4705efeb411e57035",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2.6,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 4,
+            "total": 11
+          }
+        },
+        "overallScore": 2.5,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "8f5eedab1aa3e49dc2ca943728e163830db60aca84bf45e34ab0206460adf799",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "cobra",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "8999288c3b0bab2a88872baf5f92778eec744c0142f7467a0d5fe0816249cb04",
+        "candidate": "8999288c3b0bab2a88872baf5f92778eec744c0142f7467a0d5fe0816249cb04"
+      },
+      "sourceCommit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "sourceTree": "5a3b2c8e9af4c74e607a0a55e7910c1edb5d266f",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.4,
+        "placement": "unranked",
+        "processTrustScore": 2.8,
+        "reportSha256": "49306e62dda66c812b24e850c5d90fb02a4d2f072f6d5a5d0d2c8c0a35a2becf",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 2,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 6,
+            "total": 11
+          }
+        },
+        "overallScore": 2.4,
+        "placement": "unranked",
+        "processTrustScore": 2.8,
+        "reportSha256": "57765b3f8c2bce48744fd9ab67da41f1bccd549498216c918d7142db282ec01f",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "sinatra",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "e037d640391d205ce6dfa58efb8efa5c762be6a89db798cea9a8a5082061f1e9",
+        "candidate": "e037d640391d205ce6dfa58efb8efa5c762be6a89db798cea9a8a5082061f1e9"
+      },
+      "sourceCommit": "946812bdec8faf6598fed154a8d611ead612b6fd",
+      "sourceTree": "02574d8fa1b8355333edf3c856c5952e752b0cde",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 2.2,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "fe89c3adf21f521285ff2feff9f7ec2fcf10723cfb3a24e04326f0db6a72b375",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 2,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 5,
+            "total": 11
+          }
+        },
+        "overallScore": 2.2,
+        "placement": "unranked",
+        "processTrustScore": 2.3,
+        "reportSha256": "d4f1f0a747e130e7bacab88afe3b90c67a008fad405a8cf51487063f85adce29",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "at_risk"
+      },
+      "name": "automapper",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "c190e02971f5d16e131bf21ac199bd96997e6edc30dcb7cbb2536fa03316e454",
+        "candidate": "c190e02971f5d16e131bf21ac199bd96997e6edc30dcb7cbb2536fa03316e454"
+      },
+      "sourceCommit": "dfa6dd587c5854b4beee5934beb39ba6e9569b84",
+      "sourceTree": "ca68ce69dc4f7d081e903ecdaade773cacc45758",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.6,
+        "placement": "12",
+        "processTrustScore": 3.2,
+        "reportSha256": "a3a1ed4b0b102efb3aa9e210e8825b8e29a677ed5e0f5d15a41ee0e311277265",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": 2,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 3,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 7,
+            "total": 11
+          }
+        },
+        "overallScore": 2.6,
+        "placement": "12",
+        "processTrustScore": 3.2,
+        "reportSha256": "71c05b21f9b1d30163e45e0092cb142e75e23305716ca7bd282c2d68608721d1",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "fmt",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "ed8750430ddbb8f42f3cfc6e72c74812d57ab0e6654ac64b2365772e97a3bf2d",
+        "candidate": "ed8750430ddbb8f42f3cfc6e72c74812d57ab0e6654ac64b2365772e97a3bf2d"
+      },
+      "sourceCommit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
+      "sourceTree": "5878ab01aa6a0c014e7258039520c7874807a6cf",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": null,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 0,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 0,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 0,
+            "total": 11
+          }
+        },
+        "overallScore": null,
+        "placement": "unrated",
+        "processTrustScore": null,
+        "reportSha256": "cf494b1da9dcc6b96b2385f6d4c8e74a5e467cd06466f642ea1d83026171ccef",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "insufficient_source"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [],
+          "score": 0,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "not_applicable"
+        },
+        "codeTrustScore": null,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 0,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 0,
+              "total": 6
+            }
+          ],
+          "lowConfidence": true,
+          "overall": {
+            "measured": 0,
+            "total": 11
+          }
+        },
+        "overallScore": null,
+        "placement": "unrated",
+        "processTrustScore": null,
+        "reportSha256": "ff180ade404239ffb00495323400d2d800d717c477c5b0540809a06febb03619",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "insufficient_source"
+      },
+      "name": "carddemo",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "5162ff9838f74527986c2fa3c8bfedcee082162d52e764f7e10d57d9f0bcdbd8",
+        "candidate": "5162ff9838f74527986c2fa3c8bfedcee082162d52e764f7e10d57d9f0bcdbd8"
+      },
+      "sourceCommit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e",
+      "sourceTree": "a1253e31c839f78d1f185b01771ba956da63b005",
+      "visibility": "public"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "max": 1,
+              "name": "secret_cleanliness",
+              "value": 1
+            },
+            {
+              "max": 3,
+              "name": "env_handling_depth",
+              "value": 3
+            },
+            {
+              "max": 41,
+              "name": "rls_policy_count",
+              "value": 12
+            },
+            {
+              "max": 53,
+              "name": "tenant_scope_ratio",
+              "value": 41
+            }
+          ],
+          "score": 2.6,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.8,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 9,
+            "total": 11
+          }
+        },
+        "overallScore": 3.4,
+        "placement": "transparency",
+        "processTrustScore": 3.9,
+        "reportSha256": "9e668fb27541a02eee721e378e7c19b502873d864ce136b2f70ea20c833a0162",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": {
+          "count": 0,
+          "sha256": [],
+          "withheld": true
+        },
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "max": 3,
+              "name": "env_handling_depth",
+              "value": 3
+            },
+            {
+              "max": 41,
+              "name": "rls_policy_count",
+              "value": 12
+            },
+            {
+              "max": 53,
+              "name": "tenant_scope_ratio",
+              "value": 41
+            }
+          ],
+          "score": 2.2,
+          "secretScan": {
+            "count": 2,
+            "findings": [
+              {
+                "class": "abstain",
+                "contentHash": "603a136de48036b55301c036c1f5291c095d810307d7e891d07f6d759a829f10",
+                "line": 45,
+                "path": null,
+                "pathWithheld": true,
+                "severity": "info"
+              },
+              {
+                "class": "note",
+                "contentHash": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+                "line": null,
+                "path": null,
+                "pathWithheld": true,
+                "severity": "warning"
+              }
+            ],
+            "kind": "abstain"
+          },
+          "status": "warning"
+        },
+        "codeTrustScore": 2.7,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 4,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 9,
+            "total": 11
+          }
+        },
+        "overallScore": 3.3,
+        "placement": "transparency",
+        "processTrustScore": 3.9,
+        "reportSha256": "9e018597767ab824ed34da8ad1fc3980c49ff254904d337f6653eeecd4698c74",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": {
+          "count": 0,
+          "sha256": [],
+          "withheld": true
+        },
+        "verdict": "conditional"
+      },
+      "name": "alfred",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "e5a9031d99120f7b230f1fda20ac42e316d0e26af1e690a144652b3e54ae083b",
+        "candidate": "e5a9031d99120f7b230f1fda20ac42e316d0e26af1e690a144652b3e54ae083b"
+      },
+      "sourceCommit": "be2b4325a317fdfaafb68abf9c920a7d6242a830",
+      "sourceTree": "e9eba8710eea1857a32e00f43a15a44cbb2b7ca4",
+      "visibility": "private"
+    },
+    {
+      "baseline": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            },
+            {
+              "description": "Credits constant-time secret/HMAC comparison and canonical serialization before signing when a signing/HMAC surface is detected in source; only scored when such a surface exists.",
+              "label": "Crypto comparison hygiene",
+              "max": 1,
+              "name": "crypto_comparison_hygiene",
+              "presentation": {
+                "condition": "scored because a signing, HMAC, or secret-comparison surface was detected"
+              },
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.3,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.3,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 2.8,
+        "placement": "transparency",
+        "processTrustScore": 3.2,
+        "reportSha256": "26904273099df93a17aa6f521223873bfa9c14b0deffc427d9ecbb4f618a80bd",
+        "rubricVersion": "witan-rubric-v22-prospective-2026-08-10",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "candidate": {
+        "a2": {
+          "metrics": [
+            {
+              "description": "Credits absence of committed or recent-history secret findings in the static scan.",
+              "label": "Secret cleanliness",
+              "max": 1,
+              "name": "secret_cleanliness",
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.7
+            },
+            {
+              "description": "Counts three bounded env-handling practices (0–3): template file, gitignore rule, env reads in any supported language.",
+              "label": "Environment handling depth",
+              "max": 3,
+              "name": "env_handling_depth",
+              "presentation": {
+                "components": [
+                  {
+                    "count": 0,
+                    "label": "environment template file"
+                  },
+                  {
+                    "count": 0,
+                    "label": ".gitignore environment-file rule"
+                  },
+                  {
+                    "count": 1,
+                    "label": "environment reads in implementation code"
+                  }
+                ]
+              },
+              "unit": "practices",
+              "value": 1,
+              "weight": 0.3
+            },
+            {
+              "description": "Credits constant-time secret/HMAC comparison and canonical serialization before signing when a signing/HMAC surface is detected in source; only scored when such a surface exists.",
+              "label": "Crypto comparison hygiene",
+              "max": 1,
+              "name": "crypto_comparison_hygiene",
+              "presentation": {
+                "condition": "scored because a signing, HMAC, or secret-comparison surface was detected"
+              },
+              "unit": "clean",
+              "value": 1,
+              "weight": 0.2
+            }
+          ],
+          "score": 3.3,
+          "secretScan": {
+            "count": 0,
+            "findings": [],
+            "kind": "no-finding"
+          },
+          "status": "verified"
+        },
+        "codeTrustScore": 2.3,
+        "coverage": {
+          "byCategory": [
+            {
+              "category": "code_trust",
+              "measured": 5,
+              "total": 5
+            },
+            {
+              "category": "process_trust",
+              "measured": 3,
+              "total": 6
+            }
+          ],
+          "lowConfidence": false,
+          "overall": {
+            "measured": 8,
+            "total": 11
+          }
+        },
+        "overallScore": 2.8,
+        "placement": "transparency",
+        "processTrustScore": 3.2,
+        "reportSha256": "4f417ba4efdf0ca8cc869a2200ea68fae4606b8534c4a22aa7c867552432c263",
+        "rubricVersion": "witan-rubric-v24-prospective-2026-09-15",
+        "scanLimitations": [],
+        "verdict": "conditional"
+      },
+      "name": "cejel",
+      "nonA2ChangedCriteria": [],
+      "nonA2CriteriaByteIdentical": true,
+      "nonA2CriteriaSha256": {
+        "baseline": "1d1cf15005ebac5e2e685429b93c7ced4a02be7ae11b1b626785b508ad849747",
+        "candidate": "1d1cf15005ebac5e2e685429b93c7ced4a02be7ae11b1b626785b508ad849747"
+      },
+      "sourceCommit": "0be03171c810023c65806d87f25ee4873a377cea",
+      "sourceTree": "283905b4564076c32900da5c5c0bd6fafe416d65",
+      "visibility": "public"
+    }
+  ],
+  "schemaVersion": "cejel-a2-v24-paired-rescore-v1"
+}
