@@ -40,7 +40,7 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // and recovers the 0.4.9 bytes. Recorded in leaderboard/RUBRIC_CHANGELOG.md, 2026-09-16 entry.
 //
 // This file is now the narrow, per-shape guard; the broad one is
-// rubric-behaviour-fingerprint.test.ts, which scores a thirteen-fixture corpus under every
+// rubric-behaviour-fingerprint.test.ts, which scores a fourteen-fixture corpus under every
 // selectable rubric. Both stay: this one names the exact 0.4.9 metrics and directions, which a
 // digest cannot.
 //
@@ -53,6 +53,18 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // this file before that change) and the assertion in the loop below make it mechanical: delete
 // `withheldPaths` from the current report and re-serialize it (`JSON.stringify(report)`, matching
 // how `reportSha256` above is computed) to prove that field is the only delta.
+//
+// Re-pinned a third time, 2026-10-01 (goal_cejel_v24_scoring_parity_fix_2026-10-01): the
+// behaviour corpus gained a fourteenth fixture so v24 could be told apart from v22, which moved
+// every rubric's behaviour fingerprint — v17's included — without moving any v17 score. The
+// report carries that fingerprint, so every hash below moved again while every pinned METRIC
+// stayed put. Mechanical, not claimed: restoring the previous v17 fingerprint in place (key order
+// unchanged) reproduces each fixture's `preCorpusExtensionReportSha256` (the 1.3-era pin) byte for
+// byte, and the pre-1.3 proof is taken from that restored report.
+
+const V17_FINGERPRINT = 'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653';
+const V17_FINGERPRINT_BEFORE_CORPUS_EXTENSION =
+  'sha256:ff0f01abe8c12daa60375d0e18c1aca4a1135a55ab2a80b15f4c037bfc18b4b1';
 
 const HERMETIC_GIT_ENV: NodeJS.ProcessEnv = {
   ...process.env,
@@ -82,6 +94,8 @@ interface Fixture {
   readonly files: Record<string, string>;
   readonly fixtureHeadSha: string;
   readonly reportSha256: string;
+  /** Pin before the 2026-10-01 behaviour-corpus extension moved v17's fingerprint. */
+  readonly preCorpusExtensionReportSha256: string;
   /** Pre-1.3 pin (before the additive withheldPaths field), recovered from v0.4.10. */
   readonly oldReportSha256: string;
   /** criterionId.metricName -> pinned value */
@@ -108,7 +122,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
+    reportSha256: '924dda13d63daa9574b212bccdba122e7b7dd44cdbd52a46b4a9475ef836888e',
+    preCorpusExtensionReportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
     oldReportSha256: '7e9c7cbf7d9e8f0b1ca447ca8b42ec3615d8513e06c2164583aa7be9d51840dd',
     // v0.4.8: ci_script_depth 5. The CI workflow still credits A1's test command (`npm test`
     // in ci.yml), so A1.verification_script_ratio is 3 on both sides — only B3 moves.
@@ -129,7 +144,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
+    reportSha256: 'c8abfdf1452e5e1031b96327a46383e4bbb76b977a4a3f53f3e8b60acdb4c409',
+    preCorpusExtensionReportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
     oldReportSha256: '60fe4d3762c96820669b526f9ac59503c2ebd1f2dd171cf7d690ae2475fd4688',
     // v0.4.8: ci_script_depth 3, verification_script_ratio 2, overall 1.4 (now 1.1).
     pinnedMetrics: { 'B3.ci_script_depth': 2, 'A1.verification_script_ratio': 1 },
@@ -149,7 +165,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
+    reportSha256: '1f61fd31f5eb788544838fbc403d4e766a0bfc1176bcb2a26f4ebb6811675126',
+    preCorpusExtensionReportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
     oldReportSha256: 'f8563bde4d02b210d1a6118abd6f73c123e4f686bdd72c7bc0e8faf7bd6e959c',
     // v0.4.8: verification_script_ratio 0, A1 score 0, overall 0.8 (now 2 / 0.5 / 0.9).
     pinnedMetrics: { 'A1.verification_script_ratio': 2 },
@@ -167,7 +184,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
+    reportSha256: '06c2ce2af894e6a7a6984479856dc20b268c2eb2402437e3c1df18fa1548abb4',
+    preCorpusExtensionReportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
     oldReportSha256: 'cdd35ca03149707985d2130731b4d0f7c9d3953c74a341854097c3d30c2b9c94',
     // v0.4.8: pr_trace_primitives 1, B2 score 1.6, overall 1.3 (now 2 / 3.2 / 1.7).
     pinnedMetrics: { 'B2.pr_trace_primitives': 2 },
@@ -213,7 +231,14 @@ describe('v17 scoring surface is pinned — a behaviour change under the calibra
       const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
       expect(hash, `${fixture.name}: v17 report changed under an unchanged rubric identifier — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toBe(fixture.reportSha256);
 
-      const { withheldPaths, ...withoutWithheldPaths } = report as unknown as Record<string, unknown>;
+      expect(report.rubricBehaviourFingerprint).toBe(V17_FINGERPRINT);
+      const atPreviousFingerprint = { ...report, rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_CORPUS_EXTENSION };
+      expect(
+        createHash('sha256').update(JSON.stringify(atPreviousFingerprint)).digest('hex'),
+        `${fixture.name}: the pre-2026-10-01 report bytes must be recoverable by restoring exactly the previous v17 fingerprint`,
+      ).toBe(fixture.preCorpusExtensionReportSha256);
+
+      const { withheldPaths, ...withoutWithheldPaths } = atPreviousFingerprint as unknown as Record<string, unknown>;
       expect(withheldPaths).toEqual([]);
       expect(
         createHash('sha256').update(JSON.stringify(withoutWithheldPaths)).digest('hex'),
