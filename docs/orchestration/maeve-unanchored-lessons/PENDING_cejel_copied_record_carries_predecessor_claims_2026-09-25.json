@@ -1,0 +1,16 @@
+[
+  {
+    "statement": "A record copied from its predecessor by find-and-replace keeps the predecessor's claims under the new date. Occurrence 2026-09-25, cejel 589b44c: the 0.4.11 confirmation run's harness/RUN.md was the 0.4.9 record's RUN.md with 8 of 71 lines substituted. It pointed at a harness path the date substitution had made nonexistent, commented the v0.4.10 baseline with the v0.4.8 commit, and kept 0.4.9's expected output (board 20/24, 4 moved metrics), contradicting the 24/24, zero-moved result beside it. Two 'Verification on 2026-09-15' sentences were re-dated 2026-09-25 without evidence that they were re-performed. Caught while preparing release 0.4.11 (cejel #364); the scoring result held because its paired-result.json was byte-identical to #360's. Rule: when you copy a record's scaffold, delete every claim and re-derive it; never re-date a dated sentence you did not perform on that date.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "records"],
+    "tags": [
+      "evidence-discipline",
+      "copied-record",
+      "stale-claim",
+      "reproduction-instructions"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-09-25T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 364}
+  }
+]
