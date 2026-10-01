@@ -351,6 +351,12 @@ test('band counting: a fixture with known changes produces the exact counts', ()
     report({ rubricVersion: CANDIDATE_RUBRIC, a2Score: 0, a2Findings: [finding('critical', COMMITTED, 'src/k.ts'), finding('info', 'note', '.env')] }),
     report({ rubricVersion: BASELINE_RUBRIC, a2Score: 0, a2Findings: [finding('critical', COMMITTED, 'src/k.ts')] }),
   );
+  // kind alone: same score, status and count; a note becomes an abstention
+  add(
+    'a2-kind',
+    report({ rubricVersion: CANDIDATE_RUBRIC, a2Findings: [finding('info', AMBIGUOUS, 'src/k.ts')] }),
+    report({ rubricVersion: BASELINE_RUBRIC, a2Findings: [finding('info', 'note', '.env')] }),
+  );
   // two headline changes, one of which also changes verdict
   add('headline', report({ rubricVersion: CANDIDATE_RUBRIC, overall: 3.2 }));
   add('headline-verdict', report({ rubricVersion: CANDIDATE_RUBRIC, overall: 3.8, verdict: 'verified' }));
@@ -359,24 +365,24 @@ test('band counting: a fixture with known changes produces the exact counts', ()
   // one new critical (v24 flags a docs value v22 exempted) and one lost critical
   add('new-critical', report({ rubricVersion: CANDIDATE_RUBRIC, a2Score: 0, a2Findings: [finding('critical', COMMITTED, 'docs/runbook.md', 7)] }));
   add('lost-critical', report({ rubricVersion: CANDIDATE_RUBRIC }), report({ rubricVersion: BASELINE_RUBRIC, a2Score: 0, a2Findings: [finding('critical', COMMITTED, 'docs/tutorial.md', 4)] }));
-  // twelve unchanged rows and four error rows make 24
+  // twelve unchanged rows and three error rows make 24
   for (let index = 0; index < 12; index += 1) add(`same-${index}`, report({ rubricVersion: CANDIDATE_RUBRIC }));
-  for (let index = 0; index < 4; index += 1) rows.push({ name: `error-${index}`, visibility: 'public', expectedSourceCommit: 'x', error: 'boom' });
+  for (let index = 0; index < 3; index += 1) rows.push({ name: `error-${index}`, visibility: 'public', expectedSourceCommit: 'x', error: 'boom' });
   assert.equal(rows.length, 24);
 
   const result = buildResult(rows, BINDINGS);
   const measured = Object.fromEntries(result.decision.bands.map((entry) => [entry.id, [entry.measured, entry.withinLimit, entry.rows]]));
-  assert.deepEqual(measured.completion, [20, false, ['error-0', 'error-1', 'error-2', 'error-3']]);
+  assert.deepEqual(measured.completion, [21, false, ['error-0', 'error-1', 'error-2']]);
   assert.deepEqual(measured.nonA2CriterionChanges, [1, false, ['non-a2']]);
-  assert.deepEqual(measured.a2Changes, [5, true, ['a2-score', 'a2-abstain', 'a2-count', 'new-critical', 'lost-critical']]);
+  assert.deepEqual(measured.a2Changes, [6, true, ['a2-score', 'a2-abstain', 'a2-count', 'a2-kind', 'new-critical', 'lost-critical']]);
   assert.deepEqual(measured.headlineScoreChanges, [2, true, ['headline', 'headline-verdict']]);
   assert.deepEqual(measured.verdictChanges, [1, true, ['headline-verdict']]);
   assert.deepEqual(measured.newCriticalFalseAssertions, [null, null, ['new-critical']]);
   assert.deepEqual(measured.lostConfirmedTruePositives, [null, null, ['lost-critical']]);
-  // Comparable score excludes B1 and averages A1, A2, B3. Baseline: 18 rows at 3.3 (ties by name),
+  // Comparable score excludes B1 and averages A1, A2, B3. Baseline: 19 rows at 3.3 (ties by name),
   // then a2-count and lost-critical at 2.0. Candidate: a2-score drops to 3.0, non-a2 to 2.7,
-  // new-critical to 2.0 and lost-critical rises to 3.3. Only a2-abstain (1st) and a2-count (19th)
-  // keep their rank.
+  // new-critical to 2.0 and lost-critical rises to 3.3. Only a2-abstain (1st), a2-kind (2nd) and
+  // a2-count (20th) keep their rank.
   assert.equal(measured.placementChanges[0], 18);
   assert.equal(measured.placementChanges[1], false);
   assert.deepEqual(
