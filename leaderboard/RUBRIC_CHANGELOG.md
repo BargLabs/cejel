@@ -505,6 +505,13 @@ committed harness reproduces the candidate arm from its committed location.
 | alfred | 3.2 | 3.1 | 3.3 | Conditional | code_trust 5/5; process_trust 4/6 | transparency | none (report differs elsewhere) | A3.observability_depth 64 to 73; B3.ci_script_depth 5 to 4 |
 | cejel | 2.8 | 2.3 | 3.2 | Conditional | code_trust 5/5; process_trust 3/6 | transparency | identical | none |
 
+**Correction, 2026-09-26.** This entry says the preregistration commits `0f80959` and `680b9d3`
+are strict ancestors of the result commit. The 0.4.9 release was squash-merged, so neither is an
+ancestor of any commit on `main` that carries this entry. The ancestry holds on the pre-squash
+history, which is pinned by the signed tag `evidence/v17-delta-0.4.9-preregistrations` (target
+`1bc56cd`). The erratum in `docs/experiments/v17-behaviour-delta-0.4.9-2026-09-15/result.md`
+gives the commands to check it. No figure changes.
+
 ## witan-rubric-v19-prospective-2026-08-09 — recovery GO
 
 **Status.** Prospective only; recovery protocol **GO**. V19 is available only by explicit
