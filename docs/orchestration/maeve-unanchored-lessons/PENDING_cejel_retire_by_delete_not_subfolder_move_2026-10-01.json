@@ -1,0 +1,16 @@
+[
+  {
+    "statement": "Retiring a delivered lesson seed means deleting it, not moving it into a subfolder of the holding directory: the delivery guard scans subdirectories, so a moved seed is still counted as undelivered. Occurrence 2026-10-01, cejel #382 and #383: both renamed five seeds already delivered to alfred into maeve-unanchored-lessons/delivered/, and build-test failed with maeve_lesson_directory_undelivered fileCount=5. That one red check, together with main's stale copies, blocked four unrelated PRs (#378 to #381). Fixed in #383 by deleting the files, after confirming all five had identical blob SHAs on alfred main. Rule: complete a delivery by removing the file and verifying the destination copy byte for byte; a new subfolder inside a guarded directory never takes a file out of the guard's scope.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "maeve-delivery"],
+    "tags": [
+      "lesson-delivery",
+      "guard-scope",
+      "retire-by-delete",
+      "ci-gate"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-01T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 383}
+  }
+]
