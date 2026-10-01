@@ -56,3 +56,25 @@ was rewritten after review and now reproduces exactly the four rows found by han
 
 Raw per-row reports (`out/base/*.json`, `out/combined/*.json`) stay on the measuring host. The
 private row's report is not public; the public rows' reports are reproducible from the harness.
+
+## Erratum, 2026-09-26: which result commit the ancestry holds for
+
+The Guard 5 sentence above reads: "both preregistration commits are strict ancestors of this
+result commit." It was true of the commit it was written in, `1bc56cd`. It is not true of any
+commit on `main`. The release PR (#306) was squash-merged, so `main` carries this record in
+`2af3407` (later edited in `8c4ea37` and `cd75fc4`), and neither `0f80959` nor `680b9d3` is an
+ancestor of those. #310 repaired the same defect for the candidate-arm commits this file cites and
+left these two, which are the ones Guard 5 rests on.
+
+The ancestry is intact on the pre-squash history: `0f80959` is a strict ancestor of `2242959`
+(the first run) and `680b9d3` of `1bc56cd` (the re-run this file reports). From 2026-09-15 to
+2026-09-20 that history existed only in a local worktree. It was pushed as a rescue branch on
+2026-09-20 and is now pinned by the signed tag `evidence/v17-delta-0.4.9-preregistrations`
+(target `1bc56cd`). To check:
+
+```
+git fetch origin tag evidence/v17-delta-0.4.9-preregistrations
+git merge-base --is-ancestor 0f80959 2242959 && git merge-base --is-ancestor 680b9d3 1bc56cd && echo "ancestry holds"
+```
+
+No figure in this record changes. The sentence above is left as written.
