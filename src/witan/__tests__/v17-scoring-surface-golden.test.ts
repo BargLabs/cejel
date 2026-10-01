@@ -61,6 +61,13 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // stayed put. Mechanical, not claimed: restoring the previous v17 fingerprint in place (key order
 // unchanged) reproduces each fixture's `preCorpusExtensionReportSha256` (the 1.3-era pin) byte for
 // byte, and the pre-1.3 proof is taken from that restored report.
+//
+// Re-pinned a fourth time, for report format 1.4 (issue #272): each metric-scored report gained
+// the exact `appliedWeightShare` produced by scoreMetrics()'s denominator. Every pinned METRIC is
+// still asserted before the report hash. Removing only those recorded shares recovers each
+// fixture's `preAppliedWeightReportSha256` (the pre-1.4 pin) byte for byte, and the
+// fingerprint and pre-1.3 proofs above are taken from that recovered report. This is a
+// report-provenance addition, not a rubric or calibration change.
 
 const V17_FINGERPRINT = 'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653';
 const V17_FINGERPRINT_BEFORE_CORPUS_EXTENSION =
@@ -94,6 +101,8 @@ interface Fixture {
   readonly files: Record<string, string>;
   readonly fixtureHeadSha: string;
   readonly reportSha256: string;
+  /** Pre-1.4 pin (before the additive appliedWeightShare metric field). */
+  readonly preAppliedWeightReportSha256: string;
   /** Pin before the 2026-10-01 behaviour-corpus extension moved v17's fingerprint. */
   readonly preCorpusExtensionReportSha256: string;
   /** Pre-1.3 pin (before the additive withheldPaths field), recovered from v0.4.10. */
@@ -122,7 +131,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: '924dda13d63daa9574b212bccdba122e7b7dd44cdbd52a46b4a9475ef836888e',
+    reportSha256: '8842802e09bb24a97302d60435e50fe5e8306df05343d1a8f28bb4ddb1a3dd50',
+    preAppliedWeightReportSha256: '924dda13d63daa9574b212bccdba122e7b7dd44cdbd52a46b4a9475ef836888e',
     preCorpusExtensionReportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
     oldReportSha256: '7e9c7cbf7d9e8f0b1ca447ca8b42ec3615d8513e06c2164583aa7be9d51840dd',
     // v0.4.8: ci_script_depth 5. The CI workflow still credits A1's test command (`npm test`
@@ -144,7 +154,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: 'c8abfdf1452e5e1031b96327a46383e4bbb76b977a4a3f53f3e8b60acdb4c409',
+    reportSha256: '0e233b1a1124b44a6db4d3e34e35536e3790952144651d78144875ed9fed0392',
+    preAppliedWeightReportSha256: 'c8abfdf1452e5e1031b96327a46383e4bbb76b977a4a3f53f3e8b60acdb4c409',
     preCorpusExtensionReportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
     oldReportSha256: '60fe4d3762c96820669b526f9ac59503c2ebd1f2dd171cf7d690ae2475fd4688',
     // v0.4.8: ci_script_depth 3, verification_script_ratio 2, overall 1.4 (now 1.1).
@@ -165,7 +176,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: '1f61fd31f5eb788544838fbc403d4e766a0bfc1176bcb2a26f4ebb6811675126',
+    reportSha256: 'a029cd330ed22030b821198be3506cd8f4cc427796e842a4431c541db0a81ef6',
+    preAppliedWeightReportSha256: '1f61fd31f5eb788544838fbc403d4e766a0bfc1176bcb2a26f4ebb6811675126',
     preCorpusExtensionReportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
     oldReportSha256: 'f8563bde4d02b210d1a6118abd6f73c123e4f686bdd72c7bc0e8faf7bd6e959c',
     // v0.4.8: verification_script_ratio 0, A1 score 0, overall 0.8 (now 2 / 0.5 / 0.9).
@@ -184,7 +196,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: '06c2ce2af894e6a7a6984479856dc20b268c2eb2402437e3c1df18fa1548abb4',
+    reportSha256: '5b440adebf9787d269b96ff106f01b423c004b95b62d1b9281549c6a08dec512',
+    preAppliedWeightReportSha256: '06c2ce2af894e6a7a6984479856dc20b268c2eb2402437e3c1df18fa1548abb4',
     preCorpusExtensionReportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
     oldReportSha256: 'cdd35ca03149707985d2130731b4d0f7c9d3953c74a341854097c3d30c2b9c94',
     // v0.4.8: pr_trace_primitives 1, B2 score 1.6, overall 1.3 (now 2 / 3.2 / 1.7).
@@ -228,11 +241,30 @@ describe('v17 scoring surface is pinned — a behaviour change under the calibra
       const observed: Record<string, number | null> = {};
       for (const key of Object.keys(fixture.pinnedMetrics)) observed[key] = metricValue(report, key);
       expect(observed, `${fixture.name}: a pinned v17 metric moved — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toEqual(fixture.pinnedMetrics);
+      for (const criterion of report.criteria.filter((candidate) => candidate.metrics.length > 0)) {
+        expect(
+          criterion.metrics.every((metric) => metric.appliedWeightShare !== undefined),
+          `${fixture.name}: every metric-scored criterion must record the shares scoring applied`,
+        ).toBe(true);
+        expect(
+          criterion.metrics.reduce((sum, metric) => sum + (metric.appliedWeightShare ?? 0), 0),
+          `${fixture.name}: recorded applied shares must account for the whole scored criterion`,
+        ).toBeCloseTo(1);
+      }
       const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
       expect(hash, `${fixture.name}: v17 report changed under an unchanged rubric identifier — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toBe(fixture.reportSha256);
 
+      const withoutAppliedWeightShares = JSON.stringify(report, (key, value) =>
+        key === 'appliedWeightShare' ? undefined : value,
+      );
+      expect(
+        createHash('sha256').update(withoutAppliedWeightShares).digest('hex'),
+        `${fixture.name}: the pre-1.4 report bytes must be recoverable by removing exactly metric appliedWeightShare fields`,
+      ).toBe(fixture.preAppliedWeightReportSha256);
+      const preAppliedWeightReport = JSON.parse(withoutAppliedWeightShares) as typeof report;
+
       expect(report.rubricBehaviourFingerprint).toBe(V17_FINGERPRINT);
-      const atPreviousFingerprint = { ...report, rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_CORPUS_EXTENSION };
+      const atPreviousFingerprint = { ...preAppliedWeightReport, rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_CORPUS_EXTENSION };
       expect(
         createHash('sha256').update(JSON.stringify(atPreviousFingerprint)).digest('hex'),
         `${fixture.name}: the pre-2026-10-01 report bytes must be recoverable by restoring exactly the previous v17 fingerprint`,

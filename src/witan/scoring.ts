@@ -578,8 +578,9 @@ function scoreCriterion(
   if (usesMetricScoring(rubricVersion)) {
     const measuredMetrics =
       metrics.length > 0 ? metrics : fallbackMetricsForEvidence(evidence, findings);
+    const scoredMetrics = withAppliedWeightShares(measuredMetrics);
     const score = capScoreForFindings(
-      scoreMetrics(measuredMetrics),
+      scoreMetrics(scoredMetrics),
       findings,
       rubricVersion,
       signal.criterionId,
@@ -588,7 +589,7 @@ function scoreCriterion(
       signal.criterionId,
       score,
       findings,
-      measuredMetrics,
+      scoredMetrics,
       rubricVersion,
     );
     return {
@@ -603,7 +604,7 @@ function scoreCriterion(
         evidence,
         rubricVersion,
       ),
-      metrics: measuredMetrics,
+      metrics: scoredMetrics,
     };
   }
 
@@ -678,6 +679,20 @@ export function scoreMetrics(metrics: readonly WitanCriterionMetric[]): number {
 
   if (totalWeight === 0) return 0;
   return roundScore((weightedTotal / totalWeight) * 4);
+}
+
+// Persist the same denominator scoreMetrics() uses. This deliberately makes a new array rather
+// than mutating collector output: report data records the scoring decision without changing the
+// caller's signal object. Certificate presentation imports this helper for legacy reports that
+// predate appliedWeightShare, keeping the normalization formula in one place.
+export function withAppliedWeightShares(
+  metrics: readonly WitanCriterionMetric[],
+): WitanCriterionMetric[] {
+  const totalWeight = metrics.reduce((sum, metric) => sum + metric.weight, 0);
+  return metrics.map((metric) => ({
+    ...metric,
+    appliedWeightShare: totalWeight > 0 ? metric.weight / totalWeight : 0,
+  }));
 }
 
 function capScoreForFindings(
