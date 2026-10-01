@@ -82,6 +82,27 @@ export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10
 // The public default remains v17.
 export const WITAN_RUBRIC_VERSION_V23 = 'witan-rubric-v23-prospective-2026-09-06';
 
+// Prospective A2 secret-posture content-context rubric. V24 inherits the complete v22
+// detector/scoring closure and adds one v24-specific mechanism, gated in src/witan/repo-signals.ts
+// on WITAN_RUBRIC_VERSION_V24 alone: A2's current-tree secret scan stops deciding "is this a real
+// credential?" from the file's path and decides it from the value and a bounded window of its own
+// file's text. Concretely (a) the path-based non-production credential exemptions
+// (V39_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN, V47_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN) no
+// longer remove a file from that scan, so a real credential committed under docs/ is reachable,
+// and (b) every secret-shaped match is classified into exactly one of three outcomes — placeholder
+// (no finding), confident real (flags at the unchanged v22 bar, severity and evidence), or
+// ambiguous (abstains the `secret_cleanliness` metric with a stated reason instead of reporting a
+// silent pass). Git history secret scanning, A2's data-layer/RLS detection and .env-presence
+// evidence, and every other criterion are unchanged.
+//
+// V24 deliberately inherits v22, NOT v23. V23's own declaration above records its four mechanisms
+// as gated on WITAN_RUBRIC_VERSION_V23 alone and mechanism 4 as not inheritable; inheriting them
+// here would both contradict that declaration and confound a v22→v24 paired delta with four
+// unrelated changes. A caller who wants only the secrets-posture classification pins v24; a caller
+// who wants v23's mechanisms pins v23. The public default remains v17; callers must opt in
+// explicitly.
+export const WITAN_RUBRIC_VERSION_V24 = 'witan-rubric-v24-prospective-2026-09-15';
+
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
 // iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
 // harness, or (on main after 0.4.4) the unreleased public
@@ -97,13 +118,14 @@ export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V21,
   WITAN_RUBRIC_VERSION_V22,
   WITAN_RUBRIC_VERSION_V23,
+  WITAN_RUBRIC_VERSION_V24,
 ] as const);
 
 // The complete set of rubric identifiers a caller may explicitly select: the calibrated default
 // plus every wired prospective rubric. This is deliberately narrower than "every rubric version
 // this package has ever implemented" (v0-v16 remain load-bearing for historical fixtures and
 // regression tests, but are not offered as a live selection) — it is the same "callers must opt
-// in explicitly" set every V18-V23 constant above documents.
+// in explicitly" set every V18-V24 constant above documents.
 export const WITAN_SELECTABLE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   ...WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
@@ -123,7 +145,7 @@ export function assertSelectableRubricVersion(rubricVersion: string): void {
   );
 }
 
-/** True for any rubric that has not cleared the calibration gate (currently v18-v23). */
+/** True for any rubric that has not cleared the calibration gate (currently v18-v24). */
 export function isProspectiveRubricVersion(rubricVersion: string): boolean {
   return (WITAN_PROSPECTIVE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion);
 }

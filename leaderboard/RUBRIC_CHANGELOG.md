@@ -22,6 +22,23 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-09-30 — v24 synthetic-corpus behaviour fingerprint; public paired rescore still unrun
+
+`witan-rubric-v24-prospective-2026-09-15` was made selectable with its content-context A2
+change but its required behaviour-fingerprint record was omitted. This repair adds the measured
+component pins in `src/witan/__tests__/fixtures/behaviour-fingerprint-pins.json` and the digest
+the certificate carries: `sha256:8ae71919e169fe58e7bd1496c77bc2ba836efa27ac86efc7f109d4169f9cd88b`.
+The frozen synthetic corpus reproduced at its committed fixture heads and was scored at the
+fingerprint guard's fixed `generatedAt` of `2026-09-15T00:00:00.000Z`.
+
+This is an identity measurement for the committed synthetic behaviour corpus only. It is **not**
+the v24 24-row public paired rescore, makes no statement about a public-corpus score, verdict,
+rank, placement, coverage, calibration, precision, or recall, and does not say that no repository
+moved. That preregistered run remains unperformed under
+`docs/experiments/a2-secret-posture-content-context-v24-2026-09-15/preregistration.md`; its
+one-shot result and complete before/after public-corpus delta remain required before any such
+claim.
+
 ## 2026-09-25 — 0.4.11: behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump); no corpus row moved
 
 **Status.** Disclosed behaviour change under the existing calibrated public default. **Not a

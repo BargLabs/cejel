@@ -10,6 +10,7 @@ import {
   WITAN_RUBRIC_VERSION_V21,
   WITAN_RUBRIC_VERSION_V22,
   WITAN_RUBRIC_VERSION_V23,
+  WITAN_RUBRIC_VERSION_V24,
 } from './rubric-version.js';
 
 // RUBRIC BEHAVIOUR FINGERPRINT — behaviour measured, not declared.
@@ -228,6 +229,8 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
     'sha256:1bb57dd98d29b43b170f3a4f1c8b3b379b433a2aa9df0821ab9d5115f48cfb2f',
   [WITAN_RUBRIC_VERSION_V23]:
     'sha256:b558c0aa4b2f85b734bed2e077298fd55851a1086234d678f10a71cf913ec3cf',
+  [WITAN_RUBRIC_VERSION_V24]:
+    'sha256:8ae71919e169fe58e7bd1496c77bc2ba836efa27ac86efc7f109d4169f9cd88b',
 });
 
 /**

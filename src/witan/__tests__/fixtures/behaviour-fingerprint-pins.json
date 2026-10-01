@@ -208,5 +208,35 @@
       "start-declared-http-entrypoint": "270e5c3f5c25ab3b8cb16abf958a9fddaecd6301db5448119755bac29d2df1d2",
       "stale-audit-trail": "e4e61d838eb79e7f2b34020c4cef4a5452d7930a150b9cc6c51ae9a680252a0e"
     }
+  },
+  "witan-rubric-v24-prospective-2026-09-15": {
+    "criteria": {
+      "A1": "0e7890e692675444a0939035904d2a77c2dad8046af8cd764d5581829427b1fb",
+      "A2": "d9f351de723bdd543466f8dd1eee748637289028b9637413cef720625eeba76f",
+      "A3": "72325c093a2e19bbd3a8e20e6273202106e3c35fb4ee19e35200499e070853de",
+      "A4": "976f996a0eabaab02de02bf6840b51a5bcd376ff6134b8cee344dd4819f5035c",
+      "A5": "af8baf422ab533a5b6586b48b3235b1f6934c7ec8e19d1c71c4397ebb79b519b",
+      "B1": "2ae568b8ae843f64c96df72274ce68206641d1c6c216bd2496cfe9b643603866",
+      "B2": "1bf18ca9cb2dc2438fe8b2251bdd2afb40b03d06c1327ce019edd71b9f580b3c",
+      "B3": "26292b20cd5eef8ecbf9ef93bcb536b2e6bb0e48a53a7e2aec98d28f1bea8c04",
+      "B4": "fec9124d56554d51f0a8ca3890a414fb9ae12c79d4f2018588f2cd76a96e4108",
+      "B5": "bd1a26dc97c1766ddc0a1f44c494bb149ce7c44463d93c4b1b501fa8d5b09b38",
+      "B6": "213836694a0109a00e4d805ab345e45b5090d1b0ff08618f3913f7948d50da1b"
+    },
+    "reports": {
+      "complete-node-service": "8d64fcffff6c43e35c5fed278f69ddbe15f60b6326710a9c39dec58f4ea73f02",
+      "minimal-source-no-process": "ba1fdffbe98ff67021607421d64517acbb25548ef966639c100d79ca694ec2a2",
+      "committed-secret-and-pem": "a7dbdbb20bfc8df7b373f4f2f19a9737ddeccd4195132734a3c8764c3b259f57",
+      "placeholder-test-script": "a4a74ce81c064d2116fbd75bb31b2ac8504ae4cf283439a68858cfad77d03b1c",
+      "lint-typecheck-no-tests": "606992249560a93ae5ff197901a75f3a7d7349de753a43d52f8393c9e5dd7f53",
+      "pr-template-directory-form": "527351421c6b75b693719e50645e334b73cc1815a76819bb9db60680acfa8cfc",
+      "python-service": "a4a74ce81c064d2116fbd75bb31b2ac8504ae4cf283439a68858cfad77d03b1c",
+      "docs-only-repository": "2d09a54bd8af52b7d64b6a7c072498c61a0604b4b06ff33e5aaa02222ebc806f",
+      "oversized-withheld-source": "b6dcc3550d966aaf87d0b8bc2e1573ec28a9396ece1ef11fa0c2a5eb8cbbf785",
+      "privileged-migrations": "d400e5141900194ed3345d693bdb039d6336abcfa2ab66ac074b0f489b8e20ba",
+      "direct-http-entrypoint-no-health": "527351421c6b75b693719e50645e334b73cc1815a76819bb9db60680acfa8cfc",
+      "start-declared-http-entrypoint": "527351421c6b75b693719e50645e334b73cc1815a76819bb9db60680acfa8cfc",
+      "stale-audit-trail": "527351421c6b75b693719e50645e334b73cc1815a76819bb9db60680acfa8cfc"
+    }
   }
 }
