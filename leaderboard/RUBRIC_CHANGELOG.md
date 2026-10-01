@@ -39,6 +39,59 @@ moved. That preregistered run remains unperformed under
 one-shot result and complete before/after public-corpus delta remain required before any such
 claim.
 
+### Correction — 2026-10-01: the digest above measured v24 on the legacy scoring path
+
+The entry above is left as written; this correction supersedes its digest. The v24 fingerprint
+recorded above, `sha256:8ae71919e169fe58e7bd1496c77bc2ba836efa27ac86efc7f109d4169f9cd88b`, was a
+faithful measurement of a defective build. It did not measure the rubric the v24
+preregistration (`ef253a8`) defines, which is v22 exactly with only A2's current-tree
+classification changed. Four rubric-version allowlists in `src/witan/scoring.ts` ended at
+`WITAN_RUBRIC_VERSION_V23` and omitted V24: `usesV17DetectorClosure`, the signal-adjustment
+status gate, `usesMetricScoring`, and the synthesized-finding gate. v24 therefore fell to the
+legacy non-metric scoring path. Its component pins differed from v22's on nine criteria (A1 A2
+A3 A4 A5 B2 B3 B4 B6) where only A2 should differ. They were identity pins, so they recorded
+the defect rather than catching it. The harness card found it (cejel #378, `edfc12f`).
+
+**Repair.** V24 is now in all four allowlists, in V22's position. A new guard,
+`src/witan/__tests__/v24-v22-non-a2-parity.test.ts`, scores every behaviour-corpus fixture
+under v22 and v24, both plain and with fixed ingested signals, and requires every criterion
+other than A2 to be byte-identical. It was red on the unfixed tree. It turns red again if V24
+is removed from any one of the four allowlists. `v24-declared-scope.test.ts` now also covers
+`scoring.ts` and every `src/witan` v22 comparison.
+
+**Why every fingerprint moved, not only v24's.** Once v24 took v22's scoring path, the thirteen
+fixtures could no longer tell the two apart. v24's digest equalled v22's, so "distinguishes
+every selectable rubric" failed. No fixture contained the shape v24 changes. The corpus gained
+one synthetic fixture, `real-credential-in-docs`: a real-shaped credential committed under
+`docs/`. v22's path exemption never reads it, and v24 flags it. A fixture changes every
+per-criterion digest for every rubric. **For v17–v23 scoring did not change and this corpus
+moved for another reason: a fixture was added.** That statement is mechanical. Re-digesting the
+first thirteen fixtures alone reproduces each of v17–v23's previous component pins byte for
+byte, and no existing fixture's report-level outcome moved under any rubric. For v24 against
+v22 on the fourteen-fixture corpus, the only differing criterion is **A2** and the only
+differing fixture is `real-credential-in-docs`. The two goldens that hash a whole v17 report
+(`src/__tests__/index.test.ts`, `v17-scoring-surface-golden.test.ts`) were re-pinned. In each,
+restoring the previous v17 fingerprint in place reproduces the previous pin byte for byte.
+
+| Rubric | Previous fingerprint | Fingerprint from 2026-10-01 |
+|---|---|---|
+| `witan-rubric-v17-2026-07-24` (calibrated public default) | `sha256:ff0f01abe8c12daa60375d0e18c1aca4a1135a55ab2a80b15f4c037bfc18b4b1` | `sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:abc35df0fdc0749aa941f47b295059d06c96dd9800af7f79cfef2bc8dae917da` | `sha256:23cde3839b54875cf78eb8b4295779bc66327f7f5b331628a17839c2fb9562f1` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:f670fa2cc44beef066fa38767bd587e1a16fb28b03bc904756daaea5a6465e96` | `sha256:07e06ce68ba5ca365242f099e8860e1e466fa503dbcdac99986aab1e65c7c867` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:9276ce2ce865c2d50c52882ee45bbf1df5fe3c8b6038858b4a147f7a4cedfa98` | `sha256:4fb83b8972b76fb28cc6b59796f18ecfa16a37be52997c139f5cb14f60fd3717` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:d86411a7fe108bba4d2b8fe7ff9d4f7f69a60f11ca0c5c3fef8e88f66a9af53a` | `sha256:009f82a0ccaae4e9efcb1bb33776bf6cff2f268ddb21db0fb43f4b505563f645` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:1bb57dd98d29b43b170f3a4f1c8b3b379b433a2aa9df0821ab9d5115f48cfb2f` | `sha256:df8fcacf9a6f0d57c0ff00cafc51149e1bebafd3bec03f13316803b4ae27f0cc` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:b558c0aa4b2f85b734bed2e077298fd55851a1086234d678f10a71cf913ec3cf` | `sha256:01ec9f9057f649f4bc737dc2f972bcec227237416cda5a4255db2c23d874ec5c` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:8ae71919e169fe58e7bd1496c77bc2ba836efa27ac86efc7f109d4169f9cd88b` (legacy path) | `sha256:4452f3b033552b7feb205048a07d6d851d1dc459a06f39befa86d22281e201fb` |
+
+A certificate already issued under v17 carries `ff0f01ab…`, and one issued after this change
+carries `eabdc784…`. The two describe identical v17 scoring measured against different corpora;
+the pair (`rubricVersion`, `rubricBehaviourFingerprint`) remains the comparable identity. **No
+public-corpus run was performed.** For v17–v23 that is because scoring did not change. For v24
+it is the same unperformed preregistered paired rescore the entry above names. This correction
+says nothing about any public-corpus score, verdict, rank, placement, coverage, calibration,
+precision or recall.
+
 ## 2026-09-25 — 0.4.11: behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump); no corpus row moved
 
 **Status.** Disclosed behaviour change under the existing calibrated public default. **Not a

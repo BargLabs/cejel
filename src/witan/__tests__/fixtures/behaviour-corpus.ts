@@ -168,6 +168,12 @@ const RLS_MIGRATION = [
  */
 const SYNTHETIC_BRANDED_SECRET = ['sk', 'liveFIXTUREonly0000abcdEFGH1234ijklMNOP'].join('-');
 
+/**
+ * An unbranded, high-entropy credential shape with no English-word composition and no
+ * placeholder vocabulary — invented, and assembled from segments for the same reason.
+ */
+const SYNTHETIC_DOCS_CREDENTIAL = ['Qv8Ht2Nx6Br4Ls9Dw3', 'Pk7Zf1Mj5Cy0Ag4Tu8Ei2Ro6Xn'].join('');
+
 /** A PEM envelope with a placeholder body — markers only, never key material. */
 const SYNTHETIC_PEM_PLACEHOLDER = [
   '-----BEGIN PRIVATE KEY-----',
@@ -564,6 +570,32 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'README.md': '# stale-audit-trail\n\nA fixture repository.\n',
     },
   },
+  {
+    name: 'real-credential-in-docs',
+    purpose:
+      'A2: a real-shaped credential committed to a documentation path. Up to witan-rubric-v22 the ' +
+      'path-based non-production credential exemption removes docs/ and .md files from the ' +
+      "secret scan, so the value is never read; witan-rubric-v24's content-context classification " +
+      'reads it and flags it. This is the one fixture where v24 and its v22 parent can disagree. ' +
+      'Added 2026-10-01: once v24 stopped falling to the legacy scoring path, no other fixture ' +
+      'separated the two and their fingerprints collided.',
+    files: {
+      'package.json': manifest({
+        name: 'real-credential-in-docs',
+        version: '1.0.0',
+        scripts: { test: 'vitest run' },
+      }),
+      '.gitignore': '.env\n.env.*\n!.env.example\n',
+      'src/index.ts': 'export const version = "1.0.0";\n',
+      'src/index.test.ts': VITEST_FILE,
+      'docs/runbook.md':
+        '# Ingest credential rotation\n\n' +
+        'The ingest worker authenticates to the analytics collector on start-up. Rotate the\n' +
+        'value below every quarter and restart the worker pool.\n\n' +
+        `    ANALYTICS_INGEST_TOKEN=${SYNTHETIC_DOCS_CREDENTIAL}\n`,
+      'README.md': '# real-credential-in-docs\n\nA fixture repository.\n',
+    },
+  },
 ];
 
 /**
@@ -589,6 +621,7 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'direct-http-entrypoint-no-health': 'df7defc0be8b18d5cd4e67f31e0b2b037c7f1747',
   'start-declared-http-entrypoint': 'be28e80ec078cb060f71f179003580b53fc393f3',
   'stale-audit-trail': 'a230b07e26ca88245bee21a13bc68c8935897d98',
+  'real-credential-in-docs': 'd7eef4fd2f815f56a01325683f4cc63cdcb4e79d',
 });
 
 /**
