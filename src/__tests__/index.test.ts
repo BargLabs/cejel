@@ -424,11 +424,29 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // mechanical below rather than claimed: setting toolVersion back to "0.4.10" in place (key
     // order unchanged) and re-serializing reproduces the pre-0.4.11 pin (2747f6e9...) byte for
     // byte, and the two historical sub-pins further down are taken from that restored report.
+    // Re-pinned 2026-10-01 (goal_cejel_v24_scoring_parity_fix_2026-10-01): the behaviour corpus
+    // gained a fourteenth fixture, so every rubric's behaviour fingerprint moved, v17's included,
+    // while no v17 score moved (the first thirteen fixtures reproduce v17's previous component
+    // pins byte for byte). Made mechanical below: restoring the previous v17 fingerprint in place
+    // (key order unchanged) reproduces the previous pin (64fa14cf...) byte for byte, and every
+    // older sub-pin is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '64fa14cf5e1281a50e289fbae207952a6614af8022a3a5abfa40b49aefcb136a',
+      '61a4a6994c9621613a19b990c1632d98f5adc0ff820a3c39d84af38c8ef0d113',
     );
+    expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
+      'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653',
+    );
+    const atPreviousFingerprint = {
+      ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:ff0f01abe8c12daa60375d0e18c1aca4a1135a55ab2a80b15f4c037bfc18b4b1',
+    };
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreviousFingerprint, null, 2)).digest('hex'),
+      'the pre-2026-10-01 report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
+    ).toBe('64fa14cf5e1281a50e289fbae207952a6614af8022a3a5abfa40b49aefcb136a');
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.4.11');
-    const atPreviousVersion = { ...firstReport, toolVersion: '0.4.10' };
+    const atPreviousVersion = { ...atPreviousFingerprint, toolVersion: '0.4.10' };
     expect(
       createHash('sha256').update(JSON.stringify(atPreviousVersion, null, 2)).digest('hex'),
       'the 0.4.10-era report bytes must be recoverable by resetting exactly the toolVersion field',
