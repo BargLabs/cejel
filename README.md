@@ -274,9 +274,9 @@ prints that boundary on every successful verification.
 - `<path>` — repo to score (default: current directory)
 - `--out <dir>` — where to write report/certificate/badge files (default: `.cejel`;
   `--out-dir` remains available as a compatibility alias)
-- `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4), or if Cejel
-  abstains and therefore cannot evaluate the threshold; used by the GitHub Action's optional
-  threshold gate
+- `--min-score <n>` — exit non-zero if the overall score is below `n` (0–4), if Cejel abstains,
+  or if fewer than half of the applicable dimensions behind any score were measured; used by the
+  GitHub Action's optional threshold gate
 - `--product-name <name>` — Set both the caller-context
   display name and slugified product ID so differently named checkouts can emit identical
   certificates.

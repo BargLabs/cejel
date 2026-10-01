@@ -269,6 +269,7 @@ describe('cejel install-from-tarball (published artifact)', () => {
 
       let args: string[];
       let expectedOutDir: string | undefined;
+      let expectsThresholdRejection = false;
       switch (flagKind) {
         case 'help':
         case 'version':
@@ -285,6 +286,9 @@ describe('cejel install-from-tarball (published artifact)', () => {
         case 'minScore':
           args = [flag, '0', targetRepo, '--quiet'];
           expectedOutDir = '.cejel';
+          // The fixture deliberately has thin evidence. A score gate must reject it even at
+          // zero, but the artifact is still emitted for review before the process exits nonzero.
+          expectsThresholdRejection = true;
           break;
         case 'name':
           args = [flag, 'Customer Portal', targetRepo, '--quiet'];
@@ -296,7 +300,12 @@ describe('cejel install-from-tarball (published artifact)', () => {
           break;
       }
 
-      expect(() => execFileSync(binPath, args, { cwd: targetRepo, stdio: 'pipe' })).not.toThrow();
+      const execute = () => execFileSync(binPath, args, { cwd: targetRepo, stdio: 'pipe' });
+      if (expectsThresholdRejection) {
+        expect(execute).toThrow(/fewer than half of the applicable dimensions were measured/);
+      } else {
+        expect(execute).not.toThrow();
+      }
       if (expectedOutDir) {
         expect(
           existsSync(join(targetRepo, expectedOutDir, 'certificate.html')),

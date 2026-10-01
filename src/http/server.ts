@@ -7,8 +7,12 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 
 import { renderWitanBadgeSvg, renderWitanHtmlReport } from '../witan/index.js';
-import { WitanReportSchema } from '../witan/schemas.js';
-import { type CejelScanResult, runCejelScan } from '../scan.js';
+import {
+  WitanContentReadSummarySchema,
+  WitanCriterionStatusSchema,
+  WitanReportSchema,
+} from '../witan/schemas.js';
+import { runCejelScan } from '../scan.js';
 
 export interface CejelHttpMcpIdentity {
   packageName: string;
@@ -64,18 +68,25 @@ const summaryOutputSchema = z
   .object({
     productSlug: z.string().describe('Stable slug identifying the scanned repository.'),
     productDisplayName: z.string().describe('Display name derived from the scanned repository.'),
-    overallScore: z.number().min(0).max(4).describe('Overall Cejel trust score from 0 to 4.'),
-    codeTrustScore: z.number().min(0).max(4).describe('Code-trust score from 0 to 4.'),
-    processTrustScore: z.number().min(0).max(4).describe('Process-trust score from 0 to 4.'),
+    overallScore: z.number().min(0).max(4).nullable().describe('Overall Cejel trust score from 0 to 4.'),
+    codeTrustScore: z.number().min(0).max(4).nullable().describe('Code-trust score from 0 to 4.'),
+    processTrustScore: z.number().min(0).max(4).nullable().describe('Process-trust score from 0 to 4.'),
     verdict: z.string().describe('Fail-closed human-readable verdict.'),
     findingCount: z.number().int().describe('Total native findings in the certificate.'),
-    topFindings: z.array(summaryFindingSchema).describe('Highest-severity native findings, capped for display.'),
+    topFindings: z.array(summaryFindingSchema.extend({
+      dimensionBand: WitanCriterionStatusSchema.describe('Measured status of the finding criterion.'),
+      displaySummary: z.string().optional().describe('Presentation-safe finding summary when it differs.'),
+    })).describe('Highest-severity native findings, capped for display.'),
     contributingSources: z.array(z.string()).describe('External scanners whose findings were ingested.'),
     externalSources: z.array(externalSourceSchema).describe('Per-scanner ingestion summaries.'),
     externalFindingCount: z.number().int().describe('Total ingested external findings.'),
     topExternalFindings: z
       .array(externalFindingSchema)
       .describe('Highest-severity ingested findings, capped for display.'),
+    scanLimitations: z.array(z.string()).describe('Evidence-collection limitations qualifying the scan.'),
+    contentReadSummary: WitanContentReadSummarySchema.optional().describe(
+      'Aggregate content entries omitted from analysis; paths are never included.',
+    ),
     insufficientSourceReason: z
       .string()
       .optional()
@@ -93,6 +104,20 @@ const scanOutputSchema = z
     report: WitanReportSchema
       .optional()
       .describe('Complete structured certificate, present when format is json.'),
+    artifacts: z
+      .object({
+        certificateHtml: z
+          .string()
+          .optional()
+          .describe('Self-contained HTML certificate, present when requested.'),
+        badgeSvg: z
+          .string()
+          .optional()
+          .describe('Static SVG trust-score badge, present when requested.'),
+      })
+      .strict()
+      .optional()
+      .describe('Requested presentation artifacts, returned with this scan response only.'),
     error: z.string().optional().describe('Failure reason, present when status is error.'),
   })
   .strict()
@@ -153,9 +178,6 @@ function corsResponse(response: Response): Response {
 }
 
 export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpServer {
-  let lastScan: CejelScanResult | undefined;
-  const certificateUri = 'cejel://last-scan/certificate.html';
-  const badgeUri = 'cejel://last-scan/badge.svg';
   const server = new McpServer({
     name: `${identity.packageName}-http-mcp`,
     version: identity.version,
@@ -165,7 +187,7 @@ export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpSer
     'scan',
     {
       title: 'Scan repository trust',
-      description: `Score an uploaded repository snapshot with ${identity.packageName}'s deterministic engineering-trust scan. Pass relative paths and file contents; the adapter never reads a caller's local filesystem. The scan makes no outbound network calls, keeps no uploaded source after the request, and returns either a compact certificate summary or the full structured report.`,
+      description: `Score an uploaded repository snapshot with ${identity.packageName}'s deterministic engineering-trust scan. Pass relative paths and file contents; the adapter never reads a caller's local filesystem. The scan makes no outbound network calls, keeps no uploaded source after the request, and returns either a compact certificate summary or the full structured report. This HTTP adapter is stateless: request any HTML certificate or SVG badge with the scan itself.`,
       inputSchema: {
         files: z
           .array(remoteFileSchema)
@@ -178,6 +200,11 @@ export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpSer
           .enum(['summary', 'json'])
           .optional()
           .describe('Return summary (default) for a compact certificate, or json for the complete report.'),
+        artifacts: z
+          .array(z.enum(['certificate', 'badge']))
+          .max(2)
+          .optional()
+          .describe('Optional presentation artifacts to return with this scan: certificate (HTML), badge (SVG).'),
       },
       outputSchema: scanOutputSchema,
       annotations: {
@@ -188,19 +215,40 @@ export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpSer
         openWorldHint: false,
       },
     },
-    async ({ files, format }) => {
+    async ({ files, format, artifacts }) => {
       let repositoryPath: string | undefined;
       try {
         repositoryPath = await writeRemoteRepository(files);
         const result = runCejelScan({ repoPath: repositoryPath });
-        lastScan = result;
         const payload = format === 'json' ? result.report : result.summary;
+        const requestedArtifacts = {
+          ...(artifacts?.includes('certificate')
+            ? {
+                certificateHtml: renderWitanHtmlReport(result.report, {
+                  cliVersion: identity.version,
+                  generatedAt: result.generatedAt,
+                }),
+              }
+            : {}),
+          ...(artifacts?.includes('badge') ? { badgeSvg: renderWitanBadgeSvg(result.report) } : {}),
+        };
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }],
+          content: [
+            { type: 'text' as const, text: JSON.stringify(payload, null, 2) },
+            ...(Object.keys(requestedArtifacts).length > 0
+              ? [
+                  {
+                    type: 'text' as const,
+                    text: JSON.stringify({ artifacts: requestedArtifacts }, null, 2),
+                  },
+                ]
+              : []),
+          ],
           structuredContent: {
             status: 'success',
             format: format ?? 'summary',
             ...(format === 'json' ? { report: result.report } : { summary: result.summary }),
+            ...(Object.keys(requestedArtifacts).length > 0 ? { artifacts: requestedArtifacts } : {}),
           },
         };
       } catch (error: unknown) {
@@ -217,43 +265,6 @@ export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpSer
       } finally {
         if (repositoryPath) await rm(repositoryPath, { recursive: true, force: true });
       }
-    },
-  );
-
-  server.resource(
-    'certificate',
-    certificateUri,
-    {
-      description: 'Self-contained HTML trust certificate from the most recent remote scan.',
-      mimeType: 'text/html',
-    },
-    async (uri) => {
-      if (!lastScan) throw new Error('No scan has run yet — call the scan tool first.');
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'text/html',
-            text: renderWitanHtmlReport(lastScan.report, {
-              cliVersion: identity.version,
-              generatedAt: lastScan.generatedAt,
-            }),
-          },
-        ],
-      };
-    },
-  );
-
-  server.resource(
-    'badge',
-    badgeUri,
-    {
-      description: 'Static SVG trust-score badge from the most recent remote scan.',
-      mimeType: 'image/svg+xml',
-    },
-    async (uri) => {
-      if (!lastScan) throw new Error('No scan has run yet — call the scan tool first.');
-      return { contents: [{ uri: uri.href, mimeType: 'image/svg+xml', text: renderWitanBadgeSvg(lastScan.report) }] };
     },
   );
 

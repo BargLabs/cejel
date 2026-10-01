@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { handleAuthenticatedCejelHttpRequest } from '../http/auth.js';
+import { handleCejelHttpRequest } from '../http/server.js';
 
 const ACCESS_TOKEN = 'test-only-cejel-mcp-access-token';
 const CONFIGURED_TOKEN_SENTINEL = `configured-token-${'x'.repeat(173)}`;
@@ -42,6 +43,17 @@ function initializeRequest(token?: string): Request {
         },
       },
     }),
+  });
+}
+
+function jsonRpcRequest(id: number, method: string, params: Record<string, unknown>): Request {
+  return new Request('https://cejel-mcp.vercel.app/api/mcp', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
   });
 }
 
@@ -128,6 +140,46 @@ describe.sequential('/api/mcp bearer authentication', () => {
     );
     expect(console.warn).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('returns requested scan artifacts in the HTTP scan response without last-scan resources', async () => {
+    const scanResponse = await handleCejelHttpRequest(
+      jsonRpcRequest(1, 'tools/call', {
+        name: 'scan',
+        arguments: {
+          files: [{ path: 'src/index.ts', content: 'export const value = 42;' }],
+          artifacts: ['certificate', 'badge'],
+        },
+      }),
+      TEST_IDENTITY,
+    );
+
+    expect(scanResponse.status).toBe(200);
+    const scanBody = (await scanResponse.json()) as {
+      result?: {
+        structuredContent?: {
+          artifacts?: { certificateHtml?: string; badgeSvg?: string };
+        };
+      };
+    };
+    expect(scanBody.result?.structuredContent?.artifacts?.certificateHtml).toContain(
+      'Trust Certificate',
+    );
+    expect(scanBody.result?.structuredContent?.artifacts?.badgeSvg).toContain('<svg');
+
+    // A separate HTTP request receives a fresh server. It must not advertise resources whose
+    // state cannot survive that boundary; callers request artifacts with `scan` instead.
+    const resourceResponse = await handleCejelHttpRequest(
+      jsonRpcRequest(2, 'resources/list', {}),
+      TEST_IDENTITY,
+    );
+    expect(resourceResponse.status).toBe(200);
+    const resourceBody = (await resourceResponse.json()) as {
+      result?: unknown;
+      error?: { code?: number };
+    };
+    expect(resourceBody.result).toBeUndefined();
+    expect(resourceBody.error?.code).toBe(-32601);
   });
 
   it('keeps an authenticated GET event stream open for the client', async () => {
