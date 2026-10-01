@@ -1,6 +1,6 @@
 # A2 secret-posture content-context rubric v24 paired rescore — result
 
-Protocol decision: ________ (left blank by the harness: recorded by the operator after the hand review of every new and lost critical below)
+Protocol decision: **NO-GO** (operator, 2026-10-01). Comparative board placement changed on 8 of 24 rows against a preregistered limit of 2. Under the preregistration (`ef253a8`), a move outside any band is a NO-GO and stops default promotion; it is not tuned away. v24 remains an explicit-only prospective pin. The public default remains `witan-rubric-v17-2026-07-24`. Any recovery is a new preregistration citing `ef253a8`.
 
 - Mechanical bands all within preregistered limits: NO
 - Hand review pending: no
@@ -52,6 +52,30 @@ The public default remains `witan-rubric-v17-2026-07-24`. This result neither pr
 | carddemo | 0/not_applicable to 0/not_applicable | 0 no-finding to 0 no-finding | scoreless to scoreless | scoreless to scoreless | scoreless to scoreless | insufficient_source to insufficient_source | code_trust 0/5; process_trust 0/6 to code_trust 0/5; process_trust 0/6 | unrated to unrated | identical |
 | alfred | 2.6/verified to 2.2/warning | 0 no-finding to 2 abstain | 3.4 to 3.3 | 2.8 to 2.7 | 3.9 to 3.9 | conditional to conditional | code_trust 5/5; process_trust 4/6 to code_trust 5/5; process_trust 4/6 | transparency to transparency | identical |
 | cejel | 3.3/verified to 3.3/verified | 0 no-finding to 0 no-finding | 2.8 to 2.8 | 2.3 to 2.3 | 3.2 to 3.2 | conditional to conditional | code_trust 5/5; process_trust 3/6 to code_trust 5/5; process_trust 3/6 | transparency to transparency | identical |
+
+## Hand review (2026-10-01; prepared by the reviewing session, recorded by the operator)
+
+No row gained or lost a critical finding, so the preregistered review of new and lost criticals had
+no items. The four rows whose A2 changed were reviewed anyway, against the cited file and line at
+the corpus-pinned commit.
+
+- **django** (`django/contrib/auth/admin.py:72`), **biomejs**
+  (`crates/biome_analyze_macros/src/group_macro.rs:177`) and **axios** (`index.d.cts:711`): each
+  abstention sits on ordinary code: a class attribute assigned a form class, a function parameter
+  typed as a token stream, and an interface member typed as a token type. No secret-shaped value
+  appears on the cited line. All three are false abstentions.
+- **django and biomejs move to A2 status `critical`** (scores 0 and 1.3) with no critical finding.
+  Withholding `secret_cleanliness` leaves A2 scored on its remaining metrics alone; for django that
+  is environment-handling depth 0 of 3. The false-assertion band counts critical findings, so it
+  measured 0, but both certificates now state an A2 status of critical for a repository in which
+  v24 found nothing. This is recorded as a defect of the candidate, not as a band result.
+- **alfred** (private row): two entries, paths withheld. Not needed for the decision and not
+  reviewed here.
+- **All eight placement changes follow from two rows' score changes.** biomejs moves from 6th to
+  11th, which moves every row between those ranks by one; axios and pydantic exchange 2nd and 3rd.
+  On an ordinal board one score change moves several placements, so the placement band (at most 2)
+  could be exceeded by a single row that stayed inside the score band (at most 4). That is a lesson
+  for any successor preregistration. It does not change how this band is read.
 
 ## New critical committed-secret findings (v24 only)
 
