@@ -1,5 +1,44 @@
 # Release process
 
+## Release driver (2026-09-25)
+
+A release is run with `scripts/release.sh <version>`. It walks the release in order, reads the
+state of the world before and after every stage (never an action's exit code), skips any stage
+whose state already shows it done, and so can be re-run after an interruption. `--dry-run` runs
+every read and prints every action without performing one.
+
+The driver stops for a typed `yes` before each of the five irreversible steps (stages 2, 5, 7, 9
+and 12), and accepts only the literal `yes`: the tag push, publishing the GitHub release, `npm publish`, the distribution publish
+(OCI image and MCP Registry), and moving the `v1` Action tag. Each prompt prints the exact command
+and the state just verified.
+
+Operator rules the driver encodes, stated here because the first of them was previously found only
+inside the 0.4.6 post-mortem below:
+
+- **Every release workflow is dispatched with `--ref <tag>`, not `--ref main`.** `publish-npm.yml`
+  refuses any other ref at its first check. `release-binaries.yml` also needs both of its inputs
+  (`release_tag` and `attach_to_release`) or the dispatch fails with HTTP 422.
+- **`release-binaries.yml` requires a human-created draft release on the tag** before it runs
+  (`gh release create <tag> --draft --verify-tag`).
+- Every `gh` call carries `--repo BargLabs/cejel`; the registry is read as JSON with `curl`, not
+  `npm view`, and a version missing a minute after publish is lag, not failure, until the poll
+  window closes.
+
+The site record (`current-release.mjs` in cejel-site, under that repository's `DEPLOY.md`) is
+outside the script, as is the Homebrew tap bump: the script prints the values and stops.
+
+Currency is read twice. Stage 11 reads the newest `verify-release-currency.yml` run of any trigger
+(not only `workflow_run`) created after the last publish run, and prints its id, event and creation
+time. Before stage 12 moves `v1` and before the tap and site are updated, the Action, tap and
+cejel.dev surfaces cannot pass, so stage 11 passes when every surface passes or when every failing
+surface is one of those (matched by the label on each `[FAIL]` line); any other failure refuses and
+prints every `[FAIL]` line. **Stage 13** runs after stage 12: it dispatches a fresh currency run for
+the version and requires 13 of 13. **A release is complete only when stage 13 passes.** If it
+refuses because the tap bump or the site record is not done yet, finish them and re-run with
+`--from 13`.
+
+The sections below stay authoritative; the script references them and does not restate them.
+
 ## Required claim-retirement step
 
 *Added 12 August 2026.*
