@@ -1,0 +1,23 @@
+[
+  {
+    "statement": "A verifier that reads 'the latest run' must not filter by trigger, and a mid-pipeline acceptance set must be derived from what later stages make true, with a final stage requiring the full pass. cejel #393, 2026-10-02: the release driver's stage 11 listed only workflow_run runs, so the operator's 0.4.11 dry run read run 36146147435, from before the v1 move, while the later passing runs were workflow_dispatch. Its allowed set was three cejel.dev failures, but the Action and tap surfaces read action@v1 and cannot pass before stage 12 moves it, so every real release would refuse there. The 38 shim tests passed because the shim ignored --event. Fix c2d66fc: newest run of any trigger; stage 11 accepts failures only among six named pre-v1 labels; new stage 13 dispatches a fresh run and requires 13 of 13; the shim filters by --event. Reviewer reproduced: old driver fails 8 of 46 new-suite tests; three mutations each caught.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "release"
+    ],
+    "tags": [
+      "release-driver",
+      "shim-fidelity",
+      "stale-read"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 393
+    }
+  }
+]
