@@ -178,6 +178,67 @@ const lostInSquash = (carrier, overrides = {}) => ({
   ...overrides,
 });
 
+function withheld(token, overrides = {}) {
+  return {
+    token,
+    locations: [{ file: 'docs/experiments/x/result.md', line: 1 }],
+    disposition: 'withheld-by-ruling',
+    pr: 7,
+    ruling: 'operator, 2026-10-02: evidence tag removed',
+    date: '2026-10-02',
+    reason: 'The tagged tree would put a label-class path on a public ref.',
+    ...overrides,
+  };
+}
+
+test('errata: withheld-by-ruling clears a rule-1 failure when refs/pull/<pr>/head reaches the commit', (t) => {
+  const { cwd, prereg, short } = squashedPreregistrationRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  git(cwd, 'update-ref', 'refs/remotes/origin-pr/7', prereg);
+  writeErrata(cwd, [withheld(short)]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, new RegExp(`ERRATUM docs/experiments/x/result\\.md:1 ${short} -- evidence tag withheld by ruling \\(operator, 2026-10-02: evidence tag removed\\); reachable only from refs/pull/7/head \\(verified\\)`));
+});
+
+test('errata: withheld-by-ruling fails without the fetched pull ref, or when the pull ref does not reach the commit', (t) => {
+  const { cwd, short } = squashedPreregistrationRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [withheld(short)]);
+  commitAll(cwd, 'errata');
+  const absent = run(cwd);
+  assert.equal(absent.code, 1);
+  assert.match(absent.stderr, /refs\/remotes\/origin-pr\/7 is absent/);
+
+  git(cwd, 'update-ref', 'refs/remotes/origin-pr/7', 'main');
+  const unrelated = run(cwd);
+  assert.equal(unrelated.code, 1);
+  assert.match(unrelated.stderr, new RegExp(`withheld commit ${short} is not reachable from refs/pull/7/head`));
+});
+
+test('errata: a withheld commit still reachable through an evidence tag makes the entry stale', (t) => {
+  const { cwd, prereg, short } = squashedPreregistrationRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  git(cwd, 'update-ref', 'refs/remotes/origin-pr/7', prereg);
+  git(cwd, 'tag', 'evidence/x-preregistration', prereg);
+  writeErrata(cwd, [withheld(short)]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /errata entry matches no flagged citation/);
+});
+
+test('errata: withheld-by-ruling never clears a rule-2 failure (a token that resolves to nothing)', (t) => {
+  const { cwd } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [withheld('abc1234')]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 -- cited as a cejel commit/);
+});
+
 test('errata: an entry clears exactly its token at its file and line, and no other', (t) => {
   const { cwd, squash } = errataRepo();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));

@@ -67,6 +67,13 @@ import { pathToFileURL } from 'node:url';
 //                      reachable from main whose subject ends in `(#<pr>)`.
 //   other-repository - `repository` is `owner/repo`, not BargLabs/cejel. This check cannot
 //                      reach other repositories, so the attribution is accepted and printed.
+//   withheld-by-ruling - the one exception to "a rule-1 failure is remedied by a tag": an
+//                      operator ruling (`ruling`) withholds the evidence tag because the tagged
+//                      tree would put label-class paths on a public ref. `pr` names the pull
+//                      request whose head still carries the commit. Verified: the cited commit
+//                      is an ancestor of refs/remotes/origin-pr/<pr> (the workflow fetches every
+//                      refs/pull/*/head there) and is not reachable from main. It clears only a
+//                      rule-1 (unreachable) failure; the other two clear only rule-2 failures.
 // A location that matches no flagged citation fails: a stale correction is a defect too.
 
 export const SCANNED_PATHS = ['docs/experiments', 'leaderboard/RUBRIC_CHANGELOG.md'];
@@ -239,9 +246,11 @@ export function classify(entry, sets) {
   return 'unreachable';
 }
 
+// The errata register is the correction record, not a citing record: it names each corrected
+// token by design, so scanning it would flag every withheld-by-ruling token a second time.
 export function listScannedFiles(cwd) {
   const out = git(cwd, ['ls-files', '-z', '--', ...SCANNED_PATHS]);
-  return out.split('\0').filter(Boolean);
+  return out.split('\0').filter((path) => path && path !== ERRATA_PATH);
 }
 
 /**
@@ -332,12 +341,15 @@ export function loadErrata(cwd) {
     if (e?.disposition === 'lost-in-squash') {
       if (typeof e.carrier !== 'string' || !FULL_OID.test(e.carrier)) problems.push(`${at}: carrier must be a full 40-hex commit id`);
       if (!Number.isInteger(e.pr) || e.pr < 1) problems.push(`${at}: pr must be a positive integer`);
+    } else if (e?.disposition === 'withheld-by-ruling') {
+      if (!Number.isInteger(e.pr) || e.pr < 1) problems.push(`${at}: pr must be a positive integer`);
+      if (typeof e.ruling !== 'string' || e.ruling.trim() === '') problems.push(`${at}: ruling is required`);
     } else if (e?.disposition === 'other-repository') {
       if (typeof e.repository !== 'string' || !OWNER_REPO.test(e.repository) || e.repository.toLowerCase() === 'barglabs/cejel') {
         problems.push(`${at}: repository must be owner/repo other than BargLabs/cejel`);
       }
     } else {
-      problems.push(`${at}: disposition must be lost-in-squash or other-repository`);
+      problems.push(`${at}: disposition must be lost-in-squash, other-repository or withheld-by-ruling`);
     }
   }
   if (problems.length > 0) throw new Error(`${ERRATA_PATH} is malformed:\n  ${problems.join('\n  ')}`);
@@ -349,6 +361,7 @@ export function loadErrata(cwd) {
  * @returns {string|null} the reason it fails, or null
  */
 export function verifyErratum(cwd, mainRef, entry) {
+  if (entry.disposition === 'withheld-by-ruling') return verifyWithheld(cwd, mainRef, entry);
   if (entry.disposition !== 'lost-in-squash') return null;
   let parents;
   let subject;
@@ -367,8 +380,35 @@ export function verifyErratum(cwd, mainRef, entry) {
   return null;
 }
 
+function verifyWithheld(cwd, mainRef, entry) {
+  const pullRef = `refs/remotes/origin-pr/${entry.pr}`;
+  let commit;
+  try {
+    commit = git(cwd, ['rev-parse', '--verify', '--quiet', `${entry.token}^{commit}`]).trim();
+  } catch {
+    return `withheld commit ${entry.token} is not a commit in this repository (fetch refs/pull/${entry.pr}/head)`;
+  }
+  try {
+    git(cwd, ['rev-parse', '--verify', '--quiet', `${pullRef}^{commit}`]);
+  } catch {
+    return `${pullRef} is absent: fetch +refs/pull/*/head:refs/remotes/origin-pr/* before running`;
+  }
+  try {
+    git(cwd, ['merge-base', '--is-ancestor', commit, pullRef]);
+  } catch {
+    return `withheld commit ${entry.token} is not reachable from refs/pull/${entry.pr}/head`;
+  }
+  try {
+    git(cwd, ['merge-base', '--is-ancestor', commit, mainRef]);
+    return `withheld commit ${entry.token} is reachable from ${mainRef}; the entry is stale`;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Clear rule-2 failures that a verified register entry names by exact token, file and line.
+ * Clear the failures a verified register entry names by exact token, file and line: rule-2
+ * failures for lost-in-squash and other-repository, rule-1 failures for withheld-by-ruling.
  * Unverifiable entries leave their failures standing with the reason; unused locations fail.
  * @returns {{failures: object[], corrected: object[]}}
  */
@@ -381,7 +421,15 @@ export function applyErrata(failures, entries, verify) {
   const remaining = [];
   const corrected = [];
   for (const f of failures) {
-    const hit = f.class === 'nothing' || f.class === 'ambiguous' ? byKey.get(`${f.token}\0${f.file}\0${f.line}`) : undefined;
+    const candidate = byKey.get(`${f.token}\0${f.file}\0${f.line}`);
+    const ruleTwo = f.class === 'nothing' || f.class === 'ambiguous';
+    const ruleOne = f.class === 'unreachable';
+    const hit =
+      candidate &&
+      ((ruleTwo && candidate.entry.disposition !== 'withheld-by-ruling') ||
+        (ruleOne && candidate.entry.disposition === 'withheld-by-ruling'))
+        ? candidate
+        : undefined;
     if (!hit) {
       remaining.push(f);
       continue;
@@ -398,6 +446,9 @@ export function applyErrata(failures, entries, verify) {
 }
 
 function describeErratum(e) {
+  if (e.disposition === 'withheld-by-ruling') {
+    return `evidence tag withheld by ruling (${e.ruling}); reachable only from refs/pull/${e.pr}/head (verified)`;
+  }
   return e.disposition === 'lost-in-squash'
     ? `lost in the squash of #${e.pr}; bytes carried by ${e.carrier} on main (verified)`
     : `other repository ${e.repository} (attribution accepted, not verifiable offline)`;
