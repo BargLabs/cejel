@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const HOLDING = 'docs/orchestration/maeve-unanchored-lessons/';
@@ -28,6 +28,18 @@ export function selectEntries(root, mode) {
   }));
 }
 
+const VALIDATOR_MODULE = 'packages/api/src/services/maeve-staged-seed-validation.ts';
+
+// An explicit root is the only candidate. Otherwise try the sibling of the main checkout
+// (the parent of the common git dir, correct from a linked worktree), then the sibling of
+// the current toplevel (the previous behaviour, kept for other layouts).
+export function alfredRootCandidates(root, explicit) {
+  if (explicit) return [resolve(explicit)];
+  const commonDir = execFileSync('git', ['-C', root, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }).trim();
+  return [...new Set([join(dirname(dirname(commonDir)), 'alfred'), join(root, '..', 'alfred')].map(p => resolve(p)))];
+}
+
 export async function main(argv = process.argv.slice(2)) {
   let mode = 'staged';
   let alfredRoot = process.env.ALFRED_REPO_ROOT;
@@ -40,14 +52,19 @@ export async function main(argv = process.argv.slice(2)) {
   const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
   const entries = selectEntries(root, mode);
   if (entries.length === 0) throw new Error('maeve_staging_zero_examined: no selected seed files');
-  const modulePath = join(resolve(alfredRoot ?? join(root, '..', 'alfred')),
-    'packages/api/src/services/maeve-staged-seed-validation.ts');
+  const tried = [];
   let validator;
-  try {
-    validator = (await import(pathToFileURL(modulePath).href)).validateMaeveStagedSeedBatch;
-    if (typeof validator !== 'function') throw new Error('missing export');
-  } catch {
-    throw new Error('maeve_staging_validator_unavailable: set ALFRED_REPO_ROOT to an installed Alfred checkout; run with node --import tsx');
+  for (const candidate of alfredRootCandidates(root, alfredRoot)) {
+    const modulePath = join(candidate, VALIDATOR_MODULE);
+    tried.push(modulePath);
+    try {
+      validator = (await import(pathToFileURL(modulePath).href)).validateMaeveStagedSeedBatch;
+      if (typeof validator === 'function') break;
+    } catch { /* try the next candidate */ }
+    validator = undefined;
+  }
+  if (!validator) {
+    throw new Error(`maeve_staging_validator_unavailable: tried ${tried.join(', ')}; set ALFRED_REPO_ROOT to an installed Alfred checkout; run with node --import tsx`);
   }
   const result = validateSelection(entries, validator);
   console.log(JSON.stringify({ status: 'maeve_staging_validated', mode, ...result }));
