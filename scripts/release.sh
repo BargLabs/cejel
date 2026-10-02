@@ -5,8 +5,7 @@
 # the world before and after every stage (never an action's exit code), and stops for a typed
 # `yes` before each of the five irreversible actions:
 #   2 tag push, 5 publish the GitHub release, 7 npm publish, 9 distribution publish, 12 move v1.
-# (The goal card says "five" in its title and "six" in its stage-12 and test text; the stages it
-# marks irreversible are these five, so these five are what is gated. See the PR body.)
+# The count is five: stages 2, 5, 7, 9 and 12 are the irreversible ones, and only they are gated.
 #
 # Resumable: each stage reads the current state and skips itself when the state already shows it
 # done. It never edits a repository file and never runs `git commit`. Tools: bash, git, gh, jq,

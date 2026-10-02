@@ -42,7 +42,7 @@ direct="$(grep -nE '(^|[^_a-zA-Z])gh (run|release|workflow|api)' "$TARGET" | gre
 [ -z "$direct" ]; check "static: direct gh invocations carry --repo" $? "$direct"
 
 # (f) Never edits a file or commits.
-! grep -nE 'git (commit|add)\b|>>? *"?\$?\{?(REPO_ROOT|PWD)' "$TARGET" >/dev/null
+! grep -vE '^[[:space:]]*#' "$TARGET" | grep -nE 'git (commit|add)\b|>>? *"?\$?\{?(REPO_ROOT|PWD)' >/dev/null
 check "static: no git commit/add" $? ""
 
 # (g) Every release workflow is dispatched with --ref "$TAG" (the tag-ref rule).

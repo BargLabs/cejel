@@ -7,8 +7,8 @@ state of the world before and after every stage (never an action's exit code), s
 whose state already shows it done, and so can be re-run after an interruption. `--dry-run` runs
 every read and prints every action without performing one.
 
-The driver stops for a typed `yes` before each irreversible step, and accepts only the literal
-`yes`: the tag push, publishing the GitHub release, `npm publish`, the distribution publish
+The driver stops for a typed `yes` before each of the five irreversible steps (stages 2, 5, 7, 9
+and 12), and accepts only the literal `yes`: the tag push, publishing the GitHub release, `npm publish`, the distribution publish
 (OCI image and MCP Registry), and moving the `v1` Action tag. Each prompt prints the exact command
 and the state just verified.
 

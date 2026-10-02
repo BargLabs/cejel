@@ -36,7 +36,7 @@ jobs:
           node scripts/verify-board-surfaces.mjs
       - run: pnpm test
       - name: Release driver tests
-        run: bash scripts/release_tests.sh
+        run: pnpm run test:release
 
       - name: Self-certify (dogfood)
         run: node dist/index.js .
