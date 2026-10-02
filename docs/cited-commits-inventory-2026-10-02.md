@@ -146,3 +146,19 @@ citation in its row. Proposed (operator, after review):
 Grammar precision on current `main`, by this assessment: of 14 distinct flagged tokens, 5 are
 lost cejel commits, 3 are undetermined, 6 are other repositories' commits (false positives).
 These are not allowlisted.
+
+## Remedy applied (2026-10-02)
+
+The operator pushed the eleven `evidence/*` tags above (ten rule-1 rows plus
+`evidence/v17-delta-0.4.9-first-candidate` for `a34da1a`) and resolved the three undetermined
+`RUBRIC_CHANGELOG` tokens as alfred commits. The other 13 rule-2 tokens (15 occurrences) are
+corrected in `docs/experiments/CITATION-ERRATA.json`, which the check reads. Each entry names one
+exact token, file and line. Lost-in-squash carriers are verified against main, other-repository
+attributions are printed in the run log, and an entry that no longer matches anything fails.
+
+| Measurement (local macOS worktree, view D: branches + 13 `evidence/*` tags + `refs/pull/*/head`) | Expected | Observed |
+|---|---:|---:|
+| `577338a` (before the register), failures | 15 (13 distinct, all rule 2) | 15 (13 distinct, all rule 2) |
+| With the register, failures | 0 | 0 |
+| With the register, corrected by errata | 15 | 15 |
+| Register entries | 13 | 13 |

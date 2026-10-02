@@ -1,0 +1,118 @@
+{
+  "schema": "cejel-citation-errata-v1",
+  "description": "Corrections to bare commit citations in docs/experiments/** and leaderboard/RUBRIC_CHANGELOG.md that scripts/check-cited-commits.mjs flags under rule 2. The citing records, preregistrations included, are not edited. Each entry names one exact token and the exact file and line of every citation it corrects; the check verifies lost-in-squash carriers against main and fails on any location that no longer matches a flagged citation. Resolved by the operator on 2026-10-02 (#368, #390).",
+  "entries": [
+    {
+      "token": "282468d",
+      "locations": [{ "file": "docs/experiments/d2-acceptance-preregistration-2026-07-31.md", "line": 3 }],
+      "disposition": "lost-in-squash",
+      "carrier": "e072bd7fe7f9b3bc705a2c56c86f62c35f0e42cc",
+      "pr": 64,
+      "date": "2026-10-02",
+      "reason": "This D2 preregistration commit was lost when #64 was squash-merged and is not an ancestor of refs/pull/64/head; its bytes are on main in the squash e072bd7."
+    },
+    {
+      "token": "7d2c196",
+      "locations": [{ "file": "docs/experiments/d2-acceptance-preregistration-2026-07-31.md", "line": 20 }],
+      "disposition": "lost-in-squash",
+      "carrier": "e072bd7fe7f9b3bc705a2c56c86f62c35f0e42cc",
+      "pr": 64,
+      "date": "2026-10-02",
+      "reason": "This D2 preregistration commit was lost when #64 was squash-merged and is not an ancestor of refs/pull/64/head; its bytes are on main in the squash e072bd7."
+    },
+    {
+      "token": "5f4217f",
+      "locations": [{ "file": "docs/experiments/d3-acceptance-preregistration-2026-07-31.md", "line": 3 }],
+      "disposition": "lost-in-squash",
+      "carrier": "97564ad17ddde4c64d213f78c98d316c01b0c12a",
+      "pr": 66,
+      "date": "2026-10-02",
+      "reason": "This D3 preregistration commit was lost when #66 was squash-merged and is not an ancestor of refs/pull/66/head; its bytes are on main in the squash 97564ad."
+    },
+    {
+      "token": "2bf342f",
+      "locations": [{ "file": "docs/experiments/d3-acceptance-preregistration-2026-07-31.md", "line": 26 }],
+      "disposition": "lost-in-squash",
+      "carrier": "97564ad17ddde4c64d213f78c98d316c01b0c12a",
+      "pr": 66,
+      "date": "2026-10-02",
+      "reason": "This D3 preregistration commit was lost when #66 was squash-merged and is not an ancestor of refs/pull/66/head; its bytes are on main in the squash 97564ad."
+    },
+    {
+      "token": "d6248edd47f6",
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1050 }],
+      "disposition": "other-repository",
+      "repository": "BargLabs/alfred",
+      "date": "2026-10-02",
+      "reason": "The self-snapshot source commit is an alfred commit (\"cejel: publish symlink-safe rubric v4\"), verified in alfred by the operator on 2026-10-02."
+    },
+    {
+      "token": "25627e00c6eb",
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1051 }],
+      "disposition": "other-repository",
+      "repository": "BargLabs/alfred",
+      "date": "2026-10-02",
+      "reason": "The self-snapshot source commit is an alfred commit (\"cejel: score board rows from committed snapshots\"), verified in alfred by the operator on 2026-10-02."
+    },
+    {
+      "token": "75fa69511494",
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1097 }],
+      "disposition": "other-repository",
+      "repository": "BargLabs/alfred",
+      "date": "2026-10-02",
+      "reason": "The self-row source snapshot is an alfred commit (a HOSTS.md docs commit), verified in alfred by the operator on 2026-10-02."
+    },
+    {
+      "token": "a506a5e8aaa89862a8288a208aa083e685e47fbc",
+      "locations": [{ "file": "docs/experiments/criterion-path-emission-audit-2026-07-31.md", "line": 84 }],
+      "disposition": "other-repository",
+      "repository": "BargLabs/alfred",
+      "date": "2026-10-02",
+      "reason": "The recorded result commit belongs to the Alfred harness named two sentences earlier, outside the check's one-sentence attribution window."
+    },
+    {
+      "token": "c1cd701fd7ebe9a52cbcca58701c024f2f8bc540",
+      "locations": [{ "file": "docs/experiments/dual-control-downstream-labelling-retraction-2026-08-10.md", "line": 41 }],
+      "disposition": "other-repository",
+      "repository": "BargLabs/alfred",
+      "date": "2026-10-02",
+      "reason": "The raw result commit is a row in a table of Alfred bindings whose own row does not name alfred."
+    },
+    {
+      "token": "b0d2212dd1524a595a44252cbf957f2d3bbdffcf",
+      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 184 }],
+      "disposition": "other-repository",
+      "repository": "houman44/site-machine",
+      "date": "2026-10-02",
+      "reason": "The record introduces this commit as a site-machine commit, which the check does not recognise as a repository name."
+    },
+    {
+      "token": "8e73ffa41f8610dba866f2cdc29da811426b3c20",
+      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 197 }],
+      "disposition": "other-repository",
+      "repository": "BargStudio/therasyn",
+      "date": "2026-10-02",
+      "reason": "The record introduces this commit as a Therasyn commit in merged PR #243, which the check does not recognise as a repository name."
+    },
+    {
+      "token": "9f497be779405b027148bc318e6df1ca6ee86d80",
+      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 198 }],
+      "disposition": "other-repository",
+      "repository": "BargStudio/therasyn",
+      "date": "2026-10-02",
+      "reason": "The record names this as a Therasyn commit in merged PR #243 and pins it under BargStudio/therasyn on line 215."
+    },
+    {
+      "token": "25e711d1b5400f22e3d7b4ed0243609681bc5a5d",
+      "locations": [
+        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 200 },
+        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 217 },
+        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 236 }
+      ],
+      "disposition": "other-repository",
+      "repository": "BargStudio/therasyn",
+      "date": "2026-10-02",
+      "reason": "This is the merge anchor of BargStudio/therasyn PR #243, cited three times without naming the repository on the same line."
+    }
+  ]
+}

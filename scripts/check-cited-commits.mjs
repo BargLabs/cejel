@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -55,10 +55,23 @@ import { pathToFileURL } from 'node:url';
 // --merge; a squash leaves it unreachable and the push-to-main run then fails.
 //
 // No allowlist. A current failure is remedied by an evidence/* tag on the cited commit (when
-// the object still exists, e.g. under refs/pull/*/head) or by an erratum in the citing record.
+// the object still exists, e.g. under refs/pull/*/head) or by an entry in the citation errata
+// register, docs/experiments/CITATION-ERRATA.json. Preregistrations are never edited.
+//
+// ERRATA. A register entry names one exact token and the exact file and line of each bare
+// citation it corrects; no wildcard, no prefix match. It clears only a rule-2 failure at one
+// of those locations (a rule-1 failure is remedied by a tag). Dispositions:
+//   lost-in-squash   - `carrier` is the full id of the squash commit that carries the bytes and
+//                      `pr` its pull request. Verified: the carrier is a single-parent commit
+//                      reachable from main whose subject ends in `(#<pr>)`.
+//   other-repository - `repository` is `owner/repo`, not BargLabs/cejel. This check cannot
+//                      reach other repositories, so the attribution is accepted and printed.
+// A location that matches no flagged citation fails: a stale correction is a defect too.
 
 export const SCANNED_PATHS = ['docs/experiments', 'leaderboard/RUBRIC_CHANGELOG.md'];
 export const EVIDENCE_TAG_PREFIX = 'refs/tags/evidence/';
+export const ERRATA_PATH = 'docs/experiments/CITATION-ERRATA.json';
+export const ERRATA_SCHEMA = 'cejel-citation-errata-v1';
 
 const HEX_TOKEN = /(?<![0-9A-Za-z])[0-9a-f]{7,40}(?![0-9A-Za-z])/g;
 const COMMIT_LABEL = /\b(commit|commits|committed|merge|merges|merged|squash|squashed|preregist\w*)\b/i;
@@ -283,6 +296,112 @@ export function evaluate(occurrences) {
   return { failures, pending };
 }
 
+const FULL_TOKEN = /^[0-9a-f]{7,40}$/;
+const FULL_OID = /^[0-9a-f]{40}$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const OWNER_REPO = /^[\w.-]+\/[\w.-]+$/;
+
+/**
+ * Read and validate the errata register. A missing register is empty; a malformed one throws.
+ * @returns {object[]} entries
+ */
+export function loadErrata(cwd) {
+  const path = join(cwd, ERRATA_PATH);
+  if (!existsSync(path)) return [];
+  const doc = JSON.parse(readFileSync(path, 'utf8'));
+  const problems = [];
+  if (doc?.schema !== ERRATA_SCHEMA) problems.push(`schema must be ${ERRATA_SCHEMA}`);
+  if (!Array.isArray(doc?.entries)) problems.push('entries must be an array');
+  const seen = new Set();
+  for (const [i, e] of (Array.isArray(doc?.entries) ? doc.entries : []).entries()) {
+    const at = `entry ${i} (${e?.token})`;
+    if (typeof e?.token !== 'string' || !FULL_TOKEN.test(e.token)) problems.push(`${at}: token must be 7-40 lowercase hex`);
+    if (!Array.isArray(e?.locations) || e.locations.length === 0) problems.push(`${at}: locations must be a non-empty array`);
+    for (const loc of Array.isArray(e?.locations) ? e.locations : []) {
+      if (typeof loc?.file !== 'string' || loc.file === '' || !Number.isInteger(loc?.line) || loc.line < 1) {
+        problems.push(`${at}: every location needs a file and a positive integer line`);
+        continue;
+      }
+      const key = `${e.token}\0${loc.file}\0${loc.line}`;
+      if (seen.has(key)) problems.push(`${at}: ${loc.file}:${loc.line} is listed twice`);
+      seen.add(key);
+    }
+    if (typeof e?.date !== 'string' || !DATE.test(e.date)) problems.push(`${at}: date must be YYYY-MM-DD`);
+    if (typeof e?.reason !== 'string' || e.reason.trim() === '') problems.push(`${at}: reason is required`);
+    if (e?.disposition === 'lost-in-squash') {
+      if (typeof e.carrier !== 'string' || !FULL_OID.test(e.carrier)) problems.push(`${at}: carrier must be a full 40-hex commit id`);
+      if (!Number.isInteger(e.pr) || e.pr < 1) problems.push(`${at}: pr must be a positive integer`);
+    } else if (e?.disposition === 'other-repository') {
+      if (typeof e.repository !== 'string' || !OWNER_REPO.test(e.repository) || e.repository.toLowerCase() === 'barglabs/cejel') {
+        problems.push(`${at}: repository must be owner/repo other than BargLabs/cejel`);
+      }
+    } else {
+      problems.push(`${at}: disposition must be lost-in-squash or other-repository`);
+    }
+  }
+  if (problems.length > 0) throw new Error(`${ERRATA_PATH} is malformed:\n  ${problems.join('\n  ')}`);
+  return doc.entries;
+}
+
+/**
+ * Verify what can be verified of one entry from this repository.
+ * @returns {string|null} the reason it fails, or null
+ */
+export function verifyErratum(cwd, mainRef, entry) {
+  if (entry.disposition !== 'lost-in-squash') return null;
+  let parents;
+  let subject;
+  try {
+    [parents, subject] = git(cwd, ['log', '-1', '--format=%P%x00%s', `${entry.carrier}^{commit}`, '--']).replace(/\n$/, '').split('\0');
+  } catch {
+    return `errata carrier ${entry.carrier} is not a commit in this repository`;
+  }
+  try {
+    git(cwd, ['merge-base', '--is-ancestor', entry.carrier, mainRef]);
+  } catch {
+    return `errata carrier ${entry.carrier} is not reachable from ${mainRef}`;
+  }
+  if (parents.split(' ').filter(Boolean).length !== 1) return `errata carrier ${entry.carrier} is not a single-parent squash commit`;
+  if (!subject.trimEnd().endsWith(`(#${entry.pr})`)) return `errata carrier ${entry.carrier} subject does not end in (#${entry.pr}): ${subject}`;
+  return null;
+}
+
+/**
+ * Clear rule-2 failures that a verified register entry names by exact token, file and line.
+ * Unverifiable entries leave their failures standing with the reason; unused locations fail.
+ * @returns {{failures: object[], corrected: object[]}}
+ */
+export function applyErrata(failures, entries, verify) {
+  const byKey = new Map();
+  for (const entry of entries) {
+    for (const loc of entry.locations) byKey.set(`${entry.token}\0${loc.file}\0${loc.line}`, { entry, loc, used: false });
+  }
+  const problem = new Map(entries.map((e) => [e, verify(e)]));
+  const remaining = [];
+  const corrected = [];
+  for (const f of failures) {
+    const hit = f.class === 'nothing' || f.class === 'ambiguous' ? byKey.get(`${f.token}\0${f.file}\0${f.line}`) : undefined;
+    if (!hit) {
+      remaining.push(f);
+      continue;
+    }
+    hit.used = true;
+    const why = problem.get(hit.entry);
+    if (why) remaining.push({ ...f, reason: why });
+    else corrected.push({ ...f, erratum: hit.entry });
+  }
+  for (const { entry, loc, used } of byKey.values()) {
+    if (!used) remaining.push({ file: loc.file, line: loc.line, token: entry.token, reason: 'errata entry matches no flagged citation (a stale correction)' });
+  }
+  return { failures: remaining, corrected };
+}
+
+function describeErratum(e) {
+  return e.disposition === 'lost-in-squash'
+    ? `lost in the squash of #${e.pr}; bytes carried by ${e.carrier} on main (verified)`
+    : `other repository ${e.repository} (attribution accepted, not verifiable offline)`;
+}
+
 function argValue(argv, name) {
   const i = argv.indexOf(name);
   return i >= 0 ? argv[i + 1] : undefined;
@@ -299,7 +418,13 @@ export function main(argv, cwd = process.cwd(), out = process.stdout, err = proc
     }
     return 0;
   }
-  const { failures, pending } = evaluate(occurrences);
+  const entries = loadErrata(cwd);
+  const evaluated = evaluate(occurrences);
+  const { pending } = evaluated;
+  const { failures, corrected } = applyErrata(evaluated.failures, entries, (e) => verifyErratum(cwd, mainRef, e));
+  for (const c of corrected) {
+    out.write(`ERRATUM ${c.file}:${c.line} ${c.token} -- ${describeErratum(c.erratum)}: ${c.erratum.reason}\n`);
+  }
   for (const p of pending) {
     out.write(`PENDING ${p.file}:${p.line} ${p.token} -- reachable only from ${pendingRef}; merge with --merge, never squash\n`);
   }
@@ -309,7 +434,7 @@ export function main(argv, cwd = process.cwd(), out = process.stdout, err = proc
   const evidenceTags = evidenceTagRefs(cwd).length;
   out.write(
     `cited-commits: ${occurrences.length} tokens scanned against ${mainRef} and ${evidenceTags} evidence/* tag(s); ` +
-      `${failures.length} failure(s), ${pending.length} pending\n`,
+      `${failures.length} failure(s), ${pending.length} pending, ${corrected.length} corrected by errata\n`,
   );
   return failures.length > 0 ? 1 : 0;
 }
