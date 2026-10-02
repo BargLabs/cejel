@@ -29,6 +29,30 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   applicable dimensions were measured in at least one score (…)`, with the measured/applicable
   counts in the parentheses. The scores in the report do not change; only the exit code does.
 
+- **The HTTP MCP server is stateless: certificates and badges come back with the scan that
+  produced them (#369, merged as #388).** The `cejel://last-scan/certificate.html` and
+  `cejel://last-scan/badge.svg` resources are removed. They never worked over HTTP: each request
+  builds a fresh server, so a resource read could not see the scan from an earlier request and
+  always answered "No scan has run yet". The `scan` tool now takes an optional
+  `artifacts` list (`certificate`, `badge`) and returns the requested HTML certificate and SVG
+  badge in the same response. Who is affected: HTTP MCP clients that read those two resources
+  after calling `scan`; pass `artifacts` to the `scan` call instead. The stdio MCP server and
+  the CLI are unchanged.
+
+- **Report format 1.4: each metric records the weight share it actually contributed (#370,
+  merged as #389).** Metrics gain `appliedWeightShare`, and the HTML certificate reads it from
+  the report instead of recomputing it at render time, so the weights a certificate shows are
+  the ones the signed report carries. `reportFormatVersion` moves from `1.3` to `1.4`. No score,
+  band or behaviour fingerprint changes; a test pins that the field moves neither. Who is
+  affected: consumers that validate reports against a closed 1.3 schema.
+
+### Fixed
+
+- **The HTTP MCP `summary` response no longer rejects valid scan results (#369, merged as
+  #388).** Its strict schema did not allow the per-finding `dimensionBand` and `displaySummary`
+  fields or the content-read summary that scan results carry, so some valid scans failed
+  schema validation on the way out.
+
 ---
 
 ## [0.4.11] — 2026-09-25
