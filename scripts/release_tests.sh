@@ -60,7 +60,18 @@ cat >"$BIN/git" <<'SHIM'
 S="$FAKE_STATE"
 echo "git $*" >>"$S/calls.log"
 case "$1" in
-  fetch|worktree|config) exit 0 ;;
+  fetch)
+    # Like real git: a fetch with --tags refuses when a local tag differs from the remote's
+    # (git does not overwrite an existing tag without a forced refspec).
+    if [ -s "$S/fetch_fail" ]; then cat "$S/fetch_fail" >&2; exit 1; fi
+    case " $* " in
+      *" --tags "*)
+        if [ -s "$S/local_v1_sha" ] && [ "$(cat "$S/local_v1_sha")" != "$(cat "$S/v1_sha" 2>/dev/null)" ]; then
+          echo " ! [rejected]        v1         -> v1  (would clobber existing tag)" >&2; exit 1
+        fi ;;
+    esac
+    exit 0 ;;
+  worktree|config) exit 0 ;;
   remote) echo "https://github.com/BargLabs/cejel.git" ;;
   rev-parse)
     case "$2" in
@@ -233,6 +244,20 @@ run_release "$S" "y"
 [ "$RC" != 0 ] && has "not confirmed"; check "confirm: 'y' is refused" $? "rc=$RC: $OUT"
 ! grep -q 'verify_only=false' "$S/calls.log"; check "confirm: no publish dispatch after a refused confirm" $? "$(cat "$S/calls.log")"
 has "about to run" && has "state verified"; check "confirm: prompt shows the command and the verified state" $? "$OUT"
+
+# 8. a stale local v1 (moved upstream) must not stop stage 1: the driver does not fetch tags.
+S="$TEST_TMP/s8"; new_state "$S"; echo "dddddddddddddddddddddddddddddddddddddddd" >"$S/local_v1_sha"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ]; check "stale local v1: stage 1 passes (no tag fetch)" $? "rc=$RC: $OUT"
+! grep -qE '^git fetch .*--tags' "$S/calls.log"; check "stale local v1: no fetch carries --tags" $? "$(cat "$S/calls.log")"
+
+# 9. a fetch that fails for any reason surfaces git's own stderr in the refusal.
+S="$TEST_TMP/s9"; new_state "$S"; echo "fatal: unable to access 'https://github.com/BargLabs/cejel.git/': simulated outage" >"$S/fetch_fail"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "git fetch origin failed" && has "simulated outage"; check "fetch failure: refusal carries git's stderr" $? "rc=$RC: $OUT"
+
+# 10. the temporary-worktree refusal also carries git's stderr (stage 1 skips it under RELEASE_SKIP_VALIDATE).
+grep -q 'wt_err' "$TARGET"; check "static: worktree add failure captures stderr" $? ""
 
 echo
 echo "release_tests: $PASS passed, $FAIL failed"
