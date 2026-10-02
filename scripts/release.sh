@@ -161,7 +161,11 @@ latest_success_run() { # latest_success_run <workflow>
 # ---------------------------------------------------------------- stage 1
 stage1() {
   say "stage 1 (preflight)"
-  git fetch "$REMOTE" --prune --tags >/dev/null 2>&1 || die "git fetch $REMOTE failed"
+  # No --tags: v1 moves every release, so a clone that fetched tags before holds a stale v1 and a
+  # tag fetch refuses ("would clobber existing tag"). Tag state is read with ls-remote below, and
+  # stage 12 fetches v1 with a forced refspec.
+  local fetch_err
+  fetch_err="$(git fetch "$REMOTE" --prune 2>&1 >/dev/null)" || die "git fetch $REMOTE failed: $fetch_err"
   case "$(git remote get-url "$REMOTE")" in *"$REPO"*) ;; *) die "remote $REMOTE is not $REPO";; esac
   local main_sha tag_lines
   main_sha="$(git rev-parse "$REMOTE/main")"
@@ -191,7 +195,8 @@ stage1() {
     say "  validate:distribution skipped (RELEASE_SKIP_VALIDATE, tests only)"
   else
     PREFLIGHT_WT="$WORK/wt"
-    git worktree add --detach "$PREFLIGHT_WT" "$RELEASE_SHA" >/dev/null 2>&1 || die "could not create temporary worktree at $RELEASE_SHA"
+    local wt_err
+    wt_err="$(git worktree add --detach "$PREFLIGHT_WT" "$RELEASE_SHA" 2>&1 >/dev/null)" || die "could not create temporary worktree at $RELEASE_SHA: $wt_err"
     (cd "$PREFLIGHT_WT" && pnpm install --frozen-lockfile >/dev/null && pnpm run validate:distribution) \
       || die "pnpm run validate:distribution failed at $RELEASE_SHA"
   fi
@@ -503,7 +508,8 @@ stage12() {
   v1="$(git ls-remote --tags "$REMOTE" refs/tags/v1 | awk '{print $1}' | head -1)"
   rel="$RELEASE_SHA"
   if [ -n "$v1" ] && [ "$v1" = "$rel" ]; then done_ 12 action-major-tag "v1 already at $rel"; stage12_print_consumer; return; fi
-  git fetch "$REMOTE" "+refs/tags/v1:refs/tags/v1" >/dev/null 2>&1 || true
+  local v1_err
+  v1_err="$(git fetch "$REMOTE" "+refs/tags/v1:refs/tags/v1" 2>&1 >/dev/null)" || say "  warning: could not fetch v1 (the diff below may fail): $v1_err"
   say "stage 12 (Action major tag): v1 is at ${v1:-<absent>}, release is $rel"
   say "  diff of action/action.yml, v1 -> $TAG (see docs/release-process.md 'Required Action major-tag step'):"
   if [ -n "$v1" ]; then
