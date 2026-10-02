@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A release driver and its shim tests were committed as written and linted but not run, because the authoring session could not execute them. Running them for the first time (cejel #393, 2026-10-02) gave 33 of 34 passing; the one failure was a static guard in the tests, not the driver: it grepped release.sh for 'git commit' and matched the driver's own header comment saying it never commits. Rule: a static grep guard over a script must exclude comment lines, and a script handed over unrun is reported as unrun until a run is seen. The fix is to scope the guard to code, not to loosen what it forbids.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["release-driver", "static-guard", "unexecuted-tests"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-02T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 393}
+  }
+]
