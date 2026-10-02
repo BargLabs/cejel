@@ -89,7 +89,7 @@ resolve — when:
    merge(s/d), squash(ed), or a preregistration/preregistered word. A Markdown table row is one
    sentence;
 3. neither its sentence nor the prose sentence before it names another repository: alfred,
-   lab_notes, maeve, bede, "private", upstream, an `owner/repo@sha` other than `BargLabs/cejel`,
+   lab_notes, "private", upstream, an `owner/repo@sha` other than `BargLabs/cejel`,
    or a non-cejel `github.com/` URL;
 4. it is not immediately preceded by sha256/sha512/digest/patch id, nor followed by `…`;
 5. no occurrence of the token (or a longer/shorter form of it) anywhere in the scanned record is
@@ -141,7 +141,7 @@ citation in its row. Proposed (operator, after review):
 | `d6248edd47f6`, `25627e00c6eb`, `75fa69511494` | `RUBRIC_CHANGELOG.md:1050,1051,1097` | ambiguous: "the self snapshot" of the leaderboard's Cejel/Alfred self rows; the paragraph names both | operator to identify the repository; erratum naming it (or an evidence tag, if cejel and still recoverable) |
 | `a506a5e8…` | `criterion-path-emission-audit-2026-07-31.md:84` | alfred: "At Alfred harness commit … Recorded result commit" — two sentences after the name | erratum: "Recorded Alfred result commit" |
 | `c1cd701f…` | `dual-control-downstream-labelling-retraction-2026-08-10.md:41` | alfred: a table of Alfred bindings; row "Raw result commit" | erratum: "Alfred raw result commit" |
-| `b0d2212d…`, `8e73ffa4…`, `9f497be7…`, `25e711d1…` (×3) | `shape-diversity-therasyn-sitemachine-2026-08-01.md:184,197,198,200,217,236` | external: `BargStudio/therasyn` and `houman44/site-machine` | erratum: cite as `owner/repo@sha` |
+| `b0d2212d…`, `8e73ffa4…`, `9f497be7…`, `25e711d1…` (×3) | the 2026-08-01 shape-diversity record (`docs/experiments/`, lines 184, 197, 198, 200, 217, 236) | external: two private product repositories | erratum: cite as `owner/repo@sha` |
 
 Grammar precision on current `main`, by this assessment: of 14 distinct flagged tokens, 5 are
 lost cejel commits, 3 are undetermined, 6 are other repositories' commits (false positives).

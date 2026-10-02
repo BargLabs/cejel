@@ -295,6 +295,21 @@ test('grammar: another repository named in the sentence or the one before it exc
   assert.equal(citation('Merged as `BargLabs/cejel@a506a5e`.'), true);
 });
 
+test('grammar: a packages/ path names alfred\'s monorepo, so its commit row is not a cejel citation', () => {
+  // cejel has no packages/ directory; the D-series repair rows cite an alfred package path.
+  assert.equal(citation('| Merged repair control | `800983fb06c36641ad25b34b82b6465df638c756` | `packages/demo/src/report.ts` |'), false);
+  assert.equal(citation('| Merged repair control | `800983fb06c36641ad25b34b82b6465df638c756` | `src/report.ts` |'), true);
+});
+
+test('public surface: the checker and its inventory name no internal product codename', async () => {
+  const { readFileSync } = await import('node:fs');
+  // Assembled at runtime so this file does not carry the terms either.
+  const banned = new RegExp(['b' + 'ede', 'ma' + 'eve', 'thera' + 'syn', 'site-?mach' + 'ine'].join('|'), 'i');
+  for (const path of ['scripts/check-cited-commits.mjs', 'docs/cited-commits-inventory-2026-10-02.md']) {
+    assert.doesNotMatch(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), banned, path);
+  }
+});
+
 test('grammar: digests, patch ids, decimal runs, labels inside code spans and JSON are not citations', () => {
   assert.equal(citation('The corpus committed with sha256 `dc723f53…` was reused.'), false);
   assert.equal(citation('The commit has stable patch ID `ef784f23c031e3f2d080312956429bf9546bce85`.'), false);

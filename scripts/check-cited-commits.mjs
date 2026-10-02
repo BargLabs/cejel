@@ -36,7 +36,8 @@ import { pathToFileURL } from 'node:url';
 //       ends at . ! or ? followed by whitespace and at a blank line; a Markdown table row is
 //       one sentence;
 //   (d) no other repository is named in that sentence or in the prose sentence before it:
-//       alfred, lab_notes, maeve, bede (alfred's package), "private" (this record's word for
+//       alfred, lab_notes, a `packages/` path (cejel has no packages/ directory; such a path
+//       is in alfred's monorepo), "private" (this record's word for
 //       alfred's private repository), upstream, an `owner/repo@` reference other than
 //       BargLabs/cejel, or a github.com URL other than BargLabs/cejel;
 //   (e) it is not a digest: not preceded by sha256/sha512/digest/patch id, not followed by an
@@ -75,7 +76,7 @@ export const ERRATA_SCHEMA = 'cejel-citation-errata-v1';
 
 const HEX_TOKEN = /(?<![0-9A-Za-z])[0-9a-f]{7,40}(?![0-9A-Za-z])/g;
 const COMMIT_LABEL = /\b(commit|commits|committed|merge|merges|merged|squash|squashed|preregist\w*)\b/i;
-const OTHER_REPOSITORY_WORD = /\b(alfred|lab[_-]notes|maeve|bede|private|upstream)\b|github\.com\/(?!BargLabs\/cejel\b)/i;
+const OTHER_REPOSITORY_WORD = /\b(alfred|lab[_-]notes|private|upstream)\b|\bpackages\/|github\.com\/(?!BargLabs\/cejel\b)/i;
 const OTHER_REPOSITORY_KEY = /"[\w-]*(alfred|private|upstream|lab_?notes)[\w-]*"\s*:\s*"?$/i;
 const OWNER_REPO_AT =/(?<![\w.-])([\w.-]+\/[\w.-]+)@[0-9a-f]/g;
 
