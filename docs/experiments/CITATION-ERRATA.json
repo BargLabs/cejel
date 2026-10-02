@@ -113,6 +113,17 @@
       "repository": "BargStudio/therasyn",
       "date": "2026-10-02",
       "reason": "This is the merge anchor of BargStudio/therasyn PR #243, cited three times without naming the repository on the same line."
+    },
+    {
+      "token": "88ede8569eb00c44e0ceabcf448612500ad2bfad",
+      "locations": [
+        { "file": "docs/experiments/v17-accuracy-rebind-2026-08-05/evidence-partition-preregistration.md", "line": 13 }
+      ],
+      "disposition": "withheld-by-ruling",
+      "pr": 91,
+      "ruling": "operator, 2026-10-02: evidence/91-v17-partition-preregistration removed",
+      "date": "2026-10-02",
+      "reason": "The 200/200 re-bind run commit lives only on closed #91's branch. Its evidence tag (evidence/91-v17-partition-preregistration -> 105d2f0f) was removed by operator ruling because the tagged tree carries a label-class path on a public ref. refs/pull/91/head still reaches 105d2f0f, and this commit through it; no GitHub purge was requested: the frame was retired 2026-08-18, its members are revealed, and the file carries no labels."
     }
   ]
 }
