@@ -153,8 +153,17 @@ case "$url" in
   *registry.npmjs.org*) cat "$S/npm.json" ;;
   *ghcr.io/token*) echo '{"token":"t"}' ;;
   *ghcr.io/v2*) [ -s "$S/oci_digest" ] && printf 'HTTP/2 200\r\nDocker-Content-Digest: %s\r\n' "$(cat "$S/oci_digest")" || exit 22 ;;
-  *modelcontextprotocol.io*) [ -f "$S/mcp.json" ] && cat "$S/mcp.json" || { echo "404" >&2; exit 22; } ;;
-  *github.com*archive*) printf 'tarball-bytes' >"$out" ;;
+  *modelcontextprotocol.io*)
+    # Like curl without -f: an HTTP error status is not a failing exit. $S/mcp_queue holds one
+    # outcome per line, consumed one per call: an HTTP status, or "timeout" (curl exit 28).
+    code=200
+    if [ -s "$S/mcp_queue" ]; then
+      code="$(head -1 "$S/mcp_queue")"; tail -n +2 "$S/mcp_queue" >"$S/mcp_queue.tmp"; mv "$S/mcp_queue.tmp" "$S/mcp_queue"
+    fi
+    [ "$code" = timeout ] && { echo "curl: (28) Operation timed out after 45001 milliseconds" >&2; exit 28; }
+    [ "$code" = 200 ] && [ ! -f "$S/mcp.json" ] && code=404
+    [ "$code" = 200 ] && cat "$S/mcp.json"
+    case " $* " in *" -w "*) printf '\n%s' "$code" ;; esac ;;
   *) echo "unhandled curl $url" >&2; exit 1 ;;
 esac
 SHIM
@@ -217,7 +226,7 @@ new_state() {
 # run_release <state dir> <stdin text> [args...] -> sets OUT, RC
 run_release() {
   local S="$1" input="$2"; shift 2
-  OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 \
+  OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 RELEASE_MCP_RETRY_DELAY=0 \
     bash "$TARGET" "$V" "$@" 2>&1)"; RC=$?
 }
 mutations() { grep -cE '^(git (tag|push)|gh (release (create|edit)|workflow run))' "$1/calls.log" || true; }
@@ -337,6 +346,48 @@ mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
 mklog >"$S/dispatch_runlog.txt"
 run_release "$S" ""
 [ "$RC" = 0 ] && has "stage 13" && has "13 of 13" && has "HANDBACK" && has "99999999999"; check "stage 13: 13 of 13 from the fresh run completes the release" $? "rc=$RC: $OUT"
+
+# 16. a dry run against a world with no release shows all five irreversible prompts, in order.
+S="$TEST_TMP/s16"; new_state "$S"; rm -f "$S/tag_sha" "$S/v1_sha" "$S/release.json" "$S/oci_digest" "$S/mcp.json"; echo "$NPM_NONE" >"$S/npm.json"
+run_release "$S" "" --dry-run
+blocks="$(grep -o 'STAGE [0-9]* IS IRREVERSIBLE' <<<"$OUT" | sed -E 's/STAGE ([0-9]+).*/\1/' | tr '\n' ' ')"
+[ "$RC" = 0 ] && [ "$blocks" = "2 5 7 9 12 " ]; check "dry-run, no release: irreversible blocks for stages 2 5 7 9 12 in order" $? "rc=$RC blocks=$blocks: $OUT"
+has "about to run : gh release edit v$V --repo BargLabs/cejel --draft=false" && has "twelve assets"; check "dry-run, no release: stage 5 shows the command and the precondition it will verify" $? "$OUT"
+[ "$(mutations "$S")" = 0 ]; check "dry-run, no release: still no mutating call" $? "$(cat "$S/calls.log")"
+
+# 17. the stage-10 hint gives the four binary URLs with their SHA256SUMS digests, not the source tarball.
+S="$TEST_TMP/s17"; new_state "$S"
+run_release "$S" "" --dry-run
+urls="$(grep -oE "releases/download/v$V/cejel-[A-Za-z0-9_-]+ +sha256 [0-9a-f]+" <<<"$OUT")"
+[ "$(wc -l <<<"$urls" | tr -d ' ')" = 4 ] && [ "$(grep -c 'releases/download/' <<<"$OUT")" = 4 ]; check "stage 10: names exactly four binary URLs" $? "$urls"
+allmatch=0
+for t in Darwin-arm64 Darwin-x86_64 Linux-aarch64 Linux-x86_64; do
+  want="$(awk -v n="cejel-$t" '$2==n{print $1}' "$S/assets/SHA256SUMS")"
+  grep -qE "releases/download/v$V/cejel-$t +sha256 $want\$" <<<"$OUT" || allmatch=1
+done
+check "stage 10: each URL carries its SHA256SUMS digest" $allmatch "$OUT"
+! has "Windows-x86_64.exe  sha256" && ! has "archive/refs/tags"; check "stage 10: no tarball and no Windows line" $? "$OUT"
+has "expected_version: '$V'" && has "BargLabs/cejel@v$V" && has "verify-cejel-consumer-routes.yml" && has "action@v1"; check "stage 10: consumer-routes pin, expected_version and the ORDER note" $? "$OUT"
+
+# 18. the handback's MCP state: serves / LAG / NOT READ are three distinct states.
+mcp_line() { grep '^MCP registry state:' <<<"$OUT"; }
+mcp_calls() { grep -c 'modelcontextprotocol.io' "$1/calls.log" || true; }
+S="$TEST_TMP/s18a"; new_state "$S"
+run_release "$S" "" --dry-run
+mcp_line | grep -qF "serves $V" && ! mcp_line | grep -qi 'lag\|NOT READ'; check "mcp state: right version reads 'serves X'" $? "$(mcp_line)"
+S="$TEST_TMP/s18b"; new_state "$S"; echo '{"server":{"version":"0.4.10"}}' >"$S/mcp.json"
+run_release "$S" "" --dry-run
+mcp_line | grep -qF "LAG: serves 0.4.10 (expected $V)" && [ "$(mcp_calls "$S")" = 1 ]; check "mcp state: wrong version reads LAG and is not retried" $? "$(mcp_line)"
+S="$TEST_TMP/s18c"; new_state "$S"; printf '500\n500\n' >"$S/mcp_queue"
+run_release "$S" "" --dry-run
+mcp_line | grep -qF "NOT READ: HTTP 500" && mcp_line | grep -qF "a read error is not a lag" && ! mcp_line | grep -qF "LAG:" && ! mcp_line | grep -qF "disclosed-lag"; check "mcp state: HTTP 500 reads NOT READ, never LAG" $? "$(mcp_line)"
+[ "$(mcp_calls "$S")" = 2 ]; check "mcp state: a failed read is retried exactly once" $? "$(cat "$S/calls.log")"
+S="$TEST_TMP/s18d"; new_state "$S"; printf 'timeout\n200\n' >"$S/mcp_queue"
+run_release "$S" "" --dry-run
+mcp_line | grep -qF "serves $V" && [ "$(mcp_calls "$S")" = 2 ]; check "mcp state: a timeout then a good read reads 'serves X'" $? "$(mcp_line)"
+S="$TEST_TMP/s18e"; new_state "$S"; printf 'timeout\ntimeout\n' >"$S/mcp_queue"
+run_release "$S" "" --dry-run
+mcp_line | grep -qF "NOT READ:" && mcp_line | grep -qi 'timed out'; check "mcp state: two timeouts read NOT READ with curl's reason" $? "$(mcp_line)"
 
 echo
 echo "release_tests: $PASS passed, $FAIL failed"

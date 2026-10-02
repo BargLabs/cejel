@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createLiveReaders,
   LEADERBOARD_URL,
+  MCP_REGISTRY_TIMEOUT_MS,
   parseLeaderboardRecord,
   renderedCurrentVersion,
   ReleaseCurrencyError,
@@ -376,4 +378,70 @@ test('a fully consistent release passes and prints every surface and observed va
   for (const surface of surfaces) {
     assert.ok(lines.some((line) => line.startsWith(`[PASS] ${surface}: observed=`)), surface);
   }
+});
+
+// MCP Registry read: a slow or briefly failing registry is retried once; a wrong answer is not.
+function mcpResponse(servedVersion) {
+  const body = JSON.stringify({
+    server: {
+      name: 'io.github.BargLabs/cejel',
+      version: servedVersion,
+      packages: [{ registryType: 'oci', identifier: `ghcr.io/barglabs/cejel@${digest}` }],
+    },
+  });
+  return { ok: true, status: 200, statusText: 'OK', text: async () => body };
+}
+
+function mcpRun(steps) {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    const step = steps[Math.min(calls.length - 1, steps.length - 1)];
+    if (step === 'timeout') {
+      const error = new Error('This operation was aborted');
+      error.name = 'AbortError';
+      throw error;
+    }
+    if (typeof step === 'number') return { ok: false, status: step, statusText: 'Server Error', text: async () => '' };
+    return mcpResponse(step);
+  };
+  const readers = goodReaders();
+  readers['MCP Registry'] = createLiveReaders({ fetchImpl, retryDelayMs: 0 })['MCP Registry'];
+  return { calls, readers };
+}
+
+test('MCP Registry: one timeout, then a correct answer, passes and reports both attempts', async () => {
+  const { calls, readers } = mcpRun(['timeout', version]);
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line) });
+  assert.equal(calls.length, 2);
+  assert.ok(lines.some((line) =>
+    line.includes('[PASS] MCP Registry:') && line.includes('attempts=2; last=timeout')));
+});
+
+test('MCP Registry: HTTP 503, then a correct answer, passes', async () => {
+  const { calls, readers } = mcpRun([503, version]);
+  const lines = [];
+  await verifyReleaseCurrency({ version, readers, write: (line) => lines.push(line) });
+  assert.equal(calls.length, 2);
+  assert.ok(lines.some((line) => line.includes('[PASS] MCP Registry:') && line.includes('attempts=2; last=HTTP 503')));
+});
+
+test('MCP Registry: two timeouts fail and name both attempts', async () => {
+  const { calls, readers } = mcpRun(['timeout', 'timeout']);
+  const result = await rejectedRun(readers);
+  assert.equal(calls.length, 2);
+  assert.ok(result.lines.some((line) =>
+    line.includes('[FAIL] MCP Registry:') && line.includes('attempts=2; last=timeout') && line.includes('45 seconds')));
+});
+
+test('MCP Registry: a wrong version fails on the first read without a retry', async () => {
+  const { calls, readers } = mcpRun(['9.9.9', version]);
+  const result = await rejectedRun(readers);
+  assert.equal(calls.length, 1);
+  assert.ok(result.lines.some((line) => line.includes('[FAIL] MCP Registry:') && line.includes('version=9.9.9')));
+});
+
+test('MCP Registry: the timeout is the named 45 second constant', () => {
+  assert.equal(MCP_REGISTRY_TIMEOUT_MS, 45_000);
 });
