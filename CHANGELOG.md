@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-02
+
 ### Changed
 
 - **`--min-score` now exits non-zero when fewer than half of the applicable dimensions were

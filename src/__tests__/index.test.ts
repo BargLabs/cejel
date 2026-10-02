@@ -436,11 +436,21 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // rather than object reconstruction, so it preserves every surviving key's serialization
     // order. Removing only that additive field recovers this fixture's 1.3 bytes (61a4a699...)
     // exactly, and every older sub-pin is taken from that recovered report.
+    // Re-pinned for 0.5.0: the only change in that release that reaches this fixture is the
+    // version bump. Made mechanical below: setting toolVersion back to "0.4.11" in place (key
+    // order unchanged) reproduces the pre-0.5.0 pin (36f9bb9e...) byte for byte, and every older
+    // sub-pin is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '36f9bb9e63518b9c5877bcc3272e28bd654429b9ec9f665ec4b978af72dc9b34',
+      'bfe3203eacdcda5afcda999986133b0dec293053017bd15e386266197597a79c',
     );
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.5.0');
+    const atPreviousRelease = { ...firstReport, toolVersion: '0.4.11' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreviousRelease, null, 2)).digest('hex'),
+      'the 0.4.11-era report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('36f9bb9e63518b9c5877bcc3272e28bd654429b9ec9f665ec4b978af72dc9b34');
     const withoutAppliedWeightSharesJson = JSON.stringify(
-      firstReport,
+      atPreviousRelease,
       (key, value) => (key === 'appliedWeightShare' ? undefined : value),
       2,
     );
@@ -449,7 +459,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       'the pre-1.4 report bytes must be recoverable by removing exactly metric appliedWeightShare fields',
     ).toBe('61a4a6994c9621613a19b990c1632d98f5adc0ff820a3c39d84af38c8ef0d113');
     const preAppliedWeightReport = JSON.parse(withoutAppliedWeightSharesJson) as typeof firstReport;
-    expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
+    expect((atPreviousRelease as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653',
     );
     const atPreviousFingerprint = {
@@ -461,7 +471,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       createHash('sha256').update(JSON.stringify(atPreviousFingerprint, null, 2)).digest('hex'),
       'the pre-2026-10-01 report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
     ).toBe('64fa14cf5e1281a50e289fbae207952a6614af8022a3a5abfa40b49aefcb136a');
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.4.11');
+    expect((atPreviousRelease as { toolVersion?: string }).toolVersion).toBe('0.4.11');
     const atPreviousVersion = { ...atPreviousFingerprint, toolVersion: '0.4.10' };
     expect(
       createHash('sha256').update(JSON.stringify(atPreviousVersion, null, 2)).digest('hex'),
