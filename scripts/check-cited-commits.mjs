@@ -8,8 +8,8 @@ import { pathToFileURL } from 'node:url';
 //
 // 0.4.9 (#306) was squash-merged: its preregistration commits became ancestors of nothing on
 // main while result.md and RUBRIC_CHANGELOG.md still cited them, until an erratum and the tag
-// evidence/v17-delta-0.4.9-preregistrations. The D2-D4 acceptance preregistrations (#64, #65)
-// had the same defect a month earlier and nobody noticed. This check makes that state a red
+// evidence/v17-delta-0.4.9-preregistrations. The D2-D4 acceptance preregistrations (#64-#66)
+// had the same defect six weeks earlier and nobody noticed. This check makes that state a red
 // build. Measurement behind every rule below: docs/cited-commits-inventory-2026-10-02.md.
 //
 // Scope: every hexadecimal token of 7 to 40 lowercase characters, bounded by non-alphanumerics,
@@ -31,16 +31,24 @@ import { pathToFileURL } from 'node:url';
 //       as data (`revision`, `revisionAtOrderFreeze`, `pinnedRevision`, ...). A JSON value
 //       that resolves to a commit is still held to rule 1;
 //   (b) it contains a letter a-f (a run of decimal digits is a number, not a citation);
-//   (c) its sentence carries a commit label: commit, committed, merge, merged, squash, or a
-//       preregistration/preregistered word. A sentence ends at . ! or ? followed by
-//       whitespace, at a blank line, and at the end of a Markdown table row;
-//   (d) no other repository is named in the same sentence: alfred, lab_notes, maeve, bede
-//       (alfred's package), "private" (this record's word for alfred's private repository),
-//       upstream, an `owner/repo@` reference other than BargLabs/cejel, or a github.com URL
-//       other than BargLabs/cejel.
+//   (c) its sentence, with backticked code spans removed, carries a commit label: commit(s),
+//       committed, merge(s/d), squash(ed), or a preregistration/preregistered word. A sentence
+//       ends at . ! or ? followed by whitespace and at a blank line; a Markdown table row is
+//       one sentence;
+//   (d) no other repository is named in that sentence or in the prose sentence before it:
+//       alfred, lab_notes, maeve, bede (alfred's package), "private" (this record's word for
+//       alfred's private repository), upstream, an `owner/repo@` reference other than
+//       BargLabs/cejel, or a github.com URL other than BargLabs/cejel;
+//   (e) it is not a digest: not preceded by sha256/sha512/digest/patch id, not followed by an
+//       ellipsis (`dc723f53…` is a truncated SHA-256);
+//   (f) no occurrence of the token, or of a longer or shorter form of it, anywhere in the
+//       scanned record is attributed to another repository by (d) or by a JSON key naming
+//       alfred/private/upstream/lab_notes.
 // An explicit `BargLabs/cejel@<sha>` or `cejel <sha>` citation must resolve regardless of (c).
-// The grammar errs toward missing a citation (a recall gap) rather than failing a build on an
-// alfred commit (a false assertion that a cejel commit is lost).
+// On 2026-10-02 this grammar flagged 14 distinct tokens on main: 5 lost cejel commits, 3
+// undetermined, 6 other repositories' commits. It errs toward missing a citation (a recall
+// gap) rather than failing a build on an alfred commit; an alfred or external citation it does
+// flag is fixed by naming the repository, e.g. `owner/repo@sha`.
 //
 // Pull-request mode (--pending-ref HEAD): a commit reachable from the PR head but not from
 // main is reported as PENDING and does not fail. It is only safe if the PR merges with
