@@ -5,6 +5,7 @@ import type {
   WitanReport,
   WitanWithheldPath,
 } from './schemas.js';
+import { withAppliedWeightShares } from './scoring.js';
 
 export interface CertificateGlossaryEntry {
   key: string;
@@ -351,31 +352,6 @@ export function formatCertificateMetricLabel(metric: WitanCriterionMetric): stri
   );
 }
 
-// Track A2 (ADR-0022): the precise (unrounded) share of a criterion's composite that this
-// metric's weight actually contributed — exactly scoreMetrics()'s own weight/totalWeight
-// denominator (scoring.ts), computed independently here so the certificate can display it
-// without importing the scoring module. This is a known duplication, accepted for now: if
-// scoring.ts's renormalization ever changes without this formula changing to match, the
-// certificate would silently show a share that no longer reflects what was actually applied.
-// The deferred proper fix — the applied share riding as data on report.json itself, versioned
-// with the report format — is tracked in #272. Until then, "Track A2 parity guard"
-// (metric-weight-display-parity.test.ts) calls the real scoreMetrics() directly across several
-// fixtures, including a renormalized (reduced-metric-set) one, and fails loud the moment this
-// duplication drifts.
-export function computeCriterionMetricAppliedWeightShare(
-  criterion: WitanCriterionScore,
-  metric: WitanCriterionMetric,
-): number {
-  const metrics = criterion.metrics;
-  if (!metrics.includes(metric)) {
-    throw new Error(
-      'computeCriterionMetricAppliedWeightShare: metric does not belong to criterion.metrics',
-    );
-  }
-  const totalWeight = metrics.reduce((sum, m) => sum + m.weight, 0);
-  return totalWeight > 0 ? metric.weight / totalWeight : 0;
-}
-
 // Rounds every metric's applied share in a criterion to a whole percent using the
 // largest-remainder method, so the displayed weights for a criterion always sum to exactly
 // 100 — independently rounding each metric's share with Math.round() can under- or overshoot
@@ -392,11 +368,15 @@ export function formatCertificateMetricAppliedWeightPercent(
       'formatCertificateMetricAppliedWeightPercent: metric does not belong to criterion.metrics',
     );
   }
-  const totalWeight = metrics.reduce((sum, m) => sum + m.weight, 0);
-  if (totalWeight <= 0) return 0;
 
-  const shares = metrics.map((m, i) => {
-    const raw = (m.weight / totalWeight) * 100;
+  // New reports carry the scorer's exact applied share. For reports issued before format 1.4,
+  // derive the same data through the scoring helper rather than keeping a second formula here.
+  const appliedMetrics = metrics.every((candidate) => candidate.appliedWeightShare !== undefined)
+    ? metrics
+    : withAppliedWeightShares(metrics);
+
+  const shares = appliedMetrics.map((m, i) => {
+    const raw = (m.appliedWeightShare ?? 0) * 100;
     const floor = Math.floor(raw);
     return { i, floor, fraction: raw - floor };
   });

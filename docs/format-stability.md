@@ -9,7 +9,7 @@ never be converted into a default pass or fail.
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
 | Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.3` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.4` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -107,6 +107,23 @@ For consumers:
   unable to distinguish from a genuine, complete absence.
 - **An empty `signalsAdmitting`** means no signal's own file-selection test would have read the
   withheld path — the skip is disclosed in `contentReadSummary` but no result depends on it.
+
+#### Applied metric weights
+
+`criteria[].metrics[].appliedWeightShare` (report format 1.4 and later) is an additive-optional
+number in `[0, 1]` on a metric-scored criterion. It records the exact normalized share that the
+scorer applied to that metric: the metric's configured weight divided by the sum of the weights in
+the metrics actually scored for that criterion. The shares in a non-empty metric-scored criterion
+sum to 1 before certificate display rounding.
+
+For consumers:
+
+- **Present** means this is the precise share used for the recorded score. Certificate displays may
+  round the values to whole percentages, but must derive that display from these shares.
+- **Absent** means the report predates format 1.4. It is not a scoring error and must not be
+  treated as a zero share; a consumer may derive a display-only value from the report's weights.
+- This field records a scoring input's normalized contribution. It does not alter a metric value,
+  criterion score, rubric version, or eligibility threshold.
 
 ### `attestation.json`
 

@@ -1,21 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  computeCriterionMetricAppliedWeightShare,
-  formatCertificateMetricAppliedWeightPercent,
-} from '../certificate-presentation.js';
-import { roundScore, scoreMetrics } from '../scoring.js';
+import { formatCertificateMetricAppliedWeightPercent } from '../certificate-presentation.js';
+import { roundScore, scoreMetrics, withAppliedWeightShares } from '../scoring.js';
 import type { WitanCriterionMetric, WitanCriterionScore } from '../schemas.js';
 
-// Track A2 follow-up guard (see #272): certificate-presentation.ts's applied-weight-share
-// formula is a second, independent implementation of the renormalization scoreMetrics()
-// (scoring.ts) already performs internally. That duplication is accepted for now — the proper
-// fix (the share riding as data on report.json itself) is deferred to #272 as a report-format
-// change, out of scope for a presentation-only PR. Until that lands, this test calls the REAL
-// scoreMetrics() directly, across fixtures including a renormalized (reduced-metric-set) case,
-// and fails loud the moment the display formula drifts from what scoring.ts actually applies —
-// so drift fails a test instead of shipping a certificate that silently misstates what was
-// applied.
+// Issue #272 guard: exact applied shares are report data calculated by the scorer, not a second
+// presentation formula. These fixtures prove a score reconstructed from those persisted shares
+// matches scoreMetrics(), including when the available metric set is reduced and renormalized.
 
 function metric(
   overrides: Partial<WitanCriterionMetric> & Pick<WitanCriterionMetric, 'weight' | 'value'>,
@@ -37,7 +28,7 @@ function criterionWithMetrics(metrics: WitanCriterionMetric[]): WitanCriterionSc
     status: 'info',
     evidence: [],
     findings: [],
-    metrics,
+    metrics: withAppliedWeightShares(metrics),
   };
 }
 
@@ -50,13 +41,14 @@ function criterionWithMetrics(metrics: WitanCriterionMetric[]): WitanCriterionSc
 function reconstructScoreFromDisplayedShares(criterion: WitanCriterionScore): number {
   const weightedTotal = criterion.metrics.reduce((sum, m) => {
     const normalized = m.max ? Math.min(m.value / m.max, 1) : Math.min(m.value, 1);
-    const share = computeCriterionMetricAppliedWeightShare(criterion, m);
-    return sum + normalized * share;
+    const share = m.appliedWeightShare;
+    expect(share).toBeDefined();
+    return sum + normalized * (share ?? 0);
   }, 0);
   return roundScore(weightedTotal * 4);
 }
 
-describe('Track A2 parity guard — display formula matches scoreMetrics() itself', () => {
+describe('Issue #272 — recorded applied shares match scoreMetrics()', () => {
   const fixtures: Record<string, WitanCriterionMetric[]> = {
     'uniform weights': [
       metric({ name: 'm1', weight: 1, value: 1 }),
@@ -95,7 +87,9 @@ describe('Track A2 — largest-remainder rounding', () => {
       metric({ name: 'm3', weight: 1, value: 0 }),
     ];
     const criterion = criterionWithMetrics(metrics);
-    const percents = metrics.map((m) => formatCertificateMetricAppliedWeightPercent(criterion, m));
+    const percents = criterion.metrics.map((m) =>
+      formatCertificateMetricAppliedWeightPercent(criterion, m),
+    );
 
     expect(percents.reduce((sum, p) => sum + p, 0)).toBe(100);
     // Deterministic tie-break: equal fractional remainders (.333...) resolve in original
@@ -106,7 +100,9 @@ describe('Track A2 — largest-remainder rounding', () => {
   it('sums to exactly 100 for seven equal-weight metrics under heavier rounding pressure', () => {
     const metrics = Array.from({ length: 7 }, (_, i) => metric({ name: `m${i}`, weight: 1, value: 0 }));
     const criterion = criterionWithMetrics(metrics);
-    const percents = metrics.map((m) => formatCertificateMetricAppliedWeightPercent(criterion, m));
+    const percents = criterion.metrics.map((m) =>
+      formatCertificateMetricAppliedWeightPercent(criterion, m),
+    );
 
     expect(percents.reduce((sum, p) => sum + p, 0)).toBe(100);
     expect(percents).toEqual([15, 15, 14, 14, 14, 14, 14]);
@@ -122,7 +118,9 @@ describe('Track A2 — largest-remainder rounding', () => {
       metric({ name: 'm3', weight: 4, value: 0 }),
     ];
     const criterion = criterionWithMetrics(metrics);
-    const percents = metrics.map((m) => formatCertificateMetricAppliedWeightPercent(criterion, m));
+    const percents = criterion.metrics.map((m) =>
+      formatCertificateMetricAppliedWeightPercent(criterion, m),
+    );
 
     expect(percents).toEqual([14, 29, 57]);
     expect(percents.reduce((sum, p) => sum + p, 0)).toBe(100);
@@ -134,7 +132,9 @@ describe('Track A2 — largest-remainder rounding', () => {
       metric({ name: 'm2', weight: 3, value: 0 }),
     ];
     const criterion = criterionWithMetrics(metrics);
-    const percents = metrics.map((m) => formatCertificateMetricAppliedWeightPercent(criterion, m));
+    const percents = criterion.metrics.map((m) =>
+      formatCertificateMetricAppliedWeightPercent(criterion, m),
+    );
 
     expect(percents).toEqual([25, 75]);
   });

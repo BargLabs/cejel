@@ -431,14 +431,29 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // pins byte for byte). Made mechanical below: restoring the previous v17 fingerprint in place
     // (key order unchanged) reproduces the previous pin (64fa14cf...) byte for byte, and every
     // older sub-pin is taken from that restored report.
+    // Re-pinned for report format 1.4 (issue #272): each scored metric now records the exact
+    // normalized appliedWeightShare. The compact removal below is intentionally a JSON replacer,
+    // rather than object reconstruction, so it preserves every surviving key's serialization
+    // order. Removing only that additive field recovers this fixture's 1.3 bytes (61a4a699...)
+    // exactly, and every older sub-pin is taken from that recovered report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '61a4a6994c9621613a19b990c1632d98f5adc0ff820a3c39d84af38c8ef0d113',
+      '36f9bb9e63518b9c5877bcc3272e28bd654429b9ec9f665ec4b978af72dc9b34',
     );
+    const withoutAppliedWeightSharesJson = JSON.stringify(
+      firstReport,
+      (key, value) => (key === 'appliedWeightShare' ? undefined : value),
+      2,
+    );
+    expect(
+      createHash('sha256').update(withoutAppliedWeightSharesJson).digest('hex'),
+      'the pre-1.4 report bytes must be recoverable by removing exactly metric appliedWeightShare fields',
+    ).toBe('61a4a6994c9621613a19b990c1632d98f5adc0ff820a3c39d84af38c8ef0d113');
+    const preAppliedWeightReport = JSON.parse(withoutAppliedWeightSharesJson) as typeof firstReport;
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653',
     );
     const atPreviousFingerprint = {
-      ...firstReport,
+      ...preAppliedWeightReport,
       rubricBehaviourFingerprint:
         'sha256:ff0f01abe8c12daa60375d0e18c1aca4a1135a55ab2a80b15f4c037bfc18b4b1',
     };

@@ -193,6 +193,10 @@ export const WitanCriterionMetricSchema = z
     max: z.number().positive().optional(),
     kind: z.enum(['ratio', 'saturating_count']).optional(),
     weight: z.number().positive().max(1).default(1),
+    // The exact normalized share applied by the scorer within this criterion. New metric-scored
+    // reports record it so certificates can state the weight that was actually used rather than
+    // reconstructing it from a presentation-only formula. Optional for pre-1.4 reports.
+    appliedWeightShare: z.number().min(0).max(1).optional(),
     unit: z.string().min(1).max(40).optional(),
     description: z.string().min(1).max(300).optional(),
     presentation: z
@@ -526,7 +530,10 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // withheldPaths field. Additive-optional under the same rule; a report produced before this
 // version simply does not carry it, and a consumer that ignores fields it does not recognise is
 // unaffected.
-export const WITAN_REPORT_FORMAT_VERSION = '1.3' as const;
+// 1.4 (issue #272): metric-scored reports gained optional
+// criteria[].metrics[].appliedWeightShare. It is the exact normalized weight used by scoring;
+// reports produced before this version do not carry it.
+export const WITAN_REPORT_FORMAT_VERSION = '1.4' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z
