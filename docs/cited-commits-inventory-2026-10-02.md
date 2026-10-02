@@ -105,6 +105,10 @@ sentences intervene.
 
 ## Current `main` failures
 
+Observed in CI on PR #390's first run (GitHub Actions run `36945351019`, merge ref of
+`2b4f063` into `e2651cc`): `27271 tokens scanned against origin/main and 2 evidence/* tag(s);
+36 failure(s), 0 pending`. That matches computed view D exactly.
+
 View D (the proposed workflow): **36 failing occurrences, 28 distinct tokens** — rule 1: 20
 occurrences / 14 distinct; rule 2: 16 occurrences / 14 distinct. The operator worktree reports
 37, because a local loose object turns `a34da1a`'s second citation into a rule-1 failure.
