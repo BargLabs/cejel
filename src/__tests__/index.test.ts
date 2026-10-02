@@ -26,6 +26,7 @@ import {
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   WITAN_RUBRIC_VERSION_V22,
 } from '../witan/rubric-version.js';
+import { computeApplicableMeasuredCoverage } from '../witan/coverage.js';
 
 // Committed fixture (not a machine-specific temp file) — lives in the vendored witan-core test
 // fixtures since the SARIF adapter tests there also read it. See
@@ -677,21 +678,31 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     expect(exitCode).toBe(1);
   });
 
-  it('exits 0 when --min-score is easily satisfied', async () => {
+  it('refuses --min-score when a numerical score rests on low measurement coverage', async () => {
     const repoPath = mkdtempSync(join(tmpdir(), 'witan-free-cli-threshold-pass-'));
     const outDir = join(repoPath, '.witan');
     writeFixtureFile(repoPath, 'src/index.ts', 'export const value = 42;');
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
-    const exitCode = await runWitanFreeCli([
-      repoPath,
-      '--out-dir',
-      outDir,
-      '--min-score',
-      '0',
-      '--quiet',
-    ]);
-
-    expect(exitCode).toBe(0);
+    try {
+      expect(
+        await runWitanFreeCli([
+          repoPath,
+          '--out-dir',
+          outDir,
+          '--min-score',
+          '0',
+          '--quiet',
+        ]),
+      ).toBe(1);
+      const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8'));
+      expect(computeApplicableMeasuredCoverage(report).lowConfidence).toBe(true);
+      expect(stderrSpy.mock.calls.map((call) => String(call[0])).join('')).toContain(
+        'because fewer than half of the applicable dimensions were measured',
+      );
+    } finally {
+      stderrSpy.mockRestore();
+    }
   });
 
   it('refuses --min-score when the result carries a scan limitation', async () => {

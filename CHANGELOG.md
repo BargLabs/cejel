@@ -14,6 +14,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **`--min-score` now exits non-zero when fewer than half of the applicable dimensions were
+  measured, even when the score clears the minimum.** Before this, a score resting on a handful
+  of measured dimensions passed the gate as readily as a fully measured one. Now the gate refuses
+  if the measured share of applicable (not `not_applicable`) dimensions is below one half,
+  overall or in any category. Who is affected: CI jobs that run `--min-score` on
+  low-coverage repositories, such as a small or newly created codebase where most dimensions
+  return `insufficient_data`. Those jobs used to pass and will now fail. How to see why: stderr
+  reads `Cejel: cannot evaluate the required minimum N/4.0 because fewer than half of the
+  applicable dimensions were measured in at least one score (…)`, with the measured/applicable
+  counts in the parentheses. The scores in the report do not change; only the exit code does.
+
+---
+
 ## [0.4.11] — 2026-09-25
 
 ### Fixed

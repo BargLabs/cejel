@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WitanCliSummary } from '../summary.js';
-import { renderMinScoreAbstentionFailure, renderTerminalCertificate } from '../terminal.js';
+import {
+  renderMinScoreAbstentionFailure,
+  renderMinScoreCoverageFailure,
+  renderTerminalCertificate,
+} from '../terminal.js';
 
 function summary(overrides: Partial<WitanCliSummary> = {}): WitanCliSummary {
   return {
@@ -213,5 +217,23 @@ describe('renderTerminalCertificate', () => {
         4,
       ),
     ).toContain('this repository has insufficient source');
+  });
+
+  it('refuses a minimum-score gate with low measurement coverage', () => {
+    expect(
+      renderMinScoreCoverageFailure(
+        {
+          byCategory: [
+            { category: 'code_trust', measured: 3, total: 4 },
+            { category: 'process_trust', measured: 1, total: 6 },
+          ],
+          overall: { measured: 4, total: 10 },
+          lowConfidence: true,
+        },
+        3.5,
+      ),
+    ).toBe(
+      'Cejel: cannot evaluate the required minimum 3.5/4.0 because fewer than half of the applicable dimensions were measured in at least one score (code trust 3/4, process trust 1/6, overall 4/10). Resolve the reported evidence gaps and re-scan.\n',
+    );
   });
 });

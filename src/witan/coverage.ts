@@ -62,10 +62,27 @@ export function isMeasuredCriterionStatus(status: WitanCriterionScore['status'])
 }
 
 export function computeMeasuredCoverage(report: WitanReport): MeasuredCoverage {
+  return computeCoverage(report, () => true);
+}
+
+/**
+ * Coverage used by `--min-score`: only dimensions that apply to this repository are in the
+ * denominator. This is intentionally separate from computeMeasuredCoverage, whose all-criterion
+ * counts are a stable display surface for reports and the public board.
+ */
+export function computeApplicableMeasuredCoverage(report: WitanReport): MeasuredCoverage {
+  return computeCoverage(report, (criterion) => criterion.status !== 'not_applicable');
+}
+
+function computeCoverage(
+  report: WitanReport,
+  includeCriterion: (criterion: WitanCriterionScore) => boolean,
+): MeasuredCoverage {
   const byCategory: CategoryCoverage[] = [];
   const overall: CoverageCounts = { measured: 0, total: 0 };
 
   for (const criterion of report.criteria) {
+    if (!includeCriterion(criterion)) continue;
     let bucket = byCategory.find((entry) => entry.category === criterion.category);
     if (!bucket) {
       bucket = { category: criterion.category, measured: 0, total: 0 };

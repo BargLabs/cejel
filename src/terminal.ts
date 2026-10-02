@@ -11,6 +11,7 @@ import {
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './witan/rubric-version.js';
 
 import type { WitanCliSummary } from './summary.js';
+import { formatCoverageSummary, type MeasuredCoverage } from './witan/coverage.js';
 
 export function renderMinScoreAbstentionFailure(
   summary: WitanCliSummary,
@@ -30,6 +31,16 @@ export function renderMinScoreLimitationFailure(
     throw new Error('A minimum-score limitation message requires a limited Cejel summary.');
   }
   return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because the scan has limited evidence (${summary.scanLimitations.length} limitation${summary.scanLimitations.length === 1 ? '' : 's'}). Resolve the reported limitations and re-scan.\n`;
+}
+
+export function renderMinScoreCoverageFailure(
+  coverage: MeasuredCoverage,
+  minScore: number,
+): string {
+  if (!coverage.lowConfidence) {
+    throw new Error('A minimum-score coverage message requires low measurement coverage.');
+  }
+  return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because fewer than half of the applicable dimensions were measured in at least one score (${formatCoverageSummary(coverage)}). Resolve the reported evidence gaps and re-scan.\n`;
 }
 
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
