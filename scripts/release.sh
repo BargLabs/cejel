@@ -21,7 +21,8 @@
 #   - Workflow-only npm publication is operator policy, not a registry guarantee (0.4.9).
 #
 # Test seams (env): RELEASE_POLL_INTERVAL (default 20 s), RELEASE_POLL_MAX (default 600 s),
-# RELEASE_CURRENCY_WAIT (default 300 s), RELEASE_SKIP_VALIDATE=1 (tests only).
+# RELEASE_CURRENCY_WAIT (default 300 s), RELEASE_MCP_RETRY_DELAY (default 3 s),
+# RELEASE_SKIP_VALIDATE=1 (tests only).
 
 set -euo pipefail
 
@@ -35,6 +36,9 @@ MCP_NAME="io.github.BargLabs%2Fcejel"
 POLL_INTERVAL="${RELEASE_POLL_INTERVAL:-20}"
 POLL_MAX="${RELEASE_POLL_MAX:-600}"
 CURRENCY_WAIT="${RELEASE_CURRENCY_WAIT:-300}"
+MCP_TIMEOUT=45
+MCP_RETRY_DELAY="${RELEASE_MCP_RETRY_DELAY:-3}"
+MCP_NOT_LAG="re-read before writing current-release.mjs; a read error is not a lag"
 if command -v crane >/dev/null 2>&1; then OCI_TOOL=crane; else OCI_TOOL=curl; fi
 
 DRY_RUN=0
@@ -309,7 +313,13 @@ stage4() {
 # ---------------------------------------------------------------- stage 5
 stage5() {
   local st; st="$(release_view)"
-  [ -n "$st" ] || { [ "$DRY_RUN" = 1 ] && { say "stage 5: [dry-run] release does not exist yet"; return; }; die "no release on $TAG"; }
+  if [ -z "$st" ]; then
+    [ "$DRY_RUN" = 1 ] || die "no release on $TAG"
+    # The release does not exist yet, so a dry run cannot read it; it still shows the prompt the
+    # real run will stop at, so the preview lists every irreversible step.
+    irreversible 5 "draft release $TAG, twelve assets verified (precondition checked in the real run; no release exists yet in this dry run)" -- gh release edit "$TAG" --repo "$REPO" --draft=false
+    return 0
+  fi
   if [ "$st" = "false|false" ]; then done_ 5 publish-release "published, not a prerelease"; return; fi
   [ "$st" != "false|true" ] || die "$TAG is published but flagged prerelease"
   irreversible 5 "draft release $TAG, twelve assets verified" -- gh release edit "$TAG" --repo "$REPO" --draft=false
@@ -393,13 +403,36 @@ oci_digest() { # prints digest or nothing
   fi
 }
 
-read_mcp() {
-  local out
-  if out="$(curl -fsS "https://registry.modelcontextprotocol.io/v0.1/servers/$MCP_NAME/versions/$VERSION" 2>&1)"; then
-    local v; v="$(jq -r '.server.version // .version // empty' <<<"$out" 2>/dev/null)"
-    if [ "$v" = "$VERSION" ]; then MCP_STATE="serves $VERSION"; else MCP_STATE="responded without version $VERSION: $(head -c 300 <<<"$out")"; fi
+# One read: sets MCP_CODE (HTTP status, empty when curl itself failed), MCP_BODY, MCP_ERR.
+mcp_attempt() {
+  local raw
+  if raw="$(curl -sS --max-time "$MCP_TIMEOUT" -w '\n%{http_code}' "https://registry.modelcontextprotocol.io/v0.1/servers/$MCP_NAME/versions/$VERSION" 2>"$WORK/mcp_err")"; then
+    MCP_CODE="${raw##*$'\n'}"; MCP_BODY="${raw%$'\n'*}"; MCP_ERR=""
   else
-    MCP_STATE="disclosed-lag state, not current: registry read failed: $(head -c 300 <<<"$out")"
+    MCP_CODE=""; MCP_BODY=""; MCP_ERR="$(head -c 300 "$WORK/mcp_err")"
+  fi
+}
+
+# Three states, never conflated. Only LAG is a claim about the registry; a failed read is not one
+# (cejel-site's disclosedLag is a published claim that the registry serves an older version).
+read_mcp() {
+  local attempt v
+  for attempt in 1 2; do
+    mcp_attempt
+    # Retry once, only when no answer came back (timeout, connection) or the answer was HTTP 5xx.
+    if { [ -z "$MCP_CODE" ] || [[ "$MCP_CODE" =~ ^5 ]]; } && [ "$attempt" = 1 ]; then sleep "$MCP_RETRY_DELAY"; continue; fi
+    break
+  done
+  if [ -z "$MCP_CODE" ]; then
+    MCP_STATE="NOT READ: ${MCP_ERR:-curl failed without a message}; $MCP_NOT_LAG"
+  elif [ "$MCP_CODE" != 200 ]; then
+    MCP_STATE="NOT READ: HTTP $MCP_CODE $(head -c 200 <<<"$MCP_BODY"); $MCP_NOT_LAG"
+  else
+    v="$(jq -r '.server.version // .version // empty' <<<"$MCP_BODY" 2>/dev/null || true)"
+    if [ "$v" = "$VERSION" ]; then MCP_STATE="serves $VERSION"
+    elif [ -n "$v" ]; then MCP_STATE="LAG: serves $v (expected $VERSION)"
+    else MCP_STATE="NOT READ: HTTP 200 without a version field: $(head -c 200 <<<"$MCP_BODY"); $MCP_NOT_LAG"
+    fi
   fi
 }
 
@@ -431,15 +464,19 @@ stage9() {
 # ---------------------------------------------------------------- stage 10
 stage10() {
   say "stage 10 (homebrew): NOT run by this driver -- separate repository, its own review."
-  local d="$WORK/brew"; mkdir -p "$d"
-  if [ "$DRY_RUN" = 1 ] && [ -z "$(release_view)" ]; then say "  [dry-run] no release yet; tarball digest not computed"; return; fi
-  local tarball="$d/$TAG.tar.gz" digest
-  if curl -fsSL "https://github.com/$REPO/archive/refs/tags/$TAG.tar.gz" -o "$tarball"; then
-    digest="$(sha256_of "$tarball")"
-    say "  source tarball sha256 (from the published tag archive): $digest"
-    say "  operator command (tap repo): bump the cejel formula to version $VERSION with url https://github.com/$REPO/archive/refs/tags/$TAG.tar.gz and sha256 $digest"
+  # The formula installs the four native binaries, each with its own digest from the SHA256SUMS
+  # that stage 4 downloaded and verified. The Windows binary is not in the formula.
+  local sums="$WORK/assets/SHA256SUMS" t digest
+  if [ -s "$sums" ]; then
+    say "  operator command (tap repo): bump Formula/cejel.rb to version $VERSION with these binary urls and sha256 values (from the verified SHA256SUMS):"
+    for t in Darwin-arm64 Darwin-x86_64 Linux-aarch64 Linux-x86_64; do
+      digest="$(awk -v n="cejel-$t" '{f=$2; sub(/^\*/,"",f)} f==n{print $1}' "$sums")"
+      [ -n "$digest" ] || { say "    cejel-$t: no digest in SHA256SUMS; read it from the release by hand"; continue; }
+      say "    https://github.com/$REPO/releases/download/$TAG/cejel-$t  sha256 $digest"
+    done
+    say "  operator command (tap repo): in .github/workflows/verify-cejel-consumer-routes.yml set expected_version: '$VERSION' and pin $REPO@$TAG"
   else
-    say "  could not download the tag archive; compute the tarball digest by hand"
+    say "  [dry-run] no verified SHA256SUMS yet; the four binary digests are printed once stage 4 has verified the release"
   fi
   say "  ORDER: the tap's action-routes check reads action@v1, so the tap PR stays red until stage 12 has moved v1. Do not wait on the tap check before stage 12."
 }

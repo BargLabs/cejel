@@ -24,6 +24,15 @@ inside the 0.4.6 post-mortem below:
   `npm view`, and a version missing a minute after publish is lag, not failure, until the poll
   window closes.
 
+`--dry-run` shows all five prompts, including stage 5's when no release exists yet. The currency
+check reads the MCP Registry with a 45-second timeout and retries once, after a short delay, on a
+timeout or HTTP 5xx (a wrong version or digest fails on the first read, and `observed` reports
+`attempts=2; last=...`). The stage-10 hint gives the four native-binary URLs with their `SHA256SUMS`
+digests, plus the consumer-routes `expected_version` and `BargLabs/cejel@v<version>` pin, and no
+source-tarball digest. The handback's MCP registry state is one of `serves X`, `LAG: serves Y
+(expected X)` (the only state that is a claim of lag) or `NOT READ: <error>` (a read error is not a
+lag; re-read before writing `current-release.mjs`).
+
 The site record (`current-release.mjs` in cejel-site, under that repository's `DEPLOY.md`) is
 outside the script, as is the Homebrew tap bump: the script prints the values and stops.
 

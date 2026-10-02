@@ -184,14 +184,20 @@ async function ghApi(path, label) {
   return commandJson('gh', ['api', path], label);
 }
 
-async function fetchTimed(url, label, options = {}) {
+// The MCP Registry answered in about 17.8 s on 2026-10-02, so 20 s was one slow read from a false
+// refusal. A slow but healthy upstream must not fail a release; a definite wrong answer still does.
+export const MCP_REGISTRY_TIMEOUT_MS = 45_000;
+const MCP_REGISTRY_RETRY_DELAY_MS = 3_000;
+
+async function fetchTimed(url, label, options = {}, { timeoutMs = 20_000, fetchImpl = fetch } = {}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetchImpl(url, { ...options, signal: controller.signal });
   } catch (error) {
-    const detail = error?.name === 'AbortError' ? 'request timed out after 20 seconds' : error.message;
-    throw new Error(`${label} query failed: ${detail}`);
+    const timedOut = error?.name === 'AbortError';
+    const detail = timedOut ? `request timed out after ${timeoutMs / 1000} seconds` : error.message;
+    throw Object.assign(new Error(`${label} query failed: ${detail}`), { timedOut });
   } finally {
     clearTimeout(timeout);
   }
@@ -301,7 +307,44 @@ function mcpOciIdentifier(server) {
   return packages.length === 1 ? packages[0].identifier : null;
 }
 
-export function createLiveReaders() {
+// One retry, only for a timeout or an HTTP 5xx, after a fixed delay. Any other answer (including a
+// record naming another version or digest) is returned or thrown on the first read.
+async function readMcpRegistry(version, { fetchImpl, retryDelayMs }) {
+  const url = `https://registry.modelcontextprotocol.io/v0.1/servers/${encodeURIComponent(MCP_SERVER_NAME)}/versions/${encodeURIComponent(version)}`;
+  const failures = [];
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    let retryable = false;
+    try {
+      const response = await fetchTimed(url, 'MCP Registry', {}, { timeoutMs: MCP_REGISTRY_TIMEOUT_MS, fetchImpl });
+      if (response.ok) {
+        const body = parseJson(await response.text(), 'MCP Registry');
+        return {
+          name: body?.server?.name,
+          version: body?.server?.version,
+          ociIdentifier: mcpOciIdentifier(body?.server),
+          attempts: attempt,
+          last: failures.at(-1)?.kind,
+        };
+      }
+      const message = `MCP Registry query failed: HTTP ${response.status} ${response.statusText}`;
+      if (response.status < 500) throw new Error(message);
+      failures.push({ kind: `HTTP ${response.status}`, message });
+      retryable = true;
+    } catch (error) {
+      if (!error.timedOut) throw error;
+      failures.push({ kind: 'timeout', message: error.message });
+      retryable = true;
+    }
+    if (retryable && attempt === 1) await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+  }
+  const last = failures.at(-1);
+  throw Object.assign(
+    new Error(`${failures.map((failure, index) => `attempt ${index + 1}: ${failure.message}`).join('; ')}`),
+    { observed: `attempts=${failures.length}; last=${last.kind}` },
+  );
+}
+
+export function createLiveReaders({ fetchImpl = fetch, retryDelayMs = MCP_REGISTRY_RETRY_DELAY_MS } = {}) {
   return {
     async npm(version) {
       const exact = await commandJson(
@@ -380,15 +423,7 @@ export function createLiveReaders() {
     },
 
     async 'MCP Registry'(version) {
-      const response = await fetchJson(
-        `https://registry.modelcontextprotocol.io/v0.1/servers/${encodeURIComponent(MCP_SERVER_NAME)}/versions/${encodeURIComponent(version)}`,
-        'MCP Registry',
-      );
-      return {
-        name: response?.server?.name,
-        version: response?.server?.version,
-        ociIdentifier: mcpOciIdentifier(response?.server),
-      };
+      return readMcpRegistry(version, { fetchImpl, retryDelayMs });
     },
 
     async 'cejel.dev homepage'() {
@@ -440,7 +475,9 @@ function observedValue(surface, value) {
     case 'OCI': return `${IMAGE_NAME}; digest=${value.digest}; mediaType=${value.mediaType}`;
     case 'GitHub Action': return `@${value.immutableTag} -> ${value.immutableCommit} (${value.immutableManifest}); action@${value.floatingTag} -> ${value.floatingCommit} (${value.floatingManifest})`;
     case 'Homebrew tap': return `Formula/cejel.rb versions=${value.versions.join(',') || '<none>'}`;
-    case 'MCP Registry': return `name=${value.name}; version=${value.version}; OCI=${value.ociIdentifier}`;
+    case 'MCP Registry':
+      return `name=${value.name}; version=${value.version}; OCI=${value.ociIdentifier}` +
+        (value.attempts > 1 ? `; attempts=${value.attempts}; last=${value.last}` : '');
     case 'cejel.dev homepage': return `pinned invocation versions=${value.invocationVersions.join(',') || '<none>'}`;
     case 'cejel.dev for-engineers': return `rendered current version=${value.currentVersion || '<missing>'}`;
     case 'changelog':
@@ -569,7 +606,7 @@ export async function verifyReleaseCurrency({
       if (typeof readers[surface] !== 'function') throw new Error('surface reader is missing');
       return [surface, { value: await readers[surface](version) }];
     } catch (error) {
-      return [surface, { error: error.message || String(error) }];
+      return [surface, { error: error.message || String(error), observed: error.observed }];
     }
   }));
   const observations = Object.fromEntries(settled);
@@ -578,7 +615,7 @@ export async function verifyReleaseCurrency({
   const results = SURFACES.map((surface) => {
     const observation = observations[surface];
     if (observation.error) {
-      return { surface, ok: false, observed: '<unreachable>', reason: observation.error };
+      return { surface, ok: false, observed: observation.observed ?? '<unreachable>', reason: observation.error };
     }
     const observed = observedValue(surface, observation.value);
     try {

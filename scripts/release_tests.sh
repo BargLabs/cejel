@@ -226,7 +226,7 @@ new_state() {
 # run_release <state dir> <stdin text> [args...] -> sets OUT, RC
 run_release() {
   local S="$1" input="$2"; shift 2
-  OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 \
+  OUT="$(printf '%s\n' "$input" | FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_POLL_INTERVAL=0 RELEASE_POLL_MAX=0 RELEASE_CURRENCY_WAIT=0 RELEASE_RUN_FIND_SLEEP=0 RELEASE_MCP_RETRY_DELAY=0 \
     bash "$TARGET" "$V" "$@" 2>&1)"; RC=$?
 }
 mutations() { grep -cE '^(git (tag|push)|gh (release (create|edit)|workflow run))' "$1/calls.log" || true; }
