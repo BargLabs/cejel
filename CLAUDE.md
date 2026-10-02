@@ -17,8 +17,10 @@ repositories, and Alfred's Maeve production surface — they produced zero findi
 taxonomy for organising findings, review prompts and future detection targets. They are not a
 production detector: a zero-result D-series scan means no rule matched, never that a repository is
 clean, and D-series output must not gate a release, support a precision or recall claim, or appear
-in customer-facing material as a shipped capability. A preregistered base-rate scan is in
-progress; only a rule firing on a real, unconstructed defect changes this. Historical counts and
+in customer-facing material as a shipped capability. The preregistered base-rate scan completed:
+0 genuine findings in 2,000 attempted fresh public repositories (1,997-1,998 scanned without error)
+(`docs/experiments/d-series-base-rate-2026-08-02/result.md`, commit `e5181f4`, 2026-08-02); only a
+rule firing on a real, unconstructed defect changes this. Historical counts and
 open-item labels must be mechanically reverified against current repository state before action.
 
 The Alfred and Cejel copies share a point-in-time SHA-256 pin. Each repository pins only its local
