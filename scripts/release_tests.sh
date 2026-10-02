@@ -113,9 +113,27 @@ case "$1 $2" in
   "release download")
     for ((i=0; i<${#args[@]}; i++)); do [ "${args[$i]}" = "--dir" ] && d="${args[$((i+1))]}"; done
     cp "$S"/assets/* "$d"/ ;;
-  "release create"|"release edit"|"workflow run") exit 0 ;;
-  "run list") emit "$S/runlist.json" ;;
-  "run view") if [ "$want_log" = 1 ]; then cat "$S/runlog.txt"; else emit "$S/runview.json"; fi ;;
+  "workflow run")
+    # A currency dispatch appends a new run (as GitHub would) when the test staged its log.
+    case " $* " in
+      *" verify-release-currency.yml "*)
+        if [ -s "$S/dispatch_runlog.txt" ]; then
+          jq '. + [{databaseId:99999999999,createdAt:"2099-06-01T00:00:00Z",event:"workflow_dispatch",status:"completed"}]' "$S/runlist.json" >"$S/rl.tmp" && mv "$S/rl.tmp" "$S/runlist.json"
+          cp "$S/dispatch_runlog.txt" "$S/runlog_99999999999.txt"
+        fi ;;
+    esac
+    exit 0 ;;
+  "release create"|"release edit") exit 0 ;;
+  "run list")
+    # Like real gh: --event narrows the list to runs of that trigger.
+    ev=""; for ((i=0; i<${#args[@]}; i++)); do [ "${args[$i]}" = "--event" ] && ev="${args[$((i+1))]}"; done
+    if [ -n "$ev" ]; then jq --arg e "$ev" '[.[]|select(.event==$e)]' "$S/runlist.json" >"$S/rl.filtered"; emit "$S/rl.filtered"
+    else emit "$S/runlist.json"; fi ;;
+  "run view")
+    if [ "$want_log" = 1 ]; then
+      # A per-run log keeps the default log's two header lines (npm publish line, sigstore URL).
+      if [ -f "$S/runlog_$3.txt" ]; then head -2 "$S/runlog.txt"; cat "$S/runlog_$3.txt"; else cat "$S/runlog.txt"; fi
+    else emit "$S/runview.json"; fi ;;
   "run watch") exit 0 ;;
   *) echo "unhandled gh $*" >&2; exit 1 ;;
 esac
@@ -150,6 +168,22 @@ NPM_OK='{"dist-tags":{"latest":"0.4.11"},"versions":{"0.4.11":{"gitHead":"aaaaaa
 NPM_NONE='{"dist-tags":{"latest":"0.4.10"},"versions":{"0.4.10":{}}}'
 NPM_HAND='{"dist-tags":{"latest":"0.4.11"},"versions":{"0.4.11":{"_npmUser":{"name":"cejel","email":"x@example.com"},"dist":{}}}}'
 
+SURFACES=("npm" "npm attestation" "GitHub release" "git tag" "OCI" "GitHub Action" "Homebrew tap" "MCP Registry" "cejel.dev homepage" "cejel.dev for-engineers" "changelog" "published-versions.json" "leaderboard")
+# mklog [failing surface...]: the verifier's thirteen lines in its own format, prefixed as a run log shows them.
+mklog() {
+  local s f
+  for s in "${SURFACES[@]}"; do
+    for f in "$@"; do
+      if [ "$f" = "$s" ]; then printf 'verify\tRun verifier\t2026-09-29T00:00:00Z [FAIL] %s: observed=old; reason=stale\n' "$s"; continue 2; fi
+    done
+    printf 'verify\tRun verifier\t2026-09-29T00:00:00Z [PASS] %s: observed=%s\n' "$s" "$V"
+  done
+}
+# The failing set before v1 moves and before the tap and site are updated (measured 2026-10-02).
+# The operator named "the three cejel.dev surfaces" without labels: homepage, for-engineers and
+# leaderboard are the fixture's choice.
+PREV1_FAILS=("GitHub Action" "Homebrew tap" "cejel.dev homepage" "cejel.dev for-engineers" "leaderboard")
+
 # new_state <dir>: a finished 0.4.11 release, tag behind a moved main.
 new_state() {
   local S="$1"; mkdir -p "$S/files" "$S/assets"
@@ -170,11 +204,10 @@ new_state() {
   done
   local a; for a in "$S"/assets/*; do names+=("$(basename "$a")"); done
   printf '%s\n' "${names[@]}" | jq -R '{name:.}' | jq -s '{isDraft:false,isPrerelease:false,assets:.}' >"$S/release.json"
-  echo '[{"databaseId":12345678901,"createdAt":"2099-01-01T00:00:00Z","status":"completed"}]' >"$S/runlist.json"
+  echo '[{"databaseId":12345678901,"createdAt":"2099-01-01T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
   echo '{"status":"completed","conclusion":"success","updatedAt":"2026-09-25T00:00:00Z"}' >"$S/runview.json"
   { echo "+ @cejel/cejel@$V"; echo "Provenance statement published to transparency log: https://search.sigstore.dev/?logIndex=123";
-    for i in 1 2 3 4 5 6 7 8 9 10; do echo "[PASS] surface$i: observed=$V"; done
-    for i in 1 2 3; do echo "[FAIL] cejel.dev surface$i: observed=old"; done; } >"$S/runlog.txt"
+    mklog; } >"$S/runlog.txt"
   echo "$NPM_OK" >"$S/npm.json"
   echo "sha256:cafe" >"$S/oci_digest"
   echo '{"server":{"version":"0.4.11"}}' >"$S/mcp.json"
@@ -198,7 +231,8 @@ for st in "2 (tag)" "3 (draft-release)" "4 (binaries)" "5 (publish-release)" "6 
   has "stage $st: already done"; check "happy: stage $st reads as already done" $? "$OUT"
 done
 has "HANDBACK"; check "happy: handback printed" $? ""
-has "10 of 13"; check "happy: currency says it is reading the before-site state (10 of 13)" $? "$OUT"
+has "13 of 13"; check "happy: currency reads 13 of 13 on a finished release" $? "$OUT"
+has "would run: gh workflow run verify-release-currency.yml"; check "happy: stage 13 prints the fresh currency dispatch in dry-run" $? "$OUT"
 [ "$(mutations "$S")" = 0 ]; check "happy: dry-run performs no mutating call" $? "$(cat "$S/calls.log")"
 
 # 2. fresh release, dry-run: every action printed, none executed.
@@ -258,6 +292,51 @@ run_release "$S" "" --dry-run
 
 # 10. the temporary-worktree refusal also carries git's stderr (stage 1 skips it under RELEASE_SKIP_VALIDATE).
 grep -q 'wt_err' "$TARGET"; check "static: worktree add failure captures stderr" $? ""
+
+# 11. the newest currency run of ANY trigger is read, not only workflow_run (the 0.4.11 dry run).
+S="$TEST_TMP/s11"; new_state "$S"
+cat >"$S/runlist.json" <<'JSON'
+[{"databaseId":36146147435,"createdAt":"2026-09-25T14:14:00Z","event":"workflow_run","status":"completed"},
+ {"databaseId":36489469157,"createdAt":"2026-09-28T00:00:00Z","event":"schedule","status":"completed"},
+ {"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]
+JSON
+mklog "${PREV1_FAILS[@]}" "Homebrew tap" >"$S/runlog_36146147435.txt"
+mklog >"$S/runlog_36579259365.txt"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "36579259365" && has "workflow_dispatch" && has "2026-09-29T00:00:00Z" && has "13 of 13"
+check "stale run: newer workflow_dispatch run is read and its id, event and time printed" $? "rc=$RC: $OUT"
+! has "currency run 36146147435"; check "stale run: the old workflow_run run is not read" $? "$OUT"
+
+# 12. before v1 / tap / site: the named failing set passes stage 11.
+S="$TEST_TMP/s12"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "8 of 13" && has "before v1"; check "pre-v1: the named failing set passes stage 11" $? "rc=$RC: $OUT"
+
+# 13. the same number of failures with a different surface failing refuses, printing every [FAIL] line.
+S="$TEST_TMP/s13"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+mklog "npm" "GitHub Action" "Homebrew tap" "cejel.dev homepage" "cejel.dev for-engineers" >"$S/runlog_36579259365.txt"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "[FAIL] npm:" && has "[FAIL] GitHub Action:"; check "pre-v1: five failures including npm refuse, every [FAIL] line printed" $? "rc=$RC: $OUT"
+
+# 14. stage 13 requires 13 of 13 from a FRESH run: 12 of 13 refuses.
+S="$TEST_TMP/s14"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
+mklog "Homebrew tap" >"$S/dispatch_runlog.txt"
+run_release "$S" ""
+[ "$RC" != 0 ] && has "stage 13" && has "[FAIL] Homebrew tap:" && has "12 pass"; check "stage 13: 12 of 13 refuses and prints the failing line" $? "rc=$RC: $OUT"
+grep -qF 'gh workflow run verify-release-currency.yml' "$S/calls.log"; check "stage 13: a fresh currency run was dispatched" $? "$(cat "$S/calls.log")"
+
+# 15. stage 13 passes on 13 of 13 from the fresh run and the driver completes.
+S="$TEST_TMP/s15"; new_state "$S"
+echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
+mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
+mklog >"$S/dispatch_runlog.txt"
+run_release "$S" ""
+[ "$RC" = 0 ] && has "stage 13" && has "13 of 13" && has "HANDBACK" && has "99999999999"; check "stage 13: 13 of 13 from the fresh run completes the release" $? "rc=$RC: $OUT"
 
 echo
 echo "release_tests: $PASS passed, $FAIL failed"

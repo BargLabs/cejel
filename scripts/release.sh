@@ -445,49 +445,68 @@ stage10() {
 }
 
 # ---------------------------------------------------------------- stage 11
-currency_after() { # currency_after <since-iso> -> id of a workflow_run-triggered run
-  gh_r run list --workflow verify-release-currency.yml --event workflow_run --limit 10 --json databaseId,createdAt \
-    | jq -r --arg s "$1" '[.[]|select(.createdAt >= $s)]|sort_by(.createdAt)|last|.databaseId // empty'
+currency_after() { # currency_after <since-iso> -> "id event createdAt" of the newest run of ANY trigger
+  # Not only workflow_run: a run dispatched after the v1 move or the site update supersedes the
+  # workflow_run one, and reading the older run reports a state the world has left.
+  gh_r run list --workflow verify-release-currency.yml --limit 20 --json databaseId,createdAt,event \
+    | jq -r --arg s "$1" '[.[]|select(.createdAt >= $s)]|sort_by(.createdAt)|last|select(.!=null)|"\(.databaseId) \(.event) \(.createdAt)"'
+}
+
+# The surfaces that cannot pass before stage 12 moves v1 and the tap and site are updated: the
+# Action and the tap read action@v1, and the cejel.dev surfaces read the site record. Matched by
+# the label on each [FAIL] line.
+PRE_V1_MAY_FAIL=("GitHub Action" "Homebrew tap" "cejel.dev homepage" "cejel.dev for-engineers" "changelog" "leaderboard")
+
+# currency_read <run id>: wait for completion, then set CUR_PASS, CUR_FAIL, CUR_FAIL_LINES, CUR_FAIL_LABELS.
+currency_read() {
+  local id="$1" status log
+  status="$(gh_r run view "$id" --json status --jq .status)"
+  if [ "$status" != "completed" ]; then
+    [ "$DRY_RUN" = 1 ] && { say "  currency run $id is $status (in flight, not a failure)"; return 1; }
+    gh_r run watch "$id" >/dev/null 2>&1 || true
+  fi
+  log="$(gh_r run view "$id" --log 2>/dev/null)"
+  CUR_PASS="$(grep -c '\[PASS\]' <<<"$log" || true)"; CUR_FAIL="$(grep -c '\[FAIL\]' <<<"$log" || true)"
+  [ $((CUR_PASS + CUR_FAIL)) -eq 13 ] || die "currency run $id reported $((CUR_PASS + CUR_FAIL)) surfaces, expected thirteen"
+  CUR_FAIL_LINES="$(grep '\[FAIL\]' <<<"$log" || true)"
+  CUR_FAIL_LABELS="$(sed -n 's/.*\[FAIL\] \(.*\): observed=.*/\1/p' <<<"$CUR_FAIL_LINES")"
 }
 
 stage11() {
   say "stage 11 (currency)"
   if [ "$DRY_RUN" = 1 ] && [ -z "$OCI_DIGEST" ]; then say "  [dry-run] distribution not published; currency not read"; return; fi
-  local since waited=0 id="" sha="$RELEASE_SHA" status="" conclusion=""
-  # The currency run is triggered by workflow_run; read for one that started after the last
-  # publish workflow completed. Fall back to the most recent of any kind within the window.
+  local since waited=0 pick="" id sha="$RELEASE_SHA" ev created
+  # Read the newest verify-release-currency run, whatever its trigger, created after the last
+  # publish workflow completed.
   since="$(gh_r run view "${RUN_DIST:-$RUN_NPM}" --json updatedAt --jq .updatedAt 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)"
-  while [ -z "$id" ]; do
-    id="$(currency_after "$since")"
-    [ -n "$id" ] && break
+  while [ -z "$pick" ]; do
+    pick="$(currency_after "$since")"
+    [ -n "$pick" ] && break
     [ "$waited" -ge "$CURRENCY_WAIT" ] && break
     [ "$DRY_RUN" = 1 ] && break
     sleep "$POLL_INTERVAL"; waited=$((waited + POLL_INTERVAL))
   done
-  if [ -z "$id" ]; then
+  if [ -z "$pick" ]; then
     if [ "$DRY_RUN" = 1 ]; then act gh workflow run verify-release-currency.yml --repo "$REPO" -f "version=$VERSION" -f "commit=$sha"; return 0; fi
-    id="$(dispatch_currency "$sha")"
+    id="$(dispatch_currency "$sha")"; ev="workflow_dispatch"; created="just now"
+  else
+    read -r id ev created <<<"$pick"
   fi
-  # In-flight states are not failures: wait for completion before reading.
-  status="$(gh_r run view "$id" --json status --jq .status)"
-  if [ "$status" != "completed" ]; then
-    [ "$DRY_RUN" = 1 ] && { say "  currency run $id is $status (in flight, not a failure)"; return 0; }
-    gh_r run watch "$id" >/dev/null 2>&1 || true
-  fi
-  conclusion="$(gh_r run view "$id" --json conclusion --jq .conclusion)"
+  say "  reading currency run $id (event $ev, created $created)"
+  currency_read "$id" || return 0
   RUN_CURRENCY="$id"
-  local log pass fail
-  log="$(gh_r run view "$id" --log 2>/dev/null)"
-  pass="$(grep -c '\[PASS\]' <<<"$log" || true)"; fail="$(grep -c '\[FAIL\]' <<<"$log" || true)"
-  local total=$((pass + fail))
-  [ "$total" -eq 13 ] || die "currency run $id reported $total surfaces, expected thirteen"
-  local dev_fail; dev_fail="$(grep '\[FAIL\]' <<<"$log" | grep -ci 'cejel\.dev' || true)"
-  if [ "$fail" -eq 0 ]; then CURRENCY_STATE="13 of 13 (after the site record)"
-  elif [ "$pass" -eq 10 ] && [ "$dev_fail" -eq 3 ]; then
-    CURRENCY_STATE="10 of 13 (before the site record; the three failing surfaces are all cejel.dev)"
-  else die "currency run $id: $pass pass / $fail fail, and the failures are not exactly the three cejel.dev surfaces:
-$(grep '\[FAIL\]' <<<"$log")"; fi
-  say "  currency run $id (conclusion $conclusion): $CURRENCY_STATE"
+  local label allowed bad=""
+  if [ "$CUR_FAIL" -eq 0 ]; then CURRENCY_STATE="13 of 13"
+  else
+    while IFS= read -r label; do
+      allowed=0; for a in "${PRE_V1_MAY_FAIL[@]}"; do [ "$label" = "$a" ] && allowed=1; done
+      [ "$allowed" = 1 ] || bad+="$label; "
+    done <<<"$CUR_FAIL_LABELS"
+    [ -z "$bad" ] || die "currency run $id: $CUR_PASS pass / $CUR_FAIL fail, and the failures are not all among {$(printf '%s, ' "${PRE_V1_MAY_FAIL[@]}")} (unexpected: $bad):
+$CUR_FAIL_LINES"
+    CURRENCY_STATE="$CUR_PASS of 13 (before v1 moves, the tap bump and the site record; stage 13 requires 13 of 13)"
+  fi
+  say "  currency run $id: $CURRENCY_STATE"
 }
 
 dispatch_currency() { # dispatch_currency <sha>; its own function because the run is on main, not the tag
@@ -528,7 +547,28 @@ stage12_print_consumer() {
 }
 
 # ---------------------------------------------------------------- stage 13
+# A release is complete only when this passes (docs/release-process.md). It runs after stage 12 and
+# after the operator's tap bump and site record, so on a first pass it may refuse: do those, then
+# re-run with --from 13 (every earlier stage re-reads and reports done).
 stage13() {
+  say "stage 13 (final currency: 13 of 13)"
+  local id
+  if [ "$DRY_RUN" = 1 ]; then
+    act gh workflow run verify-release-currency.yml --repo "$REPO" -f "version=$VERSION" -f "commit=$RELEASE_SHA"
+    say "  [dry-run] would require 13 of 13 from the fresh run"
+    return 0
+  fi
+  id="$(dispatch_currency "$RELEASE_SHA")"
+  currency_read "$id"
+  RUN_CURRENCY="$id"
+  [ "$CUR_FAIL" -eq 0 ] || die "stage 13: fresh currency run $id: $CUR_PASS pass / $CUR_FAIL fail; the release is not complete until 13 of 13 (tap bump and site record done?):
+$CUR_FAIL_LINES"
+  CURRENCY_STATE="13 of 13"
+  say "  fresh currency run $id: 13 of 13 -- release complete"
+}
+
+# ---------------------------------------------------------------- handback
+handback() {
   cat <<EOF
 
 ================ HANDBACK for cejel-site current-release.mjs ================
@@ -559,5 +599,5 @@ run_stage() { # run_stage <n> <fn>
 
 [ "$DRY_RUN" = 1 ] && say "DRY RUN: reads execute, no tag/release/workflow/push is performed"
 stage1
-for n in 2 3 4 5 6 7 8 9 10 11 12; do run_stage "$n" "stage$n"; done
-stage13
+for n in 2 3 4 5 6 7 8 9 10 11 12 13; do run_stage "$n" "stage$n"; done
+handback

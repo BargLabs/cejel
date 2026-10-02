@@ -25,8 +25,19 @@ inside the 0.4.6 post-mortem below:
   window closes.
 
 The site record (`current-release.mjs` in cejel-site, under that repository's `DEPLOY.md`) is
-outside the script, as is the Homebrew tap bump: the script prints the values and stops. The
-sections below stay authoritative; the script references them and does not restate them.
+outside the script, as is the Homebrew tap bump: the script prints the values and stops.
+
+Currency is read twice. Stage 11 reads the newest `verify-release-currency.yml` run of any trigger
+(not only `workflow_run`) created after the last publish run, and prints its id, event and creation
+time. Before stage 12 moves `v1` and before the tap and site are updated, the Action, tap and
+cejel.dev surfaces cannot pass, so stage 11 passes when every surface passes or when every failing
+surface is one of those (matched by the label on each `[FAIL]` line); any other failure refuses and
+prints every `[FAIL]` line. **Stage 13** runs after stage 12: it dispatches a fresh currency run for
+the version and requires 13 of 13. **A release is complete only when stage 13 passes.** If it
+refuses because the tap bump or the site record is not done yet, finish them and re-run with
+`--from 13`.
+
+The sections below stay authoritative; the script references them and does not restate them.
 
 ## Required claim-retirement step
 
