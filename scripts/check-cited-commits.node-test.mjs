@@ -137,6 +137,144 @@ test('leaderboard/RUBRIC_CHANGELOG.md is scanned; files outside the scope are no
   assert.equal(run(cwd).code, 1);
 });
 
+const ERRATA = 'docs/experiments/CITATION-ERRATA.json';
+
+function writeErrata(cwd, entries) {
+  write(cwd, ERRATA, `${JSON.stringify({ schema: 'cejel-citation-errata-v1', entries }, null, 2)}\n`);
+}
+
+/**
+ * A repository whose record cites two cejel commits that resolve to nothing, plus a squash
+ * commit "experiment (#7)" on main and an unmerged single-parent commit "stray (#7)".
+ */
+function errataRepo() {
+  const cwd = mkdtempSync(join(tmpdir(), 'cited-commits-'));
+  git(cwd, 'init', '-q');
+  write(cwd, 'README.md', 'fixture\n');
+  commitAll(cwd, 'base');
+  git(cwd, 'checkout', '-q', '-b', 'stray');
+  write(cwd, 'stray.txt', 'stray\n');
+  const stray = commitAll(cwd, 'stray (#7)');
+  git(cwd, 'checkout', '-q', 'main');
+  write(cwd, 'experiment.txt', 'experiment\n');
+  const squash = commitAll(cwd, 'experiment (#7)');
+  write(
+    cwd,
+    'docs/experiments/x/result.md',
+    'The preregistration was committed as `abc1234` before the run.\n\nThe fix commit is `def5678`.\n',
+  );
+  commitAll(cwd, 'record');
+  return { cwd, squash, stray };
+}
+
+const lostInSquash = (carrier, overrides = {}) => ({
+  token: 'abc1234',
+  locations: [{ file: 'docs/experiments/x/result.md', line: 1 }],
+  disposition: 'lost-in-squash',
+  carrier,
+  pr: 7,
+  date: '2026-10-02',
+  reason: 'The cited commit was lost when #7 was squash-merged; the squash carries its bytes.',
+  ...overrides,
+});
+
+test('errata: an entry clears exactly its token at its file and line, and no other', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const before = run(cwd);
+  assert.equal(before.code, 1);
+  assert.match(before.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 /);
+  assert.match(before.stderr, /FAIL docs\/experiments\/x\/result\.md:3 def5678 /);
+
+  writeErrata(cwd, [lostInSquash(squash)]);
+  commitAll(cwd, 'errata');
+  const after = run(cwd);
+  assert.equal(after.code, 1);
+  assert.doesNotMatch(after.stderr, /abc1234/);
+  assert.match(after.stderr, /FAIL docs\/experiments\/x\/result\.md:3 def5678 /);
+  assert.match(after.stdout, new RegExp(`ERRATUM docs/experiments/x/result\\.md:1 abc1234 -- lost in the squash of #7; bytes carried by ${squash} on main \\(verified\\)`));
+});
+
+test('errata: an other-repository entry clears its token and prints the attribution', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [
+    lostInSquash(squash),
+    {
+      token: 'def5678',
+      locations: [{ file: 'docs/experiments/x/result.md', line: 3 }],
+      disposition: 'other-repository',
+      repository: 'BargLabs/alfred',
+      date: '2026-10-02',
+      reason: 'An alfred commit cited without naming the repository.',
+    },
+  ]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.match(result.stdout, /ERRATUM docs\/experiments\/x\/result\.md:3 def5678 -- other repository BargLabs\/alfred \(attribution accepted, not verifiable offline\)/);
+  assert.match(result.stdout, /0 failure\(s\), 0 pending, 2 corrected by errata/);
+});
+
+test('errata: an entry with the wrong line does not clear the token and is reported as stale', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', line: 2 }] })]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 -- cited as a cejel commit/);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:2 abc1234 -- errata entry matches no flagged citation/);
+});
+
+test('errata: a lost-in-squash entry naming a carrier not on main fails', (t) => {
+  const { cwd, stray } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [lostInSquash(stray)]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, new RegExp(`FAIL docs/experiments/x/result\\.md:1 abc1234 -- errata carrier ${stray} is not reachable from main`));
+});
+
+test('errata: a lost-in-squash entry whose PR number does not match the squash subject fails', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [lostInSquash(squash, { pr: 8 })]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, new RegExp(`FAIL docs/experiments/x/result\\.md:1 abc1234 -- errata carrier ${squash} subject does not end in \\(#8\\)`));
+});
+
+test('errata: an entry that matches nothing fails the check', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  write(cwd, 'docs/experiments/x/result.md', 'No citations here.\n');
+  writeErrata(cwd, [lostInSquash(squash)]);
+  commitAll(cwd, 'errata only');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 -- errata entry matches no flagged citation \(a stale correction\)/);
+});
+
+test('errata: malformed entries are refused (prefix carrier, missing line, wildcard token)', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  for (const bad of [
+    lostInSquash(squash.slice(0, 7)),
+    lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md' }] }),
+    lostInSquash(squash, { locations: [] }),
+    lostInSquash(squash, { token: 'abc*' }),
+    lostInSquash(squash, { reason: '' }),
+    { ...lostInSquash(squash), disposition: 'other-repository', repository: 'BargLabs/cejel' },
+  ]) {
+    writeErrata(cwd, [bad]);
+    assert.throws(() => run(cwd), /CITATION-ERRATA\.json/);
+  }
+});
+
 function citation(text, file = 'docs/experiments/x.md') {
   const spans = sentenceSpans(text);
   const [occurrence] = extractTokens(text);
