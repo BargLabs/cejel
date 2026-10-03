@@ -16,6 +16,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-03
+
+### Added
+
+- **`cejel export gitlab-codequality <report.json> [-o gl-code-quality-report.json]` (#401).**
+  Writes a Cejel report's located findings as a GitLab Code Quality report, offline. Only
+  findings with both a file and a measured line are exported. Findings scoped to a whole file
+  (`line: null`) and ingested third-party findings are not exported; a footer on stderr counts
+  them, so nothing is silently dropped. Severity maps `critical` to `critical`, `warning` to
+  `major` and `info` to `info`; `minor` and `blocker` are never emitted. No score, band or
+  report field changes.
+- **A GitLab CI template, `ci/gitlab/cejel.gitlab-ci.yml` (#401),** documented in
+  [`docs/gitlab-ci.md`](./docs/gitlab-ci.md). It is an includable job that runs the scan,
+  publishes the Code Quality report as `artifacts:reports:codequality`, keeps `.cejel/` as an
+  artifact, and fails the job below an optional `CEJEL_MIN_SCORE`. Include it from this
+  release's tag. The template is covered by structural tests in this repository; it has not yet
+  been run on a GitLab instance by us.
+
+### Changed
+
+- **The GitHub Action's description is shorter (#402),** to fit GitHub Marketplace's limit of
+  125 characters. Inputs, outputs and behaviour are unchanged.
+
 ## [0.5.0] — 2026-10-02
 
 ### Changed
