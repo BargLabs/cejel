@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig } from 'tsup';
 
+import { bundleMetafilePlugin } from './scripts/sbom/metafile-plugin.mjs';
+
 const packageJsonPath = fileURLToPath(new URL('./package.json', import.meta.url));
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
   name?: unknown;
@@ -27,6 +29,8 @@ export default defineConfig({
   noExternal: ['zod'],
   clean: true,
   minify: true,
+  // Writes .build/metafiles/sea.json, the input list the SEA SBOM is generated from.
+  esbuildPlugins: [bundleMetafilePlugin('sea')],
   banner: { js: '#!/usr/bin/env node' },
   define: {
     __CEJEL_SEA_PACKAGE_NAME__: JSON.stringify(packageJson.name),

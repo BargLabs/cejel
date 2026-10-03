@@ -134,6 +134,34 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+      # BuildKit's `sbom: true` above inventories the image's base layers (Alpine apk, the npm CLI
+      # in the Node base image) but cannot see what tsup bundled into dist/ (package.json declares
+      # no dependencies). This second SPDX attestation, bound to the same image digest, lists the
+      # bundled packages from the bundler metafile. The bundle is a function of source + lockfile,
+      # so it is rebuilt here on the runner rather than extracted from the image.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Generate and check the bundle SBOM
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm run sbom:generate --metafile package --out "$RUNNER_TEMP/cejel-bundle.spdx.json"
+          pnpm run sbom:check "$RUNNER_TEMP/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
+
+      - name: Attest the bundle SBOM to the image digest
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/cejel-bundle.spdx.json
+          push-to-registry: true
+
   resolve-mcp-oci-digest:
     needs: [preflight, publish-oci]
     if: ${{ always() && inputs.publish_mcp_registry && needs.preflight.result == 'success' && (inputs.reuse_published_oci_tag || (inputs.verify_only == false && needs.publish-oci.result == 'success')) }}

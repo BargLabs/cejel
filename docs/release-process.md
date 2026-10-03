@@ -140,6 +140,31 @@ a currency verifier's pass be read as prevention: the release-currency verifier 
 0.4.9 and caught the missing provenance after publication, which is exactly what a detective control
 does and exactly what a preventive control would have made unnecessary.
 
+## What the SBOMs inventory (2026-10-03)
+
+The 0.6.0 per-binary SBOMs, produced by scanning the binary with syft, listed one package (the
+scanned directory) and one file with an all-zero SHA1, and passed. Syft cannot see inside a Node
+single-executable blob, and `package.json` declares no runtime dependencies because `tsup` bundles
+everything, so no scanner sees the bundled packages. From the release after 0.6.0:
+
+- `pnpm run sbom:generate` writes SPDX 2.3 from the bundler metafile
+  (`.build/metafiles/{package,sea}.json`, written by the two tsup configs): one package per distinct
+  `node_modules` package that was bundled, with its exact version and integrity from `pnpm-lock.yaml`.
+  A binary's SBOM also lists the Node.js runtime it embeds and the binary as a file with its real
+  SHA-1 and SHA-256, related to the packages by `CONTAINS`. It is an inventory of what was bundled,
+  not a scan of the artefact, and it does not list the host operating system, files outside the
+  bundle, or anything the bundler tree-shook out.
+- `pnpm run sbom:check` refuses an SBOM with no npm package besides the root, any all-zero checksum, a
+  missing required package (`zod` for binaries; `zod` and `@modelcontextprotocol/sdk` for the image), or a
+  binary digest that no file entry carries. The workflows run it before upload, again before attestation
+  and, for the image, before the attestation. `pnpm run test:sbom` covers it, including the 0.6.0 shapes.
+- `release-binaries.yml` attests each SBOM to its binary's digest (`actions/attest` with `sbom-path`;
+  predicate type `https://spdx.dev/Document/v2.3`). `publish-distribution.yml` keeps BuildKit's `sbom: true`
+  (the base image's packages) and adds the bundle SBOM as a second attestation on the image digest.
+- Not yet done: the npm package does not carry the SBOM, and no published artefact has an attested
+  bundle SBOM until the next release is cut. Verify that release with
+  `gh attestation verify <binary> -R BargLabs/cejel --predicate-type https://spdx.dev/Document/v2.3`.
+
 ## Required site binary-link step
 
 After the GitHub Release is published, update the single current-release record in the site source
