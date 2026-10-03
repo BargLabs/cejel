@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A CI-annotation export (GitLab Code Quality) needs a line number per entry, but Cejel's file-scoped findings carry line null by design. Rule: export only findings with a measured file and line, count the rest in a visible footer, and never fill a stand-in line such as 1; a zero-entry export is not a clean result. Separately, a session that cannot execute node tooling must hand tests over as not-run, and a template test with no YAML parser available is structural text assertions, not a parse.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "export"],
+    "tags": ["gitlab-codequality", "unlocated-findings", "unexecuted-tests"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 401}
+  }
+]

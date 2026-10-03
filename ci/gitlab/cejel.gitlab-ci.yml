@@ -1,0 +1,34 @@
+# Cejel trust check for GitLab CI.
+#
+#   include:
+#     - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.5.0/ci/gitlab/cejel.gitlab-ci.yml'
+#
+# Pin the include to a release tag, never a branch. Variables, severity table and limits:
+# docs/gitlab-ci.md. The scan and the export run offline; the only network use is the one
+# `npx` fetch of the pinned @cejel/cejel package.
+
+cejel:
+  stage: test
+  image: node:22
+  variables:
+    # The @cejel/cejel version this job runs. Matches the tag in the include URL.
+    CEJEL_VERSION: "0.5.0"
+    # Optional. Fail the job when the overall score is below this value (0-4), when Cejel
+    # abstains, or when measurement coverage is too thin. Empty means never fail on score.
+    CEJEL_MIN_SCORE: ""
+  script:
+    - |
+      status=0
+      npx --yes "@cejel/cejel@${CEJEL_VERSION}" scan . --out .cejel ${CEJEL_MIN_SCORE:+--min-score "$CEJEL_MIN_SCORE"} || status=$?
+      if [ ! -f .cejel/report.json ]; then
+        echo "Cejel: no report.json was written; scan exit status ${status}" >&2
+        exit "${status:-1}"
+      fi
+      npx --yes "@cejel/cejel@${CEJEL_VERSION}" export gitlab-codequality .cejel/report.json -o gl-code-quality-report.json
+      exit "$status"
+  artifacts:
+    when: always
+    paths:
+      - .cejel/
+    reports:
+      codequality: gl-code-quality-report.json
