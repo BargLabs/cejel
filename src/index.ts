@@ -27,6 +27,10 @@ import {
   WITAN_RUBRIC_VERSION_V22,
   assertSelectableRubricVersion,
 } from './witan/rubric-version.js';
+import {
+  exportGitLabCodeQuality,
+  renderGitLabCodeQualityFooter,
+} from './export/gitlab-codequality.js';
 
 export { WitanReportSchema, verifyWitanAttestationBinding };
 
@@ -92,9 +96,17 @@ export interface CejelVerifyInvocation {
   revocationsPath?: string;
 }
 
+export interface CejelExportInvocation {
+  command: 'export';
+  format: 'gitlab-codequality';
+  reportPath: string;
+  outPath: string;
+}
+
 export type CejelCliInvocation =
   | { command: 'scan'; options: WitanCliOptions }
   | CejelVerifyInvocation
+  | CejelExportInvocation
   | { command: 'issue'; options: CejelIssueOptions };
 
 const DEFAULT_OUT_DIR = '.cejel';
@@ -266,12 +278,14 @@ Usage:
   npx ${NPX_PACKAGE_NAME} [path] [options]
   npx ${NPX_PACKAGE_NAME} scan [path] [options]
   npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig]
+  npx ${NPX_PACKAGE_NAME} export gitlab-codequality <report.json> [-o gl-code-quality-report.json]
   npx ${NPX_PACKAGE_NAME} issue [path] --report <report.json> --attestation <attestation.json> --key <key.pub> --engagement-ref <ref>
 
 Commands:
   scan    score a repository (default when the command is omitted)
   verify  verify the report/attestation binding; with an issuance pair, also check the issuer
           signature against docs/security/${ISSUER_SIGNERS_FILE} and docs/security/${ISSUER_REVOCATIONS_FILE}
+  export  write report.json's located findings as a GitLab Code Quality report (offline)
   issue   re-run this version at the certificate's revision and, only if report.json reproduces
           byte for byte, write an unsigned issuance.json for the issuer to sign through ssh-agent
 
@@ -332,6 +346,9 @@ async function runWitanCli(
   }
   if (invocation.command === 'issue') {
     return runIssue(invocation.options);
+  }
+  if (invocation.command === 'export') {
+    return runExport(invocation);
   }
 
   const options = invocation.options;
@@ -434,6 +451,13 @@ export function parseCliInvocation(args: readonly string[]): CejelCliInvocation 
     }
     return parseVerifyArgs(verifyArgs);
   }
+  if (command === 'export') {
+    const exportArgs = args.slice(1);
+    if (exportArgs.some((arg) => arg === '-h' || arg === '--help')) {
+      return { command: 'scan', options: parseArgs(['--help']) };
+    }
+    return parseExportArgs(exportArgs);
+  }
   if (command === 'issue') {
     const issueArgs = args.slice(1);
     if (issueArgs.some((arg) => arg === '-h' || arg === '--help')) {
@@ -445,6 +469,55 @@ export function parseCliInvocation(args: readonly string[]): CejelCliInvocation 
     return { command: 'issue', options: parseIssueArgs(issueArgs) };
   }
   return { command: 'scan', options: parseArgs(args) };
+}
+
+const EXPORT_USAGE = () =>
+  `Usage: npx ${NPX_PACKAGE_NAME} export gitlab-codequality <report.json> [-o gl-code-quality-report.json]`;
+
+export function parseExportArgs(args: readonly string[]): CejelExportInvocation {
+  const [format, ...rest] = args;
+  if (format !== 'gitlab-codequality') throw new Error(EXPORT_USAGE());
+  const positionals: string[] = [];
+  let outPath = 'gl-code-quality-report.json';
+  for (let index = 0; index < rest.length; index += 1) {
+    const arg = rest[index];
+    if (arg === undefined) continue;
+    if (arg === '-o' || arg === '--out') {
+      const value = rest[index + 1];
+      if (!value) throw new Error(`Missing value for ${arg}`);
+      outPath = value;
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith('-')) throw new Error(`Unknown Cejel export flag: ${arg}`);
+    positionals.push(arg);
+  }
+  const [reportPath] = positionals;
+  if (positionals.length !== 1 || !reportPath) throw new Error(EXPORT_USAGE());
+  return {
+    command: 'export',
+    format,
+    reportPath: resolve(reportPath),
+    outPath: resolve(outPath),
+  };
+}
+
+function runExport(invocation: CejelExportInvocation): number {
+  const reportArtifact = readJsonArtifact(invocation.reportPath, 'report');
+  const reportResult = WitanReportSchema.safeParse(reportArtifact.value);
+  if (!reportResult.success) {
+    const members = reportResult.error.issues.map(
+      (issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`,
+    );
+    process.stderr.write(
+      `Cejel: report validation failed:\n${members.map((member) => `  - ${member}`).join('\n')}\n`,
+    );
+    return 1;
+  }
+  const result = exportGitLabCodeQuality(reportResult.data);
+  writeFileSync(invocation.outPath, `${JSON.stringify(result.entries, null, 2)}\n`, 'utf8');
+  process.stderr.write(renderGitLabCodeQualityFooter(result));
+  return 0;
 }
 
 const VERIFY_USAGE = () =>
