@@ -1,0 +1,114 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "@cejel/cejel@0.6.0:cejel.js",
+  "documentNamespace": "https://cejel.dev/spdx/0.6.0/bd3fd8d52245c759614f63dcee81476dfcbb2627f5be37bdbedaf73e6eff5ba3",
+  "creationInfo": {
+    "created": "2026-10-03T21:46:34Z",
+    "creators": [
+      "Tool: cejel-generate-bundle-sbom"
+    ],
+    "comment": "Inventory of packages bundled into the artefact, taken from the bundler metafile and exact versions from pnpm-lock.yaml. Not a scan of the artefact."
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-cejel",
+      "name": "@cejel/cejel",
+      "versionInfo": "0.6.0",
+      "downloadLocation": "https://registry.npmjs.org/@cejel/cejel/-/cejel-0.6.0.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "AGPL-3.0-only",
+      "licenseDeclared": "AGPL-3.0-only",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40cejel/cejel@0.6.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-zod-3.25.76",
+      "name": "zod",
+      "versionInfo": "3.25.76",
+      "downloadLocation": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz",
+      "filesAnalyzed": false,
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "83352dfeab7cd675ec14628815c0b76277c4031e4d92e9c27e70e5bee0524854b4d9b717bb82e679ad001485306cb5b158fc7777da7c4b94286ae8ca70d43171"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/zod@3.25.76"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-nodejs-runtime",
+      "name": "Node.js",
+      "versionInfo": "22.15.0",
+      "downloadLocation": "https://nodejs.org/dist/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "comment": "Node.js runtime embedded in the single-executable binary.",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/node@22.15.0"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "SPDXID": "SPDXRef-File-binary",
+      "fileName": "./cejel.js",
+      "checksums": [
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "e290b2c375b131ea5c706603f7fd951ffbd18e16"
+        },
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "63fdcfcaf663e1657d346d6c7099058ded88ea18106bc351fb18c4f0769e69ca"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-cejel"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-cejel",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-File-binary",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-zod-3.25.76"
+    },
+    {
+      "spdxElementId": "SPDXRef-File-binary",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-nodejs-runtime"
+    }
+  ]
+}

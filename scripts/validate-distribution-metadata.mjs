@@ -386,11 +386,25 @@ requireIncludes(
   'asset: cejel-Windows-x86_64.exe',
   'Windows release asset',
 );
-requireIncludes(
-  releaseWorkflow,
-  'uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610',
-  'release SBOM generation',
-);
+for (const [needle, field] of [
+  ['pnpm run sbom:generate', 'release SBOM generated from the bundle inventory'],
+  ['--metafile sea', 'release SBOM reads the SEA bundler metafile'],
+  ['pnpm run sbom:check', 'release SBOM empty-inventory refusal'],
+  ['sbom-path: release-assets/cejel-Linux-x86_64.spdx.json', 'release SBOM attestation'],
+]) {
+  requireIncludes(releaseWorkflow, needle, field);
+}
+for (const [needle, field] of [
+  ['pnpm run sbom:check', 'OCI bundle SBOM empty-inventory refusal'],
+  ['sbom-path: ${{ runner.temp }}/cejel-bundle.spdx.json', 'OCI bundle SBOM attestation'],
+]) {
+  requireIncludes(distributionWorkflow, needle, field);
+}
+if (releaseWorkflow.includes('anchore/sbom-action')) {
+  throw new Error(
+    'release-binaries.yml scans the binary with syft again; syft cannot see inside a Node SEA blob.',
+  );
+}
 requireIncludes(
   releaseWorkflow,
   'Get-AuthenticodeSignature',

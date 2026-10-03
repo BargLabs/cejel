@@ -95,8 +95,9 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 > 0.6.0 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
-> GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM and an
-> own-platform verification receipt covering `--version`, `--help`, a real scan,
+> GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM (the packages
+> bundled into it, listed from the build, and the Node.js runtime it embeds; from the release after
+> 0.6.0 it is attested to the binary) and an own-platform verification receipt covering `--version`, `--help`, a real scan,
 > source/binary parity, and a network-denied scan. If your policy requires Authenticode,
 > use the npm package or the OCI image until a human-approved signing path is available.
 
@@ -166,7 +167,9 @@ node dist/index.js .
 
 Released binaries: `cejel-Darwin-arm64`, `cejel-Darwin-x86_64`, `cejel-Linux-aarch64`,
 `cejel-Linux-x86_64`, and `cejel-Windows-x86_64.exe`. The release also carries
-`SHA256SUMS`, a per-binary SPDX SBOM, and an own-platform verification receipt. Each binary
+`SHA256SUMS`, a per-binary SPDX SBOM, and an own-platform verification receipt. The SBOM lists
+the packages bundled into the binary plus its embedded Node.js runtime. The 0.6.0 SBOMs do not: they
+list only the scanned directory and the binary. See [`docs/release-process.md`](docs/release-process.md). Each binary
 is executed against the source build and with networking denied before attachment. Releases
 from v0.1.6 also carry a Sigstore bundle containing GitHub's signed build-provenance
 attestation for the release set. Verify a downloaded binary with:
@@ -190,8 +193,9 @@ The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.0 .
 ```
 
-The OCI image carries an SBOM, maximum-mode build provenance, and a signed registry
-attestation.
+The OCI image carries an SBOM of its base-image packages, maximum-mode build provenance, and a
+signed registry attestation. From the release after 0.6.0 it also carries a second SPDX attestation
+listing the packages Cejel bundles. The 0.6.0 image's SBOM does not list those.
 
 ## Leaderboard
 
