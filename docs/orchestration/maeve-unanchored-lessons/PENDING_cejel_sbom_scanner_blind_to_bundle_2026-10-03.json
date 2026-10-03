@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A scanner pointed at a bundled artifact (syft on a Node SEA binary, BuildKit on an image whose package.json has no dependencies) reports an empty or runtime-only inventory and the step still passes. Rule: take the inventory from the bundler's own metafile plus the lockfile, and make a check refuse an SBOM with no package beyond the root or with an all-zero checksum; a present SBOM file is not evidence of an inventory. Separately, a fixture reconstructed from a description because the real asset could not be fetched must say so inside the fixture.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["sbom", "bundled-inventory", "empty-artifact-passes", "reconstructed-fixture"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-03T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 404}
+  }
+]
