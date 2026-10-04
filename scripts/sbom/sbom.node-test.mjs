@@ -199,3 +199,50 @@ test('licence comes from the bundled copy in the pnpm store, and only when its v
   assert.equal(build('8.17.1'), 'MIT');
   assert.equal(build('9.0.0'), 'NOASSERTION');
 });
+
+// Second review of #404: false passes and false refusals in the hardened checker.
+test('checker: purl must name the package and version; qualifiers and subpaths are allowed', () => {
+  const renamed = goodSbom();
+  zodOf(renamed).externalRefs[0].referenceLocator = 'pkg:npm/not-zod@3.25.76';
+  assert.notDeepEqual(checkSbom(renamed, REQUIRE), []);
+  const qualified = goodSbom();
+  zodOf(qualified).externalRefs[0].referenceLocator = 'pkg:npm/zod@3.25.76?vcs_url=git%2Bhttps%3A%2F%2Fx#lib';
+  assert.deepEqual(checkSbom(qualified, REQUIRE), []);
+});
+
+test('checker: NOASSERTION or non-string versions, two npm roots and a missing SPDXID are refused', () => {
+  const noassert = goodSbom();
+  zodOf(noassert).versionInfo = 'NOASSERTION';
+  assert.notDeepEqual(checkSbom(noassert, REQUIRE), []);
+  const numeric = goodSbom();
+  zodOf(numeric).versionInfo = 3;
+  assert.notDeepEqual(checkSbom(numeric, REQUIRE), []);
+  const twoRoots = goodSbom();
+  twoRoots.relationships.push({ spdxElementId: 'SPDXRef-DOCUMENT', relationshipType: 'DESCRIBES', relatedSpdxElement: zodOf(twoRoots).SPDXID });
+  assert.notDeepEqual(checkSbom(twoRoots, REQUIRE), []);
+  const noId = goodSbom();
+  delete zodOf(noId).SPDXID;
+  assert.notDeepEqual(checkSbom(noId, REQUIRE), []);
+});
+
+test('checker: the binary digest matches whatever the case of the algorithm label', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sbom-bin-'));
+  const binary = join(dir, 'cejel-test');
+  writeFileSync(binary, 'not zero');
+  const sbom = buildSbom({
+    rootPackage: { name: '@cejel/cejel', version: '9.9.9', license: 'AGPL-3.0-only' },
+    inventory: [{ name: 'zod', version: '3.25.76', integrity: GOOD_INTEGRITY }],
+    binary, nodeVersion: 'v22.1.0', created: '2026-10-03T00:00:00Z', root: dir,
+  });
+  const sha = sbom.files[0].checksums.find((c) => c.algorithm === 'SHA256').checksumValue;
+  for (const c of sbom.files[0].checksums) if (c.algorithm === 'SHA256') c.algorithm = 'sha256';
+  assert.deepEqual(checkSbom(sbom, { binarySha256: sha, require: ['zod'] }), []);
+});
+
+test('a pnpm path whose version disagrees with the lone lockfile candidate is refused', () => {
+  const lock = parseLockfilePackages(LOCKFILE);
+  assert.throws(
+    () => inventoryFromMetafile({ inputs: { 'node_modules/.pnpm/zod@3.0.0/node_modules/zod/index.js': {} } }, lock),
+    /no unambiguous version/,
+  );
+});

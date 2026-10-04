@@ -26,6 +26,18 @@ function purlOf(pkg) {
   return (pkg.externalRefs ?? []).find((ref) => ref.referenceType === 'purl')?.referenceLocator;
 }
 
+/** `pkg:npm/%40scope/name@1.2.3?q#sub` -> { name: '@scope/name', version: '1.2.3' }; qualifiers and subpath ignored. */
+function parseNpmPurl(purl) {
+  const core = String(purl).split('#')[0].split('?')[0].slice('pkg:npm/'.length);
+  const at = core.lastIndexOf('@');
+  if (at <= 0) return undefined;
+  try {
+    return { name: decodeURIComponent(core.slice(0, at)), version: decodeURIComponent(core.slice(at + 1)) };
+  } catch {
+    return undefined;
+  }
+}
+
 function checksumProblem(checksum) {
   const algorithm = String(checksum.algorithm ?? '').toUpperCase();
   const value = String(checksum.checksumValue ?? '');
@@ -55,9 +67,14 @@ export function checkSbom(sbom, { binarySha256, require = [] } = {}) {
 
   const seenIds = new Set();
   for (const holder of [...packages, ...files]) {
-    if (seenIds.has(holder.SPDXID)) problems.push(`lists SPDXID ${holder.SPDXID} more than once.`);
+    if (!holder.SPDXID) problems.push(`${holder.name ?? holder.fileName ?? 'an element'} has no SPDXID.`);
+    else if (seenIds.has(holder.SPDXID)) problems.push(`lists SPDXID ${holder.SPDXID} more than once.`);
     seenIds.add(holder.SPDXID);
   }
+  // A described (root) package skips the per-package checks below, so only one npm root is allowed:
+  // otherwise marking a bare package as described would smuggle it past them (review of #404).
+  const npmRoots = packages.filter((pkg) => describedIds.has(pkg.SPDXID) && purlOf(pkg)?.startsWith('pkg:npm/'));
+  if (npmRoots.length > 1) problems.push(`describes ${npmRoots.length} npm packages as roots; exactly one root is expected.`);
 
   const npmPackages = packages.filter(
     (pkg) => !describedIds.has(pkg.SPDXID) && purlOf(pkg)?.startsWith('pkg:npm/'),
@@ -70,9 +87,14 @@ export function checkSbom(sbom, { binarySha256, require = [] } = {}) {
   const seenNpm = new Set();
   for (const pkg of npmPackages) {
     const label = pkg.SPDXID ?? pkg.name;
-    const version = String(pkg.versionInfo ?? '');
-    if (!version) problems.push(`${label} has no versionInfo.`);
-    else if (!purlOf(pkg).endsWith(`@${version}`)) problems.push(`${label} purl does not pin version ${version}.`);
+    const version = typeof pkg.versionInfo === 'string' ? pkg.versionInfo : '';
+    if (!version || /^(NOASSERTION|NONE)$/i.test(version)) problems.push(`${label} has no real versionInfo (${JSON.stringify(pkg.versionInfo)}).`);
+    else {
+      const purl = parseNpmPurl(purlOf(pkg));
+      if (!purl || purl.name !== pkg.name || purl.version !== version) {
+        problems.push(`${label} purl ${purlOf(pkg)} does not name ${pkg.name}@${version}.`);
+      }
+    }
     if ((pkg.checksums ?? []).length === 0) problems.push(`${label} carries no checksum.`);
     const key = `${pkg.name}@${version}`;
     if (seenNpm.has(key)) problems.push(`lists ${key} more than once.`);
@@ -94,7 +116,7 @@ export function checkSbom(sbom, { binarySha256, require = [] } = {}) {
   if (binarySha256) {
     const hasBinary = files.some((file) =>
       (file.checksums ?? []).some(
-        (c) => c.algorithm === 'SHA256' && String(c.checksumValue).toLowerCase() === binarySha256,
+        (c) => String(c.algorithm).toUpperCase() === 'SHA256' && String(c.checksumValue).toLowerCase() === binarySha256,
       ),
     );
     if (!hasBinary) problems.push(`no file entry carries the binary's SHA-256 ${binarySha256}.`);

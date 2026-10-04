@@ -164,11 +164,18 @@ everything, so no scanner sees the bundled packages. From the release after 0.6.
   `@modelcontextprotocol/sdk` for the image); or a binary digest that no file entry carries. A
   `--binary` or `--require` with no value is an error, not a skipped check.
 - Order. Binaries: SBOMs are checked before upload, and again before any attestation, provenance
-  included. Image: the bundle SBOM is generated and checked in the read-only `bundle-sbom` job, before
-  `publish-oci` can push or sign anything; `publish-oci` downloads the checked file and only attests it.
-  The dependency install never runs in the job that holds registry credentials or an OIDC token.
-  `scripts/validate-distribution-metadata.mjs` enforces this order and those permissions.
-  `pnpm run test:sbom` covers the checker, including the 0.6.0 shapes.
+  included. Image: the read-only `bundle-sbom` job builds the Dockerfile's own `build` stage with buildx
+  (no push), generates the bundle SBOM from that stage's metafile, lockfile and `node_modules`, checks
+  it, and records the stage's `dist/` hashes. `publish-oci` needs that job, re-checks the downloaded
+  SBOM before pushing, and after the push compares both platforms' `dist/` in the pushed image with
+  those hashes; only then does it sign provenance and attest the SBOM. No job holding registry
+  credentials or an OIDC token installs dependencies (the install happens inside the container build).
+  If the post-push comparison fails, the image has been pushed but nothing is attested.
+- `scripts/validate-distribution-metadata.mjs` enforces that structure: the steps and their order, no
+  write or OIDC permission and no `continue-on-error` or conditional step in `bundle-sbom`, no install
+  in `publish-oci`, nothing in `publish-oci` writing the handed-over SBOM, and `inputs.release_tag`
+  reaching release shell steps only through `env`. `pnpm run test:sbom` covers the checker, including
+  the 0.6.0 shapes.
 - `release-binaries.yml` attests each SBOM to its binary's digest (`actions/attest` with `sbom-path`;
   predicate type `https://spdx.dev/Document/v2.3`). `publish-distribution.yml` keeps BuildKit's `sbom: true`
   (the base image's packages) and adds the bundle SBOM as a second attestation on the image digest.

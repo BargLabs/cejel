@@ -8,7 +8,11 @@
  * pnpm-lock.yaml. A bundled input whose package/version is not in the lockfile is a hard error.
  *
  *   node scripts/sbom/generate-bundle-sbom.mjs --metafile <name|path> --out <file>
- *        [--binary <path> --node-version <vX.Y.Z>] [--lockfile pnpm-lock.yaml]
+ *        [--binary <path> --node-version <vX.Y.Z>] [--lockfile pnpm-lock.yaml] [--root <dir>]
+ *
+ *   --root: the tree the bundle was built in (lockfile, package.json, node_modules for licences).
+ *   Defaults to this repository; the image workflow passes the Dockerfile build stage it exported,
+ *   so the image's SBOM is computed from the image's own build, not a separate rebuild.
  *        [--package-json package.json]
  */
 import { createHash } from 'node:crypto';
@@ -236,7 +240,11 @@ function parseArgs(argv) {
     if (!flag?.startsWith('--') || value === undefined || value.startsWith('--')) {
       throw new Error(`generate-bundle-sbom: ${flag} requires a value.`);
     }
-    options[flag.slice(2)] = value;
+    const name = flag.slice(2);
+    if (!['metafile', 'out', 'binary', 'node-version', 'lockfile', 'package-json', 'root'].includes(name)) {
+      throw new Error(`generate-bundle-sbom: unknown option ${flag}.`);
+    }
+    options[name] = value;
   }
   return options;
 }
@@ -249,12 +257,13 @@ function main() {
   if (Boolean(options.binary) !== Boolean(options['node-version'])) {
     throw new Error('--binary and --node-version go together: a binary SBOM names the runtime it embeds.');
   }
+  const root = options.root ? resolve(options.root) : REPO_ROOT;
   const metafilePath = options.metafile.includes('/') || options.metafile.endsWith('.json')
     ? resolve(options.metafile)
-    : join(REPO_ROOT, '.build', 'metafiles', `${options.metafile}.json`);
+    : join(root, '.build', 'metafiles', `${options.metafile}.json`);
   const metafile = JSON.parse(readFileSync(metafilePath, 'utf8'));
-  const lockfile = parseLockfilePackages(readFileSync(resolve(options.lockfile ?? join(REPO_ROOT, 'pnpm-lock.yaml')), 'utf8'));
-  const manifest = JSON.parse(readFileSync(resolve(options['package-json'] ?? join(REPO_ROOT, 'package.json')), 'utf8'));
+  const lockfile = parseLockfilePackages(readFileSync(resolve(options.lockfile ?? join(root, 'pnpm-lock.yaml')), 'utf8'));
+  const manifest = JSON.parse(readFileSync(resolve(options['package-json'] ?? join(root, 'package.json')), 'utf8'));
   const inventory = inventoryFromMetafile(metafile, lockfile);
   if (inventory.length === 0) {
     throw new Error(`metafile ${metafilePath} bundles no node_modules package; refusing to write an empty inventory.`);
@@ -267,6 +276,7 @@ function main() {
     binary: options.binary ? resolve(options.binary) : undefined,
     nodeVersion: options['node-version'],
     created,
+    root,
   });
   writeFileSync(resolve(options.out), `${JSON.stringify(sbom, null, 2)}\n`);
   process.stdout.write(`${options.out}: ${inventory.length} bundled packages${options.binary ? ' + Node.js runtime + binary file' : ''}\n`);

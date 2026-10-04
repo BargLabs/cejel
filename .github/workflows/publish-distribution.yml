@@ -65,10 +65,12 @@ jobs:
           pnpm run validate:distribution
 
   # The image's bundle SBOM is generated and checked here, in a read-only job, BEFORE anything is
-  # published (review of #404). A failing check therefore stops the release before the image is
-  # pushed or signed, and the dependency install that generation needs never runs in a job that
-  # holds registry credentials, packages: write or an OIDC token. publish-oci only downloads the
-  # checked file and attests it to the digest it pushed. Runs in verify-only mode too.
+  # published (review of #404). It is computed from the Dockerfile's own `build` stage (exported
+  # with buildx, no push), so it describes the image's build, not a separate runner rebuild; the
+  # dependency install happens inside that container build, never on a runner that holds registry
+  # credentials, packages: write or an OIDC token. It also records the build stage's dist/ hashes,
+  # which publish-oci checks against the pushed image before attesting anything. Runs in
+  # verify-only mode too.
   bundle-sbom:
     needs: preflight
     runs-on: ubuntu-24.04
@@ -85,29 +87,37 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: scripts/assert-release-identity.sh
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
       - name: Setup Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
 
-      # BuildKit's `sbom: true` (publish-oci) inventories the image's base layers but cannot see what
-      # tsup bundled into dist/ (package.json declares no dependencies). This SPDX document lists the
-      # bundled packages from the bundler metafile. The bundle is a function of source + lockfile.
-      - name: Generate and check the bundle SBOM
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm run build
-          pnpm run sbom:generate --metafile package --out "$RUNNER_TEMP/cejel-bundle.spdx.json"
-          pnpm run sbom:check "$RUNNER_TEMP/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Hand the checked SBOM to publish-oci
+      # BuildKit's `sbom: true` (publish-oci) inventories the image's base layers but cannot see what
+      # tsup bundled into dist/ (package.json declares no dependencies). The bundler metafile is
+      # written inside the build stage; amd64 and arm64 build stages produce byte-identical dist/.
+      - name: Export the image's build stage
+        run: docker buildx build --platform linux/amd64 --target build --output "type=local,dest=$RUNNER_TEMP/image-build" .
+
+      - name: Generate and check the bundle SBOM from the image's build stage
+        run: |
+          stage="$RUNNER_TEMP/image-build/src"
+          handoff="$RUNNER_TEMP/handoff"
+          mkdir -p "$handoff"
+          node scripts/sbom/generate-bundle-sbom.mjs --metafile "$stage/.build/metafiles/package.json" --root "$stage" --out "$handoff/cejel-bundle.spdx.json"
+          node scripts/sbom/check-sbom-inventory.mjs "$handoff/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
+          (cd "$stage/dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$handoff/dist.sha256"
+          test -s "$handoff/dist.sha256"
+
+      - name: Hand the checked SBOM and the build's dist hashes to publish-oci
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cejel-bundle-sbom
-          path: ${{ runner.temp }}/cejel-bundle.spdx.json
+          path: |
+            ${{ runner.temp }}/handoff/cejel-bundle.spdx.json
+            ${{ runner.temp }}/handoff/dist.sha256
           if-no-files-found: error
           retention-days: 7
 
@@ -153,6 +163,15 @@ jobs:
           name: cejel-bundle-sbom
           path: ${{ runner.temp }}/bundle-sbom
 
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      # The checker uses only Node built-ins: no dependency install in this privileged job.
+      - name: Re-check the downloaded bundle SBOM before publishing
+        run: node scripts/sbom/check-sbom-inventory.mjs "$RUNNER_TEMP/bundle-sbom/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
+
       - name: Refuse to overwrite a published OCI release tag
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -180,6 +199,25 @@ jobs:
           sbom: true
           provenance: mode=max
 
+      # Binds the attested SBOM to the bytes actually pushed: both platforms' dist/ must equal the
+      # build stage the SBOM was computed from. On a mismatch nothing is attested (the push itself
+      # has happened; the release is then repaired by hand, never signed as-is).
+      - name: Verify the pushed image carries the dist the SBOM was computed from
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          for platform in linux/amd64 linux/arm64; do
+            cid="$(docker create --platform "$platform" "$IMAGE_NAME@$DIGEST")"
+            rm -rf "$RUNNER_TEMP/image-dist"
+            docker cp "$cid:/opt/cejel/dist" "$RUNNER_TEMP/image-dist"
+            docker rm "$cid" > /dev/null
+            (cd "$RUNNER_TEMP/image-dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/image-dist.sha256"
+            if ! diff -u "$RUNNER_TEMP/bundle-sbom/dist.sha256" "$RUNNER_TEMP/image-dist.sha256"; then
+              echo "::error::$platform image dist/ differs from the build stage the bundle SBOM was computed from; refusing to attest." >&2
+              exit 1
+            fi
+          done
+
       - name: Create signed image provenance
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
@@ -187,8 +225,8 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-      # The bundle SBOM was generated and checked in the read-only bundle-sbom job before this job
-      # could push anything; here it is only attested to the digest just pushed.
+      # Generated from the image's own build stage and checked in bundle-sbom, re-checked above
+      # before the push, and bound to the pushed bytes by the dist/ comparison; here it is attested.
       - name: Attest the bundle SBOM to the image digest
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:

@@ -395,40 +395,86 @@ for (const [needle, field] of [
   requireIncludes(releaseWorkflow, needle, field);
 }
 for (const [needle, field] of [
-  ['pnpm run sbom:check', 'OCI bundle SBOM empty-inventory refusal'],
+  ['check-sbom-inventory.mjs', 'OCI bundle SBOM empty-inventory refusal'],
   ['sbom-path: ${{ runner.temp }}/bundle-sbom/cejel-bundle.spdx.json', 'OCI bundle SBOM attestation'],
 ]) {
   requireIncludes(distributionWorkflow, needle, field);
 }
 
-// Review of #404: the bundle SBOM must be generated and checked in a read-only job BEFORE the
-// image is pushed, and the dependency install it needs must never run in the job that holds
-// registry credentials, packages: write or an OIDC token. Enforced structurally, so moving the
-// check back after the push (or the install back into publish-oci) fails here.
+// Review of #404 (twice): the bundle SBOM is computed from the Dockerfile's own build stage in a
+// read-only job BEFORE the image is pushed; the privileged job installs nothing, re-checks the
+// handed-over SBOM before the push, and attests only after the pushed image's dist/ matches the
+// build the SBOM came from. Enforced structurally; the first version was a four-string tripwire.
 function jobBlock(workflow, job, nextJob) {
   const start = workflow.indexOf(`\n  ${job}:\n`);
   const end = workflow.indexOf(`\n  ${nextJob}:\n`, start + 1);
   if (start < 0 || end < 0) throw new Error(`${job} job block not found before ${nextJob}.`);
   return workflow.slice(start, end);
 }
-const bundleSbomJob = jobBlock(distributionWorkflow, 'bundle-sbom', 'publish-oci');
-requireIncludes(bundleSbomJob, 'pnpm run sbom:check', 'bundle-sbom job runs the SBOM check');
-for (const forbidden of ['packages: write', 'id-token: write', 'attestations: write', 'docker/login-action']) {
-  if (bundleSbomJob.includes(forbidden)) {
-    throw new Error(`bundle-sbom job must stay unprivileged: it contains ${JSON.stringify(forbidden)}.`);
+function requireBefore(block, first, second, message) {
+  const a = block.indexOf(first);
+  const b = block.indexOf(second);
+  if (a < 0 || b < 0 || a > b) throw new Error(message);
+}
+function requireAbsent(block, needles, message) {
+  for (const needle of needles) {
+    if (block.includes(needle)) throw new Error(`${message}: contains ${JSON.stringify(needle)}.`);
   }
+}
+const bundleSbomJob = jobBlock(distributionWorkflow, 'bundle-sbom', 'publish-oci');
+for (const [needle, field] of [
+  ['--target build', 'bundle-sbom exports the Dockerfile build stage'],
+  ['generate-bundle-sbom.mjs', 'bundle-sbom generates the SBOM from that stage'],
+  ['check-sbom-inventory.mjs', 'bundle-sbom checks the SBOM'],
+  ['dist.sha256', 'bundle-sbom records the build stage dist/ hashes'],
+]) {
+  requireIncludes(bundleSbomJob, needle, field);
+}
+requireAbsent(
+  bundleSbomJob,
+  ['packages: write', 'id-token: write', 'attestations: write', 'contents: write', 'write-all', 'docker/login-action', 'continue-on-error', 'push: true'],
+  'bundle-sbom must stay read-only and must not soften its check',
+);
+if (/\n\s+if:/.test(bundleSbomJob)) throw new Error('bundle-sbom must not make any step conditional.');
+if (!/^\s+node scripts\/sbom\/check-sbom-inventory\.mjs "\$handoff\/cejel-bundle\.spdx\.json" --require zod --require @modelcontextprotocol\/sdk$/m.test(bundleSbomJob)) {
+  throw new Error('bundle-sbom must run the checker as a command of its own, with both required packages.');
 }
 const publishOciJob = jobBlock(distributionWorkflow, 'publish-oci', 'resolve-mcp-oci-digest');
-requireIncludes(publishOciJob, 'needs: [preflight, bundle-sbom]', 'publish-oci waits for the checked bundle SBOM');
-for (const forbidden of ['pnpm install', 'pnpm run sbom:generate']) {
-  if (publishOciJob.includes(forbidden)) {
-    throw new Error(`publish-oci must not run ${JSON.stringify(forbidden)} beside registry credentials and OIDC.`);
+if (!/\n    needs: \[(?:preflight, bundle-sbom|bundle-sbom, preflight)\]\n/.test(publishOciJob)) {
+  throw new Error('publish-oci must need both preflight and bundle-sbom.');
+}
+requireAbsent(
+  publishOciJob,
+  ['pnpm install', 'pnpm i ', 'npm ci', 'npm install', 'yarn install', 'generate-bundle-sbom', 'continue-on-error'],
+  'publish-oci must install nothing beside registry credentials and OIDC, and must not soften a check',
+);
+requireBefore(publishOciJob, 'name: cejel-bundle-sbom', 'docker/build-push-action',
+  'publish-oci must download the checked bundle SBOM before the image build-and-push step.');
+requireBefore(publishOciJob, 'check-sbom-inventory.mjs', 'docker/build-push-action',
+  'publish-oci must re-check the downloaded bundle SBOM before the image build-and-push step.');
+requireBefore(publishOciJob, 'image-dist.sha256', 'name: Create signed image provenance',
+  'publish-oci must verify the pushed image dist/ against the SBOM build before any attestation.');
+if (!/^\s+run: node scripts\/sbom\/check-sbom-inventory\.mjs "\$RUNNER_TEMP\/bundle-sbom\/cejel-bundle\.spdx\.json" --require zod --require @modelcontextprotocol\/sdk$/m.test(publishOciJob)) {
+  throw new Error('publish-oci must re-run the checker on the downloaded SBOM as a command of its own.');
+}
+// Nothing in publish-oci may write the handed-over SBOM: every line naming it is the download, the
+// re-check, the dist/ comparison or the attestation input.
+for (const line of publishOciJob.split(/\r?\n/)) {
+  if (!line.includes('bundle-sbom/') && !line.includes('/bundle-sbom')) continue;
+  const allowed = [/check-sbom-inventory\.mjs/, /^\s*sbom-path: /, /diff -u "\$RUNNER_TEMP\/bundle-sbom\/dist\.sha256"/, /^\s*path: \$\{\{ runner\.temp \}\}\/bundle-sbom$/];
+  if (!allowed.some((re) => re.test(line))) {
+    throw new Error(`publish-oci must not touch the handed-over SBOM outside download, re-check, compare and attest: ${line.trim()}`);
   }
 }
-const downloadAt = publishOciJob.indexOf('name: cejel-bundle-sbom');
-const pushAt = publishOciJob.indexOf('docker/build-push-action');
-if (downloadAt < 0 || pushAt < 0 || downloadAt > pushAt) {
-  throw new Error('publish-oci must download the checked bundle SBOM before the image build-and-push step.');
+const recheckStep = releaseWorkflow.slice(
+  releaseWorkflow.indexOf('Re-check every SBOM against its binary'),
+  releaseWorkflow.indexOf('Create signed provenance for all release binaries'),
+);
+if (/continue-on-error|\n\s+if:/.test(recheckStep)) throw new Error('the release SBOM re-check must not be softened or made conditional.');
+for (const line of releaseWorkflow.split(/\r?\n/)) {
+  if (line.includes('${{ inputs.release_tag }}') && !/^\s*(?:ref|group|RELEASE_TAG):|^\s*#/.test(line)) {
+    throw new Error(`release-binaries must pass inputs.release_tag through env, not inline: ${line.trim()}`);
+  }
 }
 const recheckAt = releaseWorkflow.indexOf('Re-check every SBOM against its binary');
 const provenanceAt = releaseWorkflow.indexOf('Create signed provenance for all release binaries');

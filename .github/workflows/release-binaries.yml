@@ -113,8 +113,9 @@ jobs:
 
       # The SBOM is generated from the bundler metafile (.build/metafiles/sea.json, written by
       # `pnpm run build:sea-js`), not scanned from the binary: syft cannot see inside a Node SEA
-      # blob and reported an empty inventory for 0.6.0. The generator reads only the metafile, the
-      # lockfile and the binary, so it cannot be handed calibration/** or any other source path.
+      # blob and reported an empty inventory for 0.6.0. The generator reads the metafile, the lockfile,
+      # the binary, and the package.json licence fields of the bundled packages at the node_modules
+      # paths the metafile names; it cannot be handed calibration/** or any other source path.
       - name: Generate SPDX SBOM from the bundle inventory
         working-directory: ${{ steps.package.outputs.root }}
         shell: bash
@@ -168,16 +169,21 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      # inputs.release_tag reaches the shell only through env (review of #404), never interpolated
+      # into a run: line.
       - name: Require complete own-platform verification set
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: >-
           node scripts/verify-cejel-release-set.mjs release-assets
-          --release-tag "${{ inputs.release_tag }}"
+          --release-tag "$RELEASE_TAG"
           --package-json package.json
 
       - name: Require an existing human-created draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: test "$(gh release view "${{ inputs.release_tag }}" --json isDraft --jq .isDraft)" = true
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
 
       - name: Generate SHA-256 checksums
         working-directory: release-assets
@@ -236,13 +242,15 @@ jobs:
       - name: Stage portable Sigstore provenance bundle
         env:
           BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
-        run: cp "$BUNDLE_PATH" "release-assets/cejel-${{ inputs.release_tag }}-provenance.sigstore.json"
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: cp "$BUNDLE_PATH" "release-assets/cejel-$RELEASE_TAG-provenance.sigstore.json"
 
       - name: Attach verified binaries and checksums
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          gh release upload "${{ inputs.release_tag }}" \
+          gh release upload "$RELEASE_TAG" \
             release-assets/cejel-Darwin-arm64 \
             release-assets/cejel-Darwin-x86_64 \
             release-assets/cejel-Linux-aarch64 \
@@ -254,5 +262,5 @@ jobs:
             release-assets/cejel-Linux-x86_64.spdx.json \
             release-assets/cejel-Windows-x86_64.exe.spdx.json \
             release-assets/SHA256SUMS \
-            "release-assets/cejel-${{ inputs.release_tag }}-provenance.sigstore.json" \
+            "release-assets/cejel-$RELEASE_TAG-provenance.sigstore.json" \
             --clobber
