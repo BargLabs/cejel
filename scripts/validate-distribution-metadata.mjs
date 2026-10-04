@@ -492,25 +492,33 @@ requireIncludes(ociSbomBindingWorkflow, 'scripts/sbom/verify-image-dist.sh', 'CI
 requireIncludes(ociSbomBindingWorkflow, 'Negative control', 'CI proves the verify script can refuse');
 requireIncludes(ociSbomBindingWorkflow, 'scripts/sbom/tag-verified-image.sh', 'CI runs the release tag script on a real runner');
 
-// inputs.release_tag reaches release shell steps only through an env: mapping.
+// inputs.release_tag reaches dispatched shell steps only through an env: mapping, never interpolated
+// into a run: script (#404 for release-binaries.yml, #407 for verify-published-windows-binary.yml).
 const RELEASE_TAG_EXPRESSION = /\$\{\{\s*(?:github\.event\.)?inputs\.release_tag\s*\}\}/;
-const releaseLines = releaseWorkflow.split(/\r?\n/);
-releaseLines.forEach((line, index) => {
-  if (!RELEASE_TAG_EXPRESSION.test(line) || /^\s*#/.test(line)) return;
-  if (/^\s*(?:ref|group):/.test(line)) return;
-  if (/^\s*RELEASE_TAG:/.test(line)) {
-    const indent = line.match(/^\s*/)[0].length;
-    for (let back = index - 1; back >= 0; back -= 1) {
-      const prior = releaseLines[back];
-      if (prior.trim() === '') continue;
-      const priorIndent = prior.match(/^\s*/)[0].length;
-      if (priorIndent === indent && /^\s*[A-Z_][A-Z0-9_]*:/.test(prior)) continue;
-      if (priorIndent === indent - 2 && prior.trim() === 'env:') return;
-      break;
+function requireReleaseTagViaEnv(workflowName, workflow) {
+  const lines = workflow.split(/\r?\n/);
+  lines.forEach((line, index) => {
+    if (!RELEASE_TAG_EXPRESSION.test(line) || /^\s*#/.test(line)) return;
+    if (/^\s*(?:ref|group):/.test(line)) return;
+    if (/^\s*RELEASE_TAG:/.test(line)) {
+      const indent = line.match(/^\s*/)[0].length;
+      for (let back = index - 1; back >= 0; back -= 1) {
+        const prior = lines[back];
+        if (prior.trim() === '' || /^\s*#/.test(prior)) continue;
+        const priorIndent = prior.match(/^\s*/)[0].length;
+        if (priorIndent === indent && /^\s*[A-Z_][A-Z0-9_]*:/.test(prior)) continue;
+        if (priorIndent === indent - 2 && prior.trim() === 'env:') return;
+        break;
+      }
     }
-  }
-  throw new Error(`release-binaries must pass inputs.release_tag through an env: mapping, not inline: ${line.trim()}`);
-});
+    throw new Error(`${workflowName} must pass inputs.release_tag through an env: mapping, not inline: ${line.trim()}`);
+  });
+}
+requireReleaseTagViaEnv('release-binaries', releaseWorkflow);
+requireReleaseTagViaEnv(
+  'verify-published-windows-binary',
+  readFileSync(new URL('../.github/workflows/verify-published-windows-binary.yml', import.meta.url), 'utf8'),
+);
 const recheckStep = stepBlock(releaseWorkflow, 'Re-check every SBOM against its binary before any attestation (review of #404)');
 if (/\n\s+(?:if|shell|continue-on-error):/.test(recheckStep)) throw new Error('the release SBOM re-check must not be softened, re-shelled or made conditional.');
 const recheckAt = releaseWorkflow.indexOf('Re-check every SBOM against its binary');
