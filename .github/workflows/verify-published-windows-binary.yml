@@ -116,10 +116,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          # inputs.release_tag reaches the shell only through env, never interpolated into run: (#407).
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          gh release download "${{ inputs.release_tag }}" \
+          gh release download "$RELEASE_TAG" \
             --repo "${{ github.repository }}" \
             --pattern "cejel-Windows-x86_64.exe" \
             --pattern "SHA256SUMS" \
@@ -225,10 +227,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          # inputs.release_tag reaches the shell only through env, never interpolated into run: (#407).
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          gh release download "${{ inputs.release_tag }}" \
+          gh release download "$RELEASE_TAG" \
             --repo "${{ github.repository }}" \
             --pattern "cejel-Linux-aarch64" \
             --pattern "SHA256SUMS" \
@@ -321,9 +325,11 @@ jobs:
       - name: Resolve release package version
         id: version
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
-          tag="${{ inputs.release_tag }}"
+          tag="$RELEASE_TAG"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Run npm package against the same fixture
