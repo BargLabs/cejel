@@ -64,8 +64,56 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run validate:distribution
 
-  publish-oci:
+  # The image's bundle SBOM is generated and checked here, in a read-only job, BEFORE anything is
+  # published (review of #404). It is computed from the Dockerfile's own `build` stage (exported
+  # with buildx, no push), so it describes the image's build, not a separate runner rebuild; the
+  # dependency install happens inside that container build, never on a runner that holds registry
+  # credentials, packages: write or an OIDC token. It also records the build stage's dist/ hashes,
+  # which publish-oci checks against the pushed image before attesting anything. Runs in
+  # verify-only mode too.
+  bundle-sbom:
     needs: preflight
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the dispatched release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      # BuildKit's `sbom: true` (publish-oci) inventories the image's base layers but cannot see what
+      # tsup bundled into dist/ (package.json declares no dependencies); the bundler metafile is
+      # written inside the build stage.
+      # Same script as CI's oci-sbom-binding job. amd64 and arm64 build stages produce byte-identical dist/.
+      - name: Generate and check the bundle SBOM from the image's build stage
+        run: scripts/sbom/image-bundle-sbom.sh "$RUNNER_TEMP/handoff" linux/amd64
+
+      - name: Hand the checked SBOM and the build's dist hashes to publish-oci
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cejel-bundle-sbom
+          path: |
+            ${{ runner.temp }}/handoff/cejel-bundle.spdx.json
+            ${{ runner.temp }}/handoff/dist.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-oci:
+    needs: [preflight, bundle-sbom]
     if: ${{ inputs.verify_only == false && inputs.reuse_published_oci_tag == false }}
     runs-on: ubuntu-24.04
     permissions:
@@ -100,6 +148,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Download the bundle SBOM checked by bundle-sbom
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cejel-bundle-sbom
+          path: ${{ runner.temp }}/bundle-sbom
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      # The checker uses only Node built-ins: no dependency install in this privileged job.
+      - name: Re-check the downloaded bundle SBOM before publishing
+        run: node scripts/sbom/check-sbom-inventory.mjs "$RUNNER_TEMP/bundle-sbom/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
+
       - name: Refuse to overwrite a published OCI release tag
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -120,12 +183,21 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
+          # Pushed by digest only, with NO tags (third review of #404): the version and `latest`
+          # tags are applied only after the dist/ comparison and both attestations, so a failed
+          # check leaves an untagged digest and the release can be re-run.
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.metadata.outputs.labels }}
           build-args: VERSION=${{ steps.metadata.outputs.version }}
           sbom: true
           provenance: mode=max
+
+      # Binds the attested SBOM to the bytes actually pushed: both platforms' dist/ must equal the
+      # build stage the SBOM was computed from. Same script as CI's oci-sbom-binding job.
+      - name: Verify the pushed image carries the dist the SBOM was computed from
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: scripts/sbom/verify-image-dist.sh "$IMAGE_NAME" "$DIGEST" "$RUNNER_TEMP/bundle-sbom/dist.sha256"
 
       - name: Create signed image provenance
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
@@ -133,6 +205,24 @@ jobs:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+      # Generated from the image's own build stage and checked in bundle-sbom, re-checked above
+      # before the push, and bound to the pushed bytes by the dist/ comparison; here it is attested.
+      - name: Attest the bundle SBOM to the image digest
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/bundle-sbom/cejel-bundle.spdx.json
+          push-to-registry: true
+
+      # Only now, after the dist/ comparison and both attestations, does the image get its tags; each
+      # tag must resolve to the attested digest. Same script as CI's oci-sbom-binding job.
+      - name: Tag the verified, attested image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.metadata.outputs.tags }}
+        run: scripts/sbom/tag-verified-image.sh "$IMAGE_NAME" "$DIGEST" "$TAGS"
 
   resolve-mcp-oci-digest:
     needs: [preflight, publish-oci]

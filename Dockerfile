@@ -8,6 +8,7 @@ COPY scripts/assert-dev-environment.mjs ./scripts/assert-dev-environment.mjs
 RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json tsup.config.ts ./
+COPY scripts/sbom/metafile-plugin.mjs ./scripts/sbom/metafile-plugin.mjs
 COPY src ./src
 RUN pnpm run build
 

@@ -1,0 +1,51 @@
+{
+  "_fixtureProvenance": "RECONSTRUCTION, not the downloaded asset (see v0.6.0-linux-x86_64.spdx.json). Shape per the design session: two packages, the scanned directory and Node.js 22.23.3 (what syft recognised inside the binary), one file with a zero SHA1.",
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "cejel-sea",
+  "documentNamespace": "https://anchore.com/syft/dir/cejel-sea-windows-reconstructed",
+  "creationInfo": {
+    "created": "2026-10-03T00:00:00Z",
+    "creators": ["Organization: Anchore, Inc", "Tool: syft"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-DocumentRoot-Directory-.build-cejel-sea",
+      "name": "D:\\a\\cejel\\cejel\\.build\\cejel-sea",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "primaryPackagePurpose": "FILE"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-binary-node",
+      "name": "Node.js",
+      "versionInfo": "22.23.3",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/node@22.23.3"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "SPDXID": "SPDXRef-File-cejel-Windows-x86_64.exe",
+      "fileName": "/cejel-Windows-x86_64.exe",
+      "checksums": [{ "algorithm": "SHA1", "checksumValue": "0000000000000000000000000000000000000000" }],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": ""
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-DocumentRoot-Directory-.build-cejel-sea"
+    }
+  ]
+}

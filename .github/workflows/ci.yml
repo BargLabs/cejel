@@ -35,6 +35,8 @@ jobs:
           node --test scripts/verify-board-surfaces.node-test.mjs scripts/b4-commit-year-v19-paired-rescore.node-test.mjs scripts/a2-v24-paired-rescore.node-test.mjs
           node scripts/verify-board-surfaces.mjs
       - run: pnpm test
+      - name: SBOM generator and empty-inventory check tests
+        run: pnpm run test:sbom
       - name: Release driver tests
         run: pnpm run test:release
 

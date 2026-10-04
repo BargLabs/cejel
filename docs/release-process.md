@@ -140,6 +140,55 @@ a currency verifier's pass be read as prevention: the release-currency verifier 
 0.4.9 and caught the missing provenance after publication, which is exactly what a detective control
 does and exactly what a preventive control would have made unnecessary.
 
+## What the SBOMs inventory (2026-10-03)
+
+The 0.6.0 per-binary SBOMs, produced by scanning the binary with syft, listed one package (the
+scanned directory) and one file with an all-zero SHA1, and passed. Syft cannot see inside a Node
+single-executable blob, and `package.json` declares no runtime dependencies because `tsup` bundles
+everything, so no scanner sees the bundled packages. From the release after 0.6.0:
+
+- `pnpm run sbom:generate` writes SPDX 2.3 from the bundler metafile
+  (`.build/metafiles/{package,sea}.json`, written by the two tsup configs): one package per distinct
+  `node_modules` package that was bundled, with its exact version and integrity from `pnpm-lock.yaml`.
+  A binary's SBOM also lists the Node.js runtime it embeds and the binary as a file with its real
+  SHA-1 and SHA-256, related to the packages by `CONTAINS`. It is an inventory of what was bundled,
+  not a scan of the artefact, and it does not list the host operating system, files outside the
+  bundle, or anything the bundler tree-shook out.
+- Each bundled package's `licenseDeclared` is read from the manifest of the copy that was bundled (its
+  pnpm store path in the metafile), and only when that manifest's version matches; otherwise
+  `NOASSERTION`.
+- `pnpm run sbom:check` refuses an SBOM that names no root (no `DESCRIBES` to a listed element), lists no
+  npm package besides the root, or has an npm package without a `versionInfo`, a version-pinning purl or
+  a checksum; any checksum that is not hex of its algorithm's length, or is all zeros; a duplicated
+  SPDXID or `name@version`; a missing required package (`zod` for binaries; `zod` and
+  `@modelcontextprotocol/sdk` for the image); or a binary digest that no file entry carries. A
+  `--binary` or `--require` with no value is an error, not a skipped check.
+- Order. Binaries: SBOMs are checked before upload, and again before any attestation, provenance
+  included. Image: the read-only `bundle-sbom` job runs `scripts/sbom/image-bundle-sbom.sh`, which builds
+  the Dockerfile's own `build` stage with buildx (no push), generates the bundle SBOM from that stage's
+  metafile, lockfile and `node_modules`, checks it, and records the stage's `dist/` hashes.
+  `publish-oci` needs that job and then, in order: re-checks the downloaded SBOM; pushes the image **by
+  digest only, with no tags**; runs `scripts/sbom/verify-image-dist.sh`, which compares both platforms'
+  `dist/` in the pushed image (each pulled by its own manifest digest) with those hashes; signs
+  provenance; attests the SBOM; and only then runs `scripts/sbom/tag-verified-image.sh`, which applies the
+  version and `latest` tags and confirms each resolves to the attested digest. A failure before tagging
+  leaves an untagged digest in GHCR and nothing tagged, so the release can be re-run. No job holding
+  registry credentials or an OIDC token installs dependencies.
+- `.github/workflows/oci-sbom-binding.yml` runs those same three scripts on every pull request that
+  touches the image or SBOM path, on a real GitHub runner against a throwaway local registry, including
+  a negative control that must be refused. That job is the proof the release path works.
+- `scripts/validate-distribution-metadata.mjs` checks that structure as a tripwire for accidental
+  regressions: the step order, exact commands with no `if:`, `shell:` or `continue-on-error` on them,
+  read-only `bundle-sbom`, no install in `publish-oci`, and `inputs.release_tag` reaching release shell
+  steps only through `env`. It is not a security boundary (a pull request can edit it too); review the
+  workflow diff. `pnpm run test:sbom` covers the checker, including the 0.6.0 shapes.
+- `release-binaries.yml` attests each SBOM to its binary's digest (`actions/attest` with `sbom-path`;
+  predicate type `https://spdx.dev/Document/v2.3`). `publish-distribution.yml` keeps BuildKit's `sbom: true`
+  (the base image's packages) and adds the bundle SBOM as a second attestation on the image digest.
+- Not yet done: the npm package does not carry the SBOM, and no published artefact has an attested
+  bundle SBOM until the next release is cut. Verify that release with
+  `gh attestation verify <binary> -R BargLabs/cejel --predicate-type https://spdx.dev/Document/v2.3`.
+
 ## Required site binary-link step
 
 After the GitHub Release is published, update the single current-release record in the site source

@@ -1,5 +1,7 @@
 import { defineConfig } from 'tsup';
 
+import { bundleMetafilePlugin } from './scripts/sbom/metafile-plugin.mjs';
+
 // The published `cejel` bin must run under plain `node` via `npx @cejel/cejel`. This
 // package ships with empty `dependencies` (see package.json) — there is no node_modules
 // resolve step for a real npm dependency at install time, so tsup's default bundling
@@ -24,4 +26,6 @@ import { createRequire as __cejelCreateRequire } from 'node:module';
 const require = __cejelCreateRequire(import.meta.url);`,
   },
   clean: true,
+  // Writes .build/metafiles/package.json, the input list the bundle SBOM is generated from.
+  esbuildPlugins: [bundleMetafilePlugin('package')],
 });
