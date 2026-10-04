@@ -190,18 +190,18 @@ jobs:
           cejel-Windows-x86_64.exe
           > SHA256SUMS
 
-      - name: Create signed provenance for all release binaries
-        id: attest
-        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
-        with:
-          subject-checksums: release-assets/SHA256SUMS
-
-      - name: Re-check every SBOM against its binary before attesting
+      - name: Re-check every SBOM against its binary before any attestation (review of #404)
         run: |
           for asset in cejel-Darwin-arm64 cejel-Darwin-x86_64 cejel-Linux-aarch64 cejel-Linux-x86_64 cejel-Windows-x86_64.exe; do
             node scripts/sbom/check-sbom-inventory.mjs "release-assets/$asset.spdx.json" \
               --binary "release-assets/$asset" --require zod
           done
+
+      - name: Create signed provenance for all release binaries
+        id: attest
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-checksums: release-assets/SHA256SUMS
 
       - name: Attest SBOM for cejel-Darwin-arm64
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4

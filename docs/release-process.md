@@ -154,10 +154,21 @@ everything, so no scanner sees the bundled packages. From the release after 0.6.
   SHA-1 and SHA-256, related to the packages by `CONTAINS`. It is an inventory of what was bundled,
   not a scan of the artefact, and it does not list the host operating system, files outside the
   bundle, or anything the bundler tree-shook out.
-- `pnpm run sbom:check` refuses an SBOM with no npm package besides the root, any all-zero checksum, a
-  missing required package (`zod` for binaries; `zod` and `@modelcontextprotocol/sdk` for the image), or a
-  binary digest that no file entry carries. The workflows run it before upload, again before attestation
-  and, for the image, before the attestation. `pnpm run test:sbom` covers it, including the 0.6.0 shapes.
+- Each bundled package's `licenseDeclared` is read from the manifest of the copy that was bundled (its
+  pnpm store path in the metafile), and only when that manifest's version matches; otherwise
+  `NOASSERTION`.
+- `pnpm run sbom:check` refuses an SBOM that names no root (no `DESCRIBES` to a listed element), lists no
+  npm package besides the root, or has an npm package without a `versionInfo`, a version-pinning purl or
+  a checksum; any checksum that is not hex of its algorithm's length, or is all zeros; a duplicated
+  SPDXID or `name@version`; a missing required package (`zod` for binaries; `zod` and
+  `@modelcontextprotocol/sdk` for the image); or a binary digest that no file entry carries. A
+  `--binary` or `--require` with no value is an error, not a skipped check.
+- Order. Binaries: SBOMs are checked before upload, and again before any attestation, provenance
+  included. Image: the bundle SBOM is generated and checked in the read-only `bundle-sbom` job, before
+  `publish-oci` can push or sign anything; `publish-oci` downloads the checked file and only attests it.
+  The dependency install never runs in the job that holds registry credentials or an OIDC token.
+  `scripts/validate-distribution-metadata.mjs` enforces this order and those permissions.
+  `pnpm run test:sbom` covers the checker, including the 0.6.0 shapes.
 - `release-binaries.yml` attests each SBOM to its binary's digest (`actions/attest` with `sbom-path`;
   predicate type `https://spdx.dev/Document/v2.3`). `publish-distribution.yml` keeps BuildKit's `sbom: true`
   (the base image's packages) and adds the bundle SBOM as a second attestation on the image digest.

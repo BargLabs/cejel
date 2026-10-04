@@ -27,7 +27,10 @@ export function packageFromInputPath(inputPath) {
   const parts = normalized.slice(index + marker.length).split('/');
   const name = parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0];
   const pnpmMatch = normalized.match(/node_modules\/\.pnpm\/([^/]+)\/node_modules\//);
-  return { name, pnpmDir: pnpmMatch ? pnpmMatch[1] : undefined };
+  // The directory holding the bundled copy's own package.json, e.g.
+  // node_modules/.pnpm/ajv@8.17.1/node_modules/ajv: its licence is the one that shipped.
+  const manifestDir = `${normalized.slice(0, index + marker.length)}${name}`;
+  return { name, pnpmDir: pnpmMatch ? pnpmMatch[1] : undefined, manifestDir };
 }
 
 /** Parse the `packages:` section of a pnpm v9 lockfile: name -> [{version, integrity}]. */
@@ -62,20 +65,20 @@ export function inventoryFromMetafile(metafile, lockfilePackages) {
     const pkg = packageFromInputPath(inputPath);
     if (!pkg) continue;
     const candidates = lockfilePackages.get(pkg.name) ?? [];
+    const dirPrefix = `${pkg.name.replace('/', '+')}@`;
+    const dirMatches = (c) =>
+      pkg.pnpmDir === `${dirPrefix}${c.version}` || pkg.pnpmDir.startsWith(`${dirPrefix}${c.version}_`);
     let entry;
-    if (candidates.length === 1) entry = candidates[0];
-    else if (candidates.length > 1 && pkg.pnpmDir) {
-      const dirPrefix = `${pkg.name.replace('/', '+')}@`;
-      entry = candidates.find(
-        (c) => pkg.pnpmDir === `${dirPrefix}${c.version}` || pkg.pnpmDir.startsWith(`${dirPrefix}${c.version}_`),
-      );
-    }
+    // A pnpm path names its version; a lone lockfile candidate must agree with it (review of #404).
+    if (pkg.pnpmDir) entry = candidates.find(dirMatches);
+    else if (candidates.length === 1) entry = candidates[0];
     if (!entry) {
       throw new Error(
         `bundled input ${inputPath} maps to ${pkg.name}, which has no unambiguous version in the lockfile; refusing to guess.`,
       );
     }
-    found.set(`${entry.name}@${entry.version}`, entry);
+    const key = `${entry.name}@${entry.version}`;
+    if (!found.has(key)) found.set(key, { ...entry, manifestDir: pkg.manifestDir });
   }
   return [...found.values()].sort((a, b) => `${a.name}@${a.version}`.localeCompare(`${b.name}@${b.version}`));
 }
@@ -92,11 +95,21 @@ function sriToSpdxChecksum(integrity) {
   return [{ algorithm, checksumValue: Buffer.from(match[2], 'base64').toString('hex') }];
 }
 
-function installedLicense(name, root) {
-  const manifest = join(root, 'node_modules', name, 'package.json');
-  if (!existsSync(manifest)) return 'NOASSERTION';
-  const license = JSON.parse(readFileSync(manifest, 'utf8')).license;
-  return typeof license === 'string' && license.length > 0 ? license : 'NOASSERTION';
+// The licence of the copy that was bundled: read from the manifest beside the bundled files (the
+// pnpm store path from the metafile), then the hoisted copy, and only when its version matches.
+// Reading only <root>/node_modules/<name> gave NOASSERTION for every package pnpm does not hoist
+// (6 of 10 bundled packages; review of #404) and could read a different version.
+function installedLicense(entry, root) {
+  const dirs = [entry.manifestDir, join('node_modules', entry.name)].filter(Boolean);
+  for (const dir of dirs) {
+    const manifest = join(root, dir, 'package.json');
+    if (!existsSync(manifest)) continue;
+    const parsed = JSON.parse(readFileSync(manifest, 'utf8'));
+    if (parsed.version !== entry.version) continue;
+    const license = parsed.license;
+    return typeof license === 'string' && license.length > 0 ? license : 'NOASSERTION';
+  }
+  return 'NOASSERTION';
 }
 
 export function buildSbom({ rootPackage, inventory, binary, nodeVersion, created, root = REPO_ROOT }) {
@@ -124,7 +137,7 @@ export function buildSbom({ rootPackage, inventory, binary, nodeVersion, created
   for (const entry of inventory) {
     const id = spdxId('Package', `${entry.name}-${entry.version}`);
     bundledIds.push(id);
-    const license = installedLicense(entry.name, root);
+    const license = installedLicense(entry, root);
     packages.push({
       SPDXID: id,
       name: entry.name,

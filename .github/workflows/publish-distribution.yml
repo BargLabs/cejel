@@ -64,8 +64,55 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run validate:distribution
 
-  publish-oci:
+  # The image's bundle SBOM is generated and checked here, in a read-only job, BEFORE anything is
+  # published (review of #404). A failing check therefore stops the release before the image is
+  # pushed or signed, and the dependency install that generation needs never runs in a job that
+  # holds registry credentials, packages: write or an OIDC token. publish-oci only downloads the
+  # checked file and attests it to the digest it pushed. Runs in verify-only mode too.
+  bundle-sbom:
     needs: preflight
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the dispatched release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Assert release identity
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: scripts/assert-release-identity.sh
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      # BuildKit's `sbom: true` (publish-oci) inventories the image's base layers but cannot see what
+      # tsup bundled into dist/ (package.json declares no dependencies). This SPDX document lists the
+      # bundled packages from the bundler metafile. The bundle is a function of source + lockfile.
+      - name: Generate and check the bundle SBOM
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm run sbom:generate --metafile package --out "$RUNNER_TEMP/cejel-bundle.spdx.json"
+          pnpm run sbom:check "$RUNNER_TEMP/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
+
+      - name: Hand the checked SBOM to publish-oci
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cejel-bundle-sbom
+          path: ${{ runner.temp }}/cejel-bundle.spdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-oci:
+    needs: [preflight, bundle-sbom]
     if: ${{ inputs.verify_only == false && inputs.reuse_published_oci_tag == false }}
     runs-on: ubuntu-24.04
     permissions:
@@ -99,6 +146,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Download the bundle SBOM checked by bundle-sbom
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cejel-bundle-sbom
+          path: ${{ runner.temp }}/bundle-sbom
 
       - name: Refuse to overwrite a published OCI release tag
         env:
@@ -134,32 +187,14 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-      # BuildKit's `sbom: true` above inventories the image's base layers (Alpine apk, the npm CLI
-      # in the Node base image) but cannot see what tsup bundled into dist/ (package.json declares
-      # no dependencies). This second SPDX attestation, bound to the same image digest, lists the
-      # bundled packages from the bundler metafile. The bundle is a function of source + lockfile,
-      # so it is rebuilt here on the runner rather than extracted from the image.
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '22'
-
-      - name: Generate and check the bundle SBOM
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm run build
-          pnpm run sbom:generate --metafile package --out "$RUNNER_TEMP/cejel-bundle.spdx.json"
-          pnpm run sbom:check "$RUNNER_TEMP/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
-
+      # The bundle SBOM was generated and checked in the read-only bundle-sbom job before this job
+      # could push anything; here it is only attested to the digest just pushed.
       - name: Attest the bundle SBOM to the image digest
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
-          sbom-path: ${{ runner.temp }}/cejel-bundle.spdx.json
+          sbom-path: ${{ runner.temp }}/bundle-sbom/cejel-bundle.spdx.json
           push-to-registry: true
 
   resolve-mcp-oci-digest:
