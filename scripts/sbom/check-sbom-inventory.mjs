@@ -26,9 +26,15 @@ function purlOf(pkg) {
   return (pkg.externalRefs ?? []).find((ref) => ref.referenceType === 'purl')?.referenceLocator;
 }
 
+// purl types are case-insensitive: `PKG:NPM/...` is an npm package and must get every per-package
+// check (third review of #404: a case-sensitive filter let such entries skip them).
+function isNpmPurl(purl) {
+  return typeof purl === 'string' && purl.toLowerCase().startsWith('pkg:npm/');
+}
+
 /** `pkg:npm/%40scope/name@1.2.3?q#sub` -> { name: '@scope/name', version: '1.2.3' }; qualifiers and subpath ignored. */
 function parseNpmPurl(purl) {
-  const core = String(purl).split('#')[0].split('?')[0].slice('pkg:npm/'.length);
+  const core = String(purl).split('#')[0].split('?')[0].slice('pkg:npm/'.length); // prefix is case-insensitive
   const at = core.lastIndexOf('@');
   if (at <= 0) return undefined;
   try {
@@ -73,11 +79,11 @@ export function checkSbom(sbom, { binarySha256, require = [] } = {}) {
   }
   // A described (root) package skips the per-package checks below, so only one npm root is allowed:
   // otherwise marking a bare package as described would smuggle it past them (review of #404).
-  const npmRoots = packages.filter((pkg) => describedIds.has(pkg.SPDXID) && purlOf(pkg)?.startsWith('pkg:npm/'));
+  const npmRoots = packages.filter((pkg) => describedIds.has(pkg.SPDXID) && isNpmPurl(purlOf(pkg)));
   if (npmRoots.length > 1) problems.push(`describes ${npmRoots.length} npm packages as roots; exactly one root is expected.`);
 
   const npmPackages = packages.filter(
-    (pkg) => !describedIds.has(pkg.SPDXID) && purlOf(pkg)?.startsWith('pkg:npm/'),
+    (pkg) => !describedIds.has(pkg.SPDXID) && isNpmPurl(purlOf(pkg)),
   );
   if (npmPackages.length === 0) {
     problems.push(

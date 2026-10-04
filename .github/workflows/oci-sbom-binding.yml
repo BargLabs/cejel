@@ -1,0 +1,95 @@
+name: OCI SBOM binding
+
+# Exercises the release image's SBOM path on a real GitHub runner, without publishing anything:
+# the same scripts publish-distribution.yml runs (image-bundle-sbom.sh, verify-image-dist.sh,
+# tag-verified-image.sh), against a multi-platform image pushed by digest to a throwaway registry on
+# the runner. The runner's classic image store is what broke the first post-push check (third review
+# of #404); this job is where that is proven fixed, and it includes a negative control that must fail.
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - pnpm-lock.yaml
+      - tsup.config.ts
+      - scripts/sbom/**
+      - .github/workflows/publish-distribution.yml
+      - .github/workflows/oci-sbom-binding.yml
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - scripts/sbom/**
+      - .github/workflows/publish-distribution.yml
+      - .github/workflows/oci-sbom-binding.yml
+
+permissions:
+  contents: read
+
+jobs:
+  oci-sbom-binding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      registry:
+        image: registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+        ports:
+          - 5000:5000
+    env:
+      IMAGE_NAME: localhost:5000/cejel-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          driver-opts: network=host
+
+      - name: Generate and check the bundle SBOM from the image's build stage
+        run: scripts/sbom/image-bundle-sbom.sh "$RUNNER_TEMP/handoff" linux/amd64
+
+      - name: Push a multi-platform image by digest to the throwaway registry
+        id: push
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 --provenance=mode=max --sbom=true \
+            --output "type=image,name=$IMAGE_NAME,push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file "$RUNNER_TEMP/meta.json" .
+          digest="$(node -p 'require(process.argv[1])["containerimage.digest"]' "$RUNNER_TEMP/meta.json")"
+          test -n "$digest"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Verify both platforms' dist/ against the build stage (release step, real runner)
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: scripts/sbom/verify-image-dist.sh "$IMAGE_NAME" "$DIGEST" "$RUNNER_TEMP/handoff/dist.sha256"
+
+      - name: Negative control, a tampered dist hash must be refused
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          sed '1s/^0/x/; 1s/^[^x]/0/; 1s/^x/1/' "$RUNNER_TEMP/handoff/dist.sha256" > "$RUNNER_TEMP/tampered.sha256"
+          if cmp -s "$RUNNER_TEMP/handoff/dist.sha256" "$RUNNER_TEMP/tampered.sha256"; then
+            echo "::error::the negative control did not change the hash file." >&2
+            exit 1
+          fi
+          if scripts/sbom/verify-image-dist.sh "$IMAGE_NAME" "$DIGEST" "$RUNNER_TEMP/tampered.sha256"; then
+            echo "::error::verify-image-dist.sh accepted a tampered dist hash." >&2
+            exit 1
+          fi
+          echo "negative control refused, as it must"
+
+      - name: Tag by digest and confirm every tag keeps the digest (release step, real runner)
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          scripts/sbom/tag-verified-image.sh "$IMAGE_NAME" "$DIGEST" "$(printf '%s\n%s\n' "$IMAGE_NAME:0.0.0-ci" "$IMAGE_NAME:latest")"

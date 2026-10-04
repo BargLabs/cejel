@@ -246,3 +246,9 @@ test('a pnpm path whose version disagrees with the lone lockfile candidate is re
     /no unambiguous version/,
   );
 });
+
+test('checker: an uppercase PKG:NPM purl is still an npm package and gets every check', () => {
+  const sbom = goodSbom();
+  sbom.packages.push({ SPDXID: 'SPDXRef-Package-ghost', name: 'ghost', externalRefs: [{ referenceCategory: 'PACKAGE-MANAGER', referenceType: 'purl', referenceLocator: 'PKG:NPM/ghost' }] });
+  assert.notDeepEqual(checkSbom(sbom, REQUIRE), []);
+});

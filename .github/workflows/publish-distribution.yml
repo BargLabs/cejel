@@ -96,20 +96,11 @@ jobs:
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       # BuildKit's `sbom: true` (publish-oci) inventories the image's base layers but cannot see what
-      # tsup bundled into dist/ (package.json declares no dependencies). The bundler metafile is
-      # written inside the build stage; amd64 and arm64 build stages produce byte-identical dist/.
-      - name: Export the image's build stage
-        run: docker buildx build --platform linux/amd64 --target build --output "type=local,dest=$RUNNER_TEMP/image-build" .
-
+      # tsup bundled into dist/ (package.json declares no dependencies); the bundler metafile is
+      # written inside the build stage.
+      # Same script as CI's oci-sbom-binding job. amd64 and arm64 build stages produce byte-identical dist/.
       - name: Generate and check the bundle SBOM from the image's build stage
-        run: |
-          stage="$RUNNER_TEMP/image-build/src"
-          handoff="$RUNNER_TEMP/handoff"
-          mkdir -p "$handoff"
-          node scripts/sbom/generate-bundle-sbom.mjs --metafile "$stage/.build/metafiles/package.json" --root "$stage" --out "$handoff/cejel-bundle.spdx.json"
-          node scripts/sbom/check-sbom-inventory.mjs "$handoff/cejel-bundle.spdx.json" --require zod --require @modelcontextprotocol/sdk
-          (cd "$stage/dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$handoff/dist.sha256"
-          test -s "$handoff/dist.sha256"
+        run: scripts/sbom/image-bundle-sbom.sh "$RUNNER_TEMP/handoff" linux/amd64
 
       - name: Hand the checked SBOM and the build's dist hashes to publish-oci
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -192,31 +183,21 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
+          # Pushed by digest only, with NO tags (third review of #404): the version and `latest`
+          # tags are applied only after the dist/ comparison and both attestations, so a failed
+          # check leaves an untagged digest and the release can be re-run.
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.metadata.outputs.labels }}
           build-args: VERSION=${{ steps.metadata.outputs.version }}
           sbom: true
           provenance: mode=max
 
       # Binds the attested SBOM to the bytes actually pushed: both platforms' dist/ must equal the
-      # build stage the SBOM was computed from. On a mismatch nothing is attested (the push itself
-      # has happened; the release is then repaired by hand, never signed as-is).
+      # build stage the SBOM was computed from. Same script as CI's oci-sbom-binding job.
       - name: Verify the pushed image carries the dist the SBOM was computed from
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: |
-          for platform in linux/amd64 linux/arm64; do
-            cid="$(docker create --platform "$platform" "$IMAGE_NAME@$DIGEST")"
-            rm -rf "$RUNNER_TEMP/image-dist"
-            docker cp "$cid:/opt/cejel/dist" "$RUNNER_TEMP/image-dist"
-            docker rm "$cid" > /dev/null
-            (cd "$RUNNER_TEMP/image-dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/image-dist.sha256"
-            if ! diff -u "$RUNNER_TEMP/bundle-sbom/dist.sha256" "$RUNNER_TEMP/image-dist.sha256"; then
-              echo "::error::$platform image dist/ differs from the build stage the bundle SBOM was computed from; refusing to attest." >&2
-              exit 1
-            fi
-          done
+        run: scripts/sbom/verify-image-dist.sh "$IMAGE_NAME" "$DIGEST" "$RUNNER_TEMP/bundle-sbom/dist.sha256"
 
       - name: Create signed image provenance
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
@@ -234,6 +215,14 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           sbom-path: ${{ runner.temp }}/bundle-sbom/cejel-bundle.spdx.json
           push-to-registry: true
+
+      # Only now, after the dist/ comparison and both attestations, does the image get its tags; each
+      # tag must resolve to the attested digest. Same script as CI's oci-sbom-binding job.
+      - name: Tag the verified, attested image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.metadata.outputs.tags }}
+        run: scripts/sbom/tag-verified-image.sh "$IMAGE_NAME" "$DIGEST" "$TAGS"
 
   resolve-mcp-oci-digest:
     needs: [preflight, publish-oci]
