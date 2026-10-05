@@ -278,6 +278,30 @@ test('errata: an other-repository entry clears its token and prints the attribut
   assert.match(result.stdout, /0 failure\(s\), 0 pending, 2 corrected by errata/);
 });
 
+test('errata: an other-repository entry may withhold a private repository with the exact literal, and nothing looser', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const privateEntry = (repository) => ({
+    token: 'def5678',
+    locations: [{ file: 'docs/experiments/x/result.md', line: 3 }],
+    disposition: 'other-repository',
+    repository,
+    date: '2026-10-05',
+    reason: 'A private-repository commit cited without naming the repository.',
+  });
+  writeErrata(cwd, [lostInSquash(squash), privateEntry('private-repository (withheld)')]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /ERRATUM docs\/experiments\/x\/result\.md:3 def5678 -- other repository private-repository \(withheld\) \(attribution accepted, not verifiable offline\)/);
+  assert.match(result.stdout, /0 failure\(s\), 0 pending, 2 corrected by errata/);
+
+  for (const near of ['private-repository', 'private-repository (withheld) ', 'Private-Repository (withheld)', 'withheld', '']) {
+    writeErrata(cwd, [lostInSquash(squash), privateEntry(near)]);
+    assert.throws(() => run(cwd), /repository must be owner\/repo other than BargLabs\/cejel/, JSON.stringify(near));
+  }
+});
+
 test('errata: an entry with the wrong line does not clear the token and is reported as stale', (t) => {
   const { cwd, squash } = errataRepo();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
@@ -362,12 +386,20 @@ test('grammar: a packages/ path names alfred\'s monorepo, so its commit row is n
   assert.equal(citation('| Merged repair control | `800983fb06c36641ad25b34b82b6465df638c756` | `src/report.ts` |'), true);
 });
 
-test('public surface: the checker and its inventory name no internal product codename', async () => {
+test('public surface: the checker, its inventory and the errata register name no internal product codename', async () => {
   const { readFileSync } = await import('node:fs');
   // Assembled at runtime so this file does not carry the terms either.
   const banned = new RegExp(['b' + 'ede', 'ma' + 'eve', 'thera' + 'syn', 'site-?mach' + 'ine'].join('|'), 'i');
-  for (const path of ['scripts/check-cited-commits.mjs', 'docs/cited-commits-inventory-2026-10-02.md']) {
-    assert.doesNotMatch(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), banned, path);
+  // Private repository owner paths, assembled the same way.
+  const privateOwnerPath = new RegExp(`\\b(${['hou' + 'man44', 'Barg' + 'Studio'].join('|')})/`, 'i');
+  // Operator ruling, 2026-10-05: the 2026-08-01 experiment file keeps its public filename, so the
+  // register may name that one exact path as a citation location. Nothing else is exempt.
+  const rulingFilename = `docs/experiments/shape-diversity-${'thera' + 'syn'}-${'sitemach' + 'ine'}-2026-08-01.md`;
+  for (const path of ['scripts/check-cited-commits.mjs', 'docs/cited-commits-inventory-2026-10-02.md', ERRATA]) {
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const checked = path === ERRATA ? text.replaceAll(`"file": "${rulingFilename}"`, '"file": ""') : text;
+    assert.doesNotMatch(checked, banned, path);
+    assert.doesNotMatch(text, privateOwnerPath, path);
   }
 });
 
