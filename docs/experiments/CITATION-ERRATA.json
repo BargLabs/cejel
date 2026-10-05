@@ -82,7 +82,7 @@
       "token": "b0d2212dd1524a595a44252cbf957f2d3bbdffcf",
       "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 184 }],
       "disposition": "other-repository",
-      "repository": "houman44/site-machine",
+      "repository": "private-repository (withheld)",
       "date": "2026-10-02",
       "reason": "The record introduces this commit as a site-machine commit, which the check does not recognise as a repository name."
     },
@@ -90,7 +90,7 @@
       "token": "8e73ffa41f8610dba866f2cdc29da811426b3c20",
       "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 197 }],
       "disposition": "other-repository",
-      "repository": "BargStudio/therasyn",
+      "repository": "private-repository (withheld)",
       "date": "2026-10-02",
       "reason": "The record introduces this commit as a Therasyn commit in merged PR #243, which the check does not recognise as a repository name."
     },
@@ -98,7 +98,7 @@
       "token": "9f497be779405b027148bc318e6df1ca6ee86d80",
       "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 198 }],
       "disposition": "other-repository",
-      "repository": "BargStudio/therasyn",
+      "repository": "private-repository (withheld)",
       "date": "2026-10-02",
       "reason": "The record names this as a Therasyn commit in merged PR #243 and pins it under BargStudio/therasyn on line 215."
     },
@@ -110,7 +110,7 @@
         { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 236 }
       ],
       "disposition": "other-repository",
-      "repository": "BargStudio/therasyn",
+      "repository": "private-repository (withheld)",
       "date": "2026-10-02",
       "reason": "This is the merge anchor of BargStudio/therasyn PR #243, cited three times without naming the repository on the same line."
     },

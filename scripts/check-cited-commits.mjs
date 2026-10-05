@@ -65,8 +65,10 @@ import { pathToFileURL } from 'node:url';
 //   lost-in-squash   - `carrier` is the full id of the squash commit that carries the bytes and
 //                      `pr` its pull request. Verified: the carrier is a single-parent commit
 //                      reachable from main whose subject ends in `(#<pr>)`.
-//   other-repository - `repository` is `owner/repo`, not BargLabs/cejel. This check cannot
-//                      reach other repositories, so the attribution is accepted and printed.
+//   other-repository - `repository` is `owner/repo`, not BargLabs/cejel, or exactly
+//                      `private-repository (withheld)` for a private repository this public
+//                      register does not name. This check cannot reach other repositories, so
+//                      the attribution is accepted and printed.
 //   withheld-by-ruling - the one exception to "a rule-1 failure is remedied by a tag": an
 //                      operator ruling (`ruling`) withholds the evidence tag because the tagged
 //                      tree would put label-class paths on a public ref. `pr` names the pull
@@ -310,6 +312,9 @@ const FULL_TOKEN = /^[0-9a-f]{7,40}$/;
 const FULL_OID = /^[0-9a-f]{40}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const OWNER_REPO = /^[\w.-]+\/[\w.-]+$/;
+// A private repository is not named on this public surface (alfred #2453); this exact literal
+// stands in for its owner/repo.
+export const WITHHELD_REPOSITORY = 'private-repository (withheld)';
 
 /**
  * Read and validate the errata register. A missing register is empty; a malformed one throws.
@@ -345,8 +350,9 @@ export function loadErrata(cwd) {
       if (!Number.isInteger(e.pr) || e.pr < 1) problems.push(`${at}: pr must be a positive integer`);
       if (typeof e.ruling !== 'string' || e.ruling.trim() === '') problems.push(`${at}: ruling is required`);
     } else if (e?.disposition === 'other-repository') {
-      if (typeof e.repository !== 'string' || !OWNER_REPO.test(e.repository) || e.repository.toLowerCase() === 'barglabs/cejel') {
-        problems.push(`${at}: repository must be owner/repo other than BargLabs/cejel`);
+      const ownerRepo = typeof e.repository === 'string' && OWNER_REPO.test(e.repository) && e.repository.toLowerCase() !== 'barglabs/cejel';
+      if (!ownerRepo && e.repository !== WITHHELD_REPOSITORY) {
+        problems.push(`${at}: repository must be owner/repo other than BargLabs/cejel, or exactly "${WITHHELD_REPOSITORY}"`);
       }
     } else {
       problems.push(`${at}: disposition must be lost-in-squash, other-repository or withheld-by-ruling`);
