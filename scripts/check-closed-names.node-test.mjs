@@ -238,3 +238,240 @@ test('the real list loads and holds exactly the eleven operator hashes, in order
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /list=11\b/);
 });
+
+// --- Who judges: the base's copy, never the pull request's -------------------------------------
+//
+// The workflow decides which commit's checker and list judge a pull request. These tests read the
+// shipped workflow file, work out from its trigger and checkout ref which side of the pull request
+// it runs, and run that side's copy in a temporary repository whose head tries to disable the guard.
+
+const WORKFLOW = join(HERE, '..', '.github', 'workflows', 'closed-name-guard.yml');
+const BASE_REFS = new Set(['${{ github.sha }}', '${{ github.event.pull_request.base.sha }}']);
+
+/** Lines of a YAML block that sit deeper than `parentIndent`, starting after line `start`. */
+function blockLines(lines, start, parentIndent) {
+  const out = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (line.trim() === '') continue;
+    if (line.search(/\S/) <= parentIndent) break;
+    out.push(line);
+  }
+  return out;
+}
+
+const withoutComments = (text) =>
+  text
+    .split('\n')
+    .map((line) => (/^\s*#/.test(line) ? '' : line.replace(/\s+#\s.*$/, '')))
+    .join('\n');
+
+/** The workflow's triggers, top-level permissions, and steps as {uses, with, env, run}. */
+function readWorkflow(text = readFileSync(WORKFLOW, 'utf8')) {
+  const lines = withoutComments(text).split('\n');
+  const topLevel = (key) => lines.findIndex((line) => line.startsWith(`${key}:`));
+  const mapping = (block) => {
+    const indent = block.length ? block[0].search(/\S/) : 0;
+    const out = {};
+    for (const line of block) {
+      if (line.search(/\S/) !== indent) continue;
+      const match = /^\s*([^:\s]+):\s*(.*)$/.exec(line);
+      if (match) out[match[1]] = match[2].replace(/^'(.*)'$/, '$1');
+    }
+    return out;
+  };
+
+  const onIndex = topLevel('on');
+  assert.ok(onIndex !== -1, 'the workflow has no top-level on:');
+  const inlineOn = lines[onIndex].slice(3).trim();
+  const triggers = inlineOn
+    ? inlineOn.replace(/^\[|\]$/g, '').split(',').map((t) => t.trim()).filter(Boolean)
+    : Object.keys(mapping(blockLines(lines, onIndex, 0)));
+
+  const permIndex = topLevel('permissions');
+  const permissions = permIndex === -1 ? null : mapping(blockLines(lines, permIndex, 0));
+
+  const stepsIndex = lines.findIndex((line) => /^\s+steps:\s*$/.test(line));
+  assert.ok(stepsIndex !== -1, 'the workflow has no steps:');
+  const stepLines = blockLines(lines, stepsIndex, lines[stepsIndex].search(/\S/));
+  const itemIndent = stepLines[0].search(/\S/);
+  const chunks = [];
+  for (const line of stepLines) {
+    if (line.search(/\S/) === itemIndent && line.trimStart().startsWith('- ')) chunks.push([]);
+    chunks.at(-1).push(line);
+  }
+  const steps = chunks.map((chunk) => {
+    const body = [' '.repeat(itemIndent + 2) + chunk[0].trimStart().slice(2), ...chunk.slice(1)];
+    const fields = mapping(body);
+    const sub = (key) => {
+      const at = body.findIndex((line) => line.trimStart().startsWith(`${key}:`));
+      return at === -1 ? {} : mapping(blockLines(body, at, itemIndent + 2));
+    };
+    let run = fields.run ?? null;
+    if (run === '|' || run === '>') {
+      const at = body.findIndex((line) => line.trimStart().startsWith('run:'));
+      run = blockLines(body, at, itemIndent + 2).map((line) => line.trim()).join('\n');
+    }
+    return { uses: fields.uses ?? null, name: fields.name ?? null, with: sub('with'), env: sub('env'), run };
+  });
+  return { text, triggers, permissions, steps };
+}
+
+/**
+ * Which side of the pull request the workflow's checker and list come from. Fails on anything it
+ * does not recognise rather than guessing.
+ */
+function judgedBy(workflow) {
+  if (workflow.triggers.includes('pull_request')) return 'head'; // GitHub checks out the PR merge ref
+  assert.deepEqual(workflow.triggers, ['pull_request_target'], `unrecognised triggers: ${workflow.triggers}`);
+  const checkouts = workflow.steps.filter((step) => step.uses?.startsWith('actions/checkout@'));
+  assert.equal(checkouts.length, 1, 'expected exactly one checkout step');
+  const ref = checkouts[0].with.ref;
+  if (ref === undefined || BASE_REFS.has(ref)) return 'base'; // pull_request_target defaults to the base
+  if (/pull_request\.head|refs\/pull\//.test(ref)) return 'head';
+  throw new Error(`unrecognised checkout ref: ${ref}`);
+}
+
+/** A repository whose base carries this checker and a synthetic list; `mutate` builds the head. */
+function guardedRepo(mutate) {
+  const repo = mkdtempSync(join(tmpdir(), 'closed-name-guard-base-copy-'));
+  const git = (...args) =>
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...args], {
+      cwd: repo,
+      encoding: 'utf8',
+    }).trim();
+  git('init', '-q', '-b', 'main');
+  mkdirSync(join(repo, 'scripts'));
+  writeFileSync(join(repo, 'scripts', 'check-closed-names.mjs'), readFileSync(SCRIPT));
+  writeFileSync(
+    join(repo, 'scripts', 'closed-name-hashes.json'),
+    JSON.stringify({ note: 'synthetic test list', sha256: [sha256(TOKEN), sha256(PAIR)] }),
+  );
+  writeFileSync(join(repo, 'notes.md'), 'start\n');
+  git('add', '.');
+  git('commit', '-q', '-m', 'base');
+  const base = git('rev-parse', 'HEAD');
+  git('switch', '-q', '-c', 'pr');
+  mutate(repo);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'head');
+  const head = git('rev-parse', 'HEAD');
+  git('switch', '-q', 'main');
+
+  /** Check out one side and run that side's checker, with its default list, on base...head. */
+  const runSide = (side) => {
+    git('checkout', '-q', '--detach', side === 'base' ? base : head);
+    const result = spawnSync(process.execPath, ['scripts/check-closed-names.mjs', base, head], { cwd: repo, encoding: 'utf8' });
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr, all: result.stdout + result.stderr };
+  };
+  return { runSide };
+}
+
+const addToken = (repo) => writeFileSync(join(repo, 'notes.md'), `start\nthe ${TOKEN} service\n`);
+
+test('a head that shortens the list and adds the removed token fails, judged as the workflow judges', () => {
+  const { runSide } = guardedRepo((repo) => {
+    writeFileSync(
+      join(repo, 'scripts', 'closed-name-hashes.json'),
+      JSON.stringify({ note: 'synthetic test list', sha256: [sha256(PAIR)] }),
+    );
+    addToken(repo);
+  });
+  // Control: the head's own copy is defeated, so this is a real attack, not a broken fixture.
+  assertPass(runSide('head'), 'head copy with the shortened list');
+  const side = judgedBy(readWorkflow());
+  const judged = runSide(side);
+  assertHit(judged, `judged by the ${side}'s copy`);
+  assert.match(judged.stdout, /list=2\b/, 'judged with the base list of two');
+  assert.doesNotMatch(judged.all, new RegExp(TOKEN, 'i'));
+});
+
+test('a head that edits the checker to always pass and adds a token fails, judged as the workflow judges', () => {
+  const { runSide } = guardedRepo((repo) => {
+    writeFileSync(join(repo, 'scripts', 'check-closed-names.mjs'), "process.stdout.write('closed_name_guard ok\\n');\n");
+    addToken(repo);
+  });
+  assertPass(runSide('head'), 'head copy with the always-pass checker');
+  const side = judgedBy(readWorkflow());
+  assertHit(runSide(side), `judged by the ${side}'s copy`);
+});
+
+test("a head that marks its files binary in .gitattributes and adds a token fails, judged as the workflow judges", () => {
+  // git reads attributes from the checked-out tree; a head checkout would hide its own added lines.
+  const { runSide } = guardedRepo((repo) => {
+    writeFileSync(join(repo, '.gitattributes'), '*.md -diff\n');
+    addToken(repo);
+  });
+  assertPass(runSide('head'), 'head checkout with its own attributes');
+  const side = judgedBy(readWorkflow());
+  assertHit(runSide(side), `judged by the ${side}'s copy`);
+});
+
+test('the workflow runs the base copy: pull_request_target, contents: read, base checkout, no head code', () => {
+  const workflow = readWorkflow();
+  assert.deepEqual(workflow.triggers, ['pull_request_target'], 'trigger');
+  assert.deepEqual(workflow.permissions, { contents: 'read' }, 'top-level permissions');
+  assert.equal(workflow.text.match(/^\s*permissions:/gm).length, 1, 'no job-level permissions');
+  assert.doesNotMatch(workflow.text, /secrets\./, 'no secrets');
+  assert.match(workflow.text, /^ {2}closed-name-guard:\n {4}name: closed-name-guard$/m, 'job and check name');
+
+  const uses = workflow.steps.map((step) => step.uses).filter(Boolean);
+  for (const action of uses) assert.match(action, /^actions\/(checkout|setup-node)@[0-9a-f]{40}$/, `action ${action}`);
+  const [checkout, ...moreCheckouts] = workflow.steps.filter((step) => step.uses?.startsWith('actions/checkout@'));
+  assert.equal(moreCheckouts.length, 0, 'exactly one checkout');
+  assert.ok(BASE_REFS.has(checkout.with.ref), `checked-out ref is the base, got ${checkout.with.ref}`);
+  assert.equal(checkout.with['persist-credentials'], 'false', 'no token left in .git/config');
+  assert.equal(checkout.with['fetch-depth'], '0', 'full history, for the merge base');
+  for (const step of workflow.steps.filter((s) => s.uses?.startsWith('actions/setup-node@'))) {
+    assert.equal(step.with.cache, undefined, 'no dependency cache');
+  }
+  assert.equal(judgedBy(workflow), 'base');
+
+  const runs = workflow.steps.filter((step) => step.run !== null);
+  const commands = runs.flatMap((step) => step.run.split('\n')).filter(Boolean);
+  for (const step of runs) {
+    assert.doesNotMatch(step.run, /\$\{\{/, `expressions go through env, not into the script: ${step.run}`);
+    for (const value of Object.values(step.env)) {
+      if (/head/.test(value)) assert.equal(value, '${{ github.event.pull_request.head.sha }}', 'head enters by SHA only');
+    }
+  }
+  for (const command of commands) {
+    assert.doesNotMatch(
+      command,
+      /\b(checkout|switch|worktree|restore|reset|read-tree|checkout-index|merge|rebase|cherry-pick|pull|stash|apply|am|npm|npx|pnpm|yarn|corepack|bash|sh|source|eval)\b/,
+      `no step checks out, installs or runs anything from the head: ${command}`,
+    );
+  }
+  // The head SHA appears in exactly two commands: the fetch, and the checker's head argument.
+  const headCommands = commands.filter((command) => command.includes('HEAD_SHA'));
+  assert.deepEqual(headCommands, [
+    'git fetch --no-tags origin "$HEAD_SHA"',
+    'node scripts/check-closed-names.mjs "$BASE_SHA" "$HEAD_SHA"',
+  ]);
+  // node runs only the checked-out (base) checker and its tests, and never with a --list override.
+  const nodeCommands = commands.filter((command) => /\bnode\b/.test(command));
+  assert.deepEqual(nodeCommands, [
+    'node --test scripts/check-closed-names.node-test.mjs',
+    'node scripts/check-closed-names.mjs "$BASE_SHA" "$HEAD_SHA"',
+  ]);
+  // The working tree is still the base when the checker runs.
+  assert.ok(commands.includes('test "$(git rev-parse HEAD)" = "$BASE_SHA"'), 'asserts the checkout is the base');
+  for (const step of runs.filter((s) => s.run.includes('BASE_SHA'))) {
+    assert.ok(BASE_REFS.has(step.env.BASE_SHA), `BASE_SHA is the base, got ${step.env.BASE_SHA}`);
+    assert.equal(step.env.BASE_SHA, checkout.with.ref, 'BASE_SHA is the checked-out commit');
+  }
+});
+
+test('the workflow reader names the judging side, and refuses a trigger or ref it does not recognise', () => {
+  const minimal = (trigger, ref) =>
+    [
+      'on:', `  ${trigger}:`, 'permissions:', '  contents: read', 'jobs:', '  j:', '    steps:',
+      `      - uses: actions/checkout@${'0'.repeat(40)} # v4`, '        with:', `          ref: ${ref}`, '',
+    ].join('\n');
+  assert.equal(judgedBy(readWorkflow(minimal('pull_request', '${{ github.sha }}'))), 'head');
+  assert.equal(judgedBy(readWorkflow(minimal('pull_request_target', '${{ github.sha }}'))), 'base');
+  assert.equal(judgedBy(readWorkflow(minimal('pull_request_target', '${{ github.event.pull_request.base.sha }}'))), 'base');
+  assert.equal(judgedBy(readWorkflow(minimal('pull_request_target', '${{ github.event.pull_request.head.sha }}'))), 'head');
+  assert.throws(() => judgedBy(readWorkflow(minimal('push', '${{ github.sha }}'))), /unrecognised triggers/);
+  assert.throws(() => judgedBy(readWorkflow(minimal('pull_request_target', 'refs/heads/main'))), /unrecognised checkout ref/);
+});
