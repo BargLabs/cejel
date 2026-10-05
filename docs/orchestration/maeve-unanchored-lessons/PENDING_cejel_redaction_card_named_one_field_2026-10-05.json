@@ -6,7 +6,7 @@
     "anchors": [],
     "lastSeenAt": "2026-10-05T00:00:00.000Z",
     "stagingVersion": 2,
-    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 409}
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 411}
   },
   {
     "statement": "A local run of a check that counts reachability from evidence/* tags disagreed with CI because fetching '+refs/tags/evidence/*:refs/tags/evidence/*' never deletes a local tag that origin removed: a tag withdrawn by operator ruling stayed local, kept its commit reachable, and made the withheld-by-ruling errata entry report as stale (1 failure, 15 corrected locally versus 0 and 16 expected). Rule: before trusting a local run of a tag-reachability check, run the same fetch with --dry-run --prune and state any '[deleted]' ref as a local-only divergence; never report the local count as the CI count.",
@@ -15,6 +15,6 @@
     "anchors": [],
     "lastSeenAt": "2026-10-05T00:00:00.000Z",
     "stagingVersion": 2,
-    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 409}
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 411}
   }
 ]
