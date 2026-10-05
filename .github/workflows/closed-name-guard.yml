@@ -1,0 +1,30 @@
+name: Closed-name guard
+
+# Fails a pull request that adds a closed name to this public repository (alfred #2453). See the
+# header of scripts/check-closed-names.mjs for what is read, the one exemption, and the refusals.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Named, not `guard`: branch protection selects a required check by its context name, and
+  # label-class-path-guard.yml already exposes one called `guard`.
+  closed-name-guard:
+    name: closed-name-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.1
+      - name: Run the check's own tests before trusting it
+        run: node --test scripts/check-closed-names.node-test.mjs
+      - name: Check the lines and paths this pull request adds
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/check-closed-names.mjs "origin/${BASE_REF}" HEAD
