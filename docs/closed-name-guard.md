@@ -6,6 +6,9 @@ repository. It exists because nothing scanned what is committed here for closed 
 agent-written record put two private repository names on public `main` (alfred #2453, removed in
 #411).
 
+The pull request being judged never supplies the judge: the workflow, the checker, its tests and
+the list all come from the base branch. See [Who judges](#who-judges).
+
 ## What it reads
 
 - Only what the change **adds**: added lines of `git diff -U0 <base>...<head>`, and added, renamed
@@ -84,10 +87,82 @@ restored (`git checkout -- scripts/check-closed-names.mjs`; suite back to 16/16 
 Not mutated: the `no sha256 array` branch of the malformed-list refusal, and the bad-revision and
 usage refusals; no test names them.
 
-## Who can shorten the list
+## Who judges
 
-A list anyone can shorten protects nothing, and today anyone opening a pull request can: the
-workflow runs the head checkout's script against the head checkout's list.
+A list anyone can shorten protects nothing. As first written (`267c258`), the workflow ran on
+`pull_request`, so the workflow, the checker and the list all came from the pull request's own
+head: a pull request that removed a hash and added that name passed, and so did one that edited the
+checker or the workflow's steps. A head checkout also applies the head's own `.gitattributes`, so a
+pull request could mark its files `-diff` and the checker would read no added lines.
+
+Now the base copy judges:
+
+- The trigger is `pull_request_target`, so GitHub runs the workflow file as it stands on the base
+  branch. Permissions are `contents: read`; no secret is referenced.
+- The job checks out `github.sha`, the base-branch commit the workflow file was read from, with
+  `persist-credentials: false`. The workflow, the checker, its tests and the list are one revision.
+- The head is fetched by SHA (`github.event.pull_request.head.sha`) as git objects only. It is never
+  checked out, and nothing from it is installed, tested or run. The job asserts the working tree is
+  still the base, then runs the base's checker with the base's list on `<base-sha>...<head-sha>`.
+- `scripts/check-closed-names.node-test.mjs` pins this. Three tests build a temporary repository
+  whose head shortens the list, replaces the checker with an always-pass stub, or marks its files
+  binary; each shows the head's own copy passing, then requires the copy the workflow selects to
+  fail. A static test requires `pull_request_target`, `contents: read` alone, one checkout at the
+  base ref, no head-side checkout, install or script, and the head SHA only in the fetch and the
+  checker's head argument.
+
+**Bootstrap.** A base without this workflow and checker cannot judge. The pull request that adds
+them (#412) gets no `closed-name-guard` run at all, since `pull_request_target` reads the workflow
+from `main`; it is judged on review. From the next pull request on, the base copy judges.
+
+**Required check.** After #412 merges, make `closed-name-guard` a required status check on `main`.
+A pull request that deletes or renames the workflow is still judged by the base's copy, but once it
+merges, later pull requests get no `closed-name-guard` run, which reads like no failure. As a
+required check, a missing run blocks the merge instead.
+
+### Measured 2026-10-06 (local, `pnpm exec node`, Node v22.15.0; shellcheck 0.11.0)
+
+Expected values were stated in the goal card before measuring. Execution mode for every row: a
+local run of the suite or checker in this worktree, not CI.
+
+| run | expected | observed |
+|---|---|---|
+| suite at `31cc4a1` (new tests, `267c258`'s workflow and checker) | new behavioural and static tests red; the 16 earlier tests green | 21 tests, 17 pass, 4 fail (17, 18, 19, 20); each behavioural failure is "judged by the head's copy: expected exit 1, got 0" |
+| suite at `2d661c3` (base-copy workflow) | all green | 21 tests, 21 pass, 0 fail |
+| `shellcheck -s bash` on the workflow's three `run:` blocks | clean | exit 0, no findings |
+| the branch's own diff, `origin/main...HEAD` (`129e7c3...2d661c3`) | 0 hits | ok, 0 hits; files=6 addedLines=1025 addedPaths=6 exemptRuns=17 list=11 |
+
+Workflow mutations, each applied to `.github/workflows/closed-name-guard.yml`, the suite run, and
+the original bytes restored:
+
+| mutation | tests that went red |
+|---|---|
+| trigger back to `pull_request` | 17, 18, 19, 20 |
+| `pull_request` added beside `pull_request_target` | 17, 18, 19, 20 |
+| check out `github.event.pull_request.head.sha` | 17, 18, 19, 20 |
+| drop the checkout `ref` (GitHub's default is still the base) | 20 |
+| `contents: write` | 20 |
+| add `pull-requests: write` | 20 |
+| `persist-credentials: true` | 20 |
+| `git checkout "$HEAD_SHA"` after the fetch | 20 |
+| `pnpm install` before the tests | 20 |
+| `--list` override on the checker | 20 |
+| head SHA inlined as `${{ }}` in a `run:` block | 20 |
+| drop the base-checkout assertion | 20 |
+| reference `secrets.GITHUB_TOKEN` | 20 |
+| `cache: pnpm` on setup-node | 20 |
+
+Not verified here: how GitHub runs the job. `pull_request_target` reads the workflow from `main`, so
+#412 gets no run, and the first observed run is the next pull request after #412 merges.
+
+Remaining limits:
+
+- A file git treats as binary (one holding a NUL byte) shows no added lines, so a closed name inside
+  it is not read. The checker counts it as a file but not its content.
+- The tests and the workflow are judged by the base's copies too, so a weakening of either is
+  visible only to review of the pull request that makes it, and takes effect from the next one.
+
+## Signature route (not taken)
 
 The repository has one mechanism that requires the operator's signature on a file:
 `scripts/check-calibration-signatures.mjs` (`calibration-signature` check,
@@ -108,12 +183,10 @@ unchanged):
 
 Limits of that route, which the operator should weigh:
 
-- Both guards read their configuration from the pull request's own checkout. A change that shortens
-  the list can, in the same pull request, remove the path from `GUARDED_PATHS`, and both checks
-  pass. Neither `scripts/check-calibration-signatures.mjs` nor `scripts/check-closed-names.mjs` is
-  itself guarded.
-- The measurement-freeze transition already avoids this for its allowlist by reading
+- `calibration-signature` reads its configuration from the pull request's own checkout, so a change
+  that shortens the list could, in the same pull request, remove the path from `GUARDED_PATHS`.
+  The closed-name guard no longer has that gap (see [Who judges](#who-judges)), so the signature
+  route would add operator sign-off on list changes, not close a bypass.
+- The measurement-freeze transition takes the same base-side approach for its allowlist, reading
   `docs/security/allowed-signers` from the transition's parent commit
-  (`scripts/check-measurement-freeze.mjs`). The same move here — read the hash list, and the
-  guarded-path list, from the base commit — would stop a pull request from shortening the list that
-  judges it. It needs a bootstrap: this change adds the list, so its base has none.
+  (`scripts/check-measurement-freeze.mjs`).
