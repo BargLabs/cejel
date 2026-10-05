@@ -84,7 +84,7 @@
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
-      "reason": "The record introduces this commit as a site-machine commit, which the check does not recognise as a repository name."
+      "reason": "The record introduces this commit as a private repository's commit, naming the repository in a form the check does not recognise as a repository name."
     },
     {
       "token": "8e73ffa41f8610dba866f2cdc29da811426b3c20",
@@ -92,7 +92,7 @@
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
-      "reason": "The record introduces this commit as a Therasyn commit in merged PR #243, which the check does not recognise as a repository name."
+      "reason": "The record introduces this commit as a commit in a private repository's merged PR #243, naming the repository in a form the check does not recognise as a repository name."
     },
     {
       "token": "9f497be779405b027148bc318e6df1ca6ee86d80",
@@ -100,7 +100,7 @@
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
-      "reason": "The record names this as a Therasyn commit in merged PR #243 and pins it under BargStudio/therasyn on line 215."
+      "reason": "The record names this as a commit in a private repository's merged PR #243 and pins it under that repository's owner/repo on line 215."
     },
     {
       "token": "25e711d1b5400f22e3d7b4ed0243609681bc5a5d",
@@ -112,7 +112,7 @@
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
-      "reason": "This is the merge anchor of BargStudio/therasyn PR #243, cited three times without naming the repository on the same line."
+      "reason": "This is the merge anchor of a private repository's PR #243, cited three times without naming the repository on the same line."
     },
     {
       "token": "88ede8569eb00c44e0ceabcf448612500ad2bfad",
