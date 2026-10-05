@@ -2,9 +2,20 @@ name: Closed-name guard
 
 # Fails a pull request that adds a closed name to this public repository (alfred #2453). See the
 # header of scripts/check-closed-names.mjs for what is read, the one exemption, and the refusals.
+#
+# The pull request being judged must not be able to change the judge. pull_request_target runs this
+# file as it stands on the base branch, and the job checks out that same base commit, so the
+# workflow, the checker, its tests and the hash list all come from the base. The head is fetched by
+# SHA as git objects only: it is never checked out, and nothing from it is installed, tested or run.
+# A pull request that shortens the list, edits the checker or edits this file is judged by the
+# copies it is trying to change. scripts/check-closed-names.node-test.mjs pins these properties.
+#
+# Bootstrap: a base without this file and the checker cannot judge. The pull request that adds them
+# (#412) is judged on review, not by this check. Make closed-name-guard a required check on main, so
+# that a deleted or renamed workflow blocks rather than passes.
 
 on:
-  pull_request:
+  pull_request_target:
 
 permissions:
   contents: read
@@ -16,15 +27,26 @@ jobs:
     name: closed-name-guard
     runs-on: ubuntu-latest
     steps:
+      # github.sha under pull_request_target is the base-branch commit this workflow file was read
+      # from, so the workflow, checker and list are one revision.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22.23.1
-      - name: Run the check's own tests before trusting it
+      - name: Run the base checker's own tests before trusting it
         run: node --test scripts/check-closed-names.node-test.mjs
-      - name: Check the lines and paths this pull request adds
+      - name: Fetch the pull request head as objects only, never checked out
         env:
-          BASE_REF: ${{ github.base_ref }}
-        run: node scripts/check-closed-names.mjs "origin/${BASE_REF}" HEAD
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git fetch --no-tags origin "$HEAD_SHA"
+      - name: Check the lines and paths this pull request adds, with the base's checker and list
+        env:
+          BASE_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          node scripts/check-closed-names.mjs "$BASE_SHA" "$HEAD_SHA"

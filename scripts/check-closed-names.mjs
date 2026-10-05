@@ -19,6 +19,12 @@
 // Refuses (exit 2) rather than passes on an empty diff, an unreadable list or an empty list: a
 // guard that exits 0 on no input is indistinguishable from one that checked and found nothing.
 //
+// Who judges: in commit mode the diff (<base>...<head>) and the tracked-path set (ls-tree <base>)
+// are read from the revisions given, never from the working tree, and the list defaults to the one
+// beside this script. CI runs this file from a checkout of the base with the head fetched as objects
+// only (.github/workflows/closed-name-guard.yml), so the checker and list that judge a pull request
+// are the base's, and the pull request cannot shorten or replace them to pass.
+//
 // usage: node scripts/check-closed-names.mjs [--list <file>] <base> <head>
 //        node scripts/check-closed-names.mjs [--list <file>] [--tracked <file>] < unified.diff
 import { execFileSync } from 'node:child_process';
