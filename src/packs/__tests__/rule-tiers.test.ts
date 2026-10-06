@@ -138,6 +138,12 @@ describe('every shipped pack rule declares an analysis tier (ADR-0016)', () => {
       .filter((sourceFile) => isFirstPartyModuleGraphSource(REPO_ROOT, sourceFile))
       .map((sourceFile) => toModuleGraphRepoPath(REPO_ROOT, sourceFile.fileName));
 
+    // Positive control: the walk must actually reach the default-scan entry points, so an empty or
+    // broken graph cannot make the lexical assertion below pass vacuously.
+    for (const entry of DEFAULT_SCAN_ENTRYPOINTS) {
+      expect(reachable, entry).toContain(entry);
+    }
+
     const defaultScanRules = ALL_DECLARED.filter((declared) =>
       reachable.some((repoPath) => repoPath.startsWith(`src/packs/${declared.pack}/`)),
     );
@@ -147,10 +153,26 @@ describe('every shipped pack rule declares an analysis tier (ADR-0016)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('declares no rule semantic', () => {
-    const offenders = ALL_DECLARED.filter((declared) => declared.tier === 'semantic').map(
-      (declared) => `${declared.pack}:${declared.id}`,
-    );
-    expect(offenders).toEqual([]);
+  // Operator ruling 2026-10-06 (ADR-0016 acceptance amendment): "lexical only" governs new rules
+  // and anything wired into the default scan. The rules that already shipped keep their honest
+  // tiers, and the semantic ones are frozen at this list. Adding a semantic rule, or changing any
+  // rule's tier to or from semantic, fails here until the operator rules and this list is edited
+  // in a reviewed change.
+  it('declares semantic only for the rules frozen by the 2026-10-06 ruling', () => {
+    const SEMANTIC_AS_SHIPPED_2026_10_06 = [
+      'd-series:D1',
+      'd-series:D4',
+      'd-series:D5',
+      'decision-contracts:DECISION-CONTRACT-EDGE',
+      'llm:LLM-AGY-001',
+      'llm:LLM-EVL-001',
+      'llm:LLM-IOH-001',
+      'llm:LLM-PRV-001',
+      'llm:LLM-VAL-001',
+    ];
+    const semantic = ALL_DECLARED.filter((declared) => declared.tier === 'semantic')
+      .map((declared) => `${declared.pack}:${declared.id}`)
+      .sort();
+    expect(semantic).toEqual(SEMANTIC_AS_SHIPPED_2026_10_06);
   });
 });
