@@ -1,7 +1,7 @@
-# ADR-0016 (proposed): Pack rules are lexical by default; semantic analysis is a gated capability
+# ADR-0016: Pack rules are lexical by default; semantic analysis is a gated capability
 
 **Scope:** Future Cejel pack-rule proposals only. It does not revive or describe D-series detection as a shipped capability.
-**Status:** Proposed — awaiting an explicit acceptance decision
+**Status:** Accepted 2026-10-06 (operator), with the scope note in the acceptance amendment below.
 **ADR number:** 0016
 **Date:** 2026-08-12.
 
@@ -81,3 +81,28 @@ lexical claim, and the rule declares `tier: lexical`. If the reaper case is to b
 separate structural rule with its own proposal — not a widening of this one.
 
 **CONSTRAINTS-VERSION: 2026-08-01.3**
+
+## Acceptance — 2026-10-06, with a scope note
+
+Accepted by the operator, 2026-10-06. The text above is unchanged apart from the title marker and
+the Status line.
+
+**Scope note, found at acceptance.** The Scope line above limits this ADR to future pack-rule
+proposals. The operator's acceptance also asks for the tier declaration on the rules that ship
+today, carded below, and that reaches further than the Scope line. Six shipped rules parse files with the TypeScript compiler
+(`import ts from 'typescript'`): D1 to D5 in `src/packs/d-series/` and the conformance rule in
+`src/packs/decision-contracts/`. By this ADR's definitions they are at least `structural`, not
+`lexical`. Both packs are opt-in package subpaths (`@cejel/cejel/d-series`,
+`@cejel/cejel/decision-contracts`), are kept out of the default scan by
+`src/__tests__/default-scan-pack-isolation.test.ts`, and carry no calibration. The reading taken
+at acceptance:
+
+- Every rule declares its true tier. A rule that parses declares `structural`; it is never
+  labelled `lexical` to fit the policy.
+- "Only `lexical` is in scope today" binds the default scan and anything carrying a calibration
+  figure or a customer-facing claim. A `structural` rule may remain in an opt-in, uncalibrated pack
+  only while its tier is declared and visible.
+- `semantic` stays out of scope everywhere until one of the two triggers above is observed.
+
+The tier declarations and the test that enforces them are carded separately
+(`goal_cejel_rule_analysis_tier_2026-10-06`).

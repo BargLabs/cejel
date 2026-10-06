@@ -1,7 +1,7 @@
-# ADR-0015 (proposed): A preregistration binds the protocol, not the population
+# ADR-0015: A preregistration binds the protocol, not the population
 
 **Scope:** Barg Labs measurement practice; applies to Cejel calibration and any future preregistered measurement. Alfred examples are recorded as background.
-**Status:** Proposed — awaiting an explicit acceptance decision
+**Status:** Accepted 2026-10-06 (operator).
 **ADR number:** 0015
 **Date:** 2026-08-12.
 
@@ -84,3 +84,10 @@ to this shape already. cejel #51 is the second and should not be decided before 
 
 **CONSTRAINTS-VERSION: 2026-08-01.3**
 
+
+## Acceptance — 2026-10-06
+
+Accepted by the operator, 2026-10-06. The text above is unchanged apart from the title marker and
+the Status line. From this date a preregistered protocol is not executed until its applicability
+pass is recorded, with exactly one of the three verdicts, by someone or something not running the
+review.
