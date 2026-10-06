@@ -1,7 +1,7 @@
 # Cejel trust check for GitLab CI.
 #
 #   include:
-#     - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.6.0/ci/gitlab/cejel.gitlab-ci.yml'
+#     - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.6.1/ci/gitlab/cejel.gitlab-ci.yml'
 #
 # Pin the include to a release tag, never a branch. Variables, severity table and limits:
 # docs/gitlab-ci.md. The scan and the export run offline; the only network use is the one
@@ -12,7 +12,7 @@ cejel:
   image: node:22
   variables:
     # The @cejel/cejel version this job runs. Matches the tag in the include URL.
-    CEJEL_VERSION: "0.6.0"
+    CEJEL_VERSION: "0.6.1"
     # Optional. Fail the job when the overall score is below this value (0-4), when Cejel
     # abstains, or when measurement coverage is too thin. Empty means never fail on score.
     CEJEL_MIN_SCORE: ""
