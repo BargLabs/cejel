@@ -8,13 +8,12 @@ only by meeting its stated evidence gates; it may also be rejected without creat
 
 | ADR | Topic | Status | Advancement test |
 |---|---|---|---|
-| [0014](0014-gate-demonstrated-rejection.md) | Gate demonstrated rejection | Governance proposal | Known-bad failing run, corrected passing run, and execution evidence |
-| [0015](0015-preregistration-population-applicability.md) | Preregistration population applicability | Governance proposal | Independent population/applicability verdict before a preregistered run |
-| [0016](0016-pack-rule-analysis-depth.md) | Pack-rule analysis depth | Governance proposal | Lexical scope declared; semantic work only after a named trigger |
-| [0017](0017-three-report-outcomes.md) | Three report outcomes | Governance proposal | Finding, clean, or abstained with a machine-readable reason |
 | [0020](0020-evidence-confidence-and-unmeasurable-metrics.md) | Evidence confidence and unmeasurable metrics | Decision proposal | Per-metric classification committed before any delta; Layer 1 shipped and its confidence distribution published |
 | [0023](0023-trust-anchor-and-signing-model.md) | Trust anchor and signing | Decision proposal | Select and implement a relying-party-verifiable binding |
 | [0024](0024-withheld-path-abstention-and-the-v17-default.md) | Withheld-path abstention and the v17 default | Decision proposal | Operator names an option for the v17 gate and for the metric-abstention discount |
+
+Accepted 2026-10-06 and moved to `docs/adr/`: 0014, 0015, 0016, 0017, and 0021 (as
+implemented by signed issuance v1).
 
 The Repository Evidence Review remains the current commercial offer. It is not displaced by any
 discovery ADR without a documented decision.

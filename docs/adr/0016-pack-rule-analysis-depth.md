@@ -1,7 +1,7 @@
-# ADR-0016 (proposed): Pack rules are lexical by default; semantic analysis is a gated capability
+# ADR-0016: Pack rules are lexical by default; semantic analysis is a gated capability
 
 **Scope:** Future Cejel pack-rule proposals only. It does not revive or describe D-series detection as a shipped capability.
-**Status:** Proposed — awaiting an explicit acceptance decision
+**Status:** Accepted 2026-10-06 (operator), with the scoping ruling in the acceptance amendment below.
 **ADR number:** 0016
 **Date:** 2026-08-12.
 
@@ -81,3 +81,40 @@ lexical claim, and the rule declares `tier: lexical`. If the reaper case is to b
 separate structural rule with its own proposal — not a widening of this one.
 
 **CONSTRAINTS-VERSION: 2026-08-01.3**
+
+## Acceptance — 2026-10-06, with the operator's scoping ruling
+
+Accepted by the operator, 2026-10-06. The text above is unchanged apart from the title marker and
+the Status line.
+
+**What the shipped rules are, measured at acceptance.** The tier declarations carded for this
+acceptance (cejel #414) classified every shipped pack rule by what its matcher does:
+
+| Tier | Rules |
+| --- | --- |
+| `lexical` | D6 |
+| `structural` | D2, D3, LLM-AGY-002, LLM-DAT-001, LLM-EVL-002 |
+| `semantic` | D1, D4, D5, DECISION-CONTRACT-EDGE, LLM-IOH-001, LLM-VAL-001, LLM-AGY-001, LLM-PRV-001, LLM-EVL-001 |
+
+So "only `lexical` is in scope today" did not describe what had already shipped. Where those rules
+are reachable: none is reachable from the default scan (`src/index.ts`, `src/scan.ts`,
+`src/witan/public-scan.ts`); the D-series and decision-contracts packs are opt-in package
+subpaths with no calibration; the LLM pack is reachable only from the calibration entry
+`src/calibration/llm-detector.ts`, not from the CLI or a package export.
+
+**Operator ruling, 2026-10-06.** "Only `lexical`" governs **new** rules and anything wired into
+the default scan. The rules that already shipped keep their honest declared tiers; the nine
+`semantic` rules above are frozen at that list. Concretely, enforced by
+`src/packs/__tests__/rule-tiers.test.ts`:
+
+- every shipped rule declares exactly one tier, read from its matcher, never from this policy;
+- a rule whose source imports a parser is never declared `lexical`;
+- every rule reachable from the default scan is `lexical`, and the walk must reach the default-scan
+  entry points, so the check cannot pass on an empty graph;
+- the set of `semantic` rules equals the frozen list. Adding a semantic rule, or moving any rule to
+  or from `semantic`, fails until the operator rules and the list is edited in a reviewed change.
+
+Wiring an opt-in pack or the LLM pack into the CLI therefore fails the default-scan check unless
+every rule it brings is `lexical`. A customer-facing description of any of these rules states
+its tier. `semantic` remains out of scope for new rules until one of the two triggers above is
+observed.

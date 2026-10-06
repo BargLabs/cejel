@@ -1,7 +1,7 @@
-# ADR-0017 (proposed): A scan reports three outcomes, not two
+# ADR-0017: A scan reports three outcomes, not two
 
 **Scope:** Future Cejel rule and report-schema design. This is a proposal, not a statement that the current runtime already has these outcomes.
-**Status:** Proposed — awaiting an explicit acceptance decision
+**Status:** Accepted 2026-10-06 (operator). Implementation is partial; see the acceptance amendment below.
 **ADR number:** 0017
 **Date:** 2026-08-12.
 **Supersedes in part:** `ADR-draft-unobserved-controls-are-absent-2026-08-11`, which assumes a rule
@@ -94,3 +94,14 @@ eventually return nothing when it should have returned something.
   report. Recommendation: both, because the certificate is the artifact that gets forwarded.
 
 **CONSTRAINTS-VERSION: 2026-08-01.3**
+
+## Acceptance — 2026-10-06
+
+Accepted by the operator, 2026-10-06. The text above is unchanged apart from the title marker and
+the Status line.
+
+**Implementation at acceptance: partial.** A whole report can resolve to `abstained`
+(`WitanAbstainedReportSchema`, `src/witan/schemas.ts`). Whether every rule reports `finding`,
+`clean` or `abstained` per file in scope, with the three counts carried separately in the report
+schema, certificate vocabulary and calibration manifests, was not established at acceptance and is
+not carded by it. Until it is, no surface may present `abstained` subjects inside a `clean` count.

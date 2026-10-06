@@ -1,6 +1,6 @@
-# ADR-0021 (proposed): Signature mechanism for evidence bindings
+# ADR-0021: Signature mechanism for evidence bindings
 
-**Status:** Proposed — mechanism only; anchor selection is governed by proposed ADR-0023
+**Status:** Accepted 2026-10-06 (operator) as implemented by signed issuance v1 (#331); the differences are recorded in the acceptance amendment below. Anchor selection remains governed by proposed ADR-0023.
 **Date:** 2026-08-13
 **Extends:** ADR-0019 (certificate is a relying-party artifact); subordinate to proposed
 ADR-0023 (trust anchor and signing model)
@@ -62,3 +62,22 @@ Until implemented, no cejel surface may imply bindings are identity-attested.
 
 Canonical payload encoding; revocation semantics; multiple signers per anchor; rotation without
 invalidating previously issued artifacts.
+
+## Acceptance — 2026-10-06: implemented as signed issuance v1
+
+Accepted by the operator, 2026-10-06, as already implemented by signed issuance v1 (#331,
+`680dd02`, 2026-09-17; `docs/issuance.md`, `src/issuance/`). The text above is unchanged apart from
+the title marker and the Status line. Where the shipped mechanism differs from the decision above,
+the shipped mechanism is recorded here; neither is edited to match the other.
+
+| Decision above | As shipped |
+| --- | --- |
+| SSH signatures under namespace `cejel-binding` | SSH signatures (`ssh-keygen -Y sign`), detached in `issuance.json.sig`, under namespace `cejel-issuance`, distinct from the calibration-authority namespace |
+| Allowed-signers file at an anchor-controlled HTTPS location, optionally pinned locally | `docs/security/issuer-signers`, shipped inside the npm package and every release tarball; verification needs no network |
+| `cejel verify` reports the signer; `--require-authorization` makes absence fatal | `cejel verify` prints three lines (signature, binding, revocation) and exits zero only when all three are good; there is no `--require-authorization` flag. Only `ssh-ed25519` keys verify in-tool; other key types report `NOT VERIFIED` |
+| Payload: the ADR-0023 binding fields | An issuance names the source revision, `@cejel/cejel` version, rubric version and behaviour fingerprint, `reportByteIdentical: true`, the time, an `engagementRef` and the limitations, and binds the exact `report.json` and `attestation.json` |
+| Anchor-agnostic | One anchor in use: Barg Labs as issuer, the shape of ADR-0023's option 2 (an independent Barg Labs signature for a paid Evidence Review). ADR-0023 itself stays proposed and is not decided by this acceptance |
+
+`docs/issuance.md` carries a counsel-review notice: no issuance may be delivered to a counterparty
+until the operator's lawyers have reviewed what it asserts. That notice stands, and only the
+operator removes it.

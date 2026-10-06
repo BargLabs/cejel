@@ -1,7 +1,7 @@
-# ADR-0014 (proposed): A gate is not in force until it has rejected a known-bad input
+# ADR-0014: A gate is not in force until it has rejected a known-bad input
 
 **Scope:** Barg Labs control practice; applies to future Cejel gate and rule proposals. Historical Alfred examples are context, not a claim about Cejel's current implementation.
-**Status:** Proposed — awaiting an explicit acceptance decision
+**Status:** Accepted 2026-10-06 (operator).
 **ADR number:** 0014
 **Date:** 2026-08-12.
 
@@ -75,3 +75,10 @@ failing on the `PENDING_` seed already committed. That seed is a free known-bad 
 before it is corrected.
 
 **CONSTRAINTS-VERSION: 2026-08-01.3**
+
+## Acceptance — 2026-10-06
+
+Accepted by the operator, 2026-10-06. The text above is unchanged apart from the title marker and
+the Status line. From this date a pull request that adds or modifies a gate carries the known-bad
+input, the failing run, the passing run, and, for a CI gate, evidence that the workflow executed.
+Existing gates stay grandfathered only until first cited, as the decision says.
