@@ -16,9 +16,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-10-06
+
+### Added
+
+- **The `@cejel/cejel/d-series` and `@cejel/cejel/decision-contracts` subpaths export a rule tier
+  table (#414).** `D_SERIES_RULE_TIERS` and `DECISION_CONTRACT_RULE_TIERS` give, for each rule,
+  its analysis tier (`lexical`, `structural` or `semantic`, as ADR-0016 defines them), the source
+  file of its matcher, and one line saying what the matcher does. The table describes how each
+  matcher works. It says nothing about how well a rule detects anything. No matcher changed.
+  Who is affected: code that imports either subpath. `cejel scan` runs neither pack, and no
+  score, band or report field changes.
+
 ### Changed
 
-- **The certificate reads correctly the first time.** Five changes to wording and layout on the
+- **Release SBOMs list what each binary and the image bundle, and are attested (#404).** Each
+  standalone binary's SPDX SBOM is now generated from the build: it lists the packages bundled
+  into the binary with their exact versions, the Node.js runtime it embeds, and the binary's
+  SHA-256. The 0.6.0 SBOMs listed only the scanned directory and the binary. Each SBOM is now
+  attested to its binary, so it can be checked with
+  `gh attestation verify <binary> -R BargLabs/cejel --predicate-type https://spdx.dev/Document/v2.3`.
+  The Docker image keeps its SBOM of base-image packages and gains a second SPDX attestation
+  listing the packages Cejel bundles. A release whose SBOM is empty, or is missing a required
+  package, now fails before anything is published or attested. 0.6.1 is the first release built
+  this way. Who is affected: anyone who reads or verifies the release SBOMs. The npm package does
+  not carry an SBOM. No score, band or report field changes.
+
+- **The certificate reads correctly the first time (#415).** Five changes to wording and layout on the
   terminal, HTML and Markdown certificates. They come from a first read of the 0.6.0 certificate
   for `expressjs/express`.
   - A static coverage percentage of 0 is no longer shown as `0/100 percent`, which read as "0%
