@@ -130,12 +130,21 @@ describe('certificate presentation regressions', () => {
       renderTerminalCertificate(buildWitanCliSummary(measuredZero), measuredZero),
     ];
 
+    // Both renderings state how the rubric scores the zero. Since
+    // goal_cejel_certificate_first_reader_legibility_2026-10-06 a zero beside coverage
+    // configuration is no longer printed as "0/100 percent": report.json cannot tell an
+    // unpublished percentage from a published 0, so the wording is true of both.
     for (const output of absentOutputs) {
-      expect(output).toContain('no coverage report found — not measured');
+      expect(output).toContain(
+        'no coverage report or threshold found, so there is no percentage to read (Cejel does not run tests); the rubric scores this as 0 of 100',
+      );
     }
     for (const output of measuredOutputs) {
-      expect(output).toContain('0/100 percent');
-      expect(output).not.toContain('no coverage report found — not measured');
+      expect(output).not.toContain('0/100 percent');
+      expect(output).toContain(
+        'coverage configuration found, but no published coverage percentage above 0 (Cejel reads published reports and thresholds and does not run tests); the rubric scores this as 0 of 100',
+      );
+      expect(output).not.toContain('no coverage report or threshold found');
     }
     expect(absent.overallScore).toBe(measuredZero.overallScore);
     expect(absent.criteria[0]?.score).toBe(measuredZero.criteria[0]?.score);
@@ -280,7 +289,7 @@ describe('certificate presentation regressions', () => {
       'Credit stops increasing after the maximum defined by the scoring rubric, even when the raw count is higher. Caps are fixed per rubric version because they are part of what was calibrated. Extra volume therefore cannot outweigh the rest of the rubric.',
     );
     expect(definitions['static-coverage']).toBe(
-      'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives.',
+      'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives. When no percentage above 0 is published, the rubric scores this metric as 0 of 100.',
     );
     expect(definitions['crypto-comparison-hygiene']).toBe(
       'A conditional binary result shown only when production code exposes a signing, HMAC, or secret-comparison surface. Clean means no detected plain-equality secret comparison or non-canonical JSON signing pattern. Detected constant-time comparison and canonical serialization are positive evidence, but the metric does not require both when only one relevant surface exists.',

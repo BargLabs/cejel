@@ -16,6 +16,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The certificate reads correctly the first time.** Five changes to wording and layout on the
+  terminal, HTML and Markdown certificates. They come from a first read of the 0.6.0 certificate
+  for `expressjs/express`.
+  - A static coverage percentage of 0 is no longer shown as `0/100 percent`, which read as "0%
+    coverage". When coverage configuration is present it now says no published coverage
+    percentage above 0 was found, that Cejel does not run tests, and that the rubric scores this
+    as 0 of 100. When no coverage configuration is present it says that instead, with the same
+    scoring.
+  - The summary box and "What was established" now count dimensions the same way (for example
+    `code 2 of 5, process 3 of 6`) and say how many do not apply. "Low confidence" now names the
+    counts that set it. It also says that dimensions which do not apply count as not measured.
+  - "What to do next" no longer tells you to make files readable when Cejel skipped them only
+    because of their file type. Those are named as outside what Cejel reads. Advice remains for
+    entries skipped as unreadable, too large, on a denied path, or not a regular file.
+  - A Conditional, At risk or Unverified verdict with no critical or warning finding now has one
+    sentence. It says the verdict comes from the overall score's band and names the
+    lowest-scoring measured dimensions.
+  - The note about the product name is in plain English. It now appears below the run, CLI and
+    rubric rows, and below the headline scores on the terminal.
+
+  Who is affected: anyone reading a certificate, and anyone who parses certificate text. No
+  score, band, verdict or abstention moves. `report.json`, `summary.json`, `badge.json` and
+  `badge.svg` are byte-identical, so `attestation.json` binds the same report digest, and
+  `reportFormatVersion` stays `1.4`.
+
 ## [0.6.0] — 2026-10-03
 
 ### Added

@@ -2,11 +2,14 @@ import { formatExternalSourceLine } from './witan/index.js';
 import type { WitanReport } from './witan/index.js';
 import {
   buildRelyingPartySummary,
+  buildVerdictExplanation,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   formatCertificateMetricAppliedWeightPercent,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
+  formatDimensionsMeasuredSentence,
+  formatLowConfidenceSentence,
 } from './witan/certificate-presentation.js';
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './witan/rubric-version.js';
 
@@ -71,15 +74,21 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
         `Overall: ${formatScore(summary.overallScore)}/4.0 (${summary.verdict})`,
         `  Code trust:    ${formatScore(summary.codeTrustScore)}/4.0`,
         `  Process trust: ${formatScore(summary.processTrustScore)}/4.0`,
+        ...(report ? [`  ${formatDimensionsMeasuredSentence(report)}`] : []),
+        ...(report && formatLowConfidenceSentence(report)
+          ? [`  ${formatLowConfidenceSentence(report)}`]
+          : []),
         '',
       ];
 
-  lines.splice(1, 0, `Product identity: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`);
+  // Below the headline, not on the first line under the title: a first-time reader should meet
+  // the result before this note about where the name came from.
+  lines.splice(lines.length - 1, 0, `About the name: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`);
 
   if (report) {
     const relyingPartySummary = buildRelyingPartySummary(report);
     lines.splice(
-      3,
+      2,
       0,
       `Scope: ${relyingPartySummary.scope}`,
       `What was examined: ${relyingPartySummary.examined}`,
@@ -163,6 +172,8 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       lines.push(`  ...and ${remaining} more — see the written report for the full list.`);
     }
   }
+  const verdictExplanation = !abstained && report ? buildVerdictExplanation(report) : undefined;
+  if (verdictExplanation) lines.push(verdictExplanation);
 
   // Itemized external findings — kept in their own block, clearly separated from cejel's own
   // "Top findings" above, so the two attribution sources (cejel repo-scan vs. ingested scanner)
