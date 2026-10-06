@@ -116,6 +116,11 @@ jobs:
     needs: [preflight, bundle-sbom]
     if: ${{ inputs.verify_only == false && inputs.reuse_published_oci_tag == false }}
     runs-on: ubuntu-24.04
+    # A normal run is ~2-4 minutes. On v0.6.1 a QEMU SIGILL in the emulated arm64 stage hung the
+    # build step with no error until it was cancelled 53 minutes later (run 37542139689); without
+    # this bound it would have held for GitHub's 6-hour default. Tags are applied only after both
+    # attestations, so a timed-out run leaves an untagged digest and can be re-dispatched.
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
