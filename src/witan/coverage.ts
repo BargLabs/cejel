@@ -105,7 +105,7 @@ function computeCoverage(
 }
 
 /** 'code_trust' → 'code' — the compact label used in the board's Coverage cell. */
-function shortCategoryLabel(category: string): string {
+export function shortCategoryLabel(category: string): string {
   return category.replace(/_trust$/, '').replaceAll('_', ' ');
 }
 

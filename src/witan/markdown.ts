@@ -10,7 +10,6 @@ import type {
 import { escapeMarkdownInline } from '../presentation-safety.js';
 
 import { isWitanNoMeasurementAbstention, renderWitanAbstentionLabel } from './abstention.js';
-import { computeMeasuredCoverage, formatCoverageSummary } from './coverage.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
@@ -20,10 +19,13 @@ import {
 import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
+  buildVerdictExplanation,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   formatCertificateMetricAppliedWeightPercent,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
+  formatDimensionsMeasuredSentence,
+  formatLowConfidenceSentence,
   glossaryEntriesForReport,
 } from './certificate-presentation.js';
 import { PROSPECTIVE_RUBRIC_NOTICE, isProspectiveRubricVersion } from './rubric-version.js';
@@ -58,12 +60,14 @@ export function renderWitanMarkdownReport(
 
   // Measured-coverage indicator (coverage.ts): a score reflects only measured
   // dimensions, and a reader must be able to see how many that is. Display-only.
-  const coverage = computeMeasuredCoverage(report);
+  // The summary box, "What was established" and this section share one set of denominators
+  // (goal_cejel_certificate_first_reader_legibility_2026-10-06).
+  const lowConfidenceSentence = formatLowConfidenceSentence(report);
   const coverageLines = [
-    `- Measured coverage: ${formatCoverageSummary(coverage)} dimensions measured — a dimension counts as measured only when it produced a real score; not-applicable and insufficient-data dimensions are unmeasured. A score reflects only its measured dimensions, and unmeasured is not good — it is unknown.`,
-    ...(coverage.lowConfidence
+    `- **Measured coverage.** ${formatDimensionsMeasuredSentence(report)} A dimension counts as measured only when it produced a real score; dimensions that do not apply and dimensions with insufficient data are not measured. A score reflects only its measured dimensions, and not measured does not mean good. It means unknown.`,
+    ...(lowConfidenceSentence
       ? [
-          '- Low confidence: fewer than half of the dimensions behind at least one score above were measured. Low coverage — scored on few signals, less certain than the same score measured across more dimensions.',
+          `- ${lowConfidenceSentence} A score that rests on few dimensions is less certain than the same score measured across more.`,
         ]
       : []),
   ];
@@ -74,6 +78,7 @@ export function renderWitanMarkdownReport(
   const externalFindings = collectExternalFindings(report.consumedSignals ?? []);
   const noMeasurementAbstention = isWitanNoMeasurementAbstention(report);
   const relyingPartySummary = buildRelyingPartySummary(report);
+  const verdictExplanation = buildVerdictExplanation(report);
   const summaryScoreLines =
     report.verdict === 'insufficient_source'
       ? [
@@ -95,7 +100,6 @@ export function renderWitanMarkdownReport(
     `# Cejel Trust Report - ${escapeMarkdownInline(report.productDisplayName)}`,
     '',
     `- Product: ${report.productSlug}`,
-    `- Product identity: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`,
     `- CLI: ${options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded'}`,
     ...(options.runAttempt ? [`- Run attempt: ${options.runAttempt}`] : []),
     `- Rubric: ${report.rubricVersion}`,
@@ -105,6 +109,7 @@ export function renderWitanMarkdownReport(
       ? [`- **${PROSPECTIVE_RUBRIC_NOTICE}**`]
       : []),
     `- Repository: ${renderRepo(report.repo.path ?? report.repo.url ?? report.productSlug, report.repo.headSha)}`,
+    `- About the name: ${CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE}`,
     ...(hasSignals
       ? [
           `- Incorporates findings from: ${contributingSources.join(', ')}`,
@@ -182,6 +187,7 @@ export function renderWitanMarkdownReport(
     '## Findings',
     '',
     ...renderFindings(report.criteria),
+    ...(verdictExplanation ? ['', verdictExplanation] : []),
     '',
     ...(hasSignals
       ? [

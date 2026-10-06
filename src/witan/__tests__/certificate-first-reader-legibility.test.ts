@@ -280,7 +280,7 @@ describe('item 3: by-design exclusions get a plain statement, not a remedy', () 
     });
     const summary = buildRelyingPartySummary(report);
     expect(summary.next).toContain(
-      'Resolve the 2 content entries Cejel could not read (unreadable, too large; see the itemized reasons in the certificate), then reproduce the scan.',
+      'Resolve the 2 content entries skipped as unreadable or too large (see the itemized reasons in the certificate), then reproduce the scan.',
     );
     expect(summary.next).not.toContain('Make the');
     expect(summary.notEstablished).toContain(

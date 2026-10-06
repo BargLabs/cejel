@@ -1,10 +1,19 @@
+import {
+  LOW_CONFIDENCE_COVERAGE_THRESHOLD,
+  type MeasuredCoverage,
+  computeMeasuredCoverage,
+  isMeasuredCriterionStatus,
+  shortCategoryLabel,
+} from './coverage.js';
 import type {
+  WitanContentReadSummary,
   WitanCriterionMetric,
   WitanCriterionScore,
   WitanFinding,
   WitanReport,
   WitanWithheldPath,
 } from './schemas.js';
+import { witanVerdictForScore } from './schemas.js';
 import { withAppliedWeightShares } from './scoring.js';
 
 export interface CertificateGlossaryEntry {
@@ -22,8 +31,11 @@ export interface RelyingPartySummary {
   next: string;
 }
 
+// The fact is unchanged from 0.4.5 (product identity is caller context and is excluded from
+// byte-comparison claims); only the wording and its position moved, so a first-time reader meets
+// the run, CLI and rubric before this note (goal_cejel_certificate_first_reader_legibility_2026-10-06).
 export const CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE =
-  'Product name and slug are caller context and are excluded from certificate byte-comparison claims.';
+  'The product name and its short ID were given by whoever ran the scan, or taken from package.json or the folder name. They are not evidence from the repository, and they are not covered when Cejel says two scans of the same revision give identical results.';
 
 // Standing, non-conditional scope statement: appears on every certificate, scored or abstained,
 // because the boundary it names — a pinned tree, not the system that tree belongs to — is true of
@@ -113,7 +125,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'static-coverage',
     term: 'Static coverage percentage',
     definition:
-      'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives.',
+      'A percentage read from a coverage report or threshold that the repository itself publishes. Cejel does not run the repository\'s tests. The scoring rubric defines how much credit the published percentage receives. When no percentage above 0 is published, the rubric scores this metric as 0 of 100.',
     metricNames: ['coverage_percent'],
   },
   {
@@ -413,6 +425,23 @@ export function isCoverageNotMeasured(
   ].some((evidence) => evidence.kind === 'coverage');
 }
 
+// The scanner records coverage_percent as 0 both when no coverage report or threshold states a
+// percentage and when one states exactly 0; report.json does not tell the two apart. So with
+// coverage configuration present, a 0 is described as "no published coverage percentage above 0",
+// which is true in both cases. It is never printed as "0/100 percent", which a reader takes to
+// mean the repository measured 0% coverage. Presentation only: the metric value stays 0 and scores
+// exactly as before (goal_cejel_certificate_first_reader_legibility_2026-10-06).
+export function isCoveragePercentageUnpublished(
+  criterion: WitanCriterionScore,
+  metric: WitanCriterionMetric,
+): boolean {
+  return (
+    metric.name === 'coverage_percent' &&
+    metric.value === 0 &&
+    !isCoverageNotMeasured(criterion, metric)
+  );
+}
+
 function labelAlreadyStatesUnit(label: string, unit: string | undefined): boolean {
   if (!unit) return false;
   const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -496,7 +525,10 @@ export function formatCertificateMetricValue(
   metric: WitanCriterionMetric,
 ): string {
   if (isCoverageNotMeasured(criterion, metric)) {
-    return 'no coverage report found — not measured';
+    return 'no coverage report or threshold found, so there is no percentage to read (Cejel does not run tests); the rubric scores this as 0 of 100';
+  }
+  if (isCoveragePercentageUnpublished(criterion, metric)) {
+    return 'coverage configuration found, but no published coverage percentage above 0 (Cejel reads published reports and thresholds and does not run tests); the rubric scores this as 0 of 100';
   }
   if (metric.name === 'test_to_source_ratio' && metric.max !== undefined) {
     const tests = formatMetricNumber(metric.value);
@@ -610,7 +642,12 @@ function buildNextSteps(
 
   if (a1 && coverageMetric && isCoverageNotMeasured(a1, coverageMetric)) {
     steps.push(
-      "Obtain a coverage report or configured threshold for A1's static coverage metric; none was found, so it was not measured.",
+      "Obtain a coverage report or configured threshold for A1's static coverage metric; none was found, so no percentage was measured.",
+    );
+  }
+  if (a1 && coverageMetric && isCoveragePercentageUnpublished(a1, coverageMetric)) {
+    steps.push(
+      "Publish a coverage report or threshold for A1's static coverage metric; coverage configuration was found, but no published percentage above 0.",
     );
   }
   if (
@@ -637,10 +674,12 @@ function buildNextSteps(
       `Resolve the ${scanLimitationCount} scan limitation${scanLimitationCount === 1 ? '' : 's'} qualifying the readable evidence, then reproduce the scan.`,
     );
   }
-  const skippedCount = report.contentReadSummary?.skipped ?? 0;
-  if (skippedCount > 0) {
+  // Only skip reasons the repository owner can act on get a remedy. An entry excluded by
+  // extension is outside what Cejel reads by design; it is stated in notEstablished instead.
+  const actionableSkips = actionableSkipReasons(report.contentReadSummary);
+  if (actionableSkips.count > 0) {
     steps.push(
-      `Make the ${skippedCount} skipped content entr${skippedCount === 1 ? 'y' : 'ies'} readable (see the itemized reasons in the certificate), then reproduce the scan.`,
+      `Resolve the ${actionableSkips.count} content entr${actionableSkips.count === 1 ? 'y' : 'ies'} skipped as ${joinWithOr(actionableSkips.reasons)} (see the itemized reasons in the certificate), then reproduce the scan.`,
     );
   }
 
@@ -651,6 +690,132 @@ function buildNextSteps(
   }
 
   return steps;
+}
+
+function joinWithConjunction(items: readonly string[], conjunction: 'and' | 'or'): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} ${conjunction} ${items[items.length - 1]}`;
+}
+
+function joinWithOr(items: readonly string[]): string {
+  return joinWithConjunction(items, 'or');
+}
+
+function joinWithAnd(items: readonly string[]): string {
+  return joinWithConjunction(items, 'and');
+}
+
+// Skip reasons a repository owner can act on, in the order the certificate itemizes them.
+// excluded_by_extension is absent on purpose: Cejel does not read those file types at all.
+const ACTIONABLE_SKIP_REASONS: ReadonlyArray<{
+  key: Exclude<keyof WitanContentReadSummary['byReason'], 'excludedByExtension'>;
+  label: string;
+}> = [
+  { key: 'unreadable', label: 'unreadable' },
+  { key: 'tooLarge', label: 'too large' },
+  { key: 'deniedPath', label: 'a denied path' },
+  { key: 'nonRegularFile', label: 'not a regular file' },
+];
+
+function actionableSkipReasons(summary: WitanContentReadSummary | undefined): {
+  count: number;
+  reasons: string[];
+} {
+  if (!summary) return { count: 0, reasons: [] };
+  const present = ACTIONABLE_SKIP_REASONS.filter(({ key }) => summary.byReason[key] > 0);
+  return {
+    count: present.reduce((sum, { key }) => sum + summary.byReason[key], 0),
+    reasons: present.map(({ label }) => label),
+  };
+}
+
+function contentEntries(count: number, singular: string, plural: string): string {
+  return `${count} content entr${count === 1 ? `y ${singular}` : `ies ${plural}`}`;
+}
+
+/**
+ * The per-category measured counts, e.g. "code 2 of 5, process 3 of 6". Every criterion in the
+ * report is in the denominator, including those that do not apply, so these are the same numbers
+ * the summary box, "What was established" and the low-confidence flag all use.
+ */
+export function formatMeasuredDimensionCounts(coverage: MeasuredCoverage): string {
+  return coverage.byCategory
+    .map((entry) => `${shortCategoryLabel(entry.category)} ${entry.measured} of ${entry.total}`)
+    .join(', ');
+}
+
+function notApplicableCount(report: WitanReport): number {
+  return report.criteria.filter((criterion) => criterion.status === 'not_applicable').length;
+}
+
+/** "Dimensions measured: code 2 of 5, process 3 of 6. 6 do not apply to this repository." */
+export function formatDimensionsMeasuredSentence(report: WitanReport): string {
+  const notApplicable = notApplicableCount(report);
+  const counts = `Dimensions measured: ${formatMeasuredDimensionCounts(computeMeasuredCoverage(report))}.`;
+  return notApplicable > 0 ? `${counts} ${notApplicable} do not apply to this repository.` : counts;
+}
+
+/**
+ * Names exactly which counts set the display-only low-confidence flag (coverage.ts), or returns
+ * undefined when the flag is not set. The flag counts dimensions that do not apply as not
+ * measured, so a repository can be "low confidence" while every dimension that applies was
+ * measured; the sentence says so rather than leave the two statements to contradict each other.
+ */
+export function formatLowConfidenceSentence(report: WitanReport): string | undefined {
+  const coverage = computeMeasuredCoverage(report);
+  if (!coverage.lowConfidence) return undefined;
+  const isLow = (counts: { measured: number; total: number }) =>
+    counts.total > 0 && counts.measured / counts.total < LOW_CONFIDENCE_COVERAGE_THRESHOLD;
+  const parts = [
+    ...coverage.byCategory
+      .filter(isLow)
+      .map((entry) => `${shortCategoryLabel(entry.category)} (${entry.measured} of ${entry.total})`),
+    ...(isLow(coverage.overall)
+      ? [`overall (${coverage.overall.measured} of ${coverage.overall.total})`]
+      : []),
+  ];
+  const sentence = `Low confidence: fewer than half of the ${joinWithAnd(parts)} dimensions were measured.`;
+  return notApplicableCount(report) > 0
+    ? `${sentence} Dimensions that do not apply count as not measured here.`
+    : sentence;
+}
+
+const SCORED_VERDICT_BANDS: Record<'conditional' | 'at_risk' | 'unverified', { label: string; band: string }> = {
+  conditional: { label: 'Conditional', band: '2.5 up to 3.5' },
+  at_risk: { label: 'At risk', band: '1.5 up to 2.5' },
+  unverified: { label: 'Unverified', band: 'below 1.5' },
+};
+const MAX_LOWEST_DIMENSIONS = 3;
+
+/**
+ * For a scored, non-Verified verdict with no critical or warning finding, says that the verdict
+ * comes from the overall score's band (witanVerdictForScore) and names the lowest-scoring measured
+ * dimensions, so a reader does not hunt for a finding that does not exist. Dimensions already in
+ * the Verified band are left out of the ranking. Returns undefined otherwise.
+ */
+export function buildVerdictExplanation(report: WitanReport): string | undefined {
+  if (report.verdict === 'insufficient_source' || report.verdict === 'verified') return undefined;
+  if (report.overallScore === null) return undefined;
+  const hasCriticalOrWarning = report.criteria.some((criterion) =>
+    criterion.findings.some((finding) => finding.severity === 'critical' || finding.severity === 'warning'),
+  );
+  if (hasCriticalOrWarning) return undefined;
+  const { label, band } = SCORED_VERDICT_BANDS[report.verdict];
+  const lowest = report.criteria
+    .map((criterion, index) => ({ criterion, index }))
+    .filter(
+      ({ criterion }) =>
+        isMeasuredCriterionStatus(criterion.status) &&
+        witanVerdictForScore(criterion.score) !== 'verified',
+    )
+    .sort((a, b) => a.criterion.score - b.criterion.score || a.index - b.index)
+    .slice(0, MAX_LOWEST_DIMENSIONS)
+    .map(({ criterion }) => `${criterion.id} (${criterion.score.toFixed(1)})`);
+  const verdictSentence = `The ${label} verdict comes from the overall score of ${report.overallScore.toFixed(1)} out of 4.0, which is in the ${label} band (${band}). No finding set it.`;
+  if (lowest.length === 0) return verdictSentence;
+  return lowest.length === 1
+    ? `${verdictSentence} The measured dimension scoring lowest is ${lowest[0]}.`
+    : `${verdictSentence} The measured dimensions scoring lowest are ${joinWithAnd(lowest)}.`;
 }
 
 // A withheld file that touched no signal is indistinguishable, from the certificate alone, from a
@@ -717,6 +882,23 @@ function buildWithheldPathsGapSentence(report: WitanReport): string | undefined 
   );
 }
 
+// Uses the same all-criterion denominators as the summary box (formatDimensionsMeasuredSentence),
+// then names the not-applicable remainder, so "2 of 5" in the box and "5 of 5 that apply" here
+// visibly add up instead of reading as a contradiction.
+function describeEstablishedDimensions(
+  report: WitanReport,
+  measured: number,
+  applicable: number,
+): string {
+  const total = report.criteria.length;
+  const counts = formatMeasuredDimensionCounts(computeMeasuredCoverage(report));
+  const measuredSentence = `The report measured ${measured} of the ${total} rubric dimensions (${counts}).`;
+  const notApplicable = total - applicable;
+  return notApplicable > 0
+    ? `${measuredSentence} ${notApplicable} do not apply to this repository; ${measured} of the ${applicable} that apply were measured.`
+    : `${measuredSentence} All ${total} apply to this repository.`;
+}
+
 export function buildRelyingPartySummary(report: WitanReport): RelyingPartySummary {
   const applicable = report.criteria.filter((criterion) => criterion.status !== 'not_applicable');
   const measured = applicable.filter((criterion) => criterion.status !== 'insufficient_data');
@@ -729,7 +911,12 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   const gaps: string[] = [];
   if (a1 && coverageMetric && isCoverageNotMeasured(a1, coverageMetric)) {
     gaps.push(
-      'No coverage report or configured threshold was found, so static coverage was not measured; Cejel does not run the subject\'s tests.',
+      'No coverage report or configured threshold was found, so no static coverage percentage was measured and the rubric scored it as 0 of 100; Cejel does not run the subject\'s tests.',
+    );
+  }
+  if (a1 && coverageMetric && isCoveragePercentageUnpublished(a1, coverageMetric)) {
+    gaps.push(
+      'Coverage configuration was found, but no coverage report or threshold in this tree publishes a percentage above 0, so the rubric scored static coverage as 0 of 100; Cejel does not run the subject\'s tests.',
     );
   }
   if (
@@ -756,10 +943,16 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
     const count = report.scanLimitations?.length ?? 0;
     gaps.push(`${count} scan limitation${count === 1 ? '' : 's'} qualifies the readable evidence.`);
   }
-  if ((report.contentReadSummary?.skipped ?? 0) > 0) {
-    const skipped = report.contentReadSummary?.skipped ?? 0;
+  const actionableSkips = actionableSkipReasons(report.contentReadSummary).count;
+  if (actionableSkips > 0) {
     gaps.push(
-      `${skipped} content entr${skipped === 1 ? 'y was' : 'ies were'} skipped for the reasons itemized in the certificate.`,
+      `${contentEntries(actionableSkips, 'was', 'were')} skipped for the reasons itemized in the certificate.`,
+    );
+  }
+  const excludedByExtension = report.contentReadSummary?.byReason.excludedByExtension ?? 0;
+  if (excludedByExtension > 0) {
+    gaps.push(
+      `${contentEntries(excludedByExtension, 'was', 'were')} not read because ${excludedByExtension === 1 ? 'its file type is' : 'their file types are'} outside what Cejel reads. This is a fixed limit of the tool, not something the repository needs to fix.`,
     );
   }
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
@@ -773,7 +966,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   return {
     scope: CERTIFICATE_SCOPE_NOTICE,
     examined: `Cejel examined the repository evidence recorded for ${report.productDisplayName}${revision} under ${report.rubricVersion}.`,
-    established: `The report established measured results for ${measured.length} of ${applicable.length} applicable rubric dimensions and recorded ${findings} evidence-backed finding${findings === 1 ? '' : 's'}.`,
+    established: `${describeEstablishedDimensions(report, measured.length, applicable.length)} It recorded ${findings} evidence-backed finding${findings === 1 ? '' : 's'}.`,
     notEstablished: gaps.join(' '),
     next: buildNextSteps(report, unmeasured, notApplicable, a1, coverageMetric).join(' '),
   };

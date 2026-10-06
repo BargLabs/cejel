@@ -12,11 +12,7 @@ import type {
 import { witanVerdictForScore } from './schemas.js';
 
 import { renderWitanAbstentionLabel } from './abstention.js';
-import {
-  type MeasuredCoverage,
-  computeMeasuredCoverage,
-  formatCoverageCounts,
-} from './coverage.js';
+import { type MeasuredCoverage, computeMeasuredCoverage } from './coverage.js';
 import {
   EXTERNAL_FINDINGS_DISPLAY_LIMIT,
   type WitanExternalFinding,
@@ -26,11 +22,14 @@ import {
 import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
+  buildVerdictExplanation,
   CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE,
   CERTIFICATE_GLOSSARY,
   formatCertificateMetricAppliedWeightPercent,
   formatCertificateMetricLabel,
   formatCertificateMetricValue,
+  formatDimensionsMeasuredSentence,
+  formatLowConfidenceSentence,
   glossaryEntriesForReport,
   glossaryEntryForMetric,
   type CertificateGlossaryEntry,
@@ -67,6 +66,7 @@ export function renderWitanHtmlReport(
   const coverage = computeMeasuredCoverage(report);
   const gitHistoryUnavailable = !report.repo.headSha;
   const relyingPartySummary = buildRelyingPartySummary(report);
+  const lowConfidenceSentence = formatLowConfidenceSentence(report);
 
   return `<!doctype html>
 <html lang="en">
@@ -89,7 +89,6 @@ export function renderWitanHtmlReport(
           <p class="eyebrow">Trust Certificate</p>
           <h1>${escapeHtml(report.productDisplayName)}</h1>
           <dl class="meta">
-            <div><dt>Product identity</dt><dd>${escapeHtml(CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE)}</dd></div>
             ${options.generatedAt ? `<div><dt>Date</dt><dd>${escapeHtml(formatDate(options.generatedAt))}</dd></div>` : ''}
             <div><dt>Run</dt><dd>${escapeHtml(renderRepo(report))}</dd></div>
             <div><dt>CLI</dt><dd>${escapeHtml(options.cliVersion ? `Cejel ${options.cliVersion}` : 'Not recorded')}</dd></div>
@@ -102,6 +101,7 @@ export function renderWitanHtmlReport(
                 ? `<div><dt>Calibration</dt><dd class="prospective-rubric-notice">${escapeHtml(PROSPECTIVE_RUBRIC_NOTICE)}</dd></div>`
                 : ''
             }
+            <div><dt>About the name</dt><dd>${escapeHtml(CALLER_CONTEXT_PRODUCT_IDENTITY_NOTICE)}</dd></div>
             ${
               contributingSources.length > 0
                 ? `<div><dt>Sources</dt><dd>Incorporates findings from: ${escapeHtml(contributingSources.join(', '))}<ul class="source-counts">${externalSourceSummaries
@@ -124,7 +124,11 @@ export function renderWitanHtmlReport(
             <span>Code ${renderCategoryScore(report.codeTrustScore, coverage, 'code_trust')}</span>
             <span>Process ${renderCategoryScore(report.processTrustScore, coverage, 'process_trust')}</span>
           </div>
-          <div class="coverage-note">${escapeHtml(formatCoverageCounts(coverage))} measured${coverage.lowConfidence ? ' · low confidence' : ''}</div>`
+          <div class="coverage-note">${escapeHtml(formatDimensionsMeasuredSentence(report))}</div>${
+            lowConfidenceSentence
+              ? `\n          <div class="coverage-note">${escapeHtml(lowConfidenceSentence)}</div>`
+              : ''
+          }`
           }
         </aside>
       </div>
@@ -222,9 +226,13 @@ function renderFindingsFirstSummary(report: WitanReport): string {
           .map(({ criterion, finding }) => `<li>${renderFindingEvidence(criterion, finding)}</li>`)
           .join('')}</ul>`
       : '<p class="findings-first-empty">No critical or warning findings were identified across any criterion in this scan.</p>';
+  const verdictExplanation = buildVerdictExplanation(report);
+  const explanation = verdictExplanation
+    ? `\n      <p class="verdict-explanation">${escapeHtml(verdictExplanation)}</p>`
+    : '';
   return `<section class="findings-first-summary" aria-labelledby="findings-first-heading">
       <h2 id="findings-first-heading">Critical and warning findings</h2>
-      ${body}
+      ${body}${explanation}
     </section>`;
 }
 
@@ -700,6 +708,7 @@ dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
 .findings-first-summary { margin-top: 20px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
 .findings-first-summary ul { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
 .findings-first-empty { margin: 0; color: var(--muted); }
+.verdict-explanation { margin: 10px 0 0; color: var(--muted); }
 .relying-party-summary, .glossary { margin-top: 28px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); padding: 22px; }
 .relying-party-summary dl { display: grid; gap: 14px; margin: 0; }
 .relying-party-summary dl div { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
