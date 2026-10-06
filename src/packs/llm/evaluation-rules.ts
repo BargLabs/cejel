@@ -7,6 +7,7 @@ import {
   detectPythonMissingDenominator,
   detectPythonMissingEvaluationProvenance,
 } from './python-evaluation-rules.js';
+import type { AnalysisTier } from '../analysis-tier.js';
 import type { LlmSourceFile } from './rules.js';
 import type {
   CejelLlmConfidence,
@@ -26,6 +27,8 @@ export type CejelLlmEvaluationFinding = CejelLlmFinding & {
 
 export interface LlmEvaluationRuleDefinition {
   readonly id: CejelLlmEvaluationRuleId;
+  readonly tier: AnalysisTier;
+  readonly tierEvidence: string;
   readonly title: string;
   readonly detectorConfidence: CejelLlmConfidence;
   readonly evidenceContract: string;
@@ -1482,6 +1485,9 @@ function hasModelJudgeSurface(files: readonly LlmSourceFile[]): boolean {
 export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] = [
   {
     id: 'LLM-PRV-001',
+    tier: 'semantic',
+    tierEvidence:
+      'latestAssignmentsForReferences() and hasLocalOrResolvedHelperInvocationBefore() resolve the latest in-scope assignment and the calling helper that owns the model invocation, following an aggregate to its emitter (data and call-graph flow within a file)',
     title: 'Declared evaluation lacks reproducible system provenance',
     detectorConfidence: 'high',
     evidenceContract:
@@ -1498,6 +1504,9 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
   },
   {
     id: 'LLM-EVL-001',
+    tier: 'semantic',
+    tierEvidence:
+      'detectMissingDenominator() follows aggregate assignments and denominator aliases (denominatorAliasAssignments, latestAssignmentsForReferences) to the object that is emitted, within function scopes',
     title: 'Evaluation result omits its eligible denominator or exclusions',
     detectorConfidence: 'high',
     evidenceContract:
@@ -1512,6 +1521,9 @@ export const CEJEL_LLM_EVALUATION_RULES: readonly LlmEvaluationRuleDefinition[] 
   },
   {
     id: 'LLM-EVL-002',
+    tier: 'structural',
+    tierEvidence:
+      'detectSoleSelfJudge() counts producer and judge invocations in one file and resolves a model identifier to its literal binding (literalBindings); detectPythonConfiguredSelfJudge() reads class blocks and self.attribute aliasing; no flow beyond one file',
     title: 'Evaluated system is its own sole judge',
     detectorConfidence: 'high',
     evidenceContract:

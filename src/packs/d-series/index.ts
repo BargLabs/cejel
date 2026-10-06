@@ -1,3 +1,4 @@
+export { D_SERIES_RULE_TIERS } from './tiers.js';
 export {
   detectDeclaredButUnreadConfig,
   scanDeclaredButUnreadConfig,

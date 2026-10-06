@@ -1,3 +1,4 @@
+import type { AnalysisTier } from '../analysis-tier.js';
 import type {
   CejelLlmConfidence,
   CejelLlmEnabledRuleId,
@@ -14,6 +15,8 @@ export interface LlmSourceFile {
 
 export interface LlmRuleDefinition {
   readonly id: CejelLlmEnabledRuleId;
+  readonly tier: AnalysisTier;
+  readonly tierEvidence: string;
   readonly title: string;
   readonly detectorConfidence: CejelLlmConfidence;
   readonly evidenceContract: string;
@@ -508,6 +511,9 @@ function hasUnsafeSinkSurface(file: LlmSourceFile): boolean {
 export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [
   {
     id: 'LLM-IOH-001',
+    tier: 'semantic',
+    tierEvidence:
+      'detectUnsafeSink() keeps a brace-scope stack and propagates model-output taint through assignments, and javaScriptExecutableHelperParameterSinks() runs a taint fixpoint; the Python path (python-rules.ts) is an interprocedural fixpoint',
     title: 'Model output passed to a consequential sink',
     detectorConfidence: 'high',
     evidenceContract:
@@ -526,6 +532,9 @@ export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [
   },
   {
     id: 'LLM-AGY-002',
+    tier: 'structural',
+    tierEvidence:
+      'detectUnboundedLoop() finds a literal while(true) or for(;;), brace-matches its whole body and tests for guard presence and a supported model call inside; no data or control flow',
     title: 'Unbounded agent loop',
     detectorConfidence: 'medium',
     evidenceContract:
@@ -540,6 +549,9 @@ export const CEJEL_LLM_V1_RULES: readonly LlmRuleDefinition[] = [
   },
   {
     id: 'LLM-DAT-001',
+    tier: 'structural',
+    tierEvidence:
+      'detectSensitivePromptData() paren-matches the full argument extent of an import-resolved SDK model call across lines, then pattern-tests it for secret-named process.env reads; no flow',
     title: 'Sensitive data passed to a model request',
     detectorConfidence: 'high',
     evidenceContract:

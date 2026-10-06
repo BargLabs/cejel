@@ -1,3 +1,4 @@
+export { DECISION_CONTRACT_RULE_TIERS } from './tiers.js';
 export {
   DECISION_CONTRACT_MANIFEST_PATH,
   decisionContractManifestSchema,

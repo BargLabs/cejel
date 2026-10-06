@@ -815,6 +815,9 @@ export function detectPythonSensitivePromptData(
 export const CEJEL_LLM_PYTHON_RULES: readonly LlmRuleDefinition[] = [
   {
     id: 'LLM-IOH-001',
+    tier: 'semantic',
+    tierEvidence:
+      'python-lineage-rules.ts detectPythonInterproceduralModelOutput() emits this id from a 12-pass fixpoint of taint across local call arguments, returns and tainted-branch control dependence',
     title: 'Python model output passed to a consequential sink',
     detectorConfidence: 'high',
     evidenceContract:
@@ -829,6 +832,9 @@ export const CEJEL_LLM_PYTHON_RULES: readonly LlmRuleDefinition[] = [
   },
   {
     id: 'LLM-AGY-002',
+    tier: 'structural',
+    tierEvidence:
+      'detectPythonUnboundedAgentLoop() finds a while True loop, takes its indentation-delimited body and tests for guard presence; no data or control flow',
     title: 'Unbounded Python agent loop',
     detectorConfidence: 'medium',
     evidenceContract:
@@ -842,6 +848,9 @@ export const CEJEL_LLM_PYTHON_RULES: readonly LlmRuleDefinition[] = [
   },
   {
     id: 'LLM-DAT-001',
+    tier: 'structural',
+    tierEvidence:
+      'detectPythonSensitivePromptData() paren-matches the full argument extent of an import-resolved SDK model call across lines, then pattern-tests it for secret-named env reads; no flow',
     title: 'Sensitive Python environment data passed to a model request',
     detectorConfidence: 'high',
     evidenceContract:

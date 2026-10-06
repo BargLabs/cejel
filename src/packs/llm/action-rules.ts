@@ -1,3 +1,4 @@
+import type { AnalysisTier } from '../analysis-tier.js';
 import type { LlmSourceFile } from './rules.js';
 import type { CejelLlmConfidence, CejelLlmFinding } from './types.js';
 import { supportedJavaScriptModelCallIndices } from './javascript-integrations.js';
@@ -7,6 +8,8 @@ export type LlmActionRuleId = 'LLM-VAL-001' | 'LLM-AGY-001';
 
 export interface LlmActionRuleDefinition {
   readonly id: LlmActionRuleId;
+  readonly tier: AnalysisTier;
+  readonly tierEvidence: string;
   readonly title: string;
   readonly detectorConfidence: CejelLlmConfidence;
   readonly evidenceContract: string;
@@ -1488,6 +1491,9 @@ export function detectSideEffectingToolWithoutAuthorityBoundary(
 export const CEJEL_LLM_ACTION_RULES: readonly LlmActionRuleDefinition[] = [
   {
     id: 'LLM-VAL-001',
+    tier: 'semantic',
+    tierEvidence:
+      "python-lineage-rules.ts detectPythonInterproceduralModelOutput() emits this id from a 12-pass fixpoint of taint across local call arguments, returns and tainted-branch control dependence; the JS detectUnvalidatedConsequentialAction() tracks aliases",
     title: 'Consequential structured action lacks validation',
     detectorConfidence: 'high',
     evidenceContract:
@@ -1502,6 +1508,9 @@ export const CEJEL_LLM_ACTION_RULES: readonly LlmActionRuleDefinition[] = [
   },
   {
     id: 'LLM-AGY-001',
+    tier: 'semantic',
+    tierEvidence:
+      'boundedTaintedIdentifiers() propagates handler-parameter taint through assignments, destructuring and push, and helperCallSideEffects() follows it into one local helper call (bounded data flow; ambiguous with structural, so the higher tier)',
     title: 'Side-effecting tool lacks an authority boundary',
     detectorConfidence: 'high',
     evidenceContract:
