@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "When a report value collapses two states the renderer cannot tell apart, write copy true of both instead of asserting either. Cejel records coverage_percent as 0 both when no coverage report or threshold states a percentage and when one states exactly 0, so the 0.6.0 certificate's '0/100 percent' read to a diligence reader as 'express has 0% coverage'. The fix says 'no published coverage percentage above 0' and states how the rubric scores it (0 of 100). It stays presentation-only, because a report field to separate the states would move every pinned report hash. Rule: before rendering a number, ask which states produce it; if they differ in meaning and the artifact cannot distinguish them, word the line so it is true for every one and say what the score does with it.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "certificate"],
+    "tags": ["certificate-legibility", "collapsed-state", "presentation-only", "first-reader"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-06T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 415}
+  },
+  {
+    "statement": "Two counts of the same population on one artifact must share a denominator or name the difference. The certificate's summary box counted every criterion ('code 2/5 · process 3/6 measured · low confidence'), 'What was established' counted only applicable ones ('5 of 5'), and the low-confidence flag silently counted not-applicable dimensions as unmeasured, so a first-time reader could not reconcile them. Each statement was correct alone; together they read as a contradiction. Rule: before adding or changing a count on a reader surface, find every other count of the same thing on that surface and make them visibly add up, naming any remainder (here, '6 do not apply').",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "certificate"],
+    "tags": ["certificate-legibility", "shared-denominator", "reconcile-counts", "first-reader"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-06T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 415}
+  }
+]
