@@ -16,6 +16,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Deprecated
+
+- **The `@cejel/cejel/d-series` subpath is deprecated and will be removed in 0.7.0 (#419).**
+  D-series detection was retired on 2026-08-02: the D1-D6 rules are a taxonomy for organising
+  findings, not a production detector, and a zero-result D-series scan does not mean a repository
+  is clean. Loading the subpath now emits one Node `DeprecationWarning` with code
+  `CEJEL_DEP_D_SERIES`. Silence only this warning with
+  `--disable-warning=CEJEL_DEP_D_SERIES` (Node 20.11 and later), or all deprecation warnings with
+  `--no-deprecation`. Every export still works until 0.7.0.
+  The 0.6.1 entry below listed the subpath's rule tier table under Added; that table is deprecated
+  with the rest of the subpath. Who is affected: code that imports `@cejel/cejel/d-series`.
+  `cejel scan`, `cejel-mcp`, `@cejel/cejel/decision-contracts`, scores, bands and report fields
+  are unchanged.
+
 ## [0.6.1] — 2026-10-06
 
 ### Added

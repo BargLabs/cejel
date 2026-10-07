@@ -37,8 +37,10 @@ demonstrates this).
 **A note on scope.** The D-series detectors live in `src/packs/d-series/`, not
 `src/witan/` — a separate, opt-in surface. ADR-0013 and each rule-contract doc state they
 do not feed the Witan rubric, certificate score, or leaderboard. They are included here
-because this census's third taxonomy *is* the D-series, and omitting the one place cejel
-ships D-series detectors would misstate the boundary this document exists to publish. This
+because this census's third taxonomy *is* the D-series, and omitting the one place cejel's
+source holds D-series detectors would misstate the boundary this document exists to publish.
+D-series detection was retired on 2026-08-02, and the `@cejel/cejel/d-series` package subpath is
+deprecated and will be removed in 0.7.0 (#419); the detectors are not a shipped capability. This
 inclusion is itself a judgment call — see "Judgment calls" below.
 
 ## CWE Top 25 (2024)

@@ -16,6 +16,10 @@ expectations, expected values imported from an independent oracle module, non-eq
 computed or transformed expected expressions, test helpers outside recognizable test paths, and
 imports not resolved inside the first-party TypeScript/JavaScript module graph.
 
+> **Deprecated (#419).** D-series detection was retired on 2026-08-02; these rules are a
+> taxonomy, not a production detector. The `@cejel/cejel/d-series` package subpath is deprecated
+> and will be removed in 0.7.0. This contract is kept as the rule's definition.
+
 This is a separate opt-in D-series pack entrypoint (`@cejel/cejel/d-series`). It does not feed the
 A1-B6 Witan rubric, alter certificate scores, or change the published leaderboard. The historical
 dual-control D5 seeds DC-04, DC-05, DC-07, and DC-10 remain semantic D5 examples rather than exact
