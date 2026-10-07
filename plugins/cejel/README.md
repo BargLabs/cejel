@@ -27,17 +27,17 @@ guarantee that code is correct or secure.
   downloads `@cejel/cejel` at the pinned version from the npm registry and caches it. That is a
   one-time install by `npx`, not part of the scan.
 - **Remote repositories are cloned by Claude, not by Cejel.** If you ask about a repository
-  that is not on your machine, the skill tells Claude to ask before making a shallow
-  `git clone` into a temporary directory and scanning that.
+  that is not on your machine, the skill tells Claude to ask before making a full `git clone`
+  into a temporary directory and scanning that.
 
 ## Example prompts
 
-- "Clone https://github.com/sindresorhus/slugify into a temporary folder and give me its Cejel
+- "Clone https://github.com/lukeed/clsx into a temporary folder and give me its Cejel
   trust score."
-- "Scan https://github.com/sindresorhus/slugify with Cejel and explain the top findings and the
+- "Scan https://github.com/lukeed/clsx with Cejel and explain the top findings and the
   criteria they come from."
-- "Run Cejel on https://github.com/sindresorhus/slugify and save its trust badge to
-  ./slugify-badge.svg."
+- "Run Cejel on https://github.com/lukeed/clsx and save its trust badge to
+  ./clsx-badge.svg."
 
 ## Support, privacy and terms
 

@@ -27,9 +27,13 @@ security audit, a vulnerability scan, or a code review.
 ## How to run it
 
 1. The tool takes a local path. For the current project, pass its root directory. If the user
-   names a remote repository, ask before cloning it; if they agree, make a shallow clone into a
-   temporary directory (`git clone --depth 1 <url> <tmpdir>`) and scan that directory. The clone
-   is your network access, not Cejel's; say so if the user asks about the offline promise.
+   names a remote repository, ask before cloning it; if they agree, clone it into a new temporary
+   directory (`git clone <url> <tmpdir>/<name>`) and scan that directory. Make a full clone, not
+   `--depth 1`: some process criteria read commit history, and a shallow clone weakens them
+   without the certificate saying so. If the repository you are asked to scan is itself a
+   shallow clone (`git rev-parse --is-shallow-repository` prints `true`), tell the user the
+   history-based results rest on truncated history. The clone is your network access, not
+   Cejel's; say so if the user asks about the offline promise.
 2. Call `scan` with `{ "path": "<absolute path>" }`. The default `summary` format is enough for
    most questions. Use `{ "format": "json" }` only when the user wants every criterion and its
    evidence.

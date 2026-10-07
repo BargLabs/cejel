@@ -256,12 +256,13 @@ disclosed live-registry lag.
 
 1. Bump `package.json`, `server.json` (`version` field), `published-versions.json`, the
    `Dockerfile`'s default `VERSION` build-arg, and the Claude plugin's
-   `plugins/cejel/.claude-plugin/plugin.json` version and `plugins/cejel/.mcp.json` npx pin in
-   the same commit — never as a follow-up. `node scripts/bump-release-version.mjs <version>`
-   moves all of these together (it refuses and writes nothing if any field is not where it
-   expects) and lists the prose mentions that remain a reviewed manual edit. The release
-   driver's preflight refuses a release whose plugin manifest or npx pin disagrees, and the
-   currency check's `Claude plugin` surface re-reads all three at the tag.
+   `plugins/cejel/.claude-plugin/plugin.json` version and the `@cejel/cejel` version pinned in
+   `plugins/cejel/.mcp.json`, all in the same commit — never as a follow-up.
+   `node scripts/bump-release-version.mjs <version>` moves all of these together (it refuses
+   and writes nothing if any field is not where it expects) and lists the prose mentions that
+   remain a reviewed manual edit. The release driver's preflight refuses a release whose plugin
+   manifest or pinned version disagrees, and the currency check's `Claude plugin` surface
+   re-reads all three at the tag.
 2. Run `pnpm run validate:distribution` against that commit **before** tagging it. A clean run
    after the tag exists is too late to fix anything the tag itself carries.
 3. If a metadata omission is discovered only after a tag is already cut, do not attempt to
