@@ -1,0 +1,14 @@
+{
+  "name": "cejel",
+  "description": "Cejel: offline, deterministic engineering-trust certificates for repositories, from Barg Labs.",
+  "owner": {
+    "name": "Barg Labs"
+  },
+  "plugins": [
+    {
+      "name": "cejel",
+      "source": "./plugins/cejel",
+      "description": "Score a repository's engineering-trust signals offline and read the certificate with cited evidence."
+    }
+  ]
+}

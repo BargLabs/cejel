@@ -1,0 +1,17 @@
+{
+  "name": "cejel",
+  "displayName": "Cejel",
+  "version": "0.6.1",
+  "description": "Offline, deterministic engineering-trust certificate for a repository: tests, secrets, isolation, claim-vs-reality and CI discipline, scored against a published rubric with cited evidence. No network calls, no telemetry, no model call; the MCP server writes no files.",
+  "author": {
+    "name": "Barg Labs"
+  },
+  "homepage": "https://cejel.dev",
+  "repository": "https://github.com/BargLabs/cejel",
+  "license": "AGPL-3.0-only",
+  "keywords": ["trust-certificate", "code-quality", "security", "ai-generated-code", "offline", "mcp"],
+  "documentationUrl": "https://github.com/BargLabs/cejel#use-with-claude",
+  "supportUrl": "https://github.com/BargLabs/cejel/issues",
+  "privacyPolicyUrl": "https://barglabs.ai/privacy",
+  "termsOfServiceUrl": "https://barglabs.ai/terms"
+}

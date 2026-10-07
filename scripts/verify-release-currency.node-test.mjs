@@ -10,6 +10,7 @@ import {
   ReleaseCurrencyError,
   verifyReleaseCurrency,
 } from './verify-release-currency.mjs';
+import { mcpPinnedVersion, releaseVersionFields } from './claude-plugin-versions.mjs';
 
 const version = '1.2.3';
 const commit = 'a'.repeat(40);
@@ -28,7 +29,16 @@ const surfaces = [
   'changelog',
   'published-versions.json',
   'leaderboard',
+  'Claude plugin',
 ];
+
+function pluginFields({ packageVersion = version, pluginVersion = version, pin = version } = {}) {
+  return releaseVersionFields({
+    packageManifest: { version: packageVersion },
+    pluginManifest: { version: pluginVersion },
+    mcpConfig: { mcpServers: { cejel: { command: 'npx', args: ['-y', `--package=@cejel/cejel@${pin}`, 'cejel-mcp'] } } },
+  });
+}
 
 const goodHomepageHtml = `
 <div class="cmd"><span class="dollar">$</span>npx @cejel/cejel@${version} .</div>
@@ -101,6 +111,7 @@ function goodReaders() {
     changelog: async () => ({ versions: [version, '1.2.1'], html: goodChangelogHtml }),
     'published-versions.json': async () => ({ mcpRegistry: version, oci: version }),
     leaderboard: async () => ({ declaredVersion: version, pinVersion: null, markdown: goodLeaderboardMarkdown }),
+    'Claude plugin': async () => ({ tag: `v${version}`, fields: pluginFields() }),
   };
 }
 
@@ -378,6 +389,39 @@ test('a fully consistent release passes and prints every surface and observed va
   for (const surface of surfaces) {
     assert.ok(lines.some((line) => line.startsWith(`[PASS] ${surface}: observed=`)), surface);
   }
+});
+
+// Claude plugin: package.json, the plugin manifest and the plugin's npx pin move together.
+for (const [field, override, observed] of [
+  ['the plugin manifest', { pluginVersion: '1.2.2' }, 'plugins/cejel/.claude-plugin/plugin.json version=1.2.2'],
+  ['the MCP pin', { pin: '1.2.2' }, 'plugins/cejel/.mcp.json @cejel/cejel pin=1.2.2'],
+  ['package.json', { packageVersion: '1.2.2' }, 'package.json version=1.2.2'],
+]) {
+  test(`the Claude plugin surface fails when ${field} at the tag disagrees`, async () => {
+    const readers = goodReaders();
+    readers['Claude plugin'] = async () => ({ tag: `v${version}`, fields: pluginFields(override) });
+    const result = await rejectedRun(readers);
+    assert.match(result.failure.message, /Claude plugin/);
+    assert.ok(result.lines.some((line) =>
+      line.startsWith('[FAIL] Claude plugin:') && line.includes(observed) && line.includes(`disagreeing: ${observed}`)));
+  });
+}
+
+test('the Claude plugin surface fails when the plugin files are absent at the tag', async () => {
+  const readers = goodReaders();
+  readers['Claude plugin'] = async () => { throw new Error('Claude plugin plugins/cejel/.mcp.json@v1.2.3 query failed: HTTP 404'); };
+  const result = await rejectedRun(readers);
+  assert.ok(result.lines.some((line) =>
+    line.startsWith('[FAIL] Claude plugin: observed=<unreachable>') && line.includes('HTTP 404')));
+});
+
+test('an unpinned, doubly pinned or non-npx MCP launch reads as no pin, which fails', () => {
+  const config = (server) => ({ mcpServers: { cejel: server } });
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '--package=@cejel/cejel@1.2.3', 'cejel-mcp'] })), '1.2.3');
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '--package=@cejel/cejel', 'cejel-mcp'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['--package=@cejel/cejel@1.2.3', '--package=@cejel/cejel@1.2.2'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'node', args: ['--package=@cejel/cejel@1.2.3'] })), null);
+  assert.equal(mcpPinnedVersion({}), null);
 });
 
 // MCP Registry read: a slow or briefly failing registry is retried once; a wrong answer is not.
