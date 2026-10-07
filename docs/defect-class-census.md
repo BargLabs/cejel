@@ -40,7 +40,7 @@ do not feed the Witan rubric, certificate score, or leaderboard. They are includ
 because this census's third taxonomy *is* the D-series, and omitting the one place cejel's
 source holds D-series detectors would misstate the boundary this document exists to publish.
 D-series detection was retired on 2026-08-02, and the `@cejel/cejel/d-series` package subpath is
-deprecated and removed in 0.7.0 (#419); the detectors are not a shipped capability. This
+deprecated and will be removed in 0.7.0 (#419); the detectors are not a shipped capability. This
 inclusion is itself a judgment call — see "Judgment calls" below.
 
 ## CWE Top 25 (2024)
