@@ -1,3 +1,14 @@
+// Deprecated subpath (#419). D-series detection was retired on 2026-08-02 (CLAUDE.md): the rules are
+// a taxonomy, not a production detector, and a zero-result scan never means a repository is clean.
+// `@cejel/cejel/d-series` is deprecated in 0.6.2 and removed in 0.7.0; the source stays in this
+// repository. The package ships no type declarations, so Node's DeprecationWarning is the notice.
+process.emitWarning(
+  '@cejel/cejel/d-series is deprecated and will be removed in 0.7.0. D-series detection was retired: ' +
+    'its rules are a taxonomy, not a production detector, and a zero-result scan does not mean a ' +
+    'repository is clean. See https://github.com/BargLabs/cejel/issues/419.',
+  { type: 'DeprecationWarning', code: 'CEJEL_DEP_D_SERIES' },
+);
+
 export { D_SERIES_RULE_TIERS } from './tiers.js';
 export {
   detectDeclaredButUnreadConfig,
