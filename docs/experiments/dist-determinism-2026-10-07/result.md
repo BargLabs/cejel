@@ -25,7 +25,8 @@ arm64): `calibration/llm-detector.js` `2c8bfe93…`, `packs/d-series/index.js` `
 (`77bdaf19…`, `54eed14a…`, `8753cc4f…`) did not occur.
 
 **Reading under the preregistered rule:** the observed failure is not reproduced at N=38. Zero in 38
-bounds the per-build mismatch rate at roughly 7.6% (95%, one-sided, rule of three: 3/38). That is a
+bounds the per-build mismatch rate at 7.6% (exact one-sided 95% upper bound; the rule of three, 3/38,
+gives 7.9%). That is a
 bound, not proof of reproducibility. #418 stays open with this bound stated.
 
 ## The two missing runs: the QEMU hang, reproduced

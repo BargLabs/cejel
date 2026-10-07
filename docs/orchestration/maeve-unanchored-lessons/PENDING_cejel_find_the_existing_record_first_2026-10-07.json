@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Before building a measurement, search for the one that already exists: asked for Cejel traction, a session built a new ledger and headlined a count of outside users before finding the operator's existing traction record and its scheduled collector, whose own rule is that two documents of record means none, and whose people-level count was higher. Rule: search the operator's notes and sibling repositories for an existing record and claim register first, extend it rather than start a parallel series, and check that the existing collector is actually writing.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "measurement"
+    ],
+    "tags": [
+      "existing-record-first",
+      "two-records-means-none",
+      "traction",
+      "silent-collector-failure"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-07T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 420
+    }
+  }
+]

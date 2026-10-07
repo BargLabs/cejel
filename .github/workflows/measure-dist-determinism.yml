@@ -1,7 +1,7 @@
 name: Measure dist determinism
 
 # Preregistered in docs/experiments/dist-determinism-2026-10-07/preregistration.md (issue #418).
-# Builds tag v0.6.1 from scratch on 40 fresh runners and records each dist/ hash. Publishes nothing.
+# Builds tag v0.6.1 (or inputs.source_ref on dispatch) from scratch on 40 fresh runners and records each dist/ hash. Publishes nothing.
 on:
   push:
     branches:
@@ -9,6 +9,12 @@ on:
     paths:
       - .github/workflows/measure-dist-determinism.yml
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Ref to build (default is the preregistered v0.6.1; use a fix branch to judge it at the same N)
+        required: false
+        default: v0.6.1
+        type: string
 
 permissions:
   contents: read
@@ -23,10 +29,10 @@ jobs:
         condition: [M, S]
         run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     steps:
-      - name: Checkout v0.6.1
+      - name: Checkout the source ref
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: v0.6.1
+          ref: ${{ inputs.source_ref || 'v0.6.1' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
