@@ -24,6 +24,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-24.04
+    # Normal is ~1.5-2 minutes (last six publishes: 80-124 s).
+    timeout-minutes: 20
     steps:
       - name: Checkout the dispatched release tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
