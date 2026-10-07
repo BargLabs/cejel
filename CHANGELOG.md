@@ -16,6 +16,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The Docker image builds `dist/` once, natively, and runs nothing under emulation (#421).** The
+  build stage now runs on the builder's own platform for both linux/amd64 and linux/arm64, and
+  the final stage copies its bin links, executable bits and `/workspace` instead of creating them
+  with `RUN`. Before this, the arm64 image ran `pnpm install` under QEMU, which hung 2 of 20
+  release-shape builds in a preregistered measurement
+  (`docs/experiments/dist-determinism-2026-10-07/`) and hung v0.6.1's first publish run for 53
+  minutes. One build also means the SBOM and both images describe the same `dist/` bytes, which
+  removes the mismatch in #418. A new check confirms each platform's image has the same runtime
+  shape as before: executable entry points, the `cejel` and `cejel-mcp` links, the entrypoint,
+  and `/workspace` owned by the `node` user. Who is affected: nobody using the image. Its contents
+  and behaviour are meant to be unchanged; only how it is built changes.
+
 ### Deprecated
 
 - **The `@cejel/cejel/d-series` subpath is deprecated and will be removed in 0.7.0 (#419).**

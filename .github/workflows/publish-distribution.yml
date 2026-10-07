@@ -208,6 +208,12 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: scripts/sbom/verify-image-dist.sh "$IMAGE_NAME" "$DIGEST" "$RUNNER_TEMP/bundle-sbom/dist.sha256"
 
+      # #421: same check as CI's oci-sbom-binding job, before anything is attested or tagged.
+      - name: Verify the pushed image's runtime shape on both platforms
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: scripts/sbom/verify-image-runtime.sh "$IMAGE_NAME" "$DIGEST"
+
       - name: Create signed image provenance
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
