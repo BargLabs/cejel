@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "How an integration tells an agent to get the input is part of the measurement. The first Claude plugin skill told Claude to shallow-clone a remote repository before scanning it, and on lukeed/clsx that moved B2 from verified (1.7) to warning (1.6) while the certificate declared no scan limitation (#428). Neither the plugin's validation nor the suite could see it; only running the shipped prompts end to end on a real public repository surfaced it, along with an AVA false-hollow assertion (#427) in the first example repository. Rule: before an integration instructs an agent how to acquire or prepare a scan target, scan the target both ways (as instructed and complete), diff the certificates, and run every example prompt it publishes on the repository it names before publishing it.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["integration-shapes-evidence", "end-to-end-on-real-input", "shallow-clone", "example-prompts"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-08T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 429}
+  }
+]
