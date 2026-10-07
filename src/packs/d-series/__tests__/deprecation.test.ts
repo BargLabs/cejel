@@ -30,7 +30,17 @@ describe('d-series subpath deprecation', () => {
   });
 
   it('still exports every detector until removal', async () => {
-    const pack = await import('../index.js');
+    // Only the exports matter here; the warning is the first test's subject. Node skips emitting a
+    // DeprecationWarning while noDeprecation is set, so this load adds no second warning to the
+    // test output.
+    const previous = process.noDeprecation;
+    process.noDeprecation = true;
+    let pack: Record<string, unknown>;
+    try {
+      pack = await import('../index.js');
+    } finally {
+      process.noDeprecation = previous;
+    }
     for (const name of [
       'D_SERIES_RULE_TIERS',
       'scanDeclaredButUnreadConfig',
