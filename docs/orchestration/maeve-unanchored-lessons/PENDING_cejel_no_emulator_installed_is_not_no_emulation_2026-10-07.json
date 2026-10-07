@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "Removing an emulator from a CI runner does not prove a multi-platform build runs nothing emulated: BuildKit can carry its own emulators for foreign-platform RUN steps, so a build that succeeds without QEMU set up proves nothing about what executed. While fixing #421 (an emulated arm64 pnpm install that hung 2 of 20 release builds), the first planned proof was exactly that, and it was replaced before it was written. Rule: prove 'no emulated execution' from the build definition itself (the build stage pinned to $BUILDPLATFORM, no RUN in the final stage, enforced by a test with the old Dockerfile as its negative control) and confirm it from the build log (no RUN line labelled with the foreign platform), not from the absence of a setup step.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["absence-of-setup-is-not-proof", "buildkit-emulation", "structural-guard", "negative-control"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-07T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 426}
+  }
+]

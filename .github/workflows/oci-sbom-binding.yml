@@ -73,6 +73,13 @@ jobs:
           DIGEST: ${{ steps.push.outputs.digest }}
         run: scripts/sbom/verify-image-dist.sh "$IMAGE_NAME" "$DIGEST" "$RUNNER_TEMP/handoff/dist.sha256"
 
+      # #421: the final stage copies its bin links, executable bits and /workspace instead of running
+      # anything, so check the result in each platform's own filesystem, and run it natively.
+      - name: Verify both platforms' runtime shape (release step, real runner)
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: scripts/sbom/verify-image-runtime.sh "$IMAGE_NAME" "$DIGEST"
+
       - name: Negative control, a tampered dist hash must be refused
         env:
           DIGEST: ${{ steps.push.outputs.digest }}
