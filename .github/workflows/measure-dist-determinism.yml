@@ -1,0 +1,117 @@
+name: Measure dist determinism
+
+# Preregistered in docs/experiments/dist-determinism-2026-10-07/preregistration.md (issue #418).
+# Builds tag v0.6.1 from scratch on 40 fresh runners and records each dist/ hash. Publishes nothing.
+on:
+  push:
+    branches:
+      - exp/dist-determinism-2026-10-07
+    paths:
+      - .github/workflows/measure-dist-determinism.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        condition: [M, S]
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    steps:
+      - name: Checkout v0.6.1
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: v0.6.1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build (M = release shape, S = SBOM shape)
+        env:
+          CONDITION: ${{ matrix.condition }}
+        run: |
+          out="$RUNNER_TEMP/out"
+          if [ "$CONDITION" = M ]; then
+            docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=mode=max \
+              --output "type=local,dest=$out" .
+          else
+            docker buildx build --platform linux/amd64 --target build \
+              --output "type=local,dest=$out/linux_amd64/opt/cejel" .
+            # The build stage puts dist/ at /src/dist; normalise to the runtime image's path.
+            mv "$out/linux_amd64/opt/cejel/src/dist" "$out/linux_amd64/opt/cejel/dist"
+          fi
+
+      - name: Hash dist/
+        env:
+          CONDITION: ${{ matrix.condition }}
+          RUN: ${{ matrix.run }}
+        run: |
+          rec="$RUNNER_TEMP/record-$CONDITION-$RUN.txt"
+          for arch in amd64 arm64; do
+            dist="$RUNNER_TEMP/out/linux_$arch/opt/cejel/dist"
+            [ -d "$dist" ] || continue
+            (cd "$dist" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/files-$arch.txt"
+            tree="$(sha256sum < "$RUNNER_TEMP/files-$arch.txt" | cut -c1-64)"
+            echo "$CONDITION $RUN $arch tree $tree" >> "$rec"
+            grep -E ' \./(calibration/llm-detector\.js|packs/d-series/index\.js|packs/decision-contracts/index\.js)$' \
+              "$RUNNER_TEMP/files-$arch.txt" | while read -r h f; do echo "$CONDITION $RUN $arch file $h $f" >> "$rec"; done
+          done
+          cat "$rec"
+          test -s "$rec"
+
+      - name: Upload record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: record-${{ matrix.condition }}-${{ matrix.run }}
+          path: ${{ runner.temp }}/record-${{ matrix.condition }}-${{ matrix.run }}.txt
+          if-no-files-found: error
+
+  tally:
+    needs: build
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download records
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: records
+          pattern: record-*
+          merge-multiple: true
+
+      - name: Tally
+        run: |
+          cat records/*.txt | LC_ALL=C sort -k1,1 -k2,2n > all.txt
+          {
+            echo "## dist/ determinism, v0.6.1, fresh runners"
+            echo
+            echo "Records received: $(ls records | wc -l) of 40"
+            echo
+            for c in M S; do
+              echo "### Condition $c, amd64 tree hashes (count hash)"
+              awk -v c="$c" '$1==c && $3=="amd64" && $4=="tree" {print $5}' all.txt | sort | uniq -c | sort -rn
+              echo
+            done
+            echo "### All 40, amd64 tree hashes (count hash)"
+            awk '$3=="amd64" && $4=="tree" {print $5}' all.txt | sort | uniq -c | sort -rn
+            echo
+            echo "### Condition M, arm64 tree hashes (count hash)"
+            awk '$1=="M" && $3=="arm64" && $4=="tree" {print $5}' all.txt | sort | uniq -c | sort -rn
+          } | tee summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload tally
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tally
+          path: |
+            all.txt
+            summary.md
