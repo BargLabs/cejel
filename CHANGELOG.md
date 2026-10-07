@@ -16,6 +16,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **A Claude Code plugin, `plugins/cejel/`, listed by a marketplace at the repository root.**
+  `/plugin marketplace add BargLabs/cejel`, then `/plugin install cejel@cejel`, gives Claude the
+  `scan` tool (started through `npx`, pinned to this release) and a `cejel-scan` skill on when to
+  scan and how to read a certificate without overstating it. Scoring is unchanged and stays
+  offline. The plugin's manifest version and its npx pin move with every release:
+  `scripts/bump-release-version.mjs` moves them with `package.json`, `validate:distribution` and
+  the release driver's preflight refuse a mismatch, and the release-currency check reads them at
+  the tag as a fourteenth surface.
+- **The MCP `scan` tool carries a title and safety annotations.** It is registered with
+  `registerTool` as "Scan repository trust" with `readOnlyHint: true`, `destructiveHint: false`,
+  `idempotentHint: true` and `openWorldHint: false`, and both resources carry titles. Its input,
+  output and behaviour are unchanged.
+
 ### Changed
 
 - **The Docker image builds `dist/` once, natively, and runs nothing under emulation (#421).** The

@@ -42,7 +42,7 @@ time. Before stage 12 moves `v1` and before the tap and site are updated, the Ac
 cejel.dev surfaces cannot pass, so stage 11 passes when every surface passes or when every failing
 surface is one of those (matched by the label on each `[FAIL]` line); any other failure refuses and
 prints every `[FAIL]` line. **Stage 13** runs after stage 12: it dispatches a fresh currency run for
-the version and requires 13 of 13. **A release is complete only when stage 13 passes.** If it
+the version and requires 14 of 14. **A release is complete only when stage 13 passes.** If it
 refuses because the tap bump or the site record is not done yet, finish them and re-run with
 `--from 13`.
 
@@ -254,8 +254,14 @@ disclosed live-registry lag.
 
 **Checklist, before cutting any release tag:**
 
-1. Bump `package.json`, `server.json` (`version` field), `published-versions.json`, and the
-   `Dockerfile`'s default `VERSION` build-arg in the same commit — never as a follow-up.
+1. Bump `package.json`, `server.json` (`version` field), `published-versions.json`, the
+   `Dockerfile`'s default `VERSION` build-arg, and the Claude plugin's
+   `plugins/cejel/.claude-plugin/plugin.json` version and `plugins/cejel/.mcp.json` npx pin in
+   the same commit — never as a follow-up. `node scripts/bump-release-version.mjs <version>`
+   moves all of these together (it refuses and writes nothing if any field is not where it
+   expects) and lists the prose mentions that remain a reviewed manual edit. The release
+   driver's preflight refuses a release whose plugin manifest or npx pin disagrees, and the
+   currency check's `Claude plugin` surface re-reads all three at the tag.
 2. Run `pnpm run validate:distribution` against that commit **before** tagging it. A clean run
    after the tag exists is too late to fix anything the tag itself carries.
 3. If a metadata omission is discovered only after a tag is already cut, do not attempt to
