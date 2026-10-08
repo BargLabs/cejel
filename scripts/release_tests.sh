@@ -202,7 +202,7 @@ new_state() {
   printf 'FROM node\nARG VERSION=0.4.11\n' >"$S/files/Dockerfile"
   mkdir -p "$S/files/plugins/cejel/.claude-plugin"
   echo '{"name":"cejel","version":"0.4.11"}' >"$S/files/plugins/cejel/.claude-plugin/plugin.json"
-  echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel@0.4.11","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
+  echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","@cejel/cejel@0.4.11","mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
   printf '# Changelog\n\n## [Unreleased]\n\n## [0.4.11] - 2026-09-25\n- x\n' >"$S/files/CHANGELOG.md"
   mkdir -p "$S/files/action"; printf 'name: cejel-action\n' >"$S/files/action/action.yml"
   local t names=()
@@ -396,12 +396,15 @@ mcp_line | grep -qF "NOT READ:" && mcp_line | grep -qi 'timed out'; check "mcp s
 S="$TEST_TMP/s19a"; new_state "$S"; echo '{"name":"cejel","version":"0.4.10"}' >"$S/files/plugins/cejel/.claude-plugin/plugin.json"
 run_release "$S" "" --dry-run
 [ "$RC" != 0 ] && has "REFUSE" && has "plugin.json.version=0.4.10"; check "plugin: a stale plugin.json version refuses at preflight" $? "rc=$RC: $OUT"
-S="$TEST_TMP/s19b"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel@0.4.10","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
+S="$TEST_TMP/s19b"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","@cejel/cejel@0.4.10","mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
 run_release "$S" "" --dry-run
 [ "$RC" != 0 ] && has "REFUSE" && has ".mcp.json.@cejel/cejel=0.4.10"; check "plugin: a stale .mcp.json pin refuses at preflight" $? "rc=$RC: $OUT"
-S="$TEST_TMP/s19c"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
+S="$TEST_TMP/s19c"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","@cejel/cejel","mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
 run_release "$S" "" --dry-run
-[ "$RC" != 0 ] && has ".mcp.json.@cejel/cejel=<not pinned once>"; check "plugin: an unpinned .mcp.json launch refuses at preflight" $? "rc=$RC: $OUT"
+[ "$RC" != 0 ] && has ".mcp.json.@cejel/cejel=<not pinned>"; check "plugin: an unpinned .mcp.json launch refuses at preflight" $? "rc=$RC: $OUT"
+S="$TEST_TMP/s19d"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel@0.4.11","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has ".mcp.json.@cejel/cejel=<not npx -y @cejel/cejel@X mcp>"; check "plugin: the old --package launch form refuses at preflight" $? "rc=$RC: $OUT"
 
 # 20. the driver's surface count is the verifier's: adding a surface to one without the other fails here.
 n_verifier="$(node -e 'const src = require("fs").readFileSync(process.argv[1], "utf8"); console.log(/const SURFACES = \[([\s\S]*?)\];/.exec(src)[1].match(/'"'"'[^'"'"']+'"'"'/g).length)' "$SCRIPT_DIR/verify-release-currency.mjs")"

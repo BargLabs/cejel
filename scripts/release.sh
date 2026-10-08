@@ -191,7 +191,7 @@ stage1() {
   # The Claude plugin's manifest version and the @cejel/cejel version its MCP server launches
   # (scripts/claude-plugin-versions.mjs holds the same two paths and the same pin pattern).
   got="$(git show "$RELEASE_SHA:plugins/cejel/.claude-plugin/plugin.json" | jq -r .version)"; [ "$got" = "$VERSION" ] || bad+=" plugin.json.version=$got"
-  got="$(git show "$RELEASE_SHA:plugins/cejel/.mcp.json" | jq -r '[.mcpServers.cejel.args[]? | capture("^--package=@cejel/cejel@(?<v>.+)$").v] | if length == 1 then .[0] else "<not pinned once>" end')"
+  got="$(git show "$RELEASE_SHA:plugins/cejel/.mcp.json" | jq -r '.mcpServers.cejel as $s | if $s.command == "npx" and ($s.args | length) == 3 and $s.args[0] == "-y" and $s.args[2] == "mcp" then ($s.args[1] | (capture("^@cejel/cejel@(?<v>.+)$").v // "<not pinned>")) else "<not npx -y @cejel/cejel@X mcp>" end')"
   [ "$got" = "$VERSION" ] || bad+=" .mcp.json.@cejel/cejel=$got"
   [ -z "$bad" ] || die "version fields disagree with $VERSION at $RELEASE_SHA:$bad"
 
