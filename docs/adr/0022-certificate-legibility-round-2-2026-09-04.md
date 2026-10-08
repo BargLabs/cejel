@@ -1,4 +1,6 @@
-# ADR-0022: Certificate legibility, round 2 (Latchkey design-partner feedback)
+# ADR-0022: Certificate legibility, round 2 (design-partner feedback)
+
+> **Redacted 8 October 2026.** A design partner's company name, its CEO's name and the names of two of its repositories were replaced with neutral descriptions, because the partner has not given permission to be named. Nothing else in this record changed. The original text remains in this repository's history.
 
 **Status:** Accepted. Ruled by the operator 2026-09-04 ("scope accepted as written") in
 `0.4.7_scope_2026-09-04.md` (lab_notes, private). This record transcribes that ruling into an
@@ -9,8 +11,8 @@ issue-ready spec; it does not reopen the scope decision.
 [ADR-0019](0019-certificate-is-a-relying-party-artifact.md) ("the certificate is a relying-party
 artifact") — this is that same audience decision applied to a second round of outside feedback,
 not a new principle.
-**Origin:** Daniel (Latchkey CEO, design partner) ran `cejel scan` 0.4.6 on `latchkey` and
-`gusset` and gave five items. Four are presentation (this ADR, Track A below); the fifth changes
+**Origin:** A design partner's CEO ran `cejel scan` 0.4.6 on two of the partner's repositories
+and gave five items. Four are presentation (this ADR, Track A below); the fifth changes
 scoring and is handled separately as a rubric-versioned experiment — see
 `docs/experiments/a2-secret-posture-content-context-v23-2026-09-04/preregistration.md`
 ("Track B"). This ADR is Track A only.
@@ -28,7 +30,7 @@ coverage disclosure (W2a), plain-language per-metric descriptions and a glossary
 was not established / what to do next" (W4, shipped; see `renderRelyingPartySummary` in
 `src/witan/html.ts`). `cejel render` (W5) has not shipped.
 
-Daniel read a 0.4.6 certificate after all of that and still called it "too text-heavy," and asked
+The partner read a 0.4.6 certificate after all of that and still called it "too text-heavy," and asked
 for four specific things. Each is a real, specific gap in the current renderer, not a restatement
 of what ADR-0019 already fixed:
 
@@ -164,7 +166,7 @@ GitHub Actions (local CLI, other CI), the field is absent — never fabricated, 
 "passed clean" from "passed on retry," and a self-certifying tool should be able to say which one
 happened to itself.
 
-This is a rider, not one of Daniel's four asks — it can slip independently of A1–A4 without
+This is a rider, not one of the partner's four asks — it can slip independently of A1–A4 without
 affecting the acceptance test below.
 
 Acceptance:
@@ -179,8 +181,8 @@ Acceptance:
 
 Per the ruled 0.4.7 scope document:
 
-- "Cejel as a dynamic check layer replacing YAML" (Daniel's idea, raised separately from his four
-  presentation asks) — an ADR-frame conversation for the next Latchkey meeting: Cejel emits
+- "Cejel as a dynamic check layer replacing YAML" (the partner's idea, raised separately from the four
+  presentation asks) — an ADR-frame conversation for the next design-partner meeting: Cejel emits
   findings that gates consume; Cejel never becomes the gate itself. Not a release item.
 - Any rubric/scoring change beyond Track B (which is out of scope for this ADR specifically —
   see the separate preregistration).
@@ -190,12 +192,12 @@ Per the ruled 0.4.7 scope document:
   offline-boundary design question (attestation fetch is a network call; the only admissible shape
   is verification from a locally supplied bundle), so it is not release-shaped. Holding it out
   keeps 0.4.7 one release, one theme: legibility.
-- `cejel render` (ADR-0019/W5): not requested by Daniel in this round and not required by any item
+- `cejel render` (ADR-0019/W5): not requested by the partner in this round and not required by any item
   above; remains open from ADR-0019, not pulled forward by this ADR.
 
 ## Acceptance (whole-ADR)
 
-**Daniel re-runs 0.4.7 on `latchkey` and `gusset`; each of his four asks has a visible answer in
+**The partner re-runs 0.4.7 on the same two repositories; each of the four asks has a visible answer in
 the certificate.** This is the acceptance test — a design-partner re-run, not a synthetic fixture
 pass. Secondary check: the alarm-delivery finding he called out as his top issue (21 workflows)
 renders with weight, measurement method, and evidence per Track A2's requirement.
@@ -206,7 +208,7 @@ Starts only after the 0.4.6 chain closes (MCP Registry republish, `v1` tag move,
 — tracked in `release_session_handoff_2026-09-04.md`), per the ruled scope document. No item in
 this ADR has an external dependency once started — Track A1–A5 can proceed in any order or in
 parallel; A3's open design question is the only internal blocker, scoped to A3 alone. Target: land
-a few days before the next Latchkey meeting, since Daniel's re-run is the acceptance test, not a
+a few days before the next design-partner meeting, since the partner's re-run is the acceptance test, not a
 synthetic one.
 
 ## Consequences
@@ -223,7 +225,7 @@ register, and the added guard test is there because the wording is uniquely easy
 turn into a promise about scores.
 
 **Deferred honestly.** A3's "visual artifact" content is not designed yet; shipping A1/A2/A4/A5
-without it, if the design pass runs long, is an acceptable partial — Daniel's four asks then have
+without it, if the design pass runs long, is an acceptable partial — the partner's four asks then have
 three-of-four visible answers, and that gap is disclosed rather than asserted complete.
 
 **CONSTRAINTS-VERSION: 2026-08-01.5**
