@@ -26,6 +26,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `scripts/bump-release-version.mjs` moves them with `package.json`, `validate:distribution` and
   the release driver's preflight refuse a mismatch, and the release-currency check reads them at
   the tag as a fourteenth surface.
+- **`cejel mcp` serves the MCP server over stdio**, the same server as the `cejel-mcp` bin, which
+  keeps working. The Claude plugin now launches it as `npx -y @cejel/cejel@<version> mcp`, the
+  pinned-launcher form the Claude directory reads, and the release checks read only that form.
+  `cejel mcp` takes no arguments; a repository directory named `mcp` is scanned with
+  `cejel scan mcp` or `cejel ./mcp`.
+- **A shallow clone is disclosed on the certificate (#428).** When the scanned repository is a
+  shallow clone, `report.json` carries `historyLimitations` naming the criteria that read commit
+  history, A2 and B2, and the terminal, HTML and markdown certificates show it. It is
+  display-only: no score, status, abstention, badge or `--min-score` outcome changes, and it is not
+  a scan limitation. Report format 1.4 -> 1.5 (additive optional). The README's Action examples
+  now check out with `fetch-depth: 0`.
 - **The MCP `scan` tool carries a title and safety annotations.** It is registered with
   `registerTool` as "Scan repository trust" with `readOnlyHint: true`, `destructiveHint: false`,
   `idempotentHint: true` and `openWorldHint: false`, and both resources carry titles. Its input,
