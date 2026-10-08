@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A field named for disclosure can carry gates. #428 asked for a shallow clone to be declared 'as a scan limitation'. In Cejel, any entry in scanLimitations also makes --min-score exit 1 and turns the badge to 'unrated: limited evidence', so the literal change would have failed CI and unrated the badge for every Action user on the default fetch-depth 1. That is a behaviour change presented as a disclosure. It surfaced only by reading every consumer of the field before writing to it; the operator then ruled for a separate, display-only historyLimitations field. Rule: before adding an entry to an existing disclosure or limitation channel, list every consumer that branches on it (gates, badges, exit codes, abstention), and if any would change outcome, put the choice to the operator rather than inherit the gate.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["disclosure-carries-gates", "read-consumers-before-writing", "min-score", "operator-ruling"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-08T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 432}
+  }
+]

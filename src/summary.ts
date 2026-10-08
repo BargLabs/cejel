@@ -53,6 +53,8 @@ export interface WitanCliSummary {
   topExternalFindings: WitanExternalFinding[];
   /** Evidence-collection degradations that qualify every headline score and verdict. */
   scanLimitations: string[];
+  /** Disclosures about the commit history read (a shallow clone). Display-only; absent when none. */
+  historyLimitations?: string[];
   /** Aggregate content entries omitted from analysis. Paths are deliberately never included. */
   contentReadSummary?: NonNullable<WitanReport['contentReadSummary']>;
   /** Present when the repo archetype has no ratable source (docs/binary-only/empty — see
@@ -102,6 +104,7 @@ export function buildWitanCliSummary(report: WitanReport): WitanCliSummary {
     externalFindingCount: allExternalFindings.length,
     topExternalFindings: allExternalFindings.slice(0, EXTERNAL_FINDINGS_DISPLAY_LIMIT),
     scanLimitations: [...(report.scanLimitations ?? [])],
+    ...(report.historyLimitations?.length ? { historyLimitations: [...report.historyLimitations] } : {}),
     ...(report.contentReadSummary ? { contentReadSummary: report.contentReadSummary } : {}),
   };
 

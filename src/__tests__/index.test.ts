@@ -446,10 +446,18 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Re-pinned for 0.6.1: again only the version bump reaches this fixture (the release changes
     // certificate wording and layout, not report.json). Setting toolVersion back to "0.6.0" in
     // place reproduces the 0.6.0 pin (659b3da6...) byte for byte.
+    // Re-pinned for 0.6.2: again only the version bump reaches this fixture. The release adds
+    // report.historyLimitations, which is absent here because the fixture is not a shallow clone.
+    // Setting toolVersion back to "0.6.1" in place reproduces the 0.6.1 pin (d80b5e40...).
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'd80b5e4088340c73621e4e80068fd20bbbb4ee2ed1e1257a4da876ceaa248c7a',
+      '5e5a3829b6edd983098e4b9a7e51b9e8118b0652350d3a55792e74ec29d2573a',
     );
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.1');
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.2');
+    const at061 = { ...firstReport, toolVersion: '0.6.1' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(at061, null, 2)).digest('hex'),
+      'the 0.6.1 report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('d80b5e4088340c73621e4e80068fd20bbbb4ee2ed1e1257a4da876ceaa248c7a');
     const at060 = { ...firstReport, toolVersion: '0.6.0' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at060, null, 2)).digest('hex'),

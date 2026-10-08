@@ -84,6 +84,10 @@ const summaryOutputSchema = z
       .array(externalFindingSchema)
       .describe('Highest-severity ingested findings, capped for display.'),
     scanLimitations: z.array(z.string()).describe('Evidence-collection limitations qualifying the scan.'),
+    historyLimitations: z
+      .array(z.string())
+      .optional()
+      .describe('Commit-history disclosures such as a shallow clone; display-only, scores unchanged.'),
     contentReadSummary: WitanContentReadSummarySchema.optional().describe(
       'Aggregate content entries omitted from analysis; paths are never included.',
     ),

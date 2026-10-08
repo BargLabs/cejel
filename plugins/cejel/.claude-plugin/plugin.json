@@ -1,7 +1,7 @@
 {
   "name": "cejel",
   "displayName": "Cejel",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Offline, deterministic engineering-trust certificate for a repository: tests, secrets, isolation, claim-vs-reality and CI discipline, scored against a published rubric with cited evidence. No network calls, no telemetry, no model call; the MCP server writes no files.",
   "author": {
     "name": "Barg Labs"

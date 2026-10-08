@@ -107,6 +107,14 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     );
   }
 
+  if (summary.historyLimitations?.length) {
+    lines.push(
+      'HISTORY LIMITATION — scored as usual, but some criteria read truncated history:',
+      ...summary.historyLimitations.map((limitation) => `  - ${limitation}`),
+      '',
+    );
+  }
+
   if (summary.contentReadSummary && summary.contentReadSummary.skipped > 0) {
     const reads = summary.contentReadSummary;
     const errnoCounts = Object.entries(reads.unreadableByErrno)

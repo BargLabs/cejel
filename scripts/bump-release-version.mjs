@@ -31,7 +31,7 @@ const EDITS = [
   ['published-versions.json', (from, to) => [`"oci": "${from}"`, `"oci": "${to}"`]],
   ['Dockerfile', (from, to) => [`\nARG VERSION=${from}\n`, `\nARG VERSION=${to}\n`]],
   [PLUGIN_MANIFEST_PATH, (from, to) => [`\n  "version": "${from}",\n`, `\n  "version": "${to}",\n`]],
-  [PLUGIN_MCP_CONFIG_PATH, (from, to) => [`"--package=@cejel/cejel@${from}"`, `"--package=@cejel/cejel@${to}"`]],
+  [PLUGIN_MCP_CONFIG_PATH, (from, to) => [`"@cejel/cejel@${from}"`, `"@cejel/cejel@${to}"`]],
 ];
 
 export const MANUAL_FOLLOW_UPS = [

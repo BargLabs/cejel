@@ -92,7 +92,7 @@ if (-not $expected -or $actual -ne $expected.ToLowerInvariant()) {
 ```
 
 > **Windows signing status:** `cejel-Windows-x86_64.exe` is intentionally unsigned in
-> 0.6.1 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
+> 0.6.2 and may trigger Microsoft SmartScreen. The release build removes Node's inherited
 > signature before SEA injection and fails unless Windows reports the result as `NotSigned`;
 > it does not ship an invalid signature. Before running it, verify `SHA256SUMS` and the
 > GitHub build-provenance attestation. Each binary also has an attached SPDX SBOM (the packages
@@ -116,7 +116,7 @@ docker run --rm --network=none -v "$PWD:/w" -w /w -v "$PWD/cejel:/cejel:ro" debi
 npx @cejel/cejel@latest .
 ```
 
-> **Distribution note:** Cejel `0.6.1` is the coordinated release version for npm,
+> **Distribution note:** Cejel `0.6.2` is the coordinated release version for npm,
 > standalone binaries, Docker/OCI, GitHub Action, Homebrew, and MCP Registry. A GitLab CI
 > template and Code Quality export live in [`docs/gitlab-ci.md`](./docs/gitlab-ci.md).
 
@@ -149,10 +149,16 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0     # full history: A2 and B2 read commit history
 - uses: BargLabs/cejel/action@v1
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
+
+`actions/checkout` fetches one commit by default. On a shallow clone, A2 and B2 see only that
+commit, and the certificate says so under "History limitations".
 
 For an executed public example that binds a release artifact to the same commit named by its
 Cejel certificate, see [Certified releases with GitHub build provenance](./docs/certified-release-example.md).
@@ -181,16 +187,16 @@ gh attestation verify ./cejel-Windows-x86_64.exe -R BargLabs/cejel
 This is cryptographically signed provenance. It is distinct from Apple Developer ID or
 Microsoft Authenticode code-signing.
 
-**Docker / OCI.** The current container release is `0.6.1`:
+**Docker / OCI.** The current container release is `0.6.2`:
 
 ```bash
-docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.6.1
+docker run --rm -i -v "$PWD:/workspace:ro" ghcr.io/barglabs/cejel:0.6.2
 ```
 
 The image defaults to `cejel-mcp` over stdio. To use the CLI instead:
 
 ```bash
-docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.1 .
+docker run --rm -v "$PWD:/workspace:ro" --entrypoint cejel ghcr.io/barglabs/cejel:0.6.2 .
 ```
 
 The OCI image carries an SBOM of its base-image packages, maximum-mode build provenance, and a
@@ -429,10 +435,16 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0 # full history: A2 and B2 read commit history
 - uses: BargLabs/cejel/action@v1
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```
+
+Check out with `fetch-depth: 0`: the default depth of 1 truncates the history A2 and B2 read, and
+the certificate then lists a history limitation.
 
 ## Use with Claude
 
@@ -555,7 +567,7 @@ The OCI image is an alternative when Docker is the preferred execution boundary.
 the host path with the repository OpenClaw should allow Cejel to read:
 
 ```bash
-npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.6.1"]}'
+npx -y openclaw@latest mcp set cejel-oci '{"command":"docker","args":["run","--rm","-i","-v","/absolute/path/to/repo:/workspace:ro","ghcr.io/barglabs/cejel:0.6.2"]}'
 npx -y openclaw@latest mcp doctor cejel-oci --probe
 ```
 

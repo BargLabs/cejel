@@ -448,6 +448,10 @@ const WitanReportCommonSchema = z.object({
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
   archetype: WitanRepoArchetypeSchema.optional(),
   scanLimitations: z.array(z.string().min(1).max(1000)).max(16).optional(),
+  // Additive-optional (report format 1.5, issue #428): disclosures about the commit history the
+  // scan read, such as a shallow clone. Declared, never scored: unlike scanLimitations it gates
+  // nothing (no score, abstention, badge or --min-score effect). Absent when history is complete.
+  historyLimitations: z.array(z.string().min(1).max(1000)).max(4).optional(),
   contentReadSummary: WitanContentReadSummarySchema.optional(),
   // Additive-optional (report format 1.3): absent means a report produced before this field
   // existed, never "nothing withheld" — createWitanReport always sets it (possibly to []) on any
@@ -533,7 +537,9 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // 1.4 (issue #272): metric-scored reports gained optional
 // criteria[].metrics[].appliedWeightShare. It is the exact normalized weight used by scoring;
 // reports produced before this version do not carry it.
-export const WITAN_REPORT_FORMAT_VERSION = '1.4' as const;
+// 1.5 (issue #428): report.json gained optional historyLimitations, present when the scanned
+// repository is a shallow clone. Display-only; reports from before this version do not carry it.
+export const WITAN_REPORT_FORMAT_VERSION = '1.5' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

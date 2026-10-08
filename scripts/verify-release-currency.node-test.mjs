@@ -36,7 +36,7 @@ function pluginFields({ packageVersion = version, pluginVersion = version, pin =
   return releaseVersionFields({
     packageManifest: { version: packageVersion },
     pluginManifest: { version: pluginVersion },
-    mcpConfig: { mcpServers: { cejel: { command: 'npx', args: ['-y', `--package=@cejel/cejel@${pin}`, 'cejel-mcp'] } } },
+    mcpConfig: { mcpServers: { cejel: { command: 'npx', args: ['-y', `@cejel/cejel@${pin}`, 'mcp'] } } },
   });
 }
 
@@ -415,12 +415,14 @@ test('the Claude plugin surface fails when the plugin files are absent at the ta
     line.startsWith('[FAIL] Claude plugin: observed=<unreachable>') && line.includes('HTTP 404')));
 });
 
-test('an unpinned, doubly pinned or non-npx MCP launch reads as no pin, which fails', () => {
+test('only `npx -y @cejel/cejel@<version> mcp` reads as a pin; anything else fails', () => {
   const config = (server) => ({ mcpServers: { cejel: server } });
-  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '--package=@cejel/cejel@1.2.3', 'cejel-mcp'] })), '1.2.3');
-  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '--package=@cejel/cejel', 'cejel-mcp'] })), null);
-  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['--package=@cejel/cejel@1.2.3', '--package=@cejel/cejel@1.2.2'] })), null);
-  assert.equal(mcpPinnedVersion(config({ command: 'node', args: ['--package=@cejel/cejel@1.2.3'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '@cejel/cejel@1.2.3', 'mcp'] })), '1.2.3');
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '@cejel/cejel', 'mcp'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '@cejel/cejel@latest-x', 'cejel-mcp'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['-y', '--package=@cejel/cejel@1.2.3', 'cejel-mcp'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'npx', args: ['@cejel/cejel@1.2.3', 'mcp'] })), null);
+  assert.equal(mcpPinnedVersion(config({ command: 'node', args: ['-y', '@cejel/cejel@1.2.3', 'mcp'] })), null);
   assert.equal(mcpPinnedVersion({}), null);
 });
 
