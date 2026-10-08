@@ -149,10 +149,16 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 **GitHub Action** — score every PR and publish the badge:
 
 ```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0     # full history: A2 and B2 read commit history
 - uses: BargLabs/cejel/action@v1
   with:
     min-score: "2.5"   # optional: fail the build below this
 ```
+
+`actions/checkout` fetches one commit by default. On a shallow clone, A2 and B2 see only that
+commit, and the certificate says so under "History limitations".
 
 For an executed public example that binds a release artifact to the same commit named by its
 Cejel certificate, see [Certified releases with GitHub build provenance](./docs/certified-release-example.md).
@@ -429,10 +435,16 @@ a configurable `min-score` threshold. The scoring step makes no network calls an
 secrets.
 
 ```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0 # full history: A2 and B2 read commit history
 - uses: BargLabs/cejel/action@v1
   with:
     min-score: '2.5' # optional; omit to never fail the check
 ```
+
+Check out with `fetch-depth: 0`: the default depth of 1 truncates the history A2 and B2 read, and
+the certificate then lists a history limitation.
 
 ## Use with Claude
 
