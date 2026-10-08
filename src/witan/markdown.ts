@@ -137,6 +137,14 @@ export function renderWitanMarkdownReport(
           ...(report.scanLimitations ?? []).map((limitation) => `- ${limitation}`),
         ]
       : []),
+    ...((report.historyLimitations?.length ?? 0) > 0
+      ? [
+          '',
+          '## History limitations',
+          '',
+          ...(report.historyLimitations ?? []).map((limitation) => `- ${limitation}`),
+        ]
+      : []),
     ...(report.contentReadSummary && report.contentReadSummary.skipped > 0
       ? [
           '',

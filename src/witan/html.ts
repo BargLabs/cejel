@@ -152,6 +152,20 @@ export function renderWitanHtmlReport(
         : ''
     }
 
+    ${
+      (report.historyLimitations?.length ?? 0) > 0
+        ? `<section class="scan-limitations-section evidence-section" aria-label="History limitations">
+      <h2>History limitations</h2>
+      <ul>${(report.historyLimitations ?? [])
+        .map(
+          (limitation) =>
+            `<li class="scan-warning"><strong>History limitation</strong><span>${escapeHtml(limitation)}</span></li>`,
+        )
+        .join('')}</ul>
+    </section>`
+        : ''
+    }
+
     ${renderContentReadSummary(report)}
 
     <section class="trust-grid" aria-label="Rubric criteria">

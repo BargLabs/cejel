@@ -1,6 +1,7 @@
 import type { WitanInputSignal, WitanReport } from './schemas.js';
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
+import { detectHistoryLimitations } from './history-depth.js';
 import {
   discoverIngestInputs,
   expandIngestPattern,
@@ -53,12 +54,15 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
   const inputSignals = resolvePublicIngestSignals(options);
-  const report = createWitanReport(
+  const scored = createWitanReport(
     input,
     inputSignals.length > 0 ? inputSignals : undefined,
     undefined,
     options.toolVersion,
   );
+  // Attached after scoring, so it cannot reach any score; see detectHistoryLimitations.
+  const historyLimitations = detectHistoryLimitations(options.repoPath);
+  const report: WitanReport = historyLimitations ? { ...scored, historyLimitations } : scored;
   if (report.verdict !== 'insufficient_source' || !isWitanNoMeasurementAbstention(report)) {
     return report;
   }
