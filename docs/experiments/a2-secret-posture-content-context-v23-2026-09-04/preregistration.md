@@ -1,5 +1,7 @@
 # A2 secret-posture content-context rubric v23 paired rescore — preregistration
 
+> **Redacted 8 October 2026.** A design partner's company name, its CEO's name and the names of two of its repositories were replaced with neutral descriptions, because the partner has not given permission to be named. Nothing else in this record changed. The original text remains in this repository's history.
+
 Status: **preregistered before the v23 implementation and before any paired corpus rescore.**
 Requires the operator's SIGNED commit to merge — an unsigned (agent-authored) commit does not
 authorize execution of the rescore under this protocol; drafting authored this document, the
@@ -16,7 +18,7 @@ its number in an erratum; do not block the preregistration commit on it.
 ## Question
 
 Does replacing A2's path-based non-production credential exemption with a content-context
-classification of the matched value itself remove the false-positive class Daniel (Latchkey CEO)
+classification of the matched value itself remove the false-positive class a design partner's CEO
 reported — example/dummy credentials in docs/learning pages scoring as real secrets — without
 weakening detection of an actual secret that happens to live under a docs/ path, and without
 moving any non-A2 criterion or producing an unreported public-board delta?
@@ -25,9 +27,9 @@ This is a prospective rubric experiment. It does not reinterpret any v17–v22 r
 promote a new public default. The calibrated public default remains `witan-rubric-v17-2026-07-24`
 throughout this protocol, exactly as ruled in the 0.4.7 scope document.
 
-Non-goal, stated up front: this protocol does not rescore Latchkey's or Gusset's repositories.
+Non-goal, stated up front: this protocol does not rescore the design partner's repositories.
 Those are private design-partner repositories outside the frozen public corpus and outside the
-calibration population. Daniel's own re-run on latchkey + gusset remains the separate 0.4.7
+calibration population. The partner's own re-run on its two repositories remains the separate 0.4.7
 acceptance test named in the scope document; this protocol only proves no-regression and
 classifier correctness against fixtures every reviewer can see.
 
@@ -36,7 +38,7 @@ classifier correctness against fixtures every reviewer can see.
 `repo-signals.ts` already contains a path-based non-production credential exemption
 (`V39_NON_PRODUCTION_CREDENTIAL_PATH_PATTERN`, gated behind `useV39Detectors`) whose pattern
 includes a bare `docs?` directory match. That mechanism is disqualified by design, not by defect:
-a path rule that exempts `docs/` cannot distinguish Daniel's actual complaint (a placeholder value
+a path rule that exempts `docs/` cannot distinguish the partner's actual complaint (a placeholder value
 in a docs page) from a real credential accidentally committed to a docs page, and the scope
 document is explicit that "a real secret in docs/ must still flag." V23 must not extend, relax, or
 generalize that path pattern. The new classification reads the matched value and its immediate
