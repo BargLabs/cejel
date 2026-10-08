@@ -39,6 +39,7 @@ CURRENCY_WAIT="${RELEASE_CURRENCY_WAIT:-300}"
 MCP_TIMEOUT=45
 MCP_RETRY_DELAY="${RELEASE_MCP_RETRY_DELAY:-3}"
 MCP_NOT_LAG="re-read before writing current-release.mjs; a read error is not a lag"
+CURRENCY_SURFACES=14 # the SURFACES list in scripts/verify-release-currency.mjs
 if command -v crane >/dev/null 2>&1; then OCI_TOOL=crane; else OCI_TOOL=curl; fi
 
 DRY_RUN=0
@@ -187,6 +188,11 @@ stage1() {
   got="$(jq -r .mcpRegistry <<<"$pv")"; [ "$got" = "$VERSION" ] || bad+=" published-versions.json.mcpRegistry=$got"
   got="$(jq -r .oci <<<"$pv")"; [ "$got" = "$VERSION" ] || bad+=" published-versions.json.oci=$got"
   got="$(git show "$RELEASE_SHA:Dockerfile" | sed -n 's/^ARG VERSION=//p' | head -1)"; [ "$got" = "$VERSION" ] || bad+=" Dockerfile.VERSION=$got"
+  # The Claude plugin's manifest version and the @cejel/cejel version its MCP server launches
+  # (scripts/claude-plugin-versions.mjs holds the same two paths and the same pin pattern).
+  got="$(git show "$RELEASE_SHA:plugins/cejel/.claude-plugin/plugin.json" | jq -r .version)"; [ "$got" = "$VERSION" ] || bad+=" plugin.json.version=$got"
+  got="$(git show "$RELEASE_SHA:plugins/cejel/.mcp.json" | jq -r '[.mcpServers.cejel.args[]? | capture("^--package=@cejel/cejel@(?<v>.+)$").v] | if length == 1 then .[0] else "<not pinned once>" end')"
+  [ "$got" = "$VERSION" ] || bad+=" .mcp.json.@cejel/cejel=$got"
   [ -z "$bad" ] || die "version fields disagree with $VERSION at $RELEASE_SHA:$bad"
 
   local cl; cl="$(git show "$RELEASE_SHA:CHANGELOG.md")"
@@ -504,7 +510,7 @@ currency_read() {
   fi
   log="$(gh_r run view "$id" --log 2>/dev/null)"
   CUR_PASS="$(grep -c '\[PASS\]' <<<"$log" || true)"; CUR_FAIL="$(grep -c '\[FAIL\]' <<<"$log" || true)"
-  [ $((CUR_PASS + CUR_FAIL)) -eq 13 ] || die "currency run $id reported $((CUR_PASS + CUR_FAIL)) surfaces, expected thirteen"
+  [ $((CUR_PASS + CUR_FAIL)) -eq "$CURRENCY_SURFACES" ] || die "currency run $id reported $((CUR_PASS + CUR_FAIL)) surfaces, expected $CURRENCY_SURFACES"
   CUR_FAIL_LINES="$(grep '\[FAIL\]' <<<"$log" || true)"
   CUR_FAIL_LABELS="$(sed -n 's/.*\[FAIL\] \(.*\): observed=.*/\1/p' <<<"$CUR_FAIL_LINES")"
 }
@@ -533,7 +539,7 @@ stage11() {
   currency_read "$id" || return 0
   RUN_CURRENCY="$id"
   local label allowed bad=""
-  if [ "$CUR_FAIL" -eq 0 ]; then CURRENCY_STATE="13 of 13"
+  if [ "$CUR_FAIL" -eq 0 ]; then CURRENCY_STATE="$CURRENCY_SURFACES of $CURRENCY_SURFACES"
   else
     while IFS= read -r label; do
       allowed=0; for a in "${PRE_V1_MAY_FAIL[@]}"; do [ "$label" = "$a" ] && allowed=1; done
@@ -541,7 +547,7 @@ stage11() {
     done <<<"$CUR_FAIL_LABELS"
     [ -z "$bad" ] || die "currency run $id: $CUR_PASS pass / $CUR_FAIL fail, and the failures are not all among {$(printf '%s, ' "${PRE_V1_MAY_FAIL[@]}")} (unexpected: $bad):
 $CUR_FAIL_LINES"
-    CURRENCY_STATE="$CUR_PASS of 13 (before v1 moves, the tap bump and the site record; stage 13 requires 13 of 13)"
+    CURRENCY_STATE="$CUR_PASS of $CURRENCY_SURFACES (before v1 moves, the tap bump and the site record; stage 13 requires $CURRENCY_SURFACES of $CURRENCY_SURFACES)"
   fi
   say "  currency run $id: $CURRENCY_STATE"
 }
@@ -588,20 +594,20 @@ stage12_print_consumer() {
 # after the operator's tap bump and site record, so on a first pass it may refuse: do those, then
 # re-run with --from 13 (every earlier stage re-reads and reports done).
 stage13() {
-  say "stage 13 (final currency: 13 of 13)"
+  say "stage 13 (final currency: $CURRENCY_SURFACES of $CURRENCY_SURFACES)"
   local id
   if [ "$DRY_RUN" = 1 ]; then
     act gh workflow run verify-release-currency.yml --repo "$REPO" -f "version=$VERSION" -f "commit=$RELEASE_SHA"
-    say "  [dry-run] would require 13 of 13 from the fresh run"
+    say "  [dry-run] would require $CURRENCY_SURFACES of $CURRENCY_SURFACES from the fresh run"
     return 0
   fi
   id="$(dispatch_currency "$RELEASE_SHA")"
   currency_read "$id"
   RUN_CURRENCY="$id"
-  [ "$CUR_FAIL" -eq 0 ] || die "stage 13: fresh currency run $id: $CUR_PASS pass / $CUR_FAIL fail; the release is not complete until 13 of 13 (tap bump and site record done?):
+  [ "$CUR_FAIL" -eq 0 ] || die "stage 13: fresh currency run $id: $CUR_PASS pass / $CUR_FAIL fail; the release is not complete until $CURRENCY_SURFACES of $CURRENCY_SURFACES (tap bump and site record done?):
 $CUR_FAIL_LINES"
-  CURRENCY_STATE="13 of 13"
-  say "  fresh currency run $id: 13 of 13 -- release complete"
+  CURRENCY_STATE="$CURRENCY_SURFACES of $CURRENCY_SURFACES"
+  say "  fresh currency run $id: $CURRENCY_SURFACES of $CURRENCY_SURFACES -- release complete"
 }
 
 # ---------------------------------------------------------------- handback

@@ -4,6 +4,13 @@ import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
+import {
+  disagreeingFields,
+  PLUGIN_MANIFEST_PATH,
+  PLUGIN_MCP_CONFIG_PATH,
+  releaseVersionFields,
+} from './claude-plugin-versions.mjs';
+
 const execFile = promisify(execFileCallback);
 
 const REPOSITORY = 'BargLabs/cejel';
@@ -27,6 +34,7 @@ const SURFACES = [
   'changelog',
   'published-versions.json',
   'leaderboard',
+  'Claude plugin',
 ];
 
 const SEMVER_PATTERN =
@@ -265,6 +273,17 @@ async function readOciManifest(version) {
   return { digest, mediaType: response.headers.get('content-type') || '<missing>' };
 }
 
+async function readJsonAtRef(path, ref, label) {
+  const record = await ghApi(
+    `repos/${REPOSITORY}/contents/${path}?ref=${encodeURIComponent(ref)}`,
+    `${label} ${path}@${ref}`,
+  );
+  if (record?.encoding !== 'base64' || typeof record?.content !== 'string') {
+    throw new Error(`${path}@${ref}: GitHub response did not contain base64 content`);
+  }
+  return parseJson(Buffer.from(record.content, 'base64').toString('utf8'), `${path}@${ref}`);
+}
+
 async function resolveRemoteTag(tag) {
   let object = (await ghApi(
     `repos/${REPOSITORY}/git/ref/tags/${encodeURIComponent(tag)}`,
@@ -460,6 +479,17 @@ export function createLiveReaders({ fetchImpl = fetch, retryDelayMs = MCP_REGIST
       const markdown = await response.text();
       return { ...parseLeaderboardRecord(markdown), markdown };
     },
+
+    // Read at the release tag, not main: the tag is what a user installing that release gets.
+    async 'Claude plugin'(version) {
+      const tag = `v${version}`;
+      const [packageManifest, pluginManifest, mcpConfig] = await Promise.all([
+        readJsonAtRef('package.json', tag, 'Claude plugin'),
+        readJsonAtRef(PLUGIN_MANIFEST_PATH, tag, 'Claude plugin'),
+        readJsonAtRef(PLUGIN_MCP_CONFIG_PATH, tag, 'Claude plugin'),
+      ]);
+      return { tag, fields: releaseVersionFields({ packageManifest, pluginManifest, mcpConfig }) };
+    },
   };
 }
 
@@ -484,6 +514,8 @@ function observedValue(surface, value) {
       return `newest named release=${value.versions.length ? newestSemver(value.versions) : '<none>'}; versions=${value.versions.join(',') || '<none>'}`;
     case 'published-versions.json': return JSON.stringify(value);
     case 'leaderboard': return `declared=${value.declaredVersion}; pin=${value.pinVersion ?? '<none>'}`;
+    case 'Claude plugin':
+      return `@${value.tag}: ${Object.entries(value.fields).map(([field, found]) => `${field}=${found ?? '<missing>'}`).join('; ')}`;
     default: return JSON.stringify(value);
   }
 }
@@ -584,6 +616,15 @@ function assertSurface(surface, value, version, releaseCommit, observations) {
         property: 'invocation',
       });
       break;
+    case 'Claude plugin': {
+      const disagreeing = disagreeingFields(value.fields, version);
+      if (disagreeing.length > 0) {
+        throw new Error(
+          `package.json, the plugin manifest and the plugin's MCP pin must all equal ${version}; disagreeing: ${disagreeing.join(', ')}`,
+        );
+      }
+      break;
+    }
     default:
       throw new Error(`unknown surface ${surface}`);
   }

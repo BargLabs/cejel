@@ -3,6 +3,12 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { assertSiteOnly } from './verify-board-surfaces.mjs';
+import {
+  disagreeingFields,
+  PLUGIN_MANIFEST_PATH,
+  PLUGIN_MCP_CONFIG_PATH,
+  releaseVersionFields,
+} from './claude-plugin-versions.mjs';
 
 const PACKAGE_PATH = new URL('../package.json', import.meta.url);
 const PUBLISHED_VERSIONS_PATH = new URL('../published-versions.json', import.meta.url);
@@ -169,6 +175,28 @@ requireEqual(
   packageManifest.version,
   'server.json version/package.json version (the intended release, not the last observed MCP Registry state)',
 );
+// The Claude plugin moves with every release: its manifest version and the @cejel/cejel version
+// its MCP server launches must both equal package.json's (scripts/bump-release-version.mjs moves
+// all three; verify-release-currency re-reads them at the tag).
+const pluginManifest = JSON.parse(readFileSync(new URL(`../${PLUGIN_MANIFEST_PATH}`, import.meta.url), 'utf8'));
+const pluginMcpConfig = JSON.parse(readFileSync(new URL(`../${PLUGIN_MCP_CONFIG_PATH}`, import.meta.url), 'utf8'));
+const pluginDisagreement = disagreeingFields(
+  releaseVersionFields({ packageManifest, pluginManifest, mcpConfig: pluginMcpConfig }),
+  packageManifest.version,
+);
+if (pluginDisagreement.length > 0) {
+  throw new Error(
+    `Claude plugin versions disagree with package.json ${packageManifest.version}: ${pluginDisagreement.join(', ')}.`,
+  );
+}
+const marketplace = JSON.parse(
+  readFileSync(new URL('../.claude-plugin/marketplace.json', import.meta.url), 'utf8'),
+);
+const marketplaceEntry = marketplace.plugins?.find((entry) => entry.name === pluginManifest.name);
+requireEqual(marketplaceEntry?.source, './plugins/cejel', 'marketplace.json plugin source');
+// plugin.json's version wins at install; a second copy in the entry could only drift.
+requireEqual(marketplaceEntry?.version, undefined, 'marketplace.json plugin entry version');
+
 requireEqual(serverManifest.repository?.url, 'https://github.com/BargLabs/cejel', 'repository URL');
 requireEqual(serverManifest.repository?.id, '1291714236', 'repository ID');
 requireEqual(serverManifest.icons?.[0]?.src, 'https://cejel.dev/brand-icon.png', 'registry icon');

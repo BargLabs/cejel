@@ -434,6 +434,40 @@ secrets.
     min-score: '2.5' # optional; omit to never fail the check
 ```
 
+## Use with Claude
+
+Cejel ships as a Claude Code plugin in [`plugins/cejel/`](./plugins/cejel/). The plugin gives
+Claude the `scan` tool below, started through `npx` and pinned to this release, plus a
+`cejel-scan` skill. The skill tells Claude when a scan answers the question and how to read the
+certificate. It also tells Claude to present a score as evidence for your own judgment, never as
+an audit or a guarantee.
+
+Install it from this repository's marketplace, inside Claude Code:
+
+```text
+/plugin marketplace add BargLabs/cejel
+/plugin install cejel@cejel
+```
+
+From a shell, the same two steps are `claude plugin marketplace add BargLabs/cejel` and
+`claude plugin install cejel@cejel`.
+
+Scanning stays offline: the `scan` tool makes no network calls and writes no files. The first
+time the server starts, `npx` fetches the pinned `@cejel/cejel` package from npm. When you name
+a repository that isn't on your machine, Claude asks before cloning it with your `git`. Neither
+fetch is part of the scan.
+
+Example prompts that work on a public repository:
+
+- "Clone https://github.com/BargLabs/cejel into a temporary folder and give me its Cejel trust
+  score."
+- "Scan https://github.com/BargLabs/cejel with Cejel and explain the top findings and the criteria
+  they come from."
+- "Run Cejel on https://github.com/BargLabs/cejel and save its trust badge to ./cejel-badge.svg."
+
+Support: [GitHub issues](https://github.com/BargLabs/cejel/issues). Privacy policy:
+<https://barglabs.ai/privacy>. Terms: <https://barglabs.ai/terms>.
+
 ## MCP server (for agents)
 
 The same package ships a second bin, `cejel-mcp` — a thin MCP (Model Context Protocol)

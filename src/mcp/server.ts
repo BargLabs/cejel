@@ -44,20 +44,32 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
     version: identity.version,
   });
 
-  server.tool(
+  server.registerTool(
     'scan',
-    `Score a repository's engineering-trust signals (tests, secrets, isolation, claim-vs-reality, CI discipline) with the ${identity.packageName} trust-certificate scan — the exact same offline, deterministic scoring as running the ${identity.packageName} CLI on the path. Returns the trust cert as JSON: overall + code/process sub-scores (0-4) for a scored repository, or null scores with an abstention reason when Cejel establishes structural source absence or zero measurable free-core criteria; plus the verdict and top findings. No network, no telemetry, no signup. After a scan, the full HTML certificate and SVG badge are readable as the resources ${certificateUri} and ${badgeUri}.`,
     {
-      path: z
-        .string()
-        .min(1)
-        .describe('Path to the repository to score (absolute, or relative to the server CWD)'),
-      format: z
-        .enum(['summary', 'json'])
-        .optional()
-        .describe(
-          "summary (default): compact cert digest — scores, verdict, top findings. json: the full structured report, identical to the CLI's report.json.",
-        ),
+      title: 'Scan repository trust',
+      description: `Score a repository's engineering-trust signals (tests, secrets, isolation, claim-vs-reality, CI discipline) with the ${identity.packageName} trust-certificate scan — the exact same offline, deterministic scoring as running the ${identity.packageName} CLI on the path. Returns the trust cert as JSON: overall + code/process sub-scores (0-4) for a scored repository, or null scores with an abstention reason when Cejel establishes structural source absence or zero measurable free-core criteria; plus the verdict and top findings. No network, no telemetry, no signup. After a scan, the full HTML certificate and SVG badge are readable as the resources ${certificateUri} and ${badgeUri}.`,
+      inputSchema: {
+        path: z
+          .string()
+          .min(1)
+          .describe('Path to the repository to score (absolute, or relative to the server CWD)'),
+        format: z
+          .enum(['summary', 'json'])
+          .optional()
+          .describe(
+            "summary (default): compact cert digest — scores, verdict, top findings. json: the full structured report, identical to the CLI's report.json.",
+          ),
+      },
+      // Directory-required safety hints, true of the tool as built: it reads the repository and
+      // returns a certificate (no writes, no deletes), the same input scores the same, and it
+      // makes no network call.
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ path, format }) => {
       let result: CejelScanResult;
@@ -78,10 +90,11 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
     },
   );
 
-  server.resource(
+  server.registerResource(
     'certificate',
     certificateUri,
     {
+      title: 'Last scan certificate',
       description:
         'Self-contained HTML trust certificate from the most recent scan tool call (no external assets).',
       mimeType: 'text/html',
@@ -103,10 +116,11 @@ export function createCejelMcpServer(identity: CejelMcpIdentity): McpServer {
     },
   );
 
-  server.resource(
+  server.registerResource(
     'badge',
     badgeUri,
     {
+      title: 'Last scan badge',
       description:
         'Static, self-contained SVG trust-score badge from the most recent scan tool call.',
       mimeType: 'image/svg+xml',

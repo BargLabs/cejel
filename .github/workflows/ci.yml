@@ -40,6 +40,9 @@ jobs:
       - name: Release driver tests
         run: pnpm run test:release
 
+      - name: Release currency verifier and version bump tests
+        run: node --test scripts/verify-release-currency.node-test.mjs scripts/bump-release-version.node-test.mjs
+
       - name: Self-certify (dogfood)
         run: node dist/index.js .
 

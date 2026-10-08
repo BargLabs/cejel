@@ -76,7 +76,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^25.9.1",
     "postject": "^1.0.0-alpha.6",
     "tsup": "^8.0.0",

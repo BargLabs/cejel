@@ -177,8 +177,8 @@ NPM_OK='{"dist-tags":{"latest":"0.4.11"},"versions":{"0.4.11":{"gitHead":"aaaaaa
 NPM_NONE='{"dist-tags":{"latest":"0.4.10"},"versions":{"0.4.10":{}}}'
 NPM_HAND='{"dist-tags":{"latest":"0.4.11"},"versions":{"0.4.11":{"_npmUser":{"name":"cejel","email":"x@example.com"},"dist":{}}}}'
 
-SURFACES=("npm" "npm attestation" "GitHub release" "git tag" "OCI" "GitHub Action" "Homebrew tap" "MCP Registry" "cejel.dev homepage" "cejel.dev for-engineers" "changelog" "published-versions.json" "leaderboard")
-# mklog [failing surface...]: the verifier's thirteen lines in its own format, prefixed as a run log shows them.
+SURFACES=("npm" "npm attestation" "GitHub release" "git tag" "OCI" "GitHub Action" "Homebrew tap" "MCP Registry" "cejel.dev homepage" "cejel.dev for-engineers" "changelog" "published-versions.json" "leaderboard" "Claude plugin")
+# mklog [failing surface...]: the verifier's fourteen lines in its own format, prefixed as a run log shows them.
 mklog() {
   local s f
   for s in "${SURFACES[@]}"; do
@@ -200,6 +200,9 @@ new_state() {
   echo '{"version":"0.4.11"}' >"$S/files/package.json"; echo '{"version":"0.4.11"}' >"$S/files/server.json"
   echo '{"mcpRegistry":"0.4.11","oci":"0.4.11"}' >"$S/files/published-versions.json"
   printf 'FROM node\nARG VERSION=0.4.11\n' >"$S/files/Dockerfile"
+  mkdir -p "$S/files/plugins/cejel/.claude-plugin"
+  echo '{"name":"cejel","version":"0.4.11"}' >"$S/files/plugins/cejel/.claude-plugin/plugin.json"
+  echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel@0.4.11","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
   printf '# Changelog\n\n## [Unreleased]\n\n## [0.4.11] - 2026-09-25\n- x\n' >"$S/files/CHANGELOG.md"
   mkdir -p "$S/files/action"; printf 'name: cejel-action\n' >"$S/files/action/action.yml"
   local t names=()
@@ -240,7 +243,7 @@ for st in "2 (tag)" "3 (draft-release)" "4 (binaries)" "5 (publish-release)" "6 
   has "stage $st: already done"; check "happy: stage $st reads as already done" $? "$OUT"
 done
 has "HANDBACK"; check "happy: handback printed" $? ""
-has "13 of 13"; check "happy: currency reads 13 of 13 on a finished release" $? "$OUT"
+has "14 of 14"; check "happy: currency reads 14 of 14 on a finished release" $? "$OUT"
 has "would run: gh workflow run verify-release-currency.yml"; check "happy: stage 13 prints the fresh currency dispatch in dry-run" $? "$OUT"
 [ "$(mutations "$S")" = 0 ]; check "happy: dry-run performs no mutating call" $? "$(cat "$S/calls.log")"
 
@@ -312,7 +315,7 @@ JSON
 mklog "${PREV1_FAILS[@]}" "Homebrew tap" >"$S/runlog_36146147435.txt"
 mklog >"$S/runlog_36579259365.txt"
 run_release "$S" "" --dry-run
-[ "$RC" = 0 ] && has "36579259365" && has "workflow_dispatch" && has "2026-09-29T00:00:00Z" && has "13 of 13"
+[ "$RC" = 0 ] && has "36579259365" && has "workflow_dispatch" && has "2026-09-29T00:00:00Z" && has "14 of 14"
 check "stale run: newer workflow_dispatch run is read and its id, event and time printed" $? "rc=$RC: $OUT"
 ! has "currency run 36146147435"; check "stale run: the old workflow_run run is not read" $? "$OUT"
 
@@ -321,7 +324,7 @@ S="$TEST_TMP/s12"; new_state "$S"
 echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
 mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
 run_release "$S" "" --dry-run
-[ "$RC" = 0 ] && has "8 of 13" && has "before v1"; check "pre-v1: the named failing set passes stage 11" $? "rc=$RC: $OUT"
+[ "$RC" = 0 ] && has "9 of 14" && has "before v1"; check "pre-v1: the named failing set passes stage 11" $? "rc=$RC: $OUT"
 
 # 13. the same number of failures with a different surface failing refuses, printing every [FAIL] line.
 S="$TEST_TMP/s13"; new_state "$S"
@@ -330,22 +333,22 @@ mklog "npm" "GitHub Action" "Homebrew tap" "cejel.dev homepage" "cejel.dev for-e
 run_release "$S" "" --dry-run
 [ "$RC" != 0 ] && has "REFUSE" && has "[FAIL] npm:" && has "[FAIL] GitHub Action:"; check "pre-v1: five failures including npm refuse, every [FAIL] line printed" $? "rc=$RC: $OUT"
 
-# 14. stage 13 requires 13 of 13 from a FRESH run: 12 of 13 refuses.
+# 14. stage 13 requires 14 of 14 from a FRESH run: 13 of 14 refuses.
 S="$TEST_TMP/s14"; new_state "$S"
 echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
 mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
 mklog "Homebrew tap" >"$S/dispatch_runlog.txt"
 run_release "$S" ""
-[ "$RC" != 0 ] && has "stage 13" && has "[FAIL] Homebrew tap:" && has "12 pass"; check "stage 13: 12 of 13 refuses and prints the failing line" $? "rc=$RC: $OUT"
+[ "$RC" != 0 ] && has "stage 13" && has "[FAIL] Homebrew tap:" && has "13 pass"; check "stage 13: 13 of 14 refuses and prints the failing line" $? "rc=$RC: $OUT"
 grep -qF 'gh workflow run verify-release-currency.yml' "$S/calls.log"; check "stage 13: a fresh currency run was dispatched" $? "$(cat "$S/calls.log")"
 
-# 15. stage 13 passes on 13 of 13 from the fresh run and the driver completes.
+# 15. stage 13 passes on 14 of 14 from the fresh run and the driver completes.
 S="$TEST_TMP/s15"; new_state "$S"
 echo '[{"databaseId":36579259365,"createdAt":"2026-09-29T00:00:00Z","event":"workflow_dispatch","status":"completed"}]' >"$S/runlist.json"
 mklog "${PREV1_FAILS[@]}" >"$S/runlog_36579259365.txt"
 mklog >"$S/dispatch_runlog.txt"
 run_release "$S" ""
-[ "$RC" = 0 ] && has "stage 13" && has "13 of 13" && has "HANDBACK" && has "99999999999"; check "stage 13: 13 of 13 from the fresh run completes the release" $? "rc=$RC: $OUT"
+[ "$RC" = 0 ] && has "stage 13" && has "14 of 14" && has "HANDBACK" && has "99999999999"; check "stage 13: 14 of 14 from the fresh run completes the release" $? "rc=$RC: $OUT"
 
 # 16. a dry run against a world with no release shows all five irreversible prompts, in order.
 S="$TEST_TMP/s16"; new_state "$S"; rm -f "$S/tag_sha" "$S/v1_sha" "$S/release.json" "$S/oci_digest" "$S/mcp.json"; echo "$NPM_NONE" >"$S/npm.json"
@@ -388,6 +391,23 @@ mcp_line | grep -qF "serves $V" && [ "$(mcp_calls "$S")" = 2 ]; check "mcp state
 S="$TEST_TMP/s18e"; new_state "$S"; printf 'timeout\ntimeout\n' >"$S/mcp_queue"
 run_release "$S" "" --dry-run
 mcp_line | grep -qF "NOT READ:" && mcp_line | grep -qi 'timed out'; check "mcp state: two timeouts read NOT READ with curl's reason" $? "$(mcp_line)"
+
+# 19. preflight refuses when the Claude plugin's manifest version or MCP pin disagrees with the release.
+S="$TEST_TMP/s19a"; new_state "$S"; echo '{"name":"cejel","version":"0.4.10"}' >"$S/files/plugins/cejel/.claude-plugin/plugin.json"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "plugin.json.version=0.4.10"; check "plugin: a stale plugin.json version refuses at preflight" $? "rc=$RC: $OUT"
+S="$TEST_TMP/s19b"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel@0.4.10","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has ".mcp.json.@cejel/cejel=0.4.10"; check "plugin: a stale .mcp.json pin refuses at preflight" $? "rc=$RC: $OUT"
+S="$TEST_TMP/s19c"; new_state "$S"; echo '{"mcpServers":{"cejel":{"command":"npx","args":["-y","--package=@cejel/cejel","cejel-mcp"]}}}' >"$S/files/plugins/cejel/.mcp.json"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has ".mcp.json.@cejel/cejel=<not pinned once>"; check "plugin: an unpinned .mcp.json launch refuses at preflight" $? "rc=$RC: $OUT"
+
+# 20. the driver's surface count is the verifier's: adding a surface to one without the other fails here.
+n_verifier="$(node -e 'const src = require("fs").readFileSync(process.argv[1], "utf8"); console.log(/const SURFACES = \[([\s\S]*?)\];/.exec(src)[1].match(/'"'"'[^'"'"']+'"'"'/g).length)' "$SCRIPT_DIR/verify-release-currency.mjs")"
+n_driver="$(sed -n 's/^CURRENCY_SURFACES=\([0-9]*\).*/\1/p' "$TARGET")"
+[ -n "$n_verifier" ] && [ "$n_verifier" = "$n_driver" ] && [ "$n_verifier" = "${#SURFACES[@]}" ]
+check "static: driver CURRENCY_SURFACES, verifier SURFACES and this harness agree ($n_driver / $n_verifier / ${#SURFACES[@]})" $? ""
 
 echo
 echo "release_tests: $PASS passed, $FAIL failed"
