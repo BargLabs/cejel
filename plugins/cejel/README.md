@@ -32,12 +32,12 @@ guarantee that code is correct or secure.
 
 ## Example prompts
 
-- "Clone https://github.com/lukeed/clsx into a temporary folder and give me its Cejel
+- "Clone https://github.com/BargLabs/cejel into a temporary folder and give me its Cejel
   trust score."
-- "Scan https://github.com/lukeed/clsx with Cejel and explain the top findings and the
+- "Scan https://github.com/BargLabs/cejel with Cejel and explain the top findings and the
   criteria they come from."
-- "Run Cejel on https://github.com/lukeed/clsx and save its trust badge to
-  ./clsx-badge.svg."
+- "Run Cejel on https://github.com/BargLabs/cejel and save its trust badge to
+  ./cejel-badge.svg."
 
 ## Support, privacy and terms
 
