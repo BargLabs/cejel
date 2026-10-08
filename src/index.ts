@@ -34,6 +34,7 @@ import {
 
 export { WitanReportSchema, verifyWitanAttestationBinding };
 
+import { serveCejelMcpOverStdio } from './mcp/stdio.js';
 import { runCejelScan } from './scan.js';
 import { computeApplicableMeasuredCoverage } from './witan/coverage.js';
 import {
@@ -107,7 +108,8 @@ export type CejelCliInvocation =
   | { command: 'scan'; options: WitanCliOptions }
   | CejelVerifyInvocation
   | CejelExportInvocation
-  | { command: 'issue'; options: CejelIssueOptions };
+  | { command: 'issue'; options: CejelIssueOptions }
+  | { command: 'mcp' };
 
 const DEFAULT_OUT_DIR = '.cejel';
 
@@ -279,6 +281,7 @@ Usage:
   npx ${NPX_PACKAGE_NAME} scan [path] [options]
   npx ${NPX_PACKAGE_NAME} verify <report.json> <attestation.json> [issuance.json issuance.json.sig]
   npx ${NPX_PACKAGE_NAME} export gitlab-codequality <report.json> [-o gl-code-quality-report.json]
+  npx ${NPX_PACKAGE_NAME} mcp
   npx ${NPX_PACKAGE_NAME} issue [path] --report <report.json> --attestation <attestation.json> --key <key.pub> --engagement-ref <ref>
 
 Commands:
@@ -286,6 +289,7 @@ Commands:
   verify  verify the report/attestation binding; with an issuance pair, also check the issuer
           signature against docs/security/${ISSUER_SIGNERS_FILE} and docs/security/${ISSUER_REVOCATIONS_FILE}
   export  write report.json's located findings as a GitLab Code Quality report (offline)
+  mcp     serve the MCP server over stdio (the same server as the cejel-mcp bin)
   issue   re-run this version at the certificate's revision and, only if report.json reproduces
           byte for byte, write an unsigned issuance.json for the issuer to sign through ssh-agent
 
@@ -341,6 +345,11 @@ async function runWitanCli(
   rubricVersion?: string,
 ): Promise<number> {
   const invocation = parseCliInvocation(args);
+  if (invocation.command === 'mcp') {
+    // Resolves once connected; the open stdin keeps the process serving until the client closes it.
+    await serveCejelMcpOverStdio({ packageName: NPX_PACKAGE_NAME, version: cliVersion() });
+    return 0;
+  }
   if (invocation.command === 'verify') {
     return runVerifyBinding(invocation);
   }
@@ -457,6 +466,19 @@ export function parseCliInvocation(args: readonly string[]): CejelCliInvocation 
       return { command: 'scan', options: parseArgs(['--help']) };
     }
     return parseExportArgs(exportArgs);
+  }
+  if (command === 'mcp') {
+    const mcpArgs = args.slice(1);
+    if (mcpArgs.some((arg) => arg === '-h' || arg === '--help')) {
+      return { command: 'scan', options: parseArgs(['--help']) };
+    }
+    if (mcpArgs.some((arg) => arg === '-v' || arg === '--version')) {
+      return { command: 'scan', options: parseArgs(['--version']) };
+    }
+    if (mcpArgs.length > 0) {
+      throw new Error(`cejel mcp takes no arguments; got ${mcpArgs.join(' ')}`);
+    }
+    return { command: 'mcp' };
   }
   if (command === 'issue') {
     const issueArgs = args.slice(1);

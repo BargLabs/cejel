@@ -1,9 +1,8 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-
-import { type CejelMcpIdentity, createCejelMcpServer } from './server.js';
+import type { CejelMcpIdentity } from './server.js';
+import { serveCejelMcpOverStdio } from './stdio.js';
 
 /**
  * Read the published name + version from package.json instead of hardcoding either — the
@@ -21,9 +20,7 @@ export function readPackageIdentity(): CejelMcpIdentity {
 }
 
 async function main(): Promise<void> {
-  const server = createCejelMcpServer(readPackageIdentity());
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  await serveCejelMcpOverStdio(readPackageIdentity());
 }
 
 function isEntryPoint(): boolean {
