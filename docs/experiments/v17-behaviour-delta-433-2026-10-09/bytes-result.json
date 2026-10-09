@@ -1,0 +1,340 @@
+{
+  "summary": {
+    "rows": 24,
+    "byteIdentical": 0,
+    "fingerprintDiffers": 24,
+    "b6DescriptionRemoved": 6,
+    "b6LabelRemoved": 5,
+    "withheldSignalsAdmittingRemoved": 0,
+    "identicalAfterNormalisation": 21,
+    "residualWithinMovedRowScope": [
+      "sinatra",
+      "private-row",
+      "cejel"
+    ],
+    "residualOutsideMovedRowScope": []
+  },
+  "rows": [
+    {
+      "name": "react",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "vue",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "svelte",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "django",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "flask",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "fastapi",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "express",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "vite",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "esbuild",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "biomejs",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": true,
+        "b6Labels": 1,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "requests",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": true,
+        "b6Labels": 1,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "pydantic",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "axios",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": true,
+        "b6Labels": 1,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "zod",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "scorecard",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": true,
+        "b6Labels": 1,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "ripgrep",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "guava",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "cobra",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "sinatra",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": false,
+      "residual": [
+        "overallScore",
+        "processTrustScore",
+        "criteria.B2",
+        "criteria.B6"
+      ],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "automapper",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "fmt",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": true,
+        "b6Labels": 1,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "carddemo",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": true,
+      "residual": [],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "private-row",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": true,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": false,
+      "residual": [
+        "criteria.B6"
+      ],
+      "residualOutsideMovedRowScope": []
+    },
+    {
+      "name": "cejel",
+      "byteIdentical": false,
+      "fingerprintDiffers": true,
+      "removed": {
+        "b6Description": false,
+        "b6Labels": 0,
+        "withheldSignalsAdmitting": 0
+      },
+      "identicalAfterNormalisation": false,
+      "residual": [
+        "criteria.B6"
+      ],
+      "residualOutsideMovedRowScope": []
+    }
+  ]
+}

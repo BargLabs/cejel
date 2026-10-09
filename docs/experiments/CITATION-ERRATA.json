@@ -40,7 +40,7 @@
     },
     {
       "token": "d6248edd47f6",
-      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1169 }],
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1190 }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -48,7 +48,7 @@
     },
     {
       "token": "25627e00c6eb",
-      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1170 }],
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1191 }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -56,7 +56,7 @@
     },
     {
       "token": "75fa69511494",
-      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1216 }],
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1237 }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
