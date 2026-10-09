@@ -1,0 +1,24 @@
+row	commits S/F	gate	B2 ratio S->F	B2 S->F	process S->F	code S->F	overall S->F	verdict S->F	A2 S->F	A2 history pass S/F	A2 history findings S/F	other criteria changed
+automapper	1/4382	PASS	1/1 -> 5/12	4 verified -> 3.5 verified	2.3 -> 2.1	2 -> 2	2.2 -> 2.1	at_risk -> at_risk	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+axios	1/2126	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.9 -> 3.9	2.6 -> 2.6	3.3 -> 3.3	conditional -> conditional	3.6 verified -> 3.6 verified	ran/ran	0/0	none
+biomejs	1/10426	PASS	1/1 -> 10/12	4 verified -> 3.9 verified	3 -> 3	2.9 -> 2.9	3 -> 3	conditional -> conditional	3.2 verified -> 3.2 verified	ran/ran	0/0	none
+carddemo	1/32	PASS	- -> -	0 insufficient_data -> 0 insufficient_data	null -> null	null -> null	null -> null	insufficient_source -> insufficient_source	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+cejel	1/23	PASS	1/1 -> 9/12	4 verified -> 3.8 verified	3.2 -> 3.2	2.3 -> 2.3	2.8 -> 2.8	conditional -> conditional	3.3 verified -> 3.3 verified	ran/ran	0/0	none
+cobra	1/1106	PASS	1/1 -> 12/12	4 verified -> 4 verified	2.3 -> 2.3	2.6 -> 2.6	2.5 -> 2.5	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+django	1/34772	PASS	1/1 -> 10/12	4 verified -> 3.9 verified	3.6 -> 3.5	2.6 -> 2.6	3.1 -> 3.1	conditional -> conditional	2.8 warning -> 2.8 warning	ran/ran	0/0	none
+esbuild	1/4444	PASS	0/1 -> 5/12	3.2 warning -> 3.5 verified	2.4 -> 2.5	2.6 -> 2.6	2.5 -> 2.6	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+express	1/6156	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.2 -> 3.2	2.8 -> 2.8	3 -> 3	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+fastapi	1/7473	PASS	0/1 -> 6/12	3.2 warning -> 3.6 verified	3.2 -> 3.3	2.8 -> 2.8	3 -> 3.1	conditional -> conditional	0 not_applicable -> 2.8 warning	n/a(A2 not applicable)/ran	0/env+env	none
+flask	1/5539	PASS	0/1 -> 1/12	3.2 warning -> 3.3 verified	3 -> 3	2.7 -> 2.7	2.9 -> 2.9	conditional -> conditional	3.2 verified -> 3.2 verified	ran/ran	0/0	none
+fmt	1/7921	PASS	0/1 -> 6/12	3.2 warning -> 3.6 verified	3.2 -> 3.3	2 -> 2	2.6 -> 2.7	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+guava	1/7428	PASS	0/1 -> 0/12	3.2 warning -> 3.2 warning	2.2 -> 2.2	1.6 -> 1.6	1.9 -> 1.9	at_risk -> at_risk	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+pydantic	1/5585	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.5 -> 3.5	2.9 -> 2.9	3.2 -> 3.2	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+react	1/21577	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.9 -> 3.9	2.1 -> 2.1	3 -> 3	conditional -> conditional	1.4 critical -> 1.4 critical	skipped/skipped	0/0	none
+requests	1/6484	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.4 -> 3.4	2.4 -> 2.6	2.9 -> 3	conditional -> conditional	0 not_applicable -> 3.2 verified	n/a(A2 not applicable)/ran	0/env	none
+ripgrep	1/2252	PASS	0/1 -> 0/12	3.2 warning -> 3.2 warning	2 -> 2	2.1 -> 2.1	2.1 -> 2.1	at_risk -> at_risk	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+scorecard	1/3091	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.6 -> 3.6	2.2 -> 2.2	2.9 -> 2.9	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+sinatra	1/4682	PASS	1/1 -> 10/12	4 verified -> 3.9 verified	2.8 -> 2.8	2 -> 2	2.4 -> 2.4	at_risk -> at_risk	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+svelte	1/11268	PASS	1/1 -> 12/12	4 verified -> 4 verified	3.3 -> 3.3	2.9 -> 2.8	3.1 -> 3.1	conditional -> conditional	3.6 verified -> 3.4 verified	ran/ran	0/env	none
+vite	1/9441	PASS	1/1 -> 10/12	4 verified -> 3.9 verified	4 -> 4	2.8 -> 2.8	3.4 -> 3.4	conditional -> conditional	3.2 verified -> 3.2 verified	ran/ran	0/env	none
+vue	1/7102	PASS	0/1 -> 11/12	3.2 warning -> 3.9 verified	3.4 -> 3.6	2.4 -> 2.4	2.9 -> 3	conditional -> conditional	0 not_applicable -> 0 not_applicable	n/a(A2 not applicable)/n/a(A2 not applicable)	0/0	none
+zod	1/2927	PASS	0/1 -> 3/12	3.2 warning -> 3.4 verified	3.2 -> 3.3	3.1 -> 3.1	3.2 -> 3.2	conditional -> conditional	3.6 verified -> 3.6 verified	ran/ran	0/0	none
