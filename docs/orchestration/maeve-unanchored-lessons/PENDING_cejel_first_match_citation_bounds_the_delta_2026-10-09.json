@@ -1,0 +1,29 @@
+[
+  {
+    "statement": "When a detector credits the FIRST file that matches in a sorted walk, a cited file also proves that every file sorting before it failed the predicate. Narrowing that predicate cannot rescue those earlier files, so a removed credit can only be replaced by a file sorting AFTER the citation. The baseline never read those files for that credit, so new reads (and new read-skip attributions) also happen only there. In the #433 preregistration this turned the cejel row's B6 prediction into a bounded case table instead of a guess: the human gate cited a Cejel certificate under leaderboard/reports/, and the fail-closed check cited a test file. Rule: when predicting a corpus delta for a narrowed predicate, read the citation and the walk order together, and state predictions as conditional on the after-citation range, which a report cannot show.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "preregistration"],
+    "tags": ["preregistration", "first-match-detector", "walk-order", "predict-from-citations"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 446}
+  },
+  {
+    "statement": "A disclosure field that reuses a signal's file-selection predicate changes whenever that predicate changes, even under a rubric where the mechanism that acts on it is switched off. In #433, A3's errorBoundaryFileReads gained isImplementationEvidencePath. That predicate also feeds withheldPaths[].signalsAdmitting, which v17 reports but never acts on, so a v17 report can lose 'A3.prod_readiness_primitives' from a withheld calibration-path entry. Neither #441's changelog entry nor a scoring-level comparison would surface this. Rule: for a byte-level prediction, grep every call site of a changed predicate, including disclosure-only call sites gated off for the rubric under test, and list each field it can move.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "preregistration"],
+    "tags": ["byte-level-prediction", "shared-predicate", "disclosure-fields", "gated-off-is-not-inert"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 446}
+  },
+  {
+    "statement": "A goal card's description of a precedent's protocol is a summary, not the record. The #433 card said the 0.4.9 and 0.4.11 runs used 'depth-1, blob-filtered' checkouts. The recorded prepare-checkouts.sh fetches --depth=1 with no --filter, and the 0.4.11 harness file it said to copy named the private row in code, which the same card forbids. Rule: before reusing a precedent, read its recorded commands and files, and follow the record. Write each disagreement with the card into the preregistration, and re-read copied files against the current card's disclosure rules before committing them.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "preregistration", "disclosure"],
+    "tags": ["card-summary-is-not-the-record", "read-the-precedent", "copied-harness-disclosure"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 446}
+  }
+]
