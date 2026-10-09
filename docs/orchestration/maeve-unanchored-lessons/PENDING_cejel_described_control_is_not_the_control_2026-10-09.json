@@ -1,0 +1,29 @@
+[
+  {
+    "statement": "A detector that credits the first file whose text matches a control's pattern finds descriptions of the control before the control. In #433 Cejel credited a fail-closed check from its own test's fixture strings, an error boundary from a code comment quoting a handler, a human gate from changelog prose, a required-review policy from a calibration review note, and a human gate from another repository's committed Cejel certificate, whose evidence labels quote the phrase. A tighter pattern does not fix this, because the description uses the same words. Rule: restrict the candidate file SET to the kinds of file that can be the control. Implementation evidence must come from non-test, non-fixture, non-calibration code with the match outside comments. Policy evidence must come from prose that is not a changelog, record, review note, report or certificate. Give every restriction a negative and a positive fixture, and show by mutation that deleting it turns its named test red.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring"],
+    "tags": ["false-assertion", "evidence-source-class", "detector-design", "described-not-built"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 441}
+  },
+  {
+    "statement": "A 'before' state written into a test title must come from a run, not from reading a flag's name. Two #433 negatives were titled 'before: credited' because the A3 collector's guard read `useV27Detectors`, which looked inactive under v17. In fact the parameter receives `usesV8Detectors` and is true for every selectable rubric, so both cases were already uncredited. Running the new tests against the unmodified detector caught it, and the titles were corrected to 'already uncredited' before the PR. Rule: record before and after by executing the tests on both trees, and trace a flag to its call site before reasoning from its name.",
+    "scope": ["repo:BargLabs/cejel", "dev-task"],
+    "tags": ["red-first", "measure-before-claiming", "misleading-identifier"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 441}
+  },
+  {
+    "statement": "Swapping one file between two arms with `git checkout <ref> -- f` and restoring it with `git checkout HEAD -- f` silently discards any uncommitted edit to f. In #433 a schema-length fix made after the last WIP commit was lost this way. A later test run would have shown it, but nothing flagged the loss when it happened. Rule: commit (and push) before using checkout to swap a file between arms, so HEAD holds every edit you mean to measure.",
+    "scope": ["repo:BargLabs/cejel", "dev-task"],
+    "tags": ["git-checkout-discards-edits", "commit-before-swap", "persist-before-verify"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 441}
+  }
+]
