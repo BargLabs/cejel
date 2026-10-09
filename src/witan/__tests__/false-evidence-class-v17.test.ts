@@ -301,6 +301,11 @@ for (const rubric of RUBRICS) {
       expect(errorBoundaryCredited(files, rubric)).toBe(false);
     });
 
+    it('A3 content: a registered handler only under calibration/ earns no credit (before: credited)', () => {
+      const files = { ...SERVICE, 'calibration/specimens/src/server.js': REGISTERED_HANDLER };
+      expect(errorBoundaryCredited(files, rubric)).toBe(false);
+    });
+
     it('A3 content (positive control): the registered handler is credited at its real line', () => {
       const files = { ...SERVICE, 'src/server.js': REGISTERED_HANDLER };
       expect(errorBoundaryCredited(files, rubric)).toBe(true);
