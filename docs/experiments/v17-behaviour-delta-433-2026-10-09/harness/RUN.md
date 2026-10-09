@@ -14,7 +14,7 @@ export DELTA_ROOT=~/tmp/cejel-433-delta
 mkdir -p "$DELTA_ROOT"
 cp leaderboard/corpus.json "$DELTA_ROOT/corpus.json"
 shasum -a 256 "$DELTA_ROOT/corpus.json"
-# expect dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00
+echo "expect dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00"
 node -e 'for (const e of require(process.argv[1]).entries) console.log([e.name, e.visibility, e.url ?? "", e.commit ?? ""].join("\t"))' \
   "$DELTA_ROOT/corpus.json" > "$DELTA_ROOT/entries.tsv"
 ```
@@ -83,8 +83,8 @@ Expected output: both lines are printed.
 Both arms have byte-identical `package.json` and `pnpm-lock.yaml`.
 
 ```
-git worktree add --detach ../cejel-wt-433-base 7c9170f653fc5a2cd3e3f06d45b9fa3fe6e013a8   # v0.6.2
-git worktree add --detach ../cejel-wt-433-cand 3c6d16137b48e9a9c4a78bd65dc4005d4276bd95   # #441 merge
+git worktree add --detach ../cejel-wt-433-base 7c9170f653fc5a2cd3e3f06d45b9fa3fe6e013a8
+git worktree add --detach ../cejel-wt-433-cand 3c6d16137b48e9a9c4a78bd65dc4005d4276bd95
 ( cd ../cejel-wt-433-base && pnpm install --frozen-lockfile )
 ( cd ../cejel-wt-433-cand && pnpm install --frozen-lockfile )
 ```
