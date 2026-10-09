@@ -596,6 +596,57 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'README.md': '# real-credential-in-docs\n\nA fixture repository.\n',
     },
   },
+  {
+    name: 'control-described-not-built',
+    purpose:
+      'A3, B2, B6: every control here is only DESCRIBED — in a test file, a code comment, a ' +
+      'changelog, a calibration review note, a CODEOWNERS file in a directory GitHub never reads, ' +
+      'and a file whose name merely ends in "-error.ts". None is the control. Until cejel #433 each ' +
+      'of them was credited under every rubric; this fixture is how the fingerprint sees that fix. ' +
+      'Added 2026-10-09: the 0.4.11 entry records that the corpus could not see a v17 behaviour ' +
+      'change because it held none of the shapes the change acted on.',
+    files: {
+      'package.json': manifest({
+        name: 'control-described-not-built',
+        version: '1.0.0',
+        scripts: { start: 'node src/server.js', test: 'vitest run' },
+      }),
+      'src/server.js':
+        "const express = require('express');\n\n" +
+        'const app = express();\n' +
+        '// Errors should eventually go through app.use((err, req, res, next) => res.status(500).end()).\n' +
+        "app.get('/items', (req, res) => res.json({ items: [] }));\n" +
+        'app.listen(3000);\n\n' +
+        'module.exports = app;\n',
+      'src/packs/swallowed-error.ts':
+        'export function swallow(run: () => void): void {\n' +
+        '  try {\n' +
+        '    run();\n' +
+        '  } catch {\n' +
+        '    // ignored\n' +
+        '  }\n' +
+        '}\n',
+      'src/jobs.ts':
+        '/*\n' +
+        ' * Planned: if (!config.killSwitch) return; before any job runs.\n' +
+        ' */\n' +
+        'export const runJobs = (): number => 0;\n',
+      'src/__tests__/roles.test.ts':
+        "import { expect, it } from 'vitest';\n\n" +
+        "it('recognises a fail-closed elevation', () => {\n" +
+        "  const sql = \"SELECT pg_has_role(current_user, 'admin', 'MEMBER'); SET ROLE admin;\";\n" +
+        '  expect(sql).toContain(\'SET ROLE\');\n' +
+        '});\n',
+      'CHANGELOG.md':
+        '# Changelog\n\n## 1.0.0\n\n' +
+        '- The admin checker now recognises docs saying privileged operations are human-executed.\n',
+      'calibration/round-1/reviews/reviewer-b.md':
+        '# Reviewer B\n\nThe required review setup was interrupted, so the second pass ran a day ' +
+        'later.\n',
+      '.github/workflows/CODEOWNERS': '* @example-org/maintainers\n',
+      'README.md': '# control-described-not-built\n\nA fixture repository.\n',
+    },
+  },
 ];
 
 /**

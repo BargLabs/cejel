@@ -4711,10 +4711,9 @@ function collectB6PrivilegedOpsGatingEvidence(
         1,
         hasPrivilegedOpsSurface ? 0.2 : 0.6,
         'present',
-        'Credits a CODEOWNERS file where GitHub reads it (repository root, .github/ or docs/) or a ' +
-          'documented required-review/branch-protection policy (not a changelog, experiment or ' +
-          'calibration record, review note, or generated report) — the general OSS-observable ' +
-          'analogue of human-gating changes to sensitive paths.',
+        'Credits a CODEOWNERS file where GitHub reads it (root, .github/ or docs/) or a documented ' +
+          'required-review/branch-protection policy (not a changelog, record, review note or ' +
+          'report) — the general OSS-observable analogue of human-gating changes to sensitive paths.',
       ),
       ...killSwitchMetrics,
     ],
