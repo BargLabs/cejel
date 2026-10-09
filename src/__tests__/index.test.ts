@@ -454,14 +454,23 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // fingerprint moved. This fixture holds none of those shapes. Made mechanical below: restoring
     // the previous v17 fingerprint in place (key order unchanged) reproduces the previous pin
     // (5e5a3829...) byte for byte, and every older sub-pin is taken from that restored report.
+    // Re-pinned for 0.6.3: only the version bump reaches this fixture beyond the #433 re-pin above.
+    // Setting toolVersion back to "0.6.2" in place reproduces the #433 pin (a9d4c85f...) byte for
+    // byte, and the #433 restoration below is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'a9d4c85f1ea390b260470bce9299a77e79eca2945a5bd7c8b0f553755dc479ad',
+      '7a5781172975c5036b569c739acc3b5d545455c23b79342b3e54164eefc5bb63',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
     );
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.3');
+    const at062 = { ...firstReport, toolVersion: '0.6.2' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(at062, null, 2)).digest('hex'),
+      'the 0.6.2-era report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('a9d4c85f1ea390b260470bce9299a77e79eca2945a5bd7c8b0f553755dc479ad');
     const beforeFalseEvidenceClass = {
-      ...firstReport,
+      ...at062,
       rubricBehaviourFingerprint:
         'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653',
     } as typeof firstReport;
@@ -469,7 +478,6 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       createHash('sha256').update(JSON.stringify(beforeFalseEvidenceClass, null, 2)).digest('hex'),
       'the pre-2026-10-09 report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
     ).toBe('5e5a3829b6edd983098e4b9a7e51b9e8118b0652350d3a55792e74ec29d2573a');
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.2');
     const at061 = { ...beforeFalseEvidenceClass, toolVersion: '0.6.1' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at061, null, 2)).digest('hex'),

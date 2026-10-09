@@ -41,13 +41,11 @@ guarantee that code is correct or secure.
 
 ## Known issues
 
-- **Cejel's certificate for its own repository currently cites three pieces of evidence that do
-  not support the credit given:** the B6 review gate, the B6 fail-closed check and the A3 error
-  boundary. The detectors match strings in Cejel's own detector source, tests and review notes.
-  The fix changes scoring, so it ships with a published before-and-after. In a measurement on a
-  full clone of v0.6.2 with these credits removed, Cejel's own score fell from 3.4 to 3.1; the
-  shipped fix may land slightly differently. Tracked in
-  [#433](https://github.com/BargLabs/cejel/issues/433).
+- **Fixed in 0.6.3:** Cejel's certificate for its own repository no longer cites strings in its own
+  detector source, tests and review notes as evidence for the B6 review gate, the B6 fail-closed
+  check or the A3 error boundary (certificates from 0.6.2 and earlier still do); see the
+  2026-10-09 entry in
+  [`leaderboard/RUBRIC_CHANGELOG.md`](https://github.com/BargLabs/cejel/blob/main/leaderboard/RUBRIC_CHANGELOG.md).
 - **Inside a checkout of the Cejel repository itself,** `npx @cejel/cejel@<version>` may run
   whichever `cejel` is on your `PATH` instead of the pinned version. Run it from another
   directory. Tracked in [#436](https://github.com/BargLabs/cejel/issues/436).
