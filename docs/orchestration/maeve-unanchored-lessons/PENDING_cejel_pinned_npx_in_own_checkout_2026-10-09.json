@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A pinned npx command is not pinned inside the package's own checkout. When the working directory's package.json names the same package and version, npx treats the spec as satisfied locally and runs the bin by name; in an unbuilt checkout that falls through to PATH. During the 0.6.2 DEPLOY.md read-back (2026-10-09), npx @cejel/cejel@0.6.2 run inside a fresh clone of BargLabs/cejel at 7c9170f wrote a certificate stamped toolVersion 0.4.8, from a stale Homebrew cejel on PATH. The same command from any other directory ran 0.6.2 (#436). The plugin README now warns about it (#437). Rule: verify a pinned npx run from outside the package's own repository, and check the version the artifact records, never the version the command named.",
+    "scope": ["repo:BargLabs/cejel", "release", "distribution"],
+    "tags": ["npx-local-resolution", "pinned-is-not-pinned", "read-the-artifact-version", "deploy-read-back"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 437}
+  }
+]
