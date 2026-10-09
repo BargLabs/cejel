@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "Retargeting a stacked PR's base does not run its pull_request checks: the default pull_request types are opened, synchronize and reopened, and a base change is none of them. On 2026-10-08, after #429 merged and its branch was deleted, GitHub moved #432 to main, but calibration-signature and measurement-freeze (required on main, run only for PRs into main) never started, so #432 sat MERGEABLE but BLOCKED; the handed-over command block said to wait on checks that would never queue. Closing and reopening #432 ran every check on the same head (99e3750) with no new commit, and it merged as f6766d1. Rule: after a stacked PR's base merges, re-trigger its checks (close and reopen, or push a commit) before waiting on them, and write that step into any merge command block for a stack.",
+    "scope": ["repo:BargLabs/cejel", "release", "ci"],
+    "tags": ["stacked-pr", "retarget-skips-checks", "required-checks", "command-block"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 432}
+  }
+]
