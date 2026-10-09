@@ -16,6 +16,30 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+Scoring behaviour change under `witan-rubric-v17-2026-07-24`, no identifier bump, not
+version-gated (#433). Each change removes a credit Cejel gave to text that only describes a control.
+Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-09). The public-corpus before-and-after
+has not been run.
+
+- **B6 fail-closed privilege check and kill switch** no longer credit a test, fixture or
+  `calibration/` file, or a match that lies only inside a comment.
+- **A3 error-boundary filename rule is anchored to a path segment**, so `swallowed-error.ts` is no
+  longer an error boundary, and no file under `calibration/` counts.
+- **The A3 Express error-handler check no longer credits a handler that appears only inside a
+  comment.** Before, only the registration half ignored comments. Block comments are now stripped
+  as well as `//` comments.
+- **B6 human-gate and required-review documentation** no longer credit a changelog, an experiment
+  or calibration record, a review note, a `reports/` file, a test or fixture tree, or a committed
+  Cejel certificate.
+- **CODEOWNERS counts only at the repository root, `.github/` or `docs/`**, the locations GitHub
+  reads, in B6 and B2.
+- **B6's protected-path evidence label names the branch that fired.** A CODEOWNERS file and a
+  documented review policy now carry different labels. This has no score effect.
+- **The behaviour-fingerprint corpus gains `control-described-not-built`**, and every selectable
+  rubric's fingerprint is re-pinned.
+
 ## [0.6.2] — 2026-10-08
 
 ### Added

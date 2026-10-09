@@ -206,7 +206,7 @@ function sha256(value: string): string {
  *
  * These are MEASURED values, re-derived from the corpus on every CI run by
  * `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts`. They are constants here because
- * recomputing one costs fourteen git repositories and fourteen scans — far past what a per-scan CLI
+ * recomputing one costs fifteen git repositories and fifteen scans — far past what a per-scan CLI
  * invocation can spend — not because anybody's word is being taken for them. If a value here
  * stops matching the corpus, the build fails and names the rubric and the criteria that moved.
  *
@@ -216,21 +216,21 @@ function sha256(value: string): string {
  */
 export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string>> = Object.freeze({
   [WITAN_RUBRIC_VERSION_V17]:
-    'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653',
+    'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
   [WITAN_RUBRIC_VERSION_V18]:
-    'sha256:23cde3839b54875cf78eb8b4295779bc66327f7f5b331628a17839c2fb9562f1',
+    'sha256:60917d1d81efe7cda6f6adbfaa05293e2d9bf1db37b39d084e47f9011a996b67',
   [WITAN_RUBRIC_VERSION_V19]:
-    'sha256:07e06ce68ba5ca365242f099e8860e1e466fa503dbcdac99986aab1e65c7c867',
+    'sha256:e050ce8563de0736d9cfb6c23e2ba04725d88465d378a8632576269b9bc9f269',
   [WITAN_RUBRIC_VERSION_V20]:
-    'sha256:4fb83b8972b76fb28cc6b59796f18ecfa16a37be52997c139f5cb14f60fd3717',
+    'sha256:0433adc34b58c0fd5500a0bdeaa910c854eedbadbeaabb9045238d4ba9be8878',
   [WITAN_RUBRIC_VERSION_V21]:
-    'sha256:009f82a0ccaae4e9efcb1bb33776bf6cff2f268ddb21db0fb43f4b505563f645',
+    'sha256:d3796b78a45ea3593f6abe71c77c2d00a0056d0f2d88476a01329dc342166aa6',
   [WITAN_RUBRIC_VERSION_V22]:
-    'sha256:df8fcacf9a6f0d57c0ff00cafc51149e1bebafd3bec03f13316803b4ae27f0cc',
+    'sha256:932bc09cbe555c6058a95be581ccf7a286c43887f90d32698f5273b7623824bf',
   [WITAN_RUBRIC_VERSION_V23]:
-    'sha256:01ec9f9057f649f4bc737dc2f972bcec227237416cda5a4255db2c23d874ec5c',
+    'sha256:db97dc999d37e3c39c3bd3e4b1778c94eb9ad3176fb5c7d7264a7e510b162fc1',
   [WITAN_RUBRIC_VERSION_V24]:
-    'sha256:4452f3b033552b7feb205048a07d6d851d1dc459a06f39befa86d22281e201fb',
+    'sha256:e313fab25ae1779a11e86b23696881cd6f8fe2a845609dc93e2ff6f3ff8c16d5',
 });
 
 /**

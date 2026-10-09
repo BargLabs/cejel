@@ -22,6 +22,125 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-09 — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump), direction down; public-corpus before-and-after not yet run
+
+**Status.** This is a disclosed behaviour change under the existing calibrated public default,
+made the way 0.4.11 was. It is **not a recalibration**, and the rubric identifier does not change.
+It is **not gated on rubric version**, so it applies to every selectable rubric, v17 through v24.
+Issue: #433.
+
+**The public-corpus before-and-after is not yet run.** It will be preregistered as a separate
+change before it is run, with this change's merge commit as its candidate arm. **This entry makes
+no claim about any corpus row, score, verdict, rank, placement, coverage, recall or precision.**
+Nothing below says that any published repository moved or did not move.
+
+**What changed.** A positive credit names a file as evidence that a control exists. Cejel gave
+that credit to text that only *describes* the control. Each change below removes such a credit.
+
+1. **B6 `fail_closed_privilege_check` and `kill_switch_fail_safe_present` (direction: down).**
+   Implementation evidence no longer comes from:
+   - a test or fixture path (the shared production-source classifier);
+   - a `calibration/` tree;
+   - a match that lies only inside a comment. `//` and `/* */` comments are stripped, plus
+     whole-line `#` comments in Python and Ruby.
+
+   Before, any source file under `src/`, `app/`, `lib/` and similar qualified, tests included.
+2. **A3 `prod_readiness_primitives`, error-boundary filename (direction: down).** The rule is
+   anchored to a path segment, `(^|/)(error-boundary|error)\.(tsx|jsx|ts|js)$`. Unanchored, any
+   file whose name ended in `error.ts`, such as `swallowed-error.ts`, was an error boundary. A
+   `calibration/` path no longer counts. Test paths were already excluded under every selectable
+   rubric.
+3. **A3 `prod_readiness_primitives`, Express error-handler content check (direction: down).** The
+   four-parameter handler shape must now lie outside comments. Before, only the registration half
+   (#352) ignored comments, so a comment quoting `app.use((err, req, res, next) => …)` in any file
+   that exported something was credited. Block comments are now stripped for both halves. A
+   `calibration/` path no longer counts.
+4. **B6 `human_gate_documented` and the documented-policy branch of
+   `protected_path_review_gate` (direction: down).**
+   - **Removed sources, each with its reason:**
+     - Changelogs (`CHANGELOG`, `CHANGES`, `HISTORY`, `NEWS`, `RELEASE_NOTES`, `RELEASES`, and
+       `.changeset/`, `changelog/` and `changelog.d/` directories). A changelog reports that
+       something changed, often the detector itself. It does not state a policy.
+     - Experiment and calibration records (`experiments/`, `calibration/`). They describe a
+       measurement, not a governance rule.
+     - Review notes (`reviews/`, `review-notes/`). They describe a review that happened.
+     - Generated reports (`reports/`). They describe some repository's state.
+     - Test and fixture trees. They are inputs to tests.
+     - A committed Cejel Markdown certificate wherever it lies, recognised by its
+       `# Cejel Trust Report` title and `- Rubric:` line. Its evidence labels quote the very
+       phrases these detectors look for, about another repository.
+   - **Kept:** every other `.md`/`.mdx` file. That includes README, SECURITY, CONTRIBUTING,
+     governance, runbook, operations and ADR documents.
+5. **CODEOWNERS location, B6 `protected_path_review_gate` and B2 `pr_trace_primitives`
+   (direction: down).** A CODEOWNERS file counts only at the repository root, `.github/CODEOWNERS`
+   or `docs/CODEOWNERS`, the three locations GitHub reads. A file of that name anywhere else gates
+   nothing. In B2, the other name-shaped review-gate alternatives (`branch…protection`,
+   `review…gate`) are unchanged.
+6. **B6 protected-path evidence label (no score effect).** The label now names the branch that
+   fired. A CODEOWNERS credit and a documented-policy credit carry different labels, where before
+   both carried one fixed label. Evidence labels are outside the behaviour fingerprint.
+
+**Direction, stated precisely.** Every change removes a credit, so each metric it touches can only
+fall. Two criteria can also lose their only evidence:
+
+- B6 decides whether a repository has a privileged-operation surface partly from the
+  human-gate and fail-closed credits. Removing a false one can change which B6 metrics are scored
+  and with what weight, or make B6 not applicable.
+- B2 with no remaining evidence reports insufficient data.
+
+A criterion that stops being scored leaves the composite denominator, so **a composite score can
+move in either direction** even though no metric moves up. The synthetic fixture below shows one
+such case under v17. Its overall falls from 1.6 to 1.0 and its verdict moves from `at_risk` to
+`unverified`, because B6 (previously 4.0 on false evidence) becomes not applicable and B2 becomes
+insufficient data.
+
+**The behaviour fingerprint sees this change.** The 0.4.11 entry recorded that the fingerprint
+could not see that release's v17 change, because the corpus held none of the shapes it acted on.
+The corpus now gains one synthetic fixture, `control-described-not-built`, in which every control is
+only described:
+
+- the fail-closed check in a test file;
+- the kill switch in a block comment;
+- the error handler quoted in a `//` comment;
+- `src/packs/swallowed-error.ts`;
+- the human-gate phrase in `CHANGELOG.md`;
+- the required-review phrase in a calibration review note;
+- a CODEOWNERS file under `.github/workflows/`.
+
+**Measured mechanically on the fifteen-fixture corpus**, scoring at the guard's fixed `generatedAt`.
+The previous detector is `repo-signals.ts` at `origin/main` `7c9170f`.
+
+- Under every one of the eight selectable rubrics, the previous detector and this one differ on
+  exactly the criteria **A3, B2 and B6**.
+- Under every rubric, the only report-level outcome that differs is the new fixture's.
+- **Re-digesting the first fourteen fixtures alone reproduces every rubric's previous component
+  pins and previous fingerprint byte for byte.** So no pre-existing fixture moved under this
+  behaviour change, under any rubric. The 0.4.9 and 0.4.11 lesson holds: a v17 behaviour change
+  is visible only on a shape the corpus contains.
+- Every rubric's fingerprint moves, because a fixture was added *and* because v17–v24 scoring
+  changed on that fixture.
+
+| Rubric | Previous fingerprint | Previous detector, fifteen-fixture corpus | Fingerprint from 2026-10-09 |
+|---|---|---|---|
+| `witan-rubric-v17-2026-07-24` (calibrated public default) | `sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653` | `sha256:a9da3a3c4232fec0389c530c48047bb1e45390f072ab7c64ae8b392aa6bda7c9` | `sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:23cde3839b54875cf78eb8b4295779bc66327f7f5b331628a17839c2fb9562f1` | `sha256:aaeac89567146f026c5da650fef0de461b56cef3ab983010f41bb7e78e84f5a4` | `sha256:60917d1d81efe7cda6f6adbfaa05293e2d9bf1db37b39d084e47f9011a996b67` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:07e06ce68ba5ca365242f099e8860e1e466fa503dbcdac99986aab1e65c7c867` | `sha256:b162553c7765de58d6d4ca8cfce2b27034bf353bd6a45a65deeca0af21dea5a1` | `sha256:e050ce8563de0736d9cfb6c23e2ba04725d88465d378a8632576269b9bc9f269` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:4fb83b8972b76fb28cc6b59796f18ecfa16a37be52997c139f5cb14f60fd3717` | `sha256:a8eb836998b950e341b7241fa5c71d3c7906643e2bd55d3a8bac5bc15e46cbfe` | `sha256:0433adc34b58c0fd5500a0bdeaa910c854eedbadbeaabb9045238d4ba9be8878` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:009f82a0ccaae4e9efcb1bb33776bf6cff2f268ddb21db0fb43f4b505563f645` | `sha256:c78834129cfbf0a0700cb9f66329ae1b756e4811db7481abc9b3b036aa3cbbb0` | `sha256:d3796b78a45ea3593f6abe71c77c2d00a0056d0f2d88476a01329dc342166aa6` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:df8fcacf9a6f0d57c0ff00cafc51149e1bebafd3bec03f13316803b4ae27f0cc` | `sha256:b1f3986f6841054cae8caecc96704f36a46e44be8735144c8a973ae09c040be1` | `sha256:932bc09cbe555c6058a95be581ccf7a286c43887f90d32698f5273b7623824bf` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:01ec9f9057f649f4bc737dc2f972bcec227237416cda5a4255db2c23d874ec5c` | `sha256:663bce2a49743ba76a8bd1ae59f050c938cdae63af4fc95470d2b0e51c86bec0` | `sha256:db97dc999d37e3c39c3bd3e4b1778c94eb9ad3176fb5c7d7264a7e510b162fc1` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:4452f3b033552b7feb205048a07d6d851d1dc459a06f39befa86d22281e201fb` | `sha256:f079ec177015f3241cab883c80316df1c5e9a1a9a887e38585e901405b5953bc` | `sha256:e313fab25ae1779a11e86b23696881cd6f8fe2a845609dc93e2ff6f3ff8c16d5` |
+
+The middle column is the number a build without this change would publish on the extended
+corpus. It is recorded so the separation is visible, and it is not pinned anywhere. Two goldens
+hash a whole v17 report: `src/__tests__/index.test.ts` and `v17-scoring-surface-golden.test.ts`.
+Both were re-pinned, and none of their fixtures holds a #433 shape. In each, restoring the previous
+v17 fingerprint in place reproduces the previous pin byte for byte.
+
+A certificate issued under v17 before this change carries `eabdc784…`, and one issued after it
+carries `2da86acf…`. Unlike the 2026-10-01 correction, the two describe **different** v17 scoring:
+the pair (`rubricVersion`, `rubricBehaviourFingerprint`) differs because behaviour differs.
+
 ## 2026-09-30 — v24 synthetic-corpus behaviour fingerprint; public paired rescore still unrun
 
 `witan-rubric-v24-prospective-2026-09-15` was made selectable with its content-context A2

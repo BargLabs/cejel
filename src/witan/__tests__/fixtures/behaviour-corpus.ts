@@ -673,6 +673,7 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'start-declared-http-entrypoint': 'be28e80ec078cb060f71f179003580b53fc393f3',
   'stale-audit-trail': 'a230b07e26ca88245bee21a13bc68c8935897d98',
   'real-credential-in-docs': 'd7eef4fd2f815f56a01325683f4cc63cdcb4e79d',
+  'control-described-not-built': 'fdfd0e13868a4220e216cc657c250d4ef238da6e',
 });
 
 /**

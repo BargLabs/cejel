@@ -4835,9 +4835,9 @@ const NAME_SHAPED_TEST_FILE_PATTERN_V17 = /\.tftest\.hcl$|\.bats$|(^|\/)test[^/]
 // exists, and the certificate cites it. Text that only DESCRIBES the control is not the control:
 // cejel's own self-scan credited a fail-closed check from a test file's fixture strings, an error
 // boundary from `swallowed-error.ts` and then from a code comment quoting a handler, a human gate
-// from changelog prose, a required-review policy from a calibration review note, and (on the
-// published board) a human gate from a Cejel certificate of another repository. Not gated on
-// rubric version: a false assertion is wrong under every rubric.
+// from changelog prose, and a required-review policy from a calibration review note; a committed
+// Cejel certificate of another repository quotes the human-gate phrase in its evidence labels.
+// Not gated on rubric version: a false assertion is wrong under every rubric.
 //
 // Implementation evidence — a credit that names a file as the CODE implementing a control — never
 // comes from a test or fixture path (the classifier above) or a calibration specimen tree. The

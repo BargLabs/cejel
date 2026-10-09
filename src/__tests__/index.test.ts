@@ -449,26 +449,43 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Re-pinned for 0.6.2: again only the version bump reaches this fixture. The release adds
     // report.historyLimitations, which is absent here because the fixture is not a shallow clone.
     // Setting toolVersion back to "0.6.1" in place reproduces the 0.6.1 pin (d80b5e40...).
+    // Re-pinned 2026-10-09 (cejel #433): v17 scoring changed for text that only describes a
+    // control, and the behaviour corpus gained a fifteenth fixture carrying those shapes, so v17's
+    // fingerprint moved. This fixture holds none of those shapes. Made mechanical below: restoring
+    // the previous v17 fingerprint in place (key order unchanged) reproduces the previous pin
+    // (5e5a3829...) byte for byte, and every older sub-pin is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '5e5a3829b6edd983098e4b9a7e51b9e8118b0652350d3a55792e74ec29d2573a',
+      'a9d4c85f1ea390b260470bce9299a77e79eca2945a5bd7c8b0f553755dc479ad',
     );
+    expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
+      'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
+    );
+    const beforeFalseEvidenceClass = {
+      ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653',
+    } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(beforeFalseEvidenceClass, null, 2)).digest('hex'),
+      'the pre-2026-10-09 report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
+    ).toBe('5e5a3829b6edd983098e4b9a7e51b9e8118b0652350d3a55792e74ec29d2573a');
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.2');
-    const at061 = { ...firstReport, toolVersion: '0.6.1' } as typeof firstReport;
+    const at061 = { ...beforeFalseEvidenceClass, toolVersion: '0.6.1' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at061, null, 2)).digest('hex'),
       'the 0.6.1 report bytes must be recoverable by resetting exactly the toolVersion field',
     ).toBe('d80b5e4088340c73621e4e80068fd20bbbb4ee2ed1e1257a4da876ceaa248c7a');
-    const at060 = { ...firstReport, toolVersion: '0.6.0' } as typeof firstReport;
+    const at060 = { ...beforeFalseEvidenceClass, toolVersion: '0.6.0' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at060, null, 2)).digest('hex'),
       'the 0.6.0 report bytes must be recoverable by resetting exactly the toolVersion field',
     ).toBe('659b3da6841173e8ec0a4b5f9a0bea9dae037e4d951cf8e57299e08f03e871b0');
-    const at050 = { ...firstReport, toolVersion: '0.5.0' } as typeof firstReport;
+    const at050 = { ...beforeFalseEvidenceClass, toolVersion: '0.5.0' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at050, null, 2)).digest('hex'),
       'the 0.5.0 report bytes must be recoverable by resetting exactly the toolVersion field',
     ).toBe('bfe3203eacdcda5afcda999986133b0dec293053017bd15e386266197597a79c');
-    const atPreviousRelease = { ...firstReport, toolVersion: '0.4.11' } as typeof firstReport;
+    const atPreviousRelease = { ...beforeFalseEvidenceClass, toolVersion: '0.4.11' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(atPreviousRelease, null, 2)).digest('hex'),
       'the 0.4.11-era report bytes must be recoverable by resetting exactly the toolVersion field',
