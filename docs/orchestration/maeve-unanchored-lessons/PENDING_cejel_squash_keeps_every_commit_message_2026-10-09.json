@@ -1,0 +1,24 @@
+[
+  {
+    "statement": "Where a repository's squash setting is COMMIT_MESSAGES (BargLabs/cejel), a squash merge writes every commit message of the PR into the default branch, so text removed from the PR body survives in the squashed commit. Before #432 was squashed, the operator ruled that a third-party repository's verdict label must not be published. Both PR bodies were cleaned, but commit 10e9400's message still quoted that label. Reading the repository's squash_merge_commit_message setting caught it, and the message was reworded during the rebase (now bcac9a6) before #432 squashed into f6766d1. Rule: before a squash merge, read the repository's squash message setting; if it carries commit messages, review and clean every commit message, not only the PR title and body.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "release",
+      "disclosure"
+    ],
+    "tags": [
+      "squash-merge",
+      "commit-messages-persist",
+      "pr-body-is-not-the-record",
+      "disclosure"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 432
+    }
+  }
+]
