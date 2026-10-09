@@ -3222,10 +3222,12 @@ function collectA3ProdReadinessEvidence(
   const runtimeContainer = useV27Detectors
     ? findRuntimeContainerEntrypointFile(repoPath, repoFiles, useV20ExplicitGaps)
     : null;
+  // Anchored to a whole path segment (#433): unanchored, `swallowed-error.ts` was an error boundary.
   const errorBoundaries = repoFiles.filter(
     (file) =>
       (!useV27Detectors || isAuthoredProductionPath(file)) &&
-      /error-boundary|error\.(tsx|jsx|ts|js)$/.test(file),
+      isImplementationEvidencePath(file) &&
+      ERROR_BOUNDARY_FILENAME_PATTERN.test(file),
   );
   // The filename check above is a frontend/React convention (error-boundary.*, error.tsx) and
   // does not read content, so an Express error-handling middleware layer — which can live in any
@@ -3243,10 +3245,11 @@ function collectA3ProdReadinessEvidence(
   // predicates) is unaffected. `src/middleware/errors.ts` and `lib/http/error.middleware.js` were
   // already admitted by observabilityDepthReads before this widening.
   const errorBoundaryFileReads = (file: string): boolean =>
-    observabilityDepthReads(file) ||
-    ((!useV27Detectors || isAuthoredProductionPath(file)) &&
-      /(^|\/)server\//.test(file) &&
-      /\.(?:mjs|cjs)$/.test(file));
+    isImplementationEvidencePath(file) &&
+    (observabilityDepthReads(file) ||
+      ((!useV27Detectors || isAuthoredProductionPath(file)) &&
+        /(^|\/)server\//.test(file) &&
+        /\.(?:mjs|cjs)$/.test(file)));
   // A shape match alone credits a fully dead, never-registered stub (tutorial boilerplate that
   // declares a four-argument handler and never wires it in). Requiring the file to also either
   // register middleware (`.use(`) or make the handler reachable from elsewhere (`export`/
@@ -3256,13 +3259,14 @@ function collectA3ProdReadinessEvidence(
   // `app.use(errorHandler)` in another, and a class method registered via
   // `app.use(this.handleError.bind(this))` from an exported class.
   //
-  // The reachability half is evaluated against the file with `//` line comments stripped first —
-  // otherwise a commented-out `// app.use(errorHandler);` line satisfies `.use(` textually despite
-  // registering nothing, crediting exactly the dead-stub shape this check exists to exclude. The
-  // shape half is left unstripped: a real declaration is never itself commented out in any fixture
-  // this signal is meant to credit, and stripping it too would only add risk for no case in scope.
-  // (Documented limit: a `//` inside a string or template literal is stripped too, same as any
-  // naive same-line comment strip; not reachable from a realistic Express registration call.)
+  // Both halves are evaluated with comments stripped. Reachability first (#352): a commented-out
+  // `// app.use(errorHandler);` line satisfies `.use(` textually despite registering nothing,
+  // crediting exactly the dead-stub shape this check exists to exclude. Then the shape (#433): a
+  // code comment QUOTING `app.use((err, req, res, next) => …)` in a file that exports anything was
+  // credited as the repository's error boundary — that is how cejel's own detector source earned
+  // the credit. (Documented limit: a `//` inside a string or template literal is stripped too,
+  // same as any naive same-line comment strip; not reachable from a realistic Express
+  // registration call.)
   const expressErrorMiddlewareFile =
     errorBoundaries.length > 0
       ? undefined
@@ -3270,8 +3274,8 @@ function collectA3ProdReadinessEvidence(
           repoFiles.find(
             (file) =>
               errorBoundaryFileReads(file) &&
-              fileContains(repoPath, file, EXPRESS_ERROR_MIDDLEWARE_PATTERN) &&
-              fileMatchesOutsideLineComments(repoPath, file, EXPRESS_MIDDLEWARE_REACHABLE_PATTERN),
+              fileMatchesOutsideComments(repoPath, file, EXPRESS_ERROR_MIDDLEWARE_PATTERN) &&
+              fileMatchesOutsideComments(repoPath, file, EXPRESS_MIDDLEWARE_REACHABLE_PATTERN),
           ),
         );
   const errorBoundary = errorBoundaries[0] ?? expressErrorMiddlewareFile;
@@ -3378,7 +3382,11 @@ function collectA3ProdReadinessEvidence(
             errorBoundary,
             'prod_check',
             'Error boundary',
-            findFirstMatchingLine(repoPath, errorBoundary, EXPRESS_ERROR_MIDDLEWARE_PATTERN),
+            findFirstMatchingLineOutsideComments(
+              repoPath,
+              errorBoundary,
+              EXPRESS_ERROR_MIDDLEWARE_PATTERN,
+            ),
           )
         : evidenceForRelative(repoPath, errorBoundary, 'prod_check', 'Error boundary'),
     );
@@ -4084,8 +4092,9 @@ function collectB2PrTraceEvidence(
   const prTemplate = repoFiles.find((file) =>
     /(^|\/)(pull_request_template|PULL_REQUEST_TEMPLATE)(\.md$|\/[^/]+\.md$)/.test(file),
   );
-  const branchProtectionDoc = repoFiles.find((file) =>
-    /branch.*protection|review.*gate|CODEOWNERS/i.test(file),
+  // CODEOWNERS counts only where GitHub reads it (#433); the name-shaped alternatives are unchanged.
+  const branchProtectionDoc = repoFiles.find(
+    (file) => /branch.*protection|review.*gate/i.test(file) || GITHUB_CODEOWNERS_PATH_PATTERN.test(file),
   );
   const evidence = [
     ...workflows
@@ -4431,19 +4440,29 @@ function collectB6PrivilegedOpsGatingEvidence(
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
 
-  const docFiles = repoFiles.filter((file) => /\.(md|mdx)$/i.test(file));
+  // Both documentary credits below read only policy-shaped prose: never a changelog, an
+  // experiment or calibration record, a review note, a generated report or a Cejel certificate
+  // (#433; see isPolicyDocumentEvidencePath).
+  const policyDocFiles = repoFiles.filter(
+    (file) => /\.(md|mdx)$/i.test(file) && isPolicyDocumentEvidencePath(file),
+  );
+  const isPolicyDocMatching = (file: string, pattern: RegExp): boolean =>
+    fileContains(repoPath, file, pattern) && !isCejelCertificateText(repoPath, file);
   // Scoped to 'human_gate_documented': feeds only that metric and the evidence anchor below.
   const humanGateDoc = withContentReadSignal('B6', 'human_gate_documented', () =>
-    docFiles.find((file) => fileContains(repoPath, file, HUMAN_GATE_MARKER_PATTERN)),
+    policyDocFiles.find((file) => isPolicyDocMatching(file, HUMAN_GATE_MARKER_PATTERN)),
   );
 
   const implFiles = repoFiles.filter(isImplementationFile);
+  // The two credits labelled as code read only implementation evidence: never a test, fixture or
+  // calibration path, and never a match that lies inside a comment (#433).
+  const implementationEvidenceFiles = implFiles.filter(isImplementationEvidencePath);
   // Scoped to 'fail_closed_privilege_check'.
   const gatedPrivilegeCheckFile = withContentReadSignal('B6', 'fail_closed_privilege_check', () =>
-    implFiles.find(
+    implementationEvidenceFiles.find(
       (file) =>
-        fileContains(repoPath, file, GATED_PRIVILEGE_CHECK_PATTERN) &&
-        fileContains(repoPath, file, SET_ROLE_PATTERN),
+        fileMatchesOutsideComments(repoPath, file, GATED_PRIVILEGE_CHECK_PATTERN) &&
+        fileMatchesOutsideComments(repoPath, file, SET_ROLE_PATTERN),
     ),
   );
   // Un-overridable kill-switch / fail-safe ordering (goal_cejel_rubric_refinement_from_lua_2026-07-06):
@@ -4451,10 +4470,10 @@ function collectB6PrivilegedOpsGatingEvidence(
   // return/throw, so no lower-priority config can proceed past it. Bounded, positive-only —
   // its absence never lowers the score. Scoped to 'kill_switch_fail_safe_present'.
   const killSwitchFile = withContentReadSignal('B6', 'kill_switch_fail_safe_present', () =>
-    implFiles.find(
+    implementationEvidenceFiles.find(
       (file) =>
-        fileContains(repoPath, file, KILL_SWITCH_NAME_PATTERN) &&
-        fileContains(repoPath, file, KILL_SWITCH_FAIL_CLOSED_PATTERN),
+        fileMatchesOutsideComments(repoPath, file, KILL_SWITCH_NAME_PATTERN) &&
+        fileMatchesOutsideComments(repoPath, file, KILL_SWITCH_FAIL_CLOSED_PATTERN),
     ),
   );
 
@@ -4464,10 +4483,10 @@ function collectB6PrivilegedOpsGatingEvidence(
   // protection policy) requires a human to sign off before a change to a protected path
   // merges. This is the OSS-observable analogue of "privileged operations stay human-gated";
   // credit it as (weaker) positive evidence instead of defaulting straight to not_applicable.
-  const codeownersFile = repoFiles.find((file) => /(^|\/)CODEOWNERS$/.test(file));
+  const codeownersFile = repoFiles.find((file) => GITHUB_CODEOWNERS_PATH_PATTERN.test(file));
   // Scoped to 'protected_path_review_gate': codeownersFile above is filename-only.
   const reviewGateDoc = withContentReadSignal('B6', 'protected_path_review_gate', () =>
-    docFiles.find((file) => fileContains(repoPath, file, REQUIRED_REVIEW_PATTERN)),
+    policyDocFiles.find((file) => isPolicyDocMatching(file, REQUIRED_REVIEW_PATTERN)),
   );
   const protectedPathReviewGate = codeownersFile ?? reviewGateDoc;
 
@@ -4557,14 +4576,18 @@ function collectB6PrivilegedOpsGatingEvidence(
   }
   if (protectedPathReviewGate) {
     // Unlike the others above, codeownersFile (when chosen over reviewGateDoc) is filename-only
-    // and was never read before this point — a genuinely new read, not a re-read.
+    // and was never read before this point — a genuinely new read, not a re-read. The label
+    // names the branch that fired (#433): a CODEOWNERS file and a policy document are different
+    // evidence, and one fixed label for both asserted whichever the reader assumed.
     withContentReadSignal('B6', 'protected_path_review_gate', () =>
       evidence.push(
         evidenceForRelative(
           repoPath,
           protectedPathReviewGate,
           'artifact',
-          'CODEOWNERS/required-review gate on protected paths',
+          protectedPathReviewGate === codeownersFile
+            ? 'CODEOWNERS file in a location GitHub reads (protected-path review gate)'
+            : 'Documented required-review/branch-protection policy',
         ),
       ),
     );
@@ -4688,8 +4711,10 @@ function collectB6PrivilegedOpsGatingEvidence(
         1,
         hasPrivilegedOpsSurface ? 0.2 : 0.6,
         'present',
-        'Credits a CODEOWNERS file or documented required-review/branch-protection policy — the ' +
-          'general OSS-observable analogue of human-gating changes to sensitive paths.',
+        'Credits a CODEOWNERS file where GitHub reads it (repository root, .github/ or docs/) or a ' +
+          'documented required-review/branch-protection policy (not a changelog, experiment or ' +
+          'calibration record, review note, or generated report) — the general OSS-observable ' +
+          'analogue of human-gating changes to sensitive paths.',
       ),
       ...killSwitchMetrics,
     ],
@@ -4806,7 +4831,50 @@ function isTestFile(file: string, rubricVersion = WITAN_RUBRIC_VERSION): boolean
 const NAME_SHAPED_TEST_FILE_PATTERN =
   /^test(?:-[^/]+)?\.[cm]?[jt]sx?$|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|(^|\/)test_[^/]*\.py$|(^|\/)tests?\.py$|_test\.go$|(^|\/)test_[^/]*\.(cpp|cc|cxx)$|_(test|tests)\.(cpp|cc|cxx)$|Tests?\.(java|kt)$|(_test|_spec)\.(rs|rb|php|swift|kt)$/;
 const NAME_SHAPED_TEST_FILE_PATTERN_V17 = /\.tftest\.hcl$|\.bats$|(^|\/)test[^/]*\.m$|_test\.m$/i;
+
+// Evidence sources (cejel #433). A positive credit names a file as evidence that a control
+// exists, and the certificate cites it. Text that only DESCRIBES the control is not the control:
+// cejel's own self-scan credited a fail-closed check from a test file's fixture strings, an error
+// boundary from `swallowed-error.ts` and then from a code comment quoting a handler, a human gate
+// from changelog prose, a required-review policy from a calibration review note, and (on the
+// published board) a human gate from a Cejel certificate of another repository. Not gated on
+// rubric version: a false assertion is wrong under every rubric.
+//
+// Implementation evidence — a credit that names a file as the CODE implementing a control — never
+// comes from a test or fixture path (the classifier above) or a calibration specimen tree. The
+// match itself must also lie outside comments; that half is fileMatchesOutsideComments below.
+const CALIBRATION_RECORD_DIR_PATTERN = /(^|\/)calibrations?(\/|$)/i;
+
+function isImplementationEvidencePath(path: string): boolean {
+  return isProductionSourcePath(path) && !CALIBRATION_RECORD_DIR_PATTERN.test(path);
+}
+
+// Documentary evidence — a credit that names a document as the statement of a policy — never
+// comes from a changelog (it reports that something changed, often the detector itself), an
+// experiment or calibration record, a review note, a generated report, or a test/fixture tree.
+// A Cejel certificate is recognised by content wherever it is committed (isCejelCertificateText),
+// because its evidence labels quote these very policy phrases about some other repository.
+// Kept: README, SECURITY, CONTRIBUTING, governance/runbook/ADR docs and every other prose file.
+const CHANGELOG_FILE_PATTERN =
+  /(^|\/)(?:CHANGELOG|CHANGES|HISTORY|NEWS|RELEASE[-_]?NOTES|RELEASES)(?:\.[^/]*)?$/i;
+const NON_POLICY_RECORD_DIR_PATTERN =
+  /(^|\/)(?:\.changesets?|changelogs?|changelog\.d|experiments?|calibrations?|reviews|review[-_]notes?|reports)(\/|$)/i;
+
+function isPolicyDocumentEvidencePath(path: string): boolean {
+  return (
+    isProductionSourcePath(path) &&
+    !CHANGELOG_FILE_PATTERN.test(path) &&
+    !NON_POLICY_RECORD_DIR_PATTERN.test(path)
+  );
+}
 // ---- END canonical production-source classifier -------------------------------------------
+
+// The Markdown certificate this tool writes (markdown.ts): its title line, then a `- Rubric:` line.
+const CEJEL_CERTIFICATE_TEXT_PATTERN = /^# Cejel Trust Report\b[\s\S]*?^- Rubric: /m;
+
+function isCejelCertificateText(repoPath: string, file: string): boolean {
+  return fileContains(repoPath, file, CEJEL_CERTIFICATE_TEXT_PATTERN);
+}
 
 const TEST_RUNNER_PATTERN =
   /\b(vitest|jest|mocha|ava|tap|pytest|go test|cargo test|rspec|phpunit|gradle test|mvn test|node\s+--test|node:test)\b/i;
@@ -4923,6 +4991,9 @@ const SET_ROLE_PATTERN = /\bset\s+(local\s+)?role\b/i;
 // documented required-review / branch-protection policy, distinct from a bare CODEOWNERS file
 // which is detected separately by presence alone.
 const REQUIRED_REVIEW_PATTERN = /required review|branch protection|protected branch/i;
+// GitHub reads CODEOWNERS only from the repository root, `.github/` and `docs/`. A file of that
+// name anywhere else (`.github/workflows/CODEOWNERS`, a package directory) gates nothing (#433).
+const GITHUB_CODEOWNERS_PATH_PATTERN = /^(?:\.github\/|docs\/)?CODEOWNERS$/;
 const HISTORY_SECRET_SCAN_CREDENTIAL_BLOB_LIMIT = 5_000;
 // v23-only: V23_KEY_SHAPED_JSON_PATH_PATTERN's bare "key" alternative also matches ordinary
 // non-credential *.json basenames (sort-key.json, cache-key.json, license-key.json,
@@ -7826,11 +7897,14 @@ const EXPRESS_ERROR_MIDDLEWARE_PATTERN =
 // `export default`/`function`/`const` alternatives — a class-based handler
 // (`export class ErrorService { handleError(err, req, res, next) {...} }`, registered elsewhere
 // via `app.use(svc.handleError.bind(svc))`) is a real, public-documentation Express idiom that
-// the original three alternatives did not cover. Evaluated with `//` line comments stripped
-// first (see fileMatchesOutsideLineComments) so a commented-out `.use(` cannot satisfy this
-// pattern while registering nothing.
+// the original three alternatives did not cover. Evaluated with comments stripped first (see
+// fileMatchesOutsideComments) so a commented-out `.use(` cannot satisfy this pattern while
+// registering nothing.
 const EXPRESS_MIDDLEWARE_REACHABLE_PATTERN =
   /\.use\s*\(|\bmodule\.exports\b|\bexport\s+(?:default\b|function\b|const\b|class\b)/;
+// A3's filename-convention error boundary: `error-boundary.tsx`, or a Next.js-style `error.tsx`
+// route file. Anchored to a whole path segment (#433).
+const ERROR_BOUNDARY_FILENAME_PATTERN = /(^|\/)(?:error-boundary|error)\.(?:tsx|jsx|ts|js)$/;
 const RACK_SERVER_ENTRYPOINT_PATTERN = /Rack::(?:Server|Handler(?:::\w+)?)\.(?:start|run)\s*\(/;
 const RACK_CONFIG_RUN_PATTERN = /^\s*run\s+(?:(?:[A-Z]\w*(?:::\w+)*(?:\.new)?|lambda)\b|->)/m;
 const RUNTIME_CONTAINER_COMMAND_PATTERN =
@@ -8182,20 +8256,45 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   return pattern.test(readRepoText(fullPath, 'utf8'));
 }
 
-// Same as fileContains, but strips `//`-to-end-of-line comments before testing. Used where a
-// commented-out call (e.g. `// app.use(errorHandler);`) would otherwise satisfy a reachability
-// pattern textually while registering nothing at runtime. A `//` directly preceded by `:` is the
-// scheme separator of a URL (`'https://api.example'`), not a comment, and is left alone so a
-// one-line `const base = 'https://api.example'; app.use(handler);` still matches. Every other `//`
-// strips to end of line, including a trailing comment after code (`x(); // app.use(handler);`) —
-// keeping that text would credit a dead stub, and a false credit is the worse error here. Naive by
-// design: it does not parse block comments (`/* ... */`) or other `//` inside string/template
-// literals — those are a documented limit, and fail toward a miss, never a false credit.
-function fileMatchesOutsideLineComments(repoPath: string, file: string, pattern: RegExp): boolean {
+// Same as fileContains, but strips comments before testing. Used wherever a match is credited as
+// implementation evidence: a commented-out call (e.g. `// app.use(errorHandler);`) or a comment
+// quoting a handler satisfies a pattern textually while implementing nothing at runtime (#352,
+// and #433 for the shape half). A `//` directly preceded by `:` is the scheme separator of a URL
+// (`'https://api.example'`), not a comment, and is left alone so a one-line
+// `const base = 'https://api.example'; app.use(handler);` still matches. Every other `//` strips to
+// end of line, including a trailing comment after code (`x(); // app.use(handler);`) — keeping
+// that text would credit a dead stub, and a false credit is the worse error here. `/* ... */`
+// blocks are blanked with their line breaks kept, so line numbers survive for evidence anchors.
+// Python and Ruby files also lose whole-line `#` comments. Naive by design: it does not parse
+// string or template literals, so a `//` or `/*` inside one strips too — a documented limit that
+// fails toward a miss, never a false credit.
+const HASH_COMMENT_SOURCE_PATTERN = /\.(?:py|rb)$/i;
+
+function stripCodeComments(file: string, contents: string): string {
+  const withoutComments = contents
+    .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ''))
+    .replace(/(?<!:)\/\/.*$/gm, '');
+  return HASH_COMMENT_SOURCE_PATTERN.test(file)
+    ? withoutComments.replace(/^[ \t]*#.*$/gm, '')
+    : withoutComments;
+}
+
+function fileMatchesOutsideComments(repoPath: string, file: string, pattern: RegExp): boolean {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
-  const withoutLineComments = readRepoText(fullPath, 'utf8').replace(/(?<!:)\/\/.*$/gm, '');
-  return pattern.test(withoutLineComments);
+  return pattern.test(stripCodeComments(file, readRepoText(fullPath, 'utf8')));
+}
+
+function findFirstMatchingLineOutsideComments(
+  repoPath: string,
+  file: string,
+  pattern: RegExp,
+): number | null {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return null;
+  const lines = stripCodeComments(file, readRepoText(fullPath, 'utf8')).split('\n');
+  const index = lines.findIndex((line) => pattern.test(line));
+  return index === -1 ? null : index + 1;
 }
 
 // ---- v23-only: PEM-formatted private-key assignment grammar -------------------------------
