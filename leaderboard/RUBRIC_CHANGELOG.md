@@ -141,6 +141,27 @@ A certificate issued under v17 before this change carries `eabdc784…`, and one
 carries `2da86acf…`. Unlike the 2026-10-01 correction, the two describe **different** v17 scoring:
 the pair (`rubricVersion`, `rubricBehaviourFingerprint`) differs because behaviour differs.
 
+### Public-corpus before-and-after — measured 2026-10-09
+
+The entry above is left as written. The preregistered run it announced has been performed:
+`docs/experiments/v17-behaviour-delta-433-2026-10-09/` (preregistration `aab5647`, final wording
+`cef7d30`; result beside it). Baseline `v0.6.2`, candidate #441's merge, all 24 corpus rows at
+their pins, depth-1 public checkouts as on the published board. **All five preregistered expected
+values held.**
+
+- **Two public rows moved, as predicted.** cejel: B6 3.3 verified → not applicable (both false
+  credits removed, none replaced); overall 2.8 unchanged. sinatra: B6 4.0 verified → not
+  applicable and B2 `pr_trace_primitives` 3 → 2 with the B2 score unchanged; overall
+  **2.4 → 2.2**, verdict at risk unchanged, unranked.
+- **No other public row moved** at score, status or metric level, and **no ranked placement
+  changed.** The baseline reproduced the published board on 24 of 24 rows.
+- The private row's scores, statuses and metrics did not move; its B6 entry differs at byte level.
+- `rubricBehaviourFingerprint` differs on all 24 rows; after removing each predicted field in its
+  predicted direction, 21 public rows are byte-identical.
+
+The full per-row table is in the result record. The published board changes with the 0.6.3
+regeneration, which also moves public rows to full-history clones (#431).
+
 ## 2026-09-30 — v24 synthetic-corpus behaviour fingerprint; public paired rescore still unrun
 
 `witan-rubric-v24-prospective-2026-09-15` was made selectable with its content-context A2
