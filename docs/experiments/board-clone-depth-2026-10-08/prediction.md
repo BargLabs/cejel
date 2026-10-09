@@ -2,9 +2,11 @@
 
 **CONSTRAINTS-VERSION: 2026-08-01.5**
 
-Status: LOCAL ONLY, not pushed. The operator instructed measurement only: no site change and no
-publication. This file is committed before the run so that its commit is a strict ancestor of
-the results commit.
+Status: committed before the run (`b3a5083`), a strict ancestor of the results commit. Published
+2026-10-09 as a propose-only record. At the operator's instruction, the commit that adds the
+results also edits this file: the private board row is named only as "the private row", and
+its depth-1 prediction is removed, because its depth-1 arm is new data about a private
+repository. No other prediction changed; `b3a5083` holds the original text.
 
 ## Question
 
@@ -21,13 +23,13 @@ rubric `witan-rubric-v17-2026-07-24`) at the commit its published report names
   - **Gate:** every row's criteria (score, status, metrics value/max), code score, process score,
     overall score and verdict must equal the published report. A row that fails the gate is
     reported as not reproduced, and its full-arm delta is not attributed to depth.
-  - **Alfred:** its published row was scored from full history, so its depth-1 arm is new data
-    and not a reproduction.
+  - **The private row:** its published row was scored from full history, so only its full arm
+    is reported.
 - **Full arm.** All 25 rows: `git clone --no-checkout <url>`,
   `fetch --no-tags origin <sha>`, `checkout --detach <sha>`. There is no blob filter, so every
   historical blob is present for A2's history pass, which runs with network transports disabled.
   Same CLI and product name.
-  - **Control:** Alfred's full arm must reproduce its published row exactly. A difference there
+  - **Control:** the private row's full arm must reproduce its published row exactly. A difference there
     means the method differs from the board's, not that depth matters.
 - **Recorded per arm:**
   - commits present (`git rev-list --count HEAD`);
@@ -63,9 +65,7 @@ rubric `witan-rubric-v17-2026-07-24`) at the commit its published report names
   - Expected size: repos whose maintainers commit directly (esbuild, ripgrep, fmt, and guava's
     exported commits) stay near 0/12, with no change. Mixed repos (fastapi, flask, vue, zod) rise
     partway. This is lower confidence.
-- **Alfred (published 12/12 from full history):**
-  - full arm: no change (control);
-  - depth-1 arm: B2 becomes 4.0 or 3.2 depending on its HEAD subject, a change of 0 or −0.8.
+- **The private row (published 12/12 from full history):** full arm, no change (control).
 - **carddemo:** abstains (insufficient_source) on both arms. No change.
 - **A2:** the full arm hands A2's history pass every commit instead of one. **A2 down or equal,
   never up** on rows where A2 is applicable: history can only add deleted or rotated credential
@@ -78,7 +78,7 @@ rubric `witan-rubric-v17-2026-07-24`) at the commit its published report names
 
 | row | published overall / verdict | n_p | B2 ratio | overall bound (full) | can the verdict change? |
 |---|---|---|---|---|---|
-| alfred | 3.2 conditional | 4 | 12/12 | unchanged (control) | no |
+| the private row | 3.2 conditional | 4 | 12/12 | unchanged (control) | no |
 | automapper | 2.2 at_risk | 2 | 1/1 | 2.0–2.2 | no |
 | axios | 3.3 conditional | 4 | 1/1 | 3.2–3.3 | no |
 | biomejs | 3.0 conditional | 4 | 1/1 | 2.9–3.0 | no |
@@ -111,5 +111,5 @@ separately.
 Falsifiers:
 - a 1/1 row whose B2 rises, or a 0/1 row whose B2 falls;
 - any change in a criterion other than A2 or B2;
-- Alfred's full arm not reproducing its published row;
+- the private row's full arm not reproducing its published row;
 - any depth-1 row failing the reproduction gate.
