@@ -90,9 +90,9 @@ explains.
 The published board reports are the JSON files under `leaderboard/reports/` in cejel-site. They
 were last changed in `026774b25ed77c692392ee85c4d626b499780823` (2026-09-16, "site: prepare 0.4.9
 board and release disclosures") and carry `toolVersion` `0.4.9`. The GitHub compare API shows no
-report JSON changed between that commit and `13e3f643b8dedf50db1a1eaa845af1c6a2eeb589` (the
-reviewer's inventory commit), or between that and the site's `main`,
-`7676f75432bdc0539edb8a649baa28d4c834c381`. The only later change to that directory, `60c6996`,
+report JSON changed between that commit and `BargLabs/cejel-site@13e3f643b8dedf50db1a1eaa845af1c6a2eeb589`
+(the reviewer's inventory commit), or between that and the site's `main`,
+`BargLabs/cejel-site@7676f75432bdc0539edb8a649baa28d4c834c381`. The only later change to that directory, `60c6996`,
 touches HTML files only. This repository has no copy of the reports under `leaderboard/`, so the
 23 public reports were read from a local site checkout at `7676f75`. The private row's report was
 not read.
