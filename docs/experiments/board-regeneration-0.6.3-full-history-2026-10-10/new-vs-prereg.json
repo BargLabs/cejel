@@ -1,0 +1,274 @@
+{
+  "summary": {
+    "completed": "24/24",
+    "errors": 0,
+    "rowsHeld": "23/23",
+    "rowsMatchingAnAlternative": [],
+    "rowsWithScoringMismatch": [],
+    "rowsWithPlacementMismatch": [],
+    "rankOrderHeld": true,
+    "headlineChangedRows": [
+      "vue",
+      "svelte",
+      "django",
+      "fastapi",
+      "esbuild",
+      "requests",
+      "zod",
+      "sinatra",
+      "automapper",
+      "fmt",
+      "cejel"
+    ],
+    "overallChangedRows": [
+      "vue",
+      "fastapi",
+      "esbuild",
+      "requests",
+      "sinatra",
+      "automapper",
+      "fmt",
+      "cejel"
+    ]
+  },
+  "run": {
+    "rows": 24,
+    "completed": 24,
+    "errors": [],
+    "r1": [],
+    "r2": {
+      "toolVersion": 24,
+      "rubricVersion": 24,
+      "fingerprint": 24,
+      "of": 24
+    },
+    "r3HistoryLimitations": []
+  },
+  "rankOrder": {
+    "expected": [
+      "axios",
+      "pydantic",
+      "vite",
+      "zod",
+      "fastapi",
+      "requests",
+      "svelte",
+      "biomejs",
+      "vue",
+      "flask",
+      "fmt",
+      "react",
+      "scorecard",
+      "esbuild",
+      "ripgrep"
+    ],
+    "got": [
+      "axios",
+      "pydantic",
+      "vite",
+      "zod",
+      "fastapi",
+      "requests",
+      "svelte",
+      "biomejs",
+      "vue",
+      "flask",
+      "fmt",
+      "react",
+      "scorecard",
+      "esbuild",
+      "ripgrep"
+    ]
+  },
+  "rows": [
+    {
+      "name": "react",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "vue",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "svelte",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "django",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "flask",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "fastapi",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "express",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "vite",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "esbuild",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "biomejs",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "requests",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "pydantic",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "axios",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "zod",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "scorecard",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "ripgrep",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "guava",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "cobra",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "sinatra",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "automapper",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "fmt",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "carddemo",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    },
+    {
+      "name": "private-row",
+      "status": "scored",
+      "predicted": false
+    },
+    {
+      "name": "cejel",
+      "status": "scored",
+      "held": true,
+      "matchesAlternative": null,
+      "scoringMismatches": [],
+      "placementMismatches": []
+    }
+  ]
+}
