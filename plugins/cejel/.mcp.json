@@ -2,7 +2,7 @@
   "mcpServers": {
     "cejel": {
       "command": "npx",
-      "args": ["-y", "@cejel/cejel@0.6.2", "mcp"]
+      "args": ["-y", "@cejel/cejel@0.6.3", "mcp"]
     }
   }
 }

@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "Retire a caveat about a repository's own certificate from a fresh scan at the shipping commit, not from the board delta: the board row is pinned to an older commit. In 0.6.3 prep the #433 delta showed cejel's board row losing B6 (no replacement credit), and the goal's wording was 'the false citations on Cejel's own certificate are fixed'. A from-source scan of main at 7c0370d confirmed the three named citations gone, but B6 was still verified: human_gate_documented now cited the maeve-unanchored-lessons README for 'operator-run harvest', prose about a lesson pipeline, not a gated privileged operation. The first-match walk had moved to the next describing file. Rule: before writing 'fixed' about a self-certificate, scan the shipping tree, read every credit on the criteria the caveat named, and scope the sentence to what that scan shows.",
+    "scope": ["repo:BargLabs/cejel", "release", "scoring", "disclosure"],
+    "tags": ["claim-retirement", "self-certificate", "board-pin-is-not-head", "first-match-detector", "false-assertion"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-09T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 449}
+  }
+]

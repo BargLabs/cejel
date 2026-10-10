@@ -20,8 +20,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Scoring behaviour change under `witan-rubric-v17-2026-07-24`, no identifier bump, not
 version-gated (#433). Each change removes a credit Cejel gave to text that only describes a control.
-Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-09). The public-corpus before-and-after
-has not been run.
+Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-09).
+
+The public-corpus before-and-after has run: preregistration
+`docs/experiments/v17-behaviour-delta-433-2026-10-09/PREREGISTRATION.md`, result
+`docs/experiments/v17-behaviour-delta-433-2026-10-09/result.md`. All five preregistered expected
+values held. Two public rows moved: cejel B6 → not applicable, overall unchanged at 2.8; sinatra
+B6 → not applicable, overall 2.4 → 2.2. No ranked placement changed.
 
 - **B6 fail-closed privilege check and kill switch** no longer credit a test, fixture or
   `calibration/` file, or a match that lies only inside a comment.
@@ -39,6 +44,11 @@ has not been run.
   documented review policy now carry different labels. This has no score effect.
 - **The behaviour-fingerprint corpus gains `control-described-not-built`**, and every selectable
   rubric's fingerprint is re-pinned.
+
+### Plugin
+
+- **The plugin README's #433 known issue is retired**: it now says the three false citations it
+  named on Cejel's own certificate are fixed in 0.6.3. The #436 note stays; #436 is not fixed.
 
 ## [0.6.2] — 2026-10-08
 
