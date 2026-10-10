@@ -52,7 +52,7 @@ depth-1 for comparability; this run is the board's own change.
    at `~/projects/cejel-site`, whose `main` ref reads `d38303dfeec0b256fb78b0f837b31fbe6b9d87c5`.
    That id was read from the checkout's `.git/refs/heads/main`: this runner may not run `git` in
    another repository, so it could not fetch the site or diff its history. The #449 preregistration
-   recorded that the report JSON was last changed in cejel-site `026774b` (2026-09-16, `toolVersion`
+   recorded that the report JSON was last changed in `BargLabs/cejel-site@026774b` (2026-09-16, `toolVersion`
    `0.4.9`) and was unchanged through `7676f75`. Read here:
    - The 23 public reports. Each carries `toolVersion` `0.4.9` and rubric
      `witan-rubric-v17-2026-07-24`, and each `repo.headSha` equals its corpus pin.
