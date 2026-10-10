@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.3] — 2026-10-10
+
 ### Changed
 
 Scoring behaviour change under `witan-rubric-v17-2026-07-24`, no identifier bump, not
