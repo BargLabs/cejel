@@ -7,6 +7,14 @@
 set -uo pipefail
 [ "$#" -eq 4 ] || { echo "usage: run-row.sh <name> <source> <pin> <root>" >&2; exit 2; }
 name="$1"; src="$2"; pin="$3"; root="$4"
+# Refuse before any path is built: an empty <name> made $root/work/$name and $root/out/$name the
+# whole work/ and out/ trees, and the rm -rf below deleted every row's output (2026-10-10).
+for arg in "$name" "$src" "$pin" "$root"; do
+  [ -n "$arg" ] || { echo "REFUSED: empty argument; usage: run-row.sh <name> <source> <pin> <root>" >&2; exit 2; }
+done
+case "$name" in
+  */* | . | ..) echo "REFUSED: row name '$name' is not a single path segment" >&2; exit 2 ;;
+esac
 PKG='@cejel/cejel@0.6.3'; WANT_VERSION='0.6.3'
 
 # A directory is unsafe when it, or any parent, is a cejel checkout or holds an installed cejel: there
