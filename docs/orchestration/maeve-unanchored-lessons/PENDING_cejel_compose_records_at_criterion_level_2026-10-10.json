@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "A transcription of a record's per-row deltas is not verified by reproducing figures that the missing entry does not move. Preregistering the 0.6.3 board regeneration, the hand-copied list of #448's full-history changes omitted vite's B2 move (4.0 to 3.9). Recomputing every row then reproduced #448's headline columns exactly, because vite's process score still rounded to 4.0. The comparable score, which #448 never published, fell from 3.3 to 3.2 and moved vite from rank 1 to 3 in a four-way tie. It was caught only by counting B2 moves against the record's stated total (12, not 11), before the commit. Rule: parse the source record mechanically, or at least check counts against its stated totals. Then check every derived figure the composition feeds, not only the ones the source record also printed.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "preregistration", "scoring"],
+    "tags": ["transcription-check", "derived-figures", "rounding-hides-omission", "count-against-record-totals"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 448}
+  },
+  {
+    "statement": "Two separately measured changes can each leave a composite unchanged and still move it together, because a category mean over measured criteria is not additive when one change removes a criterion from the denominator. On cejel, #448's full-history B2 (4.0 to 3.8) left overall at 2.8, and #449's B6 removal (3.3 to not applicable) left overall at 2.8. Together, process becomes mean(3.8, 2.4) = 3.1 and overall 2.7. Sinatra's composed process (2.3) appears in neither record. Rule: when predicting the effect of two recorded changes, compose them at the criterion level and recompute every composite with the scorer's own rounding. Never add the records' headline deltas.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "preregistration", "scoring"],
+    "tags": ["composition-not-addition", "denominator-effect", "interaction-of-changes", "recompute-composites"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-10T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 448}
+  }
+]
