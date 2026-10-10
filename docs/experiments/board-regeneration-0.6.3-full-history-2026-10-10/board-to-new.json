@@ -1,0 +1,715 @@
+{
+  "rows": [
+    {
+      "name": "react",
+      "status": "scored",
+      "from": {
+        "overall": 3,
+        "code": 2.1,
+        "process": 3.9,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "9"
+      },
+      "to": {
+        "overall": 3,
+        "code": 2.1,
+        "process": 3.9,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "12"
+      },
+      "headline": [
+        "placement 9 to 12"
+      ],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "vue",
+      "status": "scored",
+      "from": {
+        "overall": 2.9,
+        "code": 2.4,
+        "process": 3.4,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "11"
+      },
+      "to": {
+        "overall": 3,
+        "code": 2.4,
+        "process": 3.6,
+        "verdict": "conditional",
+        "comparable": 2.9,
+        "placement": "9"
+      },
+      "headline": [
+        "overall 2.9 to 3",
+        "process 3.4 to 3.6",
+        "comparable 2.8 to 2.9",
+        "placement 11 to 9"
+      ],
+      "criteria": [
+        "B2 3.2/warning to 3.9/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 11/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "svelte",
+      "status": "scored",
+      "from": {
+        "overall": 3.1,
+        "code": 2.9,
+        "process": 3.3,
+        "verdict": "conditional",
+        "comparable": 3.1,
+        "placement": "4"
+      },
+      "to": {
+        "overall": 3.1,
+        "code": 2.8,
+        "process": 3.3,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "7"
+      },
+      "headline": [
+        "code 2.9 to 2.8",
+        "comparable 3.1 to 3",
+        "placement 4 to 7"
+      ],
+      "criteria": [
+        "A2 3.6/verified to 3.4/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "django",
+      "status": "scored",
+      "from": {
+        "overall": 3.1,
+        "code": 2.6,
+        "process": 3.6,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 3.1,
+        "code": 2.6,
+        "process": 3.5,
+        "verdict": "conditional",
+        "comparable": 2.9,
+        "placement": "unranked"
+      },
+      "headline": [
+        "process 3.6 to 3.5",
+        "comparable 3 to 2.9"
+      ],
+      "criteria": [
+        "B2 4/verified to 3.9/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 10/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "flask",
+      "status": "scored",
+      "from": {
+        "overall": 2.9,
+        "code": 2.7,
+        "process": 3,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "8"
+      },
+      "to": {
+        "overall": 2.9,
+        "code": 2.7,
+        "process": 3,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "10"
+      },
+      "headline": [
+        "placement 8 to 10"
+      ],
+      "criteria": [
+        "B2 3.2/warning to 3.3/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 1/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "fastapi",
+      "status": "scored",
+      "from": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 3.1,
+        "code": 2.8,
+        "process": 3.3,
+        "verdict": "conditional",
+        "comparable": 3.1,
+        "placement": "5"
+      },
+      "headline": [
+        "overall 3 to 3.1",
+        "process 3.2 to 3.3",
+        "comparable 3 to 3.1",
+        "coverage code_trust 2/5; process_trust 3/6 to code_trust 3/5; process_trust 3/6",
+        "placement unranked to 5"
+      ],
+      "criteria": [
+        "A2 0/not_applicable to 2.8/warning",
+        "B2 3.2/warning to 3.6/verified"
+      ],
+      "metrics": [
+        "A2.env_handling_depth absent to 0/3",
+        "A2.secret_cleanliness absent to 1/1",
+        "B2.pr_merge_ratio 0/1 to 6/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "express",
+      "status": "scored",
+      "from": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 3,
+        "code": 2.8,
+        "process": 3.2,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "unranked"
+      },
+      "headline": [],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "vite",
+      "status": "scored",
+      "from": {
+        "overall": 3.4,
+        "code": 2.8,
+        "process": 4,
+        "verdict": "conditional",
+        "comparable": 3.3,
+        "placement": "1"
+      },
+      "to": {
+        "overall": 3.4,
+        "code": 2.8,
+        "process": 4,
+        "verdict": "conditional",
+        "comparable": 3.2,
+        "placement": "3"
+      },
+      "headline": [
+        "comparable 3.3 to 3.2",
+        "placement 1 to 3"
+      ],
+      "criteria": [
+        "B2 4/verified to 3.9/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 10/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "esbuild",
+      "status": "scored",
+      "from": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.4,
+        "verdict": "conditional",
+        "comparable": 2.5,
+        "placement": "13"
+      },
+      "to": {
+        "overall": 2.6,
+        "code": 2.6,
+        "process": 2.5,
+        "verdict": "conditional",
+        "comparable": 2.5,
+        "placement": "14"
+      },
+      "headline": [
+        "overall 2.5 to 2.6",
+        "process 2.4 to 2.5",
+        "placement 13 to 14"
+      ],
+      "criteria": [
+        "B2 3.2/warning to 3.5/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 5/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "biomejs",
+      "status": "scored",
+      "from": {
+        "overall": 3,
+        "code": 2.9,
+        "process": 3,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "6"
+      },
+      "to": {
+        "overall": 3,
+        "code": 2.9,
+        "process": 3,
+        "verdict": "conditional",
+        "comparable": 2.9,
+        "placement": "8"
+      },
+      "headline": [
+        "comparable 3 to 2.9",
+        "placement 6 to 8"
+      ],
+      "criteria": [
+        "B2 4/verified to 3.9/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 10/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "requests",
+      "status": "scored",
+      "from": {
+        "overall": 2.9,
+        "code": 2.4,
+        "process": 3.4,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "7"
+      },
+      "to": {
+        "overall": 3,
+        "code": 2.6,
+        "process": 3.4,
+        "verdict": "conditional",
+        "comparable": 3,
+        "placement": "6"
+      },
+      "headline": [
+        "overall 2.9 to 3",
+        "code 2.4 to 2.6",
+        "coverage code_trust 3/5; process_trust 4/6 to code_trust 4/5; process_trust 4/6",
+        "placement 7 to 6"
+      ],
+      "criteria": [
+        "A2 0/not_applicable to 3.2/verified"
+      ],
+      "metrics": [
+        "A2.env_handling_depth absent to 1/3",
+        "A2.secret_cleanliness absent to 1/1",
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "pydantic",
+      "status": "scored",
+      "from": {
+        "overall": 3.2,
+        "code": 2.9,
+        "process": 3.5,
+        "verdict": "conditional",
+        "comparable": 3.2,
+        "placement": "3"
+      },
+      "to": {
+        "overall": 3.2,
+        "code": 2.9,
+        "process": 3.5,
+        "verdict": "conditional",
+        "comparable": 3.2,
+        "placement": "2"
+      },
+      "headline": [
+        "placement 3 to 2"
+      ],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "axios",
+      "status": "scored",
+      "from": {
+        "overall": 3.3,
+        "code": 2.6,
+        "process": 3.9,
+        "verdict": "conditional",
+        "comparable": 3.2,
+        "placement": "2"
+      },
+      "to": {
+        "overall": 3.3,
+        "code": 2.6,
+        "process": 3.9,
+        "verdict": "conditional",
+        "comparable": 3.2,
+        "placement": "1"
+      },
+      "headline": [
+        "placement 2 to 1"
+      ],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "zod",
+      "status": "scored",
+      "from": {
+        "overall": 3.2,
+        "code": 3.1,
+        "process": 3.2,
+        "verdict": "conditional",
+        "comparable": 3.1,
+        "placement": "5"
+      },
+      "to": {
+        "overall": 3.2,
+        "code": 3.1,
+        "process": 3.3,
+        "verdict": "conditional",
+        "comparable": 3.2,
+        "placement": "4"
+      },
+      "headline": [
+        "process 3.2 to 3.3",
+        "comparable 3.1 to 3.2",
+        "placement 5 to 4"
+      ],
+      "criteria": [
+        "B2 3.2/warning to 3.4/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 3/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "scorecard",
+      "status": "scored",
+      "from": {
+        "overall": 2.9,
+        "code": 2.2,
+        "process": 3.6,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "10"
+      },
+      "to": {
+        "overall": 2.9,
+        "code": 2.2,
+        "process": 3.6,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "13"
+      },
+      "headline": [
+        "placement 10 to 13"
+      ],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "ripgrep",
+      "status": "scored",
+      "from": {
+        "overall": 2.1,
+        "code": 2.1,
+        "process": 2,
+        "verdict": "at_risk",
+        "comparable": 2.1,
+        "placement": "14"
+      },
+      "to": {
+        "overall": 2.1,
+        "code": 2.1,
+        "process": 2,
+        "verdict": "at_risk",
+        "comparable": 2.1,
+        "placement": "15"
+      },
+      "headline": [
+        "placement 14 to 15"
+      ],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 0/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "guava",
+      "status": "scored",
+      "from": {
+        "overall": 1.9,
+        "code": 1.6,
+        "process": 2.2,
+        "verdict": "at_risk",
+        "comparable": 1.8,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 1.9,
+        "code": 1.6,
+        "process": 2.2,
+        "verdict": "at_risk",
+        "comparable": 1.8,
+        "placement": "unranked"
+      },
+      "headline": [],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 0/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "cobra",
+      "status": "scored",
+      "from": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.3,
+        "verdict": "conditional",
+        "comparable": 2.4,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 2.5,
+        "code": 2.6,
+        "process": 2.3,
+        "verdict": "conditional",
+        "comparable": 2.4,
+        "placement": "unranked"
+      },
+      "headline": [],
+      "criteria": [],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 12/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "sinatra",
+      "status": "scored",
+      "from": {
+        "overall": 2.4,
+        "code": 2,
+        "process": 2.8,
+        "verdict": "at_risk",
+        "comparable": 2.5,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 2.2,
+        "code": 2,
+        "process": 2.3,
+        "verdict": "at_risk",
+        "comparable": 2.2,
+        "placement": "unranked"
+      },
+      "headline": [
+        "overall 2.4 to 2.2",
+        "process 2.8 to 2.3",
+        "comparable 2.5 to 2.2",
+        "coverage code_trust 2/5; process_trust 4/6 to code_trust 2/5; process_trust 3/6"
+      ],
+      "criteria": [
+        "B2 4/verified to 3.9/verified",
+        "B6 4/verified to 0/not_applicable"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 10/12",
+        "B2.pr_trace_primitives 3/2 to 2/2",
+        "B6.privilege_escalation_cleanliness 1/1 to absent",
+        "B6.protected_path_review_gate 1/1 to absent"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "automapper",
+      "status": "scored",
+      "from": {
+        "overall": 2.2,
+        "code": 2,
+        "process": 2.3,
+        "verdict": "at_risk",
+        "comparable": 2.1,
+        "placement": "unranked"
+      },
+      "to": {
+        "overall": 2.1,
+        "code": 2,
+        "process": 2.1,
+        "verdict": "at_risk",
+        "comparable": 2,
+        "placement": "unranked"
+      },
+      "headline": [
+        "overall 2.2 to 2.1",
+        "process 2.3 to 2.1",
+        "comparable 2.1 to 2"
+      ],
+      "criteria": [
+        "B2 4/verified to 3.5/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 5/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "fmt",
+      "status": "scored",
+      "from": {
+        "overall": 2.6,
+        "code": 2,
+        "process": 3.2,
+        "verdict": "conditional",
+        "comparable": 2.7,
+        "placement": "12"
+      },
+      "to": {
+        "overall": 2.7,
+        "code": 2,
+        "process": 3.3,
+        "verdict": "conditional",
+        "comparable": 2.8,
+        "placement": "11"
+      },
+      "headline": [
+        "overall 2.6 to 2.7",
+        "process 3.2 to 3.3",
+        "comparable 2.7 to 2.8",
+        "placement 12 to 11"
+      ],
+      "criteria": [
+        "B2 3.2/warning to 3.6/verified"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 0/1 to 6/12"
+      ],
+      "unchanged": false
+    },
+    {
+      "name": "carddemo",
+      "status": "scored",
+      "from": {
+        "overall": null,
+        "code": null,
+        "process": null,
+        "verdict": "insufficient_source",
+        "comparable": null,
+        "placement": "unrated"
+      },
+      "to": {
+        "overall": null,
+        "code": null,
+        "process": null,
+        "verdict": "insufficient_source",
+        "comparable": null,
+        "placement": "unrated"
+      },
+      "headline": [],
+      "criteria": [],
+      "metrics": [],
+      "unchanged": true
+    },
+    {
+      "name": "private-row",
+      "status": "scored",
+      "predicted": false
+    },
+    {
+      "name": "cejel",
+      "status": "scored",
+      "from": {
+        "overall": 2.8,
+        "code": 2.3,
+        "process": 3.2,
+        "verdict": "conditional",
+        "comparable": 2.7,
+        "placement": "transparency"
+      },
+      "to": {
+        "overall": 2.7,
+        "code": 2.3,
+        "process": 3.1,
+        "verdict": "conditional",
+        "comparable": 2.5,
+        "placement": "transparency"
+      },
+      "headline": [
+        "overall 2.8 to 2.7",
+        "process 3.2 to 3.1",
+        "comparable 2.7 to 2.5",
+        "coverage code_trust 5/5; process_trust 3/6 to code_trust 5/5; process_trust 2/6"
+      ],
+      "criteria": [
+        "B2 4/verified to 3.8/verified",
+        "B6 3.3/verified to 0/not_applicable"
+      ],
+      "metrics": [
+        "B2.pr_merge_ratio 1/1 to 9/12",
+        "B6.fail_closed_privilege_check 1/1 to absent",
+        "B6.human_gate_documented 1/1 to absent",
+        "B6.privilege_escalation_cleanliness 1/1 to absent",
+        "B6.protected_path_review_gate 0/1 to absent"
+      ],
+      "unchanged": false
+    }
+  ]
+}
