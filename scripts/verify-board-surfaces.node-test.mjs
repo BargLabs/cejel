@@ -105,3 +105,25 @@ test('markdown and HTML disagreeing on ranks, or a 0.6.3 board with no parseable
   const empty = surface('site/leaderboard.html', '0.6.3', '');
   assert.ok(compareSurfaces([empty]).some((error) => /no ranked rows parsed/.test(error)));
 });
+
+test('an unparseable board version header is an error, not a board without shared ranks', () => {
+  for (const version of ['latest', '0.6', '0.6.3-rc.1', 'v0.6.3']) {
+    const md = surface('site/leaderboard.md', version, RANK_MD(version, byName).split('## Ranking')[1]);
+    const errors = compareSurfaces([md]);
+    assert.ok(errors.some((error) => /board version header .* is not a published @cejel\/cejel@X\.Y\.Z/.test(error)), `${version}: ${errors.join('\n')}`);
+  }
+});
+
+const misordered = [[1, 'axios', '3.2'], [2, 'fastapi', '3.1'], [3, 'vite', '3.2']];
+test('a misordered board goes red on every version, as does a comparable score that is not a number', () => {
+  for (const version of ['0.6.3', '0.4.9']) {
+    const md = surface('site/leaderboard.md', version, RANK_MD(version, misordered).split('## Ranking')[1]);
+    const html = surface('site/leaderboard.html', version, RANK_HTML(misordered));
+    for (const board of [md, html]) {
+      const errors = compareSurfaces([board]);
+      assert.ok(errors.some((error) => /vite \(3\.2\) is listed below fastapi \(3\.1\)/.test(error)), `${version} ${board.name}: ${errors.join('\n')}`);
+    }
+  }
+  const dashed = surface('site/leaderboard.md', '0.4.9', RANK_MD('0.4.9', [[1, 'axios', '3.2'], [2, 'vite', '—']]).split('## Ranking')[1]);
+  assert.ok(compareSurfaces([dashed]).some((error) => /vite has comparable score "—", not a number/.test(error)));
+});

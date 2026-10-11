@@ -40,9 +40,13 @@ export function withdrawalDigest(text) {
 // live historical board still does, so the rule applies only to a board declaring 0.6.3 or later.
 const SHARED_RANKS_FROM = [0, 6, 3];
 
-function declaresSharedRanks(versionSpec) {
-  const version = /@(\d+)\.(\d+)\.(\d+)$/.exec(versionSpec ?? '');
-  if (!version) return false;
+// A version header that does not parse as a published X.Y.Z is an error, never "no shared ranks":
+// the rank check must not switch itself off silently.
+function declaresSharedRanks(surfaceName, versionSpec) {
+  const version = /^@cejel\/cejel@(\d+)\.(\d+)\.(\d+)$/.exec(versionSpec ?? '');
+  if (!version) {
+    throw new Error(`${surfaceName}: board version header ${JSON.stringify(versionSpec)} is not a published @cejel/cejel@X.Y.Z, so the shared-rank rule cannot be decided`);
+  }
   const parts = version.slice(1).map(Number);
   for (let index = 0; index < 3; index += 1) {
     if (parts[index] !== SHARED_RANKS_FROM[index]) return parts[index] > SHARED_RANKS_FROM[index];
@@ -72,6 +76,20 @@ export function sharedRankViolations(surfaceName, rows) {
     if (row.rank !== expected) {
       violations.push(`${surfaceName}: ${row.name} is ranked ${row.rank} at comparable ${row.comparable}; shared ranks require ${expected}`);
     }
+  });
+  return violations;
+}
+
+// Every board, whatever its version: comparable scores are numbers and never increase down the
+// ranked table.
+export function rankOrderViolations(surfaceName, rows) {
+  const violations = [];
+  rows.forEach((row, index) => {
+    if (!/^\d+(?:\.\d+)?$/.test(row.comparable)) {
+      violations.push(`${surfaceName}: ${row.name} has comparable score ${JSON.stringify(row.comparable)}, not a number`);
+      return;
+    }
+    const previous = rows[index - 1];
     if (index > 0 && Number(row.comparable) > Number(previous.comparable)) {
       violations.push(`${surfaceName}: ${row.name} (${row.comparable}) is listed below ${previous.name} (${previous.comparable})`);
     }
@@ -109,9 +127,17 @@ export function compareSurfaces(surfaces) {
     // The withdrawal is permanent, including after a corrected run replaces the scores.
     if (!surface.withdrawal) errors.push(`${surface.name}: missing or changed 2026-08-18 withdrawal record`);
   }
-  // Ranks are checked only where the board declares shared ranks (0.6.3 and later), so the live
+  for (const surface of surfaces) errors.push(...rankOrderViolations(surface.name, surface.ranking));
+  // Shared ranks are checked only where the board declares them (0.6.3 and later), so the live
   // historical board, which broke ties by name, does not go red.
-  const ranked = surfaces.filter((surface) => declaresSharedRanks(surface.version) && surface.ranking);
+  const ranked = [];
+  for (const surface of surfaces) {
+    try {
+      if (declaresSharedRanks(surface.name, surface.version)) ranked.push(surface);
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
   for (const surface of ranked) {
     errors.push(...sharedRankViolations(surface.name, surface.ranking));
     const reference = JSON.stringify(ranked[0].ranking);
