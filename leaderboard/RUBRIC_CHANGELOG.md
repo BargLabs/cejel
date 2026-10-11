@@ -22,7 +22,7 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## DATE-ON-GO-LIVE — board regenerated on 0.6.3: full-history clones and shared ranks; no rubric change
+## 2026-10-11 — board regenerated on 0.6.3: full-history clones and shared ranks; no rubric change
 
 **Status.** A board method change, not a rubric change. No scoring rule, criterion, weight or
 rubric identifier changes in this entry, and the behaviour fingerprint is not re-pinned. The
@@ -45,6 +45,13 @@ Each change therefore combines the 0.6.3 scoring change recorded in the 2026-10-
 the move to full-history clones, and shared ranks. No verdict changes. Four rows share first
 place and four share tenth. fastapi enters the ranking because, under full history, A2 becomes
 applicable and its coverage clears the floor.
+
+**Cejel's own row is now marked low confidence.** It is measured on 2 of 6 process criteria, down
+from 3 of 6, which puts it under the half-measured line. The criterion that dropped out is B6,
+privileged-operation human gating. The 0.4.9 board scored it 3.3. Under the #433 evidence fix
+released in 0.6.3 (#449), it is not applicable to this repository, because no privileged-operation
+surface is detected. Clone depth is not the cause: the row records no history limitation, and full
+history moved only B2 (4.0 → 3.8).
 
 | row | overall | comparable | verdict | rank |
 |---|---|---|---|---|
@@ -71,7 +78,7 @@ applicable and its coverage clears the floor.
 | express | 3.0 → 3.0 | 3.0 → 3.0 | conditional → conditional | unranked → unranked |
 | guava | 1.9 → 1.9 | 1.8 → 1.8 | at_risk → at_risk | unranked → unranked |
 | sinatra | 2.4 → 2.2 | 2.5 → 2.2 | at_risk → at_risk | unranked → unranked |
-| the private row | filled from the staged board on go-live | | | transparency → transparency |
+| the private row | 3.2 → 3.2 | 3.2 → 3.2 | conditional → conditional | transparency → transparency |
 
 ## 2026-10-09 — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump), direction down; public-corpus before-and-after not yet run
 
