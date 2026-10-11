@@ -22,6 +22,57 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## DATE-ON-GO-LIVE — board regenerated on 0.6.3: full-history clones and shared ranks; no rubric change
+
+**Status.** A board method change, not a rubric change. No scoring rule, criterion, weight or
+rubric identifier changes in this entry, and the behaviour fingerprint is not re-pinned. The
+published board is regenerated with `@cejel/cejel@0.6.3` under `witan-rubric-v17-2026-07-24`.
+Issue: #431.
+
+**What changes in the method.**
+- Public rows are scored on full-history clones: no depth limit, no blob filter. Earlier boards
+  fetched one commit per public row, so A2's history pass and B2's pull-request merge ratio read
+  a single commit. The clone-depth record (#448) measured that change alone on 0.4.9: no verdict
+  changed, and overall moved by 0.1 on six of the 23 public rows.
+- Rows with the same comparable score to one decimal share a rank (standard competition ranking).
+  Earlier boards broke such ties by name.
+
+**Preregistered and measured.** This regeneration's preregistration is #452 and its result is
+#455; every preregistered value held.
+
+**Before and after, every row.** "Before" is the published 0.4.9 board; "after" is this board.
+Each change therefore combines the 0.6.3 scoring change recorded in the 2026-10-09 entry below,
+the move to full-history clones, and shared ranks. No verdict changes. Four rows share first
+place and four share tenth. fastapi enters the ranking because, under full history, A2 becomes
+applicable and its coverage clears the floor.
+
+| row | overall | comparable | verdict | rank |
+|---|---|---|---|---|
+| axios | 3.3 → 3.3 | 3.2 → 3.2 | conditional → conditional | 2 → 1 |
+| pydantic | 3.2 → 3.2 | 3.2 → 3.2 | conditional → conditional | 3 → 1 |
+| vite | 3.4 → 3.4 | 3.3 → 3.2 | conditional → conditional | 1 → 1 |
+| zod | 3.2 → 3.2 | 3.1 → 3.2 | conditional → conditional | 5 → 1 |
+| fastapi | 3.0 → 3.1 | 3.0 → 3.1 | conditional → conditional | unranked → 5 |
+| requests | 2.9 → 3.0 | 3.0 → 3.0 | conditional → conditional | 7 → 6 |
+| svelte | 3.1 → 3.1 | 3.1 → 3.0 | conditional → conditional | 4 → 6 |
+| biomejs | 3.0 → 3.0 | 3.0 → 2.9 | conditional → conditional | 6 → 8 |
+| vue | 2.9 → 3.0 | 2.8 → 2.9 | conditional → conditional | 11 → 8 |
+| flask | 2.9 → 2.9 | 2.8 → 2.8 | conditional → conditional | 8 → 10 |
+| fmt | 2.6 → 2.7 | 2.7 → 2.8 | conditional → conditional | 12 → 10 |
+| react | 3.0 → 3.0 | 2.8 → 2.8 | conditional → conditional | 9 → 10 |
+| scorecard | 2.9 → 2.9 | 2.8 → 2.8 | conditional → conditional | 10 → 10 |
+| esbuild | 2.5 → 2.6 | 2.5 → 2.5 | conditional → conditional | 13 → 14 |
+| ripgrep | 2.1 → 2.1 | 2.1 → 2.1 | at_risk → at_risk | 14 → 15 |
+| automapper | 2.2 → 2.1 | 2.1 → 2.0 | at_risk → at_risk | unranked → unranked |
+| carddemo | — → — | — → — | insufficient_source → insufficient_source | unrated → unrated |
+| cejel | 2.8 → 2.7 | 2.7 → 2.5 | conditional → conditional | transparency → transparency |
+| cobra | 2.5 → 2.5 | 2.4 → 2.4 | conditional → conditional | unranked → unranked |
+| django | 3.1 → 3.1 | 3.0 → 2.9 | conditional → conditional | unranked → unranked |
+| express | 3.0 → 3.0 | 3.0 → 3.0 | conditional → conditional | unranked → unranked |
+| guava | 1.9 → 1.9 | 1.8 → 1.8 | at_risk → at_risk | unranked → unranked |
+| sinatra | 2.4 → 2.2 | 2.5 → 2.2 | at_risk → at_risk | unranked → unranked |
+| the private row | filled from the staged board on go-live | | | transparency → transparency |
+
 ## 2026-10-09 — behaviour change under witan-rubric-v17-2026-07-24 (no identifier bump), direction down; public-corpus before-and-after not yet run
 
 **Status.** This is a disclosed behaviour change under the existing calibrated public default,
