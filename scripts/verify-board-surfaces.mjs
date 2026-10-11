@@ -35,6 +35,50 @@ export function withdrawalDigest(text) {
   return createHash('sha256').update(normalized, 'utf8').digest('hex');
 }
 
+// Shared ranks (operator ruling 2026-10-11, #431): rows with equal rounded comparable scores share
+// a rank (standard competition ranking, 1 1 1 1 5). Boards before 0.6.3 broke ties by name, and the
+// live historical board still does, so the rule applies only to a board declaring 0.6.3 or later.
+const SHARED_RANKS_FROM = [0, 6, 3];
+
+function declaresSharedRanks(versionSpec) {
+  const version = /@(\d+)\.(\d+)\.(\d+)$/.exec(versionSpec ?? '');
+  if (!version) return false;
+  const parts = version.slice(1).map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    if (parts[index] !== SHARED_RANKS_FROM[index]) return parts[index] > SHARED_RANKS_FROM[index];
+  }
+  return true;
+}
+
+// Ranked rows as printed, in display order: rank, repository name, comparable score. Markdown reads
+// the Ranking table's | rank | [name](url) | category | license | overall | comparable | columns;
+// HTML reads <tr><td>rank</td><td>name</td>...<td class="ranked-score">comparable</td>.
+export function parseRankedRows(name, text) {
+  if (name.endsWith('.md')) {
+    return [...text.matchAll(/^\| *(\d+) *\| \[([^\]]+)\]\([^)]*\) \|[^|]*\|[^|]*\|[^|]*\| *([^|]*?) *\|/gm)]
+      .map((match) => ({ rank: Number(match[1]), name: match[2], comparable: match[3] }));
+  }
+  return [...text.matchAll(/<tr><td>(\d+)<\/td><td>(?:<a [^>]*>)?([^<]+)(?:<\/a>)?<\/td>(?:<td[^>]*>[^<]*<\/td>){3}<td class="ranked-score">([^<]*)<\/td>/g)]
+    .map((match) => ({ rank: Number(match[1]), name: match[2], comparable: match[3] }));
+}
+
+// Violations of the shared-rank rule within one surface's ranked rows.
+export function sharedRankViolations(surfaceName, rows) {
+  if (rows.length === 0) return [`${surfaceName}: no ranked rows parsed from a board that declares shared ranks`];
+  const violations = [];
+  rows.forEach((row, index) => {
+    const previous = rows[index - 1];
+    const expected = index > 0 && previous.comparable === row.comparable ? previous.rank : index + 1;
+    if (row.rank !== expected) {
+      violations.push(`${surfaceName}: ${row.name} is ranked ${row.rank} at comparable ${row.comparable}; shared ranks require ${expected}`);
+    }
+    if (index > 0 && Number(row.comparable) > Number(previous.comparable)) {
+      violations.push(`${surfaceName}: ${row.name} (${row.comparable}) is listed below ${previous.name} (${previous.comparable})`);
+    }
+  });
+  return violations;
+}
+
 export function parseSurface(name, text) {
   const plain = text.replace(/<[^>]*>/g, ' ').replace(/&(?:nbsp|middot);/g, ' ');
   const fields = {};
@@ -47,7 +91,12 @@ export function parseSurface(name, text) {
     if (values.length !== 1) throw new Error(`${name}: expected exactly one ${key} header, found ${values.length}`);
     fields[key] = values[0];
   }
-  return { name, ...fields, withdrawal: withdrawalDigest(text) === WITHDRAWAL_SHA256 };
+  return {
+    name,
+    ...fields,
+    withdrawal: withdrawalDigest(text) === WITHDRAWAL_SHA256,
+    ranking: parseRankedRows(name, text),
+  };
 }
 
 export function compareSurfaces(surfaces) {
@@ -59,6 +108,16 @@ export function compareSurfaces(surfaces) {
     }
     // The withdrawal is permanent, including after a corrected run replaces the scores.
     if (!surface.withdrawal) errors.push(`${surface.name}: missing or changed 2026-08-18 withdrawal record`);
+  }
+  // Ranks are checked only where the board declares shared ranks (0.6.3 and later), so the live
+  // historical board, which broke ties by name, does not go red.
+  const ranked = surfaces.filter((surface) => declaresSharedRanks(surface.version) && surface.ranking);
+  for (const surface of ranked) {
+    errors.push(...sharedRankViolations(surface.name, surface.ranking));
+    const reference = JSON.stringify(ranked[0].ranking);
+    if (JSON.stringify(surface.ranking) !== reference) {
+      errors.push(`${surface.name}: ranked rows differ from ${ranked[0].name}`);
+    }
   }
   return errors;
 }
