@@ -53,9 +53,16 @@ const PLAIN_SERVICE: Readonly<Record<string, string>> = {
 
 describe('withheld-path state is a statement on every certificate, never silence', () => {
   it.each([
-    [WITAN_RUBRIC_VERSION_V17, false],
-    [WITAN_RUBRIC_VERSION_V23, true],
-  ] as const)('discloses withheld server middleware under %s (actedOn=%s)', (rubric, actedOn) => {
+    // health_readiness_route exists only from v20 on, and since 2026-10-12 its file selection also
+    // admits a `server/` tree (a conventional home of an HTTP entrypoint), so a withheld file there
+    // now also names that signal under v23. v17 has no such signal and is unchanged.
+    [WITAN_RUBRIC_VERSION_V17, false, ['A3.prod_readiness_primitives']],
+    [
+      WITAN_RUBRIC_VERSION_V23,
+      true,
+      ['A3.health_readiness_route', 'A3.prod_readiness_primitives'],
+    ],
+  ] as const)('discloses withheld server middleware under %s (actedOn=%s)', (rubric, actedOn, signals) => {
     const { report, notEstablished } = scan({
       ...PLAIN_SERVICE,
       'src/server.js': "const express = require('express'); const app = express(); app.listen(3000);\n",
@@ -65,7 +72,7 @@ describe('withheld-path state is a statement on every certificate, never silence
     expect(report.withheldPaths).toEqual([{
       path: 'server/plugins/handler.mjs',
       reason: 'too_large',
-      signalsAdmitting: ['A3.prod_readiness_primitives'],
+      signalsAdmitting: [...signals],
       actedOn,
     }]);
     expect(notEstablished).toContain('A3.prod_readiness_primitives');

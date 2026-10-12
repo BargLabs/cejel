@@ -647,6 +647,50 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'README.md': '# control-described-not-built\n\nA fixture repository.\n',
     },
   },
+  {
+    name: 'inline-health-route-and-prettier-handler',
+    purpose:
+      'A3: an Express service whose only health route is declared inline in the application ' +
+      'file (no health.ts, no Dockerfile HEALTHCHECK, no probes), and whose error handler is ' +
+      'written in Prettier\'s multi-line style with an underscored `_req` and a trailing comma, ' +
+      'registered in the same file. Two shapes, two mechanisms: the handler is credited by the ' +
+      'widened error-middleware shape pattern under every rubric, the inline route only by ' +
+      'witan-rubric-v25 (the scored health component is filename-only everywhere else). Added ' +
+      '2026-10-12 so the fingerprint can see both; before it the corpus held neither shape.',
+    files: {
+      'package.json': manifest({
+        name: 'inline-health-route-and-prettier-handler',
+        version: '1.0.0',
+        scripts: { start: 'node src/server.js', build: 'tsc', test: 'vitest run' },
+      }),
+      'src/server.ts':
+        "import express, { type ErrorRequestHandler } from 'express';\n" +
+        "import { Pool } from 'pg';\n\n" +
+        'const pool = new Pool();\n' +
+        'const app = express();\n\n' +
+        "app.get('/health', async (_req, res) => {\n" +
+        '  try {\n' +
+        "    await pool.query('select 1');\n" +
+        '    res.json({ ok: true });\n' +
+        '  } catch {\n' +
+        '    res.status(503).json({ ok: false });\n' +
+        '  }\n' +
+        '});\n\n' +
+        'const errorHandler: ErrorRequestHandler = (\n' +
+        '  error,\n' +
+        '  _req,\n' +
+        '  res,\n' +
+        '  next,\n' +
+        ') => {\n' +
+        "  res.status(500).json({ message: 'internal error' });\n" +
+        '};\n' +
+        'app.use(errorHandler);\n\n' +
+        'app.listen(3000);\n',
+      'src/items.test.ts':
+        "import { expect, it } from 'vitest';\n\nit('adds', () => {\n  expect(1 + 1).toBe(2);\n});\n",
+      'README.md': '# inline-health-route-and-prettier-handler\n\nA fixture repository.\n',
+    },
+  },
 ];
 
 /**
@@ -674,6 +718,7 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'stale-audit-trail': 'a230b07e26ca88245bee21a13bc68c8935897d98',
   'real-credential-in-docs': 'd7eef4fd2f815f56a01325683f4cc63cdcb4e79d',
   'control-described-not-built': 'fdfd0e13868a4220e216cc657c250d4ef238da6e',
+  'inline-health-route-and-prettier-handler': 'f884b252dc78d8b5d82baa2a939c50fea6893941',
 });
 
 /**

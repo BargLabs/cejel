@@ -458,10 +458,10 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Setting toolVersion back to "0.6.2" in place reproduces the #433 pin (a9d4c85f...) byte for
     // byte, and the #433 restoration below is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '7a5781172975c5036b569c739acc3b5d545455c23b79342b3e54164eefc5bb63',
+      '79dd88eed8813dd16be0c21b8de6a468447a3f7c397e86c97efec8e6baa42495',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
+      'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.3');
     const at062 = { ...firstReport, toolVersion: '0.6.2' } as typeof firstReport;
