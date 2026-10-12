@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "A correction keyed by position breaks whenever unrelated content moves. The cited-commits errata named each citation by file and line, and RUBRIC_CHANGELOG.md is written newest-first, so a 119-line top entry on #441 left three corrections stale and their citations flagged, six failures. Keying by an exact excerpt that must occur exactly once fixed it, but a one-line excerpt could not tell apart two byte-identical table rows in one experiment record; only the row above did. Rule: key a correction by content, require exactly one match, fail loud and distinctly on zero matches and on several, and let the excerpt span lines.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "ci-integrity"],
+    "tags": ["position-keyed-correction", "stable-key", "exactly-one-match", "identical-lines"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-12T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 464}
+  },
+  {
+    "statement": "A new test that fails against the old code proves nothing about behaviour if it fails because the old code refuses the new input format. Run against the pre-change checker, every errata test failed only because the old loader rejected the v2 register. The behavioural evidence came from replaying the original incident on the real record against old and new code (old: the incident's six failures; new: none), and from a mutation that turned exactly one test red on its specific assertion. Rule: when a format change makes the red run trivially red, replay the incident on real data and mutate the new logic instead.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "test-design"],
+    "tags": ["red-for-the-wrong-reason", "format-refusal", "incident-replay", "mutation-check"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-12T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 464}
+  }
+]
