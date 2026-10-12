@@ -162,3 +162,23 @@ attributions are printed in the run log, and an entry that no longer matches any
 | With the register, failures | 0 | 0 |
 | With the register, corrected by errata | 15 | 15 |
 | Register entries | 13 | 13 |
+
+## Errata keyed by context, not line (2026-10-12, #444)
+
+The register located each correction by file and line. `RUBRIC_CHANGELOG.md` is written
+newest-first, so every new top entry moved the three `RUBRIC_CHANGELOG` corrections: on #441 a
+119-line entry left their citations flagged and their entries stale, six failures. The register
+is now `cejel-citation-errata-v2`: each location names the file and a `context`, an exact excerpt
+of that file holding the token once. The context must occur exactly once in the file. A context
+that occurs nowhere fails, one that occurs more than once fails as ambiguous, and one whose single
+citation is not flagged fails as stale, as before. Two of the shape-diversity record's three
+`25e711d1…` lines are byte-identical table rows, so their contexts span the preceding `Parent` row.
+No citing record was edited.
+
+| Measurement (local macOS worktree; `origin/main` at `b673493`, 12 `evidence/*` tags, `refs/pull/*/head` fetched) | Expected | Observed |
+|---|---:|---:|
+| Old keys (`b673493`) against the record: failures / corrected | 0 / 16 | 0 / 16 |
+| Context keys against the same record: failures / corrected | 0 / 16 | 0 / 16 |
+| Old and new runs' stdout, stderr and exit code | byte-identical | byte-identical |
+| Old keys, a 119-line entry added at the top of `RUBRIC_CHANGELOG.md`: failures | 6 | 6 (3 flagged citations, 3 stale entries) |
+| Context keys, the same addition: failures / corrected | 0 / 16 | 0 / 16; the three corrections move to lines 1458, 1459, 1505 |
