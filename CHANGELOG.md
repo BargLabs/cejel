@@ -16,6 +16,36 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+**Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
+identifier bump: direction up, on `prod_readiness_primitives` (A3) only.** The A3 Express
+error-handler shape check now recognises two ordinary spellings it missed, both public-documentation
+idioms rather than anything specific to one codebase: a lint-underscored second or third parameter
+(`(err, _req, res, next)`, `(err, req, _res, next)`) and a trailing comma after the fourth parameter
+(`(err, req, res, next,)`, Prettier's default for a multi-line parameter list). Reachability is
+unchanged: a handler still needs a `.use(` registration or an export in the same file, outside
+comments, and never counts in a test file. Measured on the behaviour corpus: `complete-node-service`
+A3 1.6 → 2.0 and the new `inline-health-route-and-prettier-handler` fixture A3 0.4 → 0.7, error
+boundary 0 → 1 in both; overall unchanged at one decimal except `complete-node-service` under v17
+(2.8 → 2.9). Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-12). This is a recall change on
+a default-rubric metric: the paired public-corpus delta at unchanged corpus commits (the 0.4.9
+precedent, #306) is **not yet run** and belongs to the next release card.
+
+- **New prospective rubric `witan-rubric-v25-prospective-2026-10-12`** (explicit opt-in via
+  `--rubric-pin`; the public default stays v17). It inherits v22 and adds one mechanism: the
+  "health or readiness signal" component also credits a route declared inline in an application
+  file. No precision or recall claim; the public paired rescore has not run. It is batched into its
+  own rubric so the next calibration takes it together with other recognition changes.
+- **Certificate and docs state which forms count as a health or readiness signal** (a dedicated
+  health/readiness file, a Dockerfile `HEALTHCHECK`, Kubernetes probes) and that a route declared
+  inline in an application file does not, under the calibrated rubric. Presentation only:
+  `report.json` bytes are unchanged by this item.
+- **The info-severity `health_readiness_route` finding (v20 and later) now reads** a repo-root
+  `server`/`index`/`app`/`main` file and `server/`, `backend/` and `api/` trees, previously not
+  admitted, so an inline `/health` route there stops being reported as missing. No score moves. A
+  withheld oversized file in those locations is now also disclosed as withheld for this signal.
+
 ## [0.6.3] — 2026-10-10
 
 ### Changed

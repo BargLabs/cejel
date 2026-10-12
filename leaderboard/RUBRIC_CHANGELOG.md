@@ -22,6 +22,96 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-12 — A3 error-handler shape widening (all rubrics, no identifier bump) and prospective v25; public paired rescore not run
+
+**Status.** Two changes, recorded together because one corpus fixture and one re-pin carry both.
+**The public-corpus before-and-after has not run for either.** This entry makes no statement about
+a public-corpus score, verdict, rank, placement, coverage, calibration, precision or recall.
+
+**1. Behaviour change under every selectable rubric, no identifier bump, direction up.** A3's
+Express error-handler shape pattern (`EXPRESS_ERROR_MIDDLEWARE_PATTERN`) now also matches a
+leading underscore on the second and third parameter (`(err, _req, res, next)`,
+`(err, req, _res, next)`) and one trailing comma after the fourth parameter and its optional type
+(`(err, req, res, next,)`, Prettier's default for a multi-line parameter list). Both are ordinary
+lint and formatter output. The change adds recall to `prod_readiness_primitives`' `error boundary`
+component only. It is not gated on rubric version, like the #433 fix, because a missed credit for
+a real handler is wrong under every rubric. The named-parameter rule, the reachability requirement
+(`.use(` or an export, outside comments), the test/fixture exclusion and the three-parameter limit
+are unchanged; fixtures D6, D7 and D8 in `a3-error-boundary-idioms.test.ts` pin a never-registered
+stub, a stub in a test file and a commented-out registration as still uncredited.
+
+**2. Prospective rubric `witan-rubric-v25-prospective-2026-10-12`.** Explicit opt-in only, like
+every rubric after v17: the public default stays `witan-rubric-v17-2026-07-24`. It inherits the
+complete v22 closure (not v23, not v24, for the reason v24's declaration gives) and adds one
+mechanism: the `prod_readiness_primitives` "health or readiness signal" component also credits a
+route matched by `V20_HEALTH_OR_READINESS_ROUTE_PATTERN`, with comments stripped, in a file that
+passes `healthReadinessRouteReads`, the file-selection test the info-severity
+`health_readiness_route` finding already uses. No new pattern; every negative case that finding
+guards (outbound URLs, tests, README, query strings, bare keyword literals) is exercised against
+v25 in `a3-health-route-idioms.test.ts`, plus a commented-out route. Under every other rubric the
+component stays filename-only by design (a dedicated health or readiness file, a Dockerfile
+`HEALTHCHECK`, Kubernetes probes), so a route declared inline in an application file earns nothing
+there. **Declared with no precision or recall claim; the public paired rescore has not run.** It is
+batched as its own rubric rather than shipped alone because the next calibration should take it
+together with other recognition changes, so it is calibrated once.
+
+**Also in this change, no score moves.** The `healthReadinessRouteReads` file selection, which feeds
+the info-severity `health_readiness_route` finding (v20 onward) and v25's credit, now also admits
+a repo-root `server`/`index`/`app`/`main` file and a `server/`, `backend/` or `api/` tree. Because
+the same predicate decides which withheld files a signal would have read, a withheld oversized file
+in those locations is now disclosed as admitted by that signal under v20 onward
+(`withheld-paths-always-disclosed.test.ts`, v23 row). The certificate and README now state which
+forms count as a health or readiness signal and that an inline route does not under the calibrated
+rubric. That is presentation: the glossary text is not part of `report.json`.
+
+**Measured mechanically on the sixteen-fixture corpus**, scoring at the guard's fixed `generatedAt`.
+"Previous" is `origin/main` `988721e`, run on the same fixtures.
+
+| Fixture | Rubric | A3 previous → now | `prod_readiness_primitives` | Overall previous → now |
+|---|---|---|---|---|
+| `complete-node-service` | v17 | 1.6 → 2.0 | 3/6 → 4/6 (error boundary 0 → 1) | 2.8 → 2.9 |
+| `complete-node-service` | v18–v24 | 1.6 → 2.0 | 3/6 → 4/6 (error boundary 0 → 1) | 3.0 → 3.0 |
+| `complete-node-service` | v25 | n/a → 2.4 | 5/6 (error boundary 1, health 1) | 3.0 |
+| `inline-health-route-and-prettier-handler` (new) | v17–v24 | 0.4 → 0.7 | 1/6 → 2/6 (error boundary 0 → 1) | 1.3 → 1.3 |
+| `inline-health-route-and-prettier-handler` (new) | v25 | n/a → 1.1 | 3/6 (error boundary 1, health 1) | 1.4 |
+
+- The two moves under v17–v24 are the error-handler widening alone. `complete-node-service` already
+  declared `(err, _req, res, _next)`; the new fixture declares the Prettier multi-line shape.
+- v25 differs from v22 on **A3 only, and only on the two fixtures that declare a health route
+  inline in an application file**; it is byte-identical to v22 on every other criterion and fixture,
+  with and without ingested signals (`v25-v22-non-a3-parity.test.ts`).
+- **Re-digesting the first fifteen fixtures with the previous detector would reproduce each
+  rubric's previous component pins except A3 on `complete-node-service`.** No other pre-existing
+  fixture moved under any rubric.
+- The two goldens that hash a whole v17 report (`src/__tests__/index.test.ts`,
+  `v17-scoring-surface-golden.test.ts`) were re-pinned. None of their fixtures holds either shape.
+  In each, restoring the previous v17 fingerprint in place reproduces the previous pin byte for
+  byte, which is asserted mechanically.
+- Every rubric's fingerprint moves, because a fixture was added *and* because the error-handler
+  widening changed A3 on `complete-node-service` under v17–v24.
+
+| Rubric | Previous fingerprint (2026-10-09) | Fingerprint from 2026-10-12 |
+|---|---|---|
+| `witan-rubric-v17-2026-07-24` (calibrated public default) | `sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858` | `sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:60917d1d81efe7cda6f6adbfaa05293e2d9bf1db37b39d084e47f9011a996b67` | `sha256:f9609ec58bd64e771c3479ba9bcc63767d8770f5f5f3123898eb951da13da49f` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:e050ce8563de0736d9cfb6c23e2ba04725d88465d378a8632576269b9bc9f269` | `sha256:4715008e6148e8cd6a3753bbf3f21b04fc35c1cbb16bdf6f1118eceb5cb811ec` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:0433adc34b58c0fd5500a0bdeaa910c854eedbadbeaabb9045238d4ba9be8878` | `sha256:06e8576ff60188edec14993c796cd5a65b17218ef98b09302c5455eefe0b9f23` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:d3796b78a45ea3593f6abe71c77c2d00a0056d0f2d88476a01329dc342166aa6` | `sha256:e614248a22790a7da566ec90ac0dbcc930a24806b6753036ea10edf4b528f622` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:932bc09cbe555c6058a95be581ccf7a286c43887f90d32698f5273b7623824bf` | `sha256:643a5110761581aef265ce73dbe38d9325ed3058e6d6ff5d3c836fb727caf5d1` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:db97dc999d37e3c39c3bd3e4b1778c94eb9ad3176fb5c7d7264a7e510b162fc1` | `sha256:f7bace88af1acd1048639f2cb2747e0c51a928164de7716360de5ab61bb214be` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:e313fab25ae1779a11e86b23696881cd6f8fe2a845609dc93e2ff6f3ff8c16d5` | `sha256:df16c0bad617a38520033fd0196d2c1680b97bddaa18c93cac06187152519b8d` |
+| `witan-rubric-v25-prospective-2026-10-12` | none (new) | `sha256:a7dfc0a75e34adc8566614422bbac4ed743d03086840513b4ab708ca43d92999` |
+
+A certificate issued under v17 before this change carries `2da86acf…`, and one issued after it
+carries `d621dcbb…`. The two describe **different** v17 scoring on a repository that holds the
+error-handler shapes above: the pair (`rubricVersion`, `rubricBehaviourFingerprint`) differs because
+behaviour differs.
+
+**Not run, and owed.** The paired public-corpus delta at unchanged corpus commits for the
+error-handler widening (the 0.4.9 precedent, #306) belongs to the next release card. No statement
+is made here about which public rows will move. The v25 public paired rescore has not run and is a
+prerequisite for any calibration or default-promotion claim.
+
 ## 2026-10-11 — board regenerated on 0.6.3: full-history clones and shared ranks; no rubric change
 
 **Status.** A board method change, not a rubric change. No scoring rule, criterion, weight or

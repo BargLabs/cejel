@@ -507,7 +507,9 @@ describe('A3 health/readiness route — idiom catalogue', () => {
 
     it('v25 cites the route file and line as evidence', () => {
       const a3 = scanA3At({ ...BASE, 'server.ts': INLINE_APP }, WITAN_RUBRIC_VERSION_V25);
-      const pointer = a3?.positiveEvidence.find((entry) => entry.label === 'Health/readiness route');
+      const pointer = a3?.positiveEvidence?.find(
+        (entry) => entry.label === 'Health/readiness route',
+      );
       expect(pointer?.path).toBe('server.ts');
       expect(pointer?.line).toBe(9);
     });
@@ -517,7 +519,7 @@ describe('A3 health/readiness route — idiom catalogue', () => {
       expect(healthComponent(files, WITAN_RUBRIC_VERSION_V25)).toBe(1);
       const a3 = scanA3At(files, WITAN_RUBRIC_VERSION_V25);
       expect(
-        a3?.positiveEvidence.filter((entry) => /Health\/readiness/.test(entry.label)),
+        a3?.positiveEvidence?.filter((entry) => /Health\/readiness/.test(entry.label)),
       ).toHaveLength(1);
     });
 
