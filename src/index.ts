@@ -35,6 +35,7 @@ import {
 export { WitanReportSchema, verifyWitanAttestationBinding };
 
 import { serveCejelMcpOverStdio } from './mcp/stdio.js';
+import { npxVersionMismatchWarning } from './npx-version-guard.js';
 import { runCejelScan } from './scan.js';
 import { computeApplicableMeasuredCoverage } from './witan/coverage.js';
 import {
@@ -328,7 +329,31 @@ async function main(): Promise<void> {
  * and repo-signal collector; this module only adds ergonomic defaults + presentation.
  */
 export async function runWitanFreeCli(args: readonly string[]): Promise<number> {
+  warnIfNpxRanAnotherVersion();
   return runWitanCli(args);
+}
+
+// A warning, never a refusal: the run continues and the exit code is unchanged (#436). It is not
+// gated on --quiet, because a scripted run is the one that would otherwise never notice.
+function warnIfNpxRanAnotherVersion(): void {
+  const warning = npxVersionMismatchWarning({
+    env: process.env,
+    cwd: process.cwd(),
+    packageName: NPX_PACKAGE_NAME,
+    runningVersion: cliVersion(),
+    runningPath: runningEntryPath(),
+  });
+  if (warning) process.stderr.write(`${warning}\n`);
+}
+
+function runningEntryPath(): string {
+  const invokedPath = process.argv[1];
+  if (!invokedPath) return process.execPath;
+  try {
+    return realpathSync(invokedPath);
+  } catch {
+    return invokedPath;
+  }
 }
 
 /**
