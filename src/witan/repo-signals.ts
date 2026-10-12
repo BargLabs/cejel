@@ -73,6 +73,7 @@ import {
   WITAN_RUBRIC_VERSION_V22,
   WITAN_RUBRIC_VERSION_V23,
   WITAN_RUBRIC_VERSION_V24,
+  WITAN_RUBRIC_VERSION_V25,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -84,7 +85,8 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24
+    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V25
   );
 }
 
@@ -523,29 +525,34 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24;
+    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V25;
   const usesV19CommitYear =
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24;
+    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V25;
   const usesV20A3ExplicitGaps =
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24;
+    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V25;
   const usesV21ExecutedEscalations =
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24;
+    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V25;
   const usesV22PackageStartEntrypoint =
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V24;
+    rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V25;
   const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   // Explicit-only (goal_cejel_v23_pem_private_key_grammar_2026-09-06): a PEM-formatted
   // private-key value assigned to an identifier (e.g. a service-account JSON's
@@ -568,6 +575,12 @@ function buildWitanInputFromRepoUntracked(
   // v23's own four mechanisms are declared v23-specific, so v24 is a v22 descendant, not a v23
   // one. See the WITAN_RUBRIC_VERSION_V24 declaration in rubric-version.ts.
   const usesV24SecretContentContext = rubricVersion === WITAN_RUBRIC_VERSION_V24;
+  // Explicit-only (goal_cejel_a3_handler_shapes_and_inline_health_2026-10-12): A3's scored
+  // "health or readiness signal" component also credits a health/readiness route declared inline
+  // in an application file. Checked against V25 alone and never inherits: v17 (the public
+  // default), v22, v23 and v24 stay byte-stable, and v25 is a v22 descendant. See the
+  // WITAN_RUBRIC_VERSION_V25 declaration in rubric-version.ts.
+  const usesV25InlineHealthRoute = rubricVersion === WITAN_RUBRIC_VERSION_V25;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -659,6 +672,7 @@ function buildWitanInputFromRepoUntracked(
     usesV23PemPrivateKeyGrammar,
     usesV23WithheldPathAbstention,
     usesV24SecretContentContext,
+    usesV25InlineHealthRoute,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1747,6 +1761,7 @@ function collectRepoSignals(
   useV23PemPrivateKeyGrammar: boolean,
   useV23WithheldPathAbstention: boolean,
   useV24SecretContentContext: boolean,
+  useV25InlineHealthRoute: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1794,6 +1809,7 @@ function collectRepoSignals(
       useV22PackageStartEntrypoint,
       useV23WithheldPathAbstention,
       inventoryAbsenceContext,
+      useV25InlineHealthRoute,
     ),
   );
   const a4Signal = collectCriterion('A4', () =>
@@ -3097,6 +3113,7 @@ function collectA3ProdReadinessEvidence(
   useV22PackageStartEntrypoint = false,
   useV23WithheldPathAbstention = false,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
+  useV25InlineHealthRoute = false,
 ): WitanCriterionSignalPayload | null {
   const v20DirectHttpEntrypoint = useV20ExplicitGaps
     ? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles)
@@ -3172,9 +3189,28 @@ function collectA3ProdReadinessEvidence(
   // content scan below — both out of scope for this card (goal_cejel_a3_health_route_idioms_v23).
   const healthReadinessRouteReads = (file: string): boolean =>
     isAuthoredProductionPath(file) &&
-    (isImplementationFile(file) || HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN.test(file));
+    (isImplementationFile(file) ||
+      HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN.test(file) ||
+      HEALTH_ROUTE_ENTRYPOINT_HOME_PATTERN.test(file));
   const observabilityDepthReads = (file: string): boolean =>
     (!useV27Detectors || isAuthoredProductionPath(file)) && isImplementationFile(file);
+  // v25 only. Every other rubric's scored health component is filename-only
+  // by design (isHealthCheckSignalFile), so a route declared inline in an application file earns
+  // nothing there. Reuses the info finding's file-selection test and route pattern with no new
+  // pattern, but evaluated with comments stripped: the finding is info-severity and may read raw
+  // text, whereas a scored credit must not be earned by a commented-out `// app.get('/health')`
+  // (the #352/#433 class). Skipped when a filename signal already exists: no extra content scan.
+  const inlineHealthRouteFile =
+    useV25InlineHealthRoute && healthChecks.length === 0
+      ? withContentReadSignal('A3', 'prod_readiness_primitives', () =>
+          repoFiles.find(
+            (file) =>
+              healthReadinessRouteReads(file) &&
+              fileMatchesOutsideComments(repoPath, file, V20_HEALTH_OR_READINESS_ROUTE_PATTERN),
+          ),
+        )
+      : undefined;
+  const hasHealthOrReadinessSignal = healthChecks.length > 0 || inlineHealthRouteFile !== undefined;
   // Scoped to 'health_readiness_route': feeds only the (info-severity) health/readiness-route
   // absence finding below, never a scored metric.
   const { hasV20HealthOrReadinessRoute, hasV22PackageStartHealthOrReadinessRoute } =
@@ -3368,6 +3404,22 @@ function collectA3ProdReadinessEvidence(
         evidenceForRelative(repoPath, healthCheck, 'prod_check', 'Health/readiness signal'),
       ),
     );
+  } else if (inlineHealthRouteFile) {
+    withContentReadSignal('A3', 'prod_readiness_primitives', () =>
+      evidence.push(
+        evidenceForRelativeAtLine(
+          repoPath,
+          inlineHealthRouteFile,
+          'prod_check',
+          'Health/readiness route',
+          findFirstMatchingLineOutsideComments(
+            repoPath,
+            inlineHealthRouteFile,
+            V20_HEALTH_OR_READINESS_ROUTE_PATTERN,
+          ),
+        ),
+      ),
+    );
   }
   if (errorBoundary) {
     // A filename-based match (errorBoundaries) is presence evidence — evidenceForRelative's
@@ -3515,7 +3567,7 @@ function collectA3ProdReadinessEvidence(
           workflows.length > 0,
           deployConfigs.length > 0,
           envTemplate,
-          healthChecks.length > 0,
+          hasHealthOrReadinessSignal,
           errorBoundary !== undefined,
         ].filter(Boolean).length,
         6,
@@ -3532,7 +3584,7 @@ function collectA3ProdReadinessEvidence(
             { label: 'CI workflow', count: workflows.length > 0 ? 1 : 0 },
             { label: 'deployment configuration', count: deployConfigs.length > 0 ? 1 : 0 },
             { label: 'environment template', count: envTemplate ? 1 : 0 },
-            { label: 'health or readiness signal', count: healthChecks.length > 0 ? 1 : 0 },
+            { label: 'health or readiness signal', count: hasHealthOrReadinessSignal ? 1 : 0 },
             { label: 'error boundary', count: errorBoundary !== undefined ? 1 : 0 },
           ],
         },
@@ -7835,6 +7887,19 @@ const V20_DIRECT_HTTP_SERVER_PATTERN =
 // for why this is a separate, signal-scoped pattern rather than a change to isImplementationFile.
 const HEALTH_ROUTE_FUNCTIONS_DIR_PATTERN =
   /(^|\/)functions\/.*\.(?:ts|tsx|js|jsx|py|go|rs|java|rb|cpp|cc|cxx|c|h|hpp|kt|swift|php)$/;
+// goal_cejel_a3_handler_shapes_and_inline_health_2026-10-12: the other ordinary homes of a
+// production HTTP entrypoint that sit outside isImplementationFile's directory list, catalogued
+// in a3-health-route-idioms.test.ts. Each is anchored to the REPOSITORY ROOT, never to a nested
+// path, so `docs/api/index.js` or `vendor/server/x.js` cannot match:
+//   - a root-level single-file server (`server.ts`, `index.js`, `app.ts`, `main.js`), the
+//     smallest Express/Fastify service layout;
+//   - a `server/`, `backend/` or `api/` tree (a conventional Node backend root; `api/` is also the
+//     Vercel functions directory).
+// Scoped to this one signal like the functions/ pattern above. It is always evaluated together
+// with isAuthoredProductionPath, which still excludes tests, fixtures, examples, generated and
+// vendored paths; `scripts/`, `tools/` and `docs/` are not admitted.
+const HEALTH_ROUTE_ENTRYPOINT_HOME_PATTERN =
+  /^(?:(?:server|index|app|main)\.(?:ts|tsx|js|jsx|mjs|cjs)|(?:server|backend|api)\/.*\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|rb|php))$/;
 // Widened from an exact `["'`]/(health|ready|...)["'`]` match, which required the route
 // literal to contain nothing but the bare keyword. That missed the Kubernetes convention
 // (/healthz, /readyz, /livez), any mount prefix (/api/health), and any suffix (/health/live) —
@@ -7883,8 +7948,22 @@ const V20_HEALTH_OR_READINESS_ROUTE_PATTERN =
 // from ordinary middleware missing its fourth parameter by mistake, and matching on three names
 // alone is the arity-adjacent false positive this pattern exists to avoid. Stated limit, not a
 // silent gap: recorded in src/witan/__tests__/a3-error-boundary-idioms.test.ts.
+//
+// goal_cejel_a3_handler_shapes_and_inline_health_2026-10-12 widened this in two bounded ways, on
+// fixture evidence (rows 10a-10h in the same test file):
+//   - the second and third parameter names (`req`/`request`, `res`/`response`) also tolerate a
+//     leading underscore. Same lint convention as `_err`/`_next`: a required-but-unused
+//     parameter, `(err, _req, res, next)`, is the ordinary spelling when the handler never reads
+//     the request. Still four NAMED parameters, never an arity-only match.
+//   - one optional trailing comma after the fourth parameter and its optional type, before the
+//     closing paren. Prettier's default `trailingComma: "all"` emits it on every multi-line
+//     parameter list, so a handler formatted one parameter per line never matched. `,?` allows
+//     exactly one comma after `next`; it does not admit an extra parameter, and a three-parameter
+//     list with a trailing comma stays uncredited (row 4c's limit is unchanged).
+// Reachability (EXPRESS_MIDDLEWARE_REACHABLE_PATTERN) and the test/docs/comment exclusions apply
+// unchanged to every newly matched shape: rows D6-D8 pin that.
 const EXPRESS_ERROR_MIDDLEWARE_PATTERN =
-  /\(\s*(?:_?err|_?error)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:req|request)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*(?:res|response)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*_?next(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*\)\s*(?:=>|\{)/i;
+  /\(\s*(?:_?err|_?error)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*_?(?:req|request)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*_?(?:res|response)(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,\s*_?next(?:\s*:\s*(?:[^,()<]|<[^<>]*>)*)?\s*,?\s*\)\s*(?:=>|\{)/i;
 // A parameter-shape match alone also matches a fully dead, never-registered stub. Requiring the
 // same file to show some sign the handler is reachable — passed directly to `.use(`, or exported
 // so another file could import and register it — excludes tutorial boilerplate copy-pasted into

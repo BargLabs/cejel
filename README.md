@@ -299,8 +299,10 @@ prints that boundary on every successful verification.
 - `--rubric-pin <version>` — Explicit opt-in only: pin an alternate rubric instead of the
   calibrated public default. It
   accepts the calibrated version or any published prospective rubric
-  (`witan-rubric-v18-prospective-*` through `v23`) and fails closed, naming what was accepted, on
-  anything else. `v23` is prospective and uncalibrated, like every rubric after v17: the public
+  (`witan-rubric-v18-prospective-*` through `v25`) and fails closed, naming what was accepted, on
+  anything else. `v25` is prospective and uncalibrated: it inherits v22 and adds only credit for a
+  health or readiness route declared inline in an application file (see "What counts as a health or
+  readiness signal" below). `v23` is prospective and uncalibrated, like every rubric after v17: the public
   default (`WITAN_LAST_CALIBRATED_RUBRIC_VERSION`) is still `witan-rubric-v17-2026-07-24`, and v23
   inherits none of v17's precision, recall, or false-positive-rate figures. It inherits v22
   detector/scoring behavior and adds bounded A1 coverage-flag recognition (#276) plus per-signal
@@ -634,6 +636,27 @@ belongs to:
   real test runner. This was a detector defect, not a scope-disclosure gap — Cejel now checks the
   `test` script's content against known test-runner invocations rather than crediting it by key
   presence alone, so no separate disclosure line is needed for it.
+
+### What counts as a health or readiness signal
+
+The "health or readiness signal" component of A3's production-readiness checks is filename-based
+by design under the calibrated rubric (and every prospective rubric before `v25`). It is credited
+for exactly these forms:
+
+- a dedicated health or readiness file, such as `health.ts`, `healthcheck.js`, `readiness.py`
+  (the file must mention health or readiness);
+- a `HEALTHCHECK` instruction in a root `Dockerfile`;
+- Kubernetes liveness or readiness probes in a `k8s/`, `kubernetes/` or `helm/` manifest.
+
+**A route declared inline in an application file does not count under the calibrated rubric**,
+whatever its content: `app.get("/health", ...)` in `server.ts` or `app.ts` earns nothing there,
+because the component never reads route text. The certificate states this next to the component.
+Prospective `witan-rubric-v25-prospective-2026-10-12` is the one rubric that also credits an inline
+route, in the files the separate info-level "no health or readiness route" finding already reads
+(under `src/`, `app/`, `lib/`, `packages/`, `functions/`, a repo-root `server`/`index`/`app`/`main`
+file, or a `server/`, `backend/` or `api/` tree), with comments stripped and tests, docs, examples
+and scripts excluded. It is explicit opt-in (`--rubric-pin`), carries no precision or recall claim,
+and its public paired rescore has not run.
 
 ## Help validate Cejel
 

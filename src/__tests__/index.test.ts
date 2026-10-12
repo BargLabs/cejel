@@ -458,13 +458,23 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Setting toolVersion back to "0.6.2" in place reproduces the #433 pin (a9d4c85f...) byte for
     // byte, and the #433 restoration below is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '7a5781172975c5036b569c739acc3b5d545455c23b79342b3e54164eefc5bb63',
+      '79dd88eed8813dd16be0c21b8de6a468447a3f7c397e86c97efec8e6baa42495',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
+      'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.3');
-    const at062 = { ...firstReport, toolVersion: '0.6.2' } as typeof firstReport;
+    // Re-pinned 2026-10-12 (goal_cejel_a3_handler_shapes_and_inline_health): the A3 error-handler
+    // shape pattern widened, prospective witan-rubric-v25 was declared, and the behaviour corpus
+    // gained a sixteenth fixture, so v17's fingerprint moved. This fixture holds none of those
+    // shapes. Made mechanical here: restoring the previous v17 fingerprint in place (key order
+    // unchanged) and then resetting toolVersion reproduces the 0.6.2-era pin (a9d4c85f...).
+    const atPreHandlerShapes = {
+      ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
+    } as typeof firstReport;
+    const at062 = { ...atPreHandlerShapes, toolVersion: '0.6.2' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at062, null, 2)).digest('hex'),
       'the 0.6.2-era report bytes must be recoverable by resetting exactly the toolVersion field',

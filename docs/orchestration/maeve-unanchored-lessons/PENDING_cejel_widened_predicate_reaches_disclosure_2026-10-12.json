@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "Widening a file-selection predicate widens every consumer of it, including consumers that are not scoring. The predicate behind A3's info-level health-route finding also decides which withheld files that signal is disclosed as having read, so admitting a server/ tree changed report.withheldPaths under v20 onward, a field no scoring pin or fingerprint watches. It surfaced only because an existing disclosure test happened to put a withheld file under server/. Rule: before widening a shared predicate, find every caller by name and run the disclosure and withheld-path tests, then state any disclosure change in the changelog beside the scoring change.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "detector-recall"],
+    "tags": ["shared-predicate", "disclosure-side-effect", "unwatched-output-field", "grep-every-caller"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-12T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 459}
+  },
+  {
+    "statement": "A zero component count is only an absence if the criterion was applicable. Measuring whether the default rubric credits an inline health route, the first fixture used an entrypoint (a direct createServer call) that only prospective rubrics recognise, so the default rubric scored A3 not applicable and emitted no component at all; reading that as 0 would have recorded 'not credited' for a case the rubric never examined. Rule: when a measurement helper reads a component, throw on a missing component rather than defaulting to zero, and give each fixture a deploy surface every compared rubric recognises.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "test-design"],
+    "tags": ["not-applicable-is-not-zero", "absent-measurement", "fixture-applicability", "throw-on-missing"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-12T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 459}
+  }
+]

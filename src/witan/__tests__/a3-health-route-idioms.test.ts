@@ -54,7 +54,11 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { buildWitanInputFromRepo } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V23 } from '../rubric-version.js';
+import {
+  WITAN_RUBRIC_VERSION_V23,
+  WITAN_RUBRIC_VERSION_V25,
+  WITAN_SELECTABLE_RUBRIC_VERSIONS,
+} from '../rubric-version.js';
 import type { WitanCriterionSignalPayload } from '../schemas.js';
 
 function makeRepo(files: Readonly<Record<string, string>>): string {
@@ -80,6 +84,40 @@ function scanA3(files: Readonly<Record<string, string>>): WitanCriterionSignalPa
     rubricVersion: WITAN_RUBRIC_VERSION_V23,
   });
   return (input.signals ?? []).find((candidate) => candidate.criterionId === 'A3') ?? null;
+}
+
+function scanA3At(
+  files: Readonly<Record<string, string>>,
+  rubricVersion: string,
+): WitanCriterionSignalPayload | null {
+  const input = buildWitanInputFromRepo({
+    productSlug: 'a3-health-route-idioms-fixture',
+    productDisplayName: 'A3 health route idioms fixture',
+    repoPath: makeRepo(files),
+    generatedAt: '2026-10-12T00:00:00.000Z',
+    rubricVersion,
+  });
+  return (input.signals ?? []).find((candidate) => candidate.criterionId === 'A3') ?? null;
+}
+
+/** Every selectable rubric except v25: the scored health component is filename-only in all. */
+const FILENAME_ONLY_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter(
+  (rubric) => rubric !== WITAN_RUBRIC_VERSION_V25,
+);
+
+/** The 'health or readiness signal' count (0 or 1) inside prod_readiness_primitives. */
+function healthComponent(files: Readonly<Record<string, string>>, rubricVersion: string): number {
+  // A Procfile makes the fixture a deployable service under EVERY rubric, including the default
+  // v17, whose entrypoint pattern does not recognise BASE's direct createServer(...).listen().
+  const deployable = { Procfile: 'web: node src/main.js\n', ...files };
+  const metric = scanA3At(deployable, rubricVersion)?.metrics?.find(
+    (candidate) => candidate.name === 'prod_readiness_primitives',
+  );
+  const component = metric?.presentation?.components?.find(
+    (candidate) => candidate.label === 'health or readiness signal',
+  );
+  if (!component) throw new Error(`no health component under ${rubricVersion}`);
+  return component.count;
 }
 
 const HEALTH_ROUTE_ABSENCE_SUMMARY =
@@ -122,6 +160,27 @@ function withRoute(route: string): Readonly<Record<string, string>> {
       '}).listen(5300);\n',
   };
 }
+
+// An ordinary public Express app file: the health route declared inline, querying the database
+// inside try/catch. Authored generically; used at each location in the catalogue below.
+const INLINE_APP =
+  "import express from 'express';\n" +
+  "import { Pool } from 'pg';\n" +
+  'const pool = new Pool();\n' +
+  'const app = express();\n' +
+  'app.use((req, _res, next) => {\n' +
+  '  console.log(req.method, req.url);\n' +
+  '  next();\n' +
+  '});\n' +
+  "app.get('/health', async (_req, res) => {\n" +
+  '  try {\n' +
+  "    await pool.query('select 1');\n" +
+  '    res.json({ ok: true });\n' +
+  '  } catch {\n' +
+  '    res.status(503).json({ ok: false });\n' +
+  '  }\n' +
+  '});\n' +
+  'app.listen(3000);\n';
 
 describe('A3 health/readiness route — idiom catalogue', () => {
   it('sanity: the unmodified baseline still reports the absence finding', () => {
@@ -345,6 +404,148 @@ describe('A3 health/readiness route — idiom catalogue', () => {
         'src/notes.js': "// remember to add a /health route eventually\n",
       });
       expectMissing(a3);
+    });
+  });
+
+  describe('inline route in an application file — location catalogue (goal_cejel_a3_handler_shapes_and_inline_health_2026-10-12)', () => {
+    // Isolates FILE SELECTION from the finding's entrypoint precondition: the entrypoint is the
+    // BASE `src/main.js` (direct createServer, reads req.url, no health route), so the absence
+    // finding is raised in the baseline, and it disappears if and only if the route file under
+    // test is read and its route literal matches. `credited` below is that disappearance.
+    it.each([
+      ['src/app.ts', true],
+      ['server.ts', true],
+      ['index.js', true],
+      ['server/index.ts', true],
+      ['backend/server.ts', true],
+      ['api/index.ts', true],
+    ])('v23 finding: inline /health in %s is read -> credited=%s', (path, expected) => {
+      const a3 = scanA3({ ...BASE, [path]: INLINE_APP });
+      if (expected) expectCredited(a3);
+      else expectMissing(a3);
+    });
+
+    it('routes/health.ts is credited by the filename signal, which also suppresses the finding', () => {
+      expectCredited(scanA3({ ...BASE, 'routes/health.ts': INLINE_APP }));
+    });
+
+    it('the observed shape end to end: one root server.ts that is the entrypoint AND declares the route', () => {
+      const files = {
+        'package.json': '{"scripts":{"build":"tsc"}}\n',
+        'server.ts': INLINE_APP,
+      };
+      expectCredited(scanA3(files));
+    });
+
+    describe('what the widened file selection must still refuse', () => {
+      it.each([
+        ['server.test.ts', 'a root-level test file'],
+        ['test/server.ts', 'a test directory'],
+        ['examples/server.js', 'an examples directory'],
+        ['scripts/serve.ts', 'a scripts directory'],
+        ['docs/api/index.js', 'a docs tree that merely contains api/'],
+        ['README.md', 'a README'],
+        ['vendor/server/index.js', 'vendored code'],
+      ])('%s (%s) is not read', (path) => {
+        expectMissing(scanA3({ ...BASE, [path]: INLINE_APP }));
+      });
+
+      it.each([
+        ["fetch('https://vendor.example/health').then(() => {});\n", 'an outbound URL'],
+        ["app.get('/health?probe=1', (_req, res) => res.end());\n", 'a query-string route'],
+        ["const config = { mode: 'health' };\n", 'a bare keyword literal'],
+      ])('a root server.ts holding only %s (%s) stays uncredited', (source) => {
+        expectMissing(scanA3({ ...BASE, 'server.ts': source }));
+      });
+    });
+  });
+
+  describe('scored "health or readiness signal" component — default rubric vs prospective v25', () => {
+    // Location table (component count: 1 = credited, 0 = not). v23 stands for every rubric that
+    // keeps the filename-only scored signal; the loop below checks all of them.
+    //
+    //   Location            v17 default  v22-v24  v25     v23 info finding (after widening)
+    //   src/app.ts (ctrl)       0          0       1      read (already admitted)
+    //   server.ts               0          0       1      read (widened: repo-root single-file server)
+    //   index.js                0          0       1      read (widened)
+    //   server/index.ts         0          0       1      read (widened)
+    //   backend/server.ts       0          0       1      read (widened)
+    //   api/index.ts            0          0       1      read (widened; Vercel functions)
+    //   routes/health.ts        1          1       1      suppressed by the filename signal
+    //
+    // "Before" for the finding column was MISS for the five widened rows (recorded by running
+    // the rows above against the unwidened predicate); the scored columns are unchanged by the
+    // predicate widening and only v25 moved, by design.
+    it.each([
+      ['src/app.ts', 0, 1],
+      ['server.ts', 0, 1],
+      ['index.js', 0, 1],
+      ['server/index.ts', 0, 1],
+      ['backend/server.ts', 0, 1],
+      ['api/index.ts', 0, 1],
+      ['routes/health.ts', 1, 1],
+    ])('%s: filename-only rubrics=%s, v25=%s', (path, filenameOnly, v25) => {
+      const files = { ...BASE, [path]: INLINE_APP };
+      for (const rubric of FILENAME_ONLY_RUBRICS) {
+        expect(healthComponent(files, rubric), rubric).toBe(filenameOnly);
+      }
+      expect(healthComponent(files, WITAN_RUBRIC_VERSION_V25)).toBe(v25);
+    });
+
+    it('v25 changes nothing else about the criterion for an inline route', () => {
+      const withRoute = scanA3At({ ...BASE, 'server.ts': INLINE_APP }, WITAN_RUBRIC_VERSION_V25);
+      const without = scanA3At(BASE, WITAN_RUBRIC_VERSION_V25);
+      const value = (a3: WitanCriterionSignalPayload | null, name: string) =>
+        a3?.metrics?.find((candidate) => candidate.name === name)?.value;
+      expect(value(withRoute, 'prod_readiness_primitives')).toBe(
+        (value(without, 'prod_readiness_primitives') as number) + 1,
+      );
+      for (const name of ['prod_workflow_depth', 'observability_depth', 'rollback_safety_depth']) {
+        expect(value(withRoute, name), name).toBe(value(without, name));
+      }
+    });
+
+    it('v25 cites the route file and line as evidence', () => {
+      const a3 = scanA3At({ ...BASE, 'server.ts': INLINE_APP }, WITAN_RUBRIC_VERSION_V25);
+      const pointer = a3?.positiveEvidence?.find(
+        (entry) => entry.label === 'Health/readiness route',
+      );
+      expect(pointer?.path).toBe('server.ts');
+      expect(pointer?.line).toBe(9);
+    });
+
+    it('v25 does not count a filename signal and an inline route twice', () => {
+      const files = { ...BASE, 'routes/health.ts': INLINE_APP, 'server.ts': INLINE_APP };
+      expect(healthComponent(files, WITAN_RUBRIC_VERSION_V25)).toBe(1);
+      const a3 = scanA3At(files, WITAN_RUBRIC_VERSION_V25);
+      expect(
+        a3?.positiveEvidence?.filter((entry) => /Health\/readiness/.test(entry.label)),
+      ).toHaveLength(1);
+    });
+
+    describe('v25 refuses everything the info finding refuses (and a commented-out route)', () => {
+      it.each([
+        ['server.test.ts', INLINE_APP],
+        ['test/server.ts', INLINE_APP],
+        ['examples/server.js', INLINE_APP],
+        ['scripts/serve.ts', INLINE_APP],
+        ['docs/api/index.js', INLINE_APP],
+        ['vendor/server/index.js', INLINE_APP],
+        ['README.md', 'Hit /health to check liveness.\n'],
+        ['server.ts', "fetch('https://vendor.example/health').then(() => {});\n"],
+        ['server.ts', "app.get('/health?probe=1', (_req, res) => res.end());\n"],
+        ['server.ts', "const config = { mode: 'health' };\n"],
+        ['server.ts', "app.get('/ping', (_req, res) => res.end());\n"],
+        ['server.ts', "// app.get('/health', handler);\n"],
+        ['server.ts', "/* app.get('/health', handler); */\nexport {};\n"],
+      ])('%s holding %j earns no credit', (path, source) => {
+        expect(healthComponent({ ...BASE, [path]: source }, WITAN_RUBRIC_VERSION_V25)).toBe(0);
+      });
+    });
+
+    it('a real inline route still credits when an unrelated commented-out one precedes it', () => {
+      const source = "// app.get('/healthz', old);\n" + INLINE_APP;
+      expect(healthComponent({ ...BASE, 'server.ts': source }, WITAN_RUBRIC_VERSION_V25)).toBe(1);
     });
   });
 

@@ -34,6 +34,25 @@
 //   9    URL literal + `.use(` on one line (review follow-up)         MISS    credit  BUG FIXED (see below)
 //   D5   code, then trailing `// app.use(errorHandler);` comment       miss    miss    correct (dead stub)
 //
+// goal_cejel_a3_handler_shapes_and_inline_health_2026-10-12: a design partner's handler is written
+// in Prettier's default multi-line style with a lint-underscored `_req`. Both independent
+// reasons it missed are catalogued below. "Before" is the pattern as of 0.6.3, run by hand
+// against these exact fixtures before repo-signals.ts was touched.
+//
+//   Row  Idiom                                                     Before   After   Change
+//   10a  `(err, _req, res, next)` single line (JS and TS)           miss    credit  widened (SHAPE pattern)
+//   10b  `(err, req, _res, next)` single line (JS and TS)           miss    credit  widened (SHAPE pattern)
+//   10c  trailing comma `(err, req, res, next,)` (JS and TS)        miss    credit  widened (SHAPE pattern)
+//   10d  `const h: ErrorRequestHandler = (` one param per line,     miss    credit  widened (both changes)
+//        `_req,` and a trailing comma, `app.use(h)` in same file
+//   10e  same as 10d with typed parameters                          miss    credit  widened (both changes)
+//   10f  same as 10d, `function` keyword form                       miss    credit  widened (both changes)
+//   10g  `_req` alone, multi-line, no trailing comma                miss    credit  widened (underscore only)
+//   10h  trailing comma alone, multi-line, plain `req`              miss    credit  widened (comma only)
+//   D6   10d shape, never registered, not exported                  miss    miss    correct (dead stub)
+//   D7   10d shape inside a test file (registered and exported)     miss    miss    correct (dead stub)
+//   D8   10d shape, `// app.use(h);` registration commented out     miss    miss    correct (dead stub)
+//
 // D4 was not a missing widening — it was a pre-existing false positive. `EXPRESS_MIDDLEWARE_
 // REACHABLE_PATTERN` tested raw file text, so a commented-out `.use(` call satisfied it exactly
 // as well as a real one, crediting the same dead, never-registered stub row D1 exists to exclude.
@@ -377,6 +396,147 @@ describe('A3 error boundary dead-stub shapes — must remain uncredited', () => 
         "  res.status(500).json({ message: err.message });\n" +
         '}\n' +
         "const unused = true; // app.use(errorHandler); -- disabled until v2\n",
+    };
+    expect(credited(files)).toBe(false);
+  });
+});
+
+// Prettier's default (`trailingComma: "all"`) multi-line output: one parameter per line and a
+// trailing comma after the last. Authored generically from the public shape only.
+function multiLineHandler(
+  declaration: (params: string) => string,
+  params: readonly string[],
+  closing: string,
+  register: string,
+): string {
+  return (
+    declaration(params.map((param) => `  ${param},`).join('\n')) +
+    '\n  res.status(500).json({ message: String(error) });\n' +
+    closing +
+    register
+  );
+}
+const UNTYPED_PARAMS = ['error', '_req', 'res', 'next'] as const;
+const TYPED_PARAMS = [
+  'error: Error',
+  '_req: Request',
+  'res: Response',
+  'next: NextFunction',
+] as const;
+const arrowDecl = (params: string): string => `const h: ErrorRequestHandler = (\n${params}\n) => {`;
+const functionDecl = (params: string): string => `function h(\n${params}\n) {`;
+
+describe('A3 error boundary rows 10a-10h — underscored middle parameters and trailing commas', () => {
+  const singleLine = (ext: 'js' | 'ts', params: string): Readonly<Record<string, string>> => ({
+    ...SERVICE,
+    [`src/app.${ext}`]:
+      'const app = express();\n' +
+      `app.use((${params}) => {\n` +
+      '  res.status(500).json({ message: String(err) });\n' +
+      '});\n',
+  });
+
+  for (const ext of ['js', 'ts'] as const) {
+    it(`row 10a (${ext}): second parameter renamed to _req`, () => {
+      expect(credited(singleLine(ext, 'err, _req, res, next'))).toBe(true);
+    });
+    it(`row 10b (${ext}): third parameter renamed to _res`, () => {
+      expect(credited(singleLine(ext, 'err, req, _res, next'))).toBe(true);
+    });
+    it(`row 10c (${ext}): trailing comma after the fourth parameter on one line`, () => {
+      expect(credited(singleLine(ext, 'err, req, res, next,'))).toBe(true);
+    });
+  }
+
+  it('row 10c (ts, typed): trailing comma after a typed fourth parameter', () => {
+    expect(
+      credited(singleLine('ts', 'err: Error, req: Request, res: Response, next: NextFunction,')),
+    ).toBe(true);
+  });
+
+  it('row 10d: const h: ErrorRequestHandler = ( ... ) multi-line, _req, trailing comma, app.use(h) in the same file', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': multiLineHandler(arrowDecl, UNTYPED_PARAMS, '};\n', 'app.use(h);\n'),
+    };
+    expect(credited(files)).toBe(true);
+  });
+
+  it('row 10e: same as 10d with typed parameters', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': multiLineHandler(arrowDecl, TYPED_PARAMS, '};\n', 'app.use(h);\n'),
+    };
+    expect(credited(files)).toBe(true);
+  });
+
+  it('row 10f: same as 10d, function keyword form', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': multiLineHandler(functionDecl, UNTYPED_PARAMS, '}\n', 'app.use(h);\n'),
+    };
+    expect(credited(files)).toBe(true);
+  });
+
+  it('row 10g: _req alone, multi-line, no trailing comma', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts':
+        'function h(\n  error,\n  _req,\n  res,\n  next\n) {\n  res.status(500).end();\n}\napp.use(h);\n',
+    };
+    expect(credited(files)).toBe(true);
+  });
+
+  it('row 10h: trailing comma alone, multi-line, plain req', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts':
+        'function h(\n  error,\n  req,\n  res,\n  next,\n) {\n  res.status(500).end();\n}\napp.use(h);\n',
+    };
+    expect(credited(files)).toBe(true);
+  });
+
+  it('D6: the 10d shape, never registered and not exported, stays uncredited', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': multiLineHandler(arrowDecl, UNTYPED_PARAMS, '};\n', ''),
+    };
+    expect(credited(files)).toBe(false);
+  });
+
+  it('D7: the 10d shape inside a test file, registered and exported, stays uncredited', () => {
+    const files = {
+      ...SERVICE,
+      'src/__tests__/app.test.ts': multiLineHandler(
+        arrowDecl,
+        UNTYPED_PARAMS,
+        '};\n',
+        'app.use(h);\nexport default h;\n',
+      ),
+    };
+    expect(credited(files)).toBe(false);
+  });
+
+  it('D8: the 10d shape with the registration line commented out stays uncredited', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': multiLineHandler(arrowDecl, UNTYPED_PARAMS, '};\n', '// app.use(h);\n'),
+    };
+    expect(credited(files)).toBe(false);
+  });
+
+  it('negative control: a four-parameter function whose names are not err/req/res/next stays uncredited', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': 'function h(a, b, c, d,) {\n  return a;\n}\napp.use(h);\n',
+    };
+    expect(credited(files)).toBe(false);
+  });
+
+  it('negative control: a three-parameter form with a trailing comma stays uncredited', () => {
+    const files = {
+      ...SERVICE,
+      'src/app.ts': 'function h(err, _req, res,) {\n  return err;\n}\napp.use(h);\n',
     };
     expect(credited(files)).toBe(false);
   });
