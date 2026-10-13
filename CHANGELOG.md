@@ -16,12 +16,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`cejel` warns when npx ran a different cejel than it resolved (#436, #462).** Inside a checkout
+  of this repository, `npx @cejel/cejel@<version>` can run whichever `cejel` is on `PATH`. When the
+  requested version is known (an exact `-p @cejel/cejel@<version>` spec, or npx resolving the
+  request to the checkout and installing nothing) and differs from the version running, Cejel
+  prints one `warning:` line to stderr naming both and the path that ran. Elsewhere, and in npx
+  command mode (`--call`/`-c`), it stays silent. The run and its exit code are unchanged, and
+  `--quiet` does not hide it. This narrows #436; it does not fix it. The warning comes from the
+  `cejel` that ran, so one older than 0.6.4 on `PATH` prints nothing; run npx from another
+  directory. `CONTRIBUTING.md` explains the trap.
+
 ### Fixed
 
 - AVA assertion calls in active inline callbacks now count toward A1 non-hollow test share;
   skipped/todo callbacks, comments, strings and unrelated objects do not receive this new credit (#427).
-- A2 no longer asserts a timing side-channel from a bare public digest identifier. HMAC/MAC/signature
-  comparisons remain covered (#430). A digest name alone supplies no evidence that it is secret.
+- A2 no longer asserts a timing side-channel from a bare public digest identifier. Comparisons whose
+  left-hand name contains hmac or signature, or begins with mac, remain covered; an HMAC result
+  held in a variable named only `digest` is no longer flagged (#430). A digest name alone supplies
+  no evidence that it is secret.
 
 These are scoring changes under the existing rubric identifiers, with weights and thresholds
 unchanged. The behaviour corpus has two new synthetic specimens; fingerprints and report goldens
@@ -31,7 +45,7 @@ Records: docs/experiments/v17-delta-459-427-430-successor-2026-10-13/result.md.
 
 ### Changed
 
-**Certificate states what it read, presentation only: no score, weight, detector or file selection
+**Certificate states what it read (#467), presentation only: no score, weight, detector or file selection
 changes under any rubric.** The CI-workflow evidence in A3, B2 and B3 cites one workflow file (B2:
 up to three) and read as if only that file was checked. When a criterion counted or read more
 workflow files than it cites, the citation now says so beside it, for example
@@ -52,7 +66,7 @@ fingerprints, the v17 golden pins and every score are unmoved, so `RUBRIC_CHANGE
 entry.
 
 **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
-identifier bump: direction up, on `prod_readiness_primitives` (A3) only.** The A3 Express
+identifier bump: direction up, on `prod_readiness_primitives` (A3) only (#459).** The A3 Express
 error-handler shape check now recognises two ordinary spellings it missed, both public-documentation
 idioms rather than anything specific to one codebase: a lint-underscored second or third parameter
 (`(err, _req, res, next)`, `(err, req, _res, next)`) and a trailing comma after the fourth parameter
@@ -66,7 +80,7 @@ a default-rubric metric: the paired public-corpus delta at unchanged corpus comm
 precedent, #306) has now run: 23/23 public rows completed in both arms, with zero score or modeled placement
 changes. See the successor three-arm result linked above; private material was excluded.
 
-- **New prospective rubric `witan-rubric-v25-prospective-2026-10-12`** (explicit opt-in via
+- **New prospective rubric `witan-rubric-v25-prospective-2026-10-12` (#459)** (explicit opt-in via
   `--rubric-pin`; the public default stays v17). It inherits v22 and adds one mechanism: the
   "health or readiness signal" component also credits a route declared inline in an application
   file. No precision or recall claim; the public paired rescore has not run. It is batched into its
@@ -79,6 +93,41 @@ changes. See the successor three-arm result linked above; private material was e
   `server`/`index`/`app`/`main` file and `server/`, `backend/` and `api/` trees, previously not
   admitted, so an inline `/health` route there stops being reported as missing. No score moves. A
   withheld oversized file in those locations is now also disclosed as withheld for this signal.
+- **The certificate glossary's "Protected-path review gate" entry matches what the metric counts
+  (#445, #463):** a CODEOWNERS file at the repository root, `.github/` or `docs/`, or a document
+  stating a required-review or branch-protection policy, and not a changelog, experiment or
+  calibration record, review note or report. It had still described any CODEOWNERS file or review
+  documentation, the pre-0.6.3 rule. Presentation only.
+- **The B6 protected-path gate's "missing" line names the same evidence (#465, #466):** no
+  CODEOWNERS file in a location GitHub reads, and no documented required-review or
+  branch-protection policy. It had said "no CODEOWNERS", which read as false for a repository with
+  a CODEOWNERS file elsewhere. Presentation only.
+- **The GitLab CI template asks for full history (#456, #461).** It sets `GIT_DEPTH: "0"` on the
+  `cejel` job only, so that A2 and B2 can read full commit history instead of GitLab's default
+  shallow clone, which the certificate discloses as a history limitation. It takes effect for an
+  include pinned to `v0.6.4` or later. `docs/gitlab-ci.md` says how to keep it when copying the job
+  and which variables override it, from GitLab's documentation. The template has still not been
+  run on a GitLab runner.
+
+### Plugin
+
+- **The plugin README's #436 note is narrowed, not retired:** it now says that from 0.6.4 Cejel
+  prints a warning when npx ran a different cejel than it resolved, that an older `cejel` on
+  `PATH` prints nothing, and keeps the remedy, run it from another directory.
+
+### Docs
+
+- **The cycle-13 calibration record is published in `docs/calibration/cycle-13/` (#469, #470):**
+  the preregistered v17 and v23 detection recall and precision estimate, its protocol, amendments,
+  seals and errata, and a signed erratum to the v22 record. Frame membership, labels and reviewer
+  notes are not published. It was measured with `@cejel/cejel@0.4.11` and does not describe this
+  release.
+
+### Internal
+
+- **The cited-commits check keys errata by an exact context excerpt, not `file:line` (#444,
+  #464)**, so a new entry written above a corrected citation no longer leaves the citation flagged
+  and its erratum stale. A repository check only: nothing shipped changes.
 
 ## [0.6.3] — 2026-10-10
 

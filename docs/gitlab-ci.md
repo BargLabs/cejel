@@ -10,7 +10,7 @@ Pin the include to a release tag, never a branch:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.6.3/ci/gitlab/cejel.gitlab-ci.yml'
+  - remote: 'https://raw.githubusercontent.com/BargLabs/cejel/v0.6.4/ci/gitlab/cejel.gitlab-ci.yml'
 ```
 
 The job is named `cejel`, runs in the `test` stage on `node:22`, and:
@@ -123,7 +123,7 @@ templates/cejel.yml      # a `spec:` header, then the job below
 spec:
   inputs:
     version:
-      default: '0.6.3'
+      default: '0.6.4'
     min_score:
       default: ''
 ---
