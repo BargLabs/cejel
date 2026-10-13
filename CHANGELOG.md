@@ -16,6 +16,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- AVA assertion calls in active inline callbacks now count toward A1 non-hollow test share;
+  skipped/todo callbacks, comments, strings and unrelated objects do not receive this new credit (#427).
+- A2 no longer asserts a timing side-channel from a bare public digest identifier. HMAC/MAC/signature
+  comparisons remain covered (#430). A digest name alone supplies no evidence that it is secret.
+
+These are scoring changes under the existing rubric identifiers, with weights and thresholds
+unchanged. The behaviour corpus has two new synthetic specimens; fingerprints and report goldens
+are re-pinned with the deltas recorded in RUBRIC_CHANGELOG. The paired public-corpus delta,
+including the separate #459 comparison, is required before release and not yet recorded here.
+
 ### Changed
 
 **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no

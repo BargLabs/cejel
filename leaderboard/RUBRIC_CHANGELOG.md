@@ -22,6 +22,44 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-13 — AVA assertion evidence and public digest false assertion (#427, #430)
+
+Default v17 and all selectable rubrics change under their existing identifiers. Weights and
+thresholds are unchanged. A1 now credits AVA assertions in active inline callbacks registered
+through an imported AVA runner. Skipped/todo callbacks, comments, strings, unrelated context
+objects and assertions solely in nested unused functions do not earn this new credit. Macros
+and non-inline callback references remain outside this bounded recognition rule.
+
+A2 no longer treats a bare digest identifier as secret comparison evidence. Public content
+hashes and lookup identifiers are digests too. HMAC/MAC/signature names, including hmacDigest,
+remain covered. An authentication digest named only digest now needs other evidence to be
+recognized; this narrowing favors avoiding a false assertion over inferring secret semantics.
+
+Two synthetic public-idiom specimens extend the behaviour corpus from 16 to 18. Against main
+b673493 on the same expanded corpus, every original specimen is unchanged in every rubric;
+only the two new specimens differ. Under v17, ava-live-assertions moves A1 1.5 to 2.1,
+non_hollow_test_share 0 to 1, overall 1.4 to 1.5. public-digest-lookup loses its false warning;
+A2 becomes not_applicable from 2.3/warning, overall 1.1 to 0.9. The latter illustrates a
+composite denominator change, not a claim that a false-assertion fix must raise the headline.
+
+The public-corpus paired run is required before release and will be preregistered after the
+candidate scorer is committed. The run will isolate #459 from these fixes. No precision,
+recall or calibration claim is made from the synthetic specimens or the forthcoming delta.
+
+Measured fingerprints (the expanded corpus is independently recomputed by CI):
+
+| Rubric | Fingerprint |
+| --- | --- |
+| `witan-rubric-v17-2026-07-24` | `sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:9c54aa1493ff42b001ae2d1828f4bda92b3ebff500551eb36ef8a2b9d2fc391f` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:ed3fa7ff11aa0c0ecf7fc23fccab2c40337c55c5b06abae14eb10e9d73bbcffa` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:eb6ed39afd0e3f3d73e6a85df90787a3490087eaa34aad19fb5fbb31b4502ce5` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:7a890ac663793f807e240e38047ff9fbc069853d118ebf9a765cc103a8bed2a3` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:ac4db093dc7c37369579b49ccd7855d36eec49d9f52136964251ee7bbd69e101` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:7d48de4ac8ef3233e7ef8f4d4312830bf76294485e9766a47a671cd5440676aa` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:0af37b616891a1940f7ba43c86ef2134d6e40f235feef17bf1774cae951afee2` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019` |
+
 ## 2026-10-12 — A3 error-handler shape widening (all rubrics, no identifier bump) and prospective v25; public paired rescore not run
 
 **Status.** Two changes, recorded together because one corpus fixture and one re-pin carry both.
