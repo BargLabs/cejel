@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.4] — 2026-10-13
+
 ### Added
 
 - **`cejel` warns when npx ran a different cejel than it resolved (#436, #462).** Inside a checkout
