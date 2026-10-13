@@ -39,6 +39,7 @@ describe('AVA live assertion evidence (#427)', () => {
     `import test from 'ava'; test('empty', t => { /* t.is(1, 1); */ });`,
     `import test from 'ava'; const t = { is() {} }; t.is(1, 1);`,
     `const t = { is() {} }; t.is(1, 1);`,
+    `const fixture = "import test from 'ava';"; const test = (name, callback) => callback({is() {}}); test('looks live', t => { t.is(1, 1); });`,
     `import test from 'ava'; test('empty', t => { test.skip('nested', t => { t.is(1, 1); }); });`,
     `import test from 'ava'; test('empty', t => { const unused = () => t.is(1, 1); });`,
     `import test from 'ava'; test('empty', t => { function unused(t) { t.is(1, 1); } });`,

@@ -5655,13 +5655,12 @@ const SUITE_LEVEL_SKIP_PATTERN = /\b(?:describe|suite|context)\.skip\s*\(/;
 // AVA runner. A t.is string, comment, unrelated object, or skipped test is not a live assertion.
 function hasLiveAvaAssertion(contents: string): boolean {
   const uncommented = stripJavaScriptComments(contents);
-  const imported = /\bimport\s+([A-Za-z_$][\w$]*)\s+from\s*['"]ava['"]|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"]ava['"]\s*\)/.exec(uncommented);
-  const runner = imported?.[1] ?? imported?.[2];
-  if (!runner) return false;
+  const imports = [...uncommented.matchAll(/\bimport\s+([A-Za-z_$][\w$]*)\s+from\s*['"]ava['"]|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"]ava['"]\s*\)/g)];
+  if (!imports.length) return false;
   // Blank string/template contents while preserving offsets and delimiters outside them.
   let quote = '';
   let escaped = false;
-  const characters = [...uncommented];
+  const characters = uncommented.split('');
   for (let i = 0; i < characters.length; i += 1) {
     const ch = characters[i]!;
     if (quote) {
@@ -5675,6 +5674,10 @@ function hasLiveAvaAssertion(contents: string): boolean {
     }
   }
   const code = characters.join('');
+  // An import-shaped string is fixture text, not a binding. Its keyword was blanked above.
+  const imported = imports.find(candidate => code[candidate.index!] === uncommented[candidate.index!]);
+  const runner = imported?.[1] ?? imported?.[2];
+  if (!runner) return false;
   const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const calls = new RegExp(`\\b${escape(runner)}((?:\\.\\w+)*)\\s*\\(`, 'g');
   const closeAt = (open: number, left: string, right: string): number => {
