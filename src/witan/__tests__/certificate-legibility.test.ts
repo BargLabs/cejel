@@ -261,8 +261,9 @@ describe('certificate metric self-explanation', () => {
         'clean — no ungated production privilege-escalation pattern detected',
       );
       expect(output).toContain(
-        'missing — no CODEOWNERS or documented required-review policy detected',
+        'missing — no CODEOWNERS file in a location GitHub reads, and no documented required-review or branch-protection policy detected',
       );
+      expect(output).not.toContain('missing — no CODEOWNERS or documented required-review policy detected');
       expect(output).not.toMatch(/(?:Secret cleanliness|Crypto comparison hygiene)[^\n<]*1\/1/);
     }
   });

@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A negative result must describe absence of qualifying evidence rather than absence of every similarly named artifact. Issue #465 identified a certificate line saying no CODEOWNERS was detected even when a repository contained one outside the locations GitHub reads. The metric correctly withheld credit, but its copy overstated what the scan established. Rule: when evidence eligibility narrows, update both positive descriptions and negative outcome text, and assert the wording in the rendered certificate.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "certificate", "documentation"],
+    "tags": ["negative-outcome-copy", "eligible-evidence", "assertion-precision"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-13T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "awaiting-fix", "reason": "The certificate negative-copy correction for Cejel issue #465 must land on main."}
+  }
+]

@@ -481,7 +481,7 @@ const BINARY_METRIC_COPY: Readonly<
   },
   protected_path_review_gate: {
     positive: 'present — CODEOWNERS or a documented required-review policy was detected',
-    negative: 'missing — no CODEOWNERS or documented required-review policy detected',
+    negative: 'missing — no CODEOWNERS file in a location GitHub reads, and no documented required-review or branch-protection policy detected',
   },
 };
 
