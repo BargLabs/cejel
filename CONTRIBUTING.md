@@ -42,3 +42,15 @@ the guard fires.
 
 Run `pnpm install`, `pnpm test`, `pnpm run validate:distribution` and `pnpm typecheck` before
 opening a pull request. New rules need a test that fails without them.
+
+### Running a published version from inside this checkout
+
+Run a pinned `npx @cejel/cejel@<version>` from a directory outside any Cejel checkout. Inside one,
+npx sees that the checkout's own `package.json` already satisfies the request. It installs nothing
+and runs `cejel` by name, and the checkout's bin is never linked onto `PATH`. So whichever `cejel`
+is on your `PATH` runs instead, at whatever version it is
+([#436](https://github.com/BargLabs/cejel/issues/436)). Building `dist/` does not change this: with
+npm 11.19.0 and `dist/` built, the `PATH` copy still ran. To run the checkout's own code, use
+`node dist/index.js` after `pnpm build`, or `pnpm dev`. Versions that include the #436 check print a
+`warning:` line to stderr when this happens, but an older `cejel` on your `PATH` predates the check
+and prints nothing. Check the `toolVersion` in `report.json`, never the version you typed.
