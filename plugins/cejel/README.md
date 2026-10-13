@@ -47,8 +47,11 @@ guarantee that code is correct or secure.
   2026-10-09 entry in
   [`leaderboard/RUBRIC_CHANGELOG.md`](https://github.com/BargLabs/cejel/blob/main/leaderboard/RUBRIC_CHANGELOG.md).
 - **Inside a checkout of the Cejel repository itself,** `npx @cejel/cejel@<version>` may run
-  whichever `cejel` is on your `PATH` instead of the pinned version. Run it from another
-  directory. Tracked in [#436](https://github.com/BargLabs/cejel/issues/436).
+  whichever `cejel` is on your `PATH` instead of the pinned version. From 0.6.4, Cejel prints a
+  warning when npx ran a different cejel than it resolved, where it can tell which version was
+  asked for. The warning comes from the `cejel` that ran, so one older than 0.6.4 on your `PATH`
+  prints nothing. Run it from another directory. Tracked in
+  [#436](https://github.com/BargLabs/cejel/issues/436).
 
 ## Support, privacy and terms
 
