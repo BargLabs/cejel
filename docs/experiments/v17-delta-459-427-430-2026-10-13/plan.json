@@ -1,0 +1,22 @@
+{
+  "schema": "cejel-three-arm-public-delta-v1",
+  "arms": {
+    "before459": "988721e957dedd6c7649a1fb8cb4475459c573a8",
+    "after459": "b673493ee1a640026530f7cc65ac94aff8139bf1",
+    "fixes": "22f89a30a9a45a700ea1b684933d80ea3542b45d"
+  },
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "scope": "public entries only; private implementation and reports excluded",
+  "publicRows": 23,
+  "generatedAt": "2026-10-13T00:00:00.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "expected": {
+    "completedPerArm": 23,
+    "errorsPerArm": 0,
+    "459ScoringRowsMoved": 0,
+    "fixScoringRowsMoved": 0,
+    "placementsMovedPerPair": 0,
+    "fingerprintsChangedPerPair": 23,
+    "identicalReportsPerPair": 0
+  }
+}
