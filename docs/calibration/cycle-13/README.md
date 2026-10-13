@@ -9,7 +9,7 @@ detection recall and detection precision for `witan-rubric-v17-2026-07-24` (the 
 and `witan-rubric-v23-prospective-2026-09-06` (the candidate), on a 193-repository untouched cohort,
 with the paired difference between them. It carries the protocol, its five amendments, the
 instrument boundary, the draw acceptance and draw addendum, the estimator specification, the
-promotion policy, the label seals, the washout record and its errata, and the result. Each is
+promotion policy, the label seals, the washout record and its errata, the pre-run record and the result. Each is
 republished from the operator's signed private record. Labels, evidence packets, reviewer notes
 and counterparty specifics are not published here.
 
@@ -137,6 +137,7 @@ place. [`REDACTIONS.md`](REDACTIONS.md) lists every change.
 | [`cycle-13-washout-exposures-erratum-2-2026-10-12.md`](cycle-13-washout-exposures-erratum-2-2026-10-12.md) | Erratum 2: one further exposure before the second pass, a design-partner call. Published redacted (counterparty specifics). |
 | [`cycle-13-operator-relabel-seal-2026-10-12.md`](cycle-13-operator-relabel-seal-2026-10-12.md) | Seals the operator's re-label set (40 cases) by hash, and discloses the rater-name correction and the unused second labelling. |
 | [`cycle-13-estimation-protocol-amendment-5-2026-10-12.md`](cycle-13-estimation-protocol-amendment-5-2026-10-12.md) | Amendment 5: maps the estimator's carried seal fields to cycle 13, signed after labelling and before scoring, and discloses that it came late. |
+| [`cycle-13-estimate-pre-run-2026-10-13.md`](cycle-13-estimate-pre-run-2026-10-13.md) | Fixes the run commit and the implementation seal's sha256 before the one scoring run (amendment 5 §3). |
 | [`cycle-13-result-2026-10-13.md`](cycle-13-result-2026-10-13.md) | The one estimate: run identity and custody hashes, both arms and the paired difference, validity, the promotion policy applied (no candidate promoted), within-rater agreement and disclosures. |
 | [`REDACTIONS.md`](REDACTIONS.md) | Per file, what this publication changed and what it withheld. |
 
@@ -158,12 +159,13 @@ place. [`REDACTIONS.md`](REDACTIONS.md) lists every change.
 **Not published, under the disclosure boundary:** the 177 first-pass and 40 re-label adjudication
 labels and every per-label count, arm total and rule-level result; evidence packets, excerpts and
 the sealed key; reviewer notes; custody outputs (`result.json`, `agreement.json`, `run.json`, whose
-hashes are published in the result record); and counterparty specifics.
+hashes are published in the result record); cohort membership; and counterparty specifics.
 
 ## 4. Frame membership
 
-The cohort's membership reaches the public only through the operator's signed retirement-reveal,
-`frame-reveal-2026-10-13.md`. The operator adds it to `docs/calibration/cycle-13/` in the same
-change that promotes this record. It carries the 193 members and their pinned commits only: no
-draw index, label, packet or per-member result. No other file in this directory names a cohort
-member.
+The cohort's membership is not published. The drawn unit ids in the draw addendum carry a draw
+index, never a repository name. If the members were revealed, a reader who reran 0.4.11 on them
+could match many unit ids to repositories, and the published recall figures would then say
+something about how individual units were labelled. Labels are closed under the disclosure
+boundary, so on 2026-10-13 the operator ruled to keep membership closed. No file in this directory
+names a cohort member.

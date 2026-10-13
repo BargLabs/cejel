@@ -16,7 +16,7 @@ Intervals are 95%, member-clustered Rao-Wu bootstrap, 10,000 replicates (spec v4
 | Item | Value |
 |---|---|
 | Run commit | `5e72e91be0358884781a03d00a12d0fe1427e3f6` (merge of (private record)) |
-| Pre-run record | (private record), added by `619cfc616` |
+| Pre-run record | `docs/calibration/cycle-13-estimate-pre-run-2026-10-13.md`, added by `619cfc616` |
 | Implementation hashes.json sha256 | `1e732751f1c69fc6b86e08e1e82847e0fcb34003aad7a8628476737bd84526a8` |
 | Runner sha256 | `f6dcdbff09b9a9c4fc98661bc35f9218cd1f8c701ad6c05fb2b51e02c5ab72b3` (the blob reviewed in (private record)) |
 | Estimator configuration | `UNTOUCHED_ESTIMATOR_V4_DEFAULTS`, equal to the signed spec v4 |
