@@ -18,6 +18,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+**Certificate states what it read, presentation only: no score, weight, detector or file selection
+changes under any rubric.** The CI-workflow evidence in A3, B2 and B3 cites one workflow file (B2:
+up to three) and read as if only that file was checked. When a criterion counted or read more
+workflow files than it cites, the citation now says so beside it, for example
+`CI workflow (10 workflow files read; 1 cited)`. B3 opens every workflow's content (`read`); A3 and
+B2 count the workflows their path predicate recognises (`counted`). A workflow Cejel withheld
+under the existing content-read skip reasons (for example `too_large`) is stated as
+`1 not read (too_large)`, never counted as read. Separately, A3's build/type-check component and
+B3 `ci_script_depth` read package scripts from the root `package.json` only; when other authored
+`package.json` files exist (A1's own predicate, so vendored and dependency trees are not counted),
+the metric line now says `package scripts for this metric are read from the root package.json only;
+K other package.json files present`, or `no root package.json found; …` when there is none. A
+repository with one workflow file and no other authored `package.json` renders byte-identically.
+Carried in existing fields (evidence `label`, metric `presentation.condition`): no schema change,
+no report format bump. Certificate and `report.json` bytes change for repositories with more
+workflow files than cited or with other authored `package.json` files, so byte-reproducibility
+records made with earlier versions will differ for those repositories. Rubric behaviour
+fingerprints, the v17 golden pins and every score are unmoved, so `RUBRIC_CHANGELOG.md` has no
+entry.
+
 **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
 identifier bump: direction up, on `prod_readiness_primitives` (A3) only.** The A3 Express
 error-handler shape check now recognises two ordinary spellings it missed, both public-documentation
