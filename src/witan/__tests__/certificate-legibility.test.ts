@@ -267,6 +267,37 @@ describe('certificate metric self-explanation', () => {
     }
   });
 
+  // cejel #445: #441 (#433 part 6) narrowed the metric description to CODEOWNERS where GitHub
+  // reads it and to policy documents that are not changelogs, records, review notes or reports.
+  // The printed glossary must say the same, not the pre-#441 "any CODEOWNERS file or doc".
+  it('prints the protected-path review gate glossary as the metric description states it', () => {
+    const report = reportFixture([
+      criterion({
+        id: 'B6',
+        category: 'process_trust',
+        metrics: [
+          {
+            name: 'protected_path_review_gate',
+            label: 'Protected-path review gate',
+            value: 1,
+            max: 1,
+            weight: 1,
+            unit: 'present',
+          },
+        ],
+      }),
+    ]);
+    const [html, markdown] = humanReadableOutputs(report);
+    const definition =
+      'A binary check for a CODEOWNERS file in a location GitHub reads (the repository root, .github/ or docs/), or a document stating a required-review or branch-protection policy. A changelog, an experiment or calibration record, a review note or a report does not count. This is the repository-visible proxy for human review of sensitive-path changes.';
+
+    expect(markdown).toContain(`- **Protected-path review gate** — ${definition}`);
+    expect(html).toContain(`<dd>${definition}</dd>`);
+    for (const output of [html, markdown]) {
+      expect(output).not.toContain('A binary check for a CODEOWNERS file or documentation');
+    }
+  });
+
   it('names members for every other fixed enumerable scoring input', () => {
     const report = reportFixture([
       criterion({
