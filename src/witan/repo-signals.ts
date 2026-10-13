@@ -3372,12 +3372,28 @@ function collectA3ProdReadinessEvidence(
     ),
   );
 
+  const rootOnlyScriptsNote = rootOnlyPackageScriptsDisclosure(repoFiles, packageJson);
   if (packageJson && (scripts.has('build') || scripts.has('typecheck'))) {
     evidence.push(
       evidenceForRelative(repoPath, packageJson, 'prod_check', 'Build or typecheck script'),
     );
   }
-  if (workflow) evidence.push(evidenceForRelative(repoPath, workflow, 'ci_run', 'CI workflow'));
+  if (workflow) {
+    evidence.push(
+      evidenceForRelative(
+        repoPath,
+        workflow,
+        'ci_run',
+        ciWorkflowCitationLabel(
+          'CI workflow',
+          'counted',
+          workflows.length,
+          1,
+          unreadCiWorkflowReasons((file) => !useV27Detectors || isAuthoredProductionPath(file)),
+        ),
+      ),
+    );
+  }
   if (releaseDeployConfig)
     evidence.push(
       evidenceForRelative(
@@ -3587,6 +3603,7 @@ function collectA3ProdReadinessEvidence(
             { label: 'health or readiness signal', count: hasHealthOrReadinessSignal ? 1 : 0 },
             { label: 'error boundary', count: errorBoundary !== undefined ? 1 : 0 },
           ],
+          ...(rootOnlyScriptsNote ? { condition: rootOnlyScriptsNote } : {}),
         },
       ),
       metric(
@@ -4148,10 +4165,16 @@ function collectB2PrTraceEvidence(
   const branchProtectionDoc = repoFiles.find(
     (file) => /branch.*protection|review.*gate/i.test(file) || GITHUB_CODEOWNERS_PATH_PATTERN.test(file),
   );
+  const citedWorkflows = workflows.slice(0, 3);
+  const workflowLabel = ciWorkflowCitationLabel(
+    'Pull-request CI workflow',
+    'counted',
+    workflows.length,
+    citedWorkflows.length,
+    unreadCiWorkflowReasons(() => true),
+  );
   const evidence = [
-    ...workflows
-      .slice(0, 3)
-      .map((file) => evidenceForRelative(repoPath, file, 'ci_run', 'Pull-request CI workflow')),
+    ...citedWorkflows.map((file) => evidenceForRelative(repoPath, file, 'ci_run', workflowLabel)),
     ...(prTemplate
       ? [evidenceForRelative(repoPath, prTemplate, 'pull_request', 'Pull request template')]
       : []),
@@ -4239,15 +4262,38 @@ function collectB3CiDisciplineEvidence(
   // Both evidence pointers below are hashed from the same workflow file(s) ci_script_depth and
   // default_branch_ci_depth read above — an unreadable workflow belongs to those signals, not
   // an unattributed B3-wide skip.
+  // Every workflow in `workflows` and `rootWorkflows` is opened by ci_script_depth and
+  // default_branch_ci_depth; the evidence names one. Only workflows the walk withheld (too_large
+  // and the like) are not read, and only repoPath's own walk registers those.
+  const unreadWorkflows = unreadCiWorkflowReasons(() => true);
+  const workflowsRead = workflows.length + rootWorkflows.length;
   if (workflow) {
     withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-      evidence.push(evidenceForRelative(repoPath, workflow, 'ci_run', 'CI workflow')),
+      evidence.push(
+        evidenceForRelative(
+          repoPath,
+          workflow,
+          'ci_run',
+          ciWorkflowCitationLabel('CI workflow', 'read', workflowsRead, 1, unreadWorkflows),
+        ),
+      ),
     );
   } else if (rootWorkflows[0] && mono) {
     const rootWorkflow = rootWorkflows[0];
     withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
       evidence.push(
-        evidenceForRelative(mono.root, rootWorkflow, 'ci_run', 'CI workflow (monorepo root)'),
+        evidenceForRelative(
+          mono.root,
+          rootWorkflow,
+          'ci_run',
+          ciWorkflowCitationLabel(
+            'CI workflow (monorepo root)',
+            'read',
+            workflowsRead,
+            1,
+            unreadWorkflows,
+          ),
+        ),
       ),
     );
   }
@@ -4271,6 +4317,7 @@ function collectB3CiDisciplineEvidence(
     CI_TYPECHECK_COMMAND_PATTERN,
     CI_BUILD_COMMAND_PATTERN,
   ];
+  const rootOnlyScriptsNote = rootOnlyPackageScriptsDisclosure(repoFiles, packageJson);
   const scriptDepth = ['test', 'lint', 'typecheck', 'build'].filter((s) =>
     s === 'test' ? hasCredibleTestScript(scripts) : scripts.has(s),
   ).length;
@@ -4326,6 +4373,7 @@ function collectB3CiDisciplineEvidence(
                 }))
               : []),
           ],
+          ...(rootOnlyScriptsNote ? { condition: rootOnlyScriptsNote } : {}),
         },
       ),
       metric(
@@ -8316,6 +8364,65 @@ function isV24IgnoredScanFile(file: string): boolean {
 
 function findRootPackageJson(repoFiles: readonly string[]): string | null {
   return repoFiles.includes('package.json') ? 'package.json' : null;
+}
+
+// Presentation-only disclosure (goal_cejel_certificate_reads_disclosure_2026-10-13): the citation
+// names one workflow file, so the certificate states how many the criterion counted or read.
+// Nothing here feeds a score, a weight, or file selection.
+//
+// `verb` is the true one for the criterion: B3 opens every workflow's content ('read'); A3 and B2
+// count path-recognised workflows ('counted'). `unread` is the workflows the file walk withheld
+// before any collector saw them, grouped by existing skip reason (never an invented one). Silent
+// when nothing differs, so a repository with one workflow file renders exactly as before.
+function ciWorkflowCitationLabel(
+  baseLabel: string,
+  verb: 'read' | 'counted',
+  considered: number,
+  cited: number,
+  unread: ReadonlyMap<ContentReadSkipReason, number>,
+): string {
+  const unreadTotal = [...unread.values()].reduce((sum, count) => sum + count, 0);
+  if (considered <= cited && unreadTotal === 0) return baseLabel;
+  const parts = [
+    `${considered} workflow file${considered === 1 ? '' : 's'} ${verb}`,
+    `${cited} cited`,
+  ];
+  if (unreadTotal > 0) {
+    const reasons = [...unread.keys()].sort().join(', ');
+    parts.push(`${unreadTotal} not read (${reasons})`);
+  }
+  return `${baseLabel} (${parts.join('; ')})`;
+}
+
+function unreadCiWorkflowReasons(
+  includes: (file: string) => boolean,
+): Map<ContentReadSkipReason, number> {
+  const unread = new Map<ContentReadSkipReason, number>();
+  for (const { path, reasons } of withheldRepoPaths()) {
+    if (!isCiWorkflow(path) || !includes(path)) continue;
+    const reason = [...reasons].sort()[0];
+    if (reason !== undefined) unread.set(reason, (unread.get(reason) ?? 0) + 1);
+  }
+  return unread;
+}
+
+// A3's build/type-check component and B3's ci_script_depth read package scripts from the root
+// package.json only, while A1 reads every authored package.json. "Authored" is A1's own predicate
+// (isAuthoredProductionPath), so vendored and dependency trees are not counted. Returns null when
+// there is nothing to say (no other authored package.json), leaving the output unchanged.
+function rootOnlyPackageScriptsDisclosure(
+  repoFiles: readonly string[],
+  rootPackageJson: string | null,
+): string | null {
+  const others = repoFiles.filter(
+    (file) =>
+      file !== rootPackageJson &&
+      /(^|\/)package\.json$/.test(file) &&
+      isAuthoredProductionPath(file),
+  ).length;
+  if (others === 0) return null;
+  const present = `${others}${rootPackageJson ? ' other' : ''} package.json file${others === 1 ? '' : 's'} present`;
+  return `${rootPackageJson ? '' : 'no root package.json found; '}package scripts for this metric are read from the root package.json only; ${present}`;
 }
 
 // Returns true only for regular files — directories and missing paths both return false.
