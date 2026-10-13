@@ -29,8 +29,29 @@ pinned package. The template is not itself a lint-checked file in CI here: see L
 | --- | --- | --- |
 | `CEJEL_VERSION` | the release the include tag names | `@cejel/cejel` version `npx` runs. Keep it equal to the tag in the include URL. |
 | `CEJEL_MIN_SCORE` | empty | When set (0-4), the job fails below that overall score, when Cejel abstains, or when measurement coverage is too thin. This is the CLI's `--min-score`, as with the GitHub Action's `min-score`. The export still runs before the job exits. |
+| `GIT_DEPTH` | `"0"` | Full history: A2 and B2 read commit history. See Full history below. |
 
-Override either in the including project's `variables:` or as a CI/CD variable.
+These are job variables. Override one under the `variables:` of your own `cejel:` job, which
+GitLab merges with the included job, or as a project, group or pipeline CI/CD variable. A
+top-level `variables:` entry in the including file does not override them: GitLab ranks job
+variables above default ones. This precedence is from GitLab's CI/CD variable documentation; it
+has not been run on a GitLab runner here (see Limits).
+
+### Full history
+
+Fetch with `GIT_DEPTH: "0"`: GitLab's default shallow clone truncates the history A2 and B2 read,
+and the certificate then lists a history limitation.
+
+- **Included:** the template sets `GIT_DEPTH: "0"` on the `cejel` job, so you need do nothing.
+  It applies to that job only; the rest of your pipeline keeps its depth.
+- **Copied:** if you copy the job into your own `.gitlab-ci.yml` rather than including it, keep
+  `GIT_DEPTH: "0"` in its `variables:`. Without it the job inherits the project's shallow depth.
+
+```yaml
+cejel:
+  variables:
+    GIT_DEPTH: "0" # full history: A2 and B2 read commit history
+```
 
 ## Export command
 

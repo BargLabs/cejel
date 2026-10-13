@@ -334,7 +334,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'protected-path-review-gate',
     term: 'Protected-path review gate',
     definition:
-      'A binary check for a CODEOWNERS file or documentation of required review or branch protection. This is the repository-visible proxy for human review of sensitive-path changes.',
+      'A binary check for a CODEOWNERS file in a location GitHub reads (the repository root, .github/ or docs/), or a document stating a required-review or branch-protection policy. A changelog, an experiment or calibration record, a review note or a report does not count. This is the repository-visible proxy for human review of sensitive-path changes.',
     metricNames: ['protected_path_review_gate'],
   },
 ] as const;
@@ -481,7 +481,7 @@ const BINARY_METRIC_COPY: Readonly<
   },
   protected_path_review_gate: {
     positive: 'present — CODEOWNERS or a documented required-review policy was detected',
-    negative: 'missing — no CODEOWNERS or documented required-review policy detected',
+    negative: 'missing — no CODEOWNERS file in a location GitHub reads, and no documented required-review or branch-protection policy detected',
   },
 };
 

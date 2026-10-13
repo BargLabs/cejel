@@ -59,9 +59,13 @@ import { pathToFileURL } from 'node:url';
 // the object still exists, e.g. under refs/pull/*/head) or by an entry in the citation errata
 // register, docs/experiments/CITATION-ERRATA.json. Preregistrations are never edited.
 //
-// ERRATA. A register entry names one exact token and the exact file and line of each bare
-// citation it corrects; no wildcard, no prefix match. It clears only a rule-2 failure at one
-// of those locations (a rule-1 failure is remedied by a tag). Dispositions:
+// ERRATA. A register entry names one exact token and, for each bare citation it corrects, the
+// file and a `context`: an exact excerpt of that file (it may span lines) holding the token once.
+// The context, not a line number, locates the citation, so an entry survives lines added above
+// it (RUBRIC_CHANGELOG.md is written newest-first; #444). No wildcard, no prefix match. A context
+// must occur exactly once in its file: one that occurs nowhere fails, and one that occurs more
+// than once fails as ambiguous, so it must be lengthened until it names one citation. It clears
+// only a rule-2 failure at that citation (a rule-1 failure is remedied by a tag). Dispositions:
 //   lost-in-squash   - `carrier` is the full id of the squash commit that carries the bytes and
 //                      `pr` its pull request. Verified: the carrier is a single-parent commit
 //                      reachable from main whose subject ends in `(#<pr>)`.
@@ -76,12 +80,12 @@ import { pathToFileURL } from 'node:url';
 //                      is an ancestor of refs/remotes/origin-pr/<pr> (the workflow fetches every
 //                      refs/pull/*/head there) and is not reachable from main. It clears only a
 //                      rule-1 (unreachable) failure; the other two clear only rule-2 failures.
-// A location that matches no flagged citation fails: a stale correction is a defect too.
+// A location whose one citation is not flagged fails: a stale correction is a defect too.
 
 export const SCANNED_PATHS = ['docs/experiments', 'leaderboard/RUBRIC_CHANGELOG.md'];
 export const EVIDENCE_TAG_PREFIX = 'refs/tags/evidence/';
 export const ERRATA_PATH = 'docs/experiments/CITATION-ERRATA.json';
-export const ERRATA_SCHEMA = 'cejel-citation-errata-v1';
+export const ERRATA_SCHEMA = 'cejel-citation-errata-v2';
 
 const HEX_TOKEN = /(?<![0-9A-Za-z])[0-9a-f]{7,40}(?![0-9A-Za-z])/g;
 const COMMIT_LABEL = /\b(commit|commits|committed|merge|merges|merged|squash|squashed|preregist\w*)\b/i;
@@ -255,14 +259,18 @@ export function listScannedFiles(cwd) {
   return out.split('\0').filter((path) => path && path !== ERRATA_PATH);
 }
 
+/** @returns {Map<string, string>} each scanned file's text, by repository-relative path */
+export function readScannedTexts(cwd) {
+  return new Map(listScannedFiles(cwd).map((file) => [file, readFileSync(join(cwd, file), 'utf8')]));
+}
+
 /**
  * Classify every token in the scanned files.
- * @param {{cwd: string, mainRef: string, pendingRef?: string}} opts
+ * @param {{cwd: string, mainRef: string, pendingRef?: string, texts?: Map<string, string>}} opts
  */
-export function inventory({ cwd, mainRef, pendingRef }) {
+export function inventory({ cwd, mainRef, pendingRef, texts = readScannedTexts(cwd) }) {
   const occurrences = [];
-  for (const file of listScannedFiles(cwd)) {
-    const text = readFileSync(join(cwd, file), 'utf8');
+  for (const [file, text] of texts) {
     const prose = PROSE_FILE.test(file);
     const spans = prose ? sentenceSpans(text) : [];
     for (const t of extractTokens(text)) {
@@ -333,12 +341,21 @@ export function loadErrata(cwd) {
     if (typeof e?.token !== 'string' || !FULL_TOKEN.test(e.token)) problems.push(`${at}: token must be 7-40 lowercase hex`);
     if (!Array.isArray(e?.locations) || e.locations.length === 0) problems.push(`${at}: locations must be a non-empty array`);
     for (const loc of Array.isArray(e?.locations) ? e.locations : []) {
-      if (typeof loc?.file !== 'string' || loc.file === '' || !Number.isInteger(loc?.line) || loc.line < 1) {
-        problems.push(`${at}: every location needs a file and a positive integer line`);
+      if (loc !== null && typeof loc === 'object' && 'line' in loc) {
+        problems.push(`${at}: a location has no line; name the citation by its context, which does not move when lines are added above it`);
         continue;
       }
-      const key = `${e.token}\0${loc.file}\0${loc.line}`;
-      if (seen.has(key)) problems.push(`${at}: ${loc.file}:${loc.line} is listed twice`);
+      if (typeof loc?.file !== 'string' || loc.file === '' || typeof loc?.context !== 'string') {
+        problems.push(`${at}: every location needs a file and a context`);
+        continue;
+      }
+      const first = typeof e.token === 'string' ? loc.context.indexOf(e.token) : -1;
+      if (first < 0 || loc.context.indexOf(e.token, first + 1) >= 0) {
+        problems.push(`${at}: context ${JSON.stringify(loc.context)} must hold the token exactly once`);
+        continue;
+      }
+      const key = `${e.token}\0${loc.file}\0${loc.context}`;
+      if (seen.has(key)) problems.push(`${at}: ${loc.file} context ${JSON.stringify(loc.context)} is listed twice`);
       seen.add(key);
     }
     if (typeof e?.date !== 'string' || !DATE.test(e.date)) problems.push(`${at}: date must be YYYY-MM-DD`);
@@ -412,22 +429,60 @@ function verifyWithheld(cwd, mainRef, entry) {
   }
 }
 
+const lineAt = (text, offset) => text.slice(0, offset).split('\n').length;
+
 /**
- * Clear the failures a verified register entry names by exact token, file and line: rule-2
+ * Where a location's token sits: the offset of the token in each place its context occurs in
+ * its file, overlapping occurrences included. A scanned file only; anything else is no place.
+ * @returns {number[]}
+ */
+export function locateContext(texts, token, loc) {
+  const text = texts.get(loc.file);
+  if (text === undefined) return [];
+  const anchor = loc.context.indexOf(token);
+  const offsets = [];
+  for (let i = text.indexOf(loc.context); i >= 0; i = text.indexOf(loc.context, i + 1)) offsets.push(i + anchor);
+  return offsets;
+}
+
+/**
+ * Clear the failures a verified register entry names by exact token, file and context: rule-2
  * failures for lost-in-squash and other-repository, rule-1 failures for withheld-by-ruling.
- * Unverifiable entries leave their failures standing with the reason; unused locations fail.
+ * Unverifiable entries leave their failures standing with the reason. A context that occurs
+ * nowhere or more than once fails, and so does one whose single citation is not flagged.
+ * @param {Map<string, string>} texts the scanned files' text, from readScannedTexts
  * @returns {{failures: object[], corrected: object[]}}
  */
-export function applyErrata(failures, entries, verify) {
+export function applyErrata(failures, entries, verify, texts) {
   const byKey = new Map();
+  const remaining = [];
   for (const entry of entries) {
-    for (const loc of entry.locations) byKey.set(`${entry.token}\0${loc.file}\0${loc.line}`, { entry, loc, used: false });
+    for (const loc of entry.locations) {
+      const offsets = locateContext(texts, entry.token, loc);
+      const at = { file: loc.file, token: entry.token };
+      if (offsets.length === 0) {
+        remaining.push({ ...at, reason: `errata context ${JSON.stringify(loc.context)} occurs nowhere in the file (a stale correction)` });
+        continue;
+      }
+      const text = texts.get(loc.file);
+      if (offsets.length > 1) {
+        const lines = offsets.map((o) => lineAt(text, o)).join(', ');
+        remaining.push({ ...at, reason: `errata context ${JSON.stringify(loc.context)} is ambiguous: it occurs ${offsets.length} times (lines ${lines}); lengthen it until it occurs once` });
+        continue;
+      }
+      const key = `${entry.token}\0${loc.file}\0${offsets[0]}`;
+      const line = lineAt(text, offsets[0]);
+      if (byKey.has(key)) {
+        remaining.push({ ...at, line, reason: 'two errata locations name the same citation' });
+        continue;
+      }
+      byKey.set(key, { entry, loc, line, used: false });
+    }
   }
   const problem = new Map(entries.map((e) => [e, verify(e)]));
-  const remaining = [];
   const corrected = [];
   for (const f of failures) {
-    const candidate = byKey.get(`${f.token}\0${f.file}\0${f.line}`);
+    const candidate = byKey.get(`${f.token}\0${f.file}\0${f.offset}`);
     const ruleTwo = f.class === 'nothing' || f.class === 'ambiguous';
     const ruleOne = f.class === 'unreachable';
     const hit =
@@ -445,8 +500,8 @@ export function applyErrata(failures, entries, verify) {
     if (why) remaining.push({ ...f, reason: why });
     else corrected.push({ ...f, erratum: hit.entry });
   }
-  for (const { entry, loc, used } of byKey.values()) {
-    if (!used) remaining.push({ file: loc.file, line: loc.line, token: entry.token, reason: 'errata entry matches no flagged citation (a stale correction)' });
+  for (const { entry, loc, line, used } of byKey.values()) {
+    if (!used) remaining.push({ file: loc.file, line, token: entry.token, reason: 'errata entry matches no flagged citation (a stale correction)' });
   }
   return { failures: remaining, corrected };
 }
@@ -468,7 +523,8 @@ function argValue(argv, name) {
 export function main(argv, cwd = process.cwd(), out = process.stdout, err = process.stderr) {
   const mainRef = argValue(argv, '--main-ref') ?? 'origin/main';
   const pendingRef = argValue(argv, '--pending-ref');
-  const occurrences = inventory({ cwd, mainRef, pendingRef });
+  const texts = readScannedTexts(cwd);
+  const occurrences = inventory({ cwd, mainRef, pendingRef, texts });
   if (argv.includes('--inventory')) {
     for (const o of occurrences) {
       const { file, line, token, class: cls, citation } = o;
@@ -479,7 +535,7 @@ export function main(argv, cwd = process.cwd(), out = process.stdout, err = proc
   const entries = loadErrata(cwd);
   const evaluated = evaluate(occurrences);
   const { pending } = evaluated;
-  const { failures, corrected } = applyErrata(evaluated.failures, entries, (e) => verifyErratum(cwd, mainRef, e));
+  const { failures, corrected } = applyErrata(evaluated.failures, entries, (e) => verifyErratum(cwd, mainRef, e), texts);
   for (const c of corrected) {
     out.write(`ERRATUM ${c.file}:${c.line} ${c.token} -- ${describeErratum(c.erratum)}: ${c.erratum.reason}\n`);
   }
@@ -487,7 +543,7 @@ export function main(argv, cwd = process.cwd(), out = process.stdout, err = proc
     out.write(`PENDING ${p.file}:${p.line} ${p.token} -- reachable only from ${pendingRef}; merge with --merge, never squash\n`);
   }
   for (const f of failures) {
-    err.write(`FAIL ${f.file}:${f.line} ${f.token} -- ${f.reason}\n`);
+    err.write(`FAIL ${f.line === undefined ? f.file : `${f.file}:${f.line}`} ${f.token} -- ${f.reason}\n`);
   }
   const evidenceTags = evidenceTagRefs(cwd).length;
   out.write(

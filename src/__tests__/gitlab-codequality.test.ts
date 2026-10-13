@@ -227,6 +227,16 @@ describe('ci/gitlab/cejel.gitlab-ci.yml', () => {
     expect(text).toContain(`/cejel/v${manifest.version}/ci/gitlab/`);
   });
 
+  it('fetches full history on the cejel job, not shallow (#456)', () => {
+    // GitLab clones shallow by default, which truncates the history A2 and B2 read. The value
+    // must sit in the job's own variables block, so an include consumer gets it unedited and
+    // the including pipeline's other jobs keep their depth.
+    const jobVariables = /^ {2}variables:\n((?: {4}.*\n)+)/m.exec(text)?.[1] ?? '';
+    expect(jobVariables).toMatch(/^ {4}GIT_DEPTH: "0"$/m);
+    expect(text.match(/^ *GIT_DEPTH:/gm)).toHaveLength(1);
+    expect(text).not.toMatch(/^variables:/m);
+  });
+
   it('makes no network call beyond the pinned npx fetch', () => {
     const commands = text.split('\n').filter((line) => !line.trimStart().startsWith('#'));
     expect(commands.join('\n')).not.toMatch(/\b(curl|wget|git clone|http:\/\/)/);

@@ -1,10 +1,10 @@
 {
-  "schema": "cejel-citation-errata-v1",
-  "description": "Corrections to bare commit citations in docs/experiments/** and leaderboard/RUBRIC_CHANGELOG.md that scripts/check-cited-commits.mjs flags under rule 2. The citing records, preregistrations included, are not edited. Each entry names one exact token and the exact file and line of every citation it corrects; the check verifies lost-in-squash carriers against main and fails on any location that no longer matches a flagged citation. Resolved by the operator on 2026-10-02 (#368, #390).",
+  "schema": "cejel-citation-errata-v2",
+  "description": "Corrections to bare commit citations in docs/experiments/** and leaderboard/RUBRIC_CHANGELOG.md that scripts/check-cited-commits.mjs flags under rule 2. The citing records, preregistrations included, are not edited. Each entry names one exact token and, for every citation it corrects, the file and an exact context excerpt holding the token once; the context must occur exactly once in that file, so lines added above a citation do not move its correction (#444). The check verifies lost-in-squash carriers against main and fails on any context that occurs nowhere, more than once, or at a citation that is no longer flagged. Resolved by the operator on 2026-10-02 (#368, #390).",
   "entries": [
     {
       "token": "282468d",
-      "locations": [{ "file": "docs/experiments/d2-acceptance-preregistration-2026-07-31.md", "line": 3 }],
+      "locations": [{ "file": "docs/experiments/d2-acceptance-preregistration-2026-07-31.md", "context": "The fixture-only commit `282468d` fixed the exact acceptance case for ADR-0013 D2" }],
       "disposition": "lost-in-squash",
       "carrier": "e072bd7fe7f9b3bc705a2c56c86f62c35f0e42cc",
       "pr": 64,
@@ -13,7 +13,7 @@
     },
     {
       "token": "7d2c196",
-      "locations": [{ "file": "docs/experiments/d2-acceptance-preregistration-2026-07-31.md", "line": 20 }],
+      "locations": [{ "file": "docs/experiments/d2-acceptance-preregistration-2026-07-31.md", "context": "Detector behavior was frozen in commit `7d2c196` before the first public-cohort" }],
       "disposition": "lost-in-squash",
       "carrier": "e072bd7fe7f9b3bc705a2c56c86f62c35f0e42cc",
       "pr": 64,
@@ -22,7 +22,7 @@
     },
     {
       "token": "5f4217f",
-      "locations": [{ "file": "docs/experiments/d3-acceptance-preregistration-2026-07-31.md", "line": 3 }],
+      "locations": [{ "file": "docs/experiments/d3-acceptance-preregistration-2026-07-31.md", "context": "The fixture-only commit `5f4217f` fixed the exact acceptance case for ADR-0013 D3" }],
       "disposition": "lost-in-squash",
       "carrier": "97564ad17ddde4c64d213f78c98d316c01b0c12a",
       "pr": 66,
@@ -31,7 +31,7 @@
     },
     {
       "token": "2bf342f",
-      "locations": [{ "file": "docs/experiments/d3-acceptance-preregistration-2026-07-31.md", "line": 26 }],
+      "locations": [{ "file": "docs/experiments/d3-acceptance-preregistration-2026-07-31.md", "context": "Detector behavior was frozen in commit\n`2bf342f` before that observation" }],
       "disposition": "lost-in-squash",
       "carrier": "97564ad17ddde4c64d213f78c98d316c01b0c12a",
       "pr": 66,
@@ -40,7 +40,7 @@
     },
     {
       "token": "d6248edd47f6",
-      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1384 }],
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "context": "The self snapshot moves from `d6248edd47f6` to" }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -48,7 +48,7 @@
     },
     {
       "token": "25627e00c6eb",
-      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1385 }],
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "context": "`25627e00c6eb`, the clean v5 implementation commit" }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -56,7 +56,7 @@
     },
     {
       "token": "75fa69511494",
-      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "line": 1431 }],
+      "locations": [{ "file": "leaderboard/RUBRIC_CHANGELOG.md", "context": "moved the two self rows from source snapshot `75fa69511494`" }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -64,7 +64,7 @@
     },
     {
       "token": "a506a5e8aaa89862a8288a208aa083e685e47fbc",
-      "locations": [{ "file": "docs/experiments/criterion-path-emission-audit-2026-07-31.md", "line": 84 }],
+      "locations": [{ "file": "docs/experiments/criterion-path-emission-audit-2026-07-31.md", "context": "Recorded result commit\n`a506a5e8aaa89862a8288a208aa083e685e47fbc` reports that A2 emitted the exact path" }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -72,7 +72,7 @@
     },
     {
       "token": "c1cd701fd7ebe9a52cbcca58701c024f2f8bc540",
-      "locations": [{ "file": "docs/experiments/dual-control-downstream-labelling-retraction-2026-08-10.md", "line": 41 }],
+      "locations": [{ "file": "docs/experiments/dual-control-downstream-labelling-retraction-2026-08-10.md", "context": "| Raw result commit | `c1cd701fd7ebe9a52cbcca58701c024f2f8bc540` |" }],
       "disposition": "other-repository",
       "repository": "BargLabs/alfred",
       "date": "2026-10-02",
@@ -80,7 +80,7 @@
     },
     {
       "token": "b0d2212dd1524a595a44252cbf957f2d3bbdffcf",
-      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 184 }],
+      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "context": "`b0d2212dd1524a595a44252cbf957f2d3bbdffcf` touches source and tests, but it is a feature bundle" }],
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
@@ -88,7 +88,7 @@
     },
     {
       "token": "8e73ffa41f8610dba866f2cdc29da811426b3c20",
-      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 197 }],
+      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "context": "`8e73ffa41f8610dba866f2cdc29da811426b3c20` and\n  `9f497be779405b027148bc318e6df1ca6ee86d80` are real configuration defects" }],
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
@@ -96,7 +96,7 @@
     },
     {
       "token": "9f497be779405b027148bc318e6df1ca6ee86d80",
-      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 198 }],
+      "locations": [{ "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "context": "`9f497be779405b027148bc318e6df1ca6ee86d80` are real configuration defects" }],
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
       "date": "2026-10-02",
@@ -105,9 +105,9 @@
     {
       "token": "25e711d1b5400f22e3d7b4ed0243609681bc5a5d",
       "locations": [
-        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 200 },
-        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 217 },
-        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "line": 236 }
+        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "context": "`25e711d1b5400f22e3d7b4ed0243609681bc5a5d` and recorded a frozen-tip patch conflict" },
+        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "context": "| Parent | `9142c2dd9badf32fab072d8b25caf7c4aa977058` |\n| Prior unit | PR #243, merge anchor `25e711d1b5400f22e3d7b4ed0243609681bc5a5d` |" },
+        { "file": "docs/experiments/shape-diversity-therasyn-sitemachine-2026-08-01.md", "context": "| Parent | `054464151fabf8523a467be64a4d041bc64566b8` |\n| Prior unit | PR #243, merge anchor `25e711d1b5400f22e3d7b4ed0243609681bc5a5d` |" }
       ],
       "disposition": "other-repository",
       "repository": "private-repository (withheld)",
@@ -117,7 +117,7 @@
     {
       "token": "88ede8569eb00c44e0ceabcf448612500ad2bfad",
       "locations": [
-        { "file": "docs/experiments/v17-accuracy-rebind-2026-08-05/evidence-partition-preregistration.md", "line": 13 }
+        { "file": "docs/experiments/v17-accuracy-rebind-2026-08-05/evidence-partition-preregistration.md", "context": "The 200/200 re-bind run remains the run recorded at\n`88ede8569eb00c44e0ceabcf448612500ad2bfad`." }
       ],
       "disposition": "withheld-by-ruling",
       "pr": 91,
