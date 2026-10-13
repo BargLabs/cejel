@@ -457,15 +457,23 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Re-pinned for 0.6.3: only the version bump reaches this fixture beyond the #433 re-pin above.
     // Setting toolVersion back to "0.6.2" in place reproduces the #433 pin (a9d4c85f...) byte for
     // byte, and the #433 restoration below is taken from that restored report.
+    // Re-pinned for 0.6.4: only the version bump reaches this fixture beyond the 2026-10-12 and
+    // #427/#430 re-pins below. Setting toolVersion back to "0.6.3" in place reproduces the
+    // pre-0.6.4 pin (bedd993c...) byte for byte, and the restorations below start from it.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'bedd993c843a76c1d92f711a1347627a7355fdd7e874d6cd56b2855c0cfcf767',
+      '2e83163b1768123c7b10fbb995120a5853ad6acbb504edd26ae8dace5e9ef034',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
     );
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.3');
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.4');
+    const at063 = { ...firstReport, toolVersion: '0.6.3' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(at063, null, 2)).digest('hex'),
+      'the 0.6.3 report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('bedd993c843a76c1d92f711a1347627a7355fdd7e874d6cd56b2855c0cfcf767');
     // #427/#430 add two specimens. This fixture's only changed field is the fingerprint.
-    const atPreAssertionFixes = { ...firstReport, rubricBehaviourFingerprint:
+    const atPreAssertionFixes = { ...at063, rubricBehaviourFingerprint:
       'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23' };
     expect(createHash('sha256').update(JSON.stringify(atPreAssertionFixes, null, 2)).digest('hex'))
       .toBe('79dd88eed8813dd16be0c21b8de6a468447a3f7c397e86c97efec8e6baa42495');
@@ -475,7 +483,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // shapes. Made mechanical here: restoring the previous v17 fingerprint in place (key order
     // unchanged) and then resetting toolVersion reproduces the 0.6.2-era pin (a9d4c85f...).
     const atPreHandlerShapes = {
-      ...firstReport,
+      ...at063,
       rubricBehaviourFingerprint:
         'sha256:2da86acf64c39d2edb7824df46250ea23c396264266a2cd925953e9c6ad25858',
     } as typeof firstReport;
