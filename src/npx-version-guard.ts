@@ -26,6 +26,7 @@ import { delimiter, resolve } from 'node:path';
  * 2. The working directory's project is this package and npx installed nothing: npx accepted
  *    the checkout's version as satisfying the request. For a pinned `npx <pkg>@<version>` that
  *    is exactly the version asked for; for a range or a bare name it is the version npx chose.
+ * Command mode (`--call`/`-c`) deliberately selects a command, so neither inference applies.
  * Anywhere else the request is unknown and this stays silent; it never guesses.
  */
 export interface NpxVersionContext {
@@ -42,6 +43,9 @@ const EXACT_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z
 export function npxVersionMismatchWarning(context: NpxVersionContext): string | undefined {
   const { env, packageName, runningVersion, runningPath } = context;
   if (env.npm_lifecycle_event !== 'npx') return undefined;
+  // --call/-c executes an explicit shell command. It exports the same checkout metadata and
+  // PATH ordering as package resolution, but the command may deliberately select another bin.
+  if (env.npm_config_call) return undefined;
 
   const pinned = exactPackageSpecVersion(env.npm_config_package, packageName);
   if (pinned !== undefined) {

@@ -75,6 +75,17 @@ describe('npxVersionMismatchWarning', () => {
   });
 
   describe('is silent when the requested version is unknown', () => {
+    it.each([undefined, '@cejel/cejel@0.6.3'])(
+      'in --call/-c command mode, with package spec %s',
+      (packageSpec) => {
+        const env = npxEnv({
+          npm_config_call: 'node /opt/cejel/dist/index.js --version',
+          npm_config_package: packageSpec,
+        });
+        expect(npxVersionMismatchWarning(context(env, '0.6.2'))).toBeUndefined();
+      },
+    );
+
     it('outside npx', () => {
       const env = npxEnv({ npm_lifecycle_event: 'test' });
       expect(npxVersionMismatchWarning(context(env, '0.4.8'))).toBeUndefined();
