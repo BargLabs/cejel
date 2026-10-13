@@ -30,14 +30,14 @@ Source: the operator's private calibration records at private commit
 ## The closed classes, as applied here
 
 - **Adjudication labels**, individually or as any table from which a label for a unit could be
-  recovered, including per-label counts, arm totals and rule-level counts. None of the 17 source
+  recovered, including per-label counts, arm totals and rule-level counts. None of the 18 source
   files carries one. The result record carries only design-weighted aggregates and the
   within-rater agreement, both published by commitment (amendment 4 §4).
 - **Evidence packets, excerpts, the sealed key, reviewer notes and custody outputs.** None is in
   any source file. Their hashes are, and stay.
-- **Frame membership.** No source file names a cohort member. The drawn unit ids
-  (`repo-NNN:RULE`) stay, as protocol §8 opens them after retirement. `repo-NNN` is a custody
-  draw index, and the operator's retirement-reveal carries no draw index.
+- **Frame membership.** No source file names a cohort member, and membership is not revealed
+  (operator ruling, 2026-10-13): with the drawn unit ids (`repo-NNN:RULE`, protocol §8) public, a
+  reveal would let a reader recover partial label classes. `repo-NNN` is a custody draw index.
 - **Counterparty specifics.** Withheld from erratum 2, below.
 
 ## Per file
@@ -60,7 +60,8 @@ Source: the operator's private calibration records at private commit
 | `cycle-13-washout-exposures-and-known-limitations-2026-10-12.md` | Nothing withheld. | Republication line; one private PR number and private engine source paths. Line numbers and commit `8ceb0f385` kept. |
 | `cycle-13-washout-exposures-erratum-1-2026-10-12.md` | Nothing withheld. | Republication line; PR numbers, the paired-scan script path, and the quoted engine path. |
 | `cycle-13-washout-exposures-erratum-2-2026-10-12.md` | **The "What the operator was shown" cell**, under counterparty specifics. | Republication line; one PR number. The cell now reads: "a design partner's unverified account of what the scanner reads, and product requests; withheld under the disclosure boundary (counterparty specifics)". Withheld: the partner's account of how the scanner read its repositories, and every one of its requests. Kept: the erratum's existence, its date, the record column (which names no partner) and the criteria column. |
-| `cycle-13-result-2026-10-13.md` | Nothing withheld. | Republication line; the run's PR number and the pre-run record (not republished). |
+| `cycle-13-estimate-pre-run-2026-10-13.md` | Nothing withheld. | Republication line; two private PR numbers and the private runner path. |
+| `cycle-13-result-2026-10-13.md` | Nothing withheld. | Republication line; the run's PR number. |
 
 `README.md` and this file were written for this publication, not republished.
 
