@@ -140,7 +140,7 @@ test('leaderboard/RUBRIC_CHANGELOG.md is scanned; files outside the scope are no
 const ERRATA = 'docs/experiments/CITATION-ERRATA.json';
 
 function writeErrata(cwd, entries) {
-  write(cwd, ERRATA, `${JSON.stringify({ schema: 'cejel-citation-errata-v1', entries }, null, 2)}\n`);
+  write(cwd, ERRATA, `${JSON.stringify({ schema: 'cejel-citation-errata-v2', entries }, null, 2)}\n`);
 }
 
 /**
@@ -169,7 +169,7 @@ function errataRepo() {
 
 const lostInSquash = (carrier, overrides = {}) => ({
   token: 'abc1234',
-  locations: [{ file: 'docs/experiments/x/result.md', line: 1 }],
+  locations: [{ file: 'docs/experiments/x/result.md', context: 'committed as `abc1234` before' }],
   disposition: 'lost-in-squash',
   carrier,
   pr: 7,
@@ -181,7 +181,7 @@ const lostInSquash = (carrier, overrides = {}) => ({
 function withheld(token, overrides = {}) {
   return {
     token,
-    locations: [{ file: 'docs/experiments/x/result.md', line: 1 }],
+    locations: [{ file: 'docs/experiments/x/result.md', context: `committed as \`${token}\`` }],
     disposition: 'withheld-by-ruling',
     pr: 7,
     ruling: 'operator, 2026-10-02: evidence tag removed',
@@ -263,7 +263,7 @@ test('errata: an other-repository entry clears its token and prints the attribut
     lostInSquash(squash),
     {
       token: 'def5678',
-      locations: [{ file: 'docs/experiments/x/result.md', line: 3 }],
+      locations: [{ file: 'docs/experiments/x/result.md', context: 'The fix commit is `def5678`' }],
       disposition: 'other-repository',
       repository: 'BargLabs/alfred',
       date: '2026-10-02',
@@ -283,7 +283,7 @@ test('errata: an other-repository entry may withhold a private repository with t
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const privateEntry = (repository) => ({
     token: 'def5678',
-    locations: [{ file: 'docs/experiments/x/result.md', line: 3 }],
+    locations: [{ file: 'docs/experiments/x/result.md', context: 'The fix commit is `def5678`' }],
     disposition: 'other-repository',
     repository,
     date: '2026-10-05',
@@ -302,15 +302,111 @@ test('errata: an other-repository entry may withhold a private repository with t
   }
 });
 
-test('errata: an entry with the wrong line does not clear the token and is reported as stale', (t) => {
+test('errata: an entry whose context is not in the file does not clear the token and is reported as stale', (t) => {
   const { cwd, squash } = errataRepo();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  writeErrata(cwd, [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', line: 2 }] })]);
+  writeErrata(cwd, [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', context: 'recorded as `abc1234` before' }] })]);
   commitAll(cwd, 'errata');
   const result = run(cwd);
   assert.equal(result.code, 1);
   assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 -- cited as a cejel commit/);
-  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:2 abc1234 -- errata entry matches no flagged citation/);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md abc1234 -- errata context "recorded as `abc1234` before" occurs nowhere in the file \(a stale correction\)/);
+});
+
+const CHANGELOG = 'leaderboard/RUBRIC_CHANGELOG.md';
+
+const alfredSnapshot = (contexts) => ({
+  token: 'd6248edd47f6',
+  locations: contexts.map((context) => ({ file: CHANGELOG, context })),
+  disposition: 'other-repository',
+  repository: 'BargLabs/alfred',
+  date: '2026-10-12',
+  reason: 'The self snapshot is an alfred commit.',
+});
+
+test('errata: a top entry added above an excused citation still passes, and the correction follows the citation (#444)', (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'cited-commits-'));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  git(cwd, 'init', '-q');
+  write(cwd, CHANGELOG, '# Changelog\n\n## v4\n\nThe self snapshot moves from `d6248edd47f6` to the new commit.\n');
+  writeErrata(cwd, [alfredSnapshot(['snapshot moves from `d6248edd47f6`'])]);
+  commitAll(cwd, 'v4 entry and its erratum');
+  const before = run(cwd);
+  assert.equal(before.code, 0, before.stderr);
+  assert.match(before.stdout, /ERRATUM leaderboard\/RUBRIC_CHANGELOG\.md:5 d6248edd47f6 -- other repository BargLabs\/alfred/);
+
+  // RUBRIC_CHANGELOG.md is newest-first: a new entry lands above every existing line, as the
+  // 119-line entry on #441 did. A file:line key went stale here; the context does not move.
+  const entry = Array.from({ length: 119 }, (_, i) => `New entry line ${i + 1}.`).join('\n');
+  write(cwd, CHANGELOG, `# Changelog\n\n## v5\n\n${entry}\n\n## v4\n\nThe self snapshot moves from \`d6248edd47f6\` to the new commit.\n`);
+  commitAll(cwd, 'v5 entry on top');
+  const after = run(cwd);
+  assert.equal(after.code, 0, after.stderr);
+  assert.equal(after.stderr, '');
+  assert.match(after.stdout, /ERRATUM leaderboard\/RUBRIC_CHANGELOG\.md:127 d6248edd47f6 -- other repository BargLabs\/alfred/);
+  assert.match(after.stdout, /0 failure\(s\), 0 pending, 1 corrected by errata/);
+});
+
+test('errata: an ambiguous context fails and clears neither citation; a context lengthened to one occurrence clears it', (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'cited-commits-'));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  git(cwd, 'init', '-q');
+  // Two identical citing lines, as in a table repeated under two headings: only text around
+  // the line tells them apart.
+  write(cwd, CHANGELOG, '## v5\n\n| Snapshot | merged as commit `d6248edd47f6` |\n\n## v4\n\n| Snapshot | merged as commit `d6248edd47f6` |\n');
+  writeErrata(cwd, [alfredSnapshot(['merged as commit `d6248edd47f6`'])]);
+  commitAll(cwd, 'ambiguous erratum');
+  const ambiguous = run(cwd);
+  assert.equal(ambiguous.code, 1);
+  assert.match(ambiguous.stderr, /FAIL leaderboard\/RUBRIC_CHANGELOG\.md d6248edd47f6 -- errata context "merged as commit `d6248edd47f6`" is ambiguous: it occurs 2 times \(lines 3, 7\); lengthen it until it occurs once/);
+  assert.match(ambiguous.stderr, /FAIL leaderboard\/RUBRIC_CHANGELOG\.md:3 d6248edd47f6 -- cited as a cejel commit but resolves to nothing/);
+  assert.match(ambiguous.stderr, /FAIL leaderboard\/RUBRIC_CHANGELOG\.md:7 d6248edd47f6 -- cited as a cejel commit but resolves to nothing/);
+  assert.match(ambiguous.stdout, /3 failure\(s\), 0 pending, 0 corrected by errata/);
+
+  writeErrata(cwd, [alfredSnapshot(['## v5\n\n| Snapshot | merged as commit `d6248edd47f6`'])]);
+  commitAll(cwd, 'lengthened erratum');
+  const one = run(cwd);
+  assert.equal(one.code, 1);
+  assert.match(one.stdout, /ERRATUM leaderboard\/RUBRIC_CHANGELOG\.md:3 d6248edd47f6 /);
+  assert.match(one.stderr, /FAIL leaderboard\/RUBRIC_CHANGELOG\.md:7 d6248edd47f6 -- cited as a cejel commit but resolves to nothing/);
+  assert.match(one.stdout, /1 failure\(s\), 0 pending, 1 corrected by errata/);
+
+  writeErrata(cwd, [alfredSnapshot(['## v5\n\n| Snapshot | merged as commit `d6248edd47f6`', '## v4\n\n| Snapshot | merged as commit `d6248edd47f6`'])]);
+  commitAll(cwd, 'both citations');
+  const both = run(cwd);
+  assert.equal(both.code, 0, both.stderr);
+  assert.match(both.stdout, /0 failure\(s\), 0 pending, 2 corrected by errata/);
+});
+
+test('errata: two contexts that locate the same citation fail', (t) => {
+  const { cwd, squash } = errataRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeErrata(cwd, [
+    lostInSquash(squash, {
+      locations: [
+        { file: 'docs/experiments/x/result.md', context: 'committed as `abc1234` before' },
+        { file: 'docs/experiments/x/result.md', context: '`abc1234` before the run' },
+      ],
+    }),
+  ]);
+  commitAll(cwd, 'errata');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 -- two errata locations name the same citation/);
+});
+
+test('errata: an unreachable citation with no erratum fails while the excused one beside it is corrected', (t) => {
+  const { cwd, prereg, short } = squashedPreregistrationRepo();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  write(cwd, 'docs/experiments/x/result.md', `The preregistration was committed as \`${short}\` before the run.\n\nThe run reused commit \`${short}\`.\n`);
+  git(cwd, 'update-ref', 'refs/remotes/origin-pr/7', prereg);
+  writeErrata(cwd, [withheld(short)]);
+  commitAll(cwd, 'second citation, one erratum');
+  const result = run(cwd);
+  assert.equal(result.code, 1);
+  assert.match(result.stdout, new RegExp(`ERRATUM docs/experiments/x/result\\.md:1 ${short} -- evidence tag withheld by ruling`));
+  assert.match(result.stderr, new RegExp(`^FAIL docs/experiments/x/result\\.md:3 ${short} -- commit in this repository, reachable from neither main nor an evidence/\\* tag\\n$`));
+  assert.match(result.stdout, /1 failure\(s\), 0 pending, 1 corrected by errata/);
 });
 
 test('errata: a lost-in-squash entry naming a carrier not on main fails', (t) => {
@@ -341,12 +437,22 @@ test('errata: an entry that matches nothing fails the check', (t) => {
   commitAll(cwd, 'errata only');
   const result = run(cwd);
   assert.equal(result.code, 1);
-  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md:1 abc1234 -- errata entry matches no flagged citation \(a stale correction\)/);
+  assert.match(result.stderr, /FAIL docs\/experiments\/x\/result\.md abc1234 -- errata context "committed as `abc1234` before" occurs nowhere in the file \(a stale correction\)/);
 });
 
-test('errata: malformed entries are refused (prefix carrier, missing line, wildcard token)', (t) => {
+test('errata: malformed entries are refused (prefix carrier, missing or line-keyed context, wildcard token)', (t) => {
   const { cwd, squash } = errataRepo();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  for (const [bad, message] of [
+    [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', line: 1 }] }), /a location has no line; name the citation by its context/],
+    [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', line: 1, context: 'committed as `abc1234` before' }] }), /a location has no line/],
+    [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', context: 'committed as' }] }), /must hold the token exactly once/],
+    [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', context: '`abc1234` and `abc1234`' }] }), /must hold the token exactly once/],
+    [lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md', context: 'committed as `abc1234` before' }, { file: 'docs/experiments/x/result.md', context: 'committed as `abc1234` before' }] }), /is listed twice/],
+  ]) {
+    writeErrata(cwd, [bad]);
+    assert.throws(() => run(cwd), message);
+  }
   for (const bad of [
     lostInSquash(squash.slice(0, 7)),
     lostInSquash(squash, { locations: [{ file: 'docs/experiments/x/result.md' }] }),
