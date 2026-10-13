@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "Passing fixture, fingerprint, and release-build checks do not discharge an explicitly owed paired corpus delta. Cejel #459 widened a default-rubric handler pattern and recorded fixture changes, while issue #460 still requires a preregistered public-corpus before-and-after before the next release. The 0.6.4 candidate check also reproduced #430 and #427 at their reported target commits using a scorer tree verified against current main; the artifact's 0.6.3 version string alone would not identify that unreleased scorer. Rule: track corpus debt separately from fixture verification, pin scorer and target commits, and preregister before either paired arm runs.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release", "measurement"],
+    "tags": ["corpus-debt", "release-readiness", "scorer-identity", "preregistration"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-13T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "awaiting-fix", "reason": "The preregistered paired corpus delta owed by Cejel issue #460 must be recorded before the next release."}
+  }
+]
