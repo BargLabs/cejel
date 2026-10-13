@@ -16,6 +16,12 @@ cejel:
     # Optional. Fail the job when the overall score is below this value (0-4), when Cejel
     # abstains, or when measurement coverage is too thin. Empty means never fail on score.
     CEJEL_MIN_SCORE: ""
+    # Full history: A2 and B2 read commit history, and GitLab fetches a shallow clone by
+    # default. Set on this job only, so the including pipeline's other jobs keep their depth.
+    # A GIT_DEPTH under your own `cejel:` job's `variables:`, or a project, group or pipeline
+    # CI/CD variable, overrides it. A top-level `variables:` GIT_DEPTH does not: GitLab ranks
+    # job variables above default ones.
+    GIT_DEPTH: "0"
   script:
     - |
       status=0

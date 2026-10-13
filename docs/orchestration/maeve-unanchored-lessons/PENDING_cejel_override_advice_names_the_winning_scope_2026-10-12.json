@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "Advice to override a template's setting must name a scope that outranks the one the template sets it in. docs/gitlab-ci.md told GitLab consumers to override CEJEL_VERSION and CEJEL_MIN_SCORE 'in the including project's variables:', but the template sets them as job variables, and GitLab ranks job variables above top-level ones, so a consumer who followed it at top level changed nothing and got no error. The structural template test could not see this; it surfaced only while choosing where GIT_DEPTH should go for #456, and the precedence is from GitLab's documentation, not a runner. Rule: when a template sets a value a consumer may override, say the exact place an override has to go and the place that looks right but does not work, and set it at the narrowest scope that reaches the job so the consumer's other jobs are untouched.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "docs"],
+    "tags": ["ci-variable-precedence", "override-advice", "narrowest-scope", "gitlab-ci-template"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-12T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 461}
+  }
+]
