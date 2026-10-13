@@ -121,13 +121,25 @@ describe('the disclosure moves no score', () => {
   // F2 (one workflow, no nested manifest) is the byte-identity fixture: report bytes captured on
   // origin/main c676ee3, before this change. Any later change to this fixture's report fails here
   // by rubric, so it cannot ship unnoticed.
-  const F2_PINS: Readonly<Record<string, string>> = {
+  const F2_PRE_FIX_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: '918da6094f808ed28953538f3f674791daa9a0fb7064482edd45b1bb01adb3d6',
     [WITAN_RUBRIC_VERSION_V22]: 'fc0849540abee436e3dac500e778dbe7177226cf4e460cb6e2bba1be74572b38',
     [WITAN_RUBRIC_VERSION_V23]: '721de1bcd175bb7e8b2d51df8247886430d2df34ddfc9c0458854062420d5cf8',
     [WITAN_RUBRIC_VERSION_V25]: '6f75c0375e8d8f7b7f9192648f68f7c2e1b0d75e2702b039739ecf3979800c5b',
   };
-  it.each(RUBRICS)('F2 report bytes are identical to before the change — %s', (rubricVersion) => {
+  const F2_PINS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: '2e5b2a1160a6ec34267c04baa74e592e09e859e1bdea050bdc73ba22b37099b8',
+    [WITAN_RUBRIC_VERSION_V22]: '280ea620c113013ff2dffbdcd2ff0475b2b081ac01454093f02619eafb331c1c',
+    [WITAN_RUBRIC_VERSION_V23]: '855e4b3a39b4991155650fb9b88c60c91846925360bbec111419609d49010dab',
+    [WITAN_RUBRIC_VERSION_V25]: 'db6a8fba79cae342f074c7c08e5a44bf44e1d5afcc92b2a0adca9faf4fd875a2',
+  };
+  const F2_PRE_FIX_FINGERPRINTS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23',
+    [WITAN_RUBRIC_VERSION_V22]: 'sha256:643a5110761581aef265ce73dbe38d9325ed3058e6d6ff5d3c836fb727caf5d1',
+    [WITAN_RUBRIC_VERSION_V23]: 'sha256:f7bace88af1acd1048639f2cb2747e0c51a928164de7716360de5ab61bb214be',
+    [WITAN_RUBRIC_VERSION_V25]: 'sha256:a7dfc0a75e34adc8566614422bbac4ed743d03086840513b4ab708ca43d92999',
+  };
+  it.each(RUBRICS)('F2 fingerprint change is the only report byte difference — %s', (rubricVersion) => {
     const report = scoreRepoWithPublicCejel({
       repoPath: makeReadsDisclosureRepo(F2_ONE_WORKFLOW),
       productSlug: 'f2-one-workflow',
@@ -138,5 +150,9 @@ describe('the disclosure moves no score', () => {
     expect(createHash('sha256').update(JSON.stringify(report)).digest('hex')).toBe(
       F2_PINS[rubricVersion],
     );
+    // Preserve #467's byte guard: restoring only the pre-fix fingerprint recovers its pin.
+    const restored = { ...report, rubricBehaviourFingerprint: F2_PRE_FIX_FINGERPRINTS[rubricVersion] };
+    expect(createHash('sha256').update(JSON.stringify(restored)).digest('hex'))
+      .toBe(F2_PRE_FIX_PINS[rubricVersion]);
   });
 });

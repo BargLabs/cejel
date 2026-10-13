@@ -5156,13 +5156,15 @@ const CANONICAL_SERIALIZE_PATTERN =
   /\bcanonicalize\s*\(|\bcanonicalJson\b|\bstableStringify\s*\(|json-stable-stringify|safe-stable-stringify|\bsortKeys\s*\(/i;
 const SIGN_OR_HMAC_CALL_PATTERN = /\bcreateHmac\s*\(|\bcreateSign\s*\(|\.sign\s*\(/;
 // A plain ===/!== comparing a value whose identifier clearly names a crypto compare target
-// (hmac/signature/mac/digest — deliberately narrower than "secret"/"token" to avoid matching
+// (hmac/signature/mac — deliberately narrower than "secret"/"token" to avoid matching
 // routine string comparisons like `type === 'secret'`), against something other than a
 // literal/undefined/null (which would be an ordinary presence check, not a security compare).
+// A digest name alone is not secret evidence: public content and grammar hashes use it too
+// (#430). hmacDigest/signatureDigest/macDigest still match their authentication marker.
 // Matched per LINE (not per file) so a real hit carries the actual line, never a fabricated
 // one — see findInsecureSecretCompareLine below.
 const INSECURE_SECRET_COMPARE_LINE_PATTERN =
-  /\b\w*(?:hmac|signature|\bmac|digest)\w*\s*(===|!==)\s*(?!['"`]|undefined\b|null\b)([\w.]+(?:\s*[-+]\s*\d+)?)/i;
+  /\b\w*(?:hmac|signature|\bmac)\w*\s*(===|!==)\s*(?!['"`]|undefined\b|null\b)([\w.]+(?:\s*[-+]\s*\d+)?)/i;
 const DEFAULT_SECRET_SENTINEL_COMPARE_LINE_PATTERN =
   /\b(?:secret|token|password|apiKey)\w*\s*(?:===|!==|==|!=)\s*[\w.]*default(?:Secret|Token|Password|ApiKey)\b/i;
 // The rule must establish a plausible secret VALUE, never merely a secret-shaped NAME: a
@@ -5697,6 +5699,88 @@ const MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN =
 // for a single skipped case, which misreads mature suites.
 const SUITE_LEVEL_SKIP_PATTERN = /\b(?:describe|suite|context)\.skip\s*\(/;
 
+// AVA assertions count only in an inline, active callback registered through an imported
+// AVA runner. A t.is string, comment, unrelated object, or skipped test is not a live assertion.
+function hasLiveAvaAssertion(contents: string): boolean {
+  const uncommented = stripJavaScriptComments(contents);
+  const imports = [...uncommented.matchAll(/\bimport\s+([A-Za-z_$][\w$]*)\s+from\s*['"]ava['"]|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"]ava['"]\s*\)/g)];
+  if (!imports.length) return false;
+  // Blank string/template contents while preserving offsets and delimiters outside them.
+  let quote = '';
+  let escaped = false;
+  const characters = uncommented.split('');
+  for (let i = 0; i < characters.length; i += 1) {
+    const ch = characters[i]!;
+    if (quote) {
+      characters[i] = ch === '\n' ? '\n' : ' ';
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === quote) quote = '';
+    } else if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+      characters[i] = ' ';
+    }
+  }
+  const code = characters.join('');
+  // An import-shaped string is fixture text, not a binding. Its keyword was blanked above.
+  const imported = imports.find(candidate => code[candidate.index!] === uncommented[candidate.index!]);
+  const runner = imported?.[1] ?? imported?.[2];
+  if (!runner) return false;
+  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const calls = new RegExp(`\\b${escape(runner)}((?:\\.\\w+)*)\\s*\\(`, 'g');
+  const closeAt = (open: number, left: string, right: string): number => {
+    let depth = 1;
+    for (let i = open + 1; i < code.length; i += 1) {
+      if (code[i] === left) depth += 1;
+      else if (code[i] === right && --depth === 0) return i;
+    }
+    return -1;
+  };
+  for (const call of code.matchAll(calls)) {
+    const modifiers = call[1]!.split('.').filter(Boolean);
+    if (modifiers.some((modifier) => !['serial', 'only', 'failing'].includes(modifier))) continue;
+    const open = call.index! + call[0].length - 1;
+    const close = closeAt(open, '(', ')');
+    if (close < 0) continue;
+    const args = code.slice(open + 1, close);
+    const callback = /(?:\basync\s+)?(?:\(\s*([A-Za-z_$][\w$]*)\s*\)|(?<![\w$])([A-Za-z_$][\w$]*))\s*=>|\bfunction(?:\s+\w+)?\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/.exec(args);
+    const parameter = callback?.[1] ?? callback?.[2] ?? callback?.[3];
+    if (!callback || !parameter) continue;
+    let start = open + 1 + callback.index + callback[0].length;
+    while (/\s/.test(code[start] ?? '') && start < close) start += 1;
+    const end = code[start] === '{' ? closeAt(start, '{', '}') : close;
+    if (end < 0 || end > close) continue;
+    const assertion = new RegExp(`\\b${escape(parameter)}\\.(?:assert|pass|fail|truthy|falsy|true|false|is|not|deepEqual|notDeepEqual|throws|throwsAsync|notThrows|notThrowsAsync|regex|notRegex|snapshot|like)\\s*\\(`);
+    const body = code.slice(start, end);
+    const active = body.split('');
+    // A nested callback/declaration may never execute or may bind a different context.
+    // Credit assertions in this registered callback's own scope only.
+    let maskedThrough = -1;
+    for (const nested of body.matchAll(/=>\s*|\bfunction(?:\s+\w+)?\s*\([^)]*\)\s*/g)) {
+      if (nested.index! < maskedThrough) continue;
+      const begin = nested.index! + nested[0].length;
+      let stop = begin;
+      if (body[begin] === '{') {
+        stop = closeAt(start + begin, '{', '}') - start + 1;
+      } else {
+        let depth = 0;
+        while (stop < body.length) {
+          const ch = body[stop]!;
+          if (depth === 0 && /[;,)]/.test(ch)) break;
+          if (ch === '(' || ch === '[') depth += 1;
+          else if (ch === ')' || ch === ']') depth -= 1;
+          stop += 1;
+        }
+      }
+      if (stop <= begin) continue;
+      for (let i = nested.index!; i < Math.min(stop, active.length); i += 1) active[i] = ' ';
+      maskedThrough = stop;
+    }
+    if (assertion.test(active.join(''))) return true;
+  }
+  return false;
+}
+
 interface NonHollowTestShare {
   /** Files containing live assertions (and not suite-level-skipped). */
   nonHollowCount: number;
@@ -5722,7 +5806,8 @@ function measureNonHollowTestShare(
     const nonHollow =
       (JS_TEST_ASSERTION_PATTERN.test(contents) ||
         CPP_TEST_ASSERTION_PATTERN.test(contents) ||
-        MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents)) &&
+        MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
+        hasLiveAvaAssertion(contents)) &&
       !SUITE_LEVEL_SKIP_PATTERN.test(contents);
     if (nonHollow) {
       nonHollowCount += 1;

@@ -1,0 +1,24 @@
+{
+  "schema": "cejel-three-arm-public-delta-v1",
+  "arms": {
+    "before459": "988721e957dedd6c7649a1fb8cb4475459c573a8",
+    "after459": "b673493ee1a640026530f7cc65ac94aff8139bf1",
+    "fixes": "be8ce629ba2bf1df6eb6af8487508fda838ae578"
+  },
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "scope": "public entries only; private implementation and reports excluded",
+  "publicRows": 23,
+  "generatedAt": "2026-10-13T00:00:00.000Z",
+  "rubricVersion": "witan-rubric-v17-2026-07-24",
+  "expected": {
+    "completedPerArm": 23,
+    "errorsPerArm": 0,
+    "459ScoringRowsMoved": 0,
+    "fixScoringRowsMoved": 0,
+    "placementsMovedPerPair": 0,
+    "fingerprintsChangedPerPair": 23,
+    "identicalReportsPerPair": 0
+  },
+  "supersedesPreregCommit": "dd9e16a92d8b1dc46dd85635607e1210fc800d44",
+  "reason": "Quoted AVA import negative control corrected before the original fixes arm executed."
+}

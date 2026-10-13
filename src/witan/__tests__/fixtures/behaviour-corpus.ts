@@ -691,6 +691,24 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'README.md': '# inline-health-route-and-prettier-handler\n\nA fixture repository.\n',
     },
   },
+  {
+    name: 'ava-live-assertions',
+    purpose: 'An imported AVA runner and live t.is assertion must not be called hollow (#427); synthetic public idiom.',
+    files: {
+      'package.json': '{"name":"ava-live-assertions","scripts":{"test":"ava"},"devDependencies":{"ava":"6.0.0"}}\n',
+      'index.js': 'export const value = 1;\n',
+      'test.js': "import test from 'ava';\ntest('value', t => { t.is(1, 1); });\n",
+    },
+  },
+  {
+    name: 'public-digest-lookup',
+    purpose: 'A public content hash lookup is not secret authentication evidence (#430); synthetic ordinary map lookup.',
+    files: {
+      'package.json': '{"name":"public-digest-lookup","scripts":{"test":"node --test"}}\n',
+      'src/lookup.js': 'export const lookup = (rows, contentDigest) => rows.find(row => row.contentDigest === contentDigest);\n',
+      'src/lookup.test.js': "import assert from 'node:assert';\nassert.strictEqual(1, 1);\n",
+    },
+  },
 ];
 
 /**
@@ -719,6 +737,8 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'real-credential-in-docs': 'd7eef4fd2f815f56a01325683f4cc63cdcb4e79d',
   'control-described-not-built': 'fdfd0e13868a4220e216cc657c250d4ef238da6e',
   'inline-health-route-and-prettier-handler': 'f884b252dc78d8b5d82baa2a939c50fea6893941',
+  'ava-live-assertions': 'ccc905405ee8f63b0b287e0b275eebeb488a3e6d',
+  'public-digest-lookup': '5515c03624cb9d7e0ccf2ede8b4a6710f219b3a7',
 });
 
 /**

@@ -1,0 +1,2151 @@
+{
+  "schema": "cejel-public-three-arm-delta-v1",
+  "planSha256": "f37b5ece7b11e76507bd21126ff1e3fdf940376ef6a60357c65ee726035500b5",
+  "preregCommit": "c7af18f22572a20f04db5adcc3e43a253a5b6558",
+  "arms": {
+    "before459": {
+      "sourceHead": "988721e957dedd6c7649a1fb8cb4475459c573a8",
+      "completed": 23,
+      "errors": 0
+    },
+    "after459": {
+      "sourceHead": "b673493ee1a640026530f7cc65ac94aff8139bf1",
+      "completed": 23,
+      "errors": 0
+    },
+    "fixes": {
+      "sourceHead": "be8ce629ba2bf1df6eb6af8487508fda838ae578",
+      "completed": 23,
+      "errors": 0
+    }
+  },
+  "expected": {
+    "completedPerArm": 23,
+    "errorsPerArm": 0,
+    "459ScoringRowsMoved": 0,
+    "fixScoringRowsMoved": 0,
+    "placementsMovedPerPair": 0,
+    "fingerprintsChangedPerPair": 23,
+    "identicalReportsPerPair": 0
+  },
+  "pairs": {
+    "459": {
+      "left": "before459",
+      "right": "after459",
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 0,
+        "placementsMoved": 0,
+        "fingerprintsChanged": 23,
+        "identicalReports": 0,
+        "identicalAfterFingerprintRemoval": 23,
+        "unexpectedCriteria": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        }
+      ]
+    },
+    "fixes": {
+      "left": "after459",
+      "right": "fixes",
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 0,
+        "placementsMoved": 0,
+        "fingerprintsChanged": 23,
+        "identicalReports": 0,
+        "identicalAfterFingerprintRemoval": 23,
+        "unexpectedCriteria": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        }
+      ]
+    },
+    "release": {
+      "left": "before459",
+      "right": "fixes",
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 0,
+        "placementsMoved": 0,
+        "fingerprintsChanged": 23,
+        "identicalReports": 0,
+        "identicalAfterFingerprintRemoval": 23,
+        "unexpectedCriteria": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ]
+        }
+      ]
+    }
+  }
+}

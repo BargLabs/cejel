@@ -458,12 +458,17 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Setting toolVersion back to "0.6.2" in place reproduces the #433 pin (a9d4c85f...) byte for
     // byte, and the #433 restoration below is taken from that restored report.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '79dd88eed8813dd16be0c21b8de6a468447a3f7c397e86c97efec8e6baa42495',
+      'bedd993c843a76c1d92f711a1347627a7355fdd7e874d6cd56b2855c0cfcf767',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23',
+      'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.3');
+    // #427/#430 add two specimens. This fixture's only changed field is the fingerprint.
+    const atPreAssertionFixes = { ...firstReport, rubricBehaviourFingerprint:
+      'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23' };
+    expect(createHash('sha256').update(JSON.stringify(atPreAssertionFixes, null, 2)).digest('hex'))
+      .toBe('79dd88eed8813dd16be0c21b8de6a468447a3f7c397e86c97efec8e6baa42495');
     // Re-pinned 2026-10-12 (goal_cejel_a3_handler_shapes_and_inline_health): the A3 error-handler
     // shape pattern widened, prospective witan-rubric-v25 was declared, and the behaviour corpus
     // gained a sixteenth fixture, so v17's fingerprint moved. This fixture holds none of those
