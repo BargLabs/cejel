@@ -1,0 +1,115 @@
+{
+  "republication": "Republished from the operator's private calibration records, signed there; this copy is the public record.",
+  "status": "IN FORCE, operator-signed by the commit that adds this file. Made from the agent-authored draft (private record) at f232b00a (private record), changed only in status, signature and validityForPromotion.",
+  "schemaVersion": 4,
+  "supersedes": "untouched-estimator-spec-v3.json",
+  "implementation": "(private record)",
+  "arms": ["witan-rubric-v17-2026-07-24", "witan-rubric-v23-prospective-2026-09-06"],
+  "confidenceLevel": 0.95,
+  "intervalMethod": "member-clustered Rao-Wu rescaled bootstrap within cohort strata; percentile interval",
+  "bootstrapReplicates": 10000,
+  "bootstrapSeed": "cycle-13-estimator-v4-2026-10-01",
+  "bootstrapDrawAlgorithm": "For zero-based replicate b, lexicographically sorted cohort stratum h with n_h >= 2 members, and zero-based draw d in 0..n_h-2, SHA-256(UTF8(seed + NUL + b + NUL + h + NUL + d)); interpret digest bytes 0..7 as unsigned big-endian 64-bit integer and select index modulo the lexicographically sorted member count n_h. Draw exactly n_h - 1 members with replacement. Member i receives factor m_hi * n_h / (n_h - 1), m_hi its multiplicity. n_h counts every cohort member in the stratum, including members with no drawn unit. A stratum with n_h = 1 keeps factor 1 in every replicate. Reuse the resulting factors for every metric of both arms in that replicate.",
+  "quantileMethod": "R-type-7",
+  "minimumValidReplicateShare": 0.99,
+  "estimandTotal": 3163,
+  "controlWeight": "member cohort weight from draw.json; the weights over all cohort members must sum to estimandTotal, and the estimator fails closed on mismatch",
+  "caseWeight": "1 for a discordant (census) unit; N_s / taken_s for a concordant stratum, taken_s the units drawn in it",
+  "unitWeight": "controlWeight(member) * caseWeight * bootstrap factor(member); the factor is 1 at the point estimate",
+  "caseSamplingStratum": "rule * concordant class (C/C, N/N, X/X) for sampled units; rule * paired class (for example CORE-A3-DOCKERFILE-NO-HEALTHCHECK|N/C) for the census; every unit's caseStratum must equal ruleId|classV17/classV23 and every census unit must carry caseWeight 1, or the estimator fails closed",
+  "clusterId": "draw.json memberId (one cohort repository)",
+  "unitClassScoring": {
+    "countedWhen": "the arm's own class is C, N or X; a unit whose class is NA in an arm is not counted by that arm",
+    "present": {
+      "C": "true positive",
+      "N": "false negative",
+      "X": "false negative in the headline recall; excluded from recallExcludingX"
+    },
+    "absent": {
+      "C": "false positive",
+      "N": "true negative, unused",
+      "X": "unused"
+    },
+    "insufficient-context": "excluded from both denominators; counted in the insufficient-context share",
+    "withheld-evidence": "excluded from both denominators; counted in the abstention share"
+  },
+  "metrics": {
+    "precision": "TP / (TP + FP)",
+    "recall": "TP / (TP + FN), present-labelled class X counted as FN",
+    "recallExcludingX": "TP / (TP + FN) with present-labelled class X units excluded; published beside recall",
+    "abstentionShare": "design-weighted share of the arm's counted headline units labelled withheld-evidence or of class X; reported, gates nothing, never omitted"
+  },
+  "pairedDifference": "v23 - v17 for precision and for recall (headline); both arms computed on the same replicate factors inside every replicate; interval is the type-7 2.5% and 97.5% quantiles of the per-replicate differences; arms are never bootstrapped separately",
+  "undefinedFigurePolicy": "a figure whose denominator is zero, or whose interval has fewer valid replicates than minimumValidReplicateShare requires, is null with a stated reason, never 0",
+  "missingRulePolicy": "inconclusive-no-go",
+  "missingRulePolicyDetail": "Per rule, for both arms: a rule leaves a metric's headline only when it has no labelled in-population unit counted by that metric's denominator in either arm, and then it leaves both arms' headline for that metric and is reported separately. An arm that emits nothing on a rule with present-labelled units keeps the rule and scores those units as misses. Precision's denominator counts class C units labelled present or absent; recall's counts present-labelled units of class C, N or X.",
+  "controlInsufficientContext": {
+    "maximumAggregateDesignWeightedShare": 0.2,
+    "aggregateComputedOver": "per arm, design-weighted insufficient-context units over that arm's counted units in the headline (voided strata removed); a tripped arm's headline precision, recall and recallExcludingX are null with a stated reason, and both paired differences are null",
+    "gateFailure": "inconclusive-no-go",
+    "rationale": "Cycle-12 estimation protocol section 3, decided: the ceilings carry forward as-is because they are adjudicability gates, not a function of the candidate population that shifted between fork-era and pin-truth scans. Never re-derived from expected or observed labels.",
+    "perCaseStratumSmallStratumFloor": {
+      "decidedOption": "cycle-12-estimation-protocol.md section 3, forced amendment, option (a), applied to every cycle-13 case stratum (operator ruling 3, 2026-10-01)",
+      "rule": "A case stratum (caseSamplingStratum, census included) voids when insufficientContextCount >= minimumInsufficientContextCount AND (insufficientContextCount / n) > maximumShare, where n is the units drawn in it. Labels are arm-independent, so a voided stratum leaves both arms' headline and is reported separately, never pooled.",
+      "minimumInsufficientContextCount": 2,
+      "maximumShare": 0.25,
+      "equivalentForm": "Algebraically identical to insufficientContextCount > max(1, maximumShare * n) for every integer n >= 1 and every integer 0 <= insufficientContextCount <= n, including every boundary where maximumShare * n lands on an integer.",
+      "singletonStratumLimit": "For n = 1 this floor is inert by construction: minimumInsufficientContextCount (2) can never be satisfied by a stratum of size 1, so the per-stratum floor mathematically cannot fire on a singleton. The aggregate maximumAggregateDesignWeightedShare ceiling above is the only guard on singleton strata. This is a documented limit of the floor, stated here rather than discovered later — not a bug to fix by changing the formula."
+    }
+  },
+  "completedLabelSeal": "sealed/labels-sha256.json must exactly bind sealed/completed-review.csv and the review hash manifest, including external negative-control artifacts, before key access or scoring",
+  "implementationSeal": "cohort hashes.json must bind every tracked file under (private record) plus root/workspace/package manifests, lockfile, and TypeScript configuration; scanning and scoring both require and record the exact out-of-band SHA-256 of hashes.json recorded after metadata freeze; repository paths resolve from the Git top-level so the seal is package-cwd and squash/rebase safe; both fail closed on mismatch",
+  "checkoutFileBoundary": "tracked non-symlink regular files whose canonical paths remain inside the immutable checkout",
+  "crossWaveAggregation": "pool weighted record contributions across completed waves before each bootstrap replicate",
+  "removedFromV3": ["candidateWeight", "controlSamplingStratum", "minimumClustersPerBootstrapCell"],
+  "fieldRationale": {
+    "schemaVersion": "protocol §5: v3 is versioned to v4",
+    "supersedes": "protocol §5",
+    "implementation": "new: names the module the falsifiability test exercises (protocol §7.3)",
+    "arms": "amendment 2 §2 fallback, as applied by the draw addendum: v24 is not an arm; v17 and v23 only",
+    "intervalMethod": "ruling 1: members resampled within the cohort strata of draw.json by the Rao-Wu rescaled bootstrap",
+    "bootstrapReplicates": "carried from v3 (protocol §5)",
+    "bootstrapSeed": "ruling 1: seed cycle-13-estimator-v4-2026-10-01",
+    "bootstrapDrawAlgorithm": "ruling 1: v3's seeded draw kept, n_h - 1 draws per stratum, rescaling factor n_h / (n_h - 1), singletons fixed at 1",
+    "quantileMethod": "carried from v3 (protocol §5)",
+    "confidenceLevel": "carried from v3 (protocol §5)",
+    "minimumValidReplicateShare": "carried from v3 (ruling 1 keeps 0.99)",
+    "minimumClustersPerBootstrapCell": "removed: ruling 1 drops v3's gate of 30 clusters per cell",
+    "estimandTotal": "protocol §5.1: weights sum to 3,163 eligible repositories (acceptance record's estimand)",
+    "candidateWeight": "removed: protocol §2 makes the label arm-independent; there is no candidate/control split to weight",
+    "controlWeight": "protocol §5.1: redefined as the member's cohort weight from draw.json",
+    "caseWeight": "new: protocol §4 and §5.1 (1 for the census, N_s / n_s for a concordant stratum); taken_s per the draw addendum's exhausted strata",
+    "unitWeight": "new: protocol §5.1 two-stage weight",
+    "controlSamplingStratum": "removed: replaced by caseSamplingStratum (protocol §4)",
+    "caseSamplingStratum": "protocol §4 and ruling 3 (census strata are rule x paired class)",
+    "clusterId": "protocol §5.2 and ruling 1: the resampled unit is the cohort member",
+    "unitClassScoring": "protocol §3, §5 and Ruling 3(a); the draw addendum's single-arm not_applicable ruling for countedWhen",
+    "metrics": "protocol §5 (precision, recall), Ruling 3 (recallExcludingX beside the headline), §6 (abstentionShare)",
+    "pairedDifference": "protocol §5.2; amendment 2 §2 fallback leaves one difference, v23 - v17",
+    "undefinedFigurePolicy": "new: the estimator card's output rule (null with a stated reason, never 0)",
+    "missingRulePolicy": "carried from v3 (protocol §5 carries inconclusive-no-go unchanged)",
+    "missingRulePolicyDetail": "ruling 2: per rule for both arms; an arm that emits nothing on a rule with present-labelled units scores them as misses",
+    "controlInsufficientContext.maximumAggregateDesignWeightedShare": "carried from v3 (protocol §6)",
+    "controlInsufficientContext.aggregateComputedOver": "ruling 3: computed per arm over that arm's counted units",
+    "controlInsufficientContext.perCaseStratumSmallStratumFloor": "ruling 3: renamed from perRuleWaveSmallStratumFloor; applies to every case stratum including the census; thresholds 2 and 0.25 carried (protocol §6)",
+    "completedLabelSeal": "carried from v3 verbatim",
+    "implementationSeal": "carried from v3 verbatim",
+    "checkoutFileBoundary": "carried from v3 verbatim",
+    "crossWaveAggregation": "carried from v3 verbatim; cycle 13 has one scan, so it pools a single wave"
+  },
+  "validityForPromotion": "Protocol section 6, read as signed: only a tripped aggregate insufficient-context ceiling voids an arm's headline, and a voided headline fails promotion-policy P0 for that arm. A voided case stratum or an excluded rule leaves the headline and is reported separately; neither by itself makes the estimate invalid. Seal fields carried from v3 (completedLabelSeal, implementationSeal, crossWaveAggregation) bind cycle 13 as written; the packet and seal card satisfies them or a signed amendment changes them before any label.",
+  "signature": {
+    "operator": "Houman Azimi-Nejadi",
+    "signedAt": "2026-10-01T14:19:38Z",
+    "rulings": [
+      "1: Rao-Wu rescaled bootstrap within the 33 cohort strata; 30-cluster gate dropped; seed cycle-13-estimator-v4-2026-10-01",
+      "2: missing-rule policy per rule for both arms",
+      "3: insufficient-context void strata are rule x concordant class and, for the census, rule x paired class"
+    ],
+    "statement": "Estimator spec v4 fixed before any cycle-13 packet or label exists; two arms, v17 and v23; paired difference v23 - v17 inside each replicate."
+  },
+  "declaredLimitations": {
+    "singletonCohortStrata": "Operator, 2026-10-01, option 1 of the (private record) review: a cohort stratum with one member keeps factor 1 in every replicate and adds no variance, so intervals understate uncertainty by that stratum's share. Accepted and declared, not corrected. Every estimate reports the singleton strata count and their design-weight share beside each interval. Measured on the cycle-13 draw before any label: 2 of 33 strata, 4 of 3,163 weight (0.13%); one of the two (weight 1) has every eligible repository drawn and so has no sampling variance; the other (weight 3, 0.09%) is the only understatement."
+  },
+  "draftPointsConfirmed": "Points 1 to 6 of (private record) at f232b00a are confirmed as written, with points 3 and 5 settled by validityForPromotion."
+}
