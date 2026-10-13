@@ -1,0 +1,365 @@
+{
+  "459": {
+    "rows": [
+      {
+        "name": "automapper",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "axios",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "biomejs",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "carddemo",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "cejel",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "cobra",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "django",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "esbuild",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "express",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "fastapi",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "flask",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "fmt",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "guava",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "pydantic",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "react",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "requests",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "ripgrep",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "scorecard",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "sinatra",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "svelte",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "vite",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "vue",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "zod",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      }
+    ],
+    "identicalReports": 0,
+    "identicalAfterFingerprintRemoval": 23
+  },
+  "fixes": {
+    "rows": [
+      {
+        "name": "automapper",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "axios",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "biomejs",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "carddemo",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "cejel",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "cobra",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "django",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "esbuild",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "express",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "fastapi",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "flask",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "fmt",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "guava",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "pydantic",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "react",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "requests",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "ripgrep",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "scorecard",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "sinatra",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "svelte",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "vite",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "vue",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "zod",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      }
+    ],
+    "identicalReports": 0,
+    "identicalAfterFingerprintRemoval": 23
+  },
+  "release": {
+    "rows": [
+      {
+        "name": "automapper",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "axios",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "biomejs",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "carddemo",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "cejel",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "cobra",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "django",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "esbuild",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "express",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "fastapi",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "flask",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "fmt",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "guava",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "pydantic",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "react",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "requests",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "ripgrep",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "scorecard",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "sinatra",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "svelte",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "vite",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "vue",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      },
+      {
+        "name": "zod",
+        "rawIdentical": false,
+        "rawIdenticalAfterFingerprintLineRemoval": true
+      }
+    ],
+    "identicalReports": 0,
+    "identicalAfterFingerprintRemoval": 23
+  }
+}

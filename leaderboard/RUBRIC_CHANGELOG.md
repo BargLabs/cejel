@@ -42,9 +42,13 @@ non_hollow_test_share 0 to 1, overall 1.4 to 1.5. public-digest-lookup loses its
 A2 becomes not_applicable from 2.3/warning, overall 1.1 to 0.9. The latter illustrates a
 composite denominator change, not a claim that a false-assertion fix must raise the headline.
 
-The public-corpus paired run is required before release and will be preregistered after the
-candidate scorer is committed. The run will isolate #459 from these fixes. No precision,
-recall or calibration claim is made from the synthetic specimens or the forthcoming delta.
+The public-corpus paired run is complete under the successor preregistration at c7af18f.
+All 23 public rows completed in all three arms, with no score or modeled placement changes
+from #459 or these fixes. The only report-byte difference is the fingerprint line. Full scalar
+rows and exact byte comparisons are in
+`docs/experiments/v17-delta-459-427-430-successor-2026-10-13/result.md`. The original partial
+protocol and its source-correction erratum are retained. No private material was evaluated or
+published; no precision, recall or calibration claim follows from this delta.
 
 Measured fingerprints (the expanded corpus is independently recomputed by CI):
 
@@ -59,6 +63,10 @@ Measured fingerprints (the expanded corpus is independently recomputed by CI):
 | `witan-rubric-v23-prospective-2026-09-06` | `sha256:7d48de4ac8ef3233e7ef8f4d4312830bf76294485e9766a47a671cd5440676aa` |
 | `witan-rubric-v24-prospective-2026-09-15` | `sha256:0af37b616891a1940f7ba43c86ef2134d6e40f235feef17bf1774cae951afee2` |
 | `witan-rubric-v25-prospective-2026-10-12` | `sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019` |
+
+**2026-10-13 completion note for #459:** the preregistered successor public delta above
+measured zero score and modeled placement changes on 23/23 public rows. The historical
+2026-10-12 statement below records that the run was still owed at that time.
 
 ## 2026-10-12 — A3 error-handler shape widening (all rubrics, no identifier bump) and prospective v25; public paired rescore not run
 

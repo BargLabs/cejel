@@ -25,8 +25,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 These are scoring changes under the existing rubric identifiers, with weights and thresholds
 unchanged. The behaviour corpus has two new synthetic specimens; fingerprints and report goldens
-are re-pinned with the deltas recorded in RUBRIC_CHANGELOG. The paired public-corpus delta,
-including the separate #459 comparison, is required before release and not yet recorded here.
+are re-pinned with the deltas recorded in RUBRIC_CHANGELOG. The preregistered public-corpus delta has run: 23/23 public rows completed in each of the
+pre-#459, post-#459 and corrected-fixes arms, with zero score or modeled placement changes.
+Records: docs/experiments/v17-delta-459-427-430-successor-2026-10-13/result.md.
 
 ### Changed
 
@@ -42,7 +43,8 @@ A3 1.6 → 2.0 and the new `inline-health-route-and-prettier-handler` fixture A3
 boundary 0 → 1 in both; overall unchanged at one decimal except `complete-node-service` under v17
 (2.8 → 2.9). Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-12). This is a recall change on
 a default-rubric metric: the paired public-corpus delta at unchanged corpus commits (the 0.4.9
-precedent, #306) is **not yet run** and belongs to the next release card.
+precedent, #306) has now run: 23/23 public rows completed in both arms, with zero score or modeled placement
+changes. See the successor three-arm result linked above; private material was excluded.
 
 - **New prospective rubric `witan-rubric-v25-prospective-2026-10-12`** (explicit opt-in via
   `--rubric-pin`; the public default stays v17). It inherits v22 and adds one mechanism: the
