@@ -17,8 +17,9 @@
     "lastSeenAt": "2026-10-13T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "Merge the scoring corrections for Cejel issues #427 and #430 with their paired public-corpus record."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 468
     }
   },
   {
@@ -37,8 +38,9 @@
     "lastSeenAt": "2026-10-13T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {
-      "kind": "awaiting-fix",
-      "reason": "Land the checked citation relocation with the scoring-fix and paired-result PR."
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 468
     }
   }
 ]
