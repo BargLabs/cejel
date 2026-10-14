@@ -121,6 +121,11 @@ test('targets must be pinned, clean, full-history and unfiltered',()=>{
  sh(t.dir,'config','--unset','remote.origin.partialclonefilter');
  writeFileSync(join(t.dir,'README'),'y\n');
  assert.throws(()=>verifyTarget(root,entry),/dirty target/);
+ // A shallow clone is pinned and clean but not full-history (reviewer).
+ const deep=repo({'README':'x\n'});writeFileSync(join(deep.dir,'README'),'z\n');sh(deep.dir,'commit','-q','-am','second');
+ const shallowName=`${t.dir.slice(root.length+1)}-shallow`;
+ sh(root,'clone','-q','--depth','1',`file://${deep.dir}`,shallowName);
+ assert.throws(()=>verifyTarget(root,{name:shallowName,commit:sh(deep.dir,'rev-parse','HEAD')}),/shallow target/);
 });
 test('the preregistration commit must be an ancestor holding the same plan bytes',()=>{
  const plan=JSON.stringify(basePlan({}),null,2)+'\n';
@@ -248,7 +253,7 @@ test('presentationOnly fields are allowed changes; any other non-scoring field c
 });
 test('compare refuses a run manifest that does not match its declared run',()=>{
  const plan=translate(precedentPlan);
- for(const [mutate,pattern] of [[m=>{m.rubricVersion=V25;},/run manifest mismatch: after459/],[m=>{m.run='fixes';},/run manifest mismatch: after459/],[m=>{m.preregCommit=hex('other prereg');},/preregistration binding mismatch: after459/]]){
+ for(const [mutate,pattern] of [[m=>{m.rubricVersion=V25;},/run manifest mismatch: after459/],[m=>{m.run='fixes';},/run manifest mismatch: after459/],[m=>{m.preregCommit=hex('other prereg');},/preregistration binding mismatch: after459/],[m=>{m.planSha256=sha('another plan');},/run manifest mismatch: after459/]]){
   const b=scratchFor(plan,true),path=join(b.scratch,'out','after459','_manifest.json'),m=JSON.parse(readFileSync(path,'utf8'));
   mutate(m);writeFileSync(path,JSON.stringify(m));
   assert.throws(()=>main(b.planPath,b.corpusPath,b.scratch),pattern);
