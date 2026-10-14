@@ -1,17 +1,17 @@
 {
   "witan-rubric-v17-2026-07-24": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "14c8c75b91b94417f6630a9efffb1ad01708893856d95d001ef542edbc35571f",
-      "A3": "8e059b19cf9a3dd0eb9730c344924b8367a0078f43e0405182df9a5c5b464bbf",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "5c560039bf95a6f739b50d005fc1d71fb443f1af4434306d83f68958b16c70b7",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "fdba3f9e10e4e14b18d0ffa0560f5531ef200c37be0290fbab92d31e36e9851b"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "654bfadc5aa253c38f81c487651b64304f72ca69286863382bf855d85c2b0856",
+      "A3": "07bf46331372b387c5df0c33ffdb36c78176512b2a9e32c569dc532629636ace",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "5d14dcf3627e099d0fa038b5c6c420c81e9f1b62124433cfe812b2f06fef1f0e",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1e1f9b9c674a301b132ba36f5dc9cbd7488fec7f48a1bbed610d2f2c5dc8623b"
     },
     "reports": {
       "complete-node-service": "06edd2297c7d4319c5176ac9702224c49d998b7e7d4d3c5e09269f14481fddfb",
@@ -35,22 +35,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v18-prospective-2026-07-25": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "8e059b19cf9a3dd0eb9730c344924b8367a0078f43e0405182df9a5c5b464bbf",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "5c560039bf95a6f739b50d005fc1d71fb443f1af4434306d83f68958b16c70b7",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "fdba3f9e10e4e14b18d0ffa0560f5531ef200c37be0290fbab92d31e36e9851b"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "07bf46331372b387c5df0c33ffdb36c78176512b2a9e32c569dc532629636ace",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "5d14dcf3627e099d0fa038b5c6c420c81e9f1b62124433cfe812b2f06fef1f0e",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1e1f9b9c674a301b132ba36f5dc9cbd7488fec7f48a1bbed610d2f2c5dc8623b"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -74,22 +80,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v19-prospective-2026-08-09": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "8e059b19cf9a3dd0eb9730c344924b8367a0078f43e0405182df9a5c5b464bbf",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "fdba3f9e10e4e14b18d0ffa0560f5531ef200c37be0290fbab92d31e36e9851b"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "07bf46331372b387c5df0c33ffdb36c78176512b2a9e32c569dc532629636ace",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1e1f9b9c674a301b132ba36f5dc9cbd7488fec7f48a1bbed610d2f2c5dc8623b"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -113,22 +125,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v20-prospective-2026-08-10": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "f2d8c8de137ab4d7af18c81fa54f228c8f2baa3c98cd1d80d04ea7e5ee82afc9",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "fdba3f9e10e4e14b18d0ffa0560f5531ef200c37be0290fbab92d31e36e9851b"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "89280268656b6b34e25207768f5982d077bc9d26b5da898f6abfa14a94168be5",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1e1f9b9c674a301b132ba36f5dc9cbd7488fec7f48a1bbed610d2f2c5dc8623b"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -152,22 +170,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v21-prospective-2026-08-10": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "f2d8c8de137ab4d7af18c81fa54f228c8f2baa3c98cd1d80d04ea7e5ee82afc9",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "70e36919599e23c0527da648364563fc0d26a13d97e20902ff5d6cb549ddb6c8"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "89280268656b6b34e25207768f5982d077bc9d26b5da898f6abfa14a94168be5",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1511fe8da514afcff2b065d3bfa27ba9c4db00f636f17a7f2d9157fbf1e3f5e5"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -191,22 +215,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v22-prospective-2026-08-10": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "20b51a48a795530dff388edbd34c7aa7c92e4e4118486643c6ade55218047b47",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "70e36919599e23c0527da648364563fc0d26a13d97e20902ff5d6cb549ddb6c8"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "956da2e84268ec76bb73536fbbb2a4ae25e49d7d0a2c65ebe686c67c4331574e",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1511fe8da514afcff2b065d3bfa27ba9c4db00f636f17a7f2d9157fbf1e3f5e5"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -230,22 +260,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v23-prospective-2026-09-06": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "20b51a48a795530dff388edbd34c7aa7c92e4e4118486643c6ade55218047b47",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "ed293a128ea1f0f7e57a1f1a948c798a2da82a6c13b2ec88352c465bb7e35b40",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "70e36919599e23c0527da648364563fc0d26a13d97e20902ff5d6cb549ddb6c8"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "956da2e84268ec76bb73536fbbb2a4ae25e49d7d0a2c65ebe686c67c4331574e",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "8fc0761284a39a4a764f8e5e35e8e518df38b17b27a1fff148209c6b3b37c26a",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1511fe8da514afcff2b065d3bfa27ba9c4db00f636f17a7f2d9157fbf1e3f5e5"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -269,22 +305,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v24-prospective-2026-09-15": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "a31431d48a26402d9a22653088b5776821882a1453c1c2c15c57608e94655f93",
-      "A3": "20b51a48a795530dff388edbd34c7aa7c92e4e4118486643c6ade55218047b47",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "70e36919599e23c0527da648364563fc0d26a13d97e20902ff5d6cb549ddb6c8"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "7f3abc90ed4013ba836662b14008a898418ce77caf44db9c52172278f7a8b368",
+      "A3": "956da2e84268ec76bb73536fbbb2a4ae25e49d7d0a2c65ebe686c67c4331574e",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1511fe8da514afcff2b065d3bfa27ba9c4db00f636f17a7f2d9157fbf1e3f5e5"
     },
     "reports": {
       "complete-node-service": "e55ebe050414bd2c21cc766d5a50741122efffee6dfd267f5e7d084e8770f87c",
@@ -308,22 +350,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v25-prospective-2026-10-12": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "713dbc046a3c20cddc235e6911feae770c495e37a2c5043946f45fa142a8a9a2",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "278491a27cbee4f95ffe481ca9b64d3e4568ac86c6216de95667e671fe9df938",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "70e36919599e23c0527da648364563fc0d26a13d97e20902ff5d6cb549ddb6c8"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "3daf2a3ef01e75df40a5ad850a252820df10083f07bd79666c38a0544975a35c",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "990bb7e8a1425f4f461bdeb727039544b2968aeafa2897b6bb1b49db8518dbb6",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1511fe8da514afcff2b065d3bfa27ba9c4db00f636f17a7f2d9157fbf1e3f5e5"
     },
     "reports": {
       "complete-node-service": "4706542c163e80f38256c106d7c9a3858c05c4de22956e3799e9621a6f534085",
@@ -347,22 +395,28 @@
       "workspace-package-scripts": "f26984620542438b37eb1b890c68876970d0cd206a9435220f5a5e82f9c3c58f",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   },
   "witan-rubric-v26-prospective-2026-10-14": {
     "criteria": {
-      "A1": "91bd7448d9e75bc01ba096cf6eae67dd4c422cdc0f8c7d282e8c63c521366c06",
-      "A2": "fad6fa443b8aa33311ef6f0a8c1619661327e6301c13552cf02f4542743a48c4",
-      "A3": "713dbc046a3c20cddc235e6911feae770c495e37a2c5043946f45fa142a8a9a2",
-      "A4": "da70a86435efbe4c23a398ac91f5065a5f5a58613fffd3a8eca9b1e57e4739d6",
-      "A5": "59c9759acdb951ae2da5a985fa3e4220ed995e46c3f068e411fb9a50148ad0a0",
-      "B1": "aeb8c5c74bc3ab320551bf1bd61d1907b06f3be10cf31547509229c408828a75",
-      "B2": "8e262446b9ea9ed690a182d10afeb90525a495b2e13d2255939c27de95b308cd",
-      "B3": "e01d216d70306be5e71e7e4870123f48285c2ac8444a077ffa7f5dc0025f3eb5",
-      "B4": "dee09630b017819b6dfe709718f06f8149a11c373b6551e1187704e8ddafe354",
-      "B5": "2c7a651b062c24b230caca98440cf7b58b49ed2687c3757cc9db6a8a996c6f42",
-      "B6": "70e36919599e23c0527da648364563fc0d26a13d97e20902ff5d6cb549ddb6c8"
+      "A1": "e67c8b857db173212de397914be1d2e47191c7ad44a3cb2dc35f9d99b5f1823e",
+      "A2": "a4a39d6b633673d55325e0ac2be4bb1162d5c1d0736080cc7e42253f3aecb707",
+      "A3": "3daf2a3ef01e75df40a5ad850a252820df10083f07bd79666c38a0544975a35c",
+      "A4": "04b96cc2b1236ad240311d44fd6195bf88fd9de2bef61555e83bd02120cf5b44",
+      "A5": "e3c46c4a247701855cb28d647aac098eb8fda94dcb2a3718f4eba0b2d95589c1",
+      "B1": "b6e62f6694441ba1ce1188d09aaf056bb2aad9bd39f0619069798dabad6a14ef",
+      "B2": "344eea6daf4c2ab3ae6673319683c43a9767441fd751db52b948f30bd50f0db2",
+      "B3": "a85dd69edd584caeae5469392ebdd7aedd24fdc1268890e6c9b7d254dcc61335",
+      "B4": "bb47cd94a14ab9825b2c667a7282d9e259b626fbd5f3b0ba899f1227a52b051f",
+      "B5": "202c301c0af13c02a5a184948e896d2693bb3e1c45d2c9857cecf87debc746c0",
+      "B6": "1511fe8da514afcff2b065d3bfa27ba9c4db00f636f17a7f2d9157fbf1e3f5e5"
     },
     "reports": {
       "complete-node-service": "4706542c163e80f38256c106d7c9a3858c05c4de22956e3799e9621a6f534085",
@@ -386,7 +440,13 @@
       "workspace-package-scripts": "b236fd107f7de6dd10ebdae1ad9d008243f80c046e3bd311bbd1abdcd1446572",
       "coverage-config-setup-cfg": "12a2bc6f0d1cbedc98d62a8c588b6da9d4c4c1e0ec544c666064f3d90740a37d",
       "coverage-config-maven-jacoco": "5e86e201f9a6931d87ea4e4c3d47559139c6e589bd78f602cd2733b26865c2fe",
-      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1"
+      "coverage-command-go-ci": "5defae4945dac964793bb59315927931e30200d72ee2ef36c3ee507ab3b0bab1",
+      "xunit-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "nunit-ignored-fixture": "38db2fbb15abdf9a59b9ed83d8055e40a929fa53e172c5de90f25f063f70b62f",
+      "xctest-assertions": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "scalatest-assertions": "2d7e384da6d4849cd7cece32ecdc130bf8ce9adaffc296eff875621a1f762fc3",
+      "kotest-matchers": "e3a91069ed69bd051427ca25904cdbea8330ecb51027ebf534ac12ba113a992c",
+      "tape-assertions": "5ee742d2da8d90745c9689259583d8e34a875f174ea3dbbd58f8a69dcf254d27"
     }
   }
 }
