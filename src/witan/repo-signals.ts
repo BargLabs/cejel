@@ -6,7 +6,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
-import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, extname, join, posix, relative, resolve, sep } from 'node:path';
 
 import { MAX_REPOSITORY_CONTENT_BYTES } from '../filesystem-limits.js';
 import { sanitizePresentationLine } from '../presentation-safety.js';
@@ -43,6 +43,8 @@ import {
 } from './content-reads.js';
 
 import {
+  WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY,
@@ -152,6 +154,11 @@ const INVENTORY_SCAN_PATTERN_SETS = {
   a5ClaimRealityArtifact: {
     id: 'cejel.core-a5.claim-reality-artifact.v1',
     count: 3,
+  },
+  // v26 item 6: the one path the repository itself declared, looked up in the inventory.
+  a5DeclaredClaimArtifactPath: {
+    id: 'cejel.core-a5.declared-claim-artifact-path.v1',
+    count: 1,
   },
 } as const satisfies Record<string, InventoryScanPatternSet>;
 
@@ -591,6 +598,11 @@ function buildWitanInputFromRepoUntracked(
   // WITAN_RUBRIC_VERSION_V25 and WITAN_RUBRIC_VERSION_V26 declarations in rubric-version.ts.
   const usesV25InlineHealthRoute =
     rubricVersion === WITAN_RUBRIC_VERSION_V25 || rubricVersion === WITAN_RUBRIC_VERSION_V26;
+  // v26 item 6, the one change v26 makes alone (docs/calibration/v26/ruling-item-6.md, signed by
+  // the operator): A5's no-reconciliation finding and A2's tenant-without-RLS finding fire only on
+  // the evidence that settles them, and otherwise abstain with a disclosure sentence. Checked
+  // against V26 alone and never inherited: v17 (the public default) and v22-v25 stay byte-stable.
+  const usesV26SettlingEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -683,6 +695,7 @@ function buildWitanInputFromRepoUntracked(
     usesV23WithheldPathAbstention,
     usesV24SecretContentContext,
     usesV25InlineHealthRoute,
+    usesV26SettlingEvidence,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1772,6 +1785,7 @@ function collectRepoSignals(
   useV23WithheldPathAbstention: boolean,
   useV24SecretContentContext: boolean,
   useV25InlineHealthRoute: boolean,
+  useV26SettlingEvidence: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1808,6 +1822,7 @@ function collectRepoSignals(
       useV18NativeRls,
       inventoryAbsenceContext,
       scanLimitations,
+      useV26SettlingEvidence,
     ),
   );
   const a3Signal = collectCriterion('A3', () =>
@@ -1839,6 +1854,7 @@ function collectRepoSignals(
       useV27Detectors,
       useV23WithheldPathAbstention,
       inventoryAbsenceContext,
+      useV26SettlingEvidence,
     ),
   );
   const b1Signal = buildNotApplicableSignal(
@@ -2361,6 +2377,7 @@ function collectA2IsolationEvidence(
   useV18NativeRls: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext,
   scanLimitations: Set<string>,
+  useV26SettlingEvidence = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2805,8 +2822,11 @@ function collectA2IsolationEvidence(
     });
   }
 
-  // Flag a real isolation gap: tenant-scoped schema without any RLS enforcement.
+  // Flag a real isolation gap: tenant-scoped schema without any RLS enforcement. Not under v26,
+  // whose rule below replaces it: a tenant column with no policy anywhere is consistent with
+  // isolation enforced outside the database (docs/calibration/v26/ruling-item-6.md).
   const hasTenantWithoutRlsGap =
+    !useV26SettlingEvidence &&
     rlsPolicyCount === 0 &&
     (useV18NativeRls ? tenantWithoutRlsPremiseFiles.length > 0 : isMultiTenant);
   if (hasTenantWithoutRlsGap) {
@@ -2836,6 +2856,34 @@ function collectA2IsolationEvidence(
         }),
       );
     }
+  }
+
+  // v26 item 6: the finding fires only when the repository's own SQL settles it — row-level
+  // security is its mechanism (T-1), a tenant table is identifiable (T-2), and no ENABLE or
+  // CREATE POLICY names that table (T-3). Otherwise Cejel abstains: no finding, and when a tenant
+  // premise exists the ruling's sentence goes to the certificate. Metrics above are unchanged.
+  let tenantIsolationUnsettled = false;
+  if (useV26SettlingEvidence) {
+    const uncoveredTables = withContentReadSignals(
+      'A2',
+      ['rls_policy_count', 'tenant_scope_ratio'],
+      () => findUncoveredTenantTables(repoPath, repoFiles),
+    );
+    for (const table of uncoveredTables) {
+      findings.push({
+        severity: 'warning',
+        summary: `Table \`${table.name}\` carries a tenant column and no row-level-security policy, while this repository enforces tenant isolation with row-level security elsewhere.`,
+        evidence: evidenceForRelativeAtLine(
+          repoPath,
+          table.file,
+          'artifact',
+          'Tenant table without a row-level-security policy',
+          table.line,
+        ),
+      });
+    }
+    tenantIsolationUnsettled =
+      uncoveredTables.length === 0 && tenantWithoutRlsPremiseFiles.length > 0;
   }
 
   // cryptoHygiene was computed above (before the N/A gate); merge its evidence/findings now.
@@ -2961,6 +3009,7 @@ function collectA2IsolationEvidence(
             'Cejel abstained on secret cleanliness: the current-tree scan matched a secret-shaped value it could not classify from content as either a credential or an example. The metric is withheld rather than scored; every other A2 signal is unaffected.',
           ]
         : []),
+      ...(tenantIsolationUnsettled ? [WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE] : []),
     ].join(' '),
   };
 }
@@ -3960,6 +4009,7 @@ function collectA5ClaimRealityEvidence(
   useV27Detectors: boolean,
   useV23WithheldPathAbstention: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
+  useV26SettlingEvidence = false,
 ): WitanCriterionSignalPayload | null {
   // A5's three metrics are file-count proxies over repoFiles, and a file Cejel withheld from that
   // list under its own content ceiling never reaches any of the filters below: the count simply
@@ -4106,13 +4156,55 @@ function collectA5ClaimRealityEvidence(
     );
   }
 
+  // v26 item 6 (docs/calibration/v26/ruling-item-6.md): not using Cejel's own artifact format is no
+  // evidence that a repository's claims are unchecked. Under v26 the finding fires only when the
+  // repository itself names a claim-reconciliation artifact that is absent (S-A5); otherwise A5
+  // makes no finding and the ruling's sentence goes to the certificate. A present Cejel-format
+  // artifact is unchanged: evidence and metric credit as before, no finding, no sentence.
+  const declaredAbsentArtifact =
+    useV26SettlingEvidence && reconciliationArtifacts.length === 0
+      ? withContentReadSignal('A5', 'reconciliation_artifact_depth', () =>
+          findDeclaredAbsentClaimArtifact(repoPath, repoFiles),
+        )
+      : undefined;
+  const reconciliationUnsettled =
+    useV26SettlingEvidence &&
+    reconciliationArtifacts.length === 0 &&
+    declaredAbsentArtifact === undefined;
+
   return {
     criterionId: 'A5',
     positiveEvidence: evidence,
     findings:
       reconciliationArtifacts.length > 0
         ? []
-        : [
+        : useV26SettlingEvidence
+          ? declaredAbsentArtifact === undefined
+            ? []
+            : [
+                inventoryAbsenceFinding({
+                  // Same severity rule as the finding it replaces: documented negative space is
+                  // itself claim-reality discipline.
+                  severity: negativeSpaceDoc ? 'info' : 'warning',
+                  summaries: {
+                    legacy: `This repository declares a claim-reconciliation artifact at \`${declaredAbsentArtifact.path}\`, and that path is not present in the tracked scan-eligible inventory.`,
+                    currentTracked: `This repository declares a claim-reconciliation artifact at \`${declaredAbsentArtifact.path}\`, and that path is not present in the tracked scan-eligible inventory.`,
+                    currentDirectoryWalk: `This repository declares a claim-reconciliation artifact at \`${declaredAbsentArtifact.path}\`, and that path is not present in the bounded directory walk.`,
+                  },
+                  evidence: evidenceForRelativeAtLine(
+                    repoPath,
+                    declaredAbsentArtifact.declaringFile,
+                    'claim_reconciliation',
+                    'Declares a claim-reconciliation artifact that is absent',
+                    declaredAbsentArtifact.line,
+                  ),
+                  context: inventoryAbsenceContext,
+                  inventoryCount: repoFiles.length,
+                  patternSet: INVENTORY_SCAN_PATTERN_SETS.a5DeclaredClaimArtifactPath,
+                  matchCount: 0,
+                }),
+              ]
+          : [
             inventoryAbsenceFinding({
               // Proxy-only A5: cap at warning (never critical) — a static proxy is lower-confidence
               // than a curated registry or reconciliation artifact. Downgraded to info when the repo
@@ -4175,6 +4267,7 @@ function collectA5ClaimRealityEvidence(
         'Requires a specific claim-reality artifact to reach full depth.',
       ),
     ],
+    ...(reconciliationUnsettled ? { notes: WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE } : {}),
   };
 }
 
@@ -6555,6 +6648,350 @@ export function deriveRlsPolicyScopeInventory(
   };
 }
 
+// ---- v26 item 6, A2 T-1..T-3: an identifiable tenant table with no row-level security --------
+//
+// docs/calibration/v26/ruling-item-6.md. The finding fires only when the repository's own SQL
+// settles it: row-level security is its mechanism (T-1), a CREATE TABLE statement defines a tenant
+// column under a readable name (T-2), and no ENABLE ROW LEVEL SECURITY or CREATE POLICY ... ON names
+// that table, a later DISABLE counting as uncovered (T-3). Anything Cejel cannot read settles
+// nothing, and the reading chosen wherever the ruling is silent is the one that fires less:
+//   - only `.sql` files are parsed; an RLS statement in any other data-layer file (an ORM migration,
+//     a Prisma schema) means coverage Cejel cannot read, so it abstains on every table;
+//   - comments are not code; an RLS statement inside a string or dollar-quoted body is dynamic SQL,
+//     and so is one whose table name cannot be normalised: either abstains on every table;
+//   - table names compare case-insensitively on their last segment, so coverage written with a
+//     different case, quoting or schema prefix still covers (two schemas' same-named tables count
+//     as one);
+//   - DISABLE uncovers a table only when it is later than the table's last ENABLE or CREATE POLICY
+//     in the same directory; migration files are ordered by path with numeric runs compared as
+//     numbers, and statements by position;
+//   - a name with more than two segments, or a quoted name that is not a plain identifier, is not
+//     identifiable, so that table yields no finding;
+//   - at most three tables are named.
+const DATA_LAYER_PATH_PATTERN = /(^|\/)(?:migrations?|drizzle|prisma)\/|\.(?:sql|prisma)$/i;
+const RLS_STATEMENT_PHRASE_PATTERN =
+  /\b(?:enable|disable)\s+row\s+level\s+security\b|\bcreate\s+(?:or\s+replace\s+)?policy\b/i;
+const SQL_CREATE_TABLE_HEAD =
+  /^create\s+(?:(?:global|local)\s+)?(?:(?:temporary|temp|unlogged)\s+)?table\s+(?:if\s+not\s+exists\s+)?/i;
+const SQL_ALTER_TABLE_HEAD = /^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?/i;
+const SQL_CREATE_POLICY_HEAD = /^create\s+(?:or\s+replace\s+)?policy\s+/i;
+const SQL_RLS_TOGGLE_PATTERN = /\b(enable|disable)\s+row\s+level\s+security\b/gi;
+const SQL_PLAIN_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_$]*$/;
+const SQL_TABLE_CONSTRAINT_PATTERN = /^(?:constraint|primary|foreign|unique|check|exclude|like)\b/i;
+const MAX_UNCOVERED_TENANT_TABLES = 3;
+
+export interface UncoveredTenantTable {
+  /** Normalised: lower case, unquoted, `schema.table` when the CREATE TABLE qualified it. */
+  readonly name: string;
+  readonly file: string;
+  /** 1-based line of the CREATE TABLE statement. */
+  readonly line: number;
+}
+
+/** Path order for migrations: numeric runs compare as numbers, everything else by code unit. */
+function compareMigrationPaths(left: string, right: string): number {
+  const leftChunks = left.match(/\d+|\D+/g) ?? [];
+  const rightChunks = right.match(/\d+|\D+/g) ?? [];
+  for (let index = 0; index < Math.min(leftChunks.length, rightChunks.length); index += 1) {
+    const a = leftChunks[index] as string;
+    const b = rightChunks[index] as string;
+    if (a === b) continue;
+    if (/^\d/.test(a) && /^\d/.test(b)) {
+      const x = a.replace(/^0+(?=\d)/, '');
+      const y = b.replace(/^0+(?=\d)/, '');
+      if (x.length !== y.length) return x.length - y.length;
+      if (x !== y) return x < y ? -1 : 1;
+      return a.length - b.length;
+    }
+    return a < b ? -1 : 1;
+  }
+  return leftChunks.length - rightChunks.length;
+}
+
+/**
+ * Blank comments, string literal bodies and dollar-quoted bodies to spaces, keeping every offset
+ * and line break, so statement positions still map to lines. `dynamic` is true when a blanked
+ * string or body names an RLS statement: SQL Cejel cannot attribute to a table.
+ */
+function blankSqlNonCode(text: string): { code: string; dynamic: boolean } {
+  const out = text.split('');
+  let dynamic = false;
+  const blank = (from: number, to: number): void => {
+    for (let index = from; index < to; index += 1) {
+      if (out[index] !== '\n' && out[index] !== '\r') out[index] = ' ';
+    }
+  };
+  const noteBody = (from: number, to: number): void => {
+    if (RLS_STATEMENT_PHRASE_PATTERN.test(text.slice(from, to))) dynamic = true;
+  };
+  let index = 0;
+  while (index < text.length) {
+    const character = text[index];
+    const next = text[index + 1];
+    if (character === '-' && next === '-') {
+      const newline = text.indexOf('\n', index);
+      const end = newline === -1 ? text.length : newline;
+      blank(index, end);
+      index = end;
+    } else if (character === '/' && next === '*') {
+      let depth = 1;
+      let cursor = index + 2;
+      while (cursor < text.length && depth > 0) {
+        if (text[cursor] === '/' && text[cursor + 1] === '*') {
+          depth += 1;
+          cursor += 2;
+        } else if (text[cursor] === '*' && text[cursor + 1] === '/') {
+          depth -= 1;
+          cursor += 2;
+        } else {
+          cursor += 1;
+        }
+      }
+      blank(index, cursor);
+      index = cursor;
+    } else if (character === "'") {
+      const escapes =
+        index > 0 && /[Ee]/.test(text[index - 1] ?? '') && !/[A-Za-z0-9_$]/.test(text[index - 2] ?? '');
+      let cursor = index + 1;
+      while (cursor < text.length) {
+        if (escapes && text[cursor] === '\\') {
+          cursor += 2;
+        } else if (text[cursor] === "'") {
+          if (text[cursor + 1] !== "'") break;
+          cursor += 2;
+        } else {
+          cursor += 1;
+        }
+      }
+      noteBody(index + 1, cursor);
+      blank(index + 1, cursor);
+      index = cursor + 1;
+    } else if (character === '"') {
+      // A quoted identifier is code: kept, and skipped so nothing inside it opens a comment.
+      let cursor = index + 1;
+      while (cursor < text.length) {
+        if (text[cursor] === '"') {
+          if (text[cursor + 1] !== '"') break;
+          cursor += 2;
+        } else {
+          cursor += 1;
+        }
+      }
+      index = cursor + 1;
+    } else if (character === '$' && !/[A-Za-z0-9_$]/.test(text[index - 1] ?? '')) {
+      const tag = /^\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/.exec(text.slice(index, index + 66))?.[0];
+      if (tag === undefined) {
+        index += 1;
+        continue;
+      }
+      const close = text.indexOf(tag, index + tag.length);
+      const end = close === -1 ? text.length : close;
+      noteBody(index + tag.length, end);
+      blank(index + tag.length, end);
+      index = close === -1 ? text.length : close + tag.length;
+    } else {
+      index += 1;
+    }
+  }
+  return { code: out.join(''), dynamic };
+}
+
+function splitSqlStatements(code: string): { text: string; start: number }[] {
+  const statements: { text: string; start: number }[] = [];
+  let start = 0;
+  let quoted = false;
+  for (let index = 0; index <= code.length; index += 1) {
+    const character = code[index];
+    if (character === '"') quoted = !quoted;
+    if (index === code.length || (character === ';' && !quoted)) {
+      const raw = code.slice(start, index);
+      const lead = raw.length - raw.trimStart().length;
+      if (raw.trim() !== '') statements.push({ text: raw.slice(lead), start: start + lead });
+      start = index + 1;
+    }
+  }
+  return statements;
+}
+
+/** One identifier, quoted or bare, from `from`. `value` is null when it is not a plain identifier. */
+function readSqlIdentifier(text: string, from: number): { value: string | null; end: number } | null {
+  let index = from;
+  while (/\s/.test(text[index] ?? '')) index += 1;
+  if (text[index] === '"') {
+    let cursor = index + 1;
+    while (cursor < text.length) {
+      if (text[cursor] === '"') {
+        if (text[cursor + 1] !== '"') break;
+        cursor += 2;
+      } else {
+        cursor += 1;
+      }
+    }
+    if (cursor >= text.length) return null;
+    const inner = text.slice(index + 1, cursor).replace(/""/g, '"');
+    return { value: SQL_PLAIN_IDENTIFIER_PATTERN.test(inner) ? inner : null, end: cursor + 1 };
+  }
+  const bare = /^[^\s(),;.]+/.exec(text.slice(index))?.[0];
+  if (bare === undefined) return null;
+  return { value: SQL_PLAIN_IDENTIFIER_PATTERN.test(bare) ? bare : null, end: index + bare.length };
+}
+
+/** A one- or two-segment table name, lower-cased; `segments` is null when it cannot be normalised. */
+function readSqlTableName(text: string, from: number): { segments: string[] | null; end: number } {
+  const segments: string[] = [];
+  let normalisable = true;
+  let index = from;
+  for (;;) {
+    const identifier = readSqlIdentifier(text, index);
+    if (identifier === null) return { segments: null, end: index };
+    if (identifier.value === null) normalisable = false;
+    else segments.push(identifier.value.toLowerCase());
+    index = identifier.end;
+    let cursor = index;
+    while (/\s/.test(text[cursor] ?? '')) cursor += 1;
+    if (text[cursor] !== '.') break;
+    index = cursor + 1;
+  }
+  return {
+    segments: normalisable && segments.length >= 1 && segments.length <= 2 ? segments : null,
+    end: index,
+  };
+}
+
+/** Whether a CREATE TABLE column list, starting at its `(`, defines a tenant column. */
+function sqlColumnListHasTenantColumn(text: string, open: number): boolean {
+  let depth = 0;
+  let quoted = false;
+  let elementStart = open + 1;
+  const elements: string[] = [];
+  for (let index = open; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') quoted = !quoted;
+    if (quoted) continue;
+    if (character === '(') depth += 1;
+    else if (character === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        elements.push(text.slice(elementStart, index));
+        break;
+      }
+    } else if (character === ',' && depth === 1) {
+      elements.push(text.slice(elementStart, index));
+      elementStart = index + 1;
+    }
+  }
+  return elements.some((element) => {
+    const trimmed = element.trim();
+    if (trimmed === '' || SQL_TABLE_CONSTRAINT_PATTERN.test(trimmed)) return false;
+    const column = readSqlIdentifier(trimmed, 0)?.value;
+    return column != null && TENANT_SCOPE_PATTERN_V11.test(column);
+  });
+}
+
+function lineAtOffset(text: string, offset: number): number {
+  let line = 1;
+  for (let index = 0; index < offset && index < text.length; index += 1) {
+    if (text[index] === '\n') line += 1;
+  }
+  return line;
+}
+
+/**
+ * The identifiable tenant tables this repository's SQL leaves without row-level security, when
+ * row-level security is its mechanism; otherwise []. [] is also the answer whenever coverage
+ * cannot be read, so the caller cannot tell "covered" from "unsettled" here and must not try.
+ */
+export function findUncoveredTenantTables(
+  repoPath: string,
+  repoFiles: readonly string[],
+): UncoveredTenantTable[] {
+  interface CoverageEvent {
+    readonly key: string;
+    readonly covers: boolean;
+    readonly order: number;
+    readonly dir: string;
+  }
+  const events: CoverageEvent[] = [];
+  const tenantTables = new Map<string, UncoveredTenantTable & { readonly order: number }>();
+  let order = 0;
+  const dataLayerFiles = repoFiles
+    .filter((file) => DATA_LAYER_PATH_PATTERN.test(file))
+    .sort(compareMigrationPaths);
+  for (const file of dataLayerFiles) {
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const contents = readRepoText(fullPath, 'utf8');
+    if (!/\.sql$/i.test(file)) {
+      if (RLS_STATEMENT_PHRASE_PATTERN.test(contents)) return [];
+      continue;
+    }
+    const { code, dynamic } = blankSqlNonCode(contents);
+    if (dynamic) return [];
+    const dir = posix.dirname(file);
+    for (const statement of splitSqlStatements(code)) {
+      order += 1;
+      const createTable = SQL_CREATE_TABLE_HEAD.exec(statement.text);
+      if (createTable) {
+        const { segments, end } = readSqlTableName(statement.text, createTable[0].length);
+        const open = statement.text.slice(end).search(/\S/);
+        if (segments === null || open === -1 || statement.text[end + open] !== '(') continue;
+        const key = segments[segments.length - 1] as string;
+        if (!tenantTables.has(key) && sqlColumnListHasTenantColumn(statement.text, end + open)) {
+          tenantTables.set(key, {
+            name: segments.join('.'),
+            file,
+            line: lineAtOffset(contents, statement.start),
+            order,
+          });
+        }
+        continue;
+      }
+      const alterTable = SQL_ALTER_TABLE_HEAD.exec(statement.text);
+      if (alterTable) {
+        const toggles = [...statement.text.matchAll(SQL_RLS_TOGGLE_PATTERN)];
+        if (toggles.length === 0) continue;
+        const { segments } = readSqlTableName(statement.text, alterTable[0].length);
+        if (segments === null) return [];
+        const key = segments[segments.length - 1] as string;
+        for (const toggle of toggles) {
+          order += 1; // two toggles in one statement are ordered by position
+          events.push({ key, covers: toggle[1]?.toLowerCase() === 'enable', order, dir });
+        }
+        continue;
+      }
+      const createPolicy = SQL_CREATE_POLICY_HEAD.exec(statement.text);
+      if (createPolicy) {
+        const policyName = readSqlIdentifier(statement.text, createPolicy[0].length);
+        const on = policyName ? /^\s+on\s+/i.exec(statement.text.slice(policyName.end)) : null;
+        if (!policyName || !on) return [];
+        const { segments } = readSqlTableName(statement.text, policyName.end + on[0].length);
+        if (segments === null) return [];
+        events.push({ key: segments[segments.length - 1] as string, covers: true, order, dir });
+        continue;
+      }
+      if (RLS_STATEMENT_PHRASE_PATTERN.test(statement.text)) return [];
+    }
+  }
+  // T-1: row-level security is this repository's own mechanism.
+  if (!events.some((event) => event.covers)) return [];
+  const isCovered = (key: string): boolean => {
+    const forTable = events.filter((event) => event.key === key);
+    const lastCover = forTable.filter((event) => event.covers).at(-1);
+    const lastDisable = forTable.filter((event) => !event.covers).at(-1);
+    if (lastCover === undefined) return false;
+    if (lastDisable === undefined) return true;
+    // Files in different directories have no order Cejel can read, so the DISABLE is not later.
+    if (lastCover.dir !== lastDisable.dir) return true;
+    return lastCover.order > lastDisable.order;
+  };
+  return [...tenantTables.entries()]
+    .filter(([key]) => !isCovered(key))
+    .map(([, table]) => table)
+    .sort((left, right) => left.order - right.order)
+    .slice(0, MAX_UNCOVERED_TENANT_TABLES)
+    .map(({ name, file, line }) => ({ name, file, line }));
+}
+
 export function findCiOrReleaseDeployFiles(
   _repoPath: string,
   repoFiles: readonly string[],
@@ -6718,6 +7155,198 @@ function isAuthenticatedClaimRealityArtifact(repoPath: string, file: string): bo
     if (!inFence && /^#\s+Claim Reality Reconciliation\s*$/i.test(line)) return true;
   }
   return false;
+}
+
+// ---- v26 item 6, S-A5: a declared claim-reconciliation artifact that is absent ---------------
+//
+// docs/calibration/v26/ruling-item-6.md. The repository itself names the artifact, and the named
+// path is not in the tree. Where the ruling is silent, each choice below is the reading that fires
+// less, and each is listed in the change's record.
+
+// The bounded vocabulary: `claim` or `claims`, then `reconciliation`, `register` or `ledger`, with
+// an optional `reality` between, joined by `-`, `_`, `.` or nothing, in any case. A document or a
+// data file only.
+const DECLARED_CLAIM_ARTIFACT_BASENAME_PATTERN =
+  /^claims?[-_.]?(?:reality[-_.]?)?(?:reconciliation|register|ledger)\.(?:md|mdx|json|ya?ml)$/i;
+// Only a path Cejel can state back verbatim counts as a declaration; anything else cannot be
+// normalised and declares nothing.
+const DECLARED_CLAIM_ARTIFACT_PATH_PATTERN = /^[A-Za-z0-9._/-]{1,160}$/;
+const MARKDOWN_FENCE_PATTERN = /^\s{0,3}(`{3,}|~{3,})/;
+const MARKDOWN_INLINE_LINK_PATTERN = /(!?)\[[^\]]*\]\(\s*<?([^\s)>]+)>?[^)]*\)/g;
+const MARKDOWN_REFERENCE_DEFINITION_PATTERN = /^\s{0,3}\[[^\]]+\]:\s*<?([^\s>]+)>?/;
+const MARKDOWN_CODE_SPAN_PATTERN = /`([^`]+)`/g;
+
+interface DeclaredClaimArtifact {
+  /** Repository-relative, normalised. */
+  readonly path: string;
+  readonly declaringFile: string;
+  readonly line: number;
+}
+
+interface ClaimArtifactDeclaration {
+  /** Every repository-relative reading of the declared path; present if any one is present. */
+  readonly candidates: readonly string[];
+  readonly line: number;
+}
+
+// The places the ruling names: a claim source (README.md, a top-level docs/ page), CONTRIBUTING,
+// and a step of a GitHub Actions workflow.
+function isClaimArtifactDeclaringDocument(file: string): boolean {
+  return isClaimSourceFile(file) || /^CONTRIBUTING\.md$/i.test(file);
+}
+
+function isClaimArtifactDeclaringWorkflow(file: string): boolean {
+  return /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file);
+}
+
+function normaliseDeclaredClaimArtifactPath(candidate: string, baseDir: string): string | null {
+  if (!DECLARED_CLAIM_ARTIFACT_PATH_PATTERN.test(candidate)) return null;
+  const joined = candidate.startsWith('/')
+    ? posix.normalize(candidate.slice(1))
+    : posix.normalize(posix.join(baseDir, candidate));
+  const path = joined.replace(/\/+$/, '');
+  if (path === '' || path === '.' || path === '..' || path.startsWith('../') || path.startsWith('/')) {
+    return null;
+  }
+  return DECLARED_CLAIM_ARTIFACT_BASENAME_PATTERN.test(posix.basename(path)) ? path : null;
+}
+
+function markdownLinkTarget(target: string): string | null {
+  // An external URL, a protocol-relative URL or an in-page anchor names no repository path.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('#')) {
+    return null;
+  }
+  const withoutSuffix = target.replace(/[?#].*$/, '');
+  try {
+    return decodeURIComponent(withoutSuffix);
+  } catch {
+    return null;
+  }
+}
+
+function markdownClaimArtifactDeclarations(
+  file: string,
+  contents: string,
+): ClaimArtifactDeclaration[] {
+  const baseDir = posix.dirname(file);
+  const declarations: ClaimArtifactDeclaration[] = [];
+  let fence: string | null = null;
+  let inHtmlComment = false;
+  contents.split(/\r?\n/).forEach((rawLine, index) => {
+    const marker = MARKDOWN_FENCE_PATTERN.exec(rawLine)?.[1];
+    if (fence !== null) {
+      if (marker !== undefined && marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+      return;
+    }
+    if (marker !== undefined) {
+      fence = marker;
+      return;
+    }
+    let line = rawLine;
+    if (inHtmlComment) {
+      const close = line.indexOf('-->');
+      if (close === -1) return;
+      line = line.slice(close + 3);
+      inHtmlComment = false;
+    }
+    line = line.replace(/<!--[\s\S]*?-->/g, ' ');
+    const open = line.indexOf('<!--');
+    if (open !== -1) {
+      line = line.slice(0, open);
+      inHtmlComment = true;
+    }
+    const lineNumber = index + 1;
+    // A code-span path is read from the repository root and from the declaring file's
+    // directory; it is present if either reading is.
+    for (const match of line.matchAll(MARKDOWN_CODE_SPAN_PATTERN)) {
+      const span = (match[1] ?? '').trim().replace(/^\.\//, '');
+      const candidates = [
+        normaliseDeclaredClaimArtifactPath(span, '.'),
+        normaliseDeclaredClaimArtifactPath(span, baseDir),
+      ].filter((path): path is string => path !== null);
+      if (candidates.length > 0) declarations.push({ candidates: [...new Set(candidates)], line: lineNumber });
+    }
+    const prose = line.replace(MARKDOWN_CODE_SPAN_PATTERN, ' ');
+    const targets: string[] = [];
+    for (const match of prose.matchAll(MARKDOWN_INLINE_LINK_PATTERN)) {
+      if (match[1] === '!') continue; // an image embeds a file; it does not declare an artifact
+      targets.push(match[2] ?? '');
+    }
+    const reference = MARKDOWN_REFERENCE_DEFINITION_PATTERN.exec(prose);
+    if (reference?.[1]) targets.push(reference[1]);
+    for (const target of targets) {
+      const decoded = markdownLinkTarget(target);
+      // A relative link resolves against the declaring file, as the Markdown renderer resolves it.
+      const path = decoded === null ? null : normaliseDeclaredClaimArtifactPath(decoded, baseDir);
+      if (path !== null) declarations.push({ candidates: [path], line: lineNumber });
+    }
+  });
+  return declarations;
+}
+
+function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDeclaration[] {
+  // A step that may run elsewhere than the repository root names a path Cejel cannot resolve.
+  if (/^\s*(?:-\s+)?working-directory\s*:/m.test(contents)) return [];
+  const declarations: ClaimArtifactDeclaration[] = [];
+  let stepsIndent: number | null = null;
+  contents.split(/\r?\n/).forEach((rawLine, index) => {
+    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    if (line.trim() === '') return;
+    const indent = line.length - line.trimStart().length;
+    if (
+      stepsIndent !== null &&
+      (indent < stepsIndent || (indent === stepsIndent && !line.trimStart().startsWith('- ')))
+    ) {
+      stepsIndent = null;
+    }
+    const stepsKey = /^(\s*)steps\s*:\s*$/.exec(line);
+    if (stepsKey) {
+      stepsIndent = stepsKey[1]?.length ?? 0;
+      return;
+    }
+    if (stepsIndent === null) return;
+    for (const token of line.split(/[\s'"`=,;:()[\]{}<>|&]+/)) {
+      const path = normaliseDeclaredClaimArtifactPath(token.replace(/^\.\//, ''), '.');
+      if (path !== null) declarations.push({ candidates: [path], line: index + 1 });
+    }
+  });
+  return declarations;
+}
+
+/**
+ * The first claim-reconciliation artifact this repository declares that is absent from its tree,
+ * or undefined. "Absent" is checked against the tracked file list plus every path the walk
+ * withheld from it, case-insensitively, so a file Cejel declined to read is never reported missing.
+ */
+export function findDeclaredAbsentClaimArtifact(
+  repoPath: string,
+  repoFiles: readonly string[],
+): DeclaredClaimArtifact | undefined {
+  const declaringFiles = repoFiles
+    .filter((file) => isClaimArtifactDeclaringDocument(file) || isClaimArtifactDeclaringWorkflow(file))
+    .sort();
+  if (declaringFiles.length === 0) return undefined;
+  const known = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)].map((path) =>
+    path.toLowerCase(),
+  );
+  const isPresent = (path: string): boolean => {
+    const lower = path.toLowerCase();
+    return known.some((file) => file === lower || file.startsWith(`${lower}/`));
+  };
+  for (const file of declaringFiles) {
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const contents = readRepoText(fullPath, 'utf8');
+    const declarations = isClaimArtifactDeclaringWorkflow(file)
+      ? workflowClaimArtifactDeclarations(contents)
+      : markdownClaimArtifactDeclarations(file, contents);
+    for (const declaration of declarations) {
+      if (declaration.candidates.some(isPresent)) continue;
+      const [path] = declaration.candidates;
+      if (path !== undefined) return { path, declaringFile: file, line: declaration.line };
+    }
+  }
+  return undefined;
 }
 
 function isCoverageConfig(repoPath: string, file: string): boolean {
