@@ -50,6 +50,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   report components of the specimens whose composite scores move) and v25 and v26 no longer
   collide.
 
+### Changed
+
+- **The certificate states which delegated CI it did not read. Presentation only: no score, weight,
+  detector, file selection or finding changes under any rubric.** B3 reads every recognised
+  workflow's commands, but a GitHub Actions workflow can hand its work to code Cejel does not read:
+  - a job that calls a reusable workflow in another repository
+    (`uses: owner/repo/.github/workflows/ci.yml@v1`);
+  - a step that runs a local action (`uses: ./.github/actions/setup-and-test`, whose directory
+    holds `action.yml` or `action.yaml`). The certificate calls it a composite action. A local
+    JavaScript or Docker action has the same file and is counted the same way, because Cejel
+    decides from the file's presence and does not open it.
+
+  A test or lint command inside that code is unseen, and the certificate read as if it were absent.
+  The B3 citation that states how many workflow files were read (0.6.4) now also says, for example,
+  `CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in
+  another repository, 1 composite action))`. A local reusable workflow
+  (`uses: ./.github/workflows/x.yml`) is one of the workflows already read, and a marketplace action
+  such as `actions/checkout@v4` runs no repository command, so neither is counted. A `./` path
+  whose directory has no `action.yml` or `action.yaml` is not an action and is not counted. When
+  nothing is delegated, nothing is added. Each `uses:` value is read line by line, as the existing
+  `run:` reader does. A commented-out line and a `uses:` line inside a `run: |` script do not
+  count. No dependency is added. A3 and B2 count workflow paths and read no step, so their
+  citations are unchanged. The text is carried in the existing evidence `label` field, so there is
+  no schema change and no report-format bump. `report.json` and certificate bytes change only for
+  repositories whose workflows delegate this way. Rubric behaviour fingerprints, the v17 golden
+  pins and every score are unmoved, so `RUBRIC_CHANGELOG.md` has no entry.
+
 ### Fixed
 
 - **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no

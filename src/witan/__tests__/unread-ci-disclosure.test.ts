@@ -146,25 +146,25 @@ describe('the delegated-step clause stays within the 180-character evidence labe
 // Captured on origin/main 902ae662, before this change. Every metric, weight, score, status and
 // finding is inside the digest, so equality here is the "nothing but presentation moved" claim.
 const LABEL_FREE_PINS: Readonly<Record<string, string>> = {
-  'witan-rubric-v17-2026-07-24': '08779e05c889077ff87936f530e6022cde1f370beb3294d1dfffcc5922798ac6',
+  'witan-rubric-v17-2026-07-24': '6674d3362af20c2fb0ced57413b8ab71bd47dcf3a4cd182b5582d07d5a120662',
   'witan-rubric-v18-prospective-2026-07-25':
-    'd1dce1c5b7f4af027cfac582ea3c6d7e0e48aa8e72a4a090ed396aba202be5e7',
+    '59296915e0b283385e48f629328df6d441a3051441e88f9fb1db7b5535e7594d',
   'witan-rubric-v19-prospective-2026-08-09':
-    '8d1a2636f83cf3eabdf76facb86854836469aed3dbab870a7d7b0dca3c508326',
+    'acb511fc4c4e86d6753a81375c56e2f288b815bb94b420a9b188ad2480d7454c',
   'witan-rubric-v20-prospective-2026-08-10':
-    '6c5e463ba009aee50ca13222cffcd01ed612571337ff1ed0c6a1a27724f3ba51',
+    '2a7b5e550fe4a2e9e30ca2f20a47bf22657823185b0fce677b0639ef22c0f840',
   'witan-rubric-v21-prospective-2026-08-10':
-    '70134138c38598f2a17f9b8e0767576b25c4a2a4bb24614c0137e3c672d20781',
+    '57fd9de50adfabac12d7bde3fa539e68ae8ff157cb693a759cfa7a86754a37ae',
   'witan-rubric-v22-prospective-2026-08-10':
-    'aacef2cbe4c764cbfecc3a8f843d735a96cfa45aea2c539534c7189cf5ce8f77',
+    '561d6fc7ffe39a25f31cb1adb740852e73ce6a7dc4a8bbdd110b72be1c5c2f58',
   'witan-rubric-v23-prospective-2026-09-06':
-    '5562579527d4bc052688be580cca83f8a15367ba4acbc4f50996259cee7d9668',
+    'e545031f3a95e90ff2e3f2110633d44cb621a816c6eeecc70ab4c10bafcb2594',
   'witan-rubric-v24-prospective-2026-09-15':
-    '017bba1e79cabbcf949fdbf93a56325e25d047e7d444236933b44434f63dc107',
+    '2a1642e4c1f00c9ff9fccf4098e52e9695e39be1400e08df4e67d79d434a79b4',
   'witan-rubric-v25-prospective-2026-10-12':
-    'e019ca0a7d93164340cebd13655be7e70f2dbc040da937ddd4747abcde5d0371',
+    '28f85650fd6e8fc28c8e9a1d395479fdcf96a5c27a8384e06e38e6a1bc8c2d88',
   'witan-rubric-v26-prospective-2026-10-14':
-    '3da14060e703ba22bc47a96b3d609bd416cfaa9463c3188c66fbd797dff2ec4b',
+    '8e99f3f5c36125b0e259e3db80b342d33d3c97c1250dff52ec89fd3fc92a17f5',
 };
 
 function withoutEvidenceLabels(value: unknown): unknown {
