@@ -22,6 +22,80 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only (v26 alone); no repository moved
+
+**Status.** The one change `witan-rubric-v26-prospective-2026-10-14` makes of its own, implemented
+from the operator-signed ruling `docs/calibration/v26/ruling-item-6.md`. Gated on v26 alone:
+v17 and v22-v25 are byte-identical before and after. v26 is explicit opt-in only and the public
+board is scored under v17, so no published score, verdict or rank moves: no repository moved.
+**No public paired rescore has run, and this entry makes no precision or recall claim.**
+
+**The change.** Both findings claim something about the world, and a missing file does not settle
+either.
+- **A5, "no dedicated claim-reality reconciliation artifact".** Under v26 it fires only when the
+  repository itself names a claim-reconciliation artifact and that path is absent from its tree
+  (S-A5). The name may appear as a relative link or code-span path in the README, a top-level
+  `docs/` page or `CONTRIBUTING.md`, or as a path in a GitHub Actions workflow step. Its basename
+  must be `claim` or `claims` with `reconciliation`, `register` or `ledger`, and an optional
+  `reality` between. The finding names the path and cites the declaring line. A present
+  Cejel-format artifact is unchanged: evidence and `reconciliation_artifact_depth` credit as before.
+- **A2, "tenant-scoped schema without row-level-security policies".** Under v26 it fires only when
+  all three hold: the data layer's SQL contains an `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY`
+  statement (T-1); a `CREATE TABLE` defines a tenant column under a readable name (T-2); and no
+  `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY ... ON` names that table, a later `DISABLE`
+  counting as uncovered (T-3). It names the table and cites its `CREATE TABLE` line.
+- **Otherwise each abstains:** no finding, and the ruling's sentence in the certificate's "What was
+  not established". The abstention is never criterion-level `insufficient_data`.
+
+**Metrics.** Every metric is unchanged under v26, including `reconciliation_artifact_depth`,
+`rls_policy_count` and `tenant_scope_ratio`. Whether those metrics should stop scoring an absence
+is proposed ADR-0020's question, and the ruling leaves it open.
+
+**Direction, stated plainly.** v17 through v25 fire A2 only when no policy exists at all. v26 fires
+only when policies exist and a tenant table lacks one. So under v26, A2 fires on a disjoint set of
+repositories from v17's. A5 under v26 fires on far fewer repositories: only those that declare an
+artifact they do not have.
+
+**A consequence the ruling does not name.** A5 has no calibrated status rule, so its status comes
+from its findings when it has one and from its score band when it does not. Where the v25 A5
+finding no longer fires, an A5 score below 1.5 now shows `critical`, and the scorer adds its
+metric-derived finding ("A5 metric-derived score is 1.4/4.0, in the critical band ..."). v25
+showed `warning` at the same score. The score itself is unchanged, because the finding's 2.4 cap
+never bound below it. This is the metric path ADR-0020 governs, and this change leaves it as is.
+
+**Measured on the behaviour corpus.** The corpus is unchanged at 19 specimens. The previous scanner
+is `origin/main` `e43ab760`, and the same pipeline reproduced all ten committed fingerprints from
+it before measuring anything. Under v17 through v25 every specimen's report is byte-identical
+before and after (171 of 171 reports). Under v26, 15 specimens move and 4 do not
+(`minimal-source-no-process`, `docs-only-repository`, `ava-live-assertions`,
+`public-digest-lookup`). On all 15, every metric, the overall score and the verdict are
+unchanged, and the v25 A5 finding is gone. On 2 of them (`complete-node-service`,
+`privileged-migrations`, whose orders table is covered) A2 gains only the disclosure sentence in
+its notes. A5 moves in one of two ways:
+
+| v26 A5 on the corpus | Specimens | Before (v25 behaviour) | After |
+|---|---|---|---|
+| Score 1.4 | 11 | `warning`, 1 warning finding | `critical`, 1 metric-derived critical finding |
+| Score 1.7-1.9 | 4 | `warning`, 1 warning finding | `warning`, 1 metric-derived warning finding |
+
+Measured fingerprints:
+
+| Rubric | Before | After |
+|---|---|---|
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3` | unchanged |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3` | `sha256:b157f45f873973cdd296199b13dc464727e2c72dc58d56eddf740e061d9f0ca8` |
+
+Only v26's A5 component pin moved; every report-level component is unchanged. No other rubric's
+fingerprint or pin changed. v25 and v26 are no longer behaviourally identical on the behaviour
+corpus, so the fingerprint guard's declared collision is removed in this change.
+
+**Report format.** No new `report.json` field. Under v26 the abstention sentence travels in the A2
+and A5 criterion `notes` every report already has, and the certificate lifts it from there, so v26
+`report.json` and certificate bytes change.
+
+The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
+in `docs/reviews/v26-a5-a2-settling-evidence-2026-10-14.md`.
+
 ## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under

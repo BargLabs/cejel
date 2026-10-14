@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "Removing a finding is not neutral when a criterion's status falls back to its score band. v26 item 6 made A5's no-reconciliation finding abstain; A5 has no calibrated status rule, so on every corpus specimen scored 1.4 the status moved from warning to critical at an unchanged score, and the scorer synthesized a metric-derived critical finding in its place. The tests written for the item checked the finding and the metrics and passed; only a full before/after report diff showed it. Rule: when a change adds or removes findings, diff each criterion's status and synthesized findings across the corpus, not just the finding you meant to change.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "abstention"],
+    "tags": ["status-fallback", "synthesized-finding", "abstention-side-effect", "full-report-diff"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 482}
+  },
+  {
+    "statement": "Read every count in a changelog entry back from the measurement output before committing it. A draft entry said six corpus specimens gained the A2 disclosure sentence; reading the comparison file showed two. The six came from scanning a mixed list of corpus and synthetic results by eye. Rule: each number written into a record is checked against the file it came from, filtered to the population the sentence names.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "records", "measurement"],
+    "tags": ["count-verification", "record-accuracy", "population-filter"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 482}
+  }
+]
