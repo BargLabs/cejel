@@ -132,11 +132,27 @@ describe('the disclosure moves no score', () => {
   // Re-pinned 2026-10-14 (goal_cejel_v26_workspace_package_scripts_2026-10-14): the behaviour
   // corpus gained a specimen, so every fingerprint moved. F2 declares no workspace; restoring only
   // the previous fingerprint recovers each previous pin (F2_PRE_WORKSPACE_PINS) byte for byte.
+  // Re-pinned again 2026-10-14 (goal_cejel_v26_coverage_config_recognition_2026-10-14): A1
+  // coverage recognition widened and the corpus gained three specimens, so every fingerprint moved.
+  // F2 has no test file, so no coverage finding; restoring only the previous fingerprint recovers
+  // each previous pin (F2_PRE_COVERAGE_PINS) byte for byte.
   const F2_PINS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: '0d8a27dafb5fc18d0689bb20061016d42f59e88dc39a8b006e25cf3177e4ef01',
+    [WITAN_RUBRIC_VERSION_V22]: 'd3145e9f36cdb5153a3d0d97ae6dcb87147afcb3ef959fad81846ea0ec2045a3',
+    [WITAN_RUBRIC_VERSION_V23]: '803ed992ad1c6351dc9b31d2eb63e033c20770503ff7db144d048a62e5a2417e',
+    [WITAN_RUBRIC_VERSION_V25]: '95bd3f33131b7fbba3ae0838ce19496a995f3eabb31a58b273c07c977c9f0884',
+  };
+  const F2_PRE_COVERAGE_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: '61181547342c5722b8bebd2ab28d098ede319806c9afc60cbee61417e220d432',
     [WITAN_RUBRIC_VERSION_V22]: '7541c3094a15c85a3b0d464ceaf70e309665757dac6348a42712a96d1de8aa0c',
     [WITAN_RUBRIC_VERSION_V23]: '99add7fb224a9c65e1e63afae71f6aba1340b7fea732817b26dd15e3f4a674f2',
     [WITAN_RUBRIC_VERSION_V25]: '5d3de808b38ba29f6438244502f75641e6f4262f50f5a49e009df3306e340833',
+  };
+  const F2_PRE_COVERAGE_FINGERPRINTS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
+    [WITAN_RUBRIC_VERSION_V22]: 'sha256:3efa6907cf365294e4180332d4d55685532f3beb59454ae73856c9360028389c',
+    [WITAN_RUBRIC_VERSION_V23]: 'sha256:6410874e6fb44c1ac29b3fcac49c57799a2eb13bd50444c3a7ce93ebf556577f',
+    [WITAN_RUBRIC_VERSION_V25]: 'sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3',
   };
   const F2_PRE_WORKSPACE_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: '2e5b2a1160a6ec34267c04baa74e592e09e859e1bdea050bdc73ba22b37099b8',
@@ -167,6 +183,9 @@ describe('the disclosure moves no score', () => {
     expect(createHash('sha256').update(JSON.stringify(report)).digest('hex')).toBe(
       F2_PINS[rubricVersion],
     );
+    const preCoverage = { ...report, rubricBehaviourFingerprint: F2_PRE_COVERAGE_FINGERPRINTS[rubricVersion] };
+    expect(createHash('sha256').update(JSON.stringify(preCoverage)).digest('hex'))
+      .toBe(F2_PRE_COVERAGE_PINS[rubricVersion]);
     const preWorkspace = { ...report, rubricBehaviourFingerprint: F2_PRE_WORKSPACE_FINGERPRINTS[rubricVersion] };
     expect(createHash('sha256').update(JSON.stringify(preWorkspace)).digest('hex'))
       .toBe(F2_PRE_WORKSPACE_PINS[rubricVersion]);

@@ -127,13 +127,76 @@ function hashOf(input: Record<string, unknown>): string {
 // no whitespace, matching hashFor above), and assert equality with the pre-1.3 pin, recovered
 // from `git show v0.4.10:src/witan/__tests__/v23-declared-scope-byte-stability.test.ts` (the
 // last capture of this file before goal_cejel_withheld_paths_always_disclosed_2026-09-22).
+//
+// goal_cejel_v26_coverage_config_recognition_2026-10-14 moved both pins again, on purpose and in
+// one signal only. This fixture's test script is `vitest run --coverage`: a reachable coverage
+// flag, which v17 and v22 now recognize (v23 always did), so the A1 no-coverage finding they used
+// to emit here was a false absence and is withdrawn. Proved mechanically, in three steps:
+// everything outside the A1 signal is byte-identical to the previous scanner's output (the
+// `withoutA1` pins were captured from e43ab760); substituting the previous A1 signal
+// (PRE_COVERAGE_RECOGNITION_A1, captured from e43ab760, the same under v17 and v22) reproduces the
+// previous pin; and the pre-1.3 recovery above is taken from that restored output.
+const PRE_COVERAGE_RECOGNITION_A1 = {
+  criterionId: 'A1',
+  positiveEvidence: [
+    { kind: 'test_run', label: 'Detected test file', path: 'src/index.test.ts', line: 1, contentHash: 'ea29b449092da0d84c36af813b12a0bc5ca63e7b45f5fb8c7e25f0955099ae1f' },
+    { kind: 'test_run', label: 'Configured test runner', path: 'package.json', line: 1, contentHash: '5cc09b1aa52e145c1a0388d354dcdab531f1a4309b47de9218c9bba05093e705' },
+  ],
+  findings: [
+    {
+      severity: 'info',
+      summary: 'Test suite files are present, but the tracked scan-eligible inventory matched no coverage configuration.',
+      evidence: { kind: 'test_run', label: 'Detected test file', path: 'src/index.test.ts', line: 1, contentHash: 'ea29b449092da0d84c36af813b12a0bc5ca63e7b45f5fb8c7e25f0955099ae1f' },
+      derivation: { kind: 'inventory-scan', inventoryScope: 'tracked-scan-eligible', inventoryCount: 4, patternSetId: 'cejel.core-a1.coverage-configuration.v1', patternCount: 10, matchCount: 0 },
+    },
+  ],
+  metrics: [
+    { name: 'test_to_source_ratio', label: 'Test-to-source file ratio', value: 1, max: 1, kind: 'saturating_count', weight: 0.3, unit: 'ratio', description: 'Measures how much concrete test surface exists relative to implementation surface.' },
+    { name: 'coverage_percent', label: 'Static coverage percentage', value: 0, max: 100, weight: 0.3, unit: 'percent', description: 'Uses a static coverage report value or configured threshold when present, without running tests.' },
+    {
+      name: 'verification_script_ratio', label: 'Verification script ratio', value: 1, max: 4, kind: 'saturating_count', weight: 0.25, unit: 'ratio',
+      description: 'Counts detected test, coverage, lint, and typecheck commands plus detected test-runner configuration files; raw credit is capped at four.',
+      presentation: { components: [{ label: 'test command', count: 1 }, { label: 'coverage command', count: 0 }, { label: 'lint command', count: 0 }, { label: 'type-check command', count: 0 }, { label: 'test-runner configuration', count: 0 }] },
+    },
+    { name: 'non_hollow_test_share', label: 'Non-hollow test share', value: 1, max: 1, weight: 0.15, unit: 'ratio', description: 'Penalizes skipped or placeholder-only test files; test-directory support scaffolding (helpers/fixtures with no test in them) is excluded from the denominator.' },
+  ],
+  notes: 'A1 is detected from real test files, test runner configuration, and optional coverage configuration.',
+} as const;
+
+type Signal = { criterionId: string; findings?: { summary: string }[]; positiveEvidence?: { kind: string; path?: string }[] };
+
+function expectOnlyA1Moved(input: Record<string, unknown>, withoutA1Pin: string, previousPin: string): Record<string, unknown> {
+  const signals = input.signals as Signal[];
+  expect(
+    hashOf({ ...input, signals: signals.filter((signal) => signal.criterionId !== 'A1') }),
+    'everything outside the A1 signal must be byte-identical to the previous scanner',
+  ).toBe(withoutA1Pin);
+  const a1 = signals.find((signal) => signal.criterionId === 'A1');
+  expect(a1?.findings?.some((finding) => /no coverage configuration/.test(finding.summary))).toBe(false);
+  expect(a1?.positiveEvidence?.filter((evidence) => evidence.kind === 'coverage').map((evidence) => evidence.path)).toEqual(['package.json']);
+  const restored = {
+    ...input,
+    signals: signals.map((signal) => (signal.criterionId === 'A1' ? PRE_COVERAGE_RECOGNITION_A1 : signal)),
+  };
+  expect(
+    hashOf(restored),
+    'the pre-coverage-recognition output bytes must be recoverable by restoring exactly the previous A1 signal',
+  ).toBe(previousPin);
+  return restored;
+}
+
 describe('v23 declared-scope fix: v17/v22 scan output carries withheldPaths: [] and is otherwise byte-identical to the pre-1.3 capture', () => {
   it('v17 output gained withheldPaths: [] only', () => {
     const input = inputFor(WITAN_RUBRIC_VERSION_V17);
     expect(hashOf(input)).toBe(
+      'e473d844c57610585da5bc429f55c6b35654fb04bbe63fdc223287f57c6e93e5',
+    );
+    const restored = expectOnlyA1Moved(
+      input,
+      '1098043c29385328a4e8c81358971f236d2c741ac916818f4072fe9f105da93a',
       '56ac5957223e66c26d6026ee2506aa33308b89209140c3cfcab9876aadf49707',
     );
-    const { withheldPaths, ...withoutWithheldPaths } = input;
+    const { withheldPaths, ...withoutWithheldPaths } = restored;
     expect(withheldPaths).toEqual([]);
     expect(
       hashOf(withoutWithheldPaths),
@@ -144,9 +207,14 @@ describe('v23 declared-scope fix: v17/v22 scan output carries withheldPaths: [] 
   it('v22 output gained withheldPaths: [] only', () => {
     const input = inputFor(WITAN_RUBRIC_VERSION_V22);
     expect(hashOf(input)).toBe(
+      '83a7445c800a18e1acc874e2dfe5a3e012b85294ed7c6303a79ad7e2e000370f',
+    );
+    const restored = expectOnlyA1Moved(
+      input,
+      '732baf2364607b0efd62b787adb24fde4fb59172bd9c90c5126b83b44b12f03a',
       '8140d8d1152913a7db566d5c3383a6ade492fd4a0600838dbc7cf85cf62468ed',
     );
-    const { withheldPaths, ...withoutWithheldPaths } = input;
+    const { withheldPaths, ...withoutWithheldPaths } = restored;
     expect(withheldPaths).toEqual([]);
     expect(
       hashOf(withoutWithheldPaths),
