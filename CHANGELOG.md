@@ -28,6 +28,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
+  identifier bump: A1 recognizes more coverage configuration before it says there is none.** A1's
+  "no coverage configuration was detected" finding now withdraws when coverage is configured in a
+  way the tool's own documentation defines. That covers three groups:
+  - **Command flags.** A coverage flag on a test command reachable from a test entry point, which
+    only v23 recognized before. That includes `pytest --cov` and `python -m pytest --cov`;
+    `go test -cover` / `-coverprofile`; `dotnet test --collect "XPlat Code Coverage"`; and
+    `cargo llvm-cov`. Where the flag's ownership or reachability can't be resolved, the absence is
+    withheld with a note instead of asserted.
+  - **Configuration files.** Codecov, nyc and c8 dotfiles; `setup.cfg` / `tox.ini` coverage.py
+    sections; a `package.json` `"jest"` coverage key; `vite.config` `test.coverage`; `.simplecov`;
+    PHPUnit's `<coverage>`; JaCoCo in Maven or Gradle; `tarpaulin.toml`.
+  - **Exclusions.** Disabled, commented-out and misnamed forms do not count. A bare coverlet
+    package reference does not count either, because coverlet's documentation says it collects
+    nothing on its own.
+  Under every rubric but v23 this adds to the existing v17 rules, so a finding can disappear but
+  none can appear. A1 `verification_script_ratio` and `coverage_percent` can rise; nothing falls.
+  The finding's derivation names the widened pattern set (`cejel.core-a1.coverage-configuration.v3`,
+  or `.v4` under v23). Weights and thresholds are unchanged. No public paired rescore has run.
+  Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
+- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
   identifier bump: B3 `ci_script_depth` reads the scripts of declared workspace packages.** In npm,
   yarn and pnpm workspaces the root `package.json` often only orchestrates, and the scripts live
   in the workspace packages, so reading the root alone undercounted them. B3 now also reads the
