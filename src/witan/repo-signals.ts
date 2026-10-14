@@ -4189,16 +4189,25 @@ function collectA5ClaimRealityEvidence(
   // repository itself names a claim-reconciliation artifact that is absent (S-A5); otherwise A5
   // makes no finding and the ruling's sentence goes to the certificate. A present Cejel-format
   // artifact is unchanged: evidence and metric credit as before, no finding, no sentence.
-  const declaredAbsentArtifact =
+  const claimArtifactDeclarations =
     useV26SettlingEvidence && reconciliationArtifacts.length === 0
       ? withContentReadSignal('A5', 'reconciliation_artifact_depth', () =>
-          findDeclaredAbsentClaimArtifact(repoPath, repoFiles),
+          scanClaimArtifactDeclarations(repoPath, repoFiles),
         )
       : undefined;
+  const declaredAbsentArtifact = claimArtifactDeclarations?.firstAbsent;
   const reconciliationUnsettled =
     useV26SettlingEvidence &&
     reconciliationArtifacts.length === 0 &&
     declaredAbsentArtifact === undefined;
+  // v26 item 6, amendment 1 (docs/calibration/v26/ruling-item-6-amendment-1.md): with no
+  // Cejel-format artifact present and none named, reconciliation_artifact_depth would score the
+  // same absence the finding no longer asserts, so it is not scored. The other A5 metrics carry the
+  // score at their declared relative weights, and the disclosure sentence above already says why.
+  // Named and absent (S-A5), or named and present, or a Cejel-format artifact present: scored as
+  // before.
+  const omitReconciliationArtifactDepth =
+    claimArtifactDeclarations !== undefined && !claimArtifactDeclarations.declared;
 
   return {
     criterionId: 'A5',
@@ -4285,15 +4294,19 @@ function collectA5ClaimRealityEvidence(
         'Credits multiple claim-bearing documents without judging unverified prose as truth.',
         'saturating_count',
       ),
-      metric(
-        'reconciliation_artifact_depth',
-        'Reconciliation artifact depth',
-        reconciliationArtifacts.length,
-        3,
-        0.15,
-        'artifacts',
-        'Requires a specific claim-reality artifact to reach full depth.',
-      ),
+      ...(omitReconciliationArtifactDepth
+        ? []
+        : [
+            metric(
+              'reconciliation_artifact_depth',
+              'Reconciliation artifact depth',
+              reconciliationArtifacts.length,
+              3,
+              0.15,
+              'artifacts',
+              'Requires a specific claim-reality artifact to reach full depth.',
+            ),
+          ]),
     ],
     ...(reconciliationUnsettled ? { notes: WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE } : {}),
   };
@@ -6695,13 +6708,22 @@ export function deriveRlsPolicyScopeInventory(
 //     numbers, and statements by position;
 //   - a name with more than two segments, or a quoted name that is not a plain identifier, is not
 //     identifiable, so that table yields no finding;
+//   - a table that no longer exists under its CREATE TABLE name is followed
+//     (goal_cejel_v26_item6_revision_2026-10-14): a later DROP TABLE in the same directory removes
+//     it, and a later ALTER TABLE ... RENAME TO moves its name and its coverage history. Across
+//     directories there is no readable order, so a DROP or RENAME there means the table may be
+//     gone and it is not named. A DROP or RENAME whose name cannot be normalised, or one inside a
+//     string or dollar-quoted body, may name any table, so it abstains on every table;
 //   - at most three tables are named.
 const DATA_LAYER_PATH_PATTERN = /(^|\/)(?:migrations?|drizzle|prisma)\/|\.(?:sql|prisma)$/i;
 const RLS_STATEMENT_PHRASE_PATTERN =
   /\b(?:enable|disable)\s+row\s+level\s+security\b|\bcreate\s+(?:or\s+replace\s+)?policy\b/i;
+const SQL_TABLE_REMOVAL_PHRASE_PATTERN = /\bdrop\s+table\b|\brename\s+to\b/i;
 const SQL_CREATE_TABLE_HEAD =
   /^create\s+(?:(?:global|local)\s+)?(?:(?:temporary|temp|unlogged)\s+)?table\s+(?:if\s+not\s+exists\s+)?/i;
 const SQL_ALTER_TABLE_HEAD = /^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?/i;
+const SQL_DROP_TABLE_HEAD = /^drop\s+table\s+(?:if\s+exists\s+)?/i;
+const SQL_RENAME_TO_CLAUSE = /^\s+rename\s+to\s+/i;
 const SQL_CREATE_POLICY_HEAD = /^create\s+(?:or\s+replace\s+)?policy\s+/i;
 const SQL_RLS_TOGGLE_PATTERN = /\b(enable|disable)\s+row\s+level\s+security\b/gi;
 const SQL_PLAIN_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_$]*$/;
@@ -6739,7 +6761,8 @@ function compareMigrationPaths(left: string, right: string): number {
 /**
  * Blank comments, string literal bodies and dollar-quoted bodies to spaces, keeping every offset
  * and line break, so statement positions still map to lines. `dynamic` is true when a blanked
- * string or body names an RLS statement: SQL Cejel cannot attribute to a table.
+ * string or body names an RLS statement, a DROP TABLE or a RENAME TO: SQL Cejel cannot attribute
+ * to a table.
  */
 function blankSqlNonCode(text: string): { code: string; dynamic: boolean } {
   const out = text.split('');
@@ -6750,7 +6773,10 @@ function blankSqlNonCode(text: string): { code: string; dynamic: boolean } {
     }
   };
   const noteBody = (from: number, to: number): void => {
-    if (RLS_STATEMENT_PHRASE_PATTERN.test(text.slice(from, to))) dynamic = true;
+    const body = text.slice(from, to);
+    if (RLS_STATEMENT_PHRASE_PATTERN.test(body) || SQL_TABLE_REMOVAL_PHRASE_PATTERN.test(body)) {
+      dynamic = true;
+    }
   };
   let index = 0;
   while (index < text.length) {
@@ -6939,8 +6965,24 @@ export function findUncoveredTenantTables(
     readonly order: number;
     readonly dir: string;
   }
+  // A DROP TABLE (`to` undefined) or an ALTER TABLE ... RENAME TO.
+  interface NameEvent {
+    readonly key: string;
+    readonly to?: string;
+    readonly order: number;
+    readonly dir: string;
+  }
+  interface TenantTable {
+    readonly key: string;
+    readonly segments: readonly string[];
+    readonly file: string;
+    readonly line: number;
+    readonly order: number;
+    readonly dir: string;
+  }
   const events: CoverageEvent[] = [];
-  const tenantTables = new Map<string, UncoveredTenantTable & { readonly order: number }>();
+  const nameEvents: NameEvent[] = [];
+  const tenantTables: TenantTable[] = [];
   let order = 0;
   const dataLayerFiles = repoFiles
     .filter((file) => DATA_LAYER_PATH_PATTERN.test(file))
@@ -6963,21 +7005,56 @@ export function findUncoveredTenantTables(
         const { segments, end } = readSqlTableName(statement.text, createTable[0].length);
         const open = statement.text.slice(end).search(/\S/);
         if (segments === null || open === -1 || statement.text[end + open] !== '(') continue;
-        const key = segments[segments.length - 1] as string;
-        if (!tenantTables.has(key) && sqlColumnListHasTenantColumn(statement.text, end + open)) {
-          tenantTables.set(key, {
-            name: segments.join('.'),
+        if (sqlColumnListHasTenantColumn(statement.text, end + open)) {
+          tenantTables.push({
+            key: segments[segments.length - 1] as string,
+            segments,
             file,
             line: lineAtOffset(contents, statement.start),
             order,
+            dir,
           });
+        }
+        continue;
+      }
+      const dropTable = SQL_DROP_TABLE_HEAD.exec(statement.text);
+      if (dropTable) {
+        let cursor = dropTable[0].length;
+        for (;;) {
+          const { segments, end } = readSqlTableName(statement.text, cursor);
+          if (segments === null) return [];
+          nameEvents.push({ key: segments[segments.length - 1] as string, order, dir });
+          const comma = /^\s*,/.exec(statement.text.slice(end));
+          if (!comma) break;
+          cursor = end + comma[0].length;
         }
         continue;
       }
       const alterTable = SQL_ALTER_TABLE_HEAD.exec(statement.text);
       if (alterTable) {
+        const { segments: renamed, end: renamedEnd } = readSqlTableName(
+          statement.text,
+          alterTable[0].length,
+        );
+        const renameTo =
+          renamed === null ? null : SQL_RENAME_TO_CLAUSE.exec(statement.text.slice(renamedEnd));
+        if (renamed !== null && renameTo) {
+          const { segments: to } = readSqlTableName(statement.text, renamedEnd + renameTo[0].length);
+          if (to === null) return [];
+          nameEvents.push({
+            key: renamed[renamed.length - 1] as string,
+            to: to[to.length - 1] as string,
+            order,
+            dir,
+          });
+          continue;
+        }
         const toggles = [...statement.text.matchAll(SQL_RLS_TOGGLE_PATTERN)];
-        if (toggles.length === 0) continue;
+        if (toggles.length === 0) {
+          // A RENAME TO on a table Cejel cannot name may have moved any table.
+          if (SQL_TABLE_REMOVAL_PHRASE_PATTERN.test(statement.text)) return [];
+          continue;
+        }
         const { segments } = readSqlTableName(statement.text, alterTable[0].length);
         if (segments === null) return [];
         const key = segments[segments.length - 1] as string;
@@ -7002,8 +7079,45 @@ export function findUncoveredTenantTables(
   }
   // T-1: row-level security is this repository's own mechanism.
   if (!events.some((event) => event.covers)) return [];
-  const isCovered = (key: string): boolean => {
-    const forTable = events.filter((event) => event.key === key);
+  // The names a table has held, each with the statement positions it held it between, or null
+  // when the table may no longer exist: a later DROP in its directory, or any DROP or RENAME of
+  // one of its names in another directory, where there is no order to read.
+  interface NameSpan {
+    readonly key: string;
+    readonly from: number;
+    readonly until: number;
+  }
+  const followTable = (table: TenantTable): NameSpan[] | null => {
+    const spans: NameSpan[] = [];
+    let key = table.key;
+    let from = Number.NEGATIVE_INFINITY;
+    for (;;) {
+      const current = key;
+      if (nameEvents.some((event) => event.key === current && event.dir !== table.dir)) return null;
+      const next = nameEvents.find(
+        (event) => event.key === current && event.dir === table.dir && event.order > Math.max(from, table.order),
+      );
+      if (next === undefined) {
+        spans.push({ key, from, until: Number.POSITIVE_INFINITY });
+        return spans;
+      }
+      if (next.to === undefined) return null;
+      spans.push({ key, from, until: next.order });
+      key = next.to;
+      from = next.order;
+    }
+  };
+  // Coverage follows the table through a rename: an event counts when it names the table by the
+  // name it held at that point. An event in another directory has no order, so it counts under
+  // any of the table's names.
+  const isCovered = (table: TenantTable, spans: readonly NameSpan[]): boolean => {
+    const forTable = events.filter((event) =>
+      spans.some(
+        (span) =>
+          span.key === event.key &&
+          (event.dir !== table.dir || (event.order > span.from && event.order < span.until)),
+      ),
+    );
     const lastCover = forTable.filter((event) => event.covers).at(-1);
     const lastDisable = forTable.filter((event) => !event.covers).at(-1);
     if (lastCover === undefined) return false;
@@ -7012,9 +7126,20 @@ export function findUncoveredTenantTables(
     if (lastCover.dir !== lastDisable.dir) return true;
     return lastCover.order > lastDisable.order;
   };
-  return [...tenantTables.entries()]
-    .filter(([key]) => !isCovered(key))
-    .map(([, table]) => table)
+  const uncovered = new Map<string, UncoveredTenantTable & { readonly order: number }>();
+  for (const table of tenantTables) {
+    const spans = followTable(table);
+    const current = spans?.at(-1)?.key;
+    if (spans === null || current === undefined || uncovered.has(current)) continue;
+    if (isCovered(table, spans)) continue;
+    uncovered.set(current, {
+      name: [...table.segments.slice(0, -1), current].join('.'),
+      file: table.file,
+      line: table.line,
+      order: table.order,
+    });
+  }
+  return [...uncovered.values()]
     .sort((left, right) => left.order - right.order)
     .slice(0, MAX_UNCOVERED_TENANT_TABLES)
     .map(({ name, file, line }) => ({ name, file, line }));
@@ -7312,11 +7437,31 @@ function markdownClaimArtifactDeclarations(
   return declarations;
 }
 
+// A path a step writes is output, not a declaration of a file the repository should hold. Every
+// token after the first of these on a line is a written path: a shell redirect (`>`, `>>`), `tee`,
+// or an output option (`-o`, `--out`, `--output`, and other `--out…` spellings). Read loosely on
+// purpose, because a written path wrongly read as declared is the reading that fires more.
+const WORKFLOW_WRITE_OPERATOR_PATTERN = />|(?:^|[\s|;&(])(?:tee|-o|--out[\w-]*)(?=[\s=]|$)/;
+// The artifact actions' `path:` is what the step uploads or downloads, so the whole step declares
+// nothing. Any version or sub-action.
+const WORKFLOW_ARTIFACT_ACTION_PATTERN =
+  /^\s*(?:-\s+)?uses\s*:\s*["']?actions\/(?:upload|download)-artifact(?:[/@]|["']?\s*$)/i;
+
 function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDeclaration[] {
   // A step that may run elsewhere than the repository root names a path Cejel cannot resolve.
   if (/^\s*(?:-\s+)?working-directory\s*:/m.test(contents)) return [];
   const declarations: ClaimArtifactDeclaration[] = [];
   let stepsIndent: number | null = null;
+  let stepItemIndent: number | null = null;
+  // One step's declarations, kept back until the step ends, because its `uses:` may follow them.
+  let step: { declarations: ClaimArtifactDeclaration[]; movesArtifact: boolean } | null = null;
+  // A write operator on a line that ends in `\` carries on to the continuation line.
+  let writeContinues = false;
+  const closeStep = (): void => {
+    if (step !== null && !step.movesArtifact) declarations.push(...step.declarations);
+    step = null;
+    writeContinues = false;
+  };
   contents.split(/\r?\n/).forEach((rawLine, index) => {
     const line = rawLine.replace(/(^|\s)#.*$/, '');
     if (line.trim() === '') return;
@@ -7325,35 +7470,57 @@ function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDecla
       stepsIndent !== null &&
       (indent < stepsIndent || (indent === stepsIndent && !line.trimStart().startsWith('- ')))
     ) {
+      closeStep();
       stepsIndent = null;
     }
     const stepsKey = /^(\s*)steps\s*:\s*$/.exec(line);
     if (stepsKey) {
+      closeStep();
       stepsIndent = stepsKey[1]?.length ?? 0;
+      stepItemIndent = null;
       return;
     }
     if (stepsIndent === null) return;
-    for (const token of line.split(/[\s'"`=,;:()[\]{}<>|&]+/)) {
+    if (line.trimStart().startsWith('- ') && (stepItemIndent === null || indent <= stepItemIndent)) {
+      closeStep();
+      stepItemIndent = indent;
+    }
+    step ??= { declarations: [], movesArtifact: false };
+    if (WORKFLOW_ARTIFACT_ACTION_PATTERN.test(line)) step.movesArtifact = true;
+    const writeAt = writeContinues ? 0 : line.search(WORKFLOW_WRITE_OPERATOR_PATTERN);
+    writeContinues = writeAt !== -1 && /\\\s*$/.test(line);
+    const read = writeAt === -1 ? line : line.slice(0, writeAt);
+    for (const token of read.split(/[\s'"`=,;:()[\]{}<>|&]+/)) {
       const path = normaliseDeclaredClaimArtifactPath(token.replace(/^\.\//, ''), '.');
-      if (path !== null) declarations.push({ candidates: [path], line: index + 1 });
+      if (path !== null) step.declarations.push({ candidates: [path], line: index + 1 });
     }
   });
+  closeStep();
   return declarations;
 }
 
+export interface ClaimArtifactDeclarationScan {
+  /** Whether the repository names any claim-reconciliation artifact, present or absent. */
+  readonly declared: boolean;
+  /** The first named artifact that is absent from the tree, if any. */
+  readonly firstAbsent?: DeclaredClaimArtifact;
+}
+
 /**
- * The first claim-reconciliation artifact this repository declares that is absent from its tree,
- * or undefined. "Absent" is checked against the tracked file list plus every path the walk
- * withheld from it, case-insensitively, so a file Cejel declined to read is never reported missing.
+ * Whether this repository names a claim-reconciliation artifact, and the first one it names that
+ * is absent from its tree. "Absent" is checked against the tracked file list plus every path the
+ * walk withheld from it, case-insensitively, so a file Cejel declined to read is never reported
+ * missing.
  */
-export function findDeclaredAbsentClaimArtifact(
+export function scanClaimArtifactDeclarations(
   repoPath: string,
   repoFiles: readonly string[],
-): DeclaredClaimArtifact | undefined {
+): ClaimArtifactDeclarationScan {
   const declaringFiles = repoFiles
     .filter((file) => isClaimArtifactDeclaringDocument(file) || isClaimArtifactDeclaringWorkflow(file))
     .sort();
-  if (declaringFiles.length === 0) return undefined;
+  let declared = false;
+  if (declaringFiles.length === 0) return { declared };
   const known = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)].map((path) =>
     path.toLowerCase(),
   );
@@ -7369,12 +7536,15 @@ export function findDeclaredAbsentClaimArtifact(
       ? workflowClaimArtifactDeclarations(contents)
       : markdownClaimArtifactDeclarations(file, contents);
     for (const declaration of declarations) {
+      declared = true;
       if (declaration.candidates.some(isPresent)) continue;
       const [path] = declaration.candidates;
-      if (path !== undefined) return { path, declaringFile: file, line: declaration.line };
+      if (path !== undefined) {
+        return { declared, firstAbsent: { path, declaringFile: file, line: declaration.line } };
+      }
     }
   }
-  return undefined;
+  return { declared };
 }
 
 function isCoverageConfig(repoPath: string, file: string): boolean {
