@@ -91,10 +91,12 @@ describe.each(RUBRICS)('workflow files read vs cited — %s', (rubric) => {
 });
 
 describe.each(RUBRICS)('root-only package scripts — %s', (rubric) => {
-  it('F3: names the 7 other package.json files on B3 ci_script_depth and A3 prod_readiness_primitives', () => {
+  it('F3: B3 ci_script_depth states the 7 declared workspace manifests it read; A3 prod_readiness_primitives names them as unread', () => {
     const { metric } = scan(F3_WORKSPACE_ROOT_WITHOUT_SCRIPTS, rubric);
+    // goal_cejel_v26_workspace_package_scripts_2026-10-14: F3 declares `workspaces`, so B3 now
+    // reads those packages' scripts and says how many. A3's metric component still reads the root.
     expect(metric('B3', 'ci_script_depth')?.presentation?.condition).toBe(
-      `${ROOT_ONLY}; 7 other package.json files present`,
+      'package scripts for this metric are read from the root package.json and 7 declared workspace package.json files',
     );
     expect(metric('A3', 'prod_readiness_primitives')?.presentation?.condition).toBe(
       `${ROOT_ONLY}; 7 other package.json files present`,

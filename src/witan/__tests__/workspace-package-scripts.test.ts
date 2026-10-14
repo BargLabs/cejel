@@ -66,9 +66,9 @@ function makeRepo(files: Readonly<Record<string, string>>): string {
     const fullPath = join(repo, path);
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, contents, 'utf8');
-    // -f: a tracked node_modules/ manifest must reach the index even under a global gitignore.
-    execFileSync('git', ['add', '-f', path], { cwd: repo });
   }
+  // -f: a tracked node_modules/ manifest must reach the index even under a global gitignore.
+  execFileSync('git', ['add', '-f', '-A', '.'], { cwd: repo });
   return repo;
 }
 
@@ -82,7 +82,7 @@ function scan(files: Readonly<Record<string, string>>, rubricVersion: string) {
   });
   const signal = (id: string) => (input.signals ?? []).find((s) => s.criterionId === id);
   return {
-    a3Finding: (summary: string) => signal('A3')?.findings.find((f) => f.summary === summary),
+    a3Finding: (summary: string) => signal('A3')?.findings?.find((f) => f.summary === summary),
     metric: (criterion: string, name: string) =>
       signal(criterion)?.metrics?.find((m) => m.name === name),
   };
@@ -178,6 +178,28 @@ describe('A3 build/typecheck finding reads declared workspace packages (v20+)', 
     ).a3Finding(MANIFEST_SUMMARY);
     expect(finding?.evidence?.label).toBe(
       'Deployable service manifest without a build or typecheck script (1 declared workspace package.json file read)',
+    );
+  });
+
+  it('past the 200-manifest read cap, an unread manifest is not an observed absence', () => {
+    // 201 declared packages; only the last in path order declares build, so the cap leaves it
+    // unread. A3 must not assert the absence; B3 states how many of how many it read.
+    const files: Record<string, string> = {
+      'package.json': ROOT_WITH_WORKSPACES_ARRAY(['packages/*']),
+      'src/main.js': SERVICE_ENTRYPOINT,
+      '.github/workflows/ci.yml': CI_WITHOUT_COMMANDS,
+    };
+    for (let index = 0; index < 200; index += 1) {
+      const name = `p${String(index).padStart(3, '0')}`;
+      files[`packages/${name}/package.json`] = PACKAGE_WITHOUT_BUILD(name);
+    }
+    files['packages/zz-last/package.json'] = PACKAGE_WITH_BUILD('zz-last');
+    const result = scan(files, WITAN_RUBRIC_VERSION_V25);
+    expect(result.a3Finding(MANIFEST_SUMMARY)).toBeUndefined();
+    const depth = result.metric('B3', 'ci_script_depth');
+    expect(depth?.value).toBe(0);
+    expect(depth?.presentation?.condition).toBe(
+      'package scripts for this metric are read from the root package.json and the first 200 of 201 declared workspace package.json files; 1 other package.json file present',
     );
   });
 
