@@ -19,11 +19,12 @@ import { WITAN_RUBRIC_VERSION } from '../schemas.js';
 
 // The declared-scope guard v23, v24 and v25 carry, applied to v26 from its first commit
 // (PENDING_cejel_v23_declared_scope_is_false_2026-09-11, #302). v26 is declared as v25's complete
-// closure — the v22 chain plus v25's inline health route — with nothing of its own yet. So the
-// rule here is stronger than v25's "wherever V22": every rubric-version comparison that names
-// WITAN_RUBRIC_VERSION_V25 must also name WITAN_RUBRIC_VERSION_V26, including v25's own gate.
-// A v26 item card that adds a v26-specific gate updates this file and the declaration together.
-// v26-v25-parity.test.ts is the measured half.
+// closure — the v22 chain plus v25's inline health route — plus one gate of its own, item 6
+// (docs/calibration/v26/ruling-item-6.md). So the rule here is stronger than v25's "wherever V22":
+// every rubric-version comparison that names WITAN_RUBRIC_VERSION_V25 must also name
+// WITAN_RUBRIC_VERSION_V26, including v25's own gate, and the only comparison naming V26 without
+// V25 is item 6's `usesV26SettlingEvidence`. A v26 item card that adds another v26-specific gate
+// updates this file and the declaration together. v26-v25-parity.test.ts is the measured half.
 
 const REPO_SIGNALS_SOURCE_PATH = fileURLToPath(new URL('../repo-signals.ts', import.meta.url));
 const SCORING_SOURCE_PATH = fileURLToPath(new URL('../scoring.ts', import.meta.url));
@@ -33,8 +34,11 @@ const WITAN_SOURCE_DIR = fileURLToPath(new URL('..', import.meta.url));
 // Total occurrences of WITAN_RUBRIC_VERSION_V26 in repo-signals.ts: 1 import + 6 v22-chain
 // references (usesV17DetectorClosure, usesV18NativeRls, usesV19CommitYear, usesV20A3ExplicitGaps,
 // usesV21ExecutedEscalations, usesV22PackageStartEntrypoint) + 1 in usesV25InlineHealthRoute
-// + 1 prose reference in that gate's comment = 9.
-const EXPECTED_REPO_SIGNALS_V26_REFERENCES = 9;
+// + 1 prose reference in that gate's comment + 1 in item 6's usesV26SettlingEvidence = 10.
+const EXPECTED_REPO_SIGNALS_V26_REFERENCES = 10;
+
+// The one v26-only gate, item 6. Its comparison is the only V26 comparison with no V25 beside it.
+const V26_ITEM_6_GATE = 'const usesV26SettlingEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;';
 
 // scoring.ts: 1 import + the 4 v22 allowlists (usesV17DetectorClosure, the signal-adjustment
 // status gate, usesMetricScoring, the synthesized-finding gate) = 5. No v26-specific gate.
@@ -68,18 +72,23 @@ describe('v26 declared scope', () => {
     expect(WITAN_RUBRIC_VERSION).not.toBe(WITAN_RUBRIC_VERSION_V26);
   });
 
-  it('every src/witan file compares against V26 wherever it compares against V25', () => {
+  it('every src/witan file compares against V26 wherever it compares against V25, plus item 6 alone', () => {
     const mismatched: string[] = [];
     let v25Sites = 0;
     for (const path of witanSourceFiles()) {
       const source = readFileSync(path, 'utf8');
       const v25 = (source.match(V25_COMPARISON) ?? []).length;
       const v26 = (source.match(V26_COMPARISON) ?? []).length;
+      const item6 = source.split(V26_ITEM_6_GATE).length - 1;
       v25Sites += v25;
-      if (v25 !== v26) {
-        mismatched.push(`${relative(WITAN_SOURCE_DIR, path)}: ${v25} v25 vs ${v26} v26`);
+      if (v25 !== v26 - item6) {
+        mismatched.push(`${relative(WITAN_SOURCE_DIR, path)}: ${v25} v25 vs ${v26} v26 (${item6} item 6)`);
       }
     }
+    expect(
+      readFileSync(REPO_SIGNALS_SOURCE_PATH, 'utf8').split(V26_ITEM_6_GATE).length - 1,
+      'item 6 is gated on WITAN_RUBRIC_VERSION_V26 alone, exactly once, in repo-signals.ts',
+    ).toBe(1);
     expect(
       mismatched,
       'a rubric-version comparison names WITAN_RUBRIC_VERSION_V25 without a matching ' +
@@ -140,6 +149,8 @@ describe('v26 declared scope', () => {
     );
     expect(v26Block).not.toBe('');
     expect(v26Block).toContain("inherits v25's complete closure");
+    expect(v26Block).toContain('usesV26SettlingEvidence');
+    expect(v26Block).toContain('docs/calibration/v26/ruling-item-6.md');
     expect(v26Block).toContain('V26 does NOT inherit v23 or v24');
     expect(v26Block).toContain('next calibration');
     expect(v26Block).toContain('The public default remains v17');

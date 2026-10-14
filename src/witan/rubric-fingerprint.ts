@@ -235,11 +235,11 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
     'sha256:323fca138becf8a0738dd81023101e87ec341a7083ad9797b8cee5581e342ff0',
   [WITAN_RUBRIC_VERSION_V25]:
     'sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3',
-  // Equal to v25's, and measured equal: v26 is declared as v25's complete closure, and the digest
-  // excludes the rubric identifier by design (see projectWitanScoringSurface). The first v26 item
-  // change moves it.
+  // v25's closure plus v26 item 6 (docs/calibration/v26/ruling-item-6.md): only the A5 component
+  // differs from v25's, because the corpus holds no declared claim-reconciliation artifact, so the
+  // v25 A5 finding no longer fires on it. A2 does not move on this corpus.
   [WITAN_RUBRIC_VERSION_V26]:
-    'sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3',
+    'sha256:b157f45f873973cdd296199b13dc464727e2c72dc58d56eddf740e061d9f0ca8',
 });
 
 /**
