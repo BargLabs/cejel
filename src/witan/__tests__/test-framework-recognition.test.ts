@@ -110,7 +110,7 @@ describe('Swift XCTest assertions', () => {
     ['in a line comment', '// XCTAssertEqual(count([1, 2]), 2)'],
     ['in a nested block comment', '/* outer /* inner */ XCTAssertEqual(count([1, 2]), 2) */'],
     ['in a string literal', 'let note = "XCTAssertEqual(count([1, 2]), 2)"'],
-    ['in a multi-line string literal', 'let note = """\n        a "quoted" word, then XCTAssertEqual(count([1, 2]), 2)\n        """'],
+    ['in a multi-line string literal', 'let note = """\n        a lone " quote, then XCTAssertEqual(count([1, 2]), 2)\n        """'],
   ])('near-miss: the idiom only %s stays hollow', (_where, body) => {
     expect(swift(swiftCase(body))).toBe(0);
   });
@@ -157,7 +157,7 @@ describe('ScalaTest assertions and matchers', () => {
   it.each([
     ['in a line comment', '// Inventory.count(Seq(1, 2)) shouldBe 2'],
     ['in a string literal', 'val note = "Inventory.count(Seq(1, 2)) shouldBe 2"'],
-    ['in a triple-quoted string', 'val note = """a "quoted" word, then x shouldBe 2"""'],
+    ['in a triple-quoted string', 'val note = """a lone " quote, then x shouldBe 2"""'],
   ])('near-miss: the matcher only %s stays hollow', (_where, body) => {
     expect(scala(suite(body, matchers))).toBe(0);
   });
@@ -180,7 +180,7 @@ describe('Kotest matchers', () => {
   it.each([
     ['in a line comment', '// count(listOf(1, 2)) shouldBe 2'],
     ['in a string literal', 'println("expected: count shouldBe 2")'],
-    ['in a raw string', 'val note = """count(listOf(1, 2)) shouldBe 2"""'],
+    ['in a raw string', 'val note = """a lone " quote, then count(listOf(1, 2)) shouldBe 2"""'],
   ])('near-miss: the matcher only %s stays hollow', (_where, body) => {
     expect(kotlin(spec(body))).toBe(0);
   });
