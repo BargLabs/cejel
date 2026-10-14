@@ -129,11 +129,26 @@ describe('the disclosure moves no score', () => {
     [WITAN_RUBRIC_VERSION_V23]: '721de1bcd175bb7e8b2d51df8247886430d2df34ddfc9c0458854062420d5cf8',
     [WITAN_RUBRIC_VERSION_V25]: '6f75c0375e8d8f7b7f9192648f68f7c2e1b0d75e2702b039739ecf3979800c5b',
   };
+  // Re-pinned 2026-10-14 (goal_cejel_v26_workspace_package_scripts_2026-10-14): the behaviour
+  // corpus gained a specimen, so every fingerprint moved. F2 declares no workspace; restoring only
+  // the previous fingerprint recovers each previous pin (F2_PRE_WORKSPACE_PINS) byte for byte.
   const F2_PINS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: '61181547342c5722b8bebd2ab28d098ede319806c9afc60cbee61417e220d432',
+    [WITAN_RUBRIC_VERSION_V22]: '7541c3094a15c85a3b0d464ceaf70e309665757dac6348a42712a96d1de8aa0c',
+    [WITAN_RUBRIC_VERSION_V23]: '99add7fb224a9c65e1e63afae71f6aba1340b7fea732817b26dd15e3f4a674f2',
+    [WITAN_RUBRIC_VERSION_V25]: '5d3de808b38ba29f6438244502f75641e6f4262f50f5a49e009df3306e340833',
+  };
+  const F2_PRE_WORKSPACE_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: '2e5b2a1160a6ec34267c04baa74e592e09e859e1bdea050bdc73ba22b37099b8',
     [WITAN_RUBRIC_VERSION_V22]: '280ea620c113013ff2dffbdcd2ff0475b2b081ac01454093f02619eafb331c1c',
     [WITAN_RUBRIC_VERSION_V23]: '855e4b3a39b4991155650fb9b88c60c91846925360bbec111419609d49010dab',
     [WITAN_RUBRIC_VERSION_V25]: 'db6a8fba79cae342f074c7c08e5a44bf44e1d5afcc92b2a0adca9faf4fd875a2',
+  };
+  const F2_PRE_WORKSPACE_FINGERPRINTS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
+    [WITAN_RUBRIC_VERSION_V22]: 'sha256:ac4db093dc7c37369579b49ccd7855d36eec49d9f52136964251ee7bbd69e101',
+    [WITAN_RUBRIC_VERSION_V23]: 'sha256:7d48de4ac8ef3233e7ef8f4d4312830bf76294485e9766a47a671cd5440676aa',
+    [WITAN_RUBRIC_VERSION_V25]: 'sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019',
   };
   const F2_PRE_FIX_FINGERPRINTS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: 'sha256:d621dcbbd44a47b2272417e85c9b60d0116471ce2833679728bcf1cef159bf23',
@@ -152,6 +167,9 @@ describe('the disclosure moves no score', () => {
     expect(createHash('sha256').update(JSON.stringify(report)).digest('hex')).toBe(
       F2_PINS[rubricVersion],
     );
+    const preWorkspace = { ...report, rubricBehaviourFingerprint: F2_PRE_WORKSPACE_FINGERPRINTS[rubricVersion] };
+    expect(createHash('sha256').update(JSON.stringify(preWorkspace)).digest('hex'))
+      .toBe(F2_PRE_WORKSPACE_PINS[rubricVersion]);
     // Preserve #467's byte guard: restoring only the pre-fix fingerprint recovers its pin.
     const restored = { ...report, rubricBehaviourFingerprint: F2_PRE_FIX_FINGERPRINTS[rubricVersion] };
     expect(createHash('sha256').update(JSON.stringify(restored)).digest('hex'))

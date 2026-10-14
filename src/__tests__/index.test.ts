@@ -460,14 +460,27 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // Re-pinned for 0.6.4: only the version bump reaches this fixture beyond the 2026-10-12 and
     // #427/#430 re-pins below. Setting toolVersion back to "0.6.3" in place reproduces the
     // pre-0.6.4 pin (bedd993c...) byte for byte, and the restorations below start from it.
+    // Re-pinned 2026-10-14 (goal_cejel_v26_workspace_package_scripts_2026-10-14): B3 reads declared
+    // workspace package scripts and the behaviour corpus gained a specimen, so v17's fingerprint
+    // moved. This fixture declares no workspace. Restoring the previous v17 fingerprint in place
+    // reproduces the 0.6.4 pin (2e83163b...) byte for byte, and the restorations below start from it.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '2e83163b1768123c7b10fbb995120a5853ad6acbb504edd26ae8dace5e9ef034',
+      'c8ac3f0ab1bcba2514cf2771e001f1a154ead35f08e75f7f36ac307dd4a497e2',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
+      'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.4');
-    const at063 = { ...firstReport, toolVersion: '0.6.3' } as typeof firstReport;
+    const atPreWorkspaceScripts = {
+      ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
+    } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreWorkspaceScripts, null, 2)).digest('hex'),
+      'the pre-2026-10-14 report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
+    ).toBe('2e83163b1768123c7b10fbb995120a5853ad6acbb504edd26ae8dace5e9ef034');
+    const at063 = { ...atPreWorkspaceScripts, toolVersion: '0.6.3' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at063, null, 2)).digest('hex'),
       'the 0.6.3 report bytes must be recoverable by resetting exactly the toolVersion field',
