@@ -116,9 +116,11 @@ describe('v24 declared scope', () => {
     // V23's declaration states that its four mechanisms are gated on WITAN_RUBRIC_VERSION_V23
     // ALONE and that mechanism 4 is not inheritable. v24 is a v22 descendant precisely so that
     // statement stays true; if a future change makes v24 inherit them, that declaration has to be
-    // rewritten in the same commit rather than silently falsified.
+    // rewritten in the same commit rather than silently falsified. Mechanism 1's command-flag
+    // recognition itself now runs under every rubric (goal_cejel_v26_coverage_config_recognition_
+    // 2026-10-14, declared in V23's comment); its marker below is the part that stays v23-only.
     for (const marker of [
-      'const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
+      'const usesV23StrictCoverageAndRecipeRunners = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
       'const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
       'if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {',
       'const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;',

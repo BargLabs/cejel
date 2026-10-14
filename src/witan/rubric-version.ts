@@ -69,8 +69,15 @@ export const WITAN_RUBRIC_VERSION_V22 = 'witan-rubric-v22-prospective-2026-08-10
 // Prospective free-core v23 rubric. V23 inherits v22 detector/scoring behavior and adds four
 // v23-specific mechanisms, gated in src/witan/repo-signals.ts on WITAN_RUBRIC_VERSION_V23 alone
 // (not part of the v18-v22 inheritance chains): (1) bounded recognition of coverage-capable
-// test-runner flags on commands reachable from a test entry point (`usesV23CommandCoverage`);
-// (2) recognition of PEM-formatted private-key assignments as a dedicated secret grammar
+// test-runner flags on commands reachable from a test entry point. Since 2026-10-14
+// (goal_cejel_v26_coverage_config_recognition_2026-10-14) that recognition and its
+// unresolved-reachability abstention are no longer v23-only: they ship under every selectable
+// rubric as a recognition fix, added to the v17 heuristics there. What stays v23-only
+// (`usesV23StrictCoverageAndRecipeRunners`) is the part that could assert a finding rather than
+// withdraw one: v23 replaces those heuristics instead of adding to them, and counts a Make/just
+// `test:` recipe as a configured test runner. Extending it changed nothing under v23; the
+// documented coverage locations and runner flags added the same day apply to v23 as to every
+// rubric; (2) recognition of PEM-formatted private-key assignments as a dedicated secret grammar
 // (`usesV23PemPrivateKeyGrammar`); (3) per-signal, rather than whole-criterion, abstention
 // when repository content can't be read — a semantics change to what a non-finding means, not a
 // detector addition; and (4) withheld-path abstention (`usesV23WithheldPathAbstention`): a file

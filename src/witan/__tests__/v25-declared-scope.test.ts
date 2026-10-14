@@ -108,7 +108,7 @@ describe('v25 declared scope', () => {
   it('does not extend any v23-specific or v24-specific gate to v25', () => {
     const source = readFileSync(REPO_SIGNALS_SOURCE_PATH, 'utf8');
     for (const marker of [
-      'const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
+      'const usesV23StrictCoverageAndRecipeRunners = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
       'const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
       'if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {',
       'const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;',

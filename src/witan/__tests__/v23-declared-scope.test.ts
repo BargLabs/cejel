@@ -38,13 +38,16 @@ function readRepoSignalsSource(): string {
 // (v17, v22, every other rubric) or only the specific signal(s) it affects (v23 only) — a
 // semantics change to what a non-finding means, and the one of the three least visible in a
 // plain read of the file.
+// Since 2026-10-14 (goal_cejel_v26_coverage_config_recognition_2026-10-14) mechanism 1's
+// command-flag recognition runs under every rubric; its marker is now the part that stays
+// v23-only — replacing, not adding to, the v17 coverage heuristics, and recipe-runner credit.
 // Mechanism 4 (withheld-path abstention) has the same bare-equality shape as mechanisms 1 and 2.
 // It is v23-only for a reason worth restating here: it attributes a skip for a file the
 // repository walk deleted from repoFiles, and only mechanism 3 can attach that skip to the single
 // signal that would have read the file. On any other rubric the same attribution would route
 // through the wholesale-wipe branch and abstain a whole criterion over one oversized file.
 const KNOWN_V23_SPECIFIC_MARKERS = [
-  'const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
+  'const usesV23StrictCoverageAndRecipeRunners = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
   'const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
   'if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {',
   'const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
