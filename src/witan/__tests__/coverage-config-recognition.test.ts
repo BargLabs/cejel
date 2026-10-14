@@ -310,6 +310,14 @@ describe('item 2 — documented configuration locations', () => {
         'vite.config.ts': viteConfig("{\n    environment: 'node',\n    // coverage: { provider: 'v8' },\n  }"),
       });
     });
+    it('near-miss: coverage inside a multi-line block comment', () => {
+      // The line-comment case above never reaches comment stripping: the property pattern already
+      // refuses a line that starts with `//`. A block comment with `coverage:` on its own line does.
+      expectAbsence({
+        ...jsBase(),
+        'vite.config.ts': viteConfig("{\n    environment: 'node',\n    /*\n    coverage: { provider: 'v8' },\n    */\n  }"),
+      });
+    });
     it('near-miss: a coverage key outside the test block', () => {
       expectAbsence({
         ...jsBase(),
