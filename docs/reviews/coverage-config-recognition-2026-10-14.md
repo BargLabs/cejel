@@ -205,4 +205,51 @@ how each previous pin is recovered:
 
 ## Verification
 
-Filled in at the end of the run; see the PR body.
+On the final tree:
+- `pnpm typecheck` was clean, and `pnpm build` succeeded.
+- Full `pnpm test`: 120 files, 2,241 tests passed. That includes the offline-boundary guard
+  ("finds no structural offline-boundary violations in scoring source").
+
+Before the re-pins, the full suite had exactly 14 failures, all of them expected pin or identity
+movements:
+- the 4 v17 golden hashes;
+- the CLI byte pin;
+- the 4 F2 hashes;
+- the 2 v17/v22 byte-stability captures;
+- the 2 derivation-emission pattern-set assertions;
+- the changelog citation check.
+
+At that point, every measured-versus-pinned fingerprint check already passed against the new pins.
+
+The lesson seed passed the repository's staged-seed validator in the pre-commit hook.
+
+**Not run here:** the preregistered public before-and-after, and the operator's private
+labelled-case check. Both belong to the release that carries this change.
+
+## Notes for review
+
+- **The first v23 test changed by necessity.** Its v22 half pinned the gate this card removes; see
+  "Red first".
+- **`complete-node-service` moves.** It is the one existing specimen that moves, against the
+  card's expectation; see "Behaviour corpus".
+- **A1 reads a few more files under v17.** Every rubric now reads:
+  - shell wrappers a test script calls;
+  - justfiles;
+  - `setup.cfg`, `vite.config`, `pom.xml` and `build.gradle`.
+  Outside v23, an attributed content-read skip abstains the whole criterion. So a file that turns
+  unreadable between inventory and read can now abstain A1 where it did not before. That failure
+  mode is an abstention, not an assertion, and was not observed.
+
+## Lesson
+
+Staged as `PENDING_cejel_existing_fixture_carries_the_fixed_defect_2026-10-14.json`:
+
+- **Check existing fixtures for the defect before promising they won't move.** Search them for the
+  exact shape the fix removes first. Here an existing specimen and an existing test both carried
+  it, so both had to move.
+- **Add the stricter detector to the looser one; don't replace it.** When a stricter detector is
+  extended to rubrics that carry a looser one, replacing the looser rules narrows recognition and
+  creates new false absences.
+
+#479's lesson recurred here. A guard-deletion fixture must reach the guard: the vite line-comment
+near-miss was stopped by the property pattern's own anchoring before it reached comment stripping.
