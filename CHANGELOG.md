@@ -21,9 +21,34 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **New prospective rubric `witan-rubric-v26-prospective-2026-10-14`, explicit opt-in only**
   (`--rubric-pin`; the public default stays v17). It is the next calibration candidate: v25's
   complete closure (the v22 chain plus v25's inline health-route credit), without v23's or v24's
-  mechanisms. It adds no scoring change of its own yet and scores every behaviour-corpus specimen
-  exactly as v25 does, so its behaviour fingerprint equals v25's. No precision or recall claim; no
-  public paired rescore has run. Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
+  mechanisms, plus one change of its own, item 6, below. No precision or recall claim; no public
+  paired rescore has run. Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
+- **v26 item 6: A5's no-reconciliation finding and A2's tenant-without-RLS finding fire only on the
+  evidence that settles them** (under `witan-rubric-v26-prospective-2026-10-14` alone, from the
+  operator-signed ruling `docs/calibration/v26/ruling-item-6.md` and its amendment 1,
+  `docs/calibration/v26/ruling-item-6-amendment-1.md`). A5 fires only when the
+  repository itself names a claim-reconciliation artifact (a link or code-span path in the README,
+  a top-level doc or `CONTRIBUTING.md`, or a path in a GitHub Actions workflow step) that is absent
+  from its tree, and cites the declaring line. A path a workflow step writes (after `>`, `>>`,
+  `tee`, `-o` or `--out…`) or uploads (`actions/upload-artifact`) names nothing. A2 fires only when
+  the repository's own SQL enables
+  row-level security or creates a policy somewhere, and a `CREATE TABLE` with a tenant column names
+  a table that no `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY ... ON` covers (a later `DISABLE`
+  uncovers it); it names the table and cites its `CREATE TABLE` line. A table a later migration
+  drops is not named, and a renamed table is named by its new name with its coverage carried over.
+  Otherwise each abstains: no
+  finding, and one sentence in the certificate's "What was not established". Under v26, A2 fires on
+  a disjoint set of repositories from v17's, which fires only when no policy exists at all. Under
+  amendment 1, when no Cejel-format artifact is present and none is named, A5's
+  `reconciliation_artifact_depth` is omitted and A5's other two metrics carry its score at their
+  declared relative weights. Every other metric is unchanged, and no status rule changes. On the
+  behaviour corpus no specimen's A5 status differs from v25's; without the amendment, 11 of 22
+  went from `warning` to `critical`. **Report format:** no new field. Under v26 the abstention
+  sentence travels in the existing A2 and A5 criterion `notes`, and where amendment 1 applies A5's
+  `metrics` array has two entries, so v26 `report.json` and certificate bytes change; v17 through
+  v25 reports are byte-identical. v26's behaviour fingerprint moves (the A5 component and the
+  report components of the specimens whose composite scores move) and v25 and v26 no longer
+  collide.
 
 ### Fixed
 

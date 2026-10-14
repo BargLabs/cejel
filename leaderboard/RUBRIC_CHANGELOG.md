@@ -22,6 +22,107 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only, and A5 does not score the absence of Cejel's own format (v26 alone); no repository moved
+
+**Status.** The one change `witan-rubric-v26-prospective-2026-10-14` makes of its own, implemented
+from the operator-signed ruling `docs/calibration/v26/ruling-item-6.md` and its operator-signed
+amendment 1 (`docs/calibration/v26/ruling-item-6-amendment-1.md`). Gated on v26 alone: v17 through
+v25 are byte-identical before and after. v26 is explicit opt-in only and the public board is scored
+under v17, so no published score, verdict or rank moves: no repository moved. **No public paired
+rescore has run, and this entry makes no precision or recall claim.**
+
+**The change.** Both findings claim something about the world, and a missing file does not settle
+either.
+- **A5, "no dedicated claim-reality reconciliation artifact".** Under v26 it fires only when the
+  repository itself names a claim-reconciliation artifact and that path is absent from its tree
+  (S-A5). The name may appear as a relative link or code-span path in the README, a top-level
+  `docs/` page or `CONTRIBUTING.md`, or as a path in a GitHub Actions workflow step. Its basename
+  must be `claim` or `claims` with `reconciliation`, `register` or `ledger`, and an optional
+  `reality` between. The finding names the path and cites the declaring line. A present
+  Cejel-format artifact is unchanged: evidence and `reconciliation_artifact_depth` credit as before.
+  A path a workflow step writes or uploads is that step's output, not a declaration: a path after
+  `>`, `>>`, `tee`, `-o` or an `--out…` option on its line (or on a `\` continuation of that line),
+  and anything in an `actions/upload-artifact` or `actions/download-artifact` step, declares
+  nothing. A step that only reads the path still declares it.
+- **A2, "tenant-scoped schema without row-level-security policies".** Under v26 it fires only when
+  all three hold: the data layer's SQL contains an `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY`
+  statement (T-1); a `CREATE TABLE` defines a tenant column under a readable name (T-2); and no
+  `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY ... ON` names that table, a later `DISABLE`
+  counting as uncovered (T-3). It names the table and cites its `CREATE TABLE` line. A table a
+  later migration in the same directory drops (`DROP TABLE`, with or without `IF EXISTS` or a
+  schema) is no longer a candidate. A table a later `ALTER TABLE ... RENAME TO` renames keeps its
+  coverage history and is named by its new name. Across directories there is no readable order, so
+  a `DROP` or `RENAME TO` of the table there means it is not named. A `DROP` or `RENAME TO` whose
+  name cannot be read, or one inside a string or dollar-quoted body, abstains on every table.
+- **Otherwise each abstains:** no finding, and the ruling's sentence in the certificate's "What was
+  not established". The abstention is never criterion-level `insufficient_data`.
+
+**Metrics.** Under v26, amendment 1 applies the same principle to A5's
+`reconciliation_artifact_depth`. When no Cejel-format artifact is present and the repository names
+no claim-reconciliation artifact, the metric is not scored: it is omitted, and `claim_match_rate`
+(0.5) and `claim_source_depth` (0.35) carry A5's score at those relative weights. The disclosure
+sentence already says why, and the certificate adds nothing else. When the repository names an
+artifact (absent or present), or a Cejel-format artifact is present, the metric is scored as before.
+Every other metric is unchanged, including `rls_policy_count` and `tenant_scope_ratio`. ADR-0020's
+general metric-class question stays open for every other metric and rubric.
+
+**Direction, stated plainly.** v17 through v25 fire A2 only when no policy exists at all. v26 fires
+only when policies exist and a tenant table lacks one. So under v26, A2 fires on a disjoint set of
+repositories from v17's. A5 under v26 fires on far fewer repositories: only those that declare an
+artifact they do not have. Where A5 abstains and names nothing, its score rises, because a 0 no
+longer counts against it.
+
+**Status rules are unchanged.** A5 has no calibrated status rule, so its status comes from its
+findings when it has one and from its score band when it does not. Without amendment 1, removing
+the v25 finding left an A5 score below 1.5 showing `critical` where v25 showed `warning`. With it,
+that score is computed without the absence of Cejel's format. On this corpus no specimen's A5
+status changes (table below). On a repository whose remaining A5 metrics still fall in the critical
+band, `critical` is reported as it is, because the score is speaking.
+
+**Measured on the behaviour corpus.** The corpus is unchanged at 22 specimens. The previous scanner
+is `origin/main` `52565fb9`, where v26 scores exactly as v25 does. Every behaviour fixture
+reproduced its committed head before anything was measured.
+- **v17 through v25:** every report is byte-identical before and after: 198 of 198 corpus reports
+  and 495 of 495 on the 55 synthetic fixtures.
+- **v26:** 15 specimens move. The 7 that do not are `minimal-source-no-process`,
+  `docs-only-repository`, `ava-live-assertions`, `public-digest-lookup`,
+  `coverage-config-setup-cfg`, `coverage-config-maven-jacoco` and `coverage-command-go-ci`, where A5
+  is not applicable or has insufficient data.
+- **On all 15:** the v25 A5 finding is gone, `reconciliation_artifact_depth` is omitted, A5's
+  status stays `warning`, and the verdict is unchanged. A5's score rises: 1.4 to 1.6 on 11, 1.7 to
+  2.0 on 1, and 1.9 to 2.2 on 3. Code trust rises 0.1 on 10, and the overall score rises 0.1 on 6.
+- **A2:** on 2 (`complete-node-service`, `privileged-migrations`, whose orders table is covered) A2
+  gains only the disclosure sentence in its notes.
+
+A5 status under v25 and under v26, on the 22 corpus specimens:
+
+| Measurement | More severe under v26 | Less severe under v26 | Unchanged |
+|---|---|---|---|
+| Item 6 without amendment 1 (#482's `f372ef1d` synced with `52565fb9`, as `47867b72`) | 11 (`warning` to `critical`) | 0 | 11 |
+| Item 6 with amendment 1 (this entry) | 0 | 0 | 22 |
+
+Measured fingerprints:
+
+| Rubric | Before (`52565fb9`) | After |
+|---|---|---|
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21` | unchanged |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21` | `sha256:e1fa40eb65bbfa777affea7951850b9d4c5302a08008a9af172f704f06621312` |
+
+v26's A5 component pin moved, as did the report components of the 10 specimens whose code-trust
+score moved. No other rubric's fingerprint or pin changed. v25 and v26 are no longer behaviourally
+identical on the behaviour corpus, so the fingerprint guard's declared collision is removed in this
+change. An earlier draft of this entry cited
+`sha256:b157f45f873973cdd296199b13dc464727e2c72dc58d56eddf740e061d9f0ca8`, measured on the 19-specimen
+corpus without amendment 1. It was never released and is superseded.
+
+**Report format.** No new `report.json` field. Under v26 the abstention sentence travels in the A2
+and A5 criterion `notes` every report already has, and the certificate lifts it from there. Where
+amendment 1 applies, A5's `metrics` array has two entries instead of three. v26 `report.json` and
+certificate bytes change.
+
+The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
+in `docs/reviews/v26-a5-a2-settling-evidence-2026-10-14.md`.
+
 ## 2026-10-14 — A1 coverage-configuration recognition (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under

@@ -17,6 +17,16 @@ export const WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY =
 export const WITAN_LEGACY_AUTHENTICATED_A1_ABSENCE_SUMMARY =
   'Reviewable source is present, but the complete tracked inventory contains no concrete test file, configured test runner, CI test command, or coverage configuration.';
 
+// v26 item 6 (docs/calibration/v26/ruling-item-6.md, operator-signed): when A5's no-reconciliation
+// finding or A2's tenant-without-RLS finding abstains because the repository's own bytes do not
+// settle it, the collector writes the exact sentence the ruling fixes into that criterion's
+// `notes`, and the certificate's "What was not established" section carries it. No new report.json
+// field: the sentence travels in the criterion `notes` every report already has.
+export const WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE =
+  "Whether this repository's claims are reconciled against its implementation cannot be settled from static evidence; Cejel makes no finding on it.";
+export const WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE =
+  'Whether tenant isolation is enforced outside the database cannot be settled from static evidence; Cejel makes no finding on it.';
+
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (
     report.verdict === 'insufficient_source' &&

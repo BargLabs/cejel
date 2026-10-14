@@ -1,4 +1,8 @@
 import {
+  WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+} from './abstention.js';
+import {
   LOW_CONFIDENCE_COVERAGE_THRESHOLD,
   type MeasuredCoverage,
   computeMeasuredCoverage,
@@ -882,6 +886,26 @@ function buildWithheldPathsGapSentence(report: WitanReport): string | undefined 
   );
 }
 
+// v26 item 6: a finding that abstained because the repository's own bytes do not settle it. The
+// collector writes the ruling's exact sentence into that criterion's notes; this lifts it into
+// "What was not established". The sentence is matched exactly and only on the criterion that owns
+// it, so no other rubric's certificate changes (their notes never carry it).
+const SETTLING_EVIDENCE_DISCLOSURES: ReadonlyArray<{ criterionId: string; sentence: string }> = [
+  { criterionId: 'A2', sentence: WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE },
+  { criterionId: 'A5', sentence: WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE },
+];
+
+function settlingEvidenceDisclosures(report: WitanReport): string[] {
+  return SETTLING_EVIDENCE_DISCLOSURES.filter(({ criterionId, sentence }) =>
+    report.criteria.some(
+      (criterion) =>
+        criterion.id === criterionId &&
+        criterion.status !== 'not_applicable' &&
+        criterion.notes?.includes(sentence) === true,
+    ),
+  ).map(({ sentence }) => sentence);
+}
+
 // Uses the same all-criterion denominators as the summary box (formatDimensionsMeasuredSentence),
 // then names the not-applicable remainder, so "2 of 5" in the box and "5 of 5 that apply" here
 // visibly add up instead of reading as a contradiction.
@@ -955,6 +979,7 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
       `${contentEntries(excludedByExtension, 'was', 'were')} not read because ${excludedByExtension === 1 ? 'its file type is' : 'their file types are'} outside what Cejel reads. This is a fixed limit of the tool, not something the repository needs to fix.`,
     );
   }
+  gaps.push(...settlingEvidenceDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {
     gaps.push(withheldPathsSentence);

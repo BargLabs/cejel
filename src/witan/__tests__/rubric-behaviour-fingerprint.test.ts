@@ -15,8 +15,6 @@ import {
 } from '../rubric-fingerprint.js';
 import {
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
-  WITAN_RUBRIC_VERSION_V25,
-  WITAN_RUBRIC_VERSION_V26,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import { WITAN_RUBRIC } from '../rubric.js';
@@ -74,15 +72,12 @@ const STRUCTURALLY_UNREACHABLE_CRITERIA = ['B1', 'B5'] as const;
 /**
  * Rubrics declared to score this corpus identically, by design, named rather than tolerated.
  *
- * v26 is declared as v25's complete closure with no change of its own until its item changes
- * land (see the V26 declaration in rubric-version.ts), so the two collide on purpose and
- * v26-v25-parity.test.ts asserts their reports equal outside `rubricVersion`. The collision check
- * below demands the measured collisions equal this list EXACTLY: the first v26 item change that
- * separates them fails it until this entry is removed, so the declaration cannot outlive its truth.
+ * Empty. v25 and v26 were declared identical until v26's first item change landed; v26 item 6
+ * (A5 and A2 tenant findings fire on settling evidence only) separated them on the corpus's A5
+ * component, so the declaration was removed in that change. The collision check below demands the
+ * measured collisions equal this list EXACTLY, so a declaration cannot outlive its truth.
  */
-const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [
-  [WITAN_RUBRIC_VERSION_V25, WITAN_RUBRIC_VERSION_V26],
-];
+const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [];
 
 const PINNED_COMPONENTS = JSON.parse(readFileSync(PINS_PATH, 'utf8')) as Record<
   string,

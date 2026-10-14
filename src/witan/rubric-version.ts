@@ -133,15 +133,23 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // Prospective v26 calibration-candidate rubric. V26 inherits v25's complete closure: the v22
 // chain (every v17-v22 inheritance gate in src/witan/repo-signals.ts and src/witan/scoring.ts)
 // plus v25's inline health route, the one v25-specific gate (`usesV25InlineHealthRoute`), which
-// is true for V25 and V26 and for no other rubric. It adds nothing of its own yet.
+// is true for V25 and V26 and for no other rubric.
 // It is the next calibration candidate V25's declaration anticipates. Recognition fixes
 // that remove a false
 // absence ship under every selectable rubric with no identifier bump, as #459, #427 and #430 did,
-// so v26 carries them through the closure it inherits rather than through gates of its own. The
-// one change planned under v26 alone is definitional: the A5 no-reconciliation and A2
-// tenant-without-RLS findings fire only on the evidence a signed ruling names, and otherwise
-// abstain with a disclosure. It is gated on V26 and measured against a v26 that scores exactly as
-// v25 does.
+// so v26 carries them through the closure it inherits rather than through gates of its own.
+//
+// V26 adds one change of its own, item 6, gated in src/witan/repo-signals.ts on
+// WITAN_RUBRIC_VERSION_V26 alone (`usesV26SettlingEvidence`) and specified by the operator-signed
+// ruling docs/calibration/v26/ruling-item-6.md. It is definitional: A5's "no dedicated claim-reality
+// reconciliation artifact" finding fires only when the repository itself names a
+// claim-reconciliation artifact that is absent, and A2's tenant-without-RLS finding fires only when
+// row-level security is the repository's own mechanism and an identifiable tenant table has none.
+// Otherwise each abstains: no finding, and the ruling's sentence in the certificate's "What was not
+// established". Amendment 1 (docs/calibration/v26/ruling-item-6-amendment-1.md, also
+// operator-signed) omits A5's reconciliation_artifact_depth when no Cejel-format artifact is
+// present and none is named; every other metric is unchanged. v26-v25-parity.test.ts measures v26
+// against v25 with only this difference.
 //
 // V26 does NOT inherit v23 or v24. Their mechanisms stay gated on WITAN_RUBRIC_VERSION_V23 and
 // WITAN_RUBRIC_VERSION_V24 alone, for the reason V24's and V25's declarations give; a v23
