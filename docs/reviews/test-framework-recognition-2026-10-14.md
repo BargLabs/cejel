@@ -174,6 +174,23 @@ Each moved pin is recovered by restoring only the previous fingerprint, asserted
 
 Every older recovery chain is unchanged.
 
+## Verification
+
+On the final tree:
+- `pnpm typecheck` is clean and `pnpm build` succeeds.
+- Full `pnpm test`: 2,669 tests passed, 0 failed. That includes the offline-boundary guard ("finds
+  no structural offline-boundary violations in scoring source"), and was run before the last
+  type-only edit to the new test's helper. The new file alone was then re-run: 75 of 75.
+
+Before the re-pins, the full suite had exactly 10 failures, all of them expected pin movements:
+- the 4 v17 golden hashes;
+- the CLI byte pin;
+- the 4 F2 hashes;
+- the changelog citation check.
+
+**Not run here:** the preregistered public before-and-after, and the operator's private
+labelled-case check. Both belong to the release that carries this change.
+
 ## Notes for review
 
 - **Naming narrowed:** see "Naming" above.
