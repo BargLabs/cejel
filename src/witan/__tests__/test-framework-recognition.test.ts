@@ -26,7 +26,9 @@ function share(files: Record<string, string>, rubricVersion?: string) {
     generatedAt: '2026-09-15T00:00:00.000Z',
     ...(rubricVersion ? { rubricVersion } : {}),
   }).signals ?? [];
-  return signals.find(c => c.criterionId === 'A1')?.metrics?.find(m => m.name === 'non_hollow_test_share')?.value;
+  const metric = signals.find(c => c.criterionId === 'A1')?.metrics?.find(m => m.name === 'non_hollow_test_share');
+  // value is the non-hollow file count and max the rated count (at least 1): the share is their ratio.
+  return metric ? metric.value / metric.max : undefined;
 }
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
