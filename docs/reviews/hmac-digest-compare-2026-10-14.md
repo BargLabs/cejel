@@ -162,6 +162,23 @@ Each moved pin is recovered by restoring only the previous fingerprint, asserted
 
 Every older recovery chain is unchanged.
 
+## Verification
+
+On the final tree (`339d8515`, with the temporary measurement harness deleted):
+- `pnpm typecheck` is clean and `pnpm build` succeeds.
+- Full `pnpm test`, CI's own test command: 123 files and 2,728 tests passed, 0 failed. That
+  includes the offline-boundary guard ("finds no structural offline-boundary violations in scoring
+  source"), and was re-run alone, 41 of 41.
+
+Before the re-pins, the moved pins failed exactly as expected:
+- the changelog citation check;
+- the 4 v17 golden hashes;
+- the CLI byte pin;
+- the 4 F2 hashes.
+
+**Not run here:** the preregistered public before-and-after, and the operator's private
+labelled-case check. Both belong to the release that carries this change.
+
 ## Notes for review
 
 - **Bindings ignore scope.** A same-named parameter in another function, after a keyed-HMAC
