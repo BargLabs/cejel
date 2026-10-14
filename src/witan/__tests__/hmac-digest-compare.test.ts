@@ -123,7 +123,7 @@ describe('the binding: only the identifier the keyed HMAC is assigned to', () =>
 
   it('the bound is one intermediate: a second hop is not followed', () => {
     expect(flaggedLine({
-      'src/webhook.js': "import { createHmac } from 'node:crypto';\n\nexport function verify(body, sig, key) {\n  const h = createHmac('sha256', key);\n  const raw = h.update(body).digest();\n  const digest = raw.toString('hex');\n  return digest === sig;\n}\n",
+      'src/webhook.js': "import { createHmac } from 'node:crypto';\n\nexport function verify(body, sig, key) {\n  const h = createHmac('sha256', key);\n  h.update(body);\n  const raw = h.digest();\n  const digest = raw.toString('hex');\n  return digest === sig;\n}\n",
     })).toBeNull();
   });
 
@@ -173,7 +173,7 @@ describe('comments and strings', () => {
       'src/webhook.js': "// const digest = createHmac('sha256', key).update(body).digest('hex');\nexport const verify = (digest, sig) => digest === sig;\n",
     })).toBeNull();
     expect(flaggedLine({
-      'src/webhook.js': "const doc = \"const digest = createHmac('sha256', key).update(body).digest('hex');\";\nexport const verify = (digest, sig) => digest === sig;\n",
+      'src/webhook.js': "const digest = \"createHmac('sha256', key).update(body).digest('hex')\";\nexport const verify = (sig) => digest === sig;\n",
     })).toBeNull();
   });
 
