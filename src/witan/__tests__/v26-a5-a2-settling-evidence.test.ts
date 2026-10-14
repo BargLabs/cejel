@@ -4,10 +4,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import type { WitanCriterionScore, WitanFinding, WitanReport } from '../schemas.js';
+import type {
+  WitanCriterionMetric,
+  WitanCriterionScore,
+  WitanFinding,
+  WitanReport,
+} from '../schemas.js';
 
 import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { scoreMetrics } from '../scoring.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V22,
@@ -18,8 +24,12 @@ import {
 } from '../rubric-version.js';
 import {
   A2_FIXTURES,
+  A2_NAME_FIXTURES,
   A5_DECLARED_LINK_LINE,
   A5_FIXTURES,
+  A5_READ_FIXTURES,
+  A5_WORKFLOW_STEP_LINE,
+  A5_WRITE_FIXTURES,
   INVOICES_CREATE_TABLE_LINE,
   SETTLING_EVIDENCE_FIXTURES,
   type SettlingEvidenceFixture,
@@ -34,9 +44,21 @@ import {
 //     identifiable from a CREATE TABLE statement, and no ENABLE or CREATE POLICY names it (a later
 //     DISABLE uncovers it).
 // Otherwise each abstains: no finding, and one sentence in the certificate's "What was not
-// established". Never criterion-level insufficient_data, and every metric is unchanged.
+// established". Never criterion-level insufficient_data. Every metric is unchanged but one:
+// amendment 1 (docs/calibration/v26/ruling-item-6-amendment-1.md) omits A5's
+// reconciliation_artifact_depth when no Cejel-format artifact is present and none is named.
+//
+// The revision (goal_cejel_v26_item6_revision_2026-10-14) adds amendment 1 and closes two
+// false-fire paths: an A2 tenant table a later migration drops or renames, and an A5 path a
+// workflow step writes or uploads.
 //
 // Synthetic fixtures only (fixtures/settling-evidence-fixtures.ts).
+
+// A5 scores on the shared base fixture (a README and one implementation file). Read from the
+// scorer, and checked against scoreMetrics where the metric set is what changed.
+const A5_NO_DECLARATION_V25_SCORE = 1.4;
+const A5_NO_DECLARATION_V26_SCORE = 1.6;
+const A5_CEJEL_FORMAT_SCORE = 1.6;
 
 const A5_DISCLOSURE =
   "Whether this repository's claims are reconciled against its implementation cannot be settled from static evidence; Cejel makes no finding on it.";
@@ -250,6 +272,160 @@ describe('A5 under v26: fires only when the repository names a claim-reconciliat
   }
 });
 
+// Amendment 1 (docs/calibration/v26/ruling-item-6-amendment-1.md): under v26, with no Cejel-format
+// artifact present and none named, reconciliation_artifact_depth is not scored, and the other A5
+// metrics carry the score at their declared relative weights. Named and absent, or present: as
+// before. A5's status rules are unchanged, so its status is whatever the score band says.
+const reconciliationDepth = (a5: WitanCriterionScore): WitanCriterionMetric | undefined =>
+  a5.metrics.find((metric) => metric.name === 'reconciliation_artifact_depth');
+const withoutWeightShares = (metrics: readonly WitanCriterionMetric[]) =>
+  metrics.map(({ appliedWeightShare: _share, ...rest }) => rest);
+
+describe('amendment 1: reconciliation_artifact_depth under v26', () => {
+  it('no Cejel-format artifact and none named: the metric is absent, the other two carry the score, and the disclosure is present', () => {
+    const v25 = criterion(report(A5_FIXTURES.noDeclaration, WITAN_RUBRIC_VERSION_V25), 'A5');
+    const v26 = criterion(report(A5_FIXTURES.noDeclaration, WITAN_RUBRIC_VERSION_V26), 'A5');
+    expect(reconciliationDepth(v25)?.value).toBe(0);
+    expect(reconciliationDepth(v26)).toBeUndefined();
+    expect(withoutWeightShares(v26.metrics)).toEqual(
+      withoutWeightShares(v25.metrics).filter((metric) => metric.name !== 'reconciliation_artifact_depth'),
+    );
+    expect(v26.metrics.map((metric) => [metric.name, metric.weight])).toEqual([
+      ['claim_match_rate', 0.5],
+      ['claim_source_depth', 0.35],
+    ]);
+    // Their declared relative weights: 0.5 and 0.35 of 0.85.
+    expect(v26.metrics[0]?.appliedWeightShare).toBeCloseTo(0.5 / 0.85, 12);
+    expect(v26.metrics[1]?.appliedWeightShare).toBeCloseTo(0.35 / 0.85, 12);
+    expect(v26.score).toBe(scoreMetrics(v26.metrics));
+    expect(v26.score).toBe(A5_NO_DECLARATION_V26_SCORE);
+    expect(v26.status).toBe('warning');
+    expect(v26.findings.map((finding) => [finding.severity, finding.summary])).toEqual([
+      [
+        'warning',
+        `A5 metric-derived score is ${A5_NO_DECLARATION_V26_SCORE.toFixed(1)}/4.0, in the warning band — no single finding drove this; it reflects the combined metric weighting below.`,
+      ],
+    ]);
+    expect(notEstablished(report(A5_FIXTURES.noDeclaration, WITAN_RUBRIC_VERSION_V26))).toContain(
+      A5_DISCLOSURE,
+    );
+    // v25 at the same fixture, for the record: the metric scores 0 and the finding holds A5 at warning.
+    expect(v25.score).toBe(A5_NO_DECLARATION_V25_SCORE);
+    expect(v25.status).toBe('warning');
+  });
+
+  it('named and absent (S-A5): the metric is scored at 0 beside the finding', () => {
+    const v25 = criterion(report(A5_FIXTURES.declaredLinkAbsent, WITAN_RUBRIC_VERSION_V25), 'A5');
+    const v26 = criterion(report(A5_FIXTURES.declaredLinkAbsent, WITAN_RUBRIC_VERSION_V26), 'A5');
+    expect(reconciliationDepth(v26)?.value).toBe(0);
+    expect(v26.metrics).toEqual(v25.metrics);
+    expect(v26.findings.map((finding) => finding.severity)).toEqual(['warning']);
+    expect(v26.findings.filter(isDeclaredArtifactFinding)).toHaveLength(1);
+    expect(v26.score).toBe(v25.score);
+    expect(v26.score).toBe(A5_NO_DECLARATION_V25_SCORE);
+    expect(v26.status).toBe('warning');
+    expect(notEstablished(report(A5_FIXTURES.declaredLinkAbsent, WITAN_RUBRIC_VERSION_V26))).not.toContain(
+      A5_DISCLOSURE,
+    );
+  });
+
+  it('a Cejel-format artifact present: the metric, score, status and findings are unchanged', () => {
+    const v25 = criterion(report(A5_FIXTURES.cejelFormatArtifact, WITAN_RUBRIC_VERSION_V25), 'A5');
+    const v26 = criterion(report(A5_FIXTURES.cejelFormatArtifact, WITAN_RUBRIC_VERSION_V26), 'A5');
+    expect(reconciliationDepth(v26)?.value).toBe(1);
+    expect(v26.metrics).toEqual(v25.metrics);
+    expect(v26.score).toBe(v25.score);
+    expect(v26.score).toBe(A5_CEJEL_FORMAT_SCORE);
+    expect(v26.status).toBe(v25.status);
+    expect(v26.findings).toEqual(v25.findings);
+  });
+
+  it('named and present, not in Cejel format: the metric is scored (the amendment omits it only when none is named)', () => {
+    const v25 = criterion(report(A5_FIXTURES.declaredLinkPresent, WITAN_RUBRIC_VERSION_V25), 'A5');
+    const v26 = criterion(report(A5_FIXTURES.declaredLinkPresent, WITAN_RUBRIC_VERSION_V26), 'A5');
+    expect(reconciliationDepth(v26)?.value).toBe(0);
+    expect(v26.metrics).toEqual(v25.metrics);
+    expect(v26.score).toBe(v25.score);
+  });
+});
+
+describe('A5 under v26: a path a workflow step writes or uploads declares nothing', () => {
+  for (const [label, fixture] of [
+    ['`> claims-register.json`', A5_WRITE_FIXTURES.redirect],
+    ['`>> claims-register.json`', A5_WRITE_FIXTURES.appendRedirect],
+    ['`| tee claims-register.json`', A5_WRITE_FIXTURES.tee],
+    ['`-o claims-register.json`', A5_WRITE_FIXTURES.shortOutputOption],
+    ['`--output claims-register.json`', A5_WRITE_FIXTURES.longOutputOption],
+    ['`--out=claims-register.json`', A5_WRITE_FIXTURES.outOption],
+    ['a `>` continued onto the next line', A5_WRITE_FIXTURES.continuedRedirect],
+    ['the `path:` of an actions/upload-artifact step', A5_WRITE_FIXTURES.uploadArtifact],
+    ['the `path:` of an actions/upload-artifact step whose `uses:` comes last', A5_WRITE_FIXTURES.uploadArtifactUsesLast],
+  ] as const) {
+    it(`${label}, the file absent: no finding, and the disclosure line`, () => {
+      const { declaredArtifact, noReconciliation } = a5Findings(fixture, WITAN_RUBRIC_VERSION_V26);
+      expect(declaredArtifact).toEqual([]);
+      expect(noReconciliation).toEqual([]);
+      expect(notEstablished(report(fixture, WITAN_RUBRIC_VERSION_V26))).toContain(A5_DISCLOSURE);
+    });
+  }
+
+  for (const [label, fixture, path] of [
+    ['`cat claims-register.json`', A5_READ_FIXTURES.catOnly, 'claims-register.json'],
+    ['a path read before a `>` on the same line', A5_READ_FIXTURES.readThenRedirect, 'claims-register.json'],
+    ['a read step followed by an upload-artifact step', A5_READ_FIXTURES.readAfterUpload, 'claims-register.json'],
+  ] as const) {
+    it(`a step that only reads the file, ${label}, the file absent: the finding fires`, () => {
+      const { declaredArtifact } = a5Findings(fixture, WITAN_RUBRIC_VERSION_V26);
+      expect(declaredArtifact).toHaveLength(1);
+      expect(declaredArtifact[0]?.summary).toContain(`\`${path}\``);
+      expect(declaredArtifact[0]?.evidence.path).toBe('.github/workflows/claims.yml');
+      expect(declaredArtifact[0]?.evidence.line).toBe(A5_WORKFLOW_STEP_LINE);
+    });
+  }
+});
+
+describe('A2 under v26: a tenant table that no longer exists under its CREATE TABLE name', () => {
+  for (const [label, fixture] of [
+    ['invoices created with tenant_id, then a later DROP TABLE invoices', A2_NAME_FIXTURES.dropped],
+    [
+      'invoices created with tenant_id, then a later DROP TABLE IF EXISTS public.invoices, … CASCADE',
+      A2_NAME_FIXTURES.droppedIfExistsQualified,
+    ],
+    ['invoices dropped by a DROP TABLE in another directory', A2_NAME_FIXTURES.droppedInAnotherDirectory],
+    ['invoices possibly dropped by dynamic SQL', A2_NAME_FIXTURES.droppedDynamically],
+    [
+      'invoices renamed to invoices_archive, the policy then on invoices_archive',
+      A2_NAME_FIXTURES.renamedCoveredUnderNewName,
+    ],
+    ['invoices covered, then renamed to invoices_archive', A2_NAME_FIXTURES.renamedAfterCoverage],
+    ['invoices renamed in another directory', A2_NAME_FIXTURES.renamedInAnotherDirectory],
+  ] as const) {
+    it(`${label}: no finding, and the disclosure line`, () => {
+      const { uncoveredTable, withoutAnyRls } = a2Findings(fixture, WITAN_RUBRIC_VERSION_V26);
+      expect(uncoveredTable).toEqual([]);
+      expect(withoutAnyRls).toEqual([]);
+      expect(notEstablished(report(fixture, WITAN_RUBRIC_VERSION_V26))).toContain(A2_DISCLOSURE);
+    });
+  }
+
+  it('a rename with no policy anywhere on the new name, and RLS used elsewhere: the finding names the new name', () => {
+    const { uncoveredTable } = a2Findings(A2_NAME_FIXTURES.renamedUncovered, WITAN_RUBRIC_VERSION_V26);
+    expect(uncoveredTable).toHaveLength(1);
+    const [finding] = uncoveredTable as [WitanFinding];
+    expect(finding.summary).toBe(
+      'Table `invoices_archive` carries a tenant column and no row-level-security policy, while this repository enforces tenant isolation with row-level security elsewhere.',
+    );
+    expect(finding.evidence.path).toBe('migrations/0002_invoices.sql');
+    expect(finding.evidence.line).toBe(INVOICES_CREATE_TABLE_LINE);
+  });
+
+  it('a DROP TABLE IF EXISTS before the CREATE TABLE in the same directory removes nothing: the finding fires', () => {
+    const { uncoveredTable } = a2Findings(A2_NAME_FIXTURES.droppedBeforeCreate, WITAN_RUBRIC_VERSION_V26);
+    expect(uncoveredTable).toHaveLength(1);
+    expect(uncoveredTable[0]?.summary).toContain('Table `invoices` carries');
+  });
+});
+
 describe('A2 under v26: fires only when RLS is the repository mechanism and an identifiable tenant table is uncovered', () => {
   it('RLS on orders, plus invoices with tenant_id and no policy: the finding names invoices and cites its CREATE TABLE line', () => {
     const { uncoveredTable, withoutAnyRls } = a2Findings(
@@ -380,12 +556,37 @@ describe('A2 under v26: fires only when RLS is the repository mechanism and an i
   });
 });
 
-describe('every fixture: metrics identical under v25 and v26, and the change is v26 alone', () => {
+// The fixtures that name a claim-reconciliation artifact or hold a Cejel-format one, so keep
+// reconciliation_artifact_depth under v26. Every other fixture names none and has none.
+const KEEPS_RECONCILIATION_DEPTH: ReadonlySet<string> = new Set(
+  [
+    A5_FIXTURES.declaredLinkAbsent,
+    A5_FIXTURES.declaredLinkPresent,
+    A5_FIXTURES.cejelFormatArtifact,
+    A5_FIXTURES.declaredAbsentWithCejelArtifact,
+    A5_FIXTURES.codeSpanAbsent,
+    A5_FIXTURES.contributingLinkAbsent,
+    A5_FIXTURES.topLevelDocRelativeLinkPresent,
+    A5_FIXTURES.workflowStepAbsent,
+    ...Object.values(A5_READ_FIXTURES),
+  ].map((fixture) => fixture.name),
+);
+
+describe('every fixture: metrics identical under v25 and v26 but for amendment 1, and the change is v26 alone', () => {
   for (const fixture of SETTLING_EVIDENCE_FIXTURES) {
-    it(`${fixture.name}: every criterion's metrics and positive evidence are identical under v25 and v26`, () => {
+    it(`${fixture.name}: every criterion's metrics and positive evidence are identical under v25 and v26, but for amendment 1`, () => {
       const v25 = report(fixture, WITAN_RUBRIC_VERSION_V25);
       const v26 = report(fixture, WITAN_RUBRIC_VERSION_V26);
-      expect(v26.criteria.map((c) => [c.id, c.metrics])).toEqual(v25.criteria.map((c) => [c.id, c.metrics]));
+      const outsideA5 = (scored: WitanReport) =>
+        scored.criteria.filter((c) => c.id !== 'A5').map((c) => [c.id, c.metrics]);
+      expect(outsideA5(v26)).toEqual(outsideA5(v25));
+      const keeps = KEEPS_RECONCILIATION_DEPTH.has(fixture.name);
+      expect(reconciliationDepth(criterion(v26, 'A5')) !== undefined).toBe(keeps);
+      expect(withoutWeightShares(criterion(v26, 'A5').metrics)).toEqual(
+        withoutWeightShares(criterion(v25, 'A5').metrics).filter(
+          (metric) => keeps || metric.name !== 'reconciliation_artifact_depth',
+        ),
+      );
       expect(v26.criteria.map((c) => [c.id, c.evidence])).toEqual(v25.criteria.map((c) => [c.id, c.evidence]));
       // Abstention is never criterion-level insufficient_data.
       expect(criterion(v26, 'A5').status === 'insufficient_data').toBe(

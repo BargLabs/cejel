@@ -111,6 +111,88 @@ export const A5_FIXTURES = {
 } as const satisfies Record<string, SettlingEvidenceFixture>;
 
 // ---------------------------------------------------------------------------------------------
+// A5, revision (goal_cejel_v26_item6_revision_2026-10-14): a path a workflow step writes or
+// uploads is that step's output, not a declaration of a file the repository should hold.
+// ---------------------------------------------------------------------------------------------
+
+/** A claims workflow whose last step(s) are `steps`; the first step after `steps:` is line 9. */
+function claimsWorkflow(steps: string): Record<string, string> {
+  return base(PLAIN_README, {
+    '.github/workflows/claims.yml':
+      'name: claims\non:\n  push:\n    branches: [main]\njobs:\n  reconcile:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n' +
+      steps,
+  });
+}
+/** The line of the first step `claimsWorkflow` appends. */
+export const A5_WORKFLOW_STEP_LINE = 10;
+
+export const A5_WRITE_FIXTURES = {
+  redirect: {
+    name: 'a5-workflow-write-redirect',
+    files: claimsWorkflow('      - run: node scripts/claims.js > claims-register.json\n'),
+  },
+  appendRedirect: {
+    name: 'a5-workflow-write-append-redirect',
+    files: claimsWorkflow('      - run: node scripts/claims.js >> claims-register.json\n'),
+  },
+  tee: {
+    name: 'a5-workflow-write-tee',
+    files: claimsWorkflow('      - run: node scripts/claims.js | tee claims-register.json\n'),
+  },
+  shortOutputOption: {
+    name: 'a5-workflow-write-short-output-option',
+    files: claimsWorkflow('      - run: curl -sSL -o claims-register.json https://example.invalid/claims\n'),
+  },
+  longOutputOption: {
+    name: 'a5-workflow-write-long-output-option',
+    files: claimsWorkflow('      - run: node scripts/claims.js --output claims-register.json\n'),
+  },
+  outOption: {
+    name: 'a5-workflow-write-out-option',
+    files: claimsWorkflow('      - run: node scripts/claims.js --out=claims-register.json\n'),
+  },
+  continuedRedirect: {
+    name: 'a5-workflow-write-continued-redirect',
+    files: claimsWorkflow(
+      '      - run: |\n          node scripts/claims.js > \\\n            claims-register.json\n',
+    ),
+  },
+  uploadArtifact: {
+    name: 'a5-workflow-upload-artifact',
+    files: claimsWorkflow(
+      '      - uses: actions/upload-artifact@v4\n        with:\n          name: claims\n          path: claims-ledger.json\n',
+    ),
+  },
+  // YAML keys are unordered: `uses:` after the `path:` it governs.
+  uploadArtifactUsesLast: {
+    name: 'a5-workflow-upload-artifact-uses-last',
+    files: claimsWorkflow(
+      '      - name: Upload the ledger\n        with:\n          path: claims-ledger.json\n        uses: actions/upload-artifact@v4\n',
+    ),
+  },
+} as const satisfies Record<string, SettlingEvidenceFixture>;
+
+export const A5_READ_FIXTURES = {
+  // A step that only reads the file declares it.
+  catOnly: {
+    name: 'a5-workflow-read-cat',
+    files: claimsWorkflow('      - run: cat claims-register.json\n'),
+  },
+  // The file is read before the redirect; only what follows `>` is written.
+  readThenRedirect: {
+    name: 'a5-workflow-read-then-redirect',
+    files: claimsWorkflow('      - run: node scripts/check.js claims-register.json > report.txt\n'),
+  },
+  // An upload-artifact step does not shield the next step.
+  readAfterUpload: {
+    name: 'a5-workflow-read-after-upload',
+    files: claimsWorkflow(
+      '      - run: cat claims-register.json\n      - uses: actions/upload-artifact@v4\n        with:\n          path: report.txt\n',
+    ),
+  },
+} as const satisfies Record<string, SettlingEvidenceFixture>;
+
+// ---------------------------------------------------------------------------------------------
 // A2
 // ---------------------------------------------------------------------------------------------
 
@@ -300,7 +382,95 @@ export const A2_FIXTURES = {
   },
 } as const satisfies Record<string, SettlingEvidenceFixture>;
 
+// ---------------------------------------------------------------------------------------------
+// A2, revision (goal_cejel_v26_item6_revision_2026-10-14): a tenant table that no longer exists
+// under its CREATE TABLE name.
+// ---------------------------------------------------------------------------------------------
+
+export const A2_NAME_FIXTURES = {
+  dropped: {
+    name: 'a2-tenant-table-dropped',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'migrations/0003_drop_invoices.sql': 'DROP TABLE invoices;\n',
+    }),
+  },
+  droppedIfExistsQualified: {
+    name: 'a2-tenant-table-dropped-if-exists-qualified',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'migrations/0003_drop_invoices.sql': 'DROP TABLE IF EXISTS public.invoices, legacy_reports CASCADE;\n',
+    }),
+  },
+  // The idempotent pattern: a DROP before the CREATE in the same directory removes nothing.
+  droppedBeforeCreate: {
+    name: 'a2-tenant-table-dropped-before-create',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': `DROP TABLE IF EXISTS invoices;\n${INVOICES_UNCOVERED}`,
+    }),
+  },
+  droppedInAnotherDirectory: {
+    name: 'a2-tenant-table-dropped-in-another-directory',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'db/cleanup/drop_invoices.sql': 'DROP TABLE invoices;\n',
+    }),
+  },
+  droppedDynamically: {
+    name: 'a2-tenant-table-dropped-dynamically',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'migrations/0003_cleanup.sql': "DO $$\nBEGIN\n  EXECUTE 'DROP TABLE ' || 'invoices';\nEND $$;\n",
+    }),
+  },
+  renamedCoveredUnderNewName: {
+    name: 'a2-tenant-table-renamed-covered-under-new-name',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'migrations/0003_archive_invoices.sql': [
+        'ALTER TABLE invoices RENAME TO invoices_archive;',
+        "CREATE POLICY invoices_archive_tenant ON invoices_archive USING (tenant_id = current_setting('app.tenant_id')::uuid);",
+        '',
+      ].join('\n'),
+    }),
+  },
+  // Coverage written before the rename moves with the table.
+  renamedAfterCoverage: {
+    name: 'a2-tenant-table-renamed-after-coverage',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': `${INVOICES_UNCOVERED}ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;\n`,
+      'migrations/0003_archive_invoices.sql': 'ALTER TABLE invoices RENAME TO invoices_archive;\n',
+    }),
+  },
+  renamedUncovered: {
+    name: 'a2-tenant-table-renamed-uncovered',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'migrations/0003_archive_invoices.sql': 'ALTER TABLE invoices RENAME TO invoices_archive;\n',
+    }),
+  },
+  renamedInAnotherDirectory: {
+    name: 'a2-tenant-table-renamed-in-another-directory',
+    files: a2({
+      'migrations/0001_orders.sql': ORDERS_WITH_RLS,
+      'migrations/0002_invoices.sql': INVOICES_UNCOVERED,
+      'db/archive/archive_invoices.sql': 'ALTER TABLE invoices RENAME TO invoices_archive;\n',
+    }),
+  },
+} as const satisfies Record<string, SettlingEvidenceFixture>;
+
 export const SETTLING_EVIDENCE_FIXTURES: readonly SettlingEvidenceFixture[] = [
   ...Object.values(A5_FIXTURES),
+  ...Object.values(A5_WRITE_FIXTURES),
+  ...Object.values(A5_READ_FIXTURES),
   ...Object.values(A2_FIXTURES),
+  ...Object.values(A2_NAME_FIXTURES),
 ];
