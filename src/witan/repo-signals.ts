@@ -5955,6 +5955,129 @@ function hasLiveAvaAssertion(contents: string): boolean {
   return false;
 }
 
+// Test frameworks the patterns above cannot read (goal_cejel_v26_test_framework_recognition_2026-10-14;
+// #406). A recognition fix under every rubric. Each idiom is the framework's documented form and
+// counts only in live code: outside comments and string literals, and, where the spelling is not
+// the framework's own, only with the framework's import. The raw patterns above are unchanged.
+//   - xUnit, NUnit, MSTest: Assert.X( / ClassicAssert / CollectionAssert / StringAssert. No import
+//     gate: the xUnit and MSTest templates import their namespace project-wide (`<Using>`).
+//   - XCTest: XCTAssert…( / XCTFail( / XCTUnwrap(.
+//   - ScalaTest: assert( / assertThrows[ / intercept[ with an org.scalatest import; should/must
+//     matchers with a ScalaTest matchers import.
+//   - Kotest: shouldX matchers with an io.kotest matchers or assertions import.
+//   - tape and tap: t.<assertion>( with a live tape or tap import or require.
+const DOTNET_ASSERTION_PATTERN = /\b(?:Classic|Collection|String)?Assert\.[A-Z]\w*\s*(?:<[^<>()]*>\s*)?\(/;
+const XCTEST_ASSERTION_PATTERN = /\bXCT(?:Assert\w*|Fail|Unwrap)\s*\(/;
+const SCALATEST_IMPORT_PATTERN = /\bimport\s+org\.scalatest\b/;
+const SCALATEST_ASSERTION_PATTERN = /\b(?:assert|assertResult)\s*\(|\b(?:assertThrows|intercept)\s*\[/;
+const SCALATEST_MATCHERS_IMPORT_PATTERN =
+  /\bimport\s+org\.scalatest\.(?:matchers\b|(?:Should|Must)?Matchers\b|_|\*|\{[^}]*\b(?:Should|Must)?Matchers\b)/;
+const SCALATEST_MATCHER_PATTERN =
+  /\b(?:should|must)(?:Be|Equal)\b|\b(?:should|must)\s+(?:not\s+)?(?:be|equal|have|contain|include|startWith|endWith|matchPattern)\b|\b(?:should|must)\s*===/;
+const KOTEST_MATCHERS_IMPORT_PATTERN = /\bimport\s+io\.kotest\.(?:matchers|assertions)\b/;
+const KOTEST_MATCHER_PATTERN = /\bshould[A-Z]\w*\b/;
+const TAPE_OR_TAP_BINDING_PATTERN = /\bfrom\s*['"]tape?['"]|\brequire\s*\(\s*['"]tape?['"]\s*\)/g;
+const TAPE_OR_TAP_ASSERTION_PATTERN =
+  /\bt\.(?:ok|notOk|notok|true|false|assert|error|ifError|ifErr|iferror|equal|equals|isEqual|strictEqual|strictEquals|is|notEqual|notEquals|isNotEqual|doesNotEqual|isInequal|notStrictEqual|notStrictEquals|isNot|not|looseEqual|looseEquals|notLooseEqual|notLooseEquals|deepEqual|deepEquals|isEquivalent|same|notDeepEqual|notDeepEquals|notEquivalent|notDeeply|notSame|deepLooseEqual|notDeepLooseEqual|strictSame|strictNotSame|has|notHas|hasStrict|notHasStrict|match|notMatch|doesNotMatch|matchOnly|notMatchOnly|matchStrict|notMatchStrict|matchOnlyStrict|notMatchOnlyStrict|type|throws|doesNotThrow|rejects|resolves|resolveMatch|emits|pass|fail)\s*\(/;
+// Framework-documented suite-level skips. NUnit and MSTest [Ignore] on the fixture class, ScalaTest
+// @Ignore and Kotest @Ignored on the suite class skip every test in it. Per-test skips ([Fact(Skip
+// = …)], [Ignore] on a method, ScalaTest ignore(…)) do not make a file hollow. xUnit, XCTest, tape
+// and tap document no suite-level skip.
+const DOTNET_IGNORED_CLASS_PATTERN =
+  /\[[^[\]]*\b(?:NUnit\.Framework\.|Microsoft\.VisualStudio\.TestTools\.UnitTesting\.)?Ignore(?:Attribute)?\b[^[\]]*\](?:\s*\[[^[\]]*\])*\s*(?:(?:public|internal|private|protected|sealed|abstract|static|partial|file)\s+)*class\b/;
+const SCALATEST_IGNORED_CLASS_PATTERN =
+  /@(?:org\.scalatest\.)?Ignore\b(?:\s*@[\w.]+(?:\([^)]*\))?)*\s*(?:(?:final|abstract|sealed|private|protected)\s+)*class\b/;
+const KOTEST_IMPORT_PATTERN = /\bimport\s+io\.kotest\b/;
+const KOTEST_IGNORED_CLASS_PATTERN =
+  /@(?:io\.kotest\.core\.annotation\.)?Ignored\b(?:\s*@[\w.]+(?:\([^)]*\))?)*\s*(?:(?:public|internal|private|open|abstract)\s+)*class\b/;
+// Files whose name declares a test in these frameworks. Rated hollow by name only when a
+// documented suite-level skip disables them: an unrecognised assertion library (FluentAssertions,
+// Shouldly, specs2, …) is not evidence of a placeholder, so such a file stays out of the
+// denominator, as it did before. Swift and JS conventions are absent because neither framework
+// documents a suite-level skip.
+const SUITE_SKIP_NAME_SHAPED_TEST_FILE_PATTERN = /Tests?\.cs$|(?:Spec|Test|Suite)\.scala$/;
+
+interface MaskedSource {
+  /** Comments blanked; string literals kept. */
+  commentFree: string;
+  /** Comments and string literals (with their delimiters) blanked. */
+  code: string;
+}
+
+// Blank comments and string literals in C-family source (C#, Swift, Scala, Kotlin, JS), preserving
+// offsets and newlines. Block comments nest (Swift, Scala, Kotlin), triple-quoted strings run to
+// the next `"""`, and a C# `@"…"` verbatim string takes no backslash escapes. Where the lexing is
+// wrong for a language, it blanks too much, which withholds credit rather than inventing it.
+function maskCommentsAndStrings(contents: string): MaskedSource {
+  const commentFree = contents.split('');
+  const code = contents.split('');
+  const blank = (target: string[], from: number, to: number) => {
+    for (let i = from; i < to; i += 1) if (target[i] !== '\n') target[i] = ' ';
+  };
+  let i = 0;
+  while (i < contents.length) {
+    const ch = contents[i]!;
+    const next = contents[i + 1];
+    let end = i + 1;
+    if (ch === '/' && next === '/') {
+      end = contents.indexOf('\n', i);
+      if (end < 0) end = contents.length;
+      blank(commentFree, i, end);
+      blank(code, i, end);
+    } else if (ch === '/' && next === '*') {
+      let depth = 1;
+      end = i + 2;
+      while (end < contents.length && depth > 0) {
+        if (contents.startsWith('/*', end)) { depth += 1; end += 2; }
+        else if (contents.startsWith('*/', end)) { depth -= 1; end += 2; }
+        else end += 1;
+      }
+      blank(commentFree, i, end);
+      blank(code, i, end);
+    } else if (contents.startsWith('"""', i)) {
+      const close = contents.indexOf('"""', i + 3);
+      end = close < 0 ? contents.length : close + 3;
+      blank(code, i, end);
+    } else if (ch === '"' || ch === "'" || ch === '`') {
+      const verbatim = ch === '"' && contents[i - 1] === '@';
+      end = i + 1;
+      while (end < contents.length) {
+        const c = contents[end]!;
+        if (verbatim && c === '"' && contents[end + 1] === '"') { end += 2; continue; }
+        if (!verbatim && c === '\\') { end += 2; continue; }
+        end += 1;
+        if (c === ch) break;
+      }
+      blank(code, i, end);
+    }
+    i = Math.max(end, i + 1);
+  }
+  return { commentFree: commentFree.join(''), code: code.join('') };
+}
+
+function hasLiveFrameworkAssertion({ commentFree, code }: MaskedSource): boolean {
+  // An import names an idiom without using it (`import io.kotest.matchers.shouldBe`).
+  const body = code.replace(/^[ \t]*import\b.*$/gm, (line) => ' '.repeat(line.length));
+  if (DOTNET_ASSERTION_PATTERN.test(body) || XCTEST_ASSERTION_PATTERN.test(body)) return true;
+  if (SCALATEST_IMPORT_PATTERN.test(code) && SCALATEST_ASSERTION_PATTERN.test(body)) return true;
+  if (SCALATEST_MATCHERS_IMPORT_PATTERN.test(code) && SCALATEST_MATCHER_PATTERN.test(body)) return true;
+  if (KOTEST_MATCHERS_IMPORT_PATTERN.test(code) && KOTEST_MATCHER_PATTERN.test(body)) return true;
+  // The module name is a string literal, so the binding is read from the comment-free text; its
+  // keyword must survive string blanking, or the import is itself quoted fixture text.
+  const tapeBound = [...commentFree.matchAll(TAPE_OR_TAP_BINDING_PATTERN)].some(
+    (binding) => code[binding.index!] === commentFree[binding.index!],
+  );
+  return tapeBound && TAPE_OR_TAP_ASSERTION_PATTERN.test(body);
+}
+
+function hasFrameworkSuiteLevelSkip({ code }: MaskedSource): boolean {
+  return (
+    DOTNET_IGNORED_CLASS_PATTERN.test(code) ||
+    (SCALATEST_IMPORT_PATTERN.test(code) && SCALATEST_IGNORED_CLASS_PATTERN.test(code)) ||
+    (KOTEST_IMPORT_PATTERN.test(code) && KOTEST_IGNORED_CLASS_PATTERN.test(code))
+  );
+}
+
 interface NonHollowTestShare {
   /** Files containing live assertions (and not suite-level-skipped). */
   nonHollowCount: number;
@@ -5977,18 +6100,24 @@ function measureNonHollowTestShare(
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const contents = readRepoText(fullPath, 'utf8');
+    let maskedSource: MaskedSource | undefined;
+    const masked = () => (maskedSource ??= maskCommentsAndStrings(contents));
+    const frameworkSuiteSkipped = /\bIgnored?\b/.test(contents) && hasFrameworkSuiteLevelSkip(masked());
     const nonHollow =
       (JS_TEST_ASSERTION_PATTERN.test(contents) ||
         CPP_TEST_ASSERTION_PATTERN.test(contents) ||
         MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
-        hasLiveAvaAssertion(contents)) &&
-      !SUITE_LEVEL_SKIP_PATTERN.test(contents);
+        hasLiveAvaAssertion(contents) ||
+        hasLiveFrameworkAssertion(masked())) &&
+      !SUITE_LEVEL_SKIP_PATTERN.test(contents) &&
+      !frameworkSuiteSkipped;
     if (nonHollow) {
       nonHollowCount += 1;
       ratedCount += 1;
     } else if (
       NAME_SHAPED_TEST_FILE_PATTERN.test(file) ||
-      (useV17Detectors && NAME_SHAPED_TEST_FILE_PATTERN_V17.test(file))
+      (useV17Detectors && NAME_SHAPED_TEST_FILE_PATTERN_V17.test(file)) ||
+      (frameworkSuiteSkipped && SUITE_SKIP_NAME_SHAPED_TEST_FILE_PATTERN.test(file))
     ) {
       ratedCount += 1;
     }

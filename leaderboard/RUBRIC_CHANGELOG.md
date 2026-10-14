@@ -22,6 +22,102 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — A1 test-framework recognition (every rubric, no identifier bump); public paired rescore not run
+
+**Status.** A recognition fix that removes a false absence. It ships under
+`witan-rubric-v17-2026-07-24` and every selectable rubric with no identifier bump and with weights
+and thresholds unchanged, as #427 (AVA) did. **The public-corpus before-and-after has not run.**
+The release that carries this change runs a preregistered public delta, and the operator's private
+check precedes that release. This entry makes no statement about a public-corpus score, verdict,
+rank, placement, calibration, precision or recall.
+
+**The defect.** A1 `non_hollow_test_share` counts a test file as non-hollow when an assertion
+idiom matches. The patterns knew JS/TS, C++, Python, Go, Rust, JUnit, Ruby, PHP and AVA. Test
+files written for xUnit, NUnit, MSTest, XCTest, ScalaTest, Kotest, tape and tap matched nothing, so
+their assertions were invisible (#406 for .NET). Where every test file was unread this way, the
+share was 0, and a zero share holds A1's status at `critical`.
+
+**The change, every rubric.** Each idiom comes from the framework's own documentation. It counts
+only in live code, outside comments and string literals:
+- **xUnit, NUnit, MSTest:** `Assert.X(` (generic forms included), `ClassicAssert`,
+  `CollectionAssert` and `StringAssert`. There is no import gate, because the xUnit and MSTest
+  templates import their namespace project-wide.
+- **XCTest:** `XCTAssert…(`, `XCTFail(` and `XCTUnwrap(`.
+- **ScalaTest:** `assert(`, `assertResult(`, `assertThrows[` and `intercept[` count only with an
+  `org.scalatest` import. Should/must matchers (`shouldBe`, `should be`, `should equal`, `mustBe`,
+  …) count only with a ScalaTest matchers import.
+- **Kotest:** `shouldX` matchers count only with an `io.kotest.matchers` or `io.kotest.assertions`
+  import. Import lines themselves never count.
+- **tape and tap:** `t.<assertion>(`, for the methods each documents, counts only with a `tape` or
+  `tap` import or require whose keyword is itself live code.
+- **Documented suite-level skips make a file hollow.** These are NUnit or MSTest `[Ignore]` on the
+  fixture class, ScalaTest `@Ignore` on the suite class, and Kotest `@Ignored` on the spec.
+  Per-test skips do not: `[Fact(Skip = …)]`, `[Ignore]` on a method, ScalaTest `ignore(…)`. xUnit,
+  XCTest, tape and tap document no suite-level skip.
+- **Naming.** `*Tests.cs` / `*Test.cs` and `*Spec.scala` / `*Test.scala` / `*Suite.scala` join the
+  hollow denominator only when a documented suite-level skip disables the file. An assertion
+  library this rule does not read (FluentAssertions, Shouldly, specs2) is not evidence of a
+  placeholder, so such a file stays out of the denominator, as it was before.
+- **Not changed:** which files count as tests (`findConcreteTestFiles`, and with it
+  `test_to_source_ratio`), and every existing pattern, which still runs on raw text as before.
+
+**Expected direction on the public delta.**
+- **Up or unchanged where a repository's test files use these frameworks:**
+  `non_hollow_test_share` rises, and an A1 status held at `critical` by a zero share can lift.
+- **Down only on positive evidence:** a file under a documented suite-level skip stops counting as
+  non-hollow. A `*Tests.cs` or `*Spec.scala` file under such a skip also enters the denominator.
+  So the change is not monotone. It can lower a share where a repository skips whole suites.
+- **No other metric or criterion reads these patterns.**
+
+**Measured on the behaviour corpus.** Six synthetic specimens extend the corpus from 22 to 28:
+`xunit-assertions`, `nunit-ignored-fixture`, `xctest-assertions`, `scalatest-assertions`,
+`kotest-matchers` and `tape-assertions`. The previous scanner is `origin/main` `4ca642ef`, run on the
+same 28-specimen corpus. Every fixture reproduced its committed head in both runs. As a pipeline
+check, `4ca642ef` on the committed 22-specimen corpus reproduced all ten committed fingerprints.
+280 specimen/rubric surfaces were compared, and 60 moved: the six new specimens under every rubric,
+A1 only. All 22 existing specimens are identical under all ten rubrics (220 of 220).
+
+Every rubric moves each new specimen identically:
+
+| Specimen | A1 | A1 status | `non_hollow_test_share` | Code trust | Overall | Verdict |
+|---|---|---|---|---|---|---|
+| `xunit-assertions` | 1.2 → 1.8 | critical → warning | 0/1 → 1/1 | 1.2 → 1.8 | 0.6 → 0.9 | unverified, unchanged |
+| `nunit-ignored-fixture` | 1.2 → 1.5 | critical → warning | 0/1 → 1/2 | 1.2 → 1.5 | 0.6 → 0.8 | unverified, unchanged |
+| `xctest-assertions` | 1.2 → 1.8 | critical → warning | 0/1 → 1/1 | 1.2 → 1.8 | 0.6 → 0.9 | unverified, unchanged |
+| `scalatest-assertions` | 1.2 → 1.8 | critical → warning | 0/1 → 1/1 | 1.2 → 1.8 | 0.6 → 0.9 | unverified, unchanged |
+| `kotest-matchers` | 1.2 → 1.8 | critical → warning | 0/1 → 1/1 | 1.2 → 1.8 | 0.6 → 0.9 | unverified, unchanged |
+| `tape-assertions` | 1.2 → 1.8 | critical → warning | 0/1 → 1/1 | 2.0 → 2.3 | 1.0 → 1.2 | unverified, unchanged |
+
+On each, A1's finding counts move from one critical to one warning. In `nunit-ignored-fixture`, the
+`[TestFixture, Ignore(…)]` file is the hollow half of 1/2.
+
+Measured fingerprints:
+
+| Rubric | Previous scanner, expanded corpus | This change |
+| --- | --- | --- |
+| `witan-rubric-v17-2026-07-24` | `sha256:9922d6d47e53f4c570aa445ca59e4d6b6522c176bc8c0627f6fa3196aa858e54` | `sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:19ff0b4a32f648dfb733afa748a75b650ee8bd98e225f7acc5916a73d4b5d0a9` | `sha256:36a5eef983d589abe1eabf15269466ecd45b9eb8e194d19e5d972ee1fe6d9692` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:c3596cf191d934df793fddcc336895540f844724edf63419bd14753a871bd252` | `sha256:1d44e1b7124c62869a76949baacb976f60b2f011934d811ddf0dd1129aafe70a` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:8e2cc62d02444a8c6d10b4639b1ea73461a6dfa11a24f9d7353988fed1434401` | `sha256:ddaa0f3b7d927ae43b7aec46555817a137ee6405a71ea3105a039f7513688943` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:13e47670f3e3aabbc9e03d4d5df5543562c93908199c87c4df467ea7efddd49b` | `sha256:56240481595220b50639a5c7acf889fcabe2efcc42751c293714993c6de32f39` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:c82f209ad703b7acb0155c2f879344c5750bb8b4b217071c8cb2d0085bae5afd` | `sha256:54642ad53c521e2ef236ba41b9f8040b044e749437b931053250ec929a19daf7` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:6fd04238727d257e2e39c71d7900117e1d46a6a97d489eb26f416dcee978ce40` | `sha256:f6d939ec4a0ceed2375037f8a722f564b60c781eecbc2ec0060b09bce92f5cb9` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:1e8ac73dbc676380852b9196653bd7691fe53b50dc3893478229cd06c0342f8d` | `sha256:efb8e3d58780df9febca670f812187679951bbdc9d5dbd3054e97bd98827a662` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:201a5d7d8661b9aeaabeb33ac97e53f47df1b3955468d9c0050a3b8c1e843c98` | `sha256:2e87656428c7a7478f03437dc125cf543abff5a27e0323ad7e9160fc70a7fb5c` |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:c45a7252d2cd86ba606da572d5a8f8e8b43123628b0b28676ff0e405080449d5` | `sha256:28d8eb7cfd8809bb960e70027426d3178dee866b533674cd542e71edc8afd459` |
+
+**Report format.** No field changes. The v17 goldens, the CLI byte pin and the F2 reads-disclosure
+pins moved by their fingerprint alone: restoring only the previous fingerprint reproduces each
+previous pin byte for byte.
+
+**#409 is not part of this change.** It is about A1's verification-command matching (tests run
+through `Build.ps1`, `$CARGO` or `./mvnw`, and type-check and lint patterns for compiled
+languages), not test-file or assertion recognition. The issue itself calls each option a
+measurement decision for a prospective rubric.
+
+The idiom sources, the red-first run and the guard-deletion table are in
+`docs/reviews/test-framework-recognition-2026-10-14.md`.
+
 ## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only, and A5 does not score the absence of Cejel's own format (v26 alone); no repository moved
 
 **Status.** The one change `witan-rubric-v26-prospective-2026-10-14` makes of its own, implemented

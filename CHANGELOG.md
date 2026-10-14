@@ -53,6 +53,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
+  identifier bump: A1 reads test assertions in more frameworks before it calls a test file
+  hollow (#406).** A1 `non_hollow_test_share` now recognizes each framework's documented assertion
+  idioms:
+  - xUnit, NUnit and MSTest (`Assert.Equal(`, `Assert.That(`, `Assert.AreEqual(`, `ClassicAssert`,
+    `CollectionAssert`, `StringAssert`);
+  - XCTest (`XCTAssert…(`, `XCTFail(`, `XCTUnwrap(`);
+  - ScalaTest (`assert(`, `assertThrows[`, `intercept[` with an `org.scalatest` import; should/must
+    matchers with a ScalaTest matchers import);
+  - Kotest (`shouldBe` and other `shouldX` matchers with a Kotest matchers import);
+  - tape and tap (`t.equal(`, `t.ok(`, `t.same(` and the other documented assertions, with a
+    `tape` or `tap` import or require).
+  An idiom counts only outside comments and string literals. Documented suite-level skips make a
+  file hollow: NUnit or MSTest `[Ignore]` on the fixture class, ScalaTest `@Ignore` and Kotest
+  `@Ignored` on the suite class. Per-test skips do not. `*Tests.cs` and `*Spec.scala`-style files
+  enter the hollow denominator only under such a skip, never because their assertions went
+  unrecognized. Which files count as tests is unchanged. Weights and thresholds are unchanged. The
+  share can rise for repositories using these frameworks, and fall only where a whole suite is
+  skipped. #409 (tests run through build wrappers) concerns A1's verification commands, not this
+  recognition, and is not part of the change. The behaviour corpus has six new synthetic
+  specimens; fingerprints and report goldens are re-pinned with the deltas in
+  `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The preregistered public-corpus delta has not run
+  yet.
+- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
   identifier bump: A1 recognizes more coverage configuration before it says there is none.** A1's
   "no coverage configuration was detected" finding now withdraws when coverage is configured in a
   way the tool's own documentation defines. That covers three groups:
