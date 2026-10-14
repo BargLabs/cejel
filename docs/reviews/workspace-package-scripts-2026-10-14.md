@@ -116,6 +116,16 @@ previous hash and asserts that restoring only the previous fingerprint reproduce
 The older recovery chains then start from that restored report. The F3 reads-disclosure assertion
 for B3 now states the 7 declared workspace manifests read, because F3 declares `workspaces`.
 
+## Verification
+
+`pnpm typecheck` clean; `pnpm build` succeeded. Full `pnpm test`: 119 files, 2,125 tests passed,
+including the offline-boundary guard ("finds no structural offline-boundary violations in scoring
+source"). Before the golden re-pins, the full suite had exactly 10 failures, all expected pin
+movements: 4 v17 golden hashes, 4 F2 hashes, the CLI byte pin and the changelog citation check.
+Every measured-versus-pinned fingerprint check passed against the new pins at that point.
+Not run here: the preregistered public before-and-after and the operator's private check. Both
+belong to the release that carries this change.
+
 ## Deferred
 
 A3's `prod_readiness_primitives` "build or type-check command" component still reads the root
