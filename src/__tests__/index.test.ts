@@ -469,13 +469,27 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // behaviour corpus gained three specimens, so v17's fingerprint moved. This fixture configures
     // no test runner, so it carries no coverage finding. Restoring the previous v17 fingerprint in
     // place reproduces the workspace-scripts pin (c8ac3f0a...) byte for byte.
+    // Re-pinned 2026-10-14 (goal_cejel_v26_test_framework_recognition_2026-10-14): A1 recognizes
+    // more test frameworks' assertions and suite-level skips under every rubric, and the behaviour
+    // corpus gained six specimens, so v17's fingerprint moved. This fixture has no test file.
+    // Restoring the previous v17 fingerprint in place reproduces the coverage-recognition pin
+    // (a5b58d2b...) byte for byte.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'a5b58d2b6d0ff95ae52929b88c8f904eb610e3ccc93346774eb67f8edfb3f3a4',
+      '4194024274b8179a3f385a2656a9aa2cdda88d73dbb0098fc09d0dfe275d8637',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:8492999e2ebd981bfd02b63c13217e012d6979c0365017e73be292b8d9dcc03d',
+      'sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.4');
+    const atPreTestFrameworkRecognition = {
+      ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:8492999e2ebd981bfd02b63c13217e012d6979c0365017e73be292b8d9dcc03d',
+    } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreTestFrameworkRecognition, null, 2)).digest('hex'),
+      'the pre-test-framework-recognition report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
+    ).toBe('a5b58d2b6d0ff95ae52929b88c8f904eb610e3ccc93346774eb67f8edfb3f3a4');
     const atPreCoverageRecognition = {
       ...firstReport,
       rubricBehaviourFingerprint:
