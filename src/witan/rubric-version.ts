@@ -146,8 +146,10 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // claim-reconciliation artifact that is absent, and A2's tenant-without-RLS finding fires only when
 // row-level security is the repository's own mechanism and an identifiable tenant table has none.
 // Otherwise each abstains: no finding, and the ruling's sentence in the certificate's "What was not
-// established". Every metric is unchanged. v26-v25-parity.test.ts measures v26 against v25 with
-// only this difference.
+// established". Amendment 1 (docs/calibration/v26/ruling-item-6-amendment-1.md, also
+// operator-signed) omits A5's reconciliation_artifact_depth when no Cejel-format artifact is
+// present and none is named; every other metric is unchanged. v26-v25-parity.test.ts measures v26
+// against v25 with only this difference.
 //
 // V26 does NOT inherit v23 or v24. Their mechanisms stay gated on WITAN_RUBRIC_VERSION_V23 and
 // WITAN_RUBRIC_VERSION_V24 alone, for the reason V24's and V25's declarations give; a v23

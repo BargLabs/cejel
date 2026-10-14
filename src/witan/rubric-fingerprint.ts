@@ -235,11 +235,13 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
     'sha256:eff4e6d1ad95583923563cf5548db96bd9ab5b133e7d876807993dc7abc07bd1',
   [WITAN_RUBRIC_VERSION_V25]:
     'sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21',
-  // v25's closure plus v26 item 6 (docs/calibration/v26/ruling-item-6.md): only the A5 component
-  // differs from v25's, because the corpus holds no declared claim-reconciliation artifact, so the
-  // v25 A5 finding no longer fires on it. A2 does not move on this corpus.
+  // v25's closure plus v26 item 6 (docs/calibration/v26/ruling-item-6.md and its amendment 1).
+  // The corpus holds no declared claim-reconciliation artifact, so the v25 A5 finding no longer
+  // fires on it and, by amendment 1, A5 is scored without reconciliation_artifact_depth. The A5
+  // component and the report components of the specimens whose code-trust score that moves differ
+  // from v25's. A2 does not move on this corpus.
   [WITAN_RUBRIC_VERSION_V26]:
-    'sha256:b157f45f873973cdd296199b13dc464727e2c72dc58d56eddf740e061d9f0ca8',
+    'sha256:e1fa40eb65bbfa777affea7951850b9d4c5302a08008a9af172f704f06621312',
 });
 
 /**
