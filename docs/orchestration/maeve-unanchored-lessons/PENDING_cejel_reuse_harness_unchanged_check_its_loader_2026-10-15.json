@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A card that says 'reuse the precedent harness unchanged' must be checked against that harness's plan loader before it is dispatched. The 0.6.5 public-delta card named two source arms and four runs across three rubrics, but the precedent harness's loadPlan accepts only the v17 rubric and exactly the arm names before459, after459 and fixes, and its comparator hard-codes the pairs and their allowed criteria. The run stopped before preregistration, with no arm executed. Rule: when a card binds an experiment to an existing harness, read its plan validator and list every arm, rubric and pair the card needs against what the validator admits; if any is refused, schedule a tested harness successor first, rather than relabelling arms to fit.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "experiment-design", "preregistration"],
+    "tags": ["harness-reuse", "hard-coded-plan-validator", "check-before-dispatch", "no-arm-relabelling"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 491}
+  }
+]
