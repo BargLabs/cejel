@@ -218,28 +218,28 @@ function sha256(value: string): string {
  */
 export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string>> = Object.freeze({
   [WITAN_RUBRIC_VERSION_V17]:
-    'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
+    'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
   [WITAN_RUBRIC_VERSION_V18]:
-    'sha256:9c54aa1493ff42b001ae2d1828f4bda92b3ebff500551eb36ef8a2b9d2fc391f',
+    'sha256:161d7686d22536f6287904ae1d34bfa106200c1bab9b3b357117745da3446124',
   [WITAN_RUBRIC_VERSION_V19]:
-    'sha256:ed3fa7ff11aa0c0ecf7fc23fccab2c40337c55c5b06abae14eb10e9d73bbcffa',
+    'sha256:b6e0002bcfe14c71c0ac831e0788f93ebf4c56215f7dccd4c981a23fb59f78e1',
   [WITAN_RUBRIC_VERSION_V20]:
-    'sha256:eb6ed39afd0e3f3d73e6a85df90787a3490087eaa34aad19fb5fbb31b4502ce5',
+    'sha256:d972019b19dccf58f7dab985c6ef89faa3e3bba73c2f5ff8373f7854ba13c3c7',
   [WITAN_RUBRIC_VERSION_V21]:
-    'sha256:7a890ac663793f807e240e38047ff9fbc069853d118ebf9a765cc103a8bed2a3',
+    'sha256:f25bb1f6984d6de87121f2aaf5535a45ff24f08af4b2b508b504017668e4bad9',
   [WITAN_RUBRIC_VERSION_V22]:
-    'sha256:ac4db093dc7c37369579b49ccd7855d36eec49d9f52136964251ee7bbd69e101',
+    'sha256:3efa6907cf365294e4180332d4d55685532f3beb59454ae73856c9360028389c',
   [WITAN_RUBRIC_VERSION_V23]:
-    'sha256:7d48de4ac8ef3233e7ef8f4d4312830bf76294485e9766a47a671cd5440676aa',
+    'sha256:6410874e6fb44c1ac29b3fcac49c57799a2eb13bd50444c3a7ce93ebf556577f',
   [WITAN_RUBRIC_VERSION_V24]:
-    'sha256:0af37b616891a1940f7ba43c86ef2134d6e40f235feef17bf1774cae951afee2',
+    'sha256:323fca138becf8a0738dd81023101e87ec341a7083ad9797b8cee5581e342ff0',
   [WITAN_RUBRIC_VERSION_V25]:
-    'sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019',
+    'sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3',
   // Equal to v25's, and measured equal: v26 is declared as v25's complete closure, and the digest
   // excludes the rubric identifier by design (see projectWitanScoringSurface). The first v26 item
   // change moves it.
   [WITAN_RUBRIC_VERSION_V26]:
-    'sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019',
+    'sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3',
 });
 
 /**
