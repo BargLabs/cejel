@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "When a plan may declare exemptions from a measure, refuse any exemption that names a field the measure exists to watch. The public-delta harness v2 lets a pair declare presentation-only report fields, whose change is allowed. Without a refusal, declaring overallScore or criteria presentation-only would turn a scoring move into an allowed change, and the result would read as clean. Rule: a declaration may widen what is allowed only over fields outside the measured set, and a test must show that each measured field is refused.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "experiment-harness", "measurement-integrity"],
+    "tags": ["declared-exemption", "guard-bypass-by-configuration", "plan-schema", "scoring-move"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 495}
+  },
+  {
+    "statement": "When a published record cannot be reproduced without inputs that were never committed, do not invent inputs that happen to match it. Run the precedent's own code and the successor on the same synthetic inputs, and assert field-for-field equality. Check that the fixture moves every measure at least once, so the equality can fail. Bind to the published record only through its field names, never its values. The v2 public-delta harness took this route because placements and coverage depend on raw reports that stay local.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "experiment-harness", "testing"],
+    "tags": ["differential-test", "non-vacuous-fixture", "shape-only-binding", "unreproducible-record"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 495}
+  }
+]
