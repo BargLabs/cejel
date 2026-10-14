@@ -15,6 +15,8 @@ import {
 } from '../rubric-fingerprint.js';
 import {
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
+  WITAN_RUBRIC_VERSION_V25,
+  WITAN_RUBRIC_VERSION_V26,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import { WITAN_RUBRIC } from '../rubric.js';
@@ -68,6 +70,19 @@ const SCAN_GENERATED_AT = '2026-09-15T00:00:00.000Z';
  * true, so the gap can neither widen nor close in silence.
  */
 const STRUCTURALLY_UNREACHABLE_CRITERIA = ['B1', 'B5'] as const;
+
+/**
+ * Rubrics declared to score this corpus identically, by design, named rather than tolerated.
+ *
+ * v26 is declared as v25's complete closure with no change of its own until its item changes
+ * land (see the V26 declaration in rubric-version.ts), so the two collide on purpose and
+ * v26-v25-parity.test.ts asserts their reports equal outside `rubricVersion`. The collision check
+ * below demands the measured collisions equal this list EXACTLY: the first v26 item change that
+ * separates them fails it until this entry is removed, so the declaration cannot outlive its truth.
+ */
+const DECLARED_BEHAVIOURALLY_IDENTICAL: readonly (readonly string[])[] = [
+  [WITAN_RUBRIC_VERSION_V25, WITAN_RUBRIC_VERSION_V26],
+];
 
 const PINNED_COMPONENTS = JSON.parse(readFileSync(PINS_PATH, 'utf8')) as Record<
   string,
@@ -142,19 +157,37 @@ describe('the corpus covers what it claims to cover', () => {
     ).toEqual([...STRUCTURALLY_UNREACHABLE_CRITERIA]);
   });
 
-  it('distinguishes every selectable rubric from every other', () => {
+  it('distinguishes every selectable rubric from every other, except where declared identical', () => {
     const byFingerprint = new Map<string, string[]>();
     for (const [rubricVersion, { components }] of measured) {
       const digest = digestWitanRubricBehaviourComponents(components);
       byFingerprint.set(digest, [...(byFingerprint.get(digest) ?? []), rubricVersion]);
     }
-    const collisions = [...byFingerprint.values()].filter((group) => group.length > 1);
+    const collisions = [...byFingerprint.values()]
+      .filter((group) => group.length > 1)
+      .map((group) => [...group].sort())
+      .sort((a, b) => a.join().localeCompare(b.join()));
     expect(
       collisions,
-      'two rubrics score this corpus identically, so the corpus cannot tell a change in one from ' +
-        'a change in the other. Either extend the corpus to reach what separates them, or record ' +
-        'in leaderboard/RUBRIC_CHANGELOG.md that they are behaviourally identical.',
-    ).toEqual([]);
+      'the rubrics that score this corpus identically must be exactly the declared groups in ' +
+        'DECLARED_BEHAVIOURALLY_IDENTICAL. An undeclared collision means the corpus cannot tell a ' +
+        'change in one from a change in the other: extend the corpus to reach what separates ' +
+        'them, or declare the group here and record in leaderboard/RUBRIC_CHANGELOG.md that ' +
+        'they are behaviourally identical. A declared group that no longer collides has ' +
+        'diverged: remove the declaration in the same change.',
+    ).toEqual(
+      DECLARED_BEHAVIOURALLY_IDENTICAL.map((group) => [...group].sort()).sort((a, b) =>
+        a.join().localeCompare(b.join()),
+      ),
+    );
+  });
+
+  it('records every declared behaviourally identical group in leaderboard/RUBRIC_CHANGELOG.md', () => {
+    const changelog = readFileSync(CHANGELOG_PATH, 'utf8');
+    for (const group of DECLARED_BEHAVIOURALLY_IDENTICAL) {
+      const statement = `${group.map((rubricVersion) => `\`${rubricVersion}\``).join(' and ')} are behaviourally identical`;
+      expect(changelog, `RUBRIC_CHANGELOG.md does not state: ${statement}`).toContain(statement);
+    }
   });
 });
 

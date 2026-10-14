@@ -180,7 +180,7 @@ export const CERTIFICATE_GLOSSARY: readonly CertificateGlossaryEntry[] = [
     key: 'production-readiness-basic-checks',
     term: 'Production-readiness basic checks',
     definition:
-      'A count of six named checks: a build or type-check command, a CI workflow, deployment configuration, an environment template, a health or readiness signal, and an error boundary. In the calibrated rubric the health or readiness signal is credited only for a dedicated health or readiness file (such as health.ts or readiness.ts), a Dockerfile HEALTHCHECK, or Kubernetes liveness or readiness probes. A health route declared inline in an application file does not count there. The prospective witan-rubric-v25 also credits such an inline route.',
+      'A count of six named checks: a build or type-check command, a CI workflow, deployment configuration, an environment template, a health or readiness signal, and an error boundary. In the calibrated rubric the health or readiness signal is credited only for a dedicated health or readiness file (such as health.ts or readiness.ts), a Dockerfile HEALTHCHECK, or Kubernetes liveness or readiness probes. A health route declared inline in an application file does not count there. The prospective witan-rubric-v25 and witan-rubric-v26 also credit such an inline route.',
     metricNames: ['prod_readiness_primitives'],
   },
   {

@@ -12,6 +12,7 @@ import {
   WITAN_RUBRIC_VERSION_V23,
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
+  WITAN_RUBRIC_VERSION_V26,
 } from './rubric-version.js';
 
 // RUBRIC BEHAVIOUR FINGERPRINT — behaviour measured, not declared.
@@ -233,6 +234,11 @@ export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string
   [WITAN_RUBRIC_VERSION_V24]:
     'sha256:0af37b616891a1940f7ba43c86ef2134d6e40f235feef17bf1774cae951afee2',
   [WITAN_RUBRIC_VERSION_V25]:
+    'sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019',
+  // Equal to v25's, and measured equal: v26 is declared as v25's complete closure, and the digest
+  // excludes the rubric identifier by design (see projectWitanScoringSurface). The first v26 item
+  // change moves it.
+  [WITAN_RUBRIC_VERSION_V26]:
     'sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019',
 });
 
