@@ -725,6 +725,48 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'README.md': '# workspace-package-scripts\n\nA fixture repository.\n',
     },
   },
+  {
+    name: 'coverage-config-setup-cfg',
+    purpose:
+      'Coverage configured where coverage.py documents it for setup.cfg, a [coverage:report] section: A1 must not report no coverage configuration; synthetic Python package.',
+    files: {
+      'setup.cfg':
+        '[metadata]\nname = coverage-config-setup-cfg\n\n[coverage:run]\nsource = src\n\n[coverage:report]\nfail_under = 85\n',
+      'src/inventory.py': 'def count(items):\n    return len(items)\n',
+      'tests/test_inventory.py':
+        'from src.inventory import count\n\n\ndef test_count():\n    assert count([1, 2]) == 2\n',
+      '.github/workflows/ci.yml':
+        'name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pytest\n',
+    },
+  },
+  {
+    name: 'coverage-config-maven-jacoco',
+    purpose:
+      'Coverage configured by applying the JaCoCo Maven plugin in <build><plugins>: A1 must not report no coverage configuration; synthetic Maven project.',
+    files: {
+      'pom.xml':
+        '<project>\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>example</groupId>\n  <artifactId>coverage-config-maven-jacoco</artifactId>\n  <version>1.0.0</version>\n  <build>\n    <plugins>\n      <plugin>\n        <groupId>org.jacoco</groupId>\n        <artifactId>jacoco-maven-plugin</artifactId>\n        <version>0.8.12</version>\n        <executions>\n          <execution><goals><goal>prepare-agent</goal></goals></execution>\n        </executions>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n',
+      'src/main/java/example/Inventory.java':
+        'package example;\n\npublic final class Inventory {\n  public static int count(int[] items) { return items.length; }\n}\n',
+      'src/test/java/example/InventoryTest.java':
+        'package example;\n\nclass InventoryTest {\n  @Test void counts() { assertEquals(2, Inventory.count(new int[] {1, 2})); }\n}\n',
+      '.github/workflows/ci.yml':
+        'name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: mvn test\n',
+    },
+  },
+  {
+    name: 'coverage-command-go-ci',
+    purpose:
+      'Coverage collected by a go test cover flag in a CI run step, with no configuration file: A1 must not report no coverage configuration; synthetic Go module.',
+    files: {
+      'go.mod': 'module example.invalid/inventory\n\ngo 1.22\n',
+      'inventory.go': 'package inventory\n\nfunc Count(items []int) int { return len(items) }\n',
+      'inventory_test.go':
+        'package inventory\n\nimport "testing"\n\nfunc TestCount(t *testing.T) {\n\tif Count([]int{1, 2}) != 2 {\n\t\tt.Fatal("count")\n\t}\n}\n',
+      '.github/workflows/ci.yml':
+        'name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: go test -race -coverprofile=coverage.out ./...\n',
+    },
+  },
 ];
 
 /**
@@ -756,6 +798,9 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'ava-live-assertions': 'ccc905405ee8f63b0b287e0b275eebeb488a3e6d',
   'public-digest-lookup': '5515c03624cb9d7e0ccf2ede8b4a6710f219b3a7',
   'workspace-package-scripts': 'eb763f23df607357fa7548de2176668f2c41028b',
+  'coverage-config-setup-cfg': 'd841dafc8516cdd992452c70ca53cd4a40cfcc14',
+  'coverage-config-maven-jacoco': 'c20014d3fadc4ac6b96a0a9178bd311c64f83a89',
+  'coverage-command-go-ci': '882274b74b5e5ce1bec2a096a023dadb4a36aae4',
 });
 
 /**

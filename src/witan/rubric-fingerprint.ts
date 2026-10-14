@@ -218,23 +218,23 @@ function sha256(value: string): string {
  */
 export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string>> = Object.freeze({
   [WITAN_RUBRIC_VERSION_V17]:
-    'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
+    'sha256:8492999e2ebd981bfd02b63c13217e012d6979c0365017e73be292b8d9dcc03d',
   [WITAN_RUBRIC_VERSION_V18]:
-    'sha256:161d7686d22536f6287904ae1d34bfa106200c1bab9b3b357117745da3446124',
+    'sha256:65a1d857eb62f6c22567ae2758c080b6383b6503ecae6e970f043e7245ee2846',
   [WITAN_RUBRIC_VERSION_V19]:
-    'sha256:b6e0002bcfe14c71c0ac831e0788f93ebf4c56215f7dccd4c981a23fb59f78e1',
+    'sha256:15752e967183076da2dfa5aab13bd373a2524874cf874cc61709b9e793d44f23',
   [WITAN_RUBRIC_VERSION_V20]:
-    'sha256:d972019b19dccf58f7dab985c6ef89faa3e3bba73c2f5ff8373f7854ba13c3c7',
+    'sha256:20012a811d24bd3e4ca3ae2139a9aa7f9da739916eea4c954822fdfcee00b682',
   [WITAN_RUBRIC_VERSION_V21]:
-    'sha256:f25bb1f6984d6de87121f2aaf5535a45ff24f08af4b2b508b504017668e4bad9',
+    'sha256:13d6a8f8c0b49c7f895e7307f5ac2287f9f7b2202120c3339d822e195be3c6b7',
   [WITAN_RUBRIC_VERSION_V22]:
-    'sha256:3efa6907cf365294e4180332d4d55685532f3beb59454ae73856c9360028389c',
+    'sha256:da495e0290df89b2c0e5454bd395e59c5bd5dc98e506418b00b0277322240787',
   [WITAN_RUBRIC_VERSION_V23]:
-    'sha256:6410874e6fb44c1ac29b3fcac49c57799a2eb13bd50444c3a7ce93ebf556577f',
+    'sha256:f4a17960b210013e615e93ea1d7333f73879f1a0aed7c80494929760c8e72aef',
   [WITAN_RUBRIC_VERSION_V24]:
-    'sha256:323fca138becf8a0738dd81023101e87ec341a7083ad9797b8cee5581e342ff0',
+    'sha256:eff4e6d1ad95583923563cf5548db96bd9ab5b133e7d876807993dc7abc07bd1',
   [WITAN_RUBRIC_VERSION_V25]:
-    'sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3',
+    'sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21',
   // v25's closure plus v26 item 6 (docs/calibration/v26/ruling-item-6.md): only the A5 component
   // differs from v25's, because the corpus holds no declared claim-reconciliation artifact, so the
   // v25 A5 finding no longer fires on it. A2 does not move on this corpus.

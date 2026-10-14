@@ -100,7 +100,12 @@ function writeVitestPackage(
 }
 
 describe('A1 v23 command-flag coverage recognition', () => {
-  it('keeps v17 as the public default and leaves v22 coverage recognition unchanged', () => {
+  // Until 2026-10-14 the v22 half of this test pinned the gate: v22 still fired the absence here,
+  // under pattern set v1. goal_cejel_v26_coverage_config_recognition_2026-10-14 (operator ruling:
+  // a recognition fix under every rubric, no identifier bump) extended this mechanism to every
+  // rubric, so v22 now recognizes the same reachable flag. The v17-default and v23 halves are
+  // unchanged.
+  it('keeps v17 as the public default and extends v23 command coverage to v22', () => {
     expect(WITAN_RUBRIC_VERSION).toBe(WITAN_RUBRIC_VERSION_V17);
     const dir = makeTmpRepo();
     writeVitestPackage(dir, {
@@ -110,17 +115,8 @@ describe('A1 v23 command-flag coverage recognition', () => {
 
     const v22 = a1Signal(dir, WITAN_RUBRIC_VERSION_V22);
     expect(v22?.findings?.some((finding) => /no coverage configuration/i.test(finding.summary))).toBe(
-      true,
+      false,
     );
-    expect(v22?.findings?.find((finding) => /no coverage configuration/i.test(finding.summary)))
-      .toEqual(
-        expect.objectContaining({
-          derivation: expect.objectContaining({
-            patternSetId: 'cejel.core-a1.coverage-configuration.v1',
-            patternCount: 10,
-          }),
-        }),
-      );
     expect(hasCoverageAbsence(dir)).toBe(false);
     expect(coverageEvidencePaths(dir)).toContain('package.json');
   });

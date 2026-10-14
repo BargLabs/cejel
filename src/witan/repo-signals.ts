@@ -127,13 +127,28 @@ const INVENTORY_SCAN_PATTERN_SETS = {
     id: 'cejel.core-a1.concrete-test-files.v1',
     count: 16,
   },
-  a1CoverageConfigurationV1: {
-    id: 'cejel.core-a1.coverage-configuration.v1',
-    count: 10,
+  // v1 (10 branches, every rubric but v23) and v2 (14, v23) were retired on 2026-10-14
+  // (goal_cejel_v26_coverage_config_recognition_2026-10-14), when v23's command-flag recognition
+  // and eleven documented configuration locations shipped under every rubric. Branches, counted
+  // the way v2 counted runners (one runner-flag branch however many runners it knows):
+  //   configuration (19): nyc/c8/coverage/codecov .json|.yml|.yaml; .coveragerc; lcov.info;
+  //     .coveralls.yml; vitest.config coverage with disabled values; jest.config coverage keys;
+  //     pyproject [tool.coverage]; package.json nyc/c8/istanbul objects; .codecov.yml|.yaml;
+  //     .nycrc family; .c8rc family; setup.cfg/tox.ini [coverage:run|report]; package.json
+  //     "jest" coverage keys; vite.config test.coverage; .simplecov; phpunit <coverage>; JaCoCo
+  //     in pom.xml; JaCoCo in build.gradle(.kts); tarpaulin.toml.
+  //   commands (6): CI run steps; reachable package scripts; reachable Make/just recipes; tracked
+  //     shell wrappers; coverage-tool invocation; runner coverage flags.
+  // v4 is those 25. v3 adds the four v17 heuristics v23 replaced rather than kept: a bare
+  // `coverage:` key in vitest.config, a jest.config coverage key of any value, a package script
+  // anywhere invoking nyc/c8/istanbul, and a script named `coverage`.
+  a1CoverageConfigurationV3: {
+    id: 'cejel.core-a1.coverage-configuration.v3',
+    count: 29,
   },
-  a1CoverageConfigurationV2: {
-    id: 'cejel.core-a1.coverage-configuration.v2',
-    count: 14,
+  a1CoverageConfigurationV4: {
+    id: 'cejel.core-a1.coverage-configuration.v4',
+    count: 25,
   },
   a2CurrentSecret: {
     id: 'cejel.core-a2.current-secret-shape.v1',
@@ -567,7 +582,12 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V26;
-  const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;
+  // A1 coverage command-flag recognition and its reachability abstention run under every rubric
+  // since goal_cejel_v26_coverage_config_recognition_2026-10-14. What stays v23-only is the part
+  // that could assert a new finding rather than withdraw one: v23 replaces the v17 coverage
+  // heuristics with that analysis instead of adding to them, and counts a Make/just `test:`
+  // recipe as a configured test runner.
+  const usesV23StrictCoverageAndRecipeRunners = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   // Explicit-only (goal_cejel_v23_pem_private_key_grammar_2026-09-06): a PEM-formatted
   // private-key value assigned to an identifier (e.g. a service-account JSON's
   // "private_key" field) is a dedicated grammar, not an extension of the shared
@@ -690,7 +710,7 @@ function buildWitanInputFromRepoUntracked(
     usesV20A3ExplicitGaps,
     usesV21ExecutedEscalations,
     usesV22PackageStartEntrypoint,
-    usesV23CommandCoverage,
+    usesV23StrictCoverageAndRecipeRunners,
     usesV23PemPrivateKeyGrammar,
     usesV23WithheldPathAbstention,
     usesV24SecretContentContext,
@@ -1780,7 +1800,7 @@ function collectRepoSignals(
   useV20A3ExplicitGaps: boolean,
   useV21ExecutedEscalations: boolean,
   useV22PackageStartEntrypoint: boolean,
-  useV23CommandCoverage: boolean,
+  useV23StrictCoverageAndRecipeRunners: boolean,
   useV23PemPrivateKeyGrammar: boolean,
   useV23WithheldPathAbstention: boolean,
   useV24SecretContentContext: boolean,
@@ -1803,7 +1823,7 @@ function collectRepoSignals(
       useV27Detectors,
       useV33Detectors,
       useV36Detectors,
-      useV23CommandCoverage,
+      useV23StrictCoverageAndRecipeRunners,
       reviewableSourceProof,
       inventoryAbsenceContext,
     ),
@@ -1929,7 +1949,7 @@ function collectA1TestIntegrityEvidence(
   useV27Detectors: boolean,
   useV33Detectors: boolean,
   useV36Detectors: boolean,
-  useV23CommandCoverage: boolean,
+  useV23StrictCoverageAndRecipeRunners: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
 ): WitanCriterionSignalPayload | null {
@@ -1947,13 +1967,13 @@ function collectA1TestIntegrityEvidence(
       (file) =>
         (!useV27Detectors || isAuthoredProductionPath(file)) &&
         (isTestRunnerConfig(repoPath, file) ||
-          (useV23CommandCoverage && isRecipeTestEntry(repoPath, file))),
+          (useV23StrictCoverageAndRecipeRunners && isRecipeTestEntry(repoPath, file))),
     )
     .slice(0, 6);
   const baseConfiguredRunnerFiles = useV33Detectors
     ? findConfiguredTestRunnerFiles(repoPath, repoFiles)
     : runnerFiles;
-  const configuredRunnerFiles = useV23CommandCoverage
+  const configuredRunnerFiles = useV23StrictCoverageAndRecipeRunners
     ? [
         ...new Set([
           ...baseConfiguredRunnerFiles,
@@ -1970,14 +1990,22 @@ function collectA1TestIntegrityEvidence(
   // both read the same candidate files, so both are wrapped together; a read failure here can
   // also under-count coverageAnalysis.hasCoverageCommand for verification_script_ratio below —
   // an accepted, narrow scope for this goal (goal_cejel_v23_per_signal_abstention_2026-09-06).
+  //
+  // Command-flag recognition and its unresolved-reachability abstention run under every rubric
+  // (goal_cejel_v26_coverage_config_recognition_2026-10-14, a recognition fix shipped as #459
+  // was). v23 alone REPLACES the v17 heuristics with them; every other rubric keeps those
+  // heuristics and adds the command analysis, so the change can only withdraw an absence,
+  // never assert a new one. Legacy files keep their original order ahead of the additions,
+  // because coverage_percent reads the first four.
   const { coverageAnalysis, coveragePercent } = withContentReadSignal('A1', 'coverage_percent', () => {
-    const analysis = useV23CommandCoverage
-      ? analyzeCoverageConfiguration(repoPath, repoFiles, useV27Detectors)
-      : {
-          coverageFiles: findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors),
-          unresolvedFiles: [],
-          hasCoverageCommand: packageScripts.has('coverage'),
-        };
+    const commandAnalysis = analyzeCoverageConfiguration(repoPath, repoFiles, useV27Detectors);
+    const analysis = useV23StrictCoverageAndRecipeRunners
+      ? commandAnalysis
+      : unionWithLegacyCoverageRecognition(
+          commandAnalysis,
+          findCoverageConfigFiles(repoPath, repoFiles, useV27Detectors),
+          packageScripts.has('coverage'),
+        );
     return {
       coverageAnalysis: analysis,
       coveragePercent: readCoveragePercent(repoPath, analysis.coverageFiles.slice(0, 4)),
@@ -2196,9 +2224,9 @@ function collectA1TestIntegrityEvidence(
           evidence: firstEvidence,
           context: inventoryAbsenceContext,
           inventoryCount: repoFiles.length,
-          patternSet: useV23CommandCoverage
-            ? INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfigurationV2
-            : INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfigurationV1,
+          patternSet: useV23StrictCoverageAndRecipeRunners
+            ? INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfigurationV4
+            : INVENTORY_SCAN_PATTERN_SETS.a1CoverageConfigurationV3,
           matchCount: 0,
         }),
       );
@@ -7358,6 +7386,36 @@ function isCoverageConfig(repoPath: string, file: string): boolean {
   ) {
     return true;
   }
+  // Documented configuration locations, every rubric
+  // (goal_cejel_v26_coverage_config_recognition_2026-10-14). Each is the tool's own documented
+  // file; the PR that added them lists each documentation URL.
+  if (
+    /(^|\/)\.codecov\.ya?ml$/.test(file) ||
+    /(^|\/)\.nycrc(?:\.json|\.ya?ml)?$/.test(file) ||
+    /(^|\/)\.c8rc(?:\.json)?$/.test(file) ||
+    /(^|\/)\.?tarpaulin\.toml$/.test(file)
+  ) {
+    return true;
+  }
+  if (/(^|\/)(?:setup\.cfg|tox\.ini)$/.test(file)) {
+    // coverage.py reads these files only under the `coverage:`-prefixed section names.
+    return fileContains(repoPath, file, /^\s*\[coverage:(?:run|report)\]\s*$/m);
+  }
+  if (/(^|\/)vite\.config\.[cm]?[jt]s$/.test(file)) {
+    return viteConfigCollectsCoverage(repoPath, file);
+  }
+  if (/(^|\/)\.simplecov$/.test(file)) {
+    return fileContains(repoPath, file, /^(?!\s*#).*\bSimpleCov\b/m);
+  }
+  if (/(^|\/)phpunit\.xml(?:\.dist)?$/.test(file)) {
+    return /<coverage(?=[\s>/])/.test(stripXmlComments(readRepoText(join(repoPath, file), 'utf8')));
+  }
+  if (/(^|\/)pom\.xml$/.test(file)) {
+    return pomAppliesJacoco(readRepoText(join(repoPath, file), 'utf8'));
+  }
+  if (/(^|\/)build\.gradle(?:\.kts)?$/.test(file)) {
+    return gradleAppliesJacoco(readRepoText(join(repoPath, file), 'utf8'));
+  }
   if (/(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
     return fileContains(repoPath, file, /\bcoverage\s*:/i);
   }
@@ -7392,22 +7450,98 @@ function packageJsonHasCoverageTooling(repoPath: string, file: string): boolean 
     }
   }
 
-  for (const key of ['nyc', 'c8', 'istanbul'] as const) {
-    const config = parsed[key];
-    if (typeof config === 'object' && config !== null && !Array.isArray(config)) return true;
+  return packageJsonHasStaticCoverageTooling(repoPath, file);
+}
+
+// The v23 disabled-value rules for a Vitest `coverage` property: absent, `false`, `null` or
+// `undefined`, or an object alongside `enabled: false`, does not collect. `contents` must already
+// have comments stripped.
+function vitestCoveragePropertyCollects(contents: string): boolean {
+  const property = /(?:^|[{,])\s*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im
+    .exec(contents)?.[1]
+    ?.trim();
+  if (!property || /^(?:false\b|null\b|undefined\b)/i.test(property)) return false;
+  if (/^\{/.test(property) && /\benabled\s*:\s*false\b/i.test(contents)) return false;
+  return true;
+}
+
+// Vitest reads `test` from vite.config unless a vitest.config beside it takes priority, which it
+// does wholesale unless it merges vite.config in (vitest.dev/config/). Only the `test` block's
+// own `coverage` property counts, under the same disabled-value rules as vitest.config.
+function viteConfigCollectsCoverage(repoPath: string, file: string): boolean {
+  const directory = dirname(file);
+  for (const extension of ['ts', 'mts', 'cts', 'js', 'mjs', 'cjs']) {
+    const sibling = join(repoPath, directory, `vitest.config.${extension}`);
+    if (!isRegularFile(sibling)) continue;
+    const vitestConfig = stripJavaScriptComments(readRepoText(sibling, 'utf8'));
+    if (!/["']\.\/vite\.config(?:\.[cm]?[jt]s)?["']/.test(vitestConfig)) return false;
+  }
+  const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
+  const testProperty = /(?:^|[{,])\s*["']?test["']?\s*:\s*\{/m.exec(contents);
+  if (!testProperty) return false;
+  const block = balancedBraceBlock(contents, testProperty.index + testProperty[0].length - 1);
+  return vitestCoveragePropertyCollects(block);
+}
+
+/** The `{...}` block opening at `open`, quote-aware; the rest of the text if it never closes. */
+function balancedBraceBlock(contents: string, open: number): string {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let index = open; index < contents.length; index += 1) {
+    const character = contents[index];
+    if (quote) {
+      if (character === '\\') index += 1;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') quote = character;
+    else if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return contents.slice(open, index + 1);
+    }
+  }
+  return contents.slice(open);
+}
+
+function stripXmlComments(contents: string): string {
+  return contents.replace(/<!--[\s\S]*?-->/g, '');
+}
+
+// JaCoCo's Maven plugin collects only when the build applies it: <pluginManagement> alone applies
+// nothing (maven.apache.org/pom.html), and `skip` / `jacoco.skip` suppress execution.
+function pomAppliesJacoco(contents: string): boolean {
+  const pom = stripXmlComments(contents).replace(/<pluginManagement>[\s\S]*?<\/pluginManagement>/g, '');
+  if (/<jacoco\.skip>\s*true\s*<\/jacoco\.skip>/i.test(pom)) return false;
+  for (const plugin of pom.matchAll(/<plugin>([\s\S]*?)<\/plugin>/g)) {
+    const body = plugin[1] ?? '';
+    if (!/<artifactId>\s*jacoco-maven-plugin\s*<\/artifactId>/.test(body)) continue;
+    if (/<skip>\s*true\s*<\/skip>/i.test(body)) continue;
+    return true;
+  }
+  return false;
+}
+
+// Gradle's JaCoCo plugin, applied in either DSL: `id 'jacoco'` / `id("jacoco")` / Kotlin's bare
+// `jacoco` inside `plugins { }`, or `apply plugin: 'jacoco'` / `apply(plugin = "jacoco")`.
+function gradleAppliesJacoco(contents: string): boolean {
+  const script = stripJavaScriptComments(contents);
+  if (/\bapply\s*\(?\s*plugin\s*[:=]\s*["']jacoco["']/.test(script)) return true;
+  for (const block of script.matchAll(/\bplugins\s*\{([^{}]*)\}/g)) {
+    if (
+      /(?:^|[\s;])(?:id\s*\(?\s*["']jacoco["']\s*\)?|jacoco)[ \t]*(?:$|[\s;])/m.test(block[1] ?? '')
+    ) {
+      return true;
+    }
   }
   return false;
 }
 
 function isV23CoverageConfig(repoPath: string, file: string): boolean {
   if (/(^|\/)vitest\.config\.[cm]?[jt]s$/.test(file)) {
-    const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
-    const property = /(?:^|[{,])\s*["']?coverage["']?\s*:\s*([^,\r\n}]*)/im
-      .exec(contents)?.[1]
-      ?.trim();
-    if (!property || /^(?:false\b|null\b|undefined\b)/i.test(property)) return false;
-    if (/^\{/.test(property) && /\benabled\s*:\s*false\b/i.test(contents)) return false;
-    return true;
+    return vitestCoveragePropertyCollects(
+      stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8')),
+    );
   }
   if (/(^|\/)jest\.config\.[cm]?[jt]s$/.test(file)) {
     const contents = stripJavaScriptComments(readRepoText(join(repoPath, file), 'utf8'));
@@ -7475,6 +7609,17 @@ function packageJsonHasStaticCoverageTooling(repoPath: string, file: string): bo
   if (!isRegularFile(fullPath)) return false;
   const parsed = parseJsonObject(readRepoText(fullPath, 'utf8'));
   if (!parsed) return false;
+  // Jest reads its configuration from a top-level "jest" key (jestjs.io/docs/configuration);
+  // the same keys, with collectCoverage only when true, that v23 reads in jest.config.
+  const jest = parsed.jest;
+  if (
+    isRecord(jest) &&
+    (jest.collectCoverage === true ||
+      isRecord(jest.coverageThreshold) ||
+      typeof jest.coverageProvider === 'string')
+  ) {
+    return true;
+  }
   return ['nyc', 'c8', 'istanbul'].some((key) => {
     const config = parsed[key];
     return typeof config === 'object' && config !== null && !Array.isArray(config);
@@ -7598,6 +7743,24 @@ export function analyzeCoverageConfiguration(
     unresolvedFiles: [...unresolvedFiles].sort(),
     hasCoverageCommand,
     detectorDecisions,
+  };
+}
+
+function unionWithLegacyCoverageRecognition(
+  analysis: CoverageConfigurationAnalysis,
+  legacyFiles: readonly string[],
+  hasLegacyCoverageScript: boolean,
+): CoverageConfigurationAnalysis {
+  const legacy = new Set(legacyFiles);
+  const coverageFiles = [
+    ...legacyFiles,
+    ...analysis.coverageFiles.filter((file) => !legacy.has(file)),
+  ];
+  return {
+    coverageFiles,
+    unresolvedFiles: analysis.unresolvedFiles.filter((file) => !legacy.has(file)),
+    hasCoverageCommand: hasLegacyCoverageScript || analysis.hasCoverageCommand,
+    detectorDecisions: analysis.detectorDecisions,
   };
 }
 
@@ -8043,7 +8206,94 @@ function coverageFlagCommandState(words: readonly string[]): CoverageCommandStat
   if (executable === 'vitest' || executable === 'bnt') {
     return flagState(args, ['--coverage'], ['--no-coverage']);
   }
+  // goal_cejel_v26_coverage_config_recognition_2026-10-14, each from the tool's own documentation.
+  if (isPythonModuleRunner(executable, args)) {
+    // `python -m pytest` is pytest (docs.pytest.org); flags before `-m` are the interpreter's.
+    return flagState(args.slice(2), ['--cov'], ['--no-cov']);
+  }
+  if (executable === 'go') {
+    if (args[0]?.toLowerCase() !== 'test') return 'none';
+    // Everything after -args goes to the test binary uninterpreted (go help testflag).
+    const end = args.findIndex((arg, index) => index > 0 && /^--?args$/i.test(arg));
+    return goTestCoverageState(end < 0 ? args.slice(1) : args.slice(1, end));
+  }
+  if (executable === 'dotnet') {
+    if (args[0]?.toLowerCase() !== 'test') return 'none';
+    // Arguments after `--` are RunSettings key=value pairs, not dotnet test options.
+    const end = args.indexOf('--', 1);
+    return dotnetTestCoverageState(end < 0 ? args.slice(1) : args.slice(1, end));
+  }
+  if (executable === 'cargo') {
+    const subcommand = args[0]?.startsWith('+') ? args.slice(1) : args;
+    if (subcommand[0]?.toLowerCase() !== 'llvm-cov') return 'none';
+    // `report`, `clean` and `show-env` run no tests, nor does `--no-run`; `run` runs a binary,
+    // not the tests (github.com/taiki-e/cargo-llvm-cov).
+    if (['report', 'clean', 'show-env', 'run'].includes(subcommand[1]?.toLowerCase() ?? '')) {
+      return 'none';
+    }
+    const end = subcommand.indexOf('--');
+    const owned = end < 0 ? subcommand.slice(1) : subcommand.slice(1, end);
+    return owned.some((arg) => arg.toLowerCase() === '--no-run') ? 'none' : 'collects';
+  }
   return 'none';
+}
+
+function isPythonModuleRunner(executable: string, args: readonly string[]): boolean {
+  return (
+    /^(?:python[0-9.]*|py)$/.test(executable) &&
+    args[0] === '-m' &&
+    (args[1] === 'pytest' || args[1] === 'py.test')
+  );
+}
+
+// `-cover` enables coverage; `-covermode`, `-coverpkg` and `-coverprofile` each "set -cover"
+// whatever their value. Go accepts one or two leading dashes.
+function goTestCoverageState(args: readonly string[]): CoverageCommandState {
+  let enabled = false;
+  let disabled = false;
+  let unresolved = false;
+  for (const raw of args) {
+    const [name, assigned] = raw.toLowerCase().replace(/^--/u, '-').split('=', 2);
+    if (name === '-covermode' || name === '-coverpkg' || name === '-coverprofile') {
+      enabled = true;
+    } else if (name === '-cover') {
+      if (assigned === undefined || /^(?:true|t|1)$/u.test(assigned)) enabled = true;
+      else if (/^(?:false|f|0)$/u.test(assigned)) disabled = true;
+      else unresolved = true;
+    }
+  }
+  if (unresolved || (enabled && disabled)) return 'unresolved';
+  return enabled ? 'collects' : 'none';
+}
+
+// `--collect "XPlat Code Coverage"` (coverlet) or `--collect "Code Coverage"` (Microsoft), the
+// friendly name case-insensitive (learn.microsoft.com/dotnet/core/testing/unit-testing-code-coverage);
+// or coverlet.msbuild's `/p:CollectCoverage=true` (coverlet MSBuildIntegration.md).
+function dotnetTestCoverageState(args: readonly string[]): CoverageCommandState {
+  let enabled = false;
+  let disabled = false;
+  let unresolved = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const lower = (args[index] ?? '').toLowerCase();
+    const collect = /^--collect(?:[:=]([\s\S]*))?$/u.exec(lower);
+    if (collect) {
+      const value = (collect[1] ?? args[(index += 1)]?.toLowerCase() ?? '').trim();
+      if (/\$|\{|\}/u.test(value)) unresolved = true;
+      else if (value === 'xplat code coverage' || value === 'code coverage') enabled = true;
+      continue;
+    }
+    const property = /^(?:[/-]p|--property):([\s\S]*)$/u.exec(lower);
+    if (!property) continue;
+    for (const assignment of (property[1] ?? '').split(/[;,]/u)) {
+      const [name, value] = assignment.split('=', 2).map((part) => part.trim());
+      if (name !== 'collectcoverage' || value === undefined) continue;
+      if (value === 'true') enabled = true;
+      else if (value === 'false') disabled = true;
+      else unresolved = true;
+    }
+  }
+  if (unresolved || (enabled && disabled)) return 'unresolved';
+  return enabled ? 'collects' : 'none';
 }
 
 function isRecognizedCoverageFlagRunner(words: readonly string[]): boolean {
@@ -8051,10 +8301,13 @@ function isRecognizedCoverageFlagRunner(words: readonly string[]): boolean {
   const executable = basename(command[0] ?? '').replace(/\.cmd$/i, '').toLowerCase();
   if (['bnt', 'vitest', 'jest', 'pytest', 'py.test'].includes(executable)) return true;
   if (executable === 'node') return command.slice(1).includes('--test');
-  return (
-    (executable === 'bun' || executable === 'deno') &&
-    command[1]?.toLowerCase() === 'test'
-  );
+  if (isPythonModuleRunner(executable, command.slice(1))) return true;
+  const subcommand = command[1]?.toLowerCase();
+  if (executable === 'go' || executable === 'dotnet') return subcommand === 'test';
+  if (executable === 'cargo') {
+    return (subcommand?.startsWith('+') ? command[2] : command[1])?.toLowerCase() === 'llvm-cov';
+  }
+  return (executable === 'bun' || executable === 'deno') && subcommand === 'test';
 }
 
 function flagState(

@@ -130,7 +130,8 @@ describe('inventory-scan derivation contract', () => {
     });
     const findings = nativeFindings(score(repoPath));
     const expectedPatternSets = new Map([
-      ['cejel.core-a1.coverage-configuration.v2', 14],
+      // v2 (14) retired 2026-10-14 for v4 (25): goal_cejel_v26_coverage_config_recognition_2026-10-14.
+      ['cejel.core-a1.coverage-configuration.v4', 25],
       ['cejel.core-a2.current-secret-shape.v1', 3],
       ['cejel.core-a2.rls-policy.v1', 3],
       ['cejel.core-a3.ci-or-release-deploy.v1', 12],
@@ -188,7 +189,7 @@ describe('inventory-scan derivation contract', () => {
     const expectedPatternSetIds = [
       'cejel.core-a1.test-integrity-surface.v1',
       'cejel.core-a1.concrete-test-files.v1',
-      'cejel.core-a1.coverage-configuration.v2',
+      'cejel.core-a1.coverage-configuration.v4',
       'cejel.core-a2.current-secret-shape.v1',
       'cejel.core-a2.rls-policy.v1',
       'cejel.core-a3.ci-or-release-deploy.v1',
