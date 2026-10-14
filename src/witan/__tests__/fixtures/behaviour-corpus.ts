@@ -837,6 +837,28 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
         "const test = require('tape');\nconst { count } = require('..');\n\ntest('counts', (t) => {\n  t.equal(count([1, 2]), 2);\n  t.end();\n});\n",
     },
   },
+  {
+    name: 'hmac-digest-compare',
+    purpose:
+      'A digest assigned from a keyed createHmac computation and compared with === is a secret compare, decided by what produced it and not by its name; synthetic webhook verifier.',
+    files: {
+      'package.json': '{"name":"hmac-digest-compare","scripts":{"test":"node --test"}}\n',
+      'src/webhook.js':
+        "import { createHmac } from 'node:crypto';\n\nexport function verify(body, sig, key) {\n  const digest = createHmac('sha256', key).update(body).digest('hex');\n  if (digest === sig) return true;\n  return false;\n}\n",
+      'src/webhook.test.js': "import assert from 'node:assert';\nassert.strictEqual(1, 1);\n",
+    },
+  },
+  {
+    name: 'unkeyed-digest-controls',
+    purpose:
+      'A plain unkeyed hash compared as digest, and an HMAC computed into mac beside an unrelated contentDigest === etag, are not secret compares; synthetic cache helpers.',
+    files: {
+      'package.json': '{"name":"unkeyed-digest-controls","scripts":{"test":"node --test"}}\n',
+      'src/cache.js':
+        "import { createHash, createHmac } from 'node:crypto';\n\nexport const matches = (body, expected) => {\n  const digest = createHash('sha256').update(body).digest('hex');\n  return digest === expected;\n};\nexport const sign = (key, body) => {\n  const mac = createHmac('sha256', key).update(body).digest('hex');\n  return mac;\n};\nexport const fresh = (contentDigest, etag) => contentDigest === etag;\n",
+      'src/cache.test.js': "import assert from 'node:assert';\nassert.strictEqual(1, 1);\n",
+    },
+  },
 ];
 
 /**
@@ -877,6 +899,8 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'scalatest-assertions': '5dae8bbb750b957cc9de542982d630e7250e27a5',
   'kotest-matchers': '8f4e6c3402b30e7b377f18e330ef66ebb32ba472',
   'tape-assertions': '347020854b8d0c69f33539345c665d8bd6c09a5f',
+  'hmac-digest-compare': '6eedfe0233fa9ceac025d1afc533171920c14cad',
+  'unkeyed-digest-controls': 'c668be91818f3dfd912ad8b4e3eb8be97e7fbe6e',
 });
 
 /**

@@ -22,6 +22,96 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
+
+**Status.** A recognition fix that restores a true finding. It ships under
+`witan-rubric-v17-2026-07-24` and every selectable rubric with no identifier bump and with weights
+and thresholds unchanged, as #430 did. **The public-corpus before-and-after has not run.** The
+release that carries this change runs a preregistered public delta, and the operator's private
+check precedes that release. This entry makes no statement about a public-corpus score, verdict,
+rank, placement, calibration, precision or recall.
+
+**The defect.** #430 (0.6.4) removed `digest` from A2's insecure-compare line pattern under every
+rubric, because a bare digest name is no evidence of a secret: public content and grammar hashes
+use it too. 0.6.4 stated the cost: "an HMAC result held in a variable named only `digest` is no
+longer flagged." Whether a value is secret is decided by what produced it, not by its name.
+
+**The change, every rubric.** A comparison is flagged when all of these hold:
+- the left-hand identifier contains `digest`, is not a property, and is compared with `===` /
+  `!==` (`==` / `!=` in Python, Go and Ruby) against something other than a literal, `undefined`,
+  `null`, `None`, `nil` or a numeric-shaped operand;
+- the same file assigns that identifier, before the comparison, from a keyed HMAC computation:
+  directly, or by reading one earlier HMAC binding (an HMAC object's digest method, or a value
+  already produced). One hop, never a chain;
+- the assignment, the computation and the comparison are all live code, outside comments and
+  strings.
+
+The computations are each runtime's documented API:
+- **Node:** `createHmac(algorithm, key)` with `.digest(` (nodejs.org/api/crypto.html);
+- **Web Crypto:** `crypto.subtle.sign('HMAC' | { name: 'HMAC' }, key, data)` (MDN
+  `SubtleCrypto.sign`);
+- **Python:** `hmac.new(key, msg, digestmod)` with `.digest()` / `.hexdigest()`, and
+  `hmac.digest(key, msg, digest)` (docs.python.org `hmac`);
+- **Go:** `hmac.New(h, key)` then `.Sum(` (`crypto/hmac`);
+- **Ruby:** `OpenSSL::HMAC.digest` / `.hexdigest` / `.base64digest`, or an `OpenSSL::HMAC.new`
+  instance's digest. An `OpenSSL::HMAC` instance itself is never bound: its `==` compares in
+  constant time.
+
+**Not changed:** the #430 line pattern and every one of its regression tests. The new rule runs
+beside it, and the first flagged line in a file is reported. A2 reports at most one timing finding,
+as before.
+
+**Expected direction on the public delta.**
+- **A2 can newly fire** on a repository that compares a keyed-HMAC digest with ordinary equality,
+  and only there. Its `crypto_comparison_hygiene` metric reads 0.
+- **On a repository with no other A2 surface, A2 moves from not applicable to scored.** The A2
+  score then enters the code-trust mean, which can raise the code-trust and overall scores even
+  though the change only adds a warning. The specimen below shows this.
+- **Nothing can stop firing.** The existing pattern is untouched. Where a repository already had a
+  timing finding, its cited file and line can move to an earlier production file that the new rule
+  matches. Every selectable rubric scans production paths only here, so a test file cannot take
+  the finding over.
+
+**Measured on the behaviour corpus.** Two synthetic specimens extend the corpus from 28 to 30:
+`hmac-digest-compare` (a `createHmac` digest compared with `===`) and `unkeyed-digest-controls` (a
+plain `createHash` digest compared, and an HMAC computed into `mac` beside an unrelated
+`contentDigest === etag`). The previous scanner is `origin/main` `457c9292`, run on the same
+30-specimen corpus. Every fixture reproduced its committed head in both runs. As a pipeline check,
+`457c9292` on the committed 28-specimen corpus reproduced all ten committed fingerprints. 300
+specimen/rubric surfaces were compared, and 10 moved: `hmac-digest-compare` under every rubric, A2
+only. The other 29 specimens, `unkeyed-digest-controls` among them, are identical under all ten
+rubrics (290 of 290).
+
+Every rubric moves the specimen identically:
+
+| Specimen | A2 | A2 status | A2 findings | `crypto_comparison_hygiene` | Code trust | Overall | Verdict |
+|---|---|---|---|---|---|---|---|
+| `hmac-digest-compare` | not applicable → 2.3 | not applicable → warning | none → 1 warning | absent → 0 | 1.3 → 1.6 | 0.9 → 1.1 | unchanged |
+
+A2 now also reports `env_handling_depth` 0 and `secret_cleanliness` 1, which come with any scored A2.
+
+Measured fingerprints:
+
+| Rubric | Previous scanner, expanded corpus | This change |
+| --- | --- | --- |
+| `witan-rubric-v17-2026-07-24` | `sha256:15721c3ad60dae307d1823b5b22b3574d0dbbfe0a9d9a0ba093f589957c1ddb9` | `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:b5f6159ba329303308b48005b484e745b51aeaef5a04c7bcf3444461e79ba495` | `sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:2cbb8d2db1436a585434491bbbdb60b907c365cc0849219edae0bde099815bc3` | `sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:5e4981ee5f70eb50d06736595d7983c3b69d5150f68f7b2a733852be88b82356` | `sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:d859442939c0c8c2122207d62fa13c28228cba518018a92276a7a81c648ef22d` | `sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:40817f363e1b2de86fc2346c8d3b40a5e28dd1f9b0ce45beb93c14803e46281e` | `sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:23c55fb078e7b2b158f095e62d10d02b5af74af2a570cf812348a81c65eebf06` | `sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:a2a5d3da7f18e2c40784011b1609e1589db3fb371893727207e176da74aa1140` | `sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:68952f0c9b5be512852dfbb24c23aaef25025da0a7b8d5b469cedfe173eb95fc` | `sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9` |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:f1bcbe59bfcdc67ff378fbb94c853d938722772ecff961194fe76a80a536133b` | `sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae` |
+
+**Report format.** No field changes. The v17 goldens, the CLI byte pin and the F2 reads-disclosure
+pins moved by their fingerprint alone: restoring only the previous fingerprint reproduces each
+previous pin byte for byte.
+
+The API sources, the red-first run and the guard-deletion table are in
+`docs/reviews/hmac-digest-compare-2026-10-14.md`.
+
 ## 2026-10-14 — A1 test-framework recognition (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under

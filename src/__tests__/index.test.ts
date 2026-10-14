@@ -474,13 +474,26 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // corpus gained six specimens, so v17's fingerprint moved. This fixture has no test file.
     // Restoring the previous v17 fingerprint in place reproduces the coverage-recognition pin
     // (a5b58d2b...) byte for byte.
+    // Re-pinned 2026-10-14 (goal_cejel_v26_hmac_digest_compare_2026-10-14): A2 binds a digest
+    // compare to a keyed HMAC computation under every rubric, and the behaviour corpus gained two
+    // specimens, so v17's fingerprint moved. This fixture holds no HMAC. Restoring the previous v17
+    // fingerprint in place reproduces the test-framework-recognition pin (41940242...) byte for byte.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '4194024274b8179a3f385a2656a9aa2cdda88d73dbb0098fc09d0dfe275d8637',
+      '362aa4f390133fd258ce3bc47113c859702f1b466df2c7e2e722baf65a9c5d3b',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007',
+      'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.4');
+    const atPreHmacDigestCompare = {
+      ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007',
+    } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreHmacDigestCompare, null, 2)).digest('hex'),
+      'the pre-HMAC-digest-compare report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
+    ).toBe('4194024274b8179a3f385a2656a9aa2cdda88d73dbb0098fc09d0dfe275d8637');
     const atPreTestFrameworkRecognition = {
       ...firstReport,
       rubricBehaviourFingerprint:

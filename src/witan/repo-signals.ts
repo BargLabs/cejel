@@ -5368,9 +5368,168 @@ function findInsecureSecretCompareLine(
 ): number | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
-  const lines = readRepoText(fullPath, 'utf8').split('\n');
+  const contents = readRepoText(fullPath, 'utf8');
+  const lines = contents.split('\n');
   const index = lines.findIndex((line) => lineHasInsecureSecretCompare(line, useV39Detectors));
-  return index === -1 ? null : index + 1;
+  const keyedDigestLine = findKeyedHmacDigestCompareLine(file, contents);
+  if (keyedDigestLine === null) return index === -1 ? null : index + 1;
+  return index === -1 ? keyedDigestLine : Math.min(index + 1, keyedDigestLine);
+}
+
+// A value named `digest` is secret when the same file computes it with a keyed HMAC, not because
+// of its name (goal_cejel_v26_hmac_digest_compare_2026-10-14). #430 dropped the bare name from the
+// line pattern above; this restores the HMAC case by binding the compared identifier to what
+// produced it, under every rubric. Shapes, each from the runtime's documentation:
+//   Node    createHmac(algorithm, key[, options]) … .digest([encoding])  (nodejs.org/api/crypto.html)
+//   Web     crypto.subtle.sign(algorithm, key, data), algorithm 'HMAC' or { name: 'HMAC' }  (MDN)
+//   Python  hmac.new(key, msg, digestmod) … .digest()/.hexdigest(); hmac.digest(key, msg, digest)
+//   Go      hmac.New(h, key) then .Sum(b)  (pkg.go.dev/crypto/hmac)
+//   Ruby    OpenSSL::HMAC.digest/.hexdigest/.base64digest(digest, key, data); HMAC.new(key, digest)
+// An identifier is bound when its assignment produces a digest from a keyed HMAC directly, or reads
+// one earlier HMAC binding: an HMAC object's digest method, or a value already produced. One hop,
+// never a chain. A Ruby OpenSSL::HMAC instance is never bound: HMAC#== compares in constant time.
+// Assignments and comparisons are read outside comments and strings, so a commented-out comparison
+// or a quoted computation binds nothing. Bindings ignore scope: a same-named parameter in another
+// function of the same file is read as the bound value.
+interface KeyedHmacGrammar {
+  /** Names a keyed HMAC computation; the key is part of each API. */
+  readonly keyed: RegExp;
+  /** Produces a digest value, as opposed to constructing an HMAC object. */
+  readonly produces: RegExp;
+  /** The digest-producing method on an HMAC object, following the object's identifier. */
+  readonly objectDigestCall: string;
+  readonly equality: string;
+  readonly hashComments: boolean;
+}
+
+const KEYED_HMAC_GRAMMARS: readonly (readonly [RegExp, KeyedHmacGrammar])[] = [
+  [
+    /\.(?:ts|tsx|js|jsx)$/,
+    {
+      keyed:
+        /\bcreateHmac\s*\(|\bsubtle\s*\.\s*sign\s*\(\s*(?:['"]HMAC['"]|\{\s*name\s*:\s*['"]HMAC['"])/,
+      produces: /\.\s*digest\s*\(|\bsubtle\s*\.\s*sign\s*\(/,
+      objectDigestCall: String.raw`\.\s*digest\s*\(`,
+      equality: '===|!==',
+      hashComments: false,
+    },
+  ],
+  [
+    /\.py$/,
+    {
+      keyed: /\bhmac\s*\.\s*(?:new|digest)\s*\(/,
+      produces: /\.\s*(?:hex)?digest\s*\(/,
+      objectDigestCall: String.raw`\.\s*(?:hex)?digest\s*\(`,
+      equality: '==|!=',
+      hashComments: true,
+    },
+  ],
+  [
+    /\.go$/,
+    {
+      keyed: /\bhmac\s*\.\s*New\s*\(/,
+      produces: /\.\s*Sum\s*\(/,
+      objectDigestCall: String.raw`\.\s*Sum\s*\(`,
+      equality: '==|!=',
+      hashComments: false,
+    },
+  ],
+  [
+    /\.rb$/,
+    {
+      keyed: /\bOpenSSL\s*::\s*HMAC\s*\.\s*(?:new|(?:hex|base64)?digest)\b/,
+      produces: /\.\s*(?:hex|base64)?digest\b/,
+      objectDigestCall: String.raw`\.\s*(?:hex|base64)?digest\b`,
+      equality: '==|!=',
+      hashComments: true,
+    },
+  ],
+];
+
+// A variable assignment: `x =`, `x :=`, `const x: T =`; never `==`, `=>`, or a property (`a.x =`).
+const VARIABLE_ASSIGNMENT_PATTERN =
+  /(?<![\w$.])([A-Za-z_$][\w$]*)(?:\s*:\s*[A-Za-z_$][\w$.<>[\]]*)?\s*:?=(?![=>])/g;
+const ASSIGNED_EXPRESSION_MAX_CHARS = 512;
+
+// End of the expression assigned at `start`: a `;`, `,` or unmatched closing bracket at depth 0, or
+// a line break at depth 0 not followed by a `.` chain continuation. Read on masked code.
+function assignedExpressionEnd(code: string, start: number): number {
+  const limit = Math.min(code.length, start + ASSIGNED_EXPRESSION_MAX_CHARS);
+  let depth = 0;
+  for (let i = start; i < limit; i += 1) {
+    const ch = code[i]!;
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      if (depth === 0) return i;
+      depth -= 1;
+    } else if (depth === 0 && (ch === ';' || ch === ',')) return i;
+    else if (depth === 0 && ch === '\n' && !/^\s*\./.test(code.slice(i + 1, i + 65))) return i;
+  }
+  return limit;
+}
+
+const escapeIdentifier = (identifier: string) => identifier.replace(/\$/g, '\\$');
+
+function findKeyedHmacDigestCompareLine(file: string, contents: string): number | null {
+  const grammar = KEYED_HMAC_GRAMMARS.find(([extension]) => extension.test(file))?.[1];
+  if (!grammar || !/digest/i.test(contents) || !grammar.produces.test(contents)) return null;
+  const { commentFree, code } = maskCommentsAndStrings(contents, grammar.hashComments);
+  // A match counts only where it starts in code, never inside a string literal. The text searched
+  // keeps strings, so `subtle.sign('HMAC', …)` still reads its quoted algorithm name.
+  const startsInCode = (pattern: RegExp, from: number, to: number) => {
+    for (const match of commentFree.slice(from, to).matchAll(new RegExp(pattern.source, 'g'))) {
+      if (code[from + match.index!] === commentFree[from + match.index!]) return true;
+    }
+    return false;
+  };
+
+  // Earliest offset at which each identifier holds a keyed HMAC digest.
+  const boundAt = new Map<string, number>();
+  const hmacValues: string[] = [];
+  const hmacObjects: string[] = [];
+  for (const assignment of code.matchAll(VARIABLE_ASSIGNMENT_PATTERN)) {
+    const name = assignment[1]!;
+    const start = assignment.index! + assignment[0].length;
+    const end = assignedExpressionEnd(code, start);
+    const keyed = startsInCode(grammar.keyed, start, end);
+    let bound = false;
+    if (keyed && startsInCode(grammar.produces, start, end)) {
+      hmacValues.push(name);
+      bound = true;
+    } else if (keyed) {
+      hmacObjects.push(name);
+    } else {
+      bound =
+        hmacValues.some((value) =>
+          startsInCode(new RegExp(`(?<![\\w$.])${escapeIdentifier(value)}(?![\\w$])`), start, end),
+        ) ||
+        hmacObjects.some((object) =>
+          startsInCode(
+            new RegExp(`(?<![\\w$.])${escapeIdentifier(object)}\\s*${grammar.objectDigestCall}`),
+            start,
+            end,
+          ),
+        );
+    }
+    if (bound && !boundAt.has(name)) boundAt.set(name, assignment.index!);
+  }
+  if (boundAt.size === 0) return null;
+
+  const comparison = new RegExp(
+    `(?<![\\w$.])([A-Za-z_$][\\w$]*)\\s*(?:${grammar.equality})(?!=)\\s*` +
+      `(?!['"\`]|undefined\\b|null\\b|None\\b|nil\\b)([\\w.]+(?:\\s*[-+]\\s*\\d+)?)`,
+    'g',
+  );
+  for (const match of commentFree.matchAll(comparison)) {
+    const at = match.index!;
+    const name = match[1]!;
+    if (code[at] !== commentFree[at] || !/digest/i.test(name)) continue;
+    const assignedAt = boundAt.get(name);
+    if (assignedAt === undefined || assignedAt > at) continue;
+    if (NUMERIC_SHAPED_OPERAND_PATTERN.test(match[2]!.trim())) continue;
+    return contents.slice(0, at).split('\n').length;
+  }
+  return null;
 }
 
 // Real 1-based line of the first line matching pattern, or null when the file-level match
@@ -6008,7 +6167,9 @@ interface MaskedSource {
 // offsets and newlines. Block comments nest (Swift, Scala, Kotlin), triple-quoted strings run to
 // the next `"""`, and a C# `@"…"` verbatim string takes no backslash escapes. Where the lexing is
 // wrong for a language, it blanks too much, which withholds credit rather than inventing it.
-function maskCommentsAndStrings(contents: string): MaskedSource {
+// With hashComments (Python, Ruby), `#` opens the line comment, `//` and `/*` are not comments,
+// and `'''` strings run to the next `'''` as `"""` ones do.
+function maskCommentsAndStrings(contents: string, hashComments = false): MaskedSource {
   const commentFree = contents.split('');
   const code = contents.split('');
   const blank = (target: string[], from: number, to: number) => {
@@ -6019,12 +6180,12 @@ function maskCommentsAndStrings(contents: string): MaskedSource {
     const ch = contents[i]!;
     const next = contents[i + 1];
     let end = i + 1;
-    if (ch === '/' && next === '/') {
+    if (hashComments ? ch === '#' : ch === '/' && next === '/') {
       end = contents.indexOf('\n', i);
       if (end < 0) end = contents.length;
       blank(commentFree, i, end);
       blank(code, i, end);
-    } else if (ch === '/' && next === '*') {
+    } else if (!hashComments && ch === '/' && next === '*') {
       let depth = 1;
       end = i + 2;
       while (end < contents.length && depth > 0) {
@@ -6034,8 +6195,8 @@ function maskCommentsAndStrings(contents: string): MaskedSource {
       }
       blank(commentFree, i, end);
       blank(code, i, end);
-    } else if (contents.startsWith('"""', i)) {
-      const close = contents.indexOf('"""', i + 3);
+    } else if (contents.startsWith('"""', i) || (hashComments && contents.startsWith("'''", i))) {
+      const close = contents.indexOf(contents.slice(i, i + 3), i + 3);
       end = close < 0 ? contents.length : close + 3;
       blank(code, i, end);
     } else if (ch === '"' || ch === "'" || ch === '`') {

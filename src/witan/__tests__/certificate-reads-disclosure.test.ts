@@ -140,11 +140,27 @@ describe('the disclosure moves no score', () => {
   // test-framework recognition widened and the corpus gained six specimens, so every fingerprint
   // moved. F2 has no test file; restoring only the previous fingerprint recovers each previous pin
   // (F2_PRE_TEST_FRAMEWORK_PINS) byte for byte.
+  // Re-pinned again 2026-10-14 (goal_cejel_v26_hmac_digest_compare_2026-10-14): A2 binds a digest
+  // compare to a keyed HMAC computation and the corpus gained two specimens, so every fingerprint
+  // moved. F2 holds no HMAC; restoring only the previous fingerprint recovers each previous pin
+  // (F2_PRE_HMAC_DIGEST_PINS) byte for byte.
   const F2_PINS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: '9513da1482fde3f08649a976eeb2869841920450aaeaae3a9e19cbb2d1548529',
+    [WITAN_RUBRIC_VERSION_V22]: 'eafbaec3180902fe7b5ae9a242bc0e3d12e0e8e530f8ff821f215487a15610c7',
+    [WITAN_RUBRIC_VERSION_V23]: '8eac2bc5b8da842e0645bf0238778dc37e4a9d0073c817ea24d4dd2da67a7e2f',
+    [WITAN_RUBRIC_VERSION_V25]: '2f028761fe096077570704598d70695bbbc33d46df852fe8cba4f01c05285f9b',
+  };
+  const F2_PRE_HMAC_DIGEST_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: 'ed524ff31db3d6c59d64ed2d3d19ca8832ecefea1a7ae41a3c23f4b528681101',
     [WITAN_RUBRIC_VERSION_V22]: 'd7dcaef606a8c0fb8b3ee03ab1c36ab6e127e446cca8979aea04fe56f01aab26',
     [WITAN_RUBRIC_VERSION_V23]: 'acaa6125dcbdb93bbbb8e3f4d6a550157832d4531280fba2f6fc44c2fa7853dc',
     [WITAN_RUBRIC_VERSION_V25]: '1924bfe4b37d61a809ca9a28edbda5b1a63547e857a14e8f481b9dbe4dbef06c',
+  };
+  const F2_PRE_HMAC_DIGEST_FINGERPRINTS: Readonly<Record<string, string>> = {
+    [WITAN_RUBRIC_VERSION_V17]: 'sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007',
+    [WITAN_RUBRIC_VERSION_V22]: 'sha256:54642ad53c521e2ef236ba41b9f8040b044e749437b931053250ec929a19daf7',
+    [WITAN_RUBRIC_VERSION_V23]: 'sha256:f6d939ec4a0ceed2375037f8a722f564b60c781eecbc2ec0060b09bce92f5cb9',
+    [WITAN_RUBRIC_VERSION_V25]: 'sha256:2e87656428c7a7478f03437dc125cf543abff5a27e0323ad7e9160fc70a7fb5c',
   };
   const F2_PRE_TEST_FRAMEWORK_PINS: Readonly<Record<string, string>> = {
     [WITAN_RUBRIC_VERSION_V17]: '0d8a27dafb5fc18d0689bb20061016d42f59e88dc39a8b006e25cf3177e4ef01',
@@ -199,7 +215,10 @@ describe('the disclosure moves no score', () => {
     expect(createHash('sha256').update(JSON.stringify(report)).digest('hex')).toBe(
       F2_PINS[rubricVersion],
     );
-    const preTestFramework = { ...report, rubricBehaviourFingerprint: F2_PRE_TEST_FRAMEWORK_FINGERPRINTS[rubricVersion] };
+    const preHmacDigest = { ...report, rubricBehaviourFingerprint: F2_PRE_HMAC_DIGEST_FINGERPRINTS[rubricVersion] };
+    expect(createHash('sha256').update(JSON.stringify(preHmacDigest)).digest('hex'))
+      .toBe(F2_PRE_HMAC_DIGEST_PINS[rubricVersion]);
+    const preTestFramework ={ ...report, rubricBehaviourFingerprint: F2_PRE_TEST_FRAMEWORK_FINGERPRINTS[rubricVersion] };
     expect(createHash('sha256').update(JSON.stringify(preTestFramework)).digest('hex'))
       .toBe(F2_PRE_TEST_FRAMEWORK_PINS[rubricVersion]);
     const preCoverage = { ...report, rubricBehaviourFingerprint: F2_PRE_COVERAGE_FINGERPRINTS[rubricVersion] };

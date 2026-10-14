@@ -53,6 +53,27 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
+  identifier bump: A2 flags a digest compare when the same file computes the digest with a keyed
+  HMAC.** This narrows the cost 0.6.4 stated for #430, that "an HMAC result held in a variable named
+  only `digest` is no longer flagged". A2's timing side-channel finding now also fires when:
+  - an identifier containing `digest` is compared with `===`/`!==` (`==`/`!=` in Python, Go and
+    Ruby) against a non-literal; and
+  - that identifier is assigned from a keyed HMAC computation in the same file, directly or by
+    reading one earlier HMAC binding.
+
+  The recognized computations are each runtime's documented API: Node `createHmac(…)….digest(…)`,
+  Web Crypto `crypto.subtle.sign('HMAC' | { name: 'HMAC' }, …)`, Python `hmac.new(…)` with
+  `.digest()` / `.hexdigest()` and `hmac.digest(…)`, Go `hmac.New(…)` then `.Sum(`, and Ruby
+  `OpenSSL::HMAC.digest` / `.hexdigest` / `.base64digest` or an `OpenSSL::HMAC.new` instance's
+  digest. Assignments and comparisons are read outside comments and strings. A digest from a plain
+  unkeyed hash, an unrelated digest-named value, a property, and an `OpenSSL::HMAC` instance (whose
+  `==` is constant-time) are not flagged. Every #430 control stays unflagged, and the #430 line
+  pattern is unchanged. A2 can newly fire, and a repository with no other A2 surface moves from not
+  applicable to scored. Weights and thresholds are unchanged. The behaviour corpus has two new
+  synthetic specimens; fingerprints and report goldens are re-pinned with the deltas in
+  `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The preregistered public-corpus delta has not run
+  yet.
+- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
   identifier bump: A1 reads test assertions in more frameworks before it calls a test file
   hollow (#406).** A1 `non_hollow_test_share` now recognizes each framework's documented assertion
   idioms:
