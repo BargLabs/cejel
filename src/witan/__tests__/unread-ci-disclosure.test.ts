@@ -83,7 +83,7 @@ describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read 
     expect(ciLabel(labels('B3'))).toEqual(['CI workflow']);
   });
 
-  it('zero delegated steps add nothing to the #467 count', () => {
+  it('zero delegated steps add nothing to the #467 count, and a uses: line inside a run script is not a step', () => {
     const { labels } = scan(U5B_TWO_WORKFLOWS_MARKETPLACE_ONLY, rubric);
     expect(ciLabel(labels('B3'))).toEqual(['CI workflow (2 workflow files read; 1 cited)']);
   });

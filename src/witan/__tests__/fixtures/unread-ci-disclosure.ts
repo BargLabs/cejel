@@ -81,13 +81,16 @@ export const U5_MARKETPLACE_ACTION_ONLY: Readonly<Record<string, string>> = {
   '.github/workflows/ci.yml': stepsWorkflow('ci', ['uses: actions/checkout@v4', 'run: pnpm build']),
 };
 
-/** U5b: two workflows using only marketplace actions, so the #467 count renders and nothing is added. */
+/**
+ * U5b: two workflows using only marketplace actions, so the #467 count renders and nothing is
+ * added. One run script writes a `uses:` line through a heredoc: script text, not a step.
+ */
 export const U5B_TWO_WORKFLOWS_MARKETPLACE_ONLY: Readonly<Record<string, string>> = {
   ...U5_MARKETPLACE_ACTION_ONLY,
   '.github/workflows/lint.yml': stepsWorkflow('lint', [
     'uses: actions/checkout@v4',
     'uses: actions/setup-node@v4',
-    'run: pnpm build',
+    "run: |\n          cat > generated.yml <<'EOF'\n          uses: org/other/.github/workflows/ci.yml@v1\n          EOF\n          pnpm build",
   ]),
 };
 
