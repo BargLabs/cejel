@@ -25,6 +25,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exactly as v25 does, so its behaviour fingerprint equals v25's. No precision or recall claim; no
   public paired rescore has run. Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
 
+### Fixed
+
+- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
+  identifier bump: B3 `ci_script_depth` reads the scripts of declared workspace packages.** In npm,
+  yarn and pnpm workspaces the root `package.json` often only orchestrates, and the scripts live
+  in the workspace packages, so reading the root alone undercounted them. B3 now also reads the
+  `package.json` of each package the root `workspaces` field or a root `pnpm-workspace.yaml`
+  declares. Globs are expanded against tracked files, `!` negations are honoured, at most 200
+  manifests are read, and vendored or generated trees never count. Under v20 through v26, A3's
+  "declares neither a build nor a typecheck script" finding no longer fires when a declared package
+  declares `build` or `typecheck`. On such a repository the Dockerfile HEALTHCHECK or health-route
+  finding can fire in its place. With no workspace declaration nothing changes. Weights and
+  thresholds are unchanged. The B3 metric line now states how many declared manifests were read,
+  so `report.json` and certificate bytes change for repositories that declare workspaces. The
+  behaviour corpus has a new synthetic specimen; fingerprints and report goldens are re-pinned with
+  the deltas in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The preregistered public-corpus
+  delta has not run yet.
+
 ## [0.6.4] — 2026-10-13
 
 ### Added

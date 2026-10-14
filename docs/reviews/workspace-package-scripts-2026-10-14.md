@@ -84,3 +84,51 @@ never reaches the scan inventory: `HARD_EXCLUDED_PATH_PATTERN` drops it before a
 the authored-path filter deleted and only the `node_modules/` manifest in the fixture, all 60 tests
 passed. So the `node_modules/` assertion is real but guarded upstream; the `generated/` one is what
 the filter alone protects.
+
+## Behaviour corpus
+
+A synthetic `workspace-package-scripts` specimen extends the corpus from 18 to 19. The previous
+scanner (`src/witan/repo-signals.ts` at 6bf2d929) and this change were each run on the same
+expanded corpus under all ten selectable rubrics. All 19 fixture HEAD SHAs were equal in both runs.
+All 18 earlier specimens' projected scoring surfaces are identical before and after (180 of 180
+rubric/specimen pairs). Only the new specimen moves:
+
+| Rubric | B3 | `ci_script_depth` | A3 info findings | Overall | Process trust |
+| --- | --- | --- | --- | --- | --- |
+| v17, v18, v19 | 0.6 warning → 1.5 verified (B3 warning finding 1 → 0) | 0 → 2 | unchanged | 0.9 → 1.1 | 1.1 → 1.6 |
+| v20 through v26 | 0.6 warning → 1.5 verified (B3 warning finding 1 → 0) | 0 → 2 | 1 → 0 | 0.9 → 1.1 | 1.1 → 1.6 |
+
+Before trusting these numbers, the same pipeline was run without the new specimen. It reproduced
+all ten committed fingerprints exactly. The new fingerprints, and the previous scanner's on the
+expanded corpus, are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The v25/v26 declared
+collision still holds.
+
+## Golden re-pins
+
+The fingerprints moved, so every pinned report hash that carries one moved:
+
+- the four v17 golden fixtures;
+- the F2 reads-disclosure pins under v17, v22, v23 and v25;
+- the CLI byte-identical report pin.
+
+No pinned v17 metric moved; those assertions run before the hash assertion. Each re-pin keeps the
+previous hash and asserts that restoring only the previous fingerprint reproduces it byte for byte.
+The older recovery chains then start from that restored report. The F3 reads-disclosure assertion
+for B3 now states the 7 declared workspace manifests read, because F3 declares `workspaces`.
+
+## Deferred
+
+A3's `prod_readiness_primitives` "build or type-check command" component still reads the root
+`package.json` only (see "Deliberately unchanged" above). Whether it should read declared workspace
+packages too is a v17 A3 scoring decision, so it is left for its own ruling. A `later:` issue could
+not be filed from this session (issue creation needed an approval the session could not get); the
+PR body carries the text for the operator to file.
+
+## Lesson
+
+Staged as `PENDING_cejel_guard_deletion_needs_reachable_target_2026-10-14.json`:
+
+- A guard-deletion test proves a guard only if its fixture reaches that guard. The
+  `node_modules/` fixture could not, because the inventory drops it first.
+- An ad hoc measurement pipeline earns trust by reproducing the committed pins before it reports
+  a delta.

@@ -22,6 +22,87 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
+
+**Status.** A recognition fix that removes a false absence. It ships under
+`witan-rubric-v17-2026-07-24` and every selectable rubric with no identifier bump and with weights
+and thresholds unchanged, as #459, #427 and #430 did. **The public-corpus before-and-after has not
+run.** The release that carries this change runs a preregistered public delta, and the operator's
+private check precedes that release. This entry makes no statement about a public-corpus score,
+verdict, rank, placement, coverage, calibration, precision or recall.
+
+**The defect.** In npm, yarn and pnpm workspaces the root `package.json` often only orchestrates,
+and the scripts live in the workspace packages. Two checks read the root alone:
+- B3 `ci_script_depth`'s package-script component, under every rubric including v17;
+- A3's "A deployable service package manifest declares neither a build nor a typecheck script"
+  finding, under v20 through v26 (v17-v19 do not carry it).
+
+**The change.** Both now also read the `package.json` of each package the workspace declares: the
+root `package.json` `workspaces` field (array, or yarn's `{ packages }` form) and a root
+`pnpm-workspace.yaml` `packages:` list. Globs are expanded against the tracked file list, with no
+filesystem walk, and `!` negations are honoured. Each manifest must pass A1's authored-production
+predicate, so vendored, generated and test trees never count. At most 64 patterns and 200
+manifests are read. With no declaration nothing changes: workspaces are never inferred from
+directory shape.
+- B3 counts a script category once when the root or any declared package declares it, with `test`
+  still needing a credible runner. The metric line states how many declared manifests were read.
+- A3's finding no longer fires when any declared package declares `build` or `typecheck`. When it
+  does fire, it still cites the root manifest, and its evidence label states how many declared
+  manifests were read. A read cut short by the cap does not assert the absence.
+- A3's `prod_readiness_primitives` "build or type-check command" component still reads the root
+  alone, so v17 A3 does not move. B3's evidence gate is unchanged.
+
+**Expected direction on the public delta.**
+- **B3, every rubric including v17: up or unchanged, never down.** A repository moves only if it
+  declares workspaces and a declared package holds a `test`, `lint`, `typecheck` or `build` script
+  its root lacks. A low-depth B3 warning can disappear with it.
+- **A3, v20 through v26: the manifest finding stops firing on such repositories.** The v20
+  explicit-gap findings are one `if / else if` chain: (1) a manifest without a build or typecheck
+  script; else (2) a runtime Dockerfile without an active HEALTHCHECK; else (3) an HTTP entrypoint
+  without a health route. When branch 1 stops firing on a workspace monorepo, branches 2 and 3 start
+  running there. So a repository can trade the manifest finding for the HEALTHCHECK or the
+  health-route finding, keeping the same info-finding count, or lose the finding outright. The chain
+  is not restructured; `workspace-package-scripts.test.ts` pins the HEALTHCHECK case under v20-v26.
+- **A3, v17-v19: unchanged.**
+
+**Measured on the behaviour corpus.** One synthetic specimen, `workspace-package-scripts`, extends
+the corpus from 18 to 19: a root that declares `workspaces: ["packages/*"]` and holds only a `start`
+script, a package holding `build` and `test`, and a CI workflow that runs neither. The previous
+scanner is `origin/main` `6bf2d929`, run on the same expanded corpus. All 18 earlier specimens
+reproduce, and their projected scoring surfaces are identical before and after under all ten
+selectable rubrics (180 of 180 pairs). Only the new specimen moves:
+
+| Rubric | B3 | `ci_script_depth` | A3 info findings | Overall |
+|---|---|---|---|---|
+| v17, v18, v19 | 0.6 warning → 1.5 verified | 0 → 2 | unchanged | 0.9 → 1.1 |
+| v20 through v26 | 0.6 warning → 1.5 verified | 0 → 2 | 1 → 0 | 0.9 → 1.1 |
+
+Process trust moves 1.1 → 1.6 under every rubric, and B3 loses its one warning finding.
+
+Measured fingerprints:
+
+| Rubric | Previous scanner, expanded corpus | This change |
+|---|---|---|
+| `witan-rubric-v17-2026-07-24` | `sha256:58667d880b9d2fee1196eeba30a1ed93a1abacccdcde2f118e51766c618b4185` | `sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:514403c89aa0f88eac1565bfec0a22763e7f2d7096025af841c9c17a84305fbf` | `sha256:161d7686d22536f6287904ae1d34bfa106200c1bab9b3b357117745da3446124` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:e5fb794bb5c25b39f3f05010a5bc23ba7ee50f5e9b535cd885c04eadaf636863` | `sha256:b6e0002bcfe14c71c0ac831e0788f93ebf4c56215f7dccd4c981a23fb59f78e1` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:eac898bef8bca4ed355e7133fd6671cbf5acfed521102b1c5cdf505a2a118824` | `sha256:d972019b19dccf58f7dab985c6ef89faa3e3bba73c2f5ff8373f7854ba13c3c7` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:358ca99eac3e7ffe3f0c45d0bd9589030deef8d53847145cb882f6644b989aff` | `sha256:f25bb1f6984d6de87121f2aaf5535a45ff24f08af4b2b508b504017668e4bad9` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:1e62d3c4409ad5e7e54de8d0c14fd004231176a9de199d9b3b584f6bee8a10a7` | `sha256:3efa6907cf365294e4180332d4d55685532f3beb59454ae73856c9360028389c` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:87ee18c9bf076d80f6601ab8ed06566228ba6ba6a28eb0a270f5230c7f9d3303` | `sha256:6410874e6fb44c1ac29b3fcac49c57799a2eb13bd50444c3a7ce93ebf556577f` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:c2c68af7045917750ec6afd3a04c7973f45eb395dfa070bcbb37258dd13a6d42` | `sha256:323fca138becf8a0738dd81023101e87ec341a7083ad9797b8cee5581e342ff0` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:00739597347afd6e741dc5f4635726c27300987e110132d6b2e808cb75af4bfc` | `sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3` |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:00739597347afd6e741dc5f4635726c27300987e110132d6b2e808cb75af4bfc` | `sha256:909235faa0171fd3201c58d1024283259db0b0916c809557df9fb491282a99e3` |
+
+The middle column separates the two causes. Adding the specimen alone moves each fingerprint from
+its previous pin to the middle column; the scoring change then moves it to the right-hand column.
+The same measurement without the new specimen reproduces every previous pin exactly, for example
+v17's `sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2`. v25 and v26 still
+collide, as declared. The v17 golden, the F2 reads-disclosure pins and the CLI byte pin are
+re-pinned. No pinned v17 metric moved on any of them, and restoring only the previous fingerprint
+reproduces each previous pin byte for byte, asserted in the tests. Record:
+`docs/reviews/workspace-package-scripts-2026-10-14.md`.
+
 ## 2026-10-14 — prospective v26 declared as v25's complete closure; no scoring change, no repository moved
 
 **Status.** A new prospective identifier, `witan-rubric-v26-prospective-2026-10-14`, with no
