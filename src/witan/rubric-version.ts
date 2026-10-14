@@ -126,8 +126,9 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // Prospective v26 calibration-candidate rubric. V26 inherits v25's complete closure: the v22
 // chain (every v17-v22 inheritance gate in src/witan/repo-signals.ts and src/witan/scoring.ts)
 // plus v25's inline health route, the one v25-specific gate (`usesV25InlineHealthRoute`), which
-// is true for V25 and V26 and for no other rubric. It adds nothing of its own yet. It is the next
-// calibration candidate V25's declaration anticipates. Recognition fixes that remove a false
+// is true for V25 and V26 and for no other rubric. It adds nothing of its own yet.
+// It is the next calibration candidate V25's declaration anticipates. Recognition fixes
+// that remove a false
 // absence ship under every selectable rubric with no identifier bump, as #459, #427 and #430 did,
 // so v26 carries them through the closure it inherits rather than through gates of its own. The
 // one change planned under v26 alone is definitional: the A5 no-reconciliation and A2
