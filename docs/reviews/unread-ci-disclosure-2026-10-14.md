@@ -108,5 +108,9 @@ Each deletion was restored from `HEAD` before the next.
 
 ### Suite
 
-Typecheck, build, the full vitest suite (which includes the offline-boundary guard) and the new file
-are recorded in the PR body with their counts.
+- `pnpm run typecheck`: clean.
+- `pnpm run build`: success.
+- `pnpm test`: 124 files and 2,830 tests passed. This includes `offline-guarantee.test.ts` (the
+  offline-boundary guard), the fingerprint and v17 golden tests, and #467's
+  `certificate-reads-disclosure.test.ts`.
+- `src/witan/__tests__/unread-ci-disclosure.test.ts`: 102 tests passed.
