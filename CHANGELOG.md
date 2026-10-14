@@ -16,6 +16,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **New prospective rubric `witan-rubric-v26-prospective-2026-10-14`, explicit opt-in only**
+  (`--rubric-pin`; the public default stays v17). It is the next calibration candidate: v25's
+  complete closure (the v22 chain plus v25's inline health-route credit), without v23's or v24's
+  mechanisms. It adds no scoring change of its own yet and scores every behaviour-corpus specimen
+  exactly as v25 does, so its behaviour fingerprint equals v25's. No precision or recall claim; no
+  public paired rescore has run. Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
+
 ## [0.6.4] — 2026-10-13
 
 ### Added

@@ -123,6 +123,26 @@ export const WITAN_RUBRIC_VERSION_V24 = 'witan-rubric-v24-prospective-2026-09-15
 // rescore has not run.
 export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12';
 
+// Prospective v26 calibration-candidate rubric. V26 inherits v25's complete closure: the v22
+// chain (every v17-v22 inheritance gate in src/witan/repo-signals.ts and src/witan/scoring.ts)
+// plus v25's inline health route, the one v25-specific gate (`usesV25InlineHealthRoute`), which
+// is true for V25 and V26 and for no other rubric. It adds nothing of its own yet.
+// It is the next calibration candidate V25's declaration anticipates. Recognition fixes
+// that remove a false
+// absence ship under every selectable rubric with no identifier bump, as #459, #427 and #430 did,
+// so v26 carries them through the closure it inherits rather than through gates of its own. The
+// one change planned under v26 alone is definitional: the A5 no-reconciliation and A2
+// tenant-without-RLS findings fire only on the evidence a signed ruling names, and otherwise
+// abstain with a disclosure. It is gated on V26 and measured against a v26 that scores exactly as
+// v25 does.
+//
+// V26 does NOT inherit v23 or v24. Their mechanisms stay gated on WITAN_RUBRIC_VERSION_V23 and
+// WITAN_RUBRIC_VERSION_V24 alone, for the reason V24's and V25's declarations give; a v23
+// mechanism that should apply more widely is extended by its own change.
+// The public default remains v17; callers must opt in explicitly. This declaration carries
+// no precision or recall claim, and no public paired rescore has run.
+export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14';
+
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
 // iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
 // harness, or (on main after 0.4.4) the unreleased public
@@ -140,13 +160,14 @@ export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V23,
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
+  WITAN_RUBRIC_VERSION_V26,
 ] as const);
 
 // The complete set of rubric identifiers a caller may explicitly select: the calibrated default
 // plus every wired prospective rubric. This is deliberately narrower than "every rubric version
 // this package has ever implemented" (v0-v16 remain load-bearing for historical fixtures and
 // regression tests, but are not offered as a live selection) — it is the same "callers must opt
-// in explicitly" set every V18-V25 constant above documents.
+// in explicitly" set every V18-V26 constant above documents.
 export const WITAN_SELECTABLE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   ...WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
@@ -166,7 +187,7 @@ export function assertSelectableRubricVersion(rubricVersion: string): void {
   );
 }
 
-/** True for any rubric that has not cleared the calibration gate (currently v18-v25). */
+/** True for any rubric that has not cleared the calibration gate (currently v18-v26). */
 export function isProspectiveRubricVersion(rubricVersion: string): boolean {
   return (WITAN_PROSPECTIVE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion);
 }

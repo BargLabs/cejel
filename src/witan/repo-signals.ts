@@ -74,6 +74,7 @@ import {
   WITAN_RUBRIC_VERSION_V23,
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
+  WITAN_RUBRIC_VERSION_V26,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -86,7 +87,8 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V26
   );
 }
 
@@ -526,7 +528,8 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25;
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV19CommitYear =
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -534,25 +537,29 @@ function buildWitanInputFromRepoUntracked(
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25;
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV20A3ExplicitGaps =
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25;
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV21ExecutedEscalations =
     rubricVersion === WITAN_RUBRIC_VERSION_V21 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25;
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV22PackageStartEntrypoint =
     rubricVersion === WITAN_RUBRIC_VERSION_V22 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V23 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V24 ||
-    rubricVersion === WITAN_RUBRIC_VERSION_V25;
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;
   // Explicit-only (goal_cejel_v23_pem_private_key_grammar_2026-09-06): a PEM-formatted
   // private-key value assigned to an identifier (e.g. a service-account JSON's
@@ -577,10 +584,13 @@ function buildWitanInputFromRepoUntracked(
   const usesV24SecretContentContext = rubricVersion === WITAN_RUBRIC_VERSION_V24;
   // Explicit-only (goal_cejel_a3_handler_shapes_and_inline_health_2026-10-12): A3's scored
   // "health or readiness signal" component also credits a health/readiness route declared inline
-  // in an application file. Checked against V25 alone and never inherits: v17 (the public
-  // default), v22, v23 and v24 stay byte-stable, and v25 is a v22 descendant. See the
-  // WITAN_RUBRIC_VERSION_V25 declaration in rubric-version.ts.
-  const usesV25InlineHealthRoute = rubricVersion === WITAN_RUBRIC_VERSION_V25;
+  // in an application file. Checked against V25 and V26 only and never inherited by any other
+  // rubric: v17 (the public default), v22, v23 and v24 stay byte-stable, and v25 is a v22
+  // descendant. V26 is the one deliberate exception, named in its declaration: it is v25's
+  // complete closure (goal_cejel_v26_rubric_scaffold_2026-10-14). See the
+  // WITAN_RUBRIC_VERSION_V25 and WITAN_RUBRIC_VERSION_V26 declarations in rubric-version.ts.
+  const usesV25InlineHealthRoute =
+    rubricVersion === WITAN_RUBRIC_VERSION_V25 || rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||

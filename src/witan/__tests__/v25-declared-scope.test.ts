@@ -26,10 +26,12 @@ const SCORING_SOURCE_PATH = fileURLToPath(new URL('../scoring.ts', import.meta.u
 const RUBRIC_VERSION_SOURCE_PATH = fileURLToPath(new URL('../rubric-version.ts', import.meta.url));
 const WITAN_SOURCE_DIR = fileURLToPath(new URL('..', import.meta.url));
 
-// The single v25-specific gate: a bare equality with no other rubric-version reference on the
-// same statement, the shape none of the v18-v22 inheritance chains has.
+// The single v25-specific gate. Since 2026-10-14 it also names V26, which is declared as v25's
+// complete closure (goal_cejel_v26_rubric_scaffold_2026-10-14) and no other rubric; it names
+// neither V22 nor any v18-v22 chain member, the shape none of the inheritance chains has.
 const KNOWN_V25_SPECIFIC_MARKERS = [
-  'const usesV25InlineHealthRoute = rubricVersion === WITAN_RUBRIC_VERSION_V25;',
+  'const usesV25InlineHealthRoute =\n' +
+    '    rubricVersion === WITAN_RUBRIC_VERSION_V25 || rubricVersion === WITAN_RUBRIC_VERSION_V26;',
 ] as const;
 
 // Total occurrences of WITAN_RUBRIC_VERSION_V25 in repo-signals.ts today: 1 import + 6

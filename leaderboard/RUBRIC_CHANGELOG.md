@@ -22,6 +22,50 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — prospective v26 declared as v25's complete closure; no scoring change, no repository moved
+
+**Status.** A new prospective identifier, `witan-rubric-v26-prospective-2026-10-14`, with no
+scoring change of its own. Explicit opt-in only (`--rubric-pin`), like every rubric after v17: the
+public default stays `witan-rubric-v17-2026-07-24`. **Declared with no precision or recall claim;
+no public paired rescore has run.** The public board is scored under v17, which does not move, so
+no published score, verdict or rank moves: no repository moved.
+
+**What v26 inherits.** v25's complete closure: the v22 chain (v17's detector closure, v18's native
+RLS evidence, v19's commit-year freshness, v20's A3 explicit gaps, which include the Dockerfile
+`HEALTHCHECK` finding, v21's executed escalations and v22's package-start entrypoint) plus v25's
+inline health-route credit in `prod_readiness_primitives`. Every rubric-version gate in
+`src/witan/repo-signals.ts` and `src/witan/scoring.ts` that names v25 also names v26: 11 sites
+before this change named v25 and none named v26, and 11 name both after it.
+
+**What v26 does not inherit.** v23's four mechanisms and v24's A2 secret content context. Those
+gates still name v23 or v24 alone, for the reason v24's and v25's declarations give. A v23
+mechanism that should apply more widely is extended by its own change.
+
+**Why a new identifier with no change.** v26 is the next calibration candidate that v25's
+declaration anticipates. Recognition fixes that remove a false absence ship under every selectable
+rubric with no identifier bump, as #459, #427 and #430 did, so v26 carries them through the closure
+it inherits. The one change planned under v26 alone is definitional: the A5 no-reconciliation and
+A2 tenant-without-RLS findings fire only on the evidence a signed ruling names, and otherwise
+abstain with a disclosure. It is gated on v26 and measured against a v26 that scores exactly as
+v25 does, so its delta is that change alone.
+
+**Measured, not declared.** On every behaviour-corpus specimen the v26 report equals the v25 report
+in every field except `rubricVersion`, with and without ingested signals
+(`src/witan/__tests__/v26-v25-parity.test.ts`). The behaviour fingerprint excludes the rubric
+identifier by design, so v26's equals v25's, and its component pins are byte-identical to v25's:
+
+| Rubric | Fingerprint |
+|---|---|
+| `witan-rubric-v25-prospective-2026-10-12` (unchanged) | `sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019` |
+| `witan-rubric-v26-prospective-2026-10-14` (new) | `sha256:31a751882d02c8f053dcc8f3e90b3e4ecd57279f3250e420e95a3af875b9f019` |
+
+`witan-rubric-v25-prospective-2026-10-12` and `witan-rubric-v26-prospective-2026-10-14` are behaviourally identical on the behaviour corpus, by declaration and by measurement.
+The fingerprint guard's check that every selectable rubric is distinguishable from every other
+now takes this pair as its one declared exception, and requires the measured collisions to equal
+the declared ones exactly. The first v26 item change that separates them fails that check until
+the declaration is removed. No other rubric's fingerprint or pin changed; v17's is
+`sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2`, as before.
+
 ## 2026-10-13 — AVA assertion evidence and public digest false assertion (#427, #430)
 
 Default v17 and all selectable rubrics change under their existing identifiers. Weights and

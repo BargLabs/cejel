@@ -1009,6 +1009,46 @@ describe('--rubric-pin explicit opt-in', () => {
     expect(terminalOutput).toContain(PROSPECTIVE_RUBRIC_NOTICE);
     expect(terminalOutput).toContain(`Rubric: ${WITAN_RUBRIC_VERSION_V22}`);
   });
+
+  // v26 scaffold (goal_cejel_v26_rubric_scaffold_2026-10-14): the next calibration candidate is
+  // reachable by its literal identifier, prints the prospective notice, and a near miss still
+  // fails closed.
+  it('accepts the v26 prospective pin by its literal identifier and prints the prospective notice', async () => {
+    const repoPath = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-v26-'));
+    const outDir = mkdtempSync(join(tmpdir(), 'cejel-rubric-pin-v26-out-'));
+    writeFixtureFile(repoPath, 'package.json', JSON.stringify({ name: 'rubric-pin-v26-fixture' }));
+    writeFixtureFile(repoPath, 'README.md', '# rubric-pin-v26-fixture\n');
+
+    const v26 = 'witan-rubric-v26-prospective-2026-10-14';
+    expect(parseCliInvocation(['scan', '.', '--rubric-pin', v26])).toMatchObject({
+      command: 'scan',
+      options: { rubricPin: v26 },
+    });
+    expect(() =>
+      parseCliInvocation(['scan', '.', '--rubric-pin', 'witan-rubric-v26-prospective-2026-10-13']),
+    ).toThrow(/unrecognized rubric version: "witan-rubric-v26-prospective-2026-10-13"/);
+
+    const stdoutWrites: string[] = [];
+    const spy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((chunk: string | Uint8Array) => {
+        stdoutWrites.push(chunk.toString());
+        return true;
+      });
+    try {
+      expect(await runWitanFreeCli(['scan', repoPath, '--out', outDir, '--rubric-pin', v26])).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    const terminalOutput = stdoutWrites.join('');
+    expect(terminalOutput).toContain(PROSPECTIVE_RUBRIC_NOTICE);
+    expect(terminalOutput).toContain(`Rubric: ${v26}`);
+    const report = JSON.parse(readFileSync(join(outDir, 'report.json'), 'utf8')) as {
+      rubricVersion: string;
+    };
+    expect(report.rubricVersion).toBe(v26);
+    expect(readFileSync(join(outDir, 'certificate.html'), 'utf8')).toContain(PROSPECTIVE_RUBRIC_NOTICE);
+  });
 });
 
 // --run-attempt (Track A5 rider, ADR-0022): threads GITHUB_RUN_ATTEMPT (forwarded by
