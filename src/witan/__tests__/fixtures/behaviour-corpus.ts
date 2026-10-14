@@ -767,6 +767,76 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
         'name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: go test -race -coverprofile=coverage.out ./...\n',
     },
   },
+  {
+    name: 'xunit-assertions',
+    purpose:
+      'An xUnit test asserting with Assert.Equal must not be called hollow (#406); synthetic .NET project in the xUnit template layout.',
+    files: {
+      'src/Inventory/Inventory.cs':
+        'namespace Inventory;\n\npublic static class Stock\n{\n    public static int Count(int[] items) => items.Length;\n}\n',
+      'tests/Inventory.Tests/StockTests.cs':
+        'using Inventory;\nusing Xunit;\n\npublic class StockTests\n{\n    [Fact]\n    public void Counts()\n    {\n        Assert.Equal(2, Stock.Count(new[] { 1, 2 }));\n    }\n}\n',
+    },
+  },
+  {
+    name: 'nunit-ignored-fixture',
+    purpose:
+      'An NUnit fixture class under [Ignore] is hollow and a live Assert.That fixture is not: the documented suite-level skip, beside the recognized assertion; synthetic .NET project.',
+    files: {
+      'src/Inventory/Inventory.cs':
+        'namespace Inventory;\n\npublic static class Stock\n{\n    public static int Count(int[] items) => items.Length;\n}\n',
+      'tests/Inventory.Tests/StockTests.cs':
+        'using Inventory;\nusing NUnit.Framework;\n\n[TestFixture]\npublic class StockTests\n{\n    [Test]\n    public void Counts() => Assert.That(Stock.Count(new[] { 1, 2 }), Is.EqualTo(2));\n}\n',
+      'tests/Inventory.Tests/ReorderTests.cs':
+        'using Inventory;\nusing NUnit.Framework;\n\n[TestFixture, Ignore("reorder rules not written yet")]\npublic class ReorderTests\n{\n    [Test]\n    public void Reorders() => Assert.That(Stock.Count(new int[0]), Is.EqualTo(0));\n}\n',
+    },
+  },
+  {
+    name: 'xctest-assertions',
+    purpose:
+      'A Swift XCTest case asserting with XCTAssertEqual must not be called hollow; synthetic Swift package.',
+    files: {
+      'Package.swift':
+        '// swift-tools-version:5.9\nimport PackageDescription\n\nlet package = Package(\n    name: "Inventory",\n    targets: [.target(name: "Inventory"), .testTarget(name: "InventoryTests", dependencies: ["Inventory"])]\n)\n',
+      'Sources/Inventory/Inventory.swift': 'public func count(_ items: [Int]) -> Int { items.count }\n',
+      'Tests/InventoryTests/InventoryTests.swift':
+        'import XCTest\n@testable import Inventory\n\nfinal class InventoryTests: XCTestCase {\n    func testCounts() {\n        XCTAssertEqual(count([1, 2]), 2)\n    }\n}\n',
+    },
+  },
+  {
+    name: 'scalatest-assertions',
+    purpose:
+      'A ScalaTest suite asserting with assert( and an org.scalatest import must not be called hollow; synthetic sbt project.',
+    files: {
+      'build.sbt': 'name := "inventory"\n\nlibraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test\n',
+      'src/main/scala/example/Inventory.scala':
+        'package example\n\nobject Inventory {\n  def count(items: Seq[Int]): Int = items.size\n}\n',
+      'src/test/scala/example/InventorySpec.scala':
+        'package example\n\nimport org.scalatest.funsuite.AnyFunSuite\n\nclass InventorySpec extends AnyFunSuite {\n  test("counts") {\n    assert(Inventory.count(Seq(1, 2)) == 2)\n  }\n}\n',
+    },
+  },
+  {
+    name: 'kotest-matchers',
+    purpose:
+      'A Kotest spec asserting with shouldBe and a Kotest matcher import must not be called hollow; synthetic Gradle Kotlin project.',
+    files: {
+      'build.gradle.kts': 'plugins {\n    kotlin("jvm") version "2.0.21"\n}\n\ndependencies {\n    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")\n}\n',
+      'src/main/kotlin/example/Inventory.kt': 'package example\n\nfun count(items: List<Int>): Int = items.size\n',
+      'src/test/kotlin/example/InventoryTest.kt':
+        'package example\n\nimport io.kotest.core.spec.style.StringSpec\nimport io.kotest.matchers.shouldBe\n\nclass InventoryTest : StringSpec({\n    "counts" {\n        count(listOf(1, 2)) shouldBe 2\n    }\n})\n',
+    },
+  },
+  {
+    name: 'tape-assertions',
+    purpose:
+      'A tape test asserting with t.equal under a required tape binding must not be called hollow; synthetic npm package.',
+    files: {
+      'package.json': '{"name":"tape-assertions","scripts":{"test":"tape test/*.js"},"devDependencies":{"tape":"5.9.0"}}\n',
+      'index.js': 'exports.count = (items) => items.length;\n',
+      'test/count.js':
+        "const test = require('tape');\nconst { count } = require('..');\n\ntest('counts', (t) => {\n  t.equal(count([1, 2]), 2);\n  t.end();\n});\n",
+    },
+  },
 ];
 
 /**
@@ -801,6 +871,12 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'coverage-config-setup-cfg': 'd841dafc8516cdd992452c70ca53cd4a40cfcc14',
   'coverage-config-maven-jacoco': 'c20014d3fadc4ac6b96a0a9178bd311c64f83a89',
   'coverage-command-go-ci': '882274b74b5e5ce1bec2a096a023dadb4a36aae4',
+  'xunit-assertions': 'e51a5a5f9889cd9c51c76573eba4605ca4a1d331',
+  'nunit-ignored-fixture': '0f132f45df4dc690faa31e2cf2d0623cb799d1bc',
+  'xctest-assertions': 'e4e1b8588b06138db564f24afea9a02b95a0bcaf',
+  'scalatest-assertions': '5dae8bbb750b957cc9de542982d630e7250e27a5',
+  'kotest-matchers': '8f4e6c3402b30e7b377f18e330ef66ebb32ba472',
+  'tape-assertions': '347020854b8d0c69f33539345c665d8bd6c09a5f',
 });
 
 /**
