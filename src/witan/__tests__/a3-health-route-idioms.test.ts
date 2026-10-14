@@ -57,6 +57,7 @@ import { buildWitanInputFromRepo } from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V23,
   WITAN_RUBRIC_VERSION_V25,
+  WITAN_RUBRIC_VERSION_V26,
   WITAN_SELECTABLE_RUBRIC_VERSIONS,
 } from '../rubric-version.js';
 import type { WitanCriterionSignalPayload } from '../schemas.js';
@@ -100,9 +101,15 @@ function scanA3At(
   return (input.signals ?? []).find((candidate) => candidate.criterionId === 'A3') ?? null;
 }
 
-/** Every selectable rubric except v25: the scored health component is filename-only in all. */
+/**
+ * The rubrics whose scored health component also credits an inline route: v25, and v26, which is
+ * declared as v25's complete closure (goal_cejel_v26_rubric_scaffold_2026-10-14).
+ */
+const INLINE_ROUTE_RUBRICS: readonly string[] = [WITAN_RUBRIC_VERSION_V25, WITAN_RUBRIC_VERSION_V26];
+
+/** Every other selectable rubric: the scored health component is filename-only in all. */
 const FILENAME_ONLY_RUBRICS = WITAN_SELECTABLE_RUBRIC_VERSIONS.filter(
-  (rubric) => rubric !== WITAN_RUBRIC_VERSION_V25,
+  (rubric) => !INLINE_ROUTE_RUBRICS.includes(rubric),
 );
 
 /** The 'health or readiness signal' count (0 or 1) inside prod_readiness_primitives. */
@@ -475,7 +482,8 @@ describe('A3 health/readiness route — idiom catalogue', () => {
     //
     // "Before" for the finding column was MISS for the five widened rows (recorded by running
     // the rows above against the unwidened predicate); the scored columns are unchanged by the
-    // predicate widening and only v25 moved, by design.
+    // predicate widening and only v25 moved, by design. Since 2026-10-14 v26, declared as v25's
+    // complete closure, takes the v25 column.
     it.each([
       ['src/app.ts', 0, 1],
       ['server.ts', 0, 1],
@@ -484,12 +492,14 @@ describe('A3 health/readiness route — idiom catalogue', () => {
       ['backend/server.ts', 0, 1],
       ['api/index.ts', 0, 1],
       ['routes/health.ts', 1, 1],
-    ])('%s: filename-only rubrics=%s, v25=%s', (path, filenameOnly, v25) => {
+    ])('%s: filename-only rubrics=%s, v25 and v26=%s', (path, filenameOnly, v25) => {
       const files = { ...BASE, [path]: INLINE_APP };
       for (const rubric of FILENAME_ONLY_RUBRICS) {
         expect(healthComponent(files, rubric), rubric).toBe(filenameOnly);
       }
-      expect(healthComponent(files, WITAN_RUBRIC_VERSION_V25)).toBe(v25);
+      for (const rubric of INLINE_ROUTE_RUBRICS) {
+        expect(healthComponent(files, rubric), rubric).toBe(v25);
+      }
     });
 
     it('v25 changes nothing else about the criterion for an inline route', () => {
