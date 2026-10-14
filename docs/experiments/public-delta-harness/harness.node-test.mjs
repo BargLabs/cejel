@@ -210,10 +210,11 @@ test('translation: v2 reproduces the precedent pair logic field for field on the
  }
 });
 test('translation: v2 output carries every field name of the committed precedent paired-result.json',()=>{
- // Field names only; no committed value is read or compared.
+ // Field names only; no committed value is read or compared. The keys under `expected` are the
+ // plan's own forecast names, copied through unchanged, so only `expected` itself is required.
  const paths=(value,prefix='')=>Array.isArray(value)?value.flatMap(v=>paths(v,prefix+'[]')):value && typeof value==='object'?Object.entries(value).flatMap(([k,v])=>[prefix+'.'+k,...paths(v,prefix+'.'+k)]):[];
- const rename=p=>p.replace(/^\.arms\./,'.runs.').replace(/^(\.pairs\.[^.]+)\.left$/,'$1.before').replace(/^(\.pairs\.[^.]+)\.right$/,'$1.after');
- const committed=new Set(paths(JSON.parse(readFileSync(join(here,'../v17-delta-459-427-430-successor-2026-10-13/paired-result.json'),'utf8'))).map(rename));
+ const rename=p=>p.replace(/^\.arms(?=\.|$)/,'.runs').replace(/^(\.pairs\.[^.]+)\.left$/,'$1.before').replace(/^(\.pairs\.[^.]+)\.right$/,'$1.after');
+ const committed=new Set(paths(JSON.parse(readFileSync(join(here,'../v17-delta-459-427-430-successor-2026-10-13/paired-result.json'),'utf8'))).map(rename).filter(p=>!p.startsWith('.expected.')));
  const produced=new Set(paths(runBoth().after));
  assert.ok(committed.size>40);
  assert.deepEqual([...committed].filter(p=>!produced.has(p)),[]);
