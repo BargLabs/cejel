@@ -119,7 +119,7 @@ describe('v26 declared scope', () => {
         '    rubricVersion === WITAN_RUBRIC_VERSION_V25 || rubricVersion === WITAN_RUBRIC_VERSION_V26;',
     );
     for (const marker of [
-      'const usesV23CommandCoverage = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
+      'const usesV23StrictCoverageAndRecipeRunners = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
       'const usesV23PemPrivateKeyGrammar = rubricVersion === WITAN_RUBRIC_VERSION_V23;',
       'if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {',
       'const usesV23WithheldPathAbstention = rubricVersion === WITAN_RUBRIC_VERSION_V23;',

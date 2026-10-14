@@ -22,6 +22,126 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-14 — A1 coverage-configuration recognition (every rubric, no identifier bump); public paired rescore not run
+
+**Status.** A recognition fix that removes a false absence. It ships under
+`witan-rubric-v17-2026-07-24` and every selectable rubric with no identifier bump and with weights
+and thresholds unchanged, as #459, #427, #430 and the workspace-scripts fix above did. **The
+public-corpus before-and-after has not run.** The release that carries this change runs a
+preregistered public delta, and the operator's private check precedes that release. This entry
+makes no statement about a public-corpus score, verdict, rank, placement, coverage, calibration,
+precision or recall.
+
+**The defect.** A1 reports "Test suite files are present, but no coverage configuration was
+detected" when its coverage classifier matches nothing. The match result is real; the conclusion
+was wrong wherever coverage is configured somewhere the classifier did not look. Under every
+rubric except v23, that included:
+- coverage flags on reachable test commands, which v23 alone recognized;
+- configuration files each tool documents but the classifier did not read.
+
+**The change.**
+1. **v23's command-flag recognition now runs under every rubric**, together with its disabled-value
+   rules and its unresolved-reachability abstention ("the no-coverage absence claim was withheld").
+   Under every rubric except v23 it is added to the v17 coverage heuristics, never substituted for
+   them, so it can withdraw an absence but cannot assert one. Two v23 behaviours could assert a
+   finding, so they stay v23-only:
+   - v23 replaces those heuristics instead of adding to them;
+   - v23 counts a just/Make `test:` recipe as a configured runner.
+   v23's own behaviour on the existing corpus is unchanged.
+2. **Documented configuration locations**, each from the tool's own documentation:
+   - `.codecov.yml` / `.codecov.yaml`;
+   - `.nycrc`, `.nycrc.json`, `.nycrc.yml`, `.nycrc.yaml`;
+   - `.c8rc`, `.c8rc.json`;
+   - `setup.cfg` / `tox.ini` `[coverage:run]` / `[coverage:report]`;
+   - a `package.json` `"jest"` key with `collectCoverage: true`, `coverageThreshold` or
+     `coverageProvider`;
+   - `vite.config.*` `test.coverage`, under v23's disabled-value rules, and only when no sibling
+     `vitest.config.*` overrides it;
+   - `.simplecov`;
+   - a `phpunit.xml(.dist)` `<coverage>` element;
+   - JaCoCo applied as a plugin in `pom.xml` (not via `<pluginManagement>` alone, not skipped) or
+     `build.gradle(.kts)`;
+   - `tarpaulin.toml` / `.tarpaulin.toml`.
+   Commented-out, disabled and misnamed forms do not count. A coverlet package reference in a
+   `.csproj` was a candidate and is **not** recognized: coverlet's own documentation says a
+   reference collects nothing, and `dotnet new xunit` adds one by default.
+3. **Coverage flags on test commands**, under the same flag-ownership rules:
+   - `python -m pytest --cov` (joining `pytest --cov`);
+   - `go test -cover` / `-coverprofile` / `-covermode` / `-coverpkg`, but nothing after `-args`;
+   - `dotnet test --collect "XPlat Code Coverage"` / `"Code Coverage"` and
+     `/p:CollectCoverage=true`, but nothing after `--`;
+   - `cargo llvm-cov`, except `report`, `clean`, `show-env`, `run` and `--no-run`.
+4. **Pattern sets.** The A1 no-coverage finding's derivation names the widened matcher family.
+   `cejel.core-a1.coverage-configuration.v1` (10 branches) and `.v2` (14, v23) are retired for
+   `.v3` (29) and `.v4` (25, v23).
+
+**Expected direction on the public delta.**
+- **A1, every rubric: up or unchanged, never down.** A repository moves only if it configures
+  coverage in one of the recognized ways and the previous detector saw none of it. Then:
+  - the info-severity no-coverage finding disappears, or is withheld with the unresolved note;
+  - `verification_script_ratio` can rise by one when a coverage command is newly recognized below
+    the cap;
+  - `coverage_percent` can rise from 0 when a newly read file states a threshold, for example
+    `fail_under`.
+  Legacy coverage files keep their order ahead of the additions, so a value the previous detector
+  read is unchanged.
+- **No other criterion reads the classifier.**
+
+**Measured on the behaviour corpus.** Three synthetic specimens extend the corpus from 19 to 22:
+- `coverage-config-setup-cfg`: a `[coverage:report]` section with `fail_under = 85`;
+- `coverage-config-maven-jacoco`: JaCoCo in `<build><plugins>`;
+- `coverage-command-go-ci`: `go test -race -coverprofile=coverage.out ./...` in CI.
+
+The previous scanner is `origin/main` `e43ab760`, run on the same expanded corpus. All 22
+fixtures reproduce. 220 specimen/rubric surfaces were compared, and 39 moved:
+
+| Specimen | Rubrics | A1 | A1 info findings | Metric | Overall |
+|---|---|---|---|---|---|
+| `complete-node-service` (existing) | all but v23 | 2.2 → 2.4 | 1 → 0 | `verification_script_ratio` 3 → 4 | unchanged; v25/v26 3.0 → 3.1 |
+| `coverage-config-setup-cfg` | all ten | 2.1 → 3.1 | 1 → 0 | `coverage_percent` 0 → 85 | 1.6 → 2.1 |
+| `coverage-config-maven-jacoco` | all ten | 2.1 → 2.1 | 1 → 0 | none | unchanged |
+| `coverage-command-go-ci` | all ten | 2.1 → 2.3 | 1 → 0 | `verification_script_ratio` 1 → 2 | 1.2 → 1.3 |
+
+**One existing specimen moves, by design.** `complete-node-service`'s test script is
+`vitest run --coverage`. v23 already credited that reachable flag, and every other rubric fired a
+false no-coverage absence on it. Code trust rises 0.1 under each of the nine rubrics that move.
+The other 18 existing specimens are identical under all ten rubrics (180 of 180).
+
+Measured fingerprints:
+
+| Rubric | Previous scanner, expanded corpus | This change |
+|---|---|---|
+| `witan-rubric-v17-2026-07-24` | `sha256:9aa13057b01a5552d89aae0bdb3b28dbdaf40627ea07ee061087d6159de18d11` | `sha256:8492999e2ebd981bfd02b63c13217e012d6979c0365017e73be292b8d9dcc03d` |
+| `witan-rubric-v18-prospective-2026-07-25` | `sha256:7161f55209efac92744363f2e92937cbb7c6ce72f6bcd3847cf22e37b336a63d` | `sha256:65a1d857eb62f6c22567ae2758c080b6383b6503ecae6e970f043e7245ee2846` |
+| `witan-rubric-v19-prospective-2026-08-09` | `sha256:6aa3e1a198a4a76a6f14090827e603ef7ccac6492495763edad30c59f02eae07` | `sha256:15752e967183076da2dfa5aab13bd373a2524874cf874cc61709b9e793d44f23` |
+| `witan-rubric-v20-prospective-2026-08-10` | `sha256:7f64e5745fe08edcc5118bcdcf569d48f1661e4cc9b60d072c304a5409955fb2` | `sha256:20012a811d24bd3e4ca3ae2139a9aa7f9da739916eea4c954822fdfcee00b682` |
+| `witan-rubric-v21-prospective-2026-08-10` | `sha256:868c9b29adac64d522d764853d17eb28ac8235925aba525e93d28f177804f543` | `sha256:13d6a8f8c0b49c7f895e7307f5ac2287f9f7b2202120c3339d822e195be3c6b7` |
+| `witan-rubric-v22-prospective-2026-08-10` | `sha256:936fc59ab474d4a7e7b5c697932a5c652c04236c9644fb47e813df52a7328246` | `sha256:da495e0290df89b2c0e5454bd395e59c5bd5dc98e506418b00b0277322240787` |
+| `witan-rubric-v23-prospective-2026-09-06` | `sha256:00f2df4fc9c07d45a6fbdfed165e9168480c7ad09a7a0fc4e3c6e44b8a843b7b` | `sha256:f4a17960b210013e615e93ea1d7333f73879f1a0aed7c80494929760c8e72aef` |
+| `witan-rubric-v24-prospective-2026-09-15` | `sha256:329efec2cedd6b0f6c5109a812ebf6d5af1b6d1e007fb128877a33d068aa5efc` | `sha256:eff4e6d1ad95583923563cf5548db96bd9ab5b133e7d876807993dc7abc07bd1` |
+| `witan-rubric-v25-prospective-2026-10-12` | `sha256:4a934741cb8cad0a9cd10231388c60f245ddcea8abdfe92fa21810f127ab9cf1` | `sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21` |
+| `witan-rubric-v26-prospective-2026-10-14` | `sha256:4a934741cb8cad0a9cd10231388c60f245ddcea8abdfe92fa21810f127ab9cf1` | `sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21` |
+
+The middle column separates the two causes. Adding the specimens alone moves each fingerprint from
+its previous pin to the middle column; the scoring change then moves it to the right-hand column.
+The same measurement without the new specimens reproduces every previous pin exactly on
+`e43ab760`, for example v17's
+`sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf`. On this change it
+reproduces v23's alone, `sha256:6410874e6fb44c1ac29b3fcac49c57799a2eb13bd50444c3a7ce93ebf556577f`.
+v25 and v26 still collide, as declared.
+
+Re-pinned, with no pinned v17 metric moved on any of them:
+- **The v17 golden.** Two of its fixtures carry the no-coverage finding, so restoring the previous
+  fingerprint and v1/10 on that one derivation reproduces each previous pin byte for byte.
+- **The F2 reads-disclosure pins and the CLI byte pin.** Restoring the previous fingerprint alone
+  reproduces each previous pin.
+- **The v17/v22 byte-stability fixture.** It runs `vitest run --coverage`, so its A1 signal moves
+  and nothing else does: its output outside A1 is byte-identical to `e43ab760`'s, and restoring
+  the previous A1 signal reproduces its previous pin.
+
+All of these recoveries are asserted in the tests. Record:
+`docs/reviews/coverage-config-recognition-2026-10-14.md`.
+
 ## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under

@@ -464,15 +464,29 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // workspace package scripts and the behaviour corpus gained a specimen, so v17's fingerprint
     // moved. This fixture declares no workspace. Restoring the previous v17 fingerprint in place
     // reproduces the 0.6.4 pin (2e83163b...) byte for byte, and the restorations below start from it.
+    // Re-pinned 2026-10-14 (goal_cejel_v26_coverage_config_recognition_2026-10-14): A1 recognizes
+    // coverage runner flags and documented configuration locations under every rubric, and the
+    // behaviour corpus gained three specimens, so v17's fingerprint moved. This fixture configures
+    // no test runner, so it carries no coverage finding. Restoring the previous v17 fingerprint in
+    // place reproduces the workspace-scripts pin (c8ac3f0a...) byte for byte.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'c8ac3f0ab1bcba2514cf2771e001f1a154ead35f08e75f7f36ac307dd4a497e2',
+      'a5b58d2b6d0ff95ae52929b88c8f904eb610e3ccc93346774eb67f8edfb3f3a4',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
-      'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
+      'sha256:8492999e2ebd981bfd02b63c13217e012d6979c0365017e73be292b8d9dcc03d',
     );
     expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.4');
-    const atPreWorkspaceScripts = {
+    const atPreCoverageRecognition = {
       ...firstReport,
+      rubricBehaviourFingerprint:
+        'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
+    } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(atPreCoverageRecognition, null, 2)).digest('hex'),
+      'the pre-coverage-recognition report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
+    ).toBe('c8ac3f0ab1bcba2514cf2771e001f1a154ead35f08e75f7f36ac307dd4a497e2');
+    const atPreWorkspaceScripts = {
+      ...atPreCoverageRecognition,
       rubricBehaviourFingerprint:
         'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2',
     } as typeof firstReport;
