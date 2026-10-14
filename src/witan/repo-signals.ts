@@ -10066,7 +10066,7 @@ export function ciWorkflowCitationLabel(
         ]
       : []),
     ...(compositeActions > 0
-      ? [`${compositeActions} composite action${compositeActions === 1 ? '' : 's'}`]
+      ? [`${compositeActions} local action${compositeActions === 1 ? '' : 's'}`]
       : []),
   ];
   const full = `${baseLabel} (${[...parts, `${delegatedCount} (${kinds.join(', ')})`].join('; ')})`;

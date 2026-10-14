@@ -24,12 +24,12 @@ how many workflow files B3 read, not what they delegate to.
 (`countDelegatedCiSteps`) and passes the count to `ciWorkflowCitationLabel`. The B3 citation becomes,
 for example:
 
-`CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in another repository, 1 composite action))`
+`CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in another repository, 1 local action))`
 
 - **Counted as another repository:** a `uses:` value of the form
   `{owner}/{repo}/.github/workflows/{file}.y(a)ml@{ref}`. A same-repository call written that way
   names content at a ref Cejel does not read, so it is counted with them.
-- **Counted as a composite action:** a `./path` (not `./.github/workflows/…`) whose directory holds
+- **Counted as a local action:** a `./path` (not `./.github/workflows/…`) whose directory holds
   `action.yml` or `action.yaml`. The directory must have no `..` segment.
 - **Not counted:** a local reusable workflow (`./.github/workflows/x.yml`), which is one of the
   workflows already read; a marketplace action (`actions/checkout@v4`); a `./path` with no action
@@ -60,7 +60,7 @@ existence check is `isRegularFile`, which records nothing.
 
 ## Open for the reviewer
 
-- **"composite action" also names a local JavaScript or Docker action.** Each has an `action.yml`.
+- **Reviewer change: "composite action" became "local action".** The check cannot tell a composite action from a local JavaScript or Docker action, so the label names what it can establish. Each has an `action.yml`.
   Cejel decides from the file's presence and does not open it, as the goal specified. Telling them
   apart needs a content read of `action.yml`, which would be a new read in a scored collector. The
   CHANGELOG states this. If the wording should be "local action", it is a one-word change in

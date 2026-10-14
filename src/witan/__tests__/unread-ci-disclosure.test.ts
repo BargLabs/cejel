@@ -52,17 +52,17 @@ describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read 
     ]);
   });
 
-  it('a step using ./.github/actions/setup-and-test with an action.yml is one composite action', () => {
+  it('a step using ./.github/actions/setup-and-test with an action.yml is one local action', () => {
     const { labels } = scan(U2_COMPOSITE_ACTION_YML, rubric);
     expect(ciLabel(labels('B3'))).toEqual([
-      'CI workflow (1 workflow file read; 1 cited; 1 delegated step not read (1 composite action))',
+      'CI workflow (1 workflow file read; 1 cited; 1 delegated step not read (1 local action))',
     ]);
   });
 
   it('action.yaml counts too, and a quoted value, trailing slash and trailing comment do not hide it', () => {
     const { labels } = scan(U2B_COMPOSITE_ACTION_YAML, rubric);
     expect(ciLabel(labels('B3'))).toEqual([
-      'CI workflow (1 workflow file read; 1 cited; 1 delegated step not read (1 composite action))',
+      'CI workflow (1 workflow file read; 1 cited; 1 delegated step not read (1 local action))',
     ]);
   });
 
@@ -91,7 +91,7 @@ describe.each(WITAN_SELECTABLE_RUBRIC_VERSIONS)('delegated CI that was not read 
   it('one of each kind across two workflows states both; a commented-out delegation is not counted', () => {
     const { labels } = scan(U6_ONE_OF_EACH, rubric);
     expect(ciLabel(labels('B3'))).toEqual([
-      'CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in another repository, 1 composite action))',
+      'CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in another repository, 1 local action))',
     ]);
   });
 
@@ -120,7 +120,7 @@ describe('the delegated-step clause stays within the 180-character evidence labe
         compositeActions: 3,
       }),
     ).toBe(
-      'CI workflow (3 workflow files read; 1 cited; 5 delegated steps not read (2 reusable workflows in other repositories, 3 composite actions))',
+      'CI workflow (3 workflow files read; 1 cited; 5 delegated steps not read (2 reusable workflows in other repositories, 3 local actions))',
     );
   });
 

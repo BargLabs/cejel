@@ -58,14 +58,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - a job that calls a reusable workflow in another repository
     (`uses: owner/repo/.github/workflows/ci.yml@v1`);
   - a step that runs a local action (`uses: ./.github/actions/setup-and-test`, whose directory
-    holds `action.yml` or `action.yaml`). The certificate calls it a composite action. A local
+    holds `action.yml` or `action.yaml`). The certificate calls it a local action, because the check reads only that `action.yml` exists, not whether the action is composite, JavaScript or Docker. A local
     JavaScript or Docker action has the same file and is counted the same way, because Cejel
     decides from the file's presence and does not open it.
 
   A test or lint command inside that code is unseen, and the certificate read as if it were absent.
   The B3 citation that states how many workflow files were read (0.6.4) now also says, for example,
   `CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in
-  another repository, 1 composite action))`. A local reusable workflow
+  another repository, 1 local action))`. A local reusable workflow
   (`uses: ./.github/workflows/x.yml`) is one of the workflows already read, and a marketplace action
   such as `actions/checkout@v4` runs no repository command, so neither is counted. A `./` path
   whose directory has no `action.yml` or `action.yaml` is not an action and is not counted. When
