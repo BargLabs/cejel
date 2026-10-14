@@ -1,0 +1,29 @@
+[
+  {
+    "statement": "Extending a 'counted by its file name' rule to a new ecosystem asserts a negative for every idiom in that ecosystem the detector cannot read. A1 rates a name-shaped test file with no recognized assertion as hollow; adding *Tests.cs and *Spec.scala to that rule, as a card asked, would have called every FluentAssertions, Shouldly or specs2 test file hollow, a false assertion created by a recognition fix. Rule: when a name-based rule turns unrecognized content into a negative claim, extend it only to cases with affirmative evidence (here a documented suite-level skip), and pin a control file in an unread library that must stay out of the denominator.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring"],
+    "tags": ["recognition-fix", "false-assertion", "absence-claim", "denominator"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 487}
+  },
+  {
+    "statement": "An idiom matcher run over source text matches the import statements that name the idiom. 'import io.kotest.matchers.shouldBe' satisfied a shouldBe matcher with no matcher call in the file, and the existing raw 'should.' alternative credits every file importing ScalaTest's 'matchers.should.Matchers' (#486). Rule: search idioms with import lines blanked, and give every gated idiom a near-miss whose only occurrence of the idiom's name is its own import.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "test-design"],
+    "tags": ["pattern-matching", "false-credit", "near-miss", "import-line"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 487}
+  },
+  {
+    "statement": "A test that reads a ratio metric must compute the ratio, not read the numerator. A1 non_hollow_test_share stores the non-hollow file count as value and the rated count as max; the earlier AVA tests read value alone, which agrees with the share only for 0-of-1 and 1-of-1 fixtures. Mixed fixtures (one live file, one skipped) read 1 where the share was 0.5. Rule: assert value/max, and include at least one fixture whose share is neither 0 nor 1.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "test-design"],
+    "tags": ["metric-shape", "test-helper", "ratio", "fixture-design"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 487}
+  }
+]
