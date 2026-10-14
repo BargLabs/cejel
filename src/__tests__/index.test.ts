@@ -478,15 +478,23 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // compare to a keyed HMAC computation under every rubric, and the behaviour corpus gained two
     // specimens, so v17's fingerprint moved. This fixture holds no HMAC. Restoring the previous v17
     // fingerprint in place reproduces the test-framework-recognition pin (41940242...) byte for byte.
+    // Re-pinned for 0.6.5: only the version bump reaches this fixture beyond the 2026-10-14 re-pins
+    // above. Setting toolVersion back to "0.6.4" in place reproduces the pre-0.6.5 pin
+    // (362aa4f3...) byte for byte, and the restorations below start from it.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      '362aa4f390133fd258ce3bc47113c859702f1b466df2c7e2e722baf65a9c5d3b',
+      '76f03168f37592292de3d801bc3b1efdc7b5184313c7bbd4fb9b957c6fcef918',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
     );
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.4');
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.5');
+    const at064 = { ...firstReport, toolVersion: '0.6.4' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(at064, null, 2)).digest('hex'),
+      'the 0.6.4-era report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('362aa4f390133fd258ce3bc47113c859702f1b466df2c7e2e722baf65a9c5d3b');
     const atPreHmacDigestCompare = {
-      ...firstReport,
+      ...at064,
       rubricBehaviourFingerprint:
         'sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007',
     } as typeof firstReport;
@@ -495,7 +503,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       'the pre-HMAC-digest-compare report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
     ).toBe('4194024274b8179a3f385a2656a9aa2cdda88d73dbb0098fc09d0dfe275d8637');
     const atPreTestFrameworkRecognition = {
-      ...firstReport,
+      ...at064,
       rubricBehaviourFingerprint:
         'sha256:8492999e2ebd981bfd02b63c13217e012d6979c0365017e73be292b8d9dcc03d',
     } as typeof firstReport;
@@ -504,7 +512,7 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
       'the pre-test-framework-recognition report bytes must be recoverable by restoring exactly the previous v17 fingerprint',
     ).toBe('a5b58d2b6d0ff95ae52929b88c8f904eb610e3ccc93346774eb67f8edfb3f3a4');
     const atPreCoverageRecognition = {
-      ...firstReport,
+      ...at064,
       rubricBehaviourFingerprint:
         'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf',
     } as typeof firstReport;
