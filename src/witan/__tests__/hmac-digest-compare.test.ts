@@ -97,6 +97,17 @@ describe('a digest bound to a keyed HMAC computation in the same file is flagged
     })).toBe(7);
   });
 
+  // A2 reports the first matching file only. Every selectable rubric scans production paths only,
+  // so a keyed-digest compare in a test file listed first cannot displace a production warning.
+  it('a test-path match does not shadow a production finding in a later file', () => {
+    const finding = timingFinding({
+      'src/__tests__/webhook.test.js': NODE_DIRECT,
+      'src/verify.js': 'export const verify = (signature, supplied) => signature === supplied;\n',
+    });
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.evidence?.path).toBe('src/verify.js');
+  });
+
   it.each([...WITAN_SELECTABLE_RUBRIC_VERSIONS])('%s flags the Node fixture', rubricVersion => {
     expect(flaggedLine({ 'src/webhook.js': NODE_DIRECT }, rubricVersion)).toBe(5);
   });

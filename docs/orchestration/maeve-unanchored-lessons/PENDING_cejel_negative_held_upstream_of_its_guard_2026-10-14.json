@@ -1,0 +1,29 @@
+[
+  {
+    "statement": "A negative control can pass for a reason upstream of the guard it is named for. In A2's keyed-HMAC digest rule, the Ruby 'HMAC instance is constant-time' near-miss stayed green with its guard deleted, because a cheap file-level gate (no digest-producing call in the file) returned first; a Python triple-quoted near-miss stayed green because an ordering check and plain quote toggling both hid it. Rule: delete each guard alone and require its named test to turn red; when nothing turns red, find what else holds the fixture (an early-exit gate, an ordering check, a lexer accident) and change the fixture so only the guard can hold it.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "test-design", "scoring"],
+    "tags": ["guard-deletion", "near-miss", "early-exit-gate", "fixture-design"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 489}
+  },
+  {
+    "statement": "Before shipping a defensive restriction, show the hazard it guards is reachable. A production-paths-only restriction was written so that a new A2 match in a test file could not displace a production warning; with it deleted, its own test stayed green, because every selectable rubric already scans production paths only at that point. Rule: a guard whose deletion turns no test red under any reachable configuration is dead code or an unreached test; find which, then delete the code or fix the test, and record the reason either way.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring"],
+    "tags": ["dead-code", "guard-deletion", "reachability", "rubric-gating"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 489}
+  },
+  {
+    "statement": "A change that only adds a warning can raise a repository's composite score. A2's new keyed-HMAC timing finding moved a specimen's A2 from not applicable to scored (2.3), and since not-applicable criteria are excluded from the code-trust mean, code trust rose 1.3 to 1.6 and overall 0.9 to 1.1. Rule: state the direction of a scoring change from the measured corpus delta, never from the sign of the finding added, and disclose a counter-intuitive direction in the changelog entry.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring"],
+    "tags": ["not-applicable", "composite-score", "measurement", "disclosure"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 489}
+  }
+]
