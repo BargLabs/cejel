@@ -126,14 +126,18 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // Prospective v26 calibration-candidate rubric. V26 inherits v25's complete closure: the v22
 // chain (every v17-v22 inheritance gate in src/witan/repo-signals.ts and src/witan/scoring.ts)
 // plus v25's inline health route, the one v25-specific gate (`usesV25InlineHealthRoute`), which
-// is true for V25 and V26 and for no other rubric. It adds nothing of its own yet: it is the batch
-// for the next calibration that V25's declaration anticipates ("the next calibration should take
-// it together with other recognition changes, so it is calibrated once"), and each later item
-// change is gated on V26 and measured against a v26 that scores exactly as v25 does.
+// is true for V25 and V26 and for no other rubric. It adds nothing of its own yet. It is the next
+// calibration candidate V25's declaration anticipates. Recognition fixes that remove a false
+// absence ship under every selectable rubric with no identifier bump, as #459, #427 and #430 did,
+// so v26 carries them through the closure it inherits rather than through gates of its own. The
+// one change planned under v26 alone is definitional: the A5 no-reconciliation and A2
+// tenant-without-RLS findings fire only on the evidence a signed ruling names, and otherwise
+// abstain with a disclosure. It is gated on V26 and measured against a v26 that scores exactly as
+// v25 does.
 //
 // V26 does NOT inherit v23 or v24. Their mechanisms stay gated on WITAN_RUBRIC_VERSION_V23 and
 // WITAN_RUBRIC_VERSION_V24 alone, for the reason V24's and V25's declarations give; a v23
-// mechanism that v26 should carry is re-declared under v26 by its own change.
+// mechanism that should apply more widely is extended by its own change.
 // The public default remains v17; callers must opt in explicitly. This declaration carries
 // no precision or recall claim, and no public paired rescore has run.
 export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14';

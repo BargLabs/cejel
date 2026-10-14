@@ -39,11 +39,15 @@ before this change named v25 and none named v26, and 11 name both after it.
 
 **What v26 does not inherit.** v23's four mechanisms and v24's A2 secret content context. Those
 gates still name v23 or v24 alone, for the reason v24's and v25's declarations give. A v23
-mechanism v26 should carry is re-declared under v26 by its own change.
+mechanism that should apply more widely is extended by its own change.
 
-**Why a new identifier with no change.** v26 is the batch for the next calibration that v25's
-declaration anticipates. Each later item change is gated on v26 and measured against a v26 that
-scores exactly as v25 does, so each item's delta is that item alone.
+**Why a new identifier with no change.** v26 is the next calibration candidate that v25's
+declaration anticipates. Recognition fixes that remove a false absence ship under every selectable
+rubric with no identifier bump, as #459, #427 and #430 did, so v26 carries them through the closure
+it inherits. The one change planned under v26 alone is definitional: the A5 no-reconciliation and
+A2 tenant-without-RLS findings fire only on the evidence a signed ruling names, and otherwise
+abstain with a disclosure. It is gated on v26 and measured against a v26 that scores exactly as
+v25 does, so its delta is that change alone.
 
 **Measured, not declared.** On every behaviour-corpus specimen the v26 report equals the v25 report
 in every field except `rubricVersion`, with and without ingested signals
