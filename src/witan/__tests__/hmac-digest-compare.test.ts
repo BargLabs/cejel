@@ -121,6 +121,12 @@ describe('the binding: only the identifier the keyed HMAC is assigned to', () =>
     })).toBeNull();
   });
 
+  it('a comparison before the binding assignment is not flagged', () => {
+    expect(flaggedLine({
+      'src/cache.js': "import { createHmac } from 'node:crypto';\n\nexport const same = (digest, etag) => digest === etag;\nexport const sign = (key, body) => {\n  const digest = createHmac('sha256', key).update(body).digest('hex');\n  return digest;\n};\n",
+    })).toBeNull();
+  });
+
   it('the bound is one intermediate: a second hop is not followed', () => {
     expect(flaggedLine({
       'src/webhook.js': "import { createHmac } from 'node:crypto';\n\nexport function verify(body, sig, key) {\n  const h = createHmac('sha256', key);\n  h.update(body);\n  const raw = h.digest();\n  const digest = raw.toString('hex');\n  return digest === sig;\n}\n",
