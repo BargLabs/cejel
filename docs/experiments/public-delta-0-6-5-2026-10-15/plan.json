@@ -1,0 +1,27 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-10-15T00:00:00.000Z",
+  "runs": [
+    { "name": "v064-v17", "commit": "093de2a16408f249be3470b9f4e385e21c8899a8", "rubric": "witan-rubric-v17-2026-07-24" },
+    { "name": "main-v17", "commit": "98dbf2505406fd3f3ac9eb4d904bf5e2d044edbd", "rubric": "witan-rubric-v17-2026-07-24" },
+    { "name": "main-v25", "commit": "98dbf2505406fd3f3ac9eb4d904bf5e2d044edbd", "rubric": "witan-rubric-v25-prospective-2026-10-12" },
+    { "name": "main-v26", "commit": "98dbf2505406fd3f3ac9eb4d904bf5e2d044edbd", "rubric": "witan-rubric-v26-prospective-2026-10-14" }
+  ],
+  "pairs": [
+    { "name": "release-v17", "before": "v064-v17", "after": "main-v17",
+      "allowedCriteria": ["A1", "A2", "B3"], "presentationOnly": ["rubricBehaviourFingerprint"] },
+    { "name": "item6-v26", "before": "main-v25", "after": "main-v26",
+      "allowedCriteria": ["A5", "A2"], "presentationOnly": ["rubricVersion", "rubricBehaviourFingerprint"] }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with: zero errors; no changes to target identity or history, and no dirty checkouts; each source checkout matching its run's commit; existing outputs refused.",
+    "E1": "release-v17: scoring moves only in the allowed criteria: A1, through #484 and #487; A2, through #489; B3 ci_script_depth, through #479. A3 does not move: #479's A3 change applies only from v20 onward.",
+    "E2": "release-v17, direction: A1 and B3 move up or not at all; A2 may move either way, but only through the HMAC digest rule. Any other downward move is a miss.",
+    "E3": "release-v17, point forecast: at least one row moves at scoring level, through B3 on a row that declares workspaces; no row moves down; placements are reported, not forecast.",
+    "E4": "item6-v26: A5: the no-reconciliation finding disappears on every row that does not name a claim-reconciliation artifact. On those rows, reconciliation_artifact_depth leaves A5, so A5 scores move up or not at all. A2: the tenant-without-RLS finding fires only where T-1 to T-3 hold. A row where v25 fired and v26 does not is expected. A row where v26 fires and v25 did not is reported with its table, and is not a miss. Everything else: unchanged.",
+    "E5": "fingerprints change on every row in release-v17. Byte identity is reported after removing only that field."
+  }
+}
