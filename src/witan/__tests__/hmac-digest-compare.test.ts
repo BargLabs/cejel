@@ -135,7 +135,7 @@ describe('the binding: only the identifier the keyed HMAC is assigned to', () =>
 
   it('a Ruby OpenSSL::HMAC instance compared with == is not flagged (HMAC#== is constant-time)', () => {
     expect(flaggedLine({
-      'lib/webhook.rb': "require 'openssl'\n\ndef verify(key, body, other)\n  digest = OpenSSL::HMAC.new(key, 'SHA256')\n  digest << body\n  digest == other\nend\n",
+      'lib/webhook.rb': "require 'openssl'\n\ndef verify(key, body, other)\n  digest = OpenSSL::HMAC.new(key, 'SHA256')\n  digest << body\n  puts other.hexdigest\n  digest == other\nend\n",
     })).toBeNull();
   });
 });
