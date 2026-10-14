@@ -177,9 +177,9 @@ describe('comments and strings', () => {
     })).toBeNull();
   });
 
-  it('Python: the comparison only inside a # comment or a docstring is not flagged', () => {
+  it("Python: the comparison only inside a # comment or a ''' string is not flagged", () => {
     expect(flaggedLine({
-      'src/webhook.py': "import hmac\n\n\ndef verify(key, body, signature):\n    '''Never write: digest == signature'''\n    digest = hmac.new(key, body, 'sha256').hexdigest()\n    # if digest == signature: return True\n    return hmac.compare_digest(digest, signature)\n",
+      'src/webhook.py': "import hmac\n\n\ndef verify(key, body, signature):\n    digest = hmac.new(key, body, 'sha256').hexdigest()\n    '''Don't write: digest == signature'''\n    # if digest == signature: return True\n    return hmac.compare_digest(digest, signature)\n",
     })).toBeNull();
   });
 
