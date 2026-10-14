@@ -709,6 +709,22 @@ export const BEHAVIOUR_CORPUS: readonly BehaviourFixture[] = [
       'src/lookup.test.js': "import assert from 'node:assert';\nassert.strictEqual(1, 1);\n",
     },
   },
+  {
+    name: 'workspace-package-scripts',
+    purpose:
+      'A workspace root that only orchestrates, with build and test scripts in a declared package: A3 and B3 must read the declared packages, not the root alone; synthetic npm workspace.',
+    files: {
+      'package.json':
+        '{"name":"workspace-package-scripts","private":true,"workspaces":["packages/*"],"scripts":{"start":"node packages/api/src/server.js"}}\n',
+      'packages/api/package.json':
+        '{"name":"@fixture/api","scripts":{"build":"tsc -p .","test":"vitest run"}}\n',
+      'packages/api/src/server.js':
+        "import http from 'node:http';\n\nhttp.createServer((_req, res) => res.end('ok')).listen(8080);\n",
+      '.github/workflows/ci.yml':
+        'name: ci\non:\n  push:\n    branches: [main]\njobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: echo ok\n',
+      'README.md': '# workspace-package-scripts\n\nA fixture repository.\n',
+    },
+  },
 ];
 
 /**
@@ -739,6 +755,7 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'inline-health-route-and-prettier-handler': 'f884b252dc78d8b5d82baa2a939c50fea6893941',
   'ava-live-assertions': 'ccc905405ee8f63b0b287e0b275eebeb488a3e6d',
   'public-digest-lookup': '5515c03624cb9d7e0ccf2ede8b4a6710f219b3a7',
+  'workspace-package-scripts': 'eb763f23df607357fa7548de2176668f2c41028b',
 });
 
 /**

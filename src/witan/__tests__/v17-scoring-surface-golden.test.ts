@@ -76,8 +76,18 @@ import { WITAN_RUBRIC_VERSION_V17 } from '../rubric-version.js';
 // not claimed: restoring the previous v17 fingerprint in place (key order unchanged) reproduces
 // each fixture's `preFalseEvidenceClassReportSha256` (the previous pin) byte for byte, and every
 // older proof below is taken from that restored report.
+//
+// Re-pinned a sixth time, 2026-10-14 (goal_cejel_v26_workspace_package_scripts_2026-10-14): v17
+// scoring changed — B3 ci_script_depth now also reads the package.json scripts of packages a
+// workspace declares — and the behaviour corpus gained the workspace-package-scripts specimen, so
+// v17's fingerprint moved. None of these four fixtures declares a workspace, so no pinned METRIC
+// moved. Mechanical, not claimed: restoring the previous v17 fingerprint in place (key order
+// unchanged) reproduces each fixture's `preWorkspaceScriptsReportSha256` (the previous pin) byte
+// for byte, and every older proof below is taken from the report restored the same way.
 
-const V17_FINGERPRINT = 'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2';
+const V17_FINGERPRINT = 'sha256:79fe791e46563e2b8524fbc92ab0acab4dc67946870083a4b42186a9e3799bbf';
+const V17_FINGERPRINT_BEFORE_WORKSPACE_SCRIPTS =
+  'sha256:6a31f7cb96ebf17046ba0620d74b1fadb66582c4b4ae5cb0b5af04480df6dbf2';
 const V17_FINGERPRINT_BEFORE_FALSE_EVIDENCE_CLASS =
   'sha256:eabdc78425373baf23f50c23b0b025bae4116461f3bc5ddc7d5b8496df03f653';
 const V17_FINGERPRINT_BEFORE_CORPUS_EXTENSION =
@@ -111,6 +121,8 @@ interface Fixture {
   readonly files: Record<string, string>;
   readonly fixtureHeadSha: string;
   readonly reportSha256: string;
+  /** Pin before the 2026-10-14 workspace-package-scripts change moved v17's fingerprint. */
+  readonly preWorkspaceScriptsReportSha256: string;
   /** Pin before the 2026-10-09 #433 change moved v17's fingerprint. */
   readonly preFalseEvidenceClassReportSha256: string;
   /** Pre-1.4 pin (before the additive appliedWeightShare metric field). */
@@ -143,7 +155,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '57528d5757b04f14b3b21adb41163866ff428242',
-    reportSha256: '97af78080b0e535ba37ffb170b625347b70ad86bdd1d3d299e16ae70edab7d9d',
+    reportSha256: '621596fe386ceaa046210790fc120d71e58b069cc1e70b97992e0243af393272',
+    preWorkspaceScriptsReportSha256: '97af78080b0e535ba37ffb170b625347b70ad86bdd1d3d299e16ae70edab7d9d',
     preFalseEvidenceClassReportSha256: '8842802e09bb24a97302d60435e50fe5e8306df05343d1a8f28bb4ddb1a3dd50',
     preAppliedWeightReportSha256: '924dda13d63daa9574b212bccdba122e7b7dd44cdbd52a46b4a9475ef836888e',
     preCorpusExtensionReportSha256: '4148f107f8c0c8f4ddd4ba8211995db7520643812d323c98db42ec836b628cc7',
@@ -167,7 +180,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: '92be8bb76999ef1ea948ca3ed3e6dc7397b14fd2',
-    reportSha256: 'a6ef0cfede786a47c7e1fa42a55c1ea65195a5792ef04f51f5c77855fe662981',
+    reportSha256: 'f52ae1fa9558480d3af05c62b6221183054c051e6a12fc94a923ed1565714e9c',
+    preWorkspaceScriptsReportSha256: 'a6ef0cfede786a47c7e1fa42a55c1ea65195a5792ef04f51f5c77855fe662981',
     preFalseEvidenceClassReportSha256: '0e233b1a1124b44a6db4d3e34e35536e3790952144651d78144875ed9fed0392',
     preAppliedWeightReportSha256: 'c8abfdf1452e5e1031b96327a46383e4bbb76b977a4a3f53f3e8b60acdb4c409',
     preCorpusExtensionReportSha256: '80127d6130c4333b381486e15ecd7754c6836a25ba69eb2d61e5760e1a5d14ed',
@@ -190,7 +204,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'e3d5165eb7fcbc480718d4b93088f8e586f20535',
-    reportSha256: '3a2556f889f003343ed9a2503decf736b93229078b3eddb1764995866bb0cda8',
+    reportSha256: '6c547005dbafd78fd5911ae687663d5ab3c4c60d41691f45731bd5f11131836f',
+    preWorkspaceScriptsReportSha256: '3a2556f889f003343ed9a2503decf736b93229078b3eddb1764995866bb0cda8',
     preFalseEvidenceClassReportSha256: 'a029cd330ed22030b821198be3506cd8f4cc427796e842a4431c541db0a81ef6',
     preAppliedWeightReportSha256: '1f61fd31f5eb788544838fbc403d4e766a0bfc1176bcb2a26f4ebb6811675126',
     preCorpusExtensionReportSha256: 'ee12a81cbadd11f81999fa7fcb54ec1d660966494e7a6414fd1c80e86fe26c4d',
@@ -211,7 +226,8 @@ const FIXTURES: readonly Fixture[] = [
       'README.md': '# fixture\n',
     },
     fixtureHeadSha: 'b72b860e9fbba8005bf25328de8fe68954169f38',
-    reportSha256: 'c0b5182bac46f9782a077299ae1d3c230513aba61ff1ddda7c00bb9f66d03707',
+    reportSha256: '8014b7507aa2f965f7f2752c4ba5e14645554f536e47cd9d31c7602f13507d36',
+    preWorkspaceScriptsReportSha256: 'c0b5182bac46f9782a077299ae1d3c230513aba61ff1ddda7c00bb9f66d03707',
     preFalseEvidenceClassReportSha256: '5b440adebf9787d269b96ff106f01b423c004b95b62d1b9281549c6a08dec512',
     preAppliedWeightReportSha256: '06c2ce2af894e6a7a6984479856dc20b268c2eb2402437e3c1df18fa1548abb4',
     preCorpusExtensionReportSha256: '5ddfc7cf6b45c0cdbe32d45cebb1e4aca0130f0d40223fd2e40b579ae75f44df',
@@ -271,6 +287,14 @@ describe('v17 scoring surface is pinned — a behaviour change under the calibra
       expect(hash, `${fixture.name}: v17 report changed under an unchanged rubric identifier — record it in leaderboard/RUBRIC_CHANGELOG.md and re-pin`).toBe(fixture.reportSha256);
 
       expect(report.rubricBehaviourFingerprint).toBe(V17_FINGERPRINT);
+      const beforeWorkspaceScripts = {
+        ...report,
+        rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_WORKSPACE_SCRIPTS,
+      };
+      expect(
+        createHash('sha256').update(JSON.stringify(beforeWorkspaceScripts)).digest('hex'),
+        `${fixture.name}: the pre-2026-10-14 report bytes must be recoverable by restoring exactly the previous v17 fingerprint`,
+      ).toBe(fixture.preWorkspaceScriptsReportSha256);
       const beforeFalseEvidenceClass = {
         ...report,
         rubricBehaviourFingerprint: V17_FINGERPRINT_BEFORE_FALSE_EVIDENCE_CLASS,

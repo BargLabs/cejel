@@ -3497,8 +3497,24 @@ function collectA3ProdReadinessEvidence(
 
   if (evidence.length === 0) return null;
   if (useV20ExplicitGaps) {
-    const hasBuildOrTypecheck = scripts.has('build') || scripts.has('typecheck');
+    // The root or any declared workspace package (findDeclaredWorkspaceManifests). Manifests the
+    // read cap left unread are not an observed absence, so a capped read never asserts one.
+    // COUPLING, deliberately not restructured: this is branch 1 of a single if / else-if chain,
+    // so on a workspace monorepo where it stops firing, the HEALTHCHECK and health-route
+    // branches below start running (pinned in workspace-package-scripts.test.ts).
+    const workspaceManifests = packageJson
+      ? findDeclaredWorkspaceManifests(repoPath, repoFiles, packageJson)
+      : NO_DECLARED_WORKSPACE_MANIFESTS;
+    const hasBuildOrTypecheck =
+      scripts.has('build') ||
+      scripts.has('typecheck') ||
+      workspaceManifests.declared > workspaceManifests.read.length ||
+      workspaceManifests.read.some((file) => {
+        const workspaceScripts = readPackageScripts(join(repoPath, file));
+        return workspaceScripts.has('build') || workspaceScripts.has('typecheck');
+      });
     if (packageJson && !hasBuildOrTypecheck) {
+      const workspaceRead = workspaceManifests.read.length;
       findings.push({
         severity: 'info',
         summary:
@@ -3507,7 +3523,9 @@ function collectA3ProdReadinessEvidence(
           repoPath,
           packageJson,
           'prod_check',
-          'Deployable service manifest without a build or typecheck script',
+          workspaceRead > 0
+            ? `Deployable service manifest without a build or typecheck script (${workspaceRead} declared workspace package.json file${workspaceRead === 1 ? '' : 's'} read)`
+            : 'Deployable service manifest without a build or typecheck script',
         ),
       });
     } else if (runtimeContainer) {
@@ -4327,10 +4345,22 @@ function collectB3CiDisciplineEvidence(
     CI_TYPECHECK_COMMAND_PATTERN,
     CI_BUILD_COMMAND_PATTERN,
   ];
-  const rootOnlyScriptsNote = rootOnlyPackageScriptsDisclosure(repoFiles, packageJson);
-  const scriptDepth = ['test', 'lint', 'typecheck', 'build'].filter((s) =>
-    s === 'test' ? hasCredibleTestScript(scripts) : scripts.has(s),
-  ).length;
+  // The root and every declared workspace package (findDeclaredWorkspaceManifests): a category
+  // counts once when any of them declares it. With no declaration this is the root alone.
+  const workspaceManifests = findDeclaredWorkspaceManifests(repoPath, repoFiles, packageJson);
+  const scriptSources = [
+    scripts,
+    ...workspaceManifests.read.map((file) => readPackageScripts(join(repoPath, file))),
+  ];
+  const declaresScript = (name: string): boolean =>
+    scriptSources.some((source) =>
+      name === 'test' ? hasCredibleTestScript(source) : source.has(name),
+    );
+  const rootOnlyScriptsNote =
+    workspaceManifests.read.length > 0
+      ? workspacePackageScriptsDisclosure(repoFiles, packageJson, workspaceManifests)
+      : rootOnlyPackageScriptsDisclosure(repoFiles, packageJson);
+  const scriptDepth = ['test', 'lint', 'typecheck', 'build'].filter(declaresScript).length;
   // Scoped to 'ci_script_depth': computed once here and reused below for both the metric value
   // and its presentation components, so a read failure abstains the metric instead of leaving
   // the redisplayed components silently recomputed outside the tracked scope.
@@ -4370,7 +4400,7 @@ function collectB3CiDisciplineEvidence(
           components: [
             ...['test', 'lint', 'typecheck', 'build'].map((name) => ({
               label: `package script: ${name === 'typecheck' ? 'type-check' : name}`,
-              count: (name === 'test' ? hasCredibleTestScript(scripts) : scripts.has(name)) ? 1 : 0,
+              count: declaresScript(name) ? 1 : 0,
             })),
             ...CI_COMMAND_CATEGORIES.map((_pattern, index) => ({
               label: `repository CI command: ${['test', 'lint', 'type-check', 'build'][index]}`,
@@ -8461,6 +8491,183 @@ function findRootPackageJson(repoFiles: readonly string[]): string | null {
   return repoFiles.includes('package.json') ? 'package.json' : null;
 }
 
+// Declared workspace packages (goal_cejel_v26_workspace_package_scripts_2026-10-14). In npm, yarn
+// and pnpm workspaces the root package.json often only orchestrates and the scripts live in the
+// workspace packages, so a script check that reads the root alone asserts an absence the repository
+// does not have. A recognition fix under every rubric, not gated on rubric version.
+//
+// Only what the workspace DECLARES is read: the root package.json `workspaces` field (array form,
+// https://docs.npmjs.com/cli/v10/using-npm/workspaces, and yarn's `{ packages: [...] }` form,
+// https://classic.yarnpkg.com/lang/en/docs/workspaces/) and the `packages:` list of a root
+// pnpm-workspace.yaml (https://pnpm.io/pnpm-workspace_yaml). No declaration, no reading: workspaces
+// are never inferred from directory shape. Globs are matched against package directories in the
+// scan's existing file inventory — never a filesystem walk — with `*`, `?` and whole-segment `**`
+// supported and leading-dot segments unmatched by wildcards. A `!` pattern excludes whatever it
+// matches, in any position. Each package.json must also pass A1's authored-production predicate
+// (isAuthoredProductionPath), so vendored, generated and test/example trees never count.
+//
+// Fails toward the root-only behaviour, never toward a credit: a negation that cannot be parsed,
+// more than WORKSPACE_PATTERN_LIMIT patterns, or an unreadable declaration discards the whole
+// declaration; an unparseable positive pattern matches nothing. At most
+// WORKSPACE_PACKAGE_MANIFEST_LIMIT manifests are read, in path order, and the count declared
+// beyond that is kept so callers can say so.
+const WORKSPACE_PATTERN_LIMIT = 64;
+const WORKSPACE_PACKAGE_MANIFEST_LIMIT = 200;
+
+interface DeclaredWorkspaceManifests {
+  /** Authored workspace package.json paths read, path-sorted, at most the manifest limit. */
+  readonly read: readonly string[];
+  /** Authored workspace package.json paths the declaration matched, before the cap. */
+  readonly declared: number;
+}
+
+const NO_DECLARED_WORKSPACE_MANIFESTS: DeclaredWorkspaceManifests = { read: [], declared: 0 };
+
+function findDeclaredWorkspaceManifests(
+  repoPath: string,
+  repoFiles: readonly string[],
+  rootPackageJson: string | null,
+): DeclaredWorkspaceManifests {
+  const patterns: string[] = [];
+  if (rootPackageJson) {
+    const declared = readPackageJsonWorkspacePatterns(join(repoPath, rootPackageJson));
+    if (declared === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+    patterns.push(...declared);
+  }
+  if (repoFiles.includes('pnpm-workspace.yaml')) {
+    const declared = readPnpmWorkspacePatterns(join(repoPath, 'pnpm-workspace.yaml'));
+    if (declared === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+    patterns.push(...declared);
+  }
+  if (patterns.length === 0 || patterns.length > WORKSPACE_PATTERN_LIMIT) {
+    return NO_DECLARED_WORKSPACE_MANIFESTS;
+  }
+  const include: RegExp[] = [];
+  const exclude: RegExp[] = [];
+  for (const pattern of patterns) {
+    const negated = pattern.startsWith('!');
+    const regex = workspaceGlobToRegExp(negated ? pattern.slice(1) : pattern);
+    if (negated) {
+      if (regex === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+      exclude.push(regex);
+    } else if (regex !== null) {
+      include.push(regex);
+    }
+  }
+  const matched = repoFiles
+    .filter((file) => {
+      if (file === rootPackageJson || !file.endsWith('/package.json')) return false;
+      if (!isAuthoredProductionPath(file)) return false;
+      const dir = file.slice(0, -'/package.json'.length);
+      return include.some((regex) => regex.test(dir)) && !exclude.some((regex) => regex.test(dir));
+    })
+    .sort();
+  return { read: matched.slice(0, WORKSPACE_PACKAGE_MANIFEST_LIMIT), declared: matched.length };
+}
+
+/** `[]` when the manifest declares no workspaces; null when it cannot be read as declared. */
+function readPackageJsonWorkspacePatterns(packageJsonPath: string): string[] | null {
+  if (!isRegularFile(packageJsonPath)) return [];
+  const parsed = parseJsonObject(readRepoText(packageJsonPath, 'utf8'));
+  const workspaces = parsed?.workspaces;
+  if (workspaces === undefined) return [];
+  const list = isRecord(workspaces) ? workspaces.packages : workspaces;
+  if (list === undefined && isRecord(workspaces)) return [];
+  if (!Array.isArray(list) || !list.every((entry) => typeof entry === 'string')) return null;
+  return list as string[];
+}
+
+/**
+ * The `packages:` list of a pnpm-workspace.yaml: a top-level block sequence of plain or quoted
+ * scalars, or a one-line flow sequence. Anything else under `packages:` is null (unreadable),
+ * never a guess. Other top-level keys (catalog, onlyBuiltDependencies, ...) are skipped.
+ */
+function readPnpmWorkspacePatterns(yamlPath: string): string[] | null {
+  if (!isRegularFile(yamlPath)) return [];
+  const patterns: string[] = [];
+  let inPackages = false;
+  for (const line of readRepoText(yamlPath, 'utf8').split(/\r?\n/)) {
+    if (!inPackages) {
+      const key = /^packages\s*:(.*)$/.exec(line);
+      if (!key) continue;
+      const rest = stripYamlLineComment(key[1] ?? '').trim();
+      if (rest === '') {
+        inPackages = true;
+        continue;
+      }
+      const flow = /^\[(.*)\]$/.exec(rest);
+      if (!flow) return null;
+      if ((flow[1] ?? '').trim() === '') return [];
+      for (const item of (flow[1] ?? '').split(',')) {
+        const scalar = yamlScalar(item.trim());
+        if (scalar === null) return null;
+        patterns.push(scalar);
+      }
+      return patterns;
+    }
+    if (/^\s*(?:#.*)?$/.test(line)) continue;
+    const item = /^\s*-\s+(.*)$/.exec(line);
+    if (item) {
+      const scalar = yamlScalar((item[1] ?? '').trim());
+      if (scalar === null) return null;
+      patterns.push(scalar);
+      continue;
+    }
+    if (/^\S/.test(line)) break;
+    return null;
+  }
+  return patterns;
+}
+
+function stripYamlLineComment(text: string): string {
+  return /^\s*#/.test(text) ? '' : text.replace(/\s+#.*$/, '');
+}
+
+function yamlScalar(raw: string): string | null {
+  const single = /^'((?:[^']|'')*)'\s*(?:#.*)?$/.exec(raw);
+  if (single) return (single[1] ?? '').replace(/''/g, "'");
+  const double = /^"([^"\\]*)"\s*(?:#.*)?$/.exec(raw);
+  if (double) return double[1] ?? '';
+  const plain = stripYamlLineComment(raw).trim();
+  return plain === '' || /^["'[{&*|>]/.test(plain) ? null : plain;
+}
+
+/** A workspace glob as an anchored regex over a package directory, or null when unsupported. */
+function workspaceGlobToRegExp(pattern: string): RegExp | null {
+  const normalised = pattern.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+  if (
+    normalised === '' ||
+    normalised.startsWith('/') ||
+    /(^|\/)\.\.?(\/|$)/.test(normalised) ||
+    /[[\]{}()!+@\\]/.test(normalised)
+  ) {
+    return null;
+  }
+  // Consecutive `**` segments mean the same as one.
+  const segments = normalised
+    .split('/')
+    .filter((segment, index, all) => !(segment === '**' && all[index - 1] === '**'));
+  const anySegment = '(?!\\.)[^/]+';
+  if (segments.length === 1 && segments[0] === '**') return new RegExp(`^${anySegment}(?:/${anySegment})*$`);
+  let source = '';
+  segments.forEach((segment, index) => {
+    if (segment === '**') {
+      // Zero or more whole segments: `**/b` is `(x/)*b`, `a/**/b` is `a(/x)*/b`, `a/**` is `a(/x)*`.
+      source += index === 0 ? `(?:${anySegment}/)*` : `(?:/${anySegment})*`;
+      return;
+    }
+    if (index > 0 && !(index === 1 && segments[0] === '**')) source += '/';
+    const body = segment
+      .split('')
+      .map((char) =>
+        char === '*' ? '[^/]*' : char === '?' ? '[^/]' : char.replace(/[.^$|]/g, '\\$&'),
+      )
+      .join('');
+    source += /^[*?]/.test(segment) ? `(?!\\.)${body}` : body;
+  });
+  return new RegExp(`^${source}$`);
+}
+
 // Presentation-only disclosure (goal_cejel_certificate_reads_disclosure_2026-10-13): the citation
 // names one workflow file, so the certificate states how many the criterion counted or read.
 // Nothing here feeds a score, a weight, or file selection.
@@ -8501,10 +8708,11 @@ function unreadCiWorkflowReasons(
   return unread;
 }
 
-// A3's build/type-check component and B3's ci_script_depth read package scripts from the root
-// package.json only, while A1 reads every authored package.json. "Authored" is A1's own predicate
-// (isAuthoredProductionPath), so vendored and dependency trees are not counted. Returns null when
-// there is nothing to say (no other authored package.json), leaving the output unchanged.
+// A3's build/type-check component reads package scripts from the root package.json only, as does
+// B3's ci_script_depth when no workspace is declared, while A1 reads every authored package.json.
+// "Authored" is A1's own predicate (isAuthoredProductionPath), so vendored and dependency trees are
+// not counted. Returns null when there is nothing to say (no other authored package.json), leaving
+// the output unchanged.
 function rootOnlyPackageScriptsDisclosure(
   repoFiles: readonly string[],
   rootPackageJson: string | null,
@@ -8518,6 +8726,33 @@ function rootOnlyPackageScriptsDisclosure(
   if (others === 0) return null;
   const present = `${others}${rootPackageJson ? ' other' : ''} package.json file${others === 1 ? '' : 's'} present`;
   return `${rootPackageJson ? '' : 'no root package.json found; '}package scripts for this metric are read from the root package.json only; ${present}`;
+}
+
+// The same disclosure once declared workspace packages were read (B3's ci_script_depth): how many
+// were read, how many the cap left unread, and how many other authored package.json files remain.
+function workspacePackageScriptsDisclosure(
+  repoFiles: readonly string[],
+  rootPackageJson: string | null,
+  workspace: DeclaredWorkspaceManifests,
+): string {
+  const readCount = workspace.read.length;
+  const workspaceRead =
+    workspace.declared > readCount
+      ? `the first ${readCount} of ${workspace.declared} declared workspace package.json files`
+      : `${readCount} declared workspace package.json file${readCount === 1 ? '' : 's'}`;
+  const read = new Set(workspace.read);
+  const others = repoFiles.filter(
+    (file) =>
+      file !== rootPackageJson &&
+      !read.has(file) &&
+      /(^|\/)package\.json$/.test(file) &&
+      isAuthoredProductionPath(file),
+  ).length;
+  return [
+    ...(rootPackageJson ? [] : ['no root package.json found']),
+    `package scripts for this metric are read from ${rootPackageJson ? `the root package.json and ${workspaceRead}` : workspaceRead}`,
+    ...(others > 0 ? [`${others} other package.json file${others === 1 ? '' : 's'} present`] : []),
+  ].join('; ');
 }
 
 // Returns true only for regular files — directories and missing paths both return false.

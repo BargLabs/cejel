@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "A guard-deletion test proves a guard only if its fixture reaches that guard. The card asked for a vendored node_modules package.json fixture to show A1's authored-path filter keeps vendored workspace manifests out; with the filter deleted that test stayed green, because the scan inventory hard-excludes node_modules before any collector sees it. Only a generated/ manifest, which reaches the collector, turned red. Rule: for each guard deletion, confirm the test fails with the guard removed, and when it does not, find which upstream control is actually doing the work and add a fixture that reaches the guard you meant to test.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "test-design", "scoring"],
+    "tags": ["guard-deletion", "upstream-control-masks-guard", "fixture-reachability", "red-on-deletion"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 479}
+  },
+  {
+    "statement": "Before reading a before/after delta from an ad hoc measurement pipeline, make it reproduce a number already committed. Scoring the expanded behaviour corpus under the old and new scanners gave per-rubric fingerprints, but those were only trustworthy once the same pipeline, run without the new specimen, reproduced all ten committed fingerprints exactly. Rule: a measurement script earns trust by matching the existing pins first; only then report what moved.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "scoring", "measurement"],
+    "tags": ["reproduce-known-value-first", "measurement-pipeline-validation", "fingerprint-repin"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-14T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 479}
+  }
+]
