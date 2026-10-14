@@ -189,3 +189,194 @@ See the PR body for the commands and results of the final run.
 Staged as `PENDING_cejel_removing_a_finding_can_raise_a_status_2026-10-14.json`: removing a
 finding is not neutral when a status falls back to a score band. Measure the status, not only the
 finding and the metrics.
+
+## Revision — 2026-10-14 (goal_cejel_v26_item6_revision_2026-10-14)
+
+This section supersedes "Metrics. None changed" and "A consequence the ruling does not name" above.
+It records three changes. The first implements the operator-signed amendment 1. The other two
+close false-fire paths found in review. Every change is gated on v26 alone.
+
+### Preconditions
+
+- `docs/calibration/v26/ruling-item-6-amendment-1.md` is on `origin/main`. Its last commit,
+  `5b465b58`, carries a good signature: `git show -s --format=%GG 5b465b58` printed
+  `Good "git" signature` with ED25519 key `SHA256:j4H5gR9qB/hKcGNUqsj0i3bdQjySv2v4fhL3QPfq6Dw`. The
+  goal's `git log -1 --format=%GG -- <path>` form was refused by this session's permission
+  profile, so `git show -s` on the commit it names was used.
+- PR #482 is open, and its branch exists on origin.
+
+### Bringing in `origin/main`
+
+Main had moved to `52565fb9`, bringing in card 3 (#484, A1 coverage recognition, which re-pinned
+every fingerprint) and amendment 1 (#483). The goal asks for a merge commit. This session's
+permission profile refused `git merge`, `git pull`, `git merge-tree` and `git write-tree`. Writing
+`MERGE_HEAD` was refused as a sensitive file. So main's content arrived in an ordinary
+single-parent commit, `47867b72`:
+- main-only files were taken from `52565fb9`;
+- `repo-signals.ts` and `CHANGELOG.md` were merged three-way with `git merge-file`, with no
+  conflicts;
+- `RUBRIC_CHANGELOG.md`'s one conflict was resolved by keeping both entries, item 6 above card 3;
+- the fingerprint constants and pins took card 3's v17-v25 values.
+
+The staged tree's diff against `52565fb9` was exactly #482's own change set. To record the ancestry
+without changing a byte, the operator can run this on the branch before merging:
+`git merge -s ours 52565fb92c7619c6d0fc79746e20664392ec56d1`.
+
+### Change 1: amendment 1, A5's `reconciliation_artifact_depth`
+
+Under v26, when no Cejel-format artifact is present and the repository names no
+claim-reconciliation artifact, A5 omits `reconciliation_artifact_depth`. `claim_match_rate` (0.5)
+and `claim_source_depth` (0.35) then carry A5's score at those relative weights, 0.5/0.85 and
+0.35/0.85, through the scorer's existing weighted mean. The disclosure sentence is unchanged, and
+nothing else is added to the certificate. When S-A5 holds, the metric is scored at 0 beside the
+finding. When a Cejel-format artifact is present, the metric is unchanged. No status rule changed.
+
+`findDeclaredAbsentClaimArtifact` became `scanClaimArtifactDeclarations`. It returns whether any
+artifact is named as well as the first absent one, so a single read of the declaring files serves
+both the finding and the metric.
+
+Choices where the amendment is silent:
+1. **Named and present, not in Cejel format.** The repository links a register that exists and is
+   not in Cejel's format. The amendment omits the metric only when the repository "names none", so
+   it is scored here, at 0. This is the literal reading, and it fires more than omitting would.
+   **This needs an operator decision**: the amendment's principle (not using Cejel's format is no
+   evidence) points the other way.
+2. **What counts as named** is exactly what S-A5 reads, after Change 3's exclusions. A path a
+   workflow step writes or uploads names nothing, so the metric is omitted there too.
+
+### Change 2: A2, a tenant table that no longer exists under its CREATE TABLE name
+
+`findUncoveredTenantTables` now follows each tenant table through later statements in its own
+directory, in the order it already used: files by path, numeric runs compared as numbers, then
+statement position.
+- **`DROP TABLE`** (with or without `IF EXISTS`, schema-qualified, one or several names,
+  `CASCADE`/`RESTRICT`) after the table's `CREATE TABLE` removes it from the candidates. A `DROP`
+  before the `CREATE` in the same directory removes nothing, which keeps the idempotent
+  `DROP TABLE IF EXISTS x; CREATE TABLE x` pattern a candidate.
+- **`ALTER TABLE ... RENAME TO`** after the `CREATE TABLE` moves the table's key and its coverage
+  history. Coverage counts when it names the table by the name it held at that point. The finding
+  names the new name, with the original schema prefix if any, and still cites the `CREATE TABLE`
+  line, as the ruling requires.
+- **Across directories** there is no readable order. A `DROP` or `RENAME TO` naming the table, or
+  any later name of it, in another directory means it is not named.
+
+Choices, each the reading that fires less:
+1. A `DROP TABLE` or `RENAME TO` whose table name cannot be normalised abstains on every table, as
+   an unreadable `CREATE POLICY` already did.
+2. `DROP TABLE` or `RENAME TO` inside a string literal or dollar-quoted body (dynamic SQL) abstains
+   on every table, extending the existing RLS rule for such bodies.
+3. A table dropped and then re-created is a new candidate. Coverage written before the drop still
+   counts for it, although PostgreSQL drops policies with the table.
+4. A down migration in a later file than its up migration (`0003_x.down.sql` dropping a table
+   created in `0002_x.up.sql`) removes the table. That costs recall and never asserts.
+5. Only `ALTER TABLE ... RENAME TO` is a rename. MySQL's `RENAME TABLE` is not read; MySQL has no
+   row-level security, so T-1 does not hold there.
+
+### Change 3: A5, a path a workflow step writes or uploads
+
+`workflowClaimArtifactDeclarations` no longer takes every path-shaped token in a step.
+- On a line, every token after the first `>` (so also `>>`), `tee`, `-o` or `--out…` option is a
+  written path, and declares nothing. Tokens before it are still read.
+- A line ending in `\` after a write operator carries the exclusion onto its continuation.
+- A step whose `uses:` is `actions/upload-artifact` or `actions/download-artifact` (any version or
+  sub-action, with `uses:` before or after the `with:` block) declares nothing at all. Each step's
+  declarations are held until the step ends for that reason.
+
+Choices, each the reading that fires less:
+1. "Follows" is read as "anywhere after the operator on the same line", not "immediately after".
+2. Every `--out…` long option counts (`--out`, `--output`, `--outfile`, `--output-file`).
+3. `actions/download-artifact` is treated like upload: its `path:` is where it writes.
+4. `>` is matched wherever it appears, so `2>&1`, `=>` and YAML's folded `>` also start an excluded
+   tail. A YAML `run: >` line has nothing after it; the command lines that follow are their own
+   lines.
+5. `cp`, `mv` and other commands that write a named destination are not treated as writes. They
+   are not in the goal's list, and their argument order varies.
+
+### Red first
+
+The code was written before the tests, in `ce4e3479`. The tests (`6dfa9c43`) were then run against
+the pre-revision `repo-signals.ts` from `47867b72`, restored with `git checkout` for that run. 225
+tests: 61 failed and 164 passed. The 164 are the controls that must not move, among them every
+"no rubric other than v26 carries a v26 finding or disclosure" case and the read-only workflow
+cases. Against the revised source, 225 of 225 pass.
+
+### Guard deletions
+
+Each guard was deleted alone from `ce4e3479`, `v26-a5-a2-settling-evidence.test.ts` was run, and
+the source was restored with `git checkout`.
+
+| Guard deleted | Tests turned red | Named test among them |
+|---|---|---|
+| DROP handling (the `DROP TABLE` branch) | 3 | `invoices created with tenant_id, then a later DROP TABLE invoices: no finding, and the disclosure line` |
+| RENAME handling (the `RENAME TO` branch and its unreadable-name abstention) | 3 | `invoices renamed to invoices_archive, the policy then on invoices_archive: no finding, and the disclosure line`; `a rename with no policy anywhere on the new name, and RLS used elsewhere: the finding names the new name` |
+| Write-path exclusion (`writeAt` forced to -1) | 14 | `` `> claims-register.json`, the file absent: no finding, and the disclosure line `` |
+| Upload-artifact exclusion | 4 | `` the `path:` of an actions/upload-artifact step, the file absent: no finding, and the disclosure line `` |
+| Amendment 1 (`omitReconciliationArtifactDepth` forced false) | 45 | `no Cejel-format artifact and none named: the metric is absent, the other two carry the score, and the disclosure is present` |
+
+### Measured before and after
+
+The measurement was a throwaway vitest file, never committed. It scored all 22 behaviour-corpus
+specimens and all 55 synthetic fixtures under all ten selectable rubrics with three scanners:
+- `origin/main` `52565fb9`, where v26 scores exactly as v25;
+- #482 before this revision, `47867b72`;
+- this revision.
+
+It compared the full `report.json` bytes. Every corpus fixture reproduced its committed head first.
+
+- **v17 through v25:** byte-identical before and after this revision: 693 of 693 reports (198
+  corpus, 495 synthetic). They are also identical to `origin/main`: 693 of 693.
+- **v26 against `origin/main`:** 15 corpus specimens move. The 7 that do not are those where A5 is
+  not applicable or has insufficient data. On all 15:
+  - the v25 A5 finding is gone, `reconciliation_artifact_depth` is omitted, and A5 stays
+    `warning`;
+  - A5's score rises: 1.4 to 1.6 on 11, 1.7 to 2.0 on 1, and 1.9 to 2.2 on 3;
+  - code trust rises 0.1 on 10, the overall score rises 0.1 on 6, and no verdict moves;
+  - on 2 of them (`complete-node-service`, `privileged-migrations`) A2 gains only the disclosure
+    sentence.
+
+The other 7 corpus specimens' v26 reports differ from main only in the fingerprint field every
+report carries.
+
+**A5 status, v25 against v26, on the 22 corpus specimens**, read from the measurement output:
+
+| Scanner | More severe under v26 | Less severe under v26 | Unchanged |
+|---|---|---|---|
+| Before this revision (`47867b72`) | 11 (`warning` to `critical`) | 0 | 11 |
+| After this revision | 0 | 0 | 22 |
+
+The 11 are the specimens scored 1.4. A5 does not land in the critical band on any corpus specimen
+after this revision, so there is no critical band to report.
+
+**Fingerprints.** Only v26's moved. Against main it went from
+`sha256:2ce60ad90a956bf8b26372432b531fa7eaaa48eff8b11ef55ebaac81bc791c21` (equal to v25's) to
+`sha256:e1fa40eb65bbfa777affea7951850b9d4c5302a08008a9af172f704f06621312`. The moved components are
+the A5 criterion digest and the report digests of the 10 specimens whose code-trust score moved.
+#482 before this revision measured
+`sha256:010ca080049057dd82cb4af08e625208cd432904a85ba29b327525b018540e13` on the same 22-specimen
+corpus; it was never pinned. The earlier `b157f45f…` was measured on the 19-specimen corpus and is
+superseded.
+
+### Tests changed beside the new ones
+
+- `v26-a5-a2-settling-evidence.test.ts`: the "metrics identical under v25 and v26" case now
+  allows exactly amendment 1's omission. It names the fixtures that keep the metric, and every other
+  fixture must lose it.
+- `v26-v25-parity.test.ts`:
+  - A5 may also differ in `metrics` and, with ingested signals, `nativeScore`;
+  - report-level composites (code trust, overall, category scores, and A5's ingested-signal
+    scores) may move only where A5's score moved;
+  - A5's status is pinned equal to v25's on every specimen;
+  - the fingerprint check requires the moved report pins to be exactly the specimens whose
+    composites moved.
+
+### Deferred
+
+- **Named-and-present** (Change 1, choice 1) needs an operator ruling.
+- **A behaviour-corpus specimen that reaches the v26 A2 finding**, still deferred for the reason
+  given above.
+
+### Lesson
+
+Staged as `PENDING_cejel_schema_is_the_fold_of_its_migrations_2026-10-14.json`:
+- a schema is the fold of its migrations, not the union of their `CREATE TABLE` statements;
+- a path on a command line is a declaration only when the command reads it.
