@@ -899,6 +899,8 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'scalatest-assertions': '5dae8bbb750b957cc9de542982d630e7250e27a5',
   'kotest-matchers': '8f4e6c3402b30e7b377f18e330ef66ebb32ba472',
   'tape-assertions': '347020854b8d0c69f33539345c665d8bd6c09a5f',
+  'hmac-digest-compare': '6eedfe0233fa9ceac025d1afc533171920c14cad',
+  'unkeyed-digest-controls': 'c668be91818f3dfd912ad8b4e3eb8be97e7fbe6e',
 });
 
 /**

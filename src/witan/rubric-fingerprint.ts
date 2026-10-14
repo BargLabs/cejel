@@ -218,30 +218,30 @@ function sha256(value: string): string {
  */
 export const WITAN_RUBRIC_BEHAVIOUR_FINGERPRINTS: Readonly<Record<string, string>> = Object.freeze({
   [WITAN_RUBRIC_VERSION_V17]:
-    'sha256:bb52dcba7d5967723b2ee256d6ea465f313cd265fd2cf61467efd632103e1007',
+    'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
   [WITAN_RUBRIC_VERSION_V18]:
-    'sha256:36a5eef983d589abe1eabf15269466ecd45b9eb8e194d19e5d972ee1fe6d9692',
+    'sha256:4a5d17c84e265ec20cf54216d2e794dec1d299d859c69ac8ef1ab317fc479e2f',
   [WITAN_RUBRIC_VERSION_V19]:
-    'sha256:1d44e1b7124c62869a76949baacb976f60b2f011934d811ddf0dd1129aafe70a',
+    'sha256:73dc0282a9ea2a481db8e86a9a5dc227a8b108356c358de029901f2dc38cef79',
   [WITAN_RUBRIC_VERSION_V20]:
-    'sha256:ddaa0f3b7d927ae43b7aec46555817a137ee6405a71ea3105a039f7513688943',
+    'sha256:b5f4254a6056ff792d79a2d85892cdf05484eabded85ba13251a2c8fd5ac6336',
   [WITAN_RUBRIC_VERSION_V21]:
-    'sha256:56240481595220b50639a5c7acf889fcabe2efcc42751c293714993c6de32f39',
+    'sha256:f599d06354adb45af018639594cb6f44e7cb40445b84a0dcdd4438b8d7d069d0',
   [WITAN_RUBRIC_VERSION_V22]:
-    'sha256:54642ad53c521e2ef236ba41b9f8040b044e749437b931053250ec929a19daf7',
+    'sha256:34fb6ac5d1f6faf0912aa4d00924837eeee543614d7971247d005312b89928e1',
   [WITAN_RUBRIC_VERSION_V23]:
-    'sha256:f6d939ec4a0ceed2375037f8a722f564b60c781eecbc2ec0060b09bce92f5cb9',
+    'sha256:ce24235861ce0f0dc4dafd22059a78d31f348e5c741e4056475867c29cc8b814',
   [WITAN_RUBRIC_VERSION_V24]:
-    'sha256:efb8e3d58780df9febca670f812187679951bbdc9d5dbd3054e97bd98827a662',
+    'sha256:b221907d60d209cd3d57437892ae3dd873f4fa221ad8743954a30c8575d4e77c',
   [WITAN_RUBRIC_VERSION_V25]:
-    'sha256:2e87656428c7a7478f03437dc125cf543abff5a27e0323ad7e9160fc70a7fb5c',
+    'sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9',
   // v25's closure plus v26 item 6 (docs/calibration/v26/ruling-item-6.md and its amendment 1).
   // The corpus holds no declared claim-reconciliation artifact, so the v25 A5 finding no longer
   // fires on it and, by amendment 1, A5 is scored without reconciliation_artifact_depth. The A5
   // component and the report components of the specimens whose code-trust score that moves differ
   // from v25's. A2 does not move on this corpus.
   [WITAN_RUBRIC_VERSION_V26]:
-    'sha256:28d8eb7cfd8809bb960e70027426d3178dee866b533674cd542e71edc8afd459',
+    'sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae',
 });
 
 /**
