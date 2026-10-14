@@ -798,6 +798,9 @@ export const BEHAVIOUR_CORPUS_HEAD_SHAS: Readonly<Record<string, string>> = Obje
   'ava-live-assertions': 'ccc905405ee8f63b0b287e0b275eebeb488a3e6d',
   'public-digest-lookup': '5515c03624cb9d7e0ccf2ede8b4a6710f219b3a7',
   'workspace-package-scripts': 'eb763f23df607357fa7548de2176668f2c41028b',
+  'coverage-config-setup-cfg': 'd841dafc8516cdd992452c70ca53cd4a40cfcc14',
+  'coverage-config-maven-jacoco': 'c20014d3fadc4ac6b96a0a9178bd311c64f83a89',
+  'coverage-command-go-ci': '882274b74b5e5ce1bec2a096a023dadb4a36aae4',
 });
 
 /**
