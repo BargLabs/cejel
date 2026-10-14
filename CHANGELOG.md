@@ -18,75 +18,129 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **New prospective rubric `witan-rubric-v26-prospective-2026-10-14`, explicit opt-in only**
-  (`--rubric-pin`; the public default stays v17). It is the next calibration candidate: v25's
-  complete closure (the v22 chain plus v25's inline health-route credit), without v23's or v24's
-  mechanisms, plus one change of its own, item 6, below. No precision or recall claim; no public
-  paired rescore has run. Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
+- **New prospective rubric `witan-rubric-v26-prospective-2026-10-14`, explicit opt-in only
+  (#478).** Select it with `--rubric-pin`; the public default stays v17. v26 carries no precision or
+  recall claim. It is the next calibration candidate: v25's complete closure (the v22 chain plus
+  v25's inline health-route credit), without v23's or v24's mechanisms, plus one change of its own,
+  item 6, below. Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
 - **v26 item 6: A5's no-reconciliation finding and A2's tenant-without-RLS finding fire only on the
-  evidence that settles them** (under `witan-rubric-v26-prospective-2026-10-14` alone, from the
-  operator-signed ruling `docs/calibration/v26/ruling-item-6.md` and its amendment 1,
-  `docs/calibration/v26/ruling-item-6-amendment-1.md`). A5 fires only when the
-  repository itself names a claim-reconciliation artifact (a link or code-span path in the README,
-  a top-level doc or `CONTRIBUTING.md`, or a path in a GitHub Actions workflow step) that is absent
-  from its tree, and cites the declaring line. A path a workflow step writes (after `>`, `>>`,
-  `tee`, `-o` or `--out…`) or uploads (`actions/upload-artifact`) names nothing. A2 fires only when
-  the repository's own SQL enables
-  row-level security or creates a policy somewhere, and a `CREATE TABLE` with a tenant column names
-  a table that no `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY ... ON` covers (a later `DISABLE`
-  uncovers it); it names the table and cites its `CREATE TABLE` line. A table a later migration
-  drops is not named, and a renamed table is named by its new name with its coverage carried over.
-  Otherwise each abstains: no
-  finding, and one sentence in the certificate's "What was not established". Under v26, A2 fires on
-  a disjoint set of repositories from v17's, which fires only when no policy exists at all. Under
-  amendment 1, when no Cejel-format artifact is present and none is named, A5's
-  `reconciliation_artifact_depth` is omitted and A5's other two metrics carry its score at their
-  declared relative weights. Every other metric is unchanged, and no status rule changes. On the
-  behaviour corpus no specimen's A5 status differs from v25's; without the amendment, 11 of 22
-  went from `warning` to `critical`. **Report format:** no new field. Under v26 the abstention
-  sentence travels in the existing A2 and A5 criterion `notes`, and where amendment 1 applies A5's
-  `metrics` array has two entries, so v26 `report.json` and certificate bytes change; v17 through
-  v25 reports are byte-identical. v26's behaviour fingerprint moves (the A5 component and the
-  report components of the specimens whose composite scores move) and v25 and v26 no longer
-  collide.
+  evidence that settles them (#482).** Under `witan-rubric-v26-prospective-2026-10-14` alone, as
+  ruled in the operator-signed `docs/calibration/v26/ruling-item-6.md` (#477) and its amendment 1,
+  `docs/calibration/v26/ruling-item-6-amendment-1.md` (#483).
+  - **A5** fires only when the repository itself names a claim-reconciliation artifact that is
+    absent from its tree, and it cites the declaring line. The artifact's basename is `claim` or
+    `claims` with `reconciliation`, `register` or `ledger`, and an optional `reality` between. The
+    name counts as a relative link or code-span path in the root README, a top-level `docs/` page or
+    the root `CONTRIBUTING.md`, or as a path in a GitHub Actions workflow step. A path a workflow
+    step writes (after `>`, `>>`, `tee`, `-o` or an `--out…` option) names nothing, and nor does
+    anything in an `actions/upload-artifact` or `actions/download-artifact` step.
+  - **A2** fires only when the repository's own `.sql` enables row-level security or creates a
+    policy somewhere, and a `CREATE TABLE` with a tenant column names a table that no
+    `ENABLE ROW LEVEL SECURITY` or `CREATE POLICY ... ON` covers (a later `DISABLE` in the same
+    directory uncovers it). It names the table and cites its `CREATE TABLE` line. Within one
+    migration directory, a table a later `DROP TABLE` removes is not named, and one a later
+    `ALTER TABLE ... RENAME TO` renames is named by its new name with its coverage carried over. A
+    drop or rename of it in another directory means it is not named. Where Cejel cannot read the SQL
+    that would settle it (dynamic SQL, row-level security outside `.sql` files, a policy, drop or
+    rename whose table name it cannot read), it abstains on every table.
+  - **Otherwise each abstains:** no finding, and one sentence in the certificate's "What was not
+    established".
+  - **Amendment 1:** when no Cejel-format artifact is present and none is named, A5's
+    `reconciliation_artifact_depth` is omitted, and `claim_match_rate` and `claim_source_depth`
+    carry A5's score at their declared relative weights. Every other metric and every status rule
+    is unchanged.
+  - **Direction:** under v26, A2 fires on a disjoint set of repositories from v17's, which fires
+    only when no policy exists at all. Where A5 abstains and nothing is named, a 0 no longer counts
+    against its score. On the behaviour corpus no specimen's A5 status differs from v25's; without
+    the amendment, 11 of 22 went from `warning` to `critical`.
+  - **Report format:** no new field. Under v26 the abstention sentence travels in the existing A2
+    and A5 criterion `notes`, and where amendment 1 applies A5's `metrics` array has two entries,
+    so v26 `report.json` and certificate bytes change. On the behaviour corpus and the synthetic
+    fixtures, item 6 left every v17 through v25 report byte-identical. v26's behaviour fingerprint
+    moved (the A5 component and the report components of the specimens whose composite scores
+    moved), and v25 and v26 no longer collide.
 
 ### Changed
 
-- **The certificate states which delegated CI it did not read. Presentation only: no score, weight,
-  detector, file selection or finding changes under any rubric.** B3 reads every recognised
-  workflow's commands, but a GitHub Actions workflow can hand its work to code Cejel does not read:
-  - a job that calls a reusable workflow in another repository
-    (`uses: owner/repo/.github/workflows/ci.yml@v1`);
-  - a step that runs a local action (`uses: ./.github/actions/setup-and-test`, whose directory
-    holds `action.yml` or `action.yaml`). The certificate calls it a local action, because the check reads only that `action.yml` exists, not whether the action is composite, JavaScript or Docker. A local
-    JavaScript or Docker action has the same file and is counted the same way, because Cejel
-    decides from the file's presence and does not open it.
+**Scoring under `witan-rubric-v17-2026-07-24` and every selectable rubric (#479, #484, #487,
+#489).** This release changes v17 scoring with no identifier bump, as 0.6.3 and 0.6.4 did. Each
+change is a recognition fix: it reads evidence Cejel did not read before. Weights and thresholds
+are unchanged. Each added synthetic specimens to the behaviour corpus, re-pinned the fingerprints
+and report goldens, and recorded its before-and-after on that corpus in
+[`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-14 entries). The
+public before-and-after for these changes is recorded separately; this changelog cites no
+public-corpus result for them.
 
-  A test or lint command inside that code is unseen, and the certificate read as if it were absent.
-  The B3 citation that states how many workflow files were read (0.6.4) now also says, for example,
-  `CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable workflow in
-  another repository, 1 local action))`. A local reusable workflow
-  (`uses: ./.github/workflows/x.yml`) is one of the workflows already read, and a marketplace action
-  such as `actions/checkout@v4` runs no repository command, so neither is counted. A `./` path
-  whose directory has no `action.yml` or `action.yaml` is not an action and is not counted. When
-  nothing is delegated, nothing is added. Each `uses:` value is read line by line, as the existing
-  `run:` reader does. A commented-out line and a `uses:` line inside a `run: |` script do not
-  count. No dependency is added. A3 and B2 count workflow paths and read no step, so their
-  citations are unchanged. The text is carried in the existing evidence `label` field, so there is
-  no schema change and no report-format bump. `report.json` and certificate bytes change only for
-  repositories whose workflows delegate this way. Rubric behaviour fingerprints, the v17 golden
-  pins and every score are unmoved, so `RUBRIC_CHANGELOG.md` has no entry.
+- **B3 `ci_script_depth` reads the scripts of declared workspace packages (#479).** In npm, yarn
+  and pnpm workspaces the root `package.json` often only orchestrates, and the scripts live in the
+  workspace packages, so reading the root alone undercounted them. B3 now also reads the
+  `package.json` of each package that the root `workspaces` field or a root `pnpm-workspace.yaml`
+  declares. Globs are expanded against tracked files and `!` negations are honoured. At most 64
+  patterns and 200 manifests are read, and vendored, generated and test trees never count. With no
+  workspace declaration nothing changes. **Direction:** B3 is up or unchanged under every rubric,
+  never down.
+  - **A3, v20 through v26:** the "declares neither a build nor a typecheck script" finding no
+    longer fires when a declared package declares `build` or `typecheck`. A read cut short by the
+    cap does not assert the absence. On such a repository the Dockerfile `HEALTHCHECK` or
+    health-route finding can fire in its place.
+  - **Not changed:** A3's `prod_readiness_primitives` build-or-type-check component still reads
+    the root `package.json` only, so v17 A3 does not move. Whether it should read declared packages
+    is left open.
 
-### Fixed
+  The B3 metric line and the A3 finding's evidence label state how many declared manifests were
+  read, so `report.json` and certificate bytes change for repositories that declare workspaces.
+- **A1 recognizes more coverage configuration before it says there is none (#484).** A1's "no
+  coverage configuration was detected" finding now withdraws when coverage is configured in a way
+  the tool's own documentation defines:
+  - **Command flags.** v23's recognition of a coverage flag on a test command reachable from a
+    test entry point now runs under every rubric. Outside v23 it is added to the v17 rules, not
+    substituted for them. Every rubric, v23 included, also newly reads `python -m pytest --cov`;
+    `go test -cover` / `-coverprofile` / `-covermode` / `-coverpkg`; `dotnet test --collect "XPlat
+    Code Coverage"`, `"Code Coverage"` or `/p:CollectCoverage=true`; and `cargo llvm-cov`. Where a
+    flag's ownership or reachability can't be resolved, the absence is withheld with a note instead
+    of asserted.
+  - **Configuration files.** Codecov, nyc and c8 dotfiles; `setup.cfg` / `tox.ini` coverage.py
+    sections; a `package.json` `"jest"` coverage key; `vite.config` `test.coverage`; `.simplecov`;
+    PHPUnit's `<coverage>`; JaCoCo applied in Maven or Gradle; `tarpaulin.toml`.
+  - **Not counted.** Disabled, commented-out and misnamed forms. A bare coverlet package reference
+    does not count either, because coverlet's documentation says it collects nothing on its own.
 
-- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
-  identifier bump: A2 flags a digest compare when the same file computes the digest with a keyed
-  HMAC.** This narrows the cost 0.6.4 stated for #430, that "an HMAC result held in a variable named
-  only `digest` is no longer flagged". A2's timing side-channel finding now also fires when:
-  - an identifier containing `digest` is compared with `===`/`!==` (`==`/`!=` in Python, Go and
-    Ruby) against a non-literal; and
-  - that identifier is assigned from a keyed HMAC computation in the same file, directly or by
-    reading one earlier HMAC binding.
+  **Direction:** up or unchanged under every rubric, never down. A finding can disappear but none
+  can appear. The two v23 behaviours that could assert one stay v23-only. A1
+  `verification_script_ratio` and `coverage_percent` can rise. The finding's derivation names the
+  widened pattern set (`cejel.core-a1.coverage-configuration.v3`, or `.v4` under v23). A1 now also
+  reads shell wrappers a test script calls, justfiles, `setup.cfg`, `vite.config`, `pom.xml` and
+  `build.gradle`. Outside v23, a content-read skip abstains the whole criterion, so one of these
+  files becoming unreadable between inventory and read can abstain A1 where it did not before.
+- **A1 reads test assertions in more frameworks before it calls a test file hollow (#487).**
+  A1 `non_hollow_test_share` now recognizes each framework's documented assertion idioms (the .NET
+  case was reported in #406):
+  - xUnit, NUnit and MSTest (`Assert.Equal(`, `Assert.That(`, `Assert.AreEqual(`, `ClassicAssert`,
+    `CollectionAssert`, `StringAssert`);
+  - XCTest (`XCTAssert…(`, `XCTFail(`, `XCTUnwrap(`);
+  - ScalaTest (`assert(`, `assertResult(`, `assertThrows[`, `intercept[` with an `org.scalatest`
+    import; should/must matchers with a ScalaTest matchers import);
+  - Kotest (`shouldBe` and other `shouldX` matchers with a Kotest matchers import);
+  - tape and tap (`t.equal(`, `t.ok(`, `t.same(` and the other documented assertions, with a
+    `tape` or `tap` import or require).
+
+  An idiom counts only outside comments and string literals. Documented suite-level skips make a
+  file hollow: NUnit or MSTest `[Ignore]` on the fixture class, ScalaTest `@Ignore` and Kotest
+  `@Ignored` on the suite class. Per-test skips do not. `*Tests.cs` and `*Spec.scala`-style files
+  enter the hollow denominator only under such a skip, never because their assertions went
+  unrecognized. Which files count as tests is unchanged. **Direction:** the share can rise for
+  repositories using these frameworks, and an A1 status held at `critical` by a zero share can
+  lift. It falls only where a whole suite is skipped. **Not changed:** #409 (tests run through
+  build wrappers), which concerns A1's verification commands, not this recognition; and #486,
+  filed as a follow-up: the existing `should\.` alternative credits ScalaTest's
+  `matchers.should.Matchers` import line by itself.
+- **A2 flags a digest compare when the same file computes the digest with a keyed HMAC (#489).**
+  This narrows the cost 0.6.4 stated for #430, that "an HMAC result held in a variable named only
+  `digest` is no longer flagged". A2's timing side-channel finding now also fires when:
+  - an identifier containing `digest`, not a property, is compared with `===`/`!==` (`==`/`!=` in
+    Python, Go and Ruby) against a non-literal; and
+  - the same file assigns that identifier, before the comparison, from a keyed HMAC computation,
+    directly or by reading one earlier HMAC binding.
 
   The recognized computations are each runtime's documented API: Node `createHmac(…)….digest(…)`,
   Web Crypto `crypto.subtle.sign('HMAC' | { name: 'HMAC' }, …)`, Python `hmac.new(…)` with
@@ -94,70 +148,41 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `OpenSSL::HMAC.digest` / `.hexdigest` / `.base64digest` or an `OpenSSL::HMAC.new` instance's
   digest. Assignments and comparisons are read outside comments and strings. A digest from a plain
   unkeyed hash, an unrelated digest-named value, a property, and an `OpenSSL::HMAC` instance (whose
-  `==` is constant-time) are not flagged. Every #430 control stays unflagged, and the #430 line
-  pattern is unchanged. A2 can newly fire, and a repository with no other A2 surface moves from not
-  applicable to scored. Weights and thresholds are unchanged. The behaviour corpus has two new
-  synthetic specimens; fingerprints and report goldens are re-pinned with the deltas in
-  `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The preregistered public-corpus delta has not run
-  yet.
-- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
-  identifier bump: A1 reads test assertions in more frameworks before it calls a test file
-  hollow (#406).** A1 `non_hollow_test_share` now recognizes each framework's documented assertion
-  idioms:
-  - xUnit, NUnit and MSTest (`Assert.Equal(`, `Assert.That(`, `Assert.AreEqual(`, `ClassicAssert`,
-    `CollectionAssert`, `StringAssert`);
-  - XCTest (`XCTAssert…(`, `XCTFail(`, `XCTUnwrap(`);
-  - ScalaTest (`assert(`, `assertThrows[`, `intercept[` with an `org.scalatest` import; should/must
-    matchers with a ScalaTest matchers import);
-  - Kotest (`shouldBe` and other `shouldX` matchers with a Kotest matchers import);
-  - tape and tap (`t.equal(`, `t.ok(`, `t.same(` and the other documented assertions, with a
-    `tape` or `tap` import or require).
-  An idiom counts only outside comments and string literals. Documented suite-level skips make a
-  file hollow: NUnit or MSTest `[Ignore]` on the fixture class, ScalaTest `@Ignore` and Kotest
-  `@Ignored` on the suite class. Per-test skips do not. `*Tests.cs` and `*Spec.scala`-style files
-  enter the hollow denominator only under such a skip, never because their assertions went
-  unrecognized. Which files count as tests is unchanged. Weights and thresholds are unchanged. The
-  share can rise for repositories using these frameworks, and fall only where a whole suite is
-  skipped. #409 (tests run through build wrappers) concerns A1's verification commands, not this
-  recognition, and is not part of the change. The behaviour corpus has six new synthetic
-  specimens; fingerprints and report goldens are re-pinned with the deltas in
-  `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The preregistered public-corpus delta has not run
-  yet.
-- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
-  identifier bump: A1 recognizes more coverage configuration before it says there is none.** A1's
-  "no coverage configuration was detected" finding now withdraws when coverage is configured in a
-  way the tool's own documentation defines. That covers three groups:
-  - **Command flags.** A coverage flag on a test command reachable from a test entry point, which
-    only v23 recognized before. That includes `pytest --cov` and `python -m pytest --cov`;
-    `go test -cover` / `-coverprofile`; `dotnet test --collect "XPlat Code Coverage"`; and
-    `cargo llvm-cov`. Where the flag's ownership or reachability can't be resolved, the absence is
-    withheld with a note instead of asserted.
-  - **Configuration files.** Codecov, nyc and c8 dotfiles; `setup.cfg` / `tox.ini` coverage.py
-    sections; a `package.json` `"jest"` coverage key; `vite.config` `test.coverage`; `.simplecov`;
-    PHPUnit's `<coverage>`; JaCoCo in Maven or Gradle; `tarpaulin.toml`.
-  - **Exclusions.** Disabled, commented-out and misnamed forms do not count. A bare coverlet
-    package reference does not count either, because coverlet's documentation says it collects
-    nothing on its own.
-  Under every rubric but v23 this adds to the existing v17 rules, so a finding can disappear but
-  none can appear. A1 `verification_script_ratio` and `coverage_percent` can rise; nothing falls.
-  The finding's derivation names the widened pattern set (`cejel.core-a1.coverage-configuration.v3`,
-  or `.v4` under v23). Weights and thresholds are unchanged. No public paired rescore has run.
-  Recorded in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14).
-- **Scoring behaviour change under `witan-rubric-v17-2026-07-24` (and every selectable rubric), no
-  identifier bump: B3 `ci_script_depth` reads the scripts of declared workspace packages.** In npm,
-  yarn and pnpm workspaces the root `package.json` often only orchestrates, and the scripts live
-  in the workspace packages, so reading the root alone undercounted them. B3 now also reads the
-  `package.json` of each package the root `workspaces` field or a root `pnpm-workspace.yaml`
-  declares. Globs are expanded against tracked files, `!` negations are honoured, at most 200
-  manifests are read, and vendored or generated trees never count. Under v20 through v26, A3's
-  "declares neither a build nor a typecheck script" finding no longer fires when a declared package
-  declares `build` or `typecheck`. On such a repository the Dockerfile HEALTHCHECK or health-route
-  finding can fire in its place. With no workspace declaration nothing changes. Weights and
-  thresholds are unchanged. The B3 metric line now states how many declared manifests were read,
-  so `report.json` and certificate bytes change for repositories that declare workspaces. The
-  behaviour corpus has a new synthetic specimen; fingerprints and report goldens are re-pinned with
-  the deltas in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-14). The preregistered public-corpus
-  delta has not run yet.
+  `==` is constant-time) are not flagged. The #430 line pattern and its regression tests are
+  unchanged. **Direction:** A2 can newly fire, and nothing stops firing. On a repository with no
+  other A2 surface, A2 moves from not applicable to scored. A scored A2 enters the code-trust mean,
+  so this can raise code-trust and overall scores even though it adds a warning. Where a
+  repository already had a timing finding, its cited file and line can move to an earlier
+  production file the new rule matches.
+
+**Presentation only, under every selectable rubric (#490).** No score, weight, detector, file
+selection or finding changes, and `RUBRIC_CHANGELOG.md` has no entry.
+
+- **The certificate states which delegated CI it did not read (#490).** B3 reads every recognised
+  workflow's commands, but a GitHub Actions workflow can hand its work to code Cejel does not read:
+  - a job that calls a reusable workflow as `owner/repo/.github/workflows/<file>@<ref>`, counted as
+    another repository's even when it names this one, because Cejel does not read that ref;
+  - a step that runs a local action: `uses: ./path`, whose directory holds `action.yml` or
+    `action.yaml`. The certificate calls it a local action because the check reads only that the
+    `action.yml` (or `action.yaml`) exists. It does not open the file, so it cannot tell a
+    composite action from a JavaScript or Docker one, and counts each the same way.
+
+  A test or lint command inside that code is unseen, and the certificate read as if it were absent.
+  The B3 citation that states how many workflow files were read (#467, 0.6.4) now also says, for
+  example, `CI workflow (2 workflow files read; 1 cited; 2 delegated steps not read (1 reusable
+  workflow in another repository, 1 local action))`. If that would pass the evidence label's
+  180-character limit, only the per-kind breakdown is dropped and the count stays. Not counted:
+  - a local reusable workflow (`uses: ./.github/workflows/x.yml`), one of the workflows already
+    read;
+  - a marketplace action such as `actions/checkout@v4`, which runs no repository command;
+  - a `./` path whose directory has no `action.yml` or `action.yaml`;
+  - a commented-out `uses:` line, or one inside a `run: |` script.
+
+  When nothing is delegated, nothing is added. No dependency is added. A3 and B2 count workflow
+  paths and read no step, so their citations are unchanged. The text is carried in the existing
+  evidence `label` field: no schema change, no report-format bump. `report.json` and certificate
+  bytes change only for repositories whose workflows delegate this way. Rubric behaviour
+  fingerprints, the v17 golden pins and every score are unmoved.
 
 ## [0.6.4] — 2026-10-13
 
