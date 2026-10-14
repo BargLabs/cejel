@@ -4429,6 +4429,14 @@ function collectB3CiDisciplineEvidence(
   // and the like) are not read, and only repoPath's own walk registers those.
   const unreadWorkflows = unreadCiWorkflowReasons(() => true);
   const workflowsRead = workflows.length + rootWorkflows.length;
+  // Re-reads exactly the files default_branch_ci_depth read above, under that signal, so a read
+  // failure here can only restate a skip already recorded, never abstain anything new.
+  const delegatedSteps = withContentReadSignal('B3', 'default_branch_ci_depth', () =>
+    sumDelegatedCiSteps(
+      countDelegatedCiSteps(repoPath, workflows),
+      mono ? countDelegatedCiSteps(mono.root, rootWorkflows) : NO_DELEGATED_CI_STEPS,
+    ),
+  );
   if (workflow) {
     withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
       evidence.push(
@@ -4436,7 +4444,14 @@ function collectB3CiDisciplineEvidence(
           repoPath,
           workflow,
           'ci_run',
-          ciWorkflowCitationLabel('CI workflow', 'read', workflowsRead, 1, unreadWorkflows),
+          ciWorkflowCitationLabel(
+            'CI workflow',
+            'read',
+            workflowsRead,
+            1,
+            unreadWorkflows,
+            delegatedSteps,
+          ),
         ),
       ),
     );
@@ -4454,6 +4469,7 @@ function collectB3CiDisciplineEvidence(
             workflowsRead,
             1,
             unreadWorkflows,
+            delegatedSteps,
           ),
         ),
       ),
@@ -10018,15 +10034,21 @@ function workspaceGlobToRegExp(pattern: string): RegExp | null {
 // count path-recognised workflows ('counted'). `unread` is the workflows the file walk withheld
 // before any collector saw them, grouped by existing skip reason (never an invented one). Silent
 // when nothing differs, so a repository with one workflow file renders exactly as before.
-function ciWorkflowCitationLabel(
+//
+// `delegated` (goal_cejel_v26_unread_ci_disclosure_2026-10-14) is the steps the read workflows hand
+// to code Cejel does not read; only B3, which reads workflow commands, passes it. Silent at zero.
+export function ciWorkflowCitationLabel(
   baseLabel: string,
   verb: 'read' | 'counted',
   considered: number,
   cited: number,
   unread: ReadonlyMap<ContentReadSkipReason, number>,
+  delegated: DelegatedCiSteps = NO_DELEGATED_CI_STEPS,
 ): string {
   const unreadTotal = [...unread.values()].reduce((sum, count) => sum + count, 0);
-  if (considered <= cited && unreadTotal === 0) return baseLabel;
+  const { crossRepositoryReusableWorkflows: crossRepository, compositeActions } = delegated;
+  const delegatedTotal = crossRepository + compositeActions;
+  if (considered <= cited && unreadTotal === 0 && delegatedTotal === 0) return baseLabel;
   const parts = [
     `${considered} workflow file${considered === 1 ? '' : 's'} ${verb}`,
     `${cited} cited`,
@@ -10035,7 +10057,108 @@ function ciWorkflowCitationLabel(
     const reasons = [...unread.keys()].sort().join(', ');
     parts.push(`${unreadTotal} not read (${reasons})`);
   }
-  return `${baseLabel} (${parts.join('; ')})`;
+  if (delegatedTotal === 0) return `${baseLabel} (${parts.join('; ')})`;
+  const delegatedCount = `${delegatedTotal} delegated step${delegatedTotal === 1 ? '' : 's'} not read`;
+  const kinds = [
+    ...(crossRepository > 0
+      ? [
+          `${crossRepository} reusable workflow${crossRepository === 1 ? ' in another repository' : 's in other repositories'}`,
+        ]
+      : []),
+    ...(compositeActions > 0
+      ? [`${compositeActions} local action${compositeActions === 1 ? '' : 's'}`]
+      : []),
+  ];
+  const full = `${baseLabel} (${[...parts, `${delegatedCount} (${kinds.join(', ')})`].join('; ')})`;
+  // The per-kind breakdown is the only part dropped to stay within the schema's label cap; the
+  // count always stays. At most four skip reasons reach `unread` (excluded_by_extension paths are
+  // never withheld), so the short form fits for any count below 10,000.
+  return full.length <= EVIDENCE_LABEL_MAX_LENGTH
+    ? full
+    : `${baseLabel} (${[...parts, delegatedCount].join('; ')})`;
+}
+
+// WitanEvidencePointerSchema's `label` maximum.
+const EVIDENCE_LABEL_MAX_LENGTH = 180;
+
+export interface DelegatedCiSteps {
+  readonly crossRepositoryReusableWorkflows: number;
+  readonly compositeActions: number;
+}
+
+const NO_DELEGATED_CI_STEPS: DelegatedCiSteps = {
+  crossRepositoryReusableWorkflows: 0,
+  compositeActions: 0,
+};
+
+function sumDelegatedCiSteps(left: DelegatedCiSteps, right: DelegatedCiSteps): DelegatedCiSteps {
+  return {
+    crossRepositoryReusableWorkflows:
+      left.crossRepositoryReusableWorkflows + right.crossRepositoryReusableWorkflows,
+    compositeActions: left.compositeActions + right.compositeActions,
+  };
+}
+
+// `{owner}/{repo}/.github/workflows/{file}.yml@{ref}`: GitHub's form for calling a reusable
+// workflow from another repository. A same-repository call written this way also names content
+// at a ref Cejel does not read, so it is counted with them.
+const CROSS_REPOSITORY_REUSABLE_WORKFLOW_PATTERN =
+  /^[^./\s][^/\s]*\/[^/\s]+\/\.github\/workflows\/[^@\s]+\.ya?ml@\S+$/u;
+
+// Counts, per recognised GitHub Actions workflow under `root`, the `uses:` values that hand work to
+// code Cejel does not read: a reusable workflow in another repository, and a local action (a
+// `./path` whose directory holds action.yml or action.yaml; GitHub runs nothing as an action from
+// a directory without one). A local reusable workflow (`./.github/workflows/x.yml`) is one of the
+// workflows already read, and a marketplace action (`actions/checkout@v4`) runs no repository
+// command, so neither is counted. Presentation only: nothing here feeds a score or a weight.
+function countDelegatedCiSteps(root: string, workflows: readonly string[]): DelegatedCiSteps {
+  let crossRepositoryReusableWorkflows = 0;
+  let compositeActions = 0;
+  for (const file of workflows) {
+    if (!/^\.github\/workflows\//.test(file)) continue;
+    const fullPath = join(root, file);
+    if (!isRegularFile(fullPath)) continue;
+    for (const uses of extractWorkflowUsesValues(readRepoText(fullPath, 'utf8'))) {
+      if (CROSS_REPOSITORY_REUSABLE_WORKFLOW_PATTERN.test(uses)) {
+        crossRepositoryReusableWorkflows += 1;
+        continue;
+      }
+      if (!uses.startsWith('./') || /^\.\/\.github\/workflows\//.test(uses)) continue;
+      const directory = uses.slice(2).replace(/\/+$/u, '');
+      if (directory.length === 0 || directory.split('/').includes('..')) continue;
+      if (
+        isRegularFile(join(root, directory, 'action.yml')) ||
+        isRegularFile(join(root, directory, 'action.yaml'))
+      ) {
+        compositeActions += 1;
+      }
+    }
+  }
+  return { crossRepositoryReusableWorkflows, compositeActions };
+}
+
+// Line-based, like extractCiRunCommands: every `uses:` key's scalar value, unquoted and without a
+// trailing comment. A commented-out line never matches, and lines inside a `|` or `>` block scalar
+// (a `run:` script that merely prints "uses: ...") are skipped.
+function extractWorkflowUsesValues(contents: string): string[] {
+  const values: string[] = [];
+  let blockScalarIndentation: number | null = null;
+  for (const line of contents.split(/\r?\n/u)) {
+    const indentation = /^\s*/u.exec(line)?.[0].length ?? 0;
+    if (blockScalarIndentation !== null) {
+      if (line.trim().length === 0 || indentation > blockScalarIndentation) continue;
+      blockScalarIndentation = null;
+    }
+    const match = /^\s*(?:-\s*)?uses\s*:\s*(.*)$/u.exec(line);
+    if (match) {
+      const value = (match[1] ?? '').replace(/\s+#.*$/u, '').trim();
+      const quoted = /^(?:"(.*)"|'(.*)')$/u.exec(value);
+      values.push(quoted ? (quoted[1] ?? quoted[2] ?? '') : value);
+      continue;
+    }
+    if (/:\s*[|>][-+0-9]*\s*(?:#.*)?$/u.test(line)) blockScalarIndentation = indentation;
+  }
+  return values;
 }
 
 function unreadCiWorkflowReasons(
