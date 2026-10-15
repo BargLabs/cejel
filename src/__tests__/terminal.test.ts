@@ -129,6 +129,107 @@ describe('renderTerminalCertificate', () => {
     expect(output).toContain('...and 53 more — see report.json for the full list.');
   });
 
+  it('strips terminal control characters from an ingested finding message', () => {
+    const output = renderTerminalCertificate(
+      summary({
+        contributingSources: ['sarif:scanner'],
+        externalFindingCount: 1,
+        topExternalFindings: [
+          {
+            source: 'sarif:scanner',
+            label: 'scanner',
+            dimension: 'A2',
+            severity: 'warning',
+            ruleId: 'rule-1',
+            message:
+              'Before\u001b[2J clear\u001b]0;spoofed title\u0007 osc\u009b31m c1\rcarriage\nnewline after',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toContain(
+      '[warning] scanner → A2: rule-1 — Before[2J clear]0;spoofed title osc31m c1carriage newline after',
+    );
+    expect(output).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/);
+  });
+
+  it('strips terminal control characters from every repository- or ingest-derived field', () => {
+    const hostile = (text: string): string => `${text}\u001b[31m\u009b\u0007\r\u007f`;
+    const output = renderTerminalCertificate(
+      summary({
+        productDisplayName: hostile('Product'),
+        findingCount: 2,
+        topFindings: [
+          {
+            criterionId: 'A2',
+            severity: 'critical',
+            dimensionBand: 'critical',
+            summary: hostile('Native summary'),
+          },
+          {
+            criterionId: 'A1',
+            severity: 'warning',
+            dimensionBand: 'critical',
+            summary: 'Raw machine summary.',
+            displaySummary: hostile('Display summary'),
+          },
+        ],
+        scanLimitations: [hostile('Limitation')],
+        historyLimitations: [hostile('History limitation')],
+        contributingSources: [hostile('sarif:source')],
+        externalSources: [
+          {
+            source: 'sarif:source',
+            label: hostile('Source label'),
+            findingCount: 1,
+            dimensions: ['A2'],
+          },
+        ],
+        externalFindingCount: 1,
+        topExternalFindings: [
+          {
+            source: 'sarif:source',
+            label: hostile('Finding label'),
+            dimension: hostile('A2'),
+            severity: 'critical',
+            ruleId: hostile('rule'),
+            message: hostile('message'),
+            location: hostile('src/file.ts:1'),
+          },
+        ],
+      }),
+    );
+
+    for (const visible of [
+      'Cejel Trust Certificate — Product[31m',
+      'Native summary[31m',
+      'Display summary[31m',
+      'Limitation[31m',
+      'History limitation[31m',
+      'Incorporates findings from: sarif:source[31m',
+      'Source label[31m: 1 finding ingested',
+      '[critical] Finding label[31m → A2[31m: rule[31m — message[31m (src/file.ts:1[31m)',
+    ]) {
+      expect(output).toContain(visible);
+    }
+    expect(output).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/);
+  });
+
+  it('strips terminal control characters from an abstention reason', () => {
+    const output = renderTerminalCertificate(
+      summary({
+        verdict: 'Insufficient source',
+        productDisplayName: 'Pro\u001bduct',
+        insufficientSourceReason: 'sample bin\u009b2J\u001b[Hary.exe',
+      }),
+    );
+
+    expect(output).toContain('Cejel Trust Certificate — Product');
+    expect(output).toContain('  sample bin2J[Hary.exe');
+    expect(output).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/);
+  });
+
   it('never itemizes external findings on the insufficient-source path', () => {
     const output = renderTerminalCertificate(
       summary({
