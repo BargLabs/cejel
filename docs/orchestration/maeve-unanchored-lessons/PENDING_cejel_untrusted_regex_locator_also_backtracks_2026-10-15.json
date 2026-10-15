@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "When a scanner stops evaluating a regex taken from untrusted input, time the regex that finds that input as well. Cejel compiled a repository's `pnpm run /<regex>/` selector and tested it against the repository's own script names, so `/^(a+)+$/` stalled the scan. The literal that captured the selector, `\\/((?:\\\\.|[^/])+)\\/`, could read each backslash two ways: 40 unterminated backslashes took 1.1 s, rising about 1.6 times per character. The repository's literal-ReDoS guard missed it because none of its adversarial input families contains a backslash run. Rule: prove the whole scan path is bounded with a child-process timing guard, since a stalled V8 regex cannot be interrupted inside its own thread. Treat a family-based ReDoS guard as covering only the families it runs.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "security", "redos", "scan-path"],
+    "tags": ["untrusted-regex", "redos", "timing-guard", "ambiguous-alternation", "guard-coverage"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 502}
+  }
+]

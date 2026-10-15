@@ -8376,22 +8376,12 @@ function packageScriptReferences(
   const names = new Set<string>();
   let dynamic = false;
   for (const segment of splitShellCommandSegments(command)) {
-    for (const match of segment.matchAll(
-      /\bpnpm\s+run\s+\/((?:\\.|[^/])+)\/([dgimsuvy]*)/giu,
-    )) {
-      const source = match[1];
-      if (!source) continue;
-      try {
-        const flags = (match[2] ?? '').replace(/[dgy]/g, '');
-        const selector = new RegExp(source, flags);
-        for (const name of scripts.keys()) {
-          if (selector.test(name)) names.add(name);
-          selector.lastIndex = 0;
-        }
-      } catch {
-        dynamic = true;
-      }
-    }
+    // A `pnpm run /<regex>/` selector is never compiled: the regex is repository text, and
+    // evaluating it lets the repository stall the scan (goal_cejel_scan_path_regex_bounds_2026-10-15).
+    // It is a reference Cejel cannot resolve, so it takes the existing dynamic path. Any argument
+    // starting with `/` counts: no literal script name below can start with one, and the former
+    // `\/((?:\\.|[^/])+)\/` capture was itself ambiguous on backslashes.
+    if (/\bpnpm\s+run\s+\//iu.test(segment)) dynamic = true;
 
     for (const match of segment.matchAll(
       /\b(?:npm|pnpm|yarn)\s+(?:run\s+)?([A-Za-z0-9][A-Za-z0-9:._-]*)/giu,
@@ -9900,16 +9890,16 @@ function findDeclaredWorkspaceManifests(
   if (patterns.length === 0 || patterns.length > WORKSPACE_PATTERN_LIMIT) {
     return NO_DECLARED_WORKSPACE_MANIFESTS;
   }
-  const include: RegExp[] = [];
-  const exclude: RegExp[] = [];
+  const include: ((dir: string) => boolean)[] = [];
+  const exclude: ((dir: string) => boolean)[] = [];
   for (const pattern of patterns) {
     const negated = pattern.startsWith('!');
-    const regex = workspaceGlobToRegExp(negated ? pattern.slice(1) : pattern);
+    const matcher = workspaceGlobMatcher(negated ? pattern.slice(1) : pattern);
     if (negated) {
-      if (regex === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
-      exclude.push(regex);
-    } else if (regex !== null) {
-      include.push(regex);
+      if (matcher === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+      exclude.push(matcher);
+    } else if (matcher !== null) {
+      include.push(matcher);
     }
   }
   const matched = repoFiles
@@ -9917,7 +9907,7 @@ function findDeclaredWorkspaceManifests(
       if (file === rootPackageJson || !file.endsWith('/package.json')) return false;
       if (!isAuthoredProductionPath(file)) return false;
       const dir = file.slice(0, -'/package.json'.length);
-      return include.some((regex) => regex.test(dir)) && !exclude.some((regex) => regex.test(dir));
+      return include.some((matches) => matches(dir)) && !exclude.some((matches) => matches(dir));
     })
     .sort();
   return { read: matched.slice(0, WORKSPACE_PACKAGE_MANIFEST_LIMIT), declared: matched.length };
@@ -9990,8 +9980,23 @@ function yamlScalar(raw: string): string | null {
   return plain === '' || /^["'[{&*|>]/.test(plain) ? null : plain;
 }
 
-/** A workspace glob as an anchored regex over a package directory, or null when unsupported. */
-function workspaceGlobToRegExp(pattern: string): RegExp | null {
+// A declared glob is repository text, so it is never compiled to a regex: a glob with many `*`s
+// against a long directory name backtracked polynomially and stalled the scan
+// (goal_cejel_scan_path_regex_bounds_2026-10-15). Past either cap a pattern is unparseable.
+export const WORKSPACE_GLOB_MAX_LENGTH = 256;
+export const WORKSPACE_GLOB_MAX_SEGMENTS = 32;
+
+/**
+ * A workspace glob as a matcher over a package directory, or null when unsupported. `*` and `?`
+ * stay inside one segment; a whole `**` segment is zero or more segments (one or more when it is
+ * the entire pattern); a segment starting with `*` or `?`, and every segment `**` crosses, never
+ * matches a leading dot. Matching is iterative, with no regex and no recursion: a set of reachable
+ * pattern positions advanced one path segment at a time, each segment compared by
+ * `matchesWildcardSegment`.
+ */
+export function workspaceGlobMatcher(pattern: string): ((dir: string) => boolean) | null {
+  // Capped before any normalisation, so no regex below ever sees an unbounded pattern.
+  if (pattern.length > WORKSPACE_GLOB_MAX_LENGTH) return null;
   const normalised = pattern.trim().replace(/^\.\//, '').replace(/\/+$/, '');
   if (
     normalised === '' ||
@@ -10001,29 +10006,70 @@ function workspaceGlobToRegExp(pattern: string): RegExp | null {
   ) {
     return null;
   }
+  const split = normalised.split('/');
+  if (split.length > WORKSPACE_GLOB_MAX_SEGMENTS) return null;
   // Consecutive `**` segments mean the same as one.
-  const segments = normalised
-    .split('/')
-    .filter((segment, index, all) => !(segment === '**' && all[index - 1] === '**'));
-  const anySegment = '(?!\\.)[^/]+';
-  if (segments.length === 1 && segments[0] === '**') return new RegExp(`^${anySegment}(?:/${anySegment})*$`);
-  let source = '';
-  segments.forEach((segment, index) => {
-    if (segment === '**') {
-      // Zero or more whole segments: `**/b` is `(x/)*b`, `a/**/b` is `a(/x)*/b`, `a/**` is `a(/x)*`.
-      source += index === 0 ? `(?:${anySegment}/)*` : `(?:/${anySegment})*`;
-      return;
+  const segments = split.filter((segment, index, all) => !(segment === '**' && all[index - 1] === '**'));
+  const isAnySegment = (part: string): boolean => part !== '' && !part.startsWith('.');
+  if (segments.length === 1 && segments[0] === '**') {
+    return (dir) => dir.split('/').every(isAnySegment);
+  }
+  return (dir) => {
+    // reachable[i]: the path segments read so far can be matched by segments[0..i).
+    let reachable = withGlobstarSkips(segments, [true, ...segments.map(() => false)]);
+    for (const part of dir.split('/')) {
+      const next = segments.map(() => false).concat(false);
+      segments.forEach((segment, index) => {
+        if (!reachable[index]) return;
+        if (segment === '**') {
+          if (isAnySegment(part)) next[index] = true;
+        } else if (matchesWildcardSegment(segment, part)) {
+          next[index + 1] = true;
+        }
+      });
+      reachable = withGlobstarSkips(segments, next);
+      if (!reachable.includes(true)) return false;
     }
-    if (index > 0 && !(index === 1 && segments[0] === '**')) source += '/';
-    const body = segment
-      .split('')
-      .map((char) =>
-        char === '*' ? '[^/]*' : char === '?' ? '[^/]' : char.replace(/[.^$|]/g, '\\$&'),
-      )
-      .join('');
-    source += /^[*?]/.test(segment) ? `(?!\\.)${body}` : body;
+    return reachable[segments.length] === true;
+  };
+}
+
+/** A `**` matches zero segments too, so reaching it also reaches the position after it. */
+function withGlobstarSkips(segments: readonly string[], reachable: boolean[]): boolean[] {
+  segments.forEach((segment, index) => {
+    if (segment === '**' && reachable[index]) reachable[index + 1] = true;
   });
-  return new RegExp(`^${source}$`);
+  return reachable;
+}
+
+/**
+ * One glob segment against one path segment, `*` any run and `?` any one character. The standard
+ * iterative wildcard match: two indices and one backtrack point (the latest `*`), no recursion.
+ */
+function matchesWildcardSegment(glob: string, part: string): boolean {
+  if ((glob.startsWith('*') || glob.startsWith('?')) && part.startsWith('.')) return false;
+  let g = 0;
+  let p = 0;
+  let starGlob = -1;
+  let starPart = 0;
+  while (p < part.length) {
+    if (g < glob.length && glob[g] === '*') {
+      starGlob = g;
+      starPart = p;
+      g += 1;
+    } else if (g < glob.length && (glob[g] === '?' || glob[g] === part[p])) {
+      g += 1;
+      p += 1;
+    } else if (starGlob !== -1) {
+      g = starGlob + 1;
+      starPart += 1;
+      p = starPart;
+    } else {
+      return false;
+    }
+  }
+  while (g < glob.length && glob[g] === '*') g += 1;
+  return g === glob.length;
 }
 
 // Presentation-only disclosure (goal_cejel_certificate_reads_disclosure_2026-10-13): the citation

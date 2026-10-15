@@ -121,7 +121,11 @@ describe('A1 v23 command-flag coverage recognition', () => {
     expect(coverageEvidencePaths(dir)).toContain('package.json');
   });
 
-  it('recognizes a reachable test-family wrapper with an enabled numeric coverage threshold', () => {
+  // Until goal_cejel_scan_path_regex_bounds_2026-10-15 this test compiled the `pnpm run /^test:/`
+  // selector, followed it to `test:coverage`, and credited the coverage command. A selector is
+  // repository text and is no longer evaluated (a repository could stall the scan with one), so it
+  // is a dynamic reference: neither the credit nor the absence is asserted.
+  it('withholds both credit and absence for a `pnpm run /regex/` test-family selector', () => {
     const dir = makeTmpRepo();
     writeFile(
       dir,
@@ -156,13 +160,9 @@ describe('A1 v23 command-flag coverage recognition', () => {
 
     const a1 = a1Signal(dir);
     expect(hasCoverageAbsence(dir)).toBe(false);
-    expect(coverageEvidencePaths(dir)).toContain('package.json');
-    expect(
-      a1?.metrics
-        ?.find((metric) => metric.name === 'verification_script_ratio')
-        ?.presentation?.components?.find((component) => component.label === 'coverage command')
-        ?.count,
-    ).toBe(1);
+    expect(coverageEvidencePaths(dir)).toEqual([]);
+    expect(a1?.notes).toContain('Coverage command reachability or flag ownership was unresolved');
+    expect(a1?.notes).toContain('package.json');
   });
 
   it('does not recognize the same coverage script when no test or CI entry point reaches it', () => {
