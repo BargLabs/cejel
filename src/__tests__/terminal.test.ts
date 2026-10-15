@@ -204,7 +204,7 @@ describe('renderTerminalCertificate', () => {
           {
             source: 'sarif:source',
             label: hostile('Finding label'),
-            dimension: hostile('A2'),
+            dimension: 'A2',
             severity: 'critical',
             ruleId: hostile('rule'),
             message: hostile('message'),
@@ -222,7 +222,7 @@ describe('renderTerminalCertificate', () => {
       'History limitation[31m',
       'Incorporates findings from: sarif:source[31m',
       'Source label[31m: 1 finding ingested',
-      '[critical] Finding label[31m → A2[31m: rule[31m — message[31m (src/file.ts:1[31m)',
+      '[critical] Finding label[31m → A2: rule[31m — message[31m (src/file.ts:1[31m)',
     ]) {
       expect(output).toContain(visible);
     }

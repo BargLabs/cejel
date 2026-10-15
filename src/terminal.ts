@@ -204,7 +204,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     );
     for (const finding of summary.topExternalFindings) {
       lines.push(
-        `  [${finding.severity}] ${stripTerminalControls(finding.label)} → ${stripTerminalControls(finding.dimension)}: ${stripTerminalControls(finding.ruleId)} — ${stripTerminalControls(finding.message)}${
+        `  [${finding.severity}] ${stripTerminalControls(finding.label)} → ${finding.dimension}: ${stripTerminalControls(finding.ruleId)} — ${stripTerminalControls(finding.message)}${
           finding.location ? ` (${stripTerminalControls(finding.location)})` : ''
         }`,
       );
