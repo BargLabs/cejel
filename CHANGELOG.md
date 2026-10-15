@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.6] — 2026-10-15
+
 ### Security
 
 - **A repository could stall a scan with a regular expression or a workspace glob (#502).**
@@ -42,6 +44,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Repository- and ingest-derived fields are stripped of C0 controls, DEL and C1 controls before they
   are printed; a newline or tab inside a field becomes a space. Cejel's own text and `report.json` are
   unchanged.
+
+**Public corpus.** A preregistered confirmation scored the 23 public corpus repositories under v17
+and v26, at v0.6.5 and at the fix commit (`82cba330`), which differs from this release only in
+version identity and records, with no change under `src/` outside tests. All 23 reports were
+byte-identical under both rubrics, so neither fix moved any public repository
+([`docs/experiments/public-delta-0-6-6-2026-10-15/result.md`](./docs/experiments/public-delta-0-6-6-2026-10-15/result.md)).
 
 ## [0.6.5] — 2026-10-15
 
