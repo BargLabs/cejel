@@ -131,8 +131,11 @@ const scanOutputSchema = z
 // A segment that Git would read as a repository's control directory or gitdir file. Compared
 // case-insensitively because a case-insensitive filesystem resolves `.GIT` to `.git`, and with
 // trailing dots and spaces dropped because Windows drops them when it creates the entry.
+// Also before an NTFS stream suffix (`.git::$INDEX_ALLOCATION` creates a `.git` directory), and
+// the 8.3 short name `GIT~1`, which Windows can resolve to an existing `.git` (reviewer).
 function isGitControlSegment(segment: string): boolean {
-  return segment.replace(/[. ]+$/, '').toLowerCase() === '.git';
+  const name = segment.split(':')[0] ?? '';
+  return name.replace(/[. ]+$/, '').toLowerCase() === '.git' || /^git~\d+$/i.test(name);
 }
 
 function validateRelativePath(filePath: string): string {

@@ -88,6 +88,8 @@ describe('HTTP uploads refuse Git control metadata', () => {
     ['a .git directory with HEAD', [{ path: '.git/HEAD', content: 'ref: refs/heads/main\n' }]],
     ['a .git file naming another gitdir', [{ path: '.git', content: 'gitdir: /elsewhere/.git\n' }]],
     ['a nested, differently cased .GIT segment', [{ path: 'sub/.GIT/config', content: '[core]\n' }]],
+    ['an NTFS stream alias of .git', [{ path: '.git::$INDEX_ALLOCATION/HEAD', content: 'ref: refs/heads/main\n' }]],
+    ['a Windows short name for .git', [{ path: 'GIT~1/HEAD', content: 'ref: refs/heads/main\n' }]],
   ])('refuses %s', async (_label, gitFiles) => {
     const { envelope, text } = await scan([SOURCE_FILE, ...gitFiles]);
 
