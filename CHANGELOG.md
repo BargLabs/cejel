@@ -27,9 +27,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     that credit, under every rubric.
   - Declared workspace globs (#479, new in 0.6.5) were translated to regular expressions, and a glob
     with many `*`s backtracked polynomially against a long directory name. They are now matched
-    without a regex, in time linear in the path, with a cap of 256 characters and 32 segments; a
-    longer pattern is treated as unparseable and falls back to the root `package.json` with its
-    existing disclosure. Matching is otherwise unchanged.
+    without a regex, in time linear in the path, with a cap of 256 characters and 32 segments. A
+    longer pattern is treated like any pattern Cejel cannot parse: an include pattern is skipped,
+    and an exclusion pattern makes Cejel read only the root `package.json`. Matching is otherwise
+    unchanged.
 - **HTTP server: an uploaded snapshot could make Git read another repository on the host (#500).**
   An upload containing a `.git` entry could point Git at another checkout, and the certificate could
   then carry that repository's commit and a tracked file name. Upload paths with a `.git` segment are
