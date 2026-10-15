@@ -1,4 +1,7 @@
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,6 +12,7 @@ import {
   HARDENED_GIT_READ_ONLY_SUBCOMMANDS,
   describeGitFailure,
   execGit,
+  withGitDiscoveryConfinedTo,
 } from '../git-exec.js';
 
 const execFileSyncMock = vi.hoisted(() => vi.fn());
@@ -159,6 +163,38 @@ describe('git subprocess chokepoint', () => {
       GIT_CONFIG_KEY_0: 'safe.directory',
       GIT_CONFIG_VALUE_0: '/repo',
     });
+  });
+
+  it('sets a discovery ceiling only while a confined scan runs', () => {
+    const parent = realpathSync(mkdtempSync(join(tmpdir(), 'cejel-ceiling-')));
+    const snapshot = join(parent, 'snapshot');
+    mkdirSync(snapshot);
+    process.env.GIT_CEILING_DIRECTORIES = '/ambient/ceiling';
+    execFileSyncMock.mockReturnValue('');
+    const environmentOfCall = (index: number): NodeJS.ProcessEnv | undefined =>
+      (execFileSyncMock.mock.calls[index]?.[2] as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+
+    try {
+      execGit(['rev-parse', 'HEAD'], { cwd: snapshot });
+      withGitDiscoveryConfinedTo(snapshot, () => execGit(['rev-parse', 'HEAD'], { cwd: snapshot }));
+      expect(() =>
+        withGitDiscoveryConfinedTo(snapshot, () => {
+          throw new Error('scan failed');
+        }),
+      ).toThrow('scan failed');
+      execGit(['rev-parse', 'HEAD'], { cwd: snapshot });
+      expect(() => withGitDiscoveryConfinedTo(snapshot, async () => undefined)).toThrow(
+        /synchronous scan/,
+      );
+      execGit(['rev-parse', 'HEAD'], { cwd: snapshot });
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+
+    expect(environmentOfCall(0)).not.toHaveProperty('GIT_CEILING_DIRECTORIES');
+    expect(environmentOfCall(1)?.GIT_CEILING_DIRECTORIES).toBe(parent);
+    expect(environmentOfCall(2)).not.toHaveProperty('GIT_CEILING_DIRECTORIES');
+    expect(environmentOfCall(3)).not.toHaveProperty('GIT_CEILING_DIRECTORIES');
   });
 
   it('allows a smaller per-operation output ceiling', () => {

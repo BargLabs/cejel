@@ -13,6 +13,7 @@ import {
   WitanReportSchema,
 } from '../witan/schemas.js';
 import { runCejelScan } from '../scan.js';
+import { withGitDiscoveryConfinedTo } from '../witan/git-exec.js';
 
 export interface CejelHttpMcpIdentity {
   packageName: string;
@@ -127,6 +128,13 @@ const scanOutputSchema = z
   .strict()
   .describe('Structured scan result envelope; the text content contains the selected certificate JSON.');
 
+// A segment that Git would read as a repository's control directory or gitdir file. Compared
+// case-insensitively because a case-insensitive filesystem resolves `.GIT` to `.git`, and with
+// trailing dots and spaces dropped because Windows drops them when it creates the entry.
+function isGitControlSegment(segment: string): boolean {
+  return segment.replace(/[. ]+$/, '').toLowerCase() === '.git';
+}
+
 function validateRelativePath(filePath: string): string {
   const normalized = filePath.replaceAll('\\', '/');
   if (
@@ -135,6 +143,11 @@ function validateRelativePath(filePath: string): string {
     normalized.split('/').some((segment) => segment === '..' || segment.length === 0)
   ) {
     throw new Error(`Invalid repository file path: ${filePath}`);
+  }
+  if (normalized.split('/').some(isGitControlSegment)) {
+    throw new Error(
+      'Repository file paths may not contain a .git segment: an uploaded snapshot cannot carry Git control metadata.',
+    );
   }
   return normalized;
 }
@@ -222,8 +235,13 @@ export function createCejelHttpMcpServer(identity: CejelHttpMcpIdentity): McpSer
     async ({ files, format, artifacts }) => {
       let repositoryPath: string | undefined;
       try {
-        repositoryPath = await writeRemoteRepository(files);
-        const result = runCejelScan({ repoPath: repositoryPath });
+        const snapshotPath = await writeRemoteRepository(files);
+        repositoryPath = snapshotPath;
+        // The snapshot is not a repository (uploads cannot carry .git), and Git must not walk
+        // up from it into whatever checkout holds the server's temporary directory.
+        const result = withGitDiscoveryConfinedTo(snapshotPath, () =>
+          runCejelScan({ repoPath: snapshotPath }),
+        );
         const payload = format === 'json' ? result.report : result.summary;
         const requestedArtifacts = {
           ...(artifacts?.includes('certificate')

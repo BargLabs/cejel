@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 export const GIT_EXEC_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
 export const GIT_EXEC_TIMEOUT_MS = 30_000;
@@ -80,6 +81,33 @@ export interface GitExecOptions {
   readonly maxBufferBytes?: number;
 }
 
+// Set only while withGitDiscoveryConfinedTo runs; undefined for every ordinary scan.
+let discoveryCeiling: string | undefined;
+
+/**
+ * Runs `scan` with Git repository discovery confined to `root`. Every execGit call made while
+ * it runs carries GIT_CEILING_DIRECTORIES set to the parent of `root`, so Git may find a
+ * repository in `root` itself but never in a directory that contains it.
+ *
+ * For uploaded snapshots only. A CLI scan of a checkout's subdirectory must still find the
+ * enclosing repository, so ordinary scans never call this. The ceiling is scoped here rather
+ * than passed per call because the scan path reaches execGit through collectors that take only
+ * a repository path; `scan` must therefore be synchronous, as runCejelScan is.
+ */
+export function withGitDiscoveryConfinedTo<T>(root: string, scan: () => T): T {
+  const previous = discoveryCeiling;
+  discoveryCeiling = dirname(realpathSync(root));
+  try {
+    const result = scan();
+    if (typeof (result as { then?: unknown } | null)?.then === 'function') {
+      throw new Error('Git discovery confinement requires a synchronous scan.');
+    }
+    return result;
+  } finally {
+    discoveryCeiling = previous;
+  }
+}
+
 function hardenedGitEnvironment(cwd: string): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {};
   for (const key of ['PATH', 'HOME', 'TZ'] as const) {
@@ -108,6 +136,7 @@ function hardenedGitEnvironment(cwd: string): NodeJS.ProcessEnv {
     GIT_CONFIG_COUNT: '1',
     GIT_CONFIG_KEY_0: 'safe.directory',
     GIT_CONFIG_VALUE_0: cwd,
+    ...(discoveryCeiling === undefined ? {} : { GIT_CEILING_DIRECTORIES: discoveryCeiling }),
   };
 }
 

@@ -46,6 +46,15 @@ export function renderMinScoreCoverageFailure(
   return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because fewer than half of the applicable dimensions were measured in at least one score (${formatCoverageSummary(coverage)}). Resolve the reported evidence gaps and re-scan.\n`;
 }
 
+/**
+ * Removes C0 controls, DEL and C1 controls (U+0080-U+009F) from a repository- or ingest-derived
+ * string before it reaches the terminal; a newline or tab inside the field becomes a space. The
+ * visible text around a removed control is kept. Cejel's own text never passes through here.
+ */
+export function stripTerminalControls(text: string): string {
+  return text.replace(/[\t\n]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
+}
+
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
 export function renderTerminalCertificate(summary: WitanCliSummary, report?: WitanReport): string {
@@ -62,14 +71,14 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
 
   const lines: string[] = abstained
     ? [
-        `Cejel Trust Certificate — ${summary.productDisplayName}`,
+        `Cejel Trust Certificate — ${stripTerminalControls(summary.productDisplayName)}`,
         '',
         `${summary.verdict} to certify.`,
-        `  ${summary.insufficientSourceReason ?? 'No ratable source or measurable evidence was found.'}`,
+        `  ${summary.insufficientSourceReason === undefined ? 'No ratable source or measurable evidence was found.' : stripTerminalControls(summary.insufficientSourceReason)}`,
         '',
       ]
     : [
-        `Cejel Trust Certificate — ${summary.productDisplayName}`,
+        `Cejel Trust Certificate — ${stripTerminalControls(summary.productDisplayName)}`,
         '',
         `Overall: ${formatScore(summary.overallScore)}/4.0 (${summary.verdict})`,
         `  Code trust:    ${formatScore(summary.codeTrustScore)}/4.0`,
@@ -91,7 +100,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       2,
       0,
       `Scope: ${relyingPartySummary.scope}`,
-      `What was examined: ${relyingPartySummary.examined}`,
+      `What was examined: ${stripTerminalControls(relyingPartySummary.examined)}`,
       `What was established: ${relyingPartySummary.established}`,
       `What was not established: ${relyingPartySummary.notEstablished}`,
       `What to do next: ${relyingPartySummary.next}`,
@@ -102,7 +111,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
   if (summary.scanLimitations.length > 0) {
     lines.push(
       'LIMITED EVIDENCE — the score and verdict are qualified by scan limitations:',
-      ...summary.scanLimitations.map((limitation) => `  - ${limitation}`),
+      ...summary.scanLimitations.map((limitation) => `  - ${stripTerminalControls(limitation)}`),
       '',
     );
   }
@@ -110,7 +119,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
   if (summary.historyLimitations?.length) {
     lines.push(
       'HISTORY LIMITATION — scored as usual, but some criteria read truncated history:',
-      ...summary.historyLimitations.map((limitation) => `  - ${limitation}`),
+      ...summary.historyLimitations.map((limitation) => `  - ${stripTerminalControls(limitation)}`),
       '',
     );
   }
@@ -132,9 +141,11 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
   }
 
   if (summary.contributingSources.length > 0) {
-    lines.push(`Incorporates findings from: ${summary.contributingSources.join(', ')}`);
+    lines.push(
+      `Incorporates findings from: ${summary.contributingSources.map(stripTerminalControls).join(', ')}`,
+    );
     for (const source of summary.externalSources) {
-      lines.push(`  ${formatExternalSourceLine(source)}`);
+      lines.push(`  ${stripTerminalControls(formatExternalSourceLine(source))}`);
     }
     lines.push('');
   }
@@ -172,7 +183,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     );
     for (const finding of summary.topFindings) {
       lines.push(
-        `  [finding severity: ${finding.severity}] ${finding.criterionId} [dimension band: ${finding.dimensionBand}]: ${finding.displaySummary ?? finding.summary}`,
+        `  [finding severity: ${finding.severity}] ${finding.criterionId} [dimension band: ${finding.dimensionBand}]: ${stripTerminalControls(finding.displaySummary ?? finding.summary)}`,
       );
     }
     const remaining = summary.findingCount - summary.topFindings.length;
@@ -193,8 +204,8 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     );
     for (const finding of summary.topExternalFindings) {
       lines.push(
-        `  [${finding.severity}] ${finding.label} → ${finding.dimension}: ${finding.ruleId} — ${finding.message}${
-          finding.location ? ` (${finding.location})` : ''
+        `  [${finding.severity}] ${stripTerminalControls(finding.label)} → ${stripTerminalControls(finding.dimension)}: ${stripTerminalControls(finding.ruleId)} — ${stripTerminalControls(finding.message)}${
+          finding.location ? ` (${stripTerminalControls(finding.location)})` : ''
         }`,
       );
     }

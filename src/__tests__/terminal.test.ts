@@ -5,6 +5,7 @@ import {
   renderMinScoreAbstentionFailure,
   renderMinScoreCoverageFailure,
   renderTerminalCertificate,
+  stripTerminalControls,
 } from '../terminal.js';
 
 function summary(overrides: Partial<WitanCliSummary> = {}): WitanCliSummary {
@@ -25,6 +26,18 @@ function summary(overrides: Partial<WitanCliSummary> = {}): WitanCliSummary {
     ...overrides,
   };
 }
+
+describe('stripTerminalControls', () => {
+  it('removes C0, DEL and C1 controls and turns an in-field newline or tab into a space', () => {
+    expect(stripTerminalControls('a\u0000b\u001bc\u007fd\u0080e\u009bf\u009fg\rh')).toBe('abcdefgh');
+    expect(stripTerminalControls('one\ntwo\tthree')).toBe('one two three');
+  });
+
+  it('returns text without controls unchanged', () => {
+    const plain = 'src/db/query.ts:42 — naïve → résumé [2J ✓  ÿ';
+    expect(stripTerminalControls(plain)).toBe(plain);
+  });
+});
 
 describe('renderTerminalCertificate', () => {
   it('prints the product name, overall score, and verdict', () => {
