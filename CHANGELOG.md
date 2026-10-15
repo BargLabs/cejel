@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.5] — 2026-10-15
+
 ### Added
 
 - **New prospective rubric `witan-rubric-v26-prospective-2026-10-14`, explicit opt-in only
@@ -59,6 +61,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     fixtures, item 6 left every v17 through v25 report byte-identical. v26's behaviour fingerprint
     moved (the A5 component and the report components of the specimens whose composite scores
     moved), and v25 and v26 no longer collide.
+  - **Public corpus (#497).** In the preregistered before-and-after on the 23 public corpus
+    repositories (v25 against v26, both at `98dbf250`), the A5 finding stopped firing on all 16
+    repositories that carried it under v25, and A5 rose on each. No repository carries an A2
+    tenant-without-RLS finding under either rubric, so the public corpus does not test the A2 rule.
+    No other criterion moved.
+- **v26 item 8 ruling recorded, not implemented (#496).** The operator-signed
+  `docs/calibration/v26/ruling-item-8.md` sets when A3's "declares neither a build nor a typecheck
+  script" finding may fire under v26. This release contains the record only. No behaviour changes
+  under any rubric.
 
 ### Changed
 
@@ -67,9 +78,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 change is a recognition fix: it reads evidence Cejel did not read before. Weights and thresholds
 are unchanged. Each added synthetic specimens to the behaviour corpus, re-pinned the fingerprints
 and report goldens, and recorded its before-and-after on that corpus in
-[`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-14 entries). The
-public before-and-after for these changes is recorded separately; this changelog cites no
-public-corpus result for them.
+[`leaderboard/RUBRIC_CHANGELOG.md`](./leaderboard/RUBRIC_CHANGELOG.md) (2026-10-14 entries).
+
+**Public corpus (#497).** A preregistered before-and-after scored the 23 public corpus
+repositories under v17 at v0.6.4 (`093de2a1`) and at the #490 merge (`98dbf250`), which differs
+from this release only in version identity, records and experiments, with no change under
+`src/witan/`. Every expected value held
+([`docs/experiments/public-delta-0-6-5-2026-10-15/result.md`](./docs/experiments/public-delta-0-6-5-2026-10-15/result.md)).
+Five repositories moved at scoring level, all up or unchanged, none down: two in B3 through #479,
+both declaring workspaces, and three in A1. No other criterion moved, and the #489 rule changed no
+public repository. With only the behaviour fingerprint removed, 7 of 23 reports are
+byte-identical; the other 16 differ in scores, metric components or evidence labels. This measures
+movement, not whether any finding is correct.
 
 - **B3 `ci_script_depth` reads the scripts of declared workspace packages (#479).** In npm, yarn
   and pnpm workspaces the root `package.json` often only orchestrates, and the scripts live in the
