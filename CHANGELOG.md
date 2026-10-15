@@ -16,6 +16,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **A repository could stall a scan with a regular expression or a workspace glob (#502).**
+  - A `pnpm run /<regex>/` selector in a package script was compiled and run against the
+    repository's own script names, so a crafted pattern could backtrack for minutes. Present since
+    0.4.7 (#276). Cejel no longer evaluates it: the reference is treated as unresolved, which
+    withholds both A1 coverage credit and the "no coverage configuration" finding. **This is the one
+    scoring change:** a repository whose only route to its coverage script is a regex selector loses
+    that credit, under every rubric.
+  - Declared workspace globs (#479, new in 0.6.5) were translated to regular expressions, and a glob
+    with many `*`s backtracked polynomially against a long directory name. They are now matched
+    without a regex, in time linear in the path, with a cap of 256 characters and 32 segments. A
+    longer pattern is treated like any pattern Cejel cannot parse: an include pattern is skipped,
+    and an exclusion pattern makes Cejel read only the root `package.json`. Matching is otherwise
+    unchanged.
+- **HTTP server: an uploaded snapshot could make Git read another repository on the host (#500).**
+  An upload containing a `.git` entry could point Git at another checkout, and the certificate could
+  then carry that repository's commit and a tracked file name. Upload paths with a `.git` segment are
+  now refused, compared case-insensitively and including Windows aliases (trailing dots or spaces, an
+  NTFS stream suffix, the `GIT~1` short name). Git discovery for an uploaded snapshot cannot leave the
+  snapshot directory. Affects HTTP-server deployments where another checkout is readable on the host;
+  CLI scans are unchanged.
+- **Terminal certificate: control characters from ingested findings reached the terminal (#500).**
+  Repository- and ingest-derived fields are stripped of C0 controls, DEL and C1 controls before they
+  are printed; a newline or tab inside a field becomes a space. Cejel's own text and `report.json` are
+  unchanged.
+
 ## [0.6.5] — 2026-10-15
 
 ### Added

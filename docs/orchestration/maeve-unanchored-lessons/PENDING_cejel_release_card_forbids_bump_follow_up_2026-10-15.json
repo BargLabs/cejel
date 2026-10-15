@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A release-prep card that says 'run the bump script, then every edit it lists' and also 'no edit to src/' contradicts itself whenever the script's follow-up list names a src/ file: here the cross-path report pin in src/__tests__/index.test.ts moves with toolVersion, so obeying both makes the PR red on exactly that assertion. Check the mandated tool's follow-up list against every path prohibition before running it. When they collide, keep the prohibition, run the one failing test to read the measured value, verify the exact patch in a throwaway worktree outside the branch, and hand that patch back. Do not break the rule, and do not open a PR that is silently red.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["release-prep", "goal-card-conflict", "bump-release-version", "report-pin", "handback-patch"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 506}
+  }
+]
