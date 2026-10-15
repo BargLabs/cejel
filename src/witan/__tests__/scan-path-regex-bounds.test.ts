@@ -14,7 +14,8 @@ import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V26 } from '../rubric-ve
 // process (a stalled V8 regex blocks its own thread, so only a kill can stop it):
 //
 //   1. `pnpm run /<regex>/` in a package script was compiled and tested against the repository's
-//      own script names; `/^(a+)+$/` against a long script name backtracks catastrophically.
+//      own script names; `/^(a+)+$/` against a long script name backtracks catastrophically. The
+//      literal that found the selector was itself exponential on an unterminated backslash run.
 //   2. Each `*` in a declared workspace glob became `[^/]*` in an anchored regex; a glob with many
 //      stars against a long directory name backtracks polynomially.
 //
@@ -83,7 +84,19 @@ const SELECTOR_FIXTURE: Record<string, string> = {
     "import { expect, it } from 'vitest';\nit('works', () => expect(1).toBe(1));\n",
 };
 
-const PATHOLOGICAL_GLOB = `${'*a'.repeat(12)}*b`;
+// The literal that used to find the selector, `\/((?:\\.|[^/])+)\/`, could read each backslash two
+// ways, so an unterminated run of them backtracked exponentially before any selector was compiled.
+const BACKSLASH_FIXTURE: Record<string, string> = {
+  ...SELECTOR_FIXTURE,
+  'package.json': `${JSON.stringify({
+    name: 'synthetic-backslash-selector',
+    version: '1.0.0',
+    scripts: { test: `pnpm run /${'\\'.repeat(60)}x`, 'test:coverage': 'vitest run --coverage' },
+    devDependencies: { vitest: '2.1.9' },
+  })}\n`,
+};
+
+const PATHOLOGICAL_GLOB =`${'*a'.repeat(12)}*b`;
 const PATHOLOGICAL_DIRECTORY = 'a'.repeat(40);
 const GLOB_FIXTURE: Record<string, string> = {
   'package.json': `${JSON.stringify({
@@ -103,6 +116,15 @@ describe('timing guards: the real scan finishes on pathological repository input
     '`pnpm run /^(a+)+$/` beside a script named 40 `a`s and `!` — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(SELECTOR_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V26])(
+    '`pnpm run /` followed by 60 unterminated backslashes — %s',
+    (rubric) => {
+      const scan = scanInChild(makeRepo(BACKSLASH_FIXTURE), rubric);
       expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
