@@ -1,0 +1,46 @@
+[
+  {
+    "statement": "Framework-specific assertion syntax needs execution context, and a digest name alone supplies no secret semantics. Cejel #427 called a live AVA suite hollow; #430 asserted a timing side-channel for a public digest lookup. The corrections recognize AVA assertions only in active imported-runner callbacks and stop treating bare digest names as authentication evidence, retaining HMAC/MAC/signature controls. Synthetic controls distinguish skipped callbacks, comments, strings, unrelated objects, nested unused functions, public lookups and genuine authentication comparisons. Rule: establish the relevant context before asserting a defect; a removed false finding can make a criterion not applicable and lower the composite through its denominator.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "scoring",
+      "precision"
+    ],
+    "tags": [
+      "assertion-context",
+      "public-digest",
+      "false-assertion",
+      "denominator-effect"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-13T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 468
+    }
+  },
+  {
+    "statement": "A positional citation migration must bind each replacement to its entry token, rather than globally replacing line-number text. While updating the legacy register after this rubric entry, one replacement produced the old number targeted by the next replacement and was changed twice. Verifying the actual cited line exposed the cascade before commit; replacing within the exact token entry corrected it. Rule: use structured identity for migrations and run the real checker against the resulting record, even when the normal suite passes. Content-keyed errata remain the durable fix in Cejel PR #464.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "records"
+    ],
+    "tags": [
+      "migration-identity",
+      "replacement-cascade",
+      "verify-record"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-13T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 468
+    }
+  }
+]
