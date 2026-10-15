@@ -1,0 +1,3448 @@
+{
+  "schema": "cejel-public-delta-v2-result",
+  "planSha256": "389da20059b4d5ba8c3347ae62264cb35f8ad490cac50f61a5a7112eb17b34b4",
+  "preregCommit": "9b37aa48e922cfbaebf037d964e0fd3458037bb8",
+  "runs": {
+    "v064-v17": {
+      "sourceHead": "093de2a16408f249be3470b9f4e385e21c8899a8",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "completed": 23,
+      "errors": 0
+    },
+    "main-v17": {
+      "sourceHead": "98dbf2505406fd3f3ac9eb4d904bf5e2d044edbd",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "completed": 23,
+      "errors": 0
+    },
+    "main-v25": {
+      "sourceHead": "98dbf2505406fd3f3ac9eb4d904bf5e2d044edbd",
+      "rubric": "witan-rubric-v25-prospective-2026-10-12",
+      "completed": 23,
+      "errors": 0
+    },
+    "main-v26": {
+      "sourceHead": "98dbf2505406fd3f3ac9eb4d904bf5e2d044edbd",
+      "rubric": "witan-rubric-v26-prospective-2026-10-14",
+      "completed": 23,
+      "errors": 0
+    }
+  },
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with: zero errors; no changes to target identity or history, and no dirty checkouts; each source checkout matching its run's commit; existing outputs refused.",
+    "E1": "release-v17: scoring moves only in the allowed criteria: A1, through #484 and #487; A2, through #489; B3 ci_script_depth, through #479. A3 does not move: #479's A3 change applies only from v20 onward.",
+    "E2": "release-v17, direction: A1 and B3 move up or not at all; A2 may move either way, but only through the HMAC digest rule. Any other downward move is a miss.",
+    "E3": "release-v17, point forecast: at least one row moves at scoring level, through B3 on a row that declares workspaces; no row moves down; placements are reported, not forecast.",
+    "E4": "item6-v26: A5: the no-reconciliation finding disappears on every row that does not name a claim-reconciliation artifact. On those rows, reconciliation_artifact_depth leaves A5, so A5 scores move up or not at all. A2: the tenant-without-RLS finding fires only where T-1 to T-3 hold. A row where v25 fired and v26 does not is expected. A row where v26 fires and v25 did not is reported with its table, and is not a miss. Everything else: unchanged.",
+    "E5": "fingerprints change on every row in release-v17. Byte identity is reported after removing only that field."
+  },
+  "pairs": {
+    "release-v17": {
+      "before": "v064-v17",
+      "after": "main-v17",
+      "allowedCriteria": [
+        "A1",
+        "A2",
+        "B3"
+      ],
+      "presentationOnly": [
+        "rubricBehaviourFingerprint"
+      ],
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 5,
+        "placementsMoved": 3,
+        "fingerprintsChanged": 23,
+        "identicalReports": 0,
+        "identicalAfterFingerprintRemoval": 7,
+        "unexpectedCriteria": [],
+        "identicalAfterPresentationRemoval": 7,
+        "undeclaredFieldChanges": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "B3",
+              "before": {
+                "id": "B3",
+                "status": "verified",
+                "score": 4,
+                "metrics": [
+                  {
+                    "name": "ci_script_depth",
+                    "value": 6,
+                    "max": 4,
+                    "weight": 0.45
+                  },
+                  {
+                    "name": "default_branch_ci_depth",
+                    "value": 14,
+                    "max": 4,
+                    "weight": 0.55
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "B3",
+                "status": "verified",
+                "score": 4,
+                "metrics": [
+                  {
+                    "name": "ci_script_depth",
+                    "value": 7,
+                    "max": 4,
+                    "weight": 0.45
+                  },
+                  {
+                    "name": "default_branch_ci_depth",
+                    "value": 14,
+                    "max": 4,
+                    "weight": 0.55
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3,
+            "code": 2.8,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A1",
+              "before": {
+                "id": "A1",
+                "status": "verified",
+                "score": 2.3,
+                "metrics": [
+                  {
+                    "name": "test_to_source_ratio",
+                    "value": 95,
+                    "max": 7,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "coverage_percent",
+                    "value": 0,
+                    "max": 100,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "verification_script_ratio",
+                    "value": 2,
+                    "max": 4,
+                    "weight": 0.25
+                  },
+                  {
+                    "name": "non_hollow_test_share",
+                    "value": 89,
+                    "max": 89,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A1",
+                "status": "verified",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "test_to_source_ratio",
+                    "value": 95,
+                    "max": 7,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "coverage_percent",
+                    "value": 0,
+                    "max": 100,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "verification_script_ratio",
+                    "value": 3,
+                    "max": 4,
+                    "weight": 0.25
+                  },
+                  {
+                    "name": "non_hollow_test_share",
+                    "value": 89,
+                    "max": 89,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.9,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "B3",
+              "before": {
+                "id": "B3",
+                "status": "verified",
+                "score": 3.1,
+                "metrics": [
+                  {
+                    "name": "ci_script_depth",
+                    "value": 2,
+                    "max": 4,
+                    "weight": 0.45
+                  },
+                  {
+                    "name": "default_branch_ci_depth",
+                    "value": 13,
+                    "max": 4,
+                    "weight": 0.55
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "B3",
+                "status": "verified",
+                "score": 3.6,
+                "metrics": [
+                  {
+                    "name": "ci_script_depth",
+                    "value": 3,
+                    "max": 4,
+                    "weight": 0.45
+                  },
+                  {
+                    "name": "default_branch_ci_depth",
+                    "value": 13,
+                    "max": 4,
+                    "weight": 0.55
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "processTrustScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A1",
+              "before": {
+                "id": "A1",
+                "status": "verified",
+                "score": 1.9,
+                "metrics": [
+                  {
+                    "name": "test_to_source_ratio",
+                    "value": 271,
+                    "max": 16,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "coverage_percent",
+                    "value": 0,
+                    "max": 100,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "verification_script_ratio",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.25
+                  },
+                  {
+                    "name": "non_hollow_test_share",
+                    "value": 186,
+                    "max": 270,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    1
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A1",
+                "status": "verified",
+                "score": 2.1,
+                "metrics": [
+                  {
+                    "name": "test_to_source_ratio",
+                    "value": 271,
+                    "max": 16,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "coverage_percent",
+                    "value": 0,
+                    "max": 100,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "verification_script_ratio",
+                    "value": 2,
+                    "max": 4,
+                    "weight": 0.25
+                  },
+                  {
+                    "name": "non_hollow_test_share",
+                    "value": 186,
+                    "max": 270,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A1",
+              "before": {
+                "id": "A1",
+                "status": "warning",
+                "score": 1.8,
+                "metrics": [
+                  {
+                    "name": "test_to_source_ratio",
+                    "value": 420,
+                    "max": 1,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "coverage_percent",
+                    "value": 0,
+                    "max": 100,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "verification_script_ratio",
+                    "value": 0,
+                    "max": 4,
+                    "weight": 0.25
+                  },
+                  {
+                    "name": "non_hollow_test_share",
+                    "value": 8,
+                    "max": 8,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A1",
+                "status": "warning",
+                "score": 1.8,
+                "metrics": [
+                  {
+                    "name": "test_to_source_ratio",
+                    "value": 420,
+                    "max": 1,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "coverage_percent",
+                    "value": 0,
+                    "max": 100,
+                    "weight": 0.3
+                  },
+                  {
+                    "name": "verification_script_ratio",
+                    "value": 0,
+                    "max": 4,
+                    "weight": 0.25
+                  },
+                  {
+                    "name": "non_hollow_test_share",
+                    "value": 22,
+                    "max": 22,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        }
+      ]
+    },
+    "item6-v26": {
+      "before": "main-v25",
+      "after": "main-v26",
+      "allowedCriteria": [
+        "A5",
+        "A2"
+      ],
+      "presentationOnly": [
+        "rubricVersion",
+        "rubricBehaviourFingerprint"
+      ],
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 16,
+        "placementsMoved": 9,
+        "fingerprintsChanged": 23,
+        "identicalReports": 0,
+        "identicalAfterFingerprintRemoval": 0,
+        "unexpectedCriteria": [],
+        "identicalAfterPresentationRemoval": 7,
+        "undeclaredFieldChanges": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.2,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "11"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.5,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "9"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.9,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "7"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.8,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "10"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.5,
+            "code": 2.9,
+            "process": 4,
+            "verdict": "verified",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.3,
+            "placement": "2"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.7,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 19,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 7,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    1
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 3.1,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 19,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 7,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "verdict",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.8,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.6,
+            "placement": "14"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.4,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 15,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 3,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 3.1,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 15,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 3,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.7,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3.1,
+            "placement": "6"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 3.2,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.3,
+            "placement": "1"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.4,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 20,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 9,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 3.1,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 20,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 9,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.4,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 14,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 2,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    1
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.8,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 14,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 2,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 3,
+            "code": 2.3,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "12"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 20,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 8,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    1
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 3.1,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 20,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 8,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.2,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2,
+            "code": 1.7,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.3,
+            "code": 2.2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.3,
+            "placement": "unranked"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.1,
+            "placement": "unranked"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 1.4,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 1,
+                    "max": 2,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "warning",
+                "score": 1.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 1,
+                    "max": 2,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 2.8,
+            "code": 2.2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": true,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.8,
+            "code": 2.4,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.6,
+            "placement": "transparency"
+          },
+          "scoringChanged": true,
+          "movedCriteria": [
+            {
+              "id": "A5",
+              "before": {
+                "id": "A5",
+                "status": "warning",
+                "score": 2.2,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  },
+                  {
+                    "name": "reconciliation_artifact_depth",
+                    "value": 0,
+                    "max": 3,
+                    "weight": 0.15
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    1
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              },
+              "after": {
+                "id": "A5",
+                "status": "info",
+                "score": 2.6,
+                "metrics": [
+                  {
+                    "name": "claim_match_rate",
+                    "value": 12,
+                    "max": 13,
+                    "weight": 0.5
+                  },
+                  {
+                    "name": "claim_source_depth",
+                    "value": 1,
+                    "max": 4,
+                    "weight": 0.35
+                  }
+                ],
+                "findings": [
+                  [
+                    "critical",
+                    0
+                  ],
+                  [
+                    "warning",
+                    0
+                  ],
+                  [
+                    "info",
+                    0
+                  ]
+                ]
+              }
+            }
+          ],
+          "placementChanged": false,
+          "fingerprintChanged": true,
+          "reportIdentical": false,
+          "identicalAfterFingerprintRemoval": false,
+          "changedTopLevelFields": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint",
+            "criteria",
+            "codeTrustScore",
+            "overallScore"
+          ],
+          "presentationFieldsChanged": [
+            "rubricVersion",
+            "rubricBehaviourFingerprint"
+          ],
+          "identicalAfterPresentationRemoval": false,
+          "undeclaredFieldChanges": []
+        }
+      ]
+    }
+  }
+}

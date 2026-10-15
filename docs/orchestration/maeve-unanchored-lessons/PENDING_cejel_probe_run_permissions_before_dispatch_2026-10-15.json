@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "A card that dispatches an agent session to run experiment arms must name host prerequisites the session's permission profile actually grants. The 0.6.5 public-delta v2 session could write only inside its own worktree. It could not create the scratch root the harness requires outside every checkout, or read the verified full-history target copies. The harness was ready and the preregistration was pushed, but no run could start. Rule: before dispatching a run to an agent session, check that its profile can create the scratch root and read the target copies. If it cannot, dispatch the preregistration to the session and the runs to the operator's host from the start.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "experiment-design", "agent-permissions"],
+    "tags": ["dispatch-prerequisites", "scratch-outside-checkout", "permission-profile", "stop-after-preregistration"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 497}
+  },
+  {
+    "statement": "When a card asks for a result artifact that the cited harness does not produce, fix the method that produces it in the preregistration commit, with a test, before any run. Do not leave the result writer to improvise it after outcomes exist. The 0.6.5 card required byte-identity.json, and harness v2 compares only canonicalized projections. The method (compare the serialized files; remove only one-line top-level fields; refuse anything else) was committed with the plan. Its test was red before the script existed, and a deliberate mutation that let nested keys match failed 6 of its 8 tests.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "experiment-design", "preregistration"],
+    "tags": ["method-before-outcome", "harness-gap", "byte-identity", "mutation-check"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 497}
+  }
+]
