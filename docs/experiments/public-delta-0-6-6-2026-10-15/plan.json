@@ -1,0 +1,24 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-10-15T00:00:00.000Z",
+  "runs": [
+    { "name": "v065-v17", "commit": "a8e582a0f7e2505605f0cd01bab04db6ab678e0e", "rubric": "witan-rubric-v17-2026-07-24" },
+    { "name": "fix-v17", "commit": "82cba330b38d3773a6645e7471a11da6443c92bc", "rubric": "witan-rubric-v17-2026-07-24" },
+    { "name": "v065-v26", "commit": "a8e582a0f7e2505605f0cd01bab04db6ab678e0e", "rubric": "witan-rubric-v26-prospective-2026-10-14" },
+    { "name": "fix-v26", "commit": "82cba330b38d3773a6645e7471a11da6443c92bc", "rubric": "witan-rubric-v26-prospective-2026-10-14" }
+  ],
+  "pairs": [
+    { "name": "fixes-v17", "before": "v065-v17", "after": "fix-v17",
+      "allowedCriteria": ["A1"], "presentationOnly": ["rubricBehaviourFingerprint"] },
+    { "name": "fixes-v26", "before": "v065-v26", "after": "fix-v26",
+      "allowedCriteria": ["A1"], "presentationOnly": ["rubricBehaviourFingerprint"] }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with zero errors; target identity unchanged across runs; each source checkout at its run's commit; an existing run output refused.",
+    "E1": "Both pairs: all 23 report files byte-identical (byte-identity.json identicalReports 23), scoringRowsMoved 0, fingerprintsChanged 0, unexpectedCriteria empty, undeclaredFieldChanges empty.",
+    "E2": "If any row differs, it differs only in A1, and only where the row's package.json scripts contain a 'pnpm run /' selector; such a row is a miss of E1 and is reported with that fact. A difference anywhere else is a miss with no stated cause."
+  }
+}

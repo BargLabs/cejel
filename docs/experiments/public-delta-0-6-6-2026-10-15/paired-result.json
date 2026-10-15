@@ -1,0 +1,1512 @@
+{
+  "schema": "cejel-public-delta-v2-result",
+  "planSha256": "d96cb103d8b9156e8aa5c2f201da820f7d2f612bca868ce47789476b2431993b",
+  "preregCommit": "31909f02bcc6a4d349b1c7660d42d3a67c42d779",
+  "runs": {
+    "v065-v17": {
+      "sourceHead": "a8e582a0f7e2505605f0cd01bab04db6ab678e0e",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "completed": 23,
+      "errors": 0
+    },
+    "fix-v17": {
+      "sourceHead": "82cba330b38d3773a6645e7471a11da6443c92bc",
+      "rubric": "witan-rubric-v17-2026-07-24",
+      "completed": 23,
+      "errors": 0
+    },
+    "v065-v26": {
+      "sourceHead": "a8e582a0f7e2505605f0cd01bab04db6ab678e0e",
+      "rubric": "witan-rubric-v26-prospective-2026-10-14",
+      "completed": 23,
+      "errors": 0
+    },
+    "fix-v26": {
+      "sourceHead": "82cba330b38d3773a6645e7471a11da6443c92bc",
+      "rubric": "witan-rubric-v26-prospective-2026-10-14",
+      "completed": 23,
+      "errors": 0
+    }
+  },
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with zero errors; target identity unchanged across runs; each source checkout at its run's commit; an existing run output refused.",
+    "E1": "Both pairs: all 23 report files byte-identical (byte-identity.json identicalReports 23), scoringRowsMoved 0, fingerprintsChanged 0, unexpectedCriteria empty, undeclaredFieldChanges empty.",
+    "E2": "If any row differs, it differs only in A1, and only where the row's package.json scripts contain a 'pnpm run /' selector; such a row is a miss of E1 and is reported with that fact. A difference anywhere else is a miss with no stated cause."
+  },
+  "pairs": {
+    "fixes-v17": {
+      "before": "v065-v17",
+      "after": "fix-v17",
+      "allowedCriteria": [
+        "A1"
+      ],
+      "presentationOnly": [
+        "rubricBehaviourFingerprint"
+      ],
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 0,
+        "placementsMoved": 0,
+        "fingerprintsChanged": 0,
+        "identicalReports": 23,
+        "identicalAfterFingerprintRemoval": 23,
+        "unexpectedCriteria": [],
+        "identicalAfterPresentationRemoval": 23,
+        "undeclaredFieldChanges": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.1,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "12"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "9"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.7,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "10"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 2.8,
+            "process": 4,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.6,
+            "code": 2.6,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.5,
+            "placement": "14"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "6"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.6,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "7"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 2.9,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "2"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "1"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.2,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 1.9,
+            "code": 1.6,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.8,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.2,
+            "code": 2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "11"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.3,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.5,
+            "placement": "transparency"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        }
+      ]
+    },
+    "fixes-v26": {
+      "before": "v065-v26",
+      "after": "fix-v26",
+      "allowedCriteria": [
+        "A1"
+      ],
+      "presentationOnly": [
+        "rubricBehaviourFingerprint"
+      ],
+      "summary": {
+        "completed": 23,
+        "errors": 0,
+        "scoringRowsMoved": 0,
+        "placementsMoved": 0,
+        "fingerprintsChanged": 0,
+        "identicalReports": 23,
+        "identicalAfterFingerprintRemoval": 23,
+        "unexpectedCriteria": [],
+        "identicalAfterPresentationRemoval": 23,
+        "undeclaredFieldChanges": []
+      },
+      "rows": [
+        {
+          "name": "react",
+          "before": {
+            "overall": 3.1,
+            "code": 2.2,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "11"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.2,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "11"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vue",
+          "before": {
+            "overall": 3.1,
+            "code": 2.5,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "9"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.5,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3,
+            "placement": "9"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "svelte",
+          "before": {
+            "overall": 3.1,
+            "code": 2.9,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "7"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.9,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "7"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "django",
+          "before": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.6,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "flask",
+          "before": {
+            "overall": 2.9,
+            "code": 2.8,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "10"
+          },
+          "after": {
+            "overall": 2.9,
+            "code": 2.8,
+            "process": 3,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "10"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fastapi",
+          "before": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.8,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "5"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "express",
+          "before": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 3,
+            "process": 3.2,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 3.1,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "vite",
+          "before": {
+            "overall": 3.5,
+            "code": 2.9,
+            "process": 4,
+            "verdict": "verified",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.3,
+            "placement": "2"
+          },
+          "after": {
+            "overall": 3.5,
+            "code": 2.9,
+            "process": 4,
+            "verdict": "verified",
+            "coverage": "code_trust 5/5; process_trust 3/6",
+            "comparable": 3.3,
+            "placement": "2"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "esbuild",
+          "before": {
+            "overall": 2.7,
+            "code": 2.8,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.6,
+            "placement": "14"
+          },
+          "after": {
+            "overall": 2.7,
+            "code": 2.8,
+            "process": 2.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.6,
+            "placement": "14"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "biomejs",
+          "before": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.9,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 3,
+            "placement": "8"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "requests",
+          "before": {
+            "overall": 3.1,
+            "code": 2.7,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3.1,
+            "placement": "6"
+          },
+          "after": {
+            "overall": 3.1,
+            "code": 2.7,
+            "process": 3.4,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 4/6",
+            "comparable": 3.1,
+            "placement": "6"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "pydantic",
+          "before": {
+            "overall": 3.4,
+            "code": 3.2,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.3,
+            "placement": "1"
+          },
+          "after": {
+            "overall": 3.4,
+            "code": 3.2,
+            "process": 3.5,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.3,
+            "placement": "1"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "axios",
+          "before": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "after": {
+            "overall": 3.3,
+            "code": 2.6,
+            "process": 3.9,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 4/6",
+            "comparable": 3.2,
+            "placement": "3"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "zod",
+          "before": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "after": {
+            "overall": 3.2,
+            "code": 3.1,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 3.2,
+            "placement": "4"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "scorecard",
+          "before": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "12"
+          },
+          "after": {
+            "overall": 3,
+            "code": 2.4,
+            "process": 3.6,
+            "verdict": "conditional",
+            "coverage": "code_trust 4/5; process_trust 3/6",
+            "comparable": 2.9,
+            "placement": "12"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "ripgrep",
+          "before": {
+            "overall": 2.1,
+            "code": 2.2,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.2,
+            "process": 2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 3/6",
+            "comparable": 2.1,
+            "placement": "15"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "guava",
+          "before": {
+            "overall": 2,
+            "code": 1.7,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.9,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2,
+            "code": 1.7,
+            "process": 2.2,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 1.9,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cobra",
+          "before": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.5,
+            "code": 2.6,
+            "process": 2.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 2/5; process_trust 2/6",
+            "comparable": 2.4,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "sinatra",
+          "before": {
+            "overall": 2.3,
+            "code": 2.2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.3,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.3,
+            "code": 2.2,
+            "process": 2.3,
+            "verdict": "at_risk",
+            "coverage": "code_trust 2/5; process_trust 3/6",
+            "comparable": 2.3,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "automapper",
+          "before": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.1,
+            "placement": "unranked"
+          },
+          "after": {
+            "overall": 2.1,
+            "code": 2.1,
+            "process": 2.1,
+            "verdict": "at_risk",
+            "coverage": "code_trust 3/5; process_trust 2/6",
+            "comparable": 2.1,
+            "placement": "unranked"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "fmt",
+          "before": {
+            "overall": 2.8,
+            "code": 2.2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "after": {
+            "overall": 2.8,
+            "code": 2.2,
+            "process": 3.3,
+            "verdict": "conditional",
+            "coverage": "code_trust 3/5; process_trust 4/6",
+            "comparable": 2.8,
+            "placement": "13"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "carddemo",
+          "before": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "after": {
+            "overall": null,
+            "code": null,
+            "process": null,
+            "verdict": "insufficient_source",
+            "coverage": "code_trust 0/5; process_trust 0/6",
+            "comparable": null,
+            "placement": "unrated"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        },
+        {
+          "name": "cejel",
+          "before": {
+            "overall": 2.8,
+            "code": 2.4,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.6,
+            "placement": "transparency"
+          },
+          "after": {
+            "overall": 2.8,
+            "code": 2.4,
+            "process": 3.1,
+            "verdict": "conditional",
+            "coverage": "code_trust 5/5; process_trust 2/6",
+            "comparable": 2.6,
+            "placement": "transparency"
+          },
+          "scoringChanged": false,
+          "movedCriteria": [],
+          "placementChanged": false,
+          "fingerprintChanged": false,
+          "reportIdentical": true,
+          "identicalAfterFingerprintRemoval": true,
+          "changedTopLevelFields": [],
+          "presentationFieldsChanged": [],
+          "identicalAfterPresentationRemoval": true,
+          "undeclaredFieldChanges": []
+        }
+      ]
+    }
+  }
+}
