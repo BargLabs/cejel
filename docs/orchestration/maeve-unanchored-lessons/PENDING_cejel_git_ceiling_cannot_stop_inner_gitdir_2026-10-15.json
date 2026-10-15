@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A Git discovery ceiling only stops Git walking up from the scanned directory; it cannot stop a .git file or directory inside that directory. Refusing uploaded .git metadata and confining discovery are therefore two independent controls, and each needs its own guard deletion: with the ceiling in place but the .git rule deleted, an uploaded gitdir file still disclosed a synthetic host repository's commit SHA and tracked file name. The same run showed a leak test must be able to fail on every leak it asserts: the enclosing-repository fixture could leak only the SHA, so the file-name assertion lives where that leak occurs.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "security", "git"],
+    "tags": ["git-ceiling-directories", "gitdir-upload", "independent-controls", "guard-deletion", "positive-control"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-15T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 500}
+  }
+]
