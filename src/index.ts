@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -36,6 +36,7 @@ export { WitanReportSchema, verifyWitanAttestationBinding };
 
 import { serveCejelMcpOverStdio } from './mcp/stdio.js';
 import { npxVersionMismatchWarning } from './npx-version-guard.js';
+import { refuseSymlinkedOutputs, writeOutputFile, writeOutputFiles } from './output-files.js';
 import { runCejelScan } from './scan.js';
 import { computeApplicableMeasuredCoverage } from './witan/coverage.js';
 import {
@@ -113,6 +114,15 @@ export type CejelCliInvocation =
   | { command: 'mcp' };
 
 const DEFAULT_OUT_DIR = '.cejel';
+const SCAN_OUTPUT_FILES = [
+  'report.json',
+  'attestation.json',
+  'certificate.html',
+  'badge.json',
+  'badge.svg',
+  'summary.json',
+] as const;
+const ISSUANCE_OUTPUT_FILE = 'issuance.json';
 
 const ISSUER_SIGNERS_FILE = 'issuer-signers';
 const ISSUER_REVOCATIONS_FILE = 'issuer-revocations';
@@ -399,6 +409,7 @@ async function runWitanCli(
   // preset exists only for a committed calibration driver's own args (see
   // runWitanV22CalibrationCli below), which never populates options.rubricPin.
   const effectiveRubricVersion = options.rubricPin ?? rubricVersion;
+  refuseSymlinkedOutputs(options.outDir, SCAN_OUTPUT_FILES, 'scan output');
   const { report, summary, generatedAt } = runCejelScan({
     repoPath: options.repoPath,
     ...(options.productName ? { productName: options.productName } : {}),
@@ -414,29 +425,25 @@ async function runWitanCli(
     ...(options.runAttempt ? { githubRunAttempt: options.runAttempt } : {}),
   });
 
-  mkdirSync(options.outDir, { recursive: true });
-  writeFileSync(join(options.outDir, 'report.json'), serializeWitanReport(report), 'utf8');
-  writeFileSync(
-    join(options.outDir, 'attestation.json'),
-    JSON.stringify(attestation, null, 2),
-    'utf8',
+  writeOutputFiles(
+    options.outDir,
+    [
+      { name: 'report.json', contents: serializeWitanReport(report) },
+      { name: 'attestation.json', contents: JSON.stringify(attestation, null, 2) },
+      {
+        name: 'certificate.html',
+        contents: renderWitanHtmlReport(report, {
+          cliVersion: cliVersion(),
+          generatedAt,
+          ...(options.runAttempt ? { runAttempt: options.runAttempt } : {}),
+        }),
+      },
+      { name: 'badge.json', contents: JSON.stringify(renderWitanBadgeEndpoint(report), null, 2) },
+      { name: 'badge.svg', contents: renderWitanBadgeSvg(report) },
+      { name: 'summary.json', contents: JSON.stringify(summary, null, 2) },
+    ],
+    'scan output',
   );
-  writeFileSync(
-    join(options.outDir, 'certificate.html'),
-    renderWitanHtmlReport(report, {
-      cliVersion: cliVersion(),
-      generatedAt,
-      ...(options.runAttempt ? { runAttempt: options.runAttempt } : {}),
-    }),
-    'utf8',
-  );
-  writeFileSync(
-    join(options.outDir, 'badge.json'),
-    JSON.stringify(renderWitanBadgeEndpoint(report), null, 2),
-    'utf8',
-  );
-  writeFileSync(join(options.outDir, 'badge.svg'), renderWitanBadgeSvg(report), 'utf8');
-  writeFileSync(join(options.outDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
 
   if (!options.quiet) {
     process.stdout.write(renderTerminalCertificate(summary, report));
@@ -562,7 +569,11 @@ function runExport(invocation: CejelExportInvocation): number {
     return 1;
   }
   const result = exportGitLabCodeQuality(reportResult.data);
-  writeFileSync(invocation.outPath, `${JSON.stringify(result.entries, null, 2)}\n`, 'utf8');
+  writeOutputFile(
+    invocation.outPath,
+    `${JSON.stringify(result.entries, null, 2)}\n`,
+    'export output',
+  );
   process.stderr.write(renderGitLabCodeQualityFooter(result));
   return 0;
 }
@@ -894,6 +905,8 @@ function runIssue(options: CejelIssueOptions): number {
   // than the first byte that identifies it as one.
   const issuerKey = parseIssuerPublicKey(keyContents);
 
+  refuseSymlinkedOutputs(options.outDir, [ISSUANCE_OUTPUT_FILE], 'issuance output');
+
   // The reproduction. Same version, same revision, same invocation: the bytes match or there is
   // no issuance. There is deliberately no flag that downgrades this to a warning.
   const reproduction = runCejelScan({
@@ -932,9 +945,12 @@ function runIssue(options: CejelIssueOptions): number {
     engagementRef: options.engagementRef,
   });
 
-  mkdirSync(options.outDir, { recursive: true });
-  const issuancePath = join(options.outDir, 'issuance.json');
-  writeFileSync(issuancePath, serializeWitanIssuance(statement), 'utf8');
+  const issuancePath = join(options.outDir, ISSUANCE_OUTPUT_FILE);
+  writeOutputFiles(
+    options.outDir,
+    [{ name: ISSUANCE_OUTPUT_FILE, contents: serializeWitanIssuance(statement) }],
+    'issuance output',
+  );
 
   process.stdout.write(
     [
