@@ -139,7 +139,7 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // absence ship under every selectable rubric with no identifier bump, as #459, #427 and #430 did,
 // so v26 carries them through the closure it inherits rather than through gates of its own.
 //
-// V26 adds one change of its own, item 6, gated in src/witan/repo-signals.ts on
+// V26 adds a change of its own, item 6, gated in src/witan/repo-signals.ts on
 // WITAN_RUBRIC_VERSION_V26 alone (`usesV26SettlingEvidence`) and specified by the operator-signed
 // ruling docs/calibration/v26/ruling-item-6.md. It is definitional: A5's "no dedicated claim-reality
 // reconciliation artifact" finding fires only when the repository itself names a
@@ -148,8 +148,16 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // Otherwise each abstains: no finding, and the ruling's sentence in the certificate's "What was not
 // established". Amendment 1 (docs/calibration/v26/ruling-item-6-amendment-1.md, also
 // operator-signed) omits A5's reconciliation_artifact_depth when no Cejel-format artifact is
-// present and none is named; every other metric is unchanged. v26-v25-parity.test.ts measures v26
-// against v25 with only this difference.
+// present and none is named; every other metric is unchanged.
+//
+// V26 adds a second change of its own, item 8, gated in src/witan/repo-signals.ts on
+// WITAN_RUBRIC_VERSION_V26 alone (`usesV26BuildStepEvidence`) and specified by the operator-signed
+// ruling docs/calibration/v26/ruling-item-8.md. A3's "declares neither a build nor a typecheck
+// script" finding fires only when the package has authored TypeScript or a tsconfig, no compiler,
+// type checker or bundler from a fixed vocabulary runs in any package script, CI `run`, Dockerfile
+// `RUN` or Makefile/justfile target read, and every such place was read. Where a place went unread
+// it abstains with the ruling's sentence in "What was not established". No metric changes.
+// v26-v25-parity.test.ts measures v26 against v25 with only these two differences.
 //
 // V26 does NOT inherit v23 or v24. Their mechanisms stay gated on WITAN_RUBRIC_VERSION_V23 and
 // WITAN_RUBRIC_VERSION_V24 alone, for the reason V24's and V25's declarations give; a v23

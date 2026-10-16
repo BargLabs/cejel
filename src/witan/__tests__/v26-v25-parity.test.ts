@@ -25,14 +25,17 @@ import {
   fixtureHeadSha,
 } from './fixtures/behaviour-corpus.js';
 
-// V26 IS V25 EXCEPT ITEM 6 — measured, not declared. v26 is declared as v25's complete closure
-// plus one change of its own, item 6 (docs/calibration/v26/ruling-item-6.md and its amendment 1):
-// A5's no-reconciliation finding and A2's tenant-without-RLS finding fire only on the evidence that
-// settles them, and otherwise abstain with a disclosure sentence in the criterion's notes; and,
-// with no Cejel-format artifact present and none named, A5 is scored without
-// reconciliation_artifact_depth. So, on every behaviour-corpus specimen, with and without ingested
-// signals:
-//   1. every criterion other than A2 and A5 is byte-identical to v25;
+// V26 IS V25 EXCEPT ITEMS 6 AND 8 — measured, not declared. v26 is declared as v25's complete
+// closure plus two changes of its own. Item 6 (docs/calibration/v26/ruling-item-6.md and its
+// amendment 1): A5's no-reconciliation finding and A2's tenant-without-RLS finding fire only on the
+// evidence that settles them, and otherwise abstain with a disclosure sentence in the criterion's
+// notes; and, with no Cejel-format artifact present and none named, A5 is scored without
+// reconciliation_artifact_depth. Item 8 (docs/calibration/v26/ruling-item-8.md): A3's "declares
+// neither a build nor a typecheck script" finding fires only on settling evidence, every metric
+// unchanged. So, on every behaviour-corpus specimen, with and without ingested signals:
+//   0. A3 differs from v25 only in findings, notes and status, and its findings differ only on the
+//      specimens measured below;
+//   1. every criterion other than A2, A3 and A5 is byte-identical to v25;
 //   2. A2 keeps v25's metrics and positive evidence exactly, and differs only in findings, score,
 //      status and notes; A5 keeps v25's positive evidence exactly, and its metrics differ only by
 //      the omission of reconciliation_artifact_depth (amendment 1);
@@ -47,15 +50,28 @@ import {
 
 const SCAN_GENERATED_AT = '2026-09-15T00:00:00.000Z';
 
-/** The criteria item 6 is declared to change. */
-const ITEM_6_CRITERIA: readonly string[] = ['A2', 'A5'];
-/** What item 6 may change within each of those criteria. Evidence is in neither list. */
-const ITEM_6_FIELDS: Readonly<Record<string, readonly string[]>> = {
+/** The criteria items 6 and 8 are declared to change. */
+const ITEM_CRITERIA: readonly string[] = ['A2', 'A3', 'A5'];
+/** What each item may change within each of those criteria. Evidence is in no list. */
+const ITEM_FIELDS: Readonly<Record<string, readonly string[]>> = {
   A2: ['findings', 'notes', 'score', 'status'],
+  // Item 8: every metric unchanged, so no score field. The ruling asks for status to be counted.
+  A3: ['findings', 'notes', 'status'],
   // Amendment 1 omits one A5 metric, which also moves the other two's applied weight shares and,
   // when ingested signals adjust the score, the metric-only `nativeScore` beside it.
   A5: ['findings', 'metrics', 'nativeScore', 'notes', 'score', 'status'],
 };
+/**
+ * Item 8, measured on this corpus (goal_cejel_v26_a3_build_step_evidence_2026-10-15): the only
+ * specimen whose A3 findings differ. It is JavaScript run as written, so B-1 fails, the build
+ * finding stops firing, and the health-route branch after it in the chain fires instead. No
+ * specimen's A3 status or notes move.
+ */
+const ITEM_8_A3_MOVED: readonly string[] = ['start-declared-http-entrypoint'];
+const BUILD_FINDING =
+  'A deployable service package manifest declares neither a build nor a typecheck script.';
+const HEALTH_ROUTE_FINDING =
+  'A production HTTP entrypoint handles requests directly but declares no health or readiness route.';
 /** Report-level composites that average A5's score in. */
 const A5_COMPOSITES: readonly string[] = ['codeTrustScore', 'overallScore', 'categoryScores'];
 
@@ -173,7 +189,7 @@ const hasV25NoReconciliationFinding = (report: WitanReport): boolean =>
     /no dedicated claim-reality report artifact/.test(finding.summary),
   );
 
-describe('v26 scores identically to v25 on every behaviour-corpus specimen, except item 6', () => {
+describe('v26 scores identically to v25 on every behaviour-corpus specimen, except items 6 and 8', () => {
   it('names the v26 identifier and covers the whole behaviour corpus', () => {
     expect(WITAN_RUBRIC_VERSION_V26).toBe('witan-rubric-v26-prospective-2026-10-14');
     expect(publicScan.size).toBe(BEHAVIOUR_CORPUS.length);
@@ -189,22 +205,22 @@ describe('v26 scores identically to v25 on every behaviour-corpus specimen, exce
         const scored = results.get(fixture.name) as Scored;
         expect(scored.v25.rubricVersion).toBe(WITAN_RUBRIC_VERSION_V25);
         expect(scored.v26.rubricVersion).toBe(WITAN_RUBRIC_VERSION_V26);
-        const outsideItem6 = WITAN_RUBRIC.map(({ id }) => id).filter(
-          (id) => !ITEM_6_CRITERIA.includes(id) && divergentFields(scored, id).length > 0,
+        const outsideItems = WITAN_RUBRIC.map(({ id }) => id).filter(
+          (id) => !ITEM_CRITERIA.includes(id) && divergentFields(scored, id).length > 0,
         );
         expect(
-          outsideItem6,
-          `${fixture.name}: v26 diverges from v25 outside A2 and A5. v26 is declared as v25's ` +
-            'complete closure plus item 6 alone, so every rubric-version allowlist that names ' +
-            'WITAN_RUBRIC_VERSION_V25 must also name WITAN_RUBRIC_VERSION_V26 (scoring.ts and ' +
-            'repo-signals.ts), unless the v26 declaration in rubric-version.ts is rewritten in ' +
+          outsideItems,
+          `${fixture.name}: v26 diverges from v25 outside A2, A3 and A5. v26 is declared as v25's ` +
+            'complete closure plus items 6 and 8 alone, so every rubric-version allowlist that ' +
+            'names WITAN_RUBRIC_VERSION_V25 must also name WITAN_RUBRIC_VERSION_V26 (scoring.ts ' +
+            'and repo-signals.ts), unless the v26 declaration in rubric-version.ts is rewritten in ' +
             'the same change.',
         ).toEqual([]);
-        for (const id of ITEM_6_CRITERIA) {
+        for (const id of ITEM_CRITERIA) {
           expect(
-            divergentFields(scored, id).filter((field) => !(ITEM_6_FIELDS[id] ?? []).includes(field)),
-            `${fixture.name}: item 6 changed ${id} outside ${(ITEM_6_FIELDS[id] ?? []).join(', ')}. ` +
-              'The ruling and its amendment leave every other metric and all positive evidence unchanged.',
+            divergentFields(scored, id).filter((field) => !(ITEM_FIELDS[id] ?? []).includes(field)),
+            `${fixture.name}: a v26 item changed ${id} outside ${(ITEM_FIELDS[id] ?? []).join(', ')}. ` +
+              'The rulings and the amendment leave every other metric and all positive evidence unchanged.',
           ).toEqual([]);
         }
         // Amendment 1: A5's metrics are v25's, less reconciliation_artifact_depth where it moved.
@@ -240,9 +256,26 @@ describe('v26 scores identically to v25 on every behaviour-corpus specimen, exce
     it(`${fixture.name}: A2 moves at most in its notes`, () => {
       expect(divergentFields(scored(), 'A2').filter((field) => field !== 'notes')).toEqual([]);
     });
+    it(`${fixture.name}: A3 moves only where measured, and then only in its findings`, () => {
+      expect(divergentFields(scored(), 'A3')).toEqual(
+        ITEM_8_A3_MOVED.includes(fixture.name) ? ['findings'] : [],
+      );
+    });
   }
+
+  it('item 8 on start-declared-http-entrypoint: the build finding gives way to the health-route branch after it', () => {
+    const scored = publicScan.get('start-declared-http-entrypoint') as Scored;
+    const summaries = (report: WitanReport) =>
+      (criterionById(report, 'A3')?.findings ?? []).map((finding) => finding.summary);
+    expect(summaries(scored.v25)).toContain(BUILD_FINDING);
+    expect(summaries(scored.v25)).not.toContain(HEALTH_ROUTE_FINDING);
+    expect(summaries(scored.v26)).not.toContain(BUILD_FINDING);
+    expect(summaries(scored.v26)).toContain(HEALTH_ROUTE_FINDING);
+  });
 });
 
+// Item 8 does not move the A3 component on this corpus: on its one moved specimen an info finding
+// replaces an info finding, and the fingerprint counts findings by severity, not by wording.
 describe("v26's behaviour fingerprint separates from v25's on A5 and the composites it feeds", () => {
   it('the component pins equal v25 except the A5 criterion digest and the reports whose composites A5 moved', () => {
     const pins = JSON.parse(readFileSync(PINS_PATH, 'utf8')) as Record<

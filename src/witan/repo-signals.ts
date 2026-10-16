@@ -44,6 +44,7 @@ import {
 
 import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
   WITAN_DIRECTORY_WALK_AUTHENTICATED_A1_ABSENCE_SUMMARY,
@@ -623,6 +624,12 @@ function buildWitanInputFromRepoUntracked(
   // the evidence that settles them, and otherwise abstain with a disclosure sentence. Checked
   // against V26 alone and never inherited: v17 (the public default) and v22-v25 stay byte-stable.
   const usesV26SettlingEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
+  // v26 item 8 (docs/calibration/v26/ruling-item-8.md, signed by the operator): A3's "declares
+  // neither a build nor a typecheck script" finding fires only when the package has something to
+  // build or check, no step is found in any place read, and every such place was read; otherwise it
+  // abstains, with a disclosure sentence when a place went unread. Checked against V26 alone and
+  // never inherited: v17 (the public default) and v18-v25 stay byte-stable.
+  const usesV26BuildStepEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -716,6 +723,7 @@ function buildWitanInputFromRepoUntracked(
     usesV24SecretContentContext,
     usesV25InlineHealthRoute,
     usesV26SettlingEvidence,
+    usesV26BuildStepEvidence,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1806,6 +1814,7 @@ function collectRepoSignals(
   useV24SecretContentContext: boolean,
   useV25InlineHealthRoute: boolean,
   useV26SettlingEvidence: boolean,
+  useV26BuildStepEvidence: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1855,6 +1864,7 @@ function collectRepoSignals(
       useV23WithheldPathAbstention,
       inventoryAbsenceContext,
       useV25InlineHealthRoute,
+      useV26BuildStepEvidence,
     ),
   );
   const a4Signal = collectCriterion('A4', () =>
@@ -3201,6 +3211,7 @@ function collectA3ProdReadinessEvidence(
   useV23WithheldPathAbstention = false,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   useV25InlineHealthRoute = false,
+  useV26BuildStepEvidence = false,
 ): WitanCriterionSignalPayload | null {
   const v20DirectHttpEntrypoint = useV20ExplicitGaps
     ? findV20DirectHttpServerEntrypointFile(repoPath, repoFiles)
@@ -3573,6 +3584,7 @@ function collectA3ProdReadinessEvidence(
   }
 
   if (evidence.length === 0) return null;
+  let buildStepSettlement: V26BuildStepSettlement | undefined;
   if (useV20ExplicitGaps) {
     // The root or any declared workspace package (findDeclaredWorkspaceManifests). Manifests the
     // read cap left unread are not an observed absence, so a capped read never asserts one.
@@ -3590,7 +3602,26 @@ function collectA3ProdReadinessEvidence(
         const workspaceScripts = readPackageScripts(join(repoPath, file));
         return workspaceScripts.has('build') || workspaceScripts.has('typecheck');
       });
-    if (packageJson && !hasBuildOrTypecheck) {
+    // v26 item 8 (docs/calibration/v26/ruling-item-8.md): two script names do not settle that the
+    // package has no build or type-check step, so under v26 the finding also needs B-1, B-2 and
+    // B-3 (settleV26BuildStepEvidence). It only ever narrows the condition above. Where it stops
+    // the finding, the branches below run, as the coupling note says.
+    buildStepSettlement =
+      useV26BuildStepEvidence && packageJson
+        ? settleV26BuildStepEvidence(
+            repoPath,
+            repoFiles,
+            packageJson,
+            workspaceManifests,
+            workflows,
+            (file) => !useV27Detectors || isAuthoredProductionPath(file),
+          )
+        : undefined;
+    if (
+      packageJson &&
+      !hasBuildOrTypecheck &&
+      (buildStepSettlement === undefined || buildStepSettlement === 'fires')
+    ) {
       const workspaceRead = workspaceManifests.read.length;
       findings.push({
         severity: 'info',
@@ -3742,6 +3773,9 @@ function collectA3ProdReadinessEvidence(
         'saturating_count',
       ),
     ],
+    ...(buildStepSettlement === 'unsettled'
+      ? { notes: WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE }
+      : {}),
   };
 }
 
@@ -9867,9 +9901,19 @@ interface DeclaredWorkspaceManifests {
   readonly read: readonly string[];
   /** Authored workspace package.json paths the declaration matched, before the cap. */
   readonly declared: number;
+  /**
+   * True when a declaration exists but was discarded, or one of its patterns matched nothing
+   * because it could not be parsed. Read only by v26 item 8, for which that is an unread place.
+   */
+  readonly unreadable?: true;
 }
 
 const NO_DECLARED_WORKSPACE_MANIFESTS: DeclaredWorkspaceManifests = { read: [], declared: 0 };
+const UNREADABLE_WORKSPACE_DECLARATION: DeclaredWorkspaceManifests = {
+  read: [],
+  declared: 0,
+  unreadable: true,
+};
 
 function findDeclaredWorkspaceManifests(
   repoPath: string,
@@ -9879,27 +9923,29 @@ function findDeclaredWorkspaceManifests(
   const patterns: string[] = [];
   if (rootPackageJson) {
     const declared = readPackageJsonWorkspacePatterns(join(repoPath, rootPackageJson));
-    if (declared === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+    if (declared === null) return UNREADABLE_WORKSPACE_DECLARATION;
     patterns.push(...declared);
   }
   if (repoFiles.includes('pnpm-workspace.yaml')) {
     const declared = readPnpmWorkspacePatterns(join(repoPath, 'pnpm-workspace.yaml'));
-    if (declared === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+    if (declared === null) return UNREADABLE_WORKSPACE_DECLARATION;
     patterns.push(...declared);
   }
-  if (patterns.length === 0 || patterns.length > WORKSPACE_PATTERN_LIMIT) {
-    return NO_DECLARED_WORKSPACE_MANIFESTS;
-  }
+  if (patterns.length === 0) return NO_DECLARED_WORKSPACE_MANIFESTS;
+  if (patterns.length > WORKSPACE_PATTERN_LIMIT) return UNREADABLE_WORKSPACE_DECLARATION;
   const include: ((dir: string) => boolean)[] = [];
   const exclude: ((dir: string) => boolean)[] = [];
+  let unparsedPattern = false;
   for (const pattern of patterns) {
     const negated = pattern.startsWith('!');
     const matcher = workspaceGlobMatcher(negated ? pattern.slice(1) : pattern);
     if (negated) {
-      if (matcher === null) return NO_DECLARED_WORKSPACE_MANIFESTS;
+      if (matcher === null) return UNREADABLE_WORKSPACE_DECLARATION;
       exclude.push(matcher);
     } else if (matcher !== null) {
       include.push(matcher);
+    } else {
+      unparsedPattern = true;
     }
   }
   const matched = repoFiles
@@ -9910,7 +9956,11 @@ function findDeclaredWorkspaceManifests(
       return include.some((matches) => matches(dir)) && !exclude.some((matches) => matches(dir));
     })
     .sort();
-  return { read: matched.slice(0, WORKSPACE_PACKAGE_MANIFEST_LIMIT), declared: matched.length };
+  return {
+    read: matched.slice(0, WORKSPACE_PACKAGE_MANIFEST_LIMIT),
+    declared: matched.length,
+    ...(unparsedPattern ? { unreadable: true as const } : {}),
+  };
 }
 
 /** `[]` when the manifest declares no workspaces; null when it cannot be read as declared. */
@@ -10217,6 +10267,372 @@ function unreadCiWorkflowReasons(
     if (reason !== undefined) unread.set(reason, (unread.get(reason) ?? 0) + 1);
   }
   return unread;
+}
+
+// v26 item 8 (docs/calibration/v26/ruling-item-8.md, operator-signed). A3's "declares neither a
+// build nor a typecheck script" finding claims the deployed package has no build or type-check
+// step. Under v26 it fires only when all three of the ruling's conditions hold:
+//   B-1 the root package has authored TypeScript or a tsconfig (otherwise nothing to build, and
+//       nothing to disclose);
+//   B-2 no step from BUILD_STEP_* below is found in any package script, CI `run`, Dockerfile `RUN`
+//       or Makefile/justfile target read (a step found: nothing to disclose);
+//   B-3 every place a step could be was read, and every command in them could be parsed.
+// Where the ruling is silent this takes the reading that fires less; each such reading is named
+// where it is made. Nothing here feeds a metric.
+type V26BuildStepSettlement = 'nothing-to-build' | 'step-found' | 'unsettled' | 'fires';
+type BuildStepCommandState = 'step' | 'none' | 'unparseable';
+
+// B-2's fixed vocabulary, matched against the command word after shell splitting, never as a
+// substring. A compiler, type checker or bundler run under its own name...
+const BUILD_STEP_EXECUTABLES: ReadonlySet<string> = new Set([
+  'babel',
+  'esbuild',
+  'ncc',
+  'rollup',
+  'svelte-check',
+  'swc',
+  'tsc',
+  'tsup',
+  'vue-tsc',
+  'webpack',
+  'webpack-cli',
+]);
+// ...one whose build is a subcommand of a wider tool (`vite` alone is a dev server)...
+const BUILD_STEP_SUBCOMMANDS: ReadonlyMap<string, string> = new Map([
+  ['bun', 'build'],
+  ['nest', 'build'],
+  ['next', 'build'],
+  ['ng', 'build'],
+  ['parcel', 'build'],
+  ['vite', 'build'],
+]);
+// ...and a task runner's `build` or `typecheck` target, whatever it runs (Nx also as `project:build`).
+const BUILD_STEP_TASK_RUNNERS: ReadonlySet<string> = new Set([
+  'bun',
+  'gmake',
+  'just',
+  'lerna',
+  'make',
+  'npm',
+  'nx',
+  'pnpm',
+  'turbo',
+  'yarn',
+]);
+const BUILD_STEP_TARGET_NAME_PATTERN = /^(?:build|typecheck)$/u;
+const BUILD_STEP_TARGET_ARGUMENT_PATTERN = /^(?:[^\s:]+:)?(?:build|typecheck)$/u;
+
+const TYPESCRIPT_SOURCE_PATTERN = /\.(?:ts|tsx|mts|cts)$/u;
+const TYPESCRIPT_DECLARATION_PATTERN = /\.d\.(?:ts|mts|cts)$/u;
+const TSCONFIG_PATTERN = /(^|\/)tsconfig[^/]*\.json$/u;
+const BUILD_STEP_DOCKERFILE_PATTERN = /(^|\/)(?:dockerfile|containerfile)(?:\.[^/]*)?$|[^/]\.dockerfile$/iu;
+
+function settleV26BuildStepEvidence(
+  repoPath: string,
+  repoFiles: readonly string[],
+  packageJson: string,
+  workspaceManifests: DeclaredWorkspaceManifests,
+  workflows: readonly string[],
+  includesWorkflow: (file: string) => boolean,
+): V26BuildStepSettlement {
+  // B-1. "The package the manifest belongs to" is read narrowly: a file under a directory with its
+  // own package.json, workspace or not, belongs to that package, and only authored, readable paths
+  // count. A .d.mts or .d.cts is a declaration like a .d.ts.
+  const nestedPackageDirs = repoFiles
+    .filter((file) => file !== packageJson && /(^|\/)package\.json$/u.test(file))
+    .map((file) => file.slice(0, -'package.json'.length));
+  const hasSomethingToBuild = repoFiles.some(
+    (file) =>
+      isAuthoredProductionPath(file) &&
+      ((TYPESCRIPT_SOURCE_PATTERN.test(file) && !TYPESCRIPT_DECLARATION_PATTERN.test(file)) ||
+        TSCONFIG_PATTERN.test(file)) &&
+      !nestedPackageDirs.some((dir) => file.startsWith(dir)),
+  );
+  if (!hasSomethingToBuild) return 'nothing-to-build';
+
+  // B-2, one block per place. A command that cannot be parsed, or a read file that cannot be
+  // parsed as its kind, is not read as an absence: it leaves the question unsettled (B-3).
+  let unsettled = false;
+  const commandRunsStep = (command: string): boolean => {
+    const state = classifyBuildStepCommand(command);
+    if (state === 'unparseable') unsettled = true;
+    return state === 'step';
+  };
+
+  // Place 1: any script, under any name, in the root or a declared workspace package.json read.
+  for (const manifest of [packageJson, ...workspaceManifests.read]) {
+    const scripts = readBuildStepPackageScripts(join(repoPath, manifest));
+    if (scripts === null) {
+      unsettled = true;
+      continue;
+    }
+    for (const [name, command] of scripts) {
+      if (BUILD_STEP_TARGET_NAME_PATTERN.test(name) || commandRunsStep(command)) return 'step-found';
+    }
+  }
+
+  // Place 2: any `run` command in a CI workflow read. Only GitHub Actions workflows are read as
+  // `run` steps; another CI system's commands are not, so its file is an unread place.
+  for (const workflow of workflows) {
+    const fullPath = join(repoPath, workflow);
+    if (!/^\.github\/workflows\//u.test(workflow) || !isRegularFile(fullPath)) {
+      unsettled = true;
+      continue;
+    }
+    if (extractCiRunCommands(readRepoText(fullPath, 'utf8')).some(commandRunsStep)) {
+      return 'step-found';
+    }
+  }
+
+  // Place 3: any RUN instruction in a tracked Dockerfile.
+  for (const file of repoFiles.filter((path) => BUILD_STEP_DOCKERFILE_PATTERN.test(path))) {
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) {
+      unsettled = true;
+      continue;
+    }
+    const run = dockerfileRunCommands(readRepoText(fullPath, 'utf8'));
+    if (run.unparseable) unsettled = true;
+    if (run.commands.some(commandRunsStep)) return 'step-found';
+  }
+
+  // Place 4: any target in a tracked Makefile, GNUmakefile or justfile. A recipe line's trailing
+  // continuation backslash is dropped; the continued line is read as a command of its own.
+  for (const file of repoFiles.filter(isRecipeFile)) {
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) {
+      unsettled = true;
+      continue;
+    }
+    for (const [name, target] of readRecipeTargets(readRepoText(fullPath, 'utf8'))) {
+      if (BUILD_STEP_TARGET_NAME_PATTERN.test(name)) return 'step-found';
+      if (target.commands.some((command) => commandRunsStep(command.replace(/\\$/u, '')))) {
+        return 'step-found';
+      }
+    }
+  }
+
+  // B-3. Nothing withheld or delegated, no manifest left unread. A withheld authored package.json
+  // counts as well as the four places the ruling names.
+  if (workspaceManifests.declared > workspaceManifests.read.length || workspaceManifests.unreadable) {
+    unsettled = true;
+  }
+  if (unreadCiWorkflowReasons(includesWorkflow).size > 0) unsettled = true;
+  const delegated = countDelegatedCiSteps(repoPath, workflows);
+  if (delegated.crossRepositoryReusableWorkflows + delegated.compositeActions > 0) unsettled = true;
+  if (
+    withheldRepoPaths().some(
+      ({ path }) =>
+        BUILD_STEP_DOCKERFILE_PATTERN.test(path) ||
+        isRecipeFile(path) ||
+        (/(^|\/)package\.json$/u.test(path) && isAuthoredProductionPath(path)),
+    )
+  ) {
+    unsettled = true;
+  }
+  return unsettled ? 'unsettled' : 'fires';
+}
+
+/** A package.json's scripts; null when it is not a JSON object or a script is not a string. */
+function readBuildStepPackageScripts(packageJsonPath: string): Map<string, string> | null {
+  if (!isRegularFile(packageJsonPath)) return null;
+  const parsed = parseJsonObject(readRepoText(packageJsonPath, 'utf8'));
+  if (parsed === null) return null;
+  if (parsed.scripts === undefined) return new Map();
+  if (!isRecord(parsed.scripts)) return null;
+  const entries = Object.entries(parsed.scripts);
+  if (!entries.every((entry): entry is [string, string] => typeof entry[1] === 'string')) return null;
+  return new Map(entries);
+}
+
+/**
+ * Every RUN instruction's command, continuation lines joined and BuildKit `--flag`s dropped. The
+ * exec form is re-quoted so it reaches the same shell splitting as the shell form. A heredoc, an
+ * exec form that is not a JSON array of strings, or an `escape` parser directive is unparseable.
+ */
+export function dockerfileRunCommands(contents: string): {
+  readonly commands: readonly string[];
+  readonly unparseable: boolean;
+} {
+  if (/^#\s*escape\s*=/imu.test(contents)) return { commands: [], unparseable: true };
+  const lines = contents.split(/\r?\n/u);
+  const commands: string[] = [];
+  let unparseable = false;
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^\s*RUN(?:\s+(.*))?$/iu.exec(lines[index] ?? '');
+    if (!match) continue;
+    // The instruction is kept as chunks so each continuation looks only at its tail. Re-testing
+    // and rewriting the whole joined string on every line was quadratic in the Dockerfile's
+    // length; the result is byte-identical to that form.
+    const chunks = [match[1] ?? ''];
+    while (endsWithLineContinuation(chunks) && index + 1 < lines.length) {
+      index += 1;
+      const next = lines[index] ?? '';
+      // Docker drops a comment line inside a continued instruction; the backslash still stands.
+      if (/^\s*#/u.test(next)) continue;
+      dropLineContinuation(chunks);
+      chunks.push(' ', next.trim());
+    }
+    let instruction = chunks.join('');
+    instruction = instruction.replace(/^(?:--[A-Za-z][\w-]*(?:=\S*)?\s+)*/u, '').trim();
+    if (instruction === '' || /<<-?\s*["']?[A-Za-z_]/u.test(instruction)) {
+      unparseable = true;
+      continue;
+    }
+    if (!instruction.startsWith('[')) {
+      commands.push(instruction);
+      continue;
+    }
+    const execForm = dockerfileExecFormCommand(instruction);
+    if (execForm === null) unparseable = true;
+    else commands.push(execForm);
+  }
+  return { commands, unparseable };
+}
+
+/** True when the joined chunks end in a backslash followed only by whitespace. */
+function endsWithLineContinuation(chunks: readonly string[]): boolean {
+  for (let c = chunks.length - 1; c >= 0; c -= 1) {
+    const chunk = chunks[c] ?? '';
+    for (let i = chunk.length - 1; i >= 0; i -= 1) {
+      const character = chunk.charAt(i);
+      if (/\s/u.test(character)) continue;
+      return character === '\\';
+    }
+  }
+  return false;
+}
+
+/** Removes that trailing backslash and the whitespace after it; callers check it is there. */
+function dropLineContinuation(chunks: string[]): void {
+  while (chunks.length > 0) {
+    const chunk = chunks[chunks.length - 1] ?? '';
+    let i = chunk.length - 1;
+    while (i >= 0 && /\s/u.test(chunk.charAt(i))) i -= 1;
+    if (i < 0) {
+      chunks.pop();
+      continue;
+    }
+    chunks[chunks.length - 1] = chunk.slice(0, i);
+    return;
+  }
+}
+
+function dockerfileExecFormCommand(instruction: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(instruction);
+  } catch {
+    return null;
+  }
+  if (
+    !Array.isArray(parsed) ||
+    parsed.length === 0 ||
+    !parsed.every((part): part is string => typeof part === 'string')
+  ) {
+    return null;
+  }
+  return parsed
+    .map((part) =>
+      /^[A-Za-z0-9_@%+=:,./-]+$/u.test(part) ? part : `'${part.replaceAll("'", "'\\''")}'`,
+    )
+    .join(' ');
+}
+
+/**
+ * B-2's command test: `step` when a segment's command word is in the vocabulary above, `none`
+ * when no segment's is, and `unparseable` when a segment cannot be split into words or its
+ * command word (or a package manager's script name) is an expansion Cejel cannot resolve.
+ */
+export function classifyBuildStepCommand(command: string): BuildStepCommandState {
+  return buildStepCommandState(command, 0);
+}
+
+function buildStepCommandState(command: string, depth: number): BuildStepCommandState {
+  if (depth > 4) return 'unparseable';
+  const states = splitShellCommandSegments(command).map((segment) =>
+    buildStepSegmentState(segment, depth),
+  );
+  if (states.includes('step')) return 'step';
+  return states.includes('unparseable') ? 'unparseable' : 'none';
+}
+
+function buildStepSegmentState(raw: string, depth: number): BuildStepCommandState {
+  let segment = stripUnbalancedShellParentheses(raw.trim());
+  for (;;) {
+    const keyword = /^(?:if|then|else|elif|do|while|until|exec|!|\{)(?:\s+|$)/u.exec(segment);
+    if (!keyword) break;
+    segment = segment.slice(keyword[0].length);
+  }
+  if (segment === '' || /^(?:fi|done|esac|\})$/u.test(segment)) return 'none';
+  const normalized = normalizeCoverageCommandPrefixes(segment);
+  if (
+    normalized.splitShellOperators &&
+    splitShellCommandSegments(normalized.segment).length > 1
+  ) {
+    return buildStepCommandState(normalized.segment, depth + 1);
+  }
+  if (/\b(?:npm|pnpm|yarn|bun)\s+run\s+(?:\$|["']\$|`)/u.test(normalized.segment)) {
+    return 'unparseable';
+  }
+  const words = strictShellWords(normalized.segment);
+  if (words === null) return 'unparseable';
+  return words.length === 0 ? 'none' : buildStepWordsState(words);
+}
+
+function buildStepWordsState(words: readonly string[]): BuildStepCommandState {
+  const first = words[0] === '$(MAKE)' || words[0] === '${MAKE}' ? 'make' : (words[0] ?? '');
+  if (isUnresolvedCommandWord(first)) return 'unparseable';
+  const runner = buildStepCommandName(first);
+  if (
+    BUILD_STEP_TASK_RUNNERS.has(runner) &&
+    words.slice(1).some((word) => BUILD_STEP_TARGET_ARGUMENT_PATTERN.test(word))
+  ) {
+    return 'step';
+  }
+  const command =
+    runner === 'bunx'
+      ? words.slice(1)
+      : runner === 'bun' && words[1] === 'x'
+        ? words.slice(2)
+        : unwrapPackageManagerExecutable(words);
+  const executable = command[0] ?? '';
+  if (isUnresolvedCommandWord(executable)) return 'unparseable';
+  const name = buildStepCommandName(executable);
+  if (BUILD_STEP_EXECUTABLES.has(name)) return 'step';
+  const subcommand = BUILD_STEP_SUBCOMMANDS.get(name);
+  return subcommand !== undefined && command.slice(1).includes(subcommand) ? 'step' : 'none';
+}
+
+function isUnresolvedCommandWord(word: string): boolean {
+  return word.startsWith('$') || word.includes('`');
+}
+
+function buildStepCommandName(word: string): string {
+  return basename(word).replace(/\.(?:cmd|exe)$/iu, '').toLowerCase();
+}
+
+/** `(cd app` and `tsc -p .)` are the two halves of a subshell that segment splitting cut apart. */
+function stripUnbalancedShellParentheses(segment: string): string {
+  const opens = segment.split('(').length - 1;
+  const closes = segment.split(')').length - 1;
+  if (opens > closes) return segment.replace(/^\(+\s*/u, '');
+  if (closes > opens) return segment.replace(/\s*\)+$/u, '');
+  return segment;
+}
+
+/** shellWords, but null instead of a silent stop when a word cannot be read to its end. */
+function strictShellWords(segment: string): string[] | null {
+  const words: string[] = [];
+  let offset = 0;
+  for (;;) {
+    while (offset < segment.length && /\s/u.test(segment[offset] ?? '')) offset += 1;
+    if (offset >= segment.length) return words;
+    const scanned = scanShellWord(segment, offset);
+    if (!scanned) return null;
+    if (scanned.word !== '') words.push(scanned.word);
+    offset = scanned.end;
+  }
 }
 
 // A3's build/type-check component reads package scripts from the root package.json only, as does

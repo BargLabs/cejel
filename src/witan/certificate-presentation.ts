@@ -1,5 +1,6 @@
 import {
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
 } from './abstention.js';
 import {
@@ -886,12 +887,13 @@ function buildWithheldPathsGapSentence(report: WitanReport): string | undefined 
   );
 }
 
-// v26 item 6: a finding that abstained because the repository's own bytes do not settle it. The
-// collector writes the ruling's exact sentence into that criterion's notes; this lifts it into
+// v26 items 6 and 8: a finding that abstained because the repository's own bytes do not settle it.
+// The collector writes the ruling's exact sentence into that criterion's notes; this lifts it into
 // "What was not established". The sentence is matched exactly and only on the criterion that owns
 // it, so no other rubric's certificate changes (their notes never carry it).
 const SETTLING_EVIDENCE_DISCLOSURES: ReadonlyArray<{ criterionId: string; sentence: string }> = [
   { criterionId: 'A2', sentence: WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE },
+  { criterionId: 'A3', sentence: WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE },
   { criterionId: 'A5', sentence: WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE },
 ];
 

@@ -22,6 +22,83 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
+
+**Status.** The second change `witan-rubric-v26-prospective-2026-10-14` makes of its own,
+implemented from the operator-signed ruling `docs/calibration/v26/ruling-item-8.md` (#496). It is
+gated on v26 alone, so v17 through v25 are byte-identical before and after. v26 is explicit opt-in
+only and the public board is scored under v17, so no published score, verdict or rank moves: no
+repository moved. **No public paired rescore has run, and this entry makes no precision or recall
+claim.** The release that carries this change is preceded by the operator's private check and a
+preregistered public before-and-after. Neither has run, and neither is cited here.
+
+**The change.** "A deployable service package manifest declares neither a build nor a typecheck
+script." claims that the package has no build or type-check step, and two script names do not
+settle that. Under v26 the finding keeps the v20–v25 condition (no `build` or `typecheck` script in
+the root or a declared workspace `package.json`, and no manifest left unread by the cap). It also
+needs all three of the ruling's conditions:
+- **B-1, something to build or check.** The root package has authored TypeScript (`.ts`, `.tsx`,
+  `.mts`, `.cts`, but not a `.d.ts`, `.d.mts` or `.d.cts` declaration file) or a `tsconfig*.json`.
+  Otherwise there is no finding and nothing to disclose.
+- **B-2, no step in any place read.** No command runs a compiler, type checker or bundler from a
+  fixed vocabulary, matched as the command word after shell splitting and never as a substring:
+  `tsc`, `vue-tsc`, `tsup`, `esbuild`, `swc`, `babel`, `rollup`, `webpack`, `webpack-cli`, `ncc`,
+  `svelte-check`, `vite build`, `next build`, `nest build`, `parcel build`, `bun build` and
+  `ng build`, or a task runner's `build` or `typecheck` target (npm, pnpm, yarn, bun, make, just,
+  turbo, nx, lerna). The places read are any script in the root or a declared workspace
+  `package.json`, any GitHub Actions `run` command, any Dockerfile `RUN`, and any Makefile,
+  GNUmakefile or justfile target. If a step is found, there is no finding and nothing to disclose.
+- **B-3, every such place read.** Any of the following leaves the question unsettled: a withheld CI
+  workflow, Dockerfile, recipe file or authored `package.json`; a CI step that delegates to another
+  repository's reusable workflow or to a local action; a CI file from a system whose commands are not
+  read as `run` steps; the workspace read cap; a workspace declaration that cannot be read; or a
+  command or manifest that cannot be parsed. Then there is no finding, and the certificate's "What
+  was not established" carries: "Whether this package has a build or type-check step outside the
+  files read cannot be settled from static evidence; Cejel makes no finding on it." This is never
+  criterion-level `insufficient_data`.
+
+When all three hold, the finding fires with its current wording and evidence.
+
+**Unchanged.** Every metric, including `prod_readiness_primitives` and its "build or type-check
+command" component; A3's other findings and their wording; and the if / else-if order of A3's
+explicit-gap checks. Where this finding stops firing, the Dockerfile `HEALTHCHECK` and health-route
+checks after it are evaluated, and that consequence is reported below, not prevented.
+
+**Measured on the behaviour corpus.** The corpus is unchanged at 30 specimens. The previous
+scanner is `origin/main` `6aec9d93`. Full `report.json` bytes were compared under every selectable
+rubric, on the 30 specimens and on this change's 28 synthetic fixtures, before and after.
+- **v17 through v25:** 522 of 522 reports byte-identical.
+- **v26, behaviour corpus, v25 against v26.** A3 findings change on 1 of 30 specimens.
+  `start-declared-http-entrypoint` is JavaScript run as written, so B-1 fails and the build
+  finding stops firing. It fires under v25 and not v26 on 1 specimen, and under v26 and not v25 on
+  0. The health-route check after it in the chain then fires: 1 specimen gains it under v26, and 0
+  lose it. A3 status changes on
+  0 specimens in either direction. The disclosure sentence appears on 0. A3 metrics, evidence and
+  score change on 0. `control-described-not-built` carries the build finding under both rubrics.
+- **v26, synthetic fixtures:** 21 of 28 move, as designed. The 7 that do not are the fixtures built
+  to fire under both rubrics.
+
+| Measurement, v25 → v26 on 30 specimens | Moves under v26 only | Moves under v25 only | Unchanged |
+|---|---|---|---|
+| A3 build finding present | 0 | 1 | 29 |
+| A3 health-route finding present (following check) | 1 | 0 | 29 |
+| A3 status | 0 more severe | 0 less severe | 30 |
+| A3 disclosure sentence | 0 | 0 | 30 |
+
+**Fingerprints.** No pin moved, v26's included. On the one moved specimen, one info finding
+replaces another, and the fingerprint counts findings by severity, not by wording. v26 stays
+`sha256:4530317d56fc73eb89287e344ad626e2b9a96908ef12eb9e9c13b839bd599dae` and v25 stays
+`sha256:0f2638a5088f95a610a0e12012442f1067af3e985b955f96ec71853d549693b9`. The substitution is
+pinned instead in `src/witan/__tests__/v26-v25-parity.test.ts`, which compares whole criterion
+fields.
+
+**Report format.** No new `report.json` field. Under v26 the sentence travels in A3's criterion
+`notes`, and the certificate lifts it from there. v26 `report.json` and certificate bytes change
+where A3's findings or notes change.
+
+The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
+in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
+
 ## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that restores a true finding. It ships under
