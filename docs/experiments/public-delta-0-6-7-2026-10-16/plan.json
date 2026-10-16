@@ -1,0 +1,25 @@
+{
+  "schema": "cejel-public-delta-v2",
+  "corpusSha256": "dc723f53a201542e0febb98964093ba4a3e7173221e746ba56aab6f726400d00",
+  "publicRows": 23,
+  "scope": "public entries only; private implementation and reports excluded",
+  "generatedAt": "2026-10-16T00:00:00.000Z",
+  "runs": [
+    { "name": "v066-v17", "commit": "6aec9d93f8dd27faea532ff1d96d1bf732895865", "rubric": "witan-rubric-v17-2026-07-24" },
+    { "name": "fix-v17", "commit": "f5348fb33503964373eb28b0ad6a7311a6ef594e", "rubric": "witan-rubric-v17-2026-07-24" },
+    { "name": "v066-v26", "commit": "6aec9d93f8dd27faea532ff1d96d1bf732895865", "rubric": "witan-rubric-v26-prospective-2026-10-14" },
+    { "name": "fix-v26", "commit": "f5348fb33503964373eb28b0ad6a7311a6ef594e", "rubric": "witan-rubric-v26-prospective-2026-10-14" }
+  ],
+  "pairs": [
+    { "name": "fixes-v17", "before": "v066-v17", "after": "fix-v17",
+      "allowedCriteria": [], "presentationOnly": ["rubricBehaviourFingerprint"] },
+    { "name": "item8-v26", "before": "v066-v26", "after": "fix-v26",
+      "allowedCriteria": ["A3"], "presentationOnly": ["rubricBehaviourFingerprint"] }
+  ],
+  "expected": {
+    "E0": "23 of 23 public rows complete in each of the four runs, with zero errors; target identity unchanged across runs; each source checkout at its run's commit; an existing run output refused.",
+    "E1": "fixes-v17: all 23 report files byte-identical (byte-identity.json identicalReports 23), scoringRowsMoved 0, placementsMoved 0, fingerprintsChanged 0, unexpectedCriteria empty, undeclaredFieldChanges empty.",
+    "E2": "item8-v26: on all 23 rows overall, code and process scores, verdict, coverage and comparable score are unchanged; placementsMoved 0; fingerprintsChanged 0; unexpectedCriteria empty; undeclaredFieldChanges empty. The number of rows that differ is not forecast.",
+    "E3": "item8-v26, by confinement.mjs: every row that differs differs only in criterion A3, and inside A3 only in findings and notes. Findings that go are only the info finding 'A deployable service package manifest declares neither a build nor a typecheck script.'; findings that appear are only the info findings 'A runtime Dockerfile declares no active HEALTHCHECK instruction.' or 'A production HTTP entrypoint handles requests directly but declares no health or readiness route.', and only on a row that lost the build finding. No row gains the build finding. Notes change only to the item-8 disclosure sentence, and only on a row that lost the build finding or that did not carry it at v0.6.6."
+  }
+}

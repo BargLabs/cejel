@@ -1,0 +1,22 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { confine, BUILD, FOLLOWERS, DISCLOSURE } from './confinement.mjs';
+const rep = (a3, extra = {}) => ({ overallScore: 2.5, criteria: [{ id: 'A1', score: 3, findings: [] }, { id: 'A3', score: 2, metrics: [{ name: 'm', value: 1 }], ...a3 }], ...extra });
+const f = s => ({ severity: 'info', summary: s, evidence: [] });
+test('identical', () => assert.equal(confine(rep({ findings: [] }), rep({ findings: [] })).identical, true));
+test('build finding gone: within', () => assert.deepEqual(confine(rep({ findings: [f(BUILD)] }), rep({ findings: [] })).problems, []));
+test('build gone, healthcheck added: within', () => {
+  const r = confine(rep({ findings: [f(BUILD)] }), rep({ findings: [f(FOLLOWERS[0])] }));
+  assert.deepEqual(r.problems, []); assert.deepEqual(r.kinds, ['build-finding-gone', 'healthcheck-finding-added']);
+});
+test('build gone + disclosure: within', () => assert.deepEqual(confine(rep({ findings: [f(BUILD)] }), rep({ findings: [], notes: DISCLOSURE })).problems, []));
+test('disclosure without build before: within, named', () => assert.deepEqual(confine(rep({ findings: [] }), rep({ findings: [], notes: DISCLOSURE })).kinds, ['disclosure-added-where-no-build-finding-before']));
+test('follower without build going: outside', () => assert.equal(confine(rep({ findings: [] }), rep({ findings: [f(FOLLOWERS[1])] })).problems.length, 1));
+test('gains build: outside', () => assert.deepEqual(confine(rep({ findings: [] }), rep({ findings: [f(BUILD)] })).problems, ['A3 gained the build finding']));
+test('other criterion: outside', () => { const a = rep({ findings: [] }); const b = structuredClone(a); b.criteria[0].score = 2; assert.deepEqual(confine(a, b).problems, ['criterion A1 changed']); });
+test('A3 metric: outside', () => { const a = rep({ findings: [] }); const b = structuredClone(a); b.criteria[1].metrics[0].value = 2; assert.deepEqual(confine(a, b).problems, ['A3 metrics changed']); });
+test('top-level: outside', () => assert.deepEqual(confine(rep({ findings: [] }), rep({ findings: [] }, { overallScore: 2.4 })).problems, ['top-level overallScore changed']));
+test('other notes: outside', () => assert.equal(confine(rep({ findings: [f(BUILD)] }), rep({ findings: [], notes: 'x' })).problems.length, 1));
+test('disclosure while build stays: outside', () => assert.equal(confine(rep({ findings: [f(BUILD)] }), rep({ findings: [f(BUILD)], notes: DISCLOSURE })).problems.length, 1));
+test('other finding gone: outside', () => assert.equal(confine(rep({ findings: [f('x')] }), rep({ findings: [] })).problems.length, 1));
+test('evidence changed, same summaries: outside', () => { const a = rep({ findings: [f(BUILD)] }); const b = structuredClone(a); b.criteria[1].findings[0].evidence = [1]; assert.equal(confine(a, b).problems.length, 1); });
