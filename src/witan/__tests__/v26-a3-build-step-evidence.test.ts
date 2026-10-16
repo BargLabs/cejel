@@ -8,7 +8,7 @@ import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { buildRelyingPartySummary } from '../certificate-presentation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
-import { classifyBuildStepCommand } from '../repo-signals.js';
+import { classifyBuildStepCommand, dockerfileRunCommands } from '../repo-signals.js';
 import {
   WITAN_RUBRIC_VERSION_V17,
   WITAN_RUBRIC_VERSION_V20,
@@ -338,5 +338,28 @@ describe('the B-2 vocabulary is matched as a command word after shell splitting'
     'pnpm run "${SCRIPT}"',
   ])('unparseable: %s', (command) => {
     expect(classifyBuildStepCommand(command)).toBe('unparseable');
+  });
+});
+
+// A Dockerfile is repository content up to the content-read cap. Joining continuation lines by
+// re-testing and rewriting the whole instruction on every line was quadratic: about 12 s for one
+// file of 120,000 short continuation lines, for every such Dockerfile in the repository.
+describe('Dockerfile RUN continuation lines are joined in linear time', () => {
+  it('joins 120,000 continuation lines (about 480 KB) quickly and to the same text', () => {
+    const lineCount = 120_000;
+    const contents = `RUN a \\\n${'b \\\n'.repeat(lineCount)}c\n`;
+    const started = Date.now();
+    const result = dockerfileRunCommands(contents);
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(result).toEqual({ commands: [`a${'  b'.repeat(lineCount)}  c`], unparseable: false });
+  });
+
+  it.each([
+    ['RUN a \\\n# note\n  b', ['a  b']],
+    ['RUN e\\\\\n\nRUN x', ['e RUN x']],
+    ['RUN a \\\n\nRUN x', ['a', 'x']],
+    ['RUN --mount=type=cache,target=/c tsc \\\n  -p .', ['tsc  -p .']],
+  ])('joins %j as before', (contents, commands) => {
+    expect(dockerfileRunCommands(contents).commands).toEqual(commands);
   });
 });

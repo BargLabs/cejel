@@ -10450,7 +10450,7 @@ function readBuildStepPackageScripts(packageJsonPath: string): Map<string, strin
  * exec form is re-quoted so it reaches the same shell splitting as the shell form. A heredoc, an
  * exec form that is not a JSON array of strings, or an `escape` parser directive is unparseable.
  */
-function dockerfileRunCommands(contents: string): {
+export function dockerfileRunCommands(contents: string): {
   readonly commands: readonly string[];
   readonly unparseable: boolean;
 } {
@@ -10461,14 +10461,19 @@ function dockerfileRunCommands(contents: string): {
   for (let index = 0; index < lines.length; index += 1) {
     const match = /^\s*RUN(?:\s+(.*))?$/iu.exec(lines[index] ?? '');
     if (!match) continue;
-    let instruction = match[1] ?? '';
-    while (/\\\s*$/u.test(instruction) && index + 1 < lines.length) {
+    // The instruction is kept as chunks so each continuation looks only at its tail. Re-testing
+    // and rewriting the whole joined string on every line was quadratic in the Dockerfile's
+    // length; the result is byte-identical to that form.
+    const chunks = [match[1] ?? ''];
+    while (endsWithLineContinuation(chunks) && index + 1 < lines.length) {
       index += 1;
       const next = lines[index] ?? '';
       // Docker drops a comment line inside a continued instruction; the backslash still stands.
       if (/^\s*#/u.test(next)) continue;
-      instruction = `${instruction.replace(/\\\s*$/u, '')} ${next.trim()}`;
+      dropLineContinuation(chunks);
+      chunks.push(' ', next.trim());
     }
+    let instruction = chunks.join('');
     instruction = instruction.replace(/^(?:--[A-Za-z][\w-]*(?:=\S*)?\s+)*/u, '').trim();
     if (instruction === '' || /<<-?\s*["']?[A-Za-z_]/u.test(instruction)) {
       unparseable = true;
@@ -10483,6 +10488,34 @@ function dockerfileRunCommands(contents: string): {
     else commands.push(execForm);
   }
   return { commands, unparseable };
+}
+
+/** True when the joined chunks end in a backslash followed only by whitespace. */
+function endsWithLineContinuation(chunks: readonly string[]): boolean {
+  for (let c = chunks.length - 1; c >= 0; c -= 1) {
+    const chunk = chunks[c] ?? '';
+    for (let i = chunk.length - 1; i >= 0; i -= 1) {
+      const character = chunk.charAt(i);
+      if (/\s/u.test(character)) continue;
+      return character === '\\';
+    }
+  }
+  return false;
+}
+
+/** Removes that trailing backslash and the whitespace after it; callers check it is there. */
+function dropLineContinuation(chunks: string[]): void {
+  while (chunks.length > 0) {
+    const chunk = chunks[chunks.length - 1] ?? '';
+    let i = chunk.length - 1;
+    while (i >= 0 && /\s/u.test(chunk.charAt(i))) i -= 1;
+    if (i < 0) {
+      chunks.pop();
+      continue;
+    }
+    chunks[chunks.length - 1] = chunk.slice(0, i);
+    return;
+  }
 }
 
 function dockerfileExecFormCommand(instruction: string): string | null {
