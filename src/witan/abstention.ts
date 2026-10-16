@@ -26,6 +26,10 @@ export const WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE =
   "Whether this repository's claims are reconciled against its implementation cannot be settled from static evidence; Cejel makes no finding on it.";
 export const WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE =
   'Whether tenant isolation is enforced outside the database cannot be settled from static evidence; Cejel makes no finding on it.';
+// v26 item 8 (docs/calibration/v26/ruling-item-8.md, operator-signed): the same mechanism for A3's
+// "declares neither a build nor a typecheck script" finding when a place a step could be was not read.
+export const WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE =
+  'Whether this package has a build or type-check step outside the files read cannot be settled from static evidence; Cejel makes no finding on it.';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {
   return (

@@ -244,11 +244,11 @@ describe('the explicit-gap chain is not restructured', () => {
 
 describe('metrics, evidence and the other rubrics are unchanged', () => {
   for (const fixture of ALL_BUILD_STEP_FIXTURES) {
-    it(`${fixture.name}: A3 metrics and positive evidence are identical under v25 and v26`, () => {
+    it(`${fixture.name}: A3 metrics and evidence are identical under v25 and v26`, () => {
       const v25 = a3(fixture, WITAN_RUBRIC_VERSION_V25);
       const v26 = a3(fixture, WITAN_RUBRIC_VERSION_V26);
       expect(v26.metrics).toEqual(v25.metrics);
-      expect(v26.positiveEvidence).toEqual(v25.positiveEvidence);
+      expect(v26.evidence).toEqual(v25.evidence);
     });
   }
 

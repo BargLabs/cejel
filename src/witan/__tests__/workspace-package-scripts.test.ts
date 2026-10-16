@@ -56,6 +56,10 @@ const PACKAGE_WITHOUT_BUILD = (name: string): string =>
   `{"name":"@fixture/${name}","scripts":{"start":"node index.js"}}\n`;
 const CI_WITHOUT_COMMANDS =
   'name: ci\non:\n  push:\n    branches: [main]\njobs:\n  job:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n';
+// v26 item 8 (docs/calibration/v26/ruling-item-8.md): under v26 the finding needs the root package
+// to have something to build or check. Fixtures that assert it fires carry a root tsconfig, which
+// no other rubric reads for this finding.
+const ROOT_TSCONFIG = { 'tsconfig.json': '{"compilerOptions":{"strict":true}}\n' } as const;
 
 function makeRepo(files: Readonly<Record<string, string>>): string {
   const repo = mkdtempSync(join(tmpdir(), 'cejel-workspace-scripts-'));
@@ -134,6 +138,7 @@ describe('A3 build/typecheck finding reads declared workspace packages (v20+)', 
   it.each(V20_PLUS)('a `!` negation that excludes the only package with build leaves the finding firing — %s', (rubric) => {
     const finding = scan(
       {
+        ...ROOT_TSCONFIG,
         'package.json': ROOT_WITH_WORKSPACES_ARRAY(['packages/*', '!packages/legacy']),
         'src/main.js': SERVICE_ENTRYPOINT,
         'packages/legacy/package.json': PACKAGE_WITH_BUILD('legacy'),
@@ -150,6 +155,7 @@ describe('A3 build/typecheck finding reads declared workspace packages (v20+)', 
   it.each(V20_PLUS)('a pnpm `!` negation is honoured the same way — %s', (rubric) => {
     const finding = scan(
       {
+        ...ROOT_TSCONFIG,
         'package.json': ROOT_WITHOUT_DECLARATION,
         'pnpm-workspace.yaml': "packages:\n  - 'packages/**'\n  - '!**/legacy/**'\n",
         'src/main.js': SERVICE_ENTRYPOINT,
@@ -168,6 +174,7 @@ describe('A3 build/typecheck finding reads declared workspace packages (v20+)', 
     // generated/ tree does, and only A1's authored-production predicate keeps it out.
     const finding = scan(
       {
+        ...ROOT_TSCONFIG,
         'package.json': ROOT_WITH_WORKSPACES_ARRAY(['packages/**']),
         'src/main.js': SERVICE_ENTRYPOINT,
         'packages/app/package.json': PACKAGE_WITHOUT_BUILD('app'),
@@ -206,6 +213,7 @@ describe('A3 build/typecheck finding reads declared workspace packages (v20+)', 
   it.each(V20_PLUS)('no workspace declaration: a nested manifest with build changes nothing — %s', (rubric) => {
     const finding = scan(
       {
+        ...ROOT_TSCONFIG,
         'package.json': ROOT_WITHOUT_DECLARATION,
         'src/main.js': SERVICE_ENTRYPOINT,
         'packages/api/package.json': PACKAGE_WITH_BUILD('api'),
