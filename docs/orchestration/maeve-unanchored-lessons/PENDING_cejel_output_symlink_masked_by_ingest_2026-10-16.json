@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A red-first test can fail for the wrong reason and still look red: the planted-symlink .cejel directory case failed on the old code only because ingest auto-discovery already refused a symlinked <scanned path>/.cejel, so the output write was never reached. That incidental guard vanishes whenever the output directory is not the scanned path's .cejel, as when a subdirectory is scanned from the checkout root, where the old code wrote straight through the link. Assert the refusal message as well as the exit, and add a case that separates the incidental guard from the one under test. Separately, layered defences need one test per layer: with the lstat checks present, deleting O_NOFOLLOW turned no CLI test red, so the open-time layer needed its own direct test.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "security", "testing"],
+    "tags": ["symlink", "output-write", "red-first", "masked-failure", "guard-deletion", "o-nofollow"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-16T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 508}
+  }
+]
