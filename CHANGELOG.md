@@ -16,6 +16,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **v26 item 8: A3's "declares neither a build nor a typecheck script" fires only on settling evidence.** Under `witan-rubric-v26-prospective-2026-10-14` alone, which stays explicit opt-in (`--rubric-pin`; the public default stays v17), as ruled in the operator-signed `docs/calibration/v26/ruling-item-8.md` (#496): the root package must have authored TypeScript or a tsconfig, no compiler, type checker or bundler from a fixed vocabulary may run in any package script, CI `run` step, Dockerfile `RUN` or Makefile/justfile target read, and every such place must have been read; where one was not, the certificate's "What was not established" says so instead. No metric changes, and no precision or recall claim.
+
 ## [0.6.6] — 2026-10-15
 
 ### Security
