@@ -77,8 +77,8 @@ The source was restored with `git checkout -- src/witan/repo-signals.ts` after e
 | G0 drop the v26 gate (`usesV26BuildStepEvidence` false) | 21 | every B-1, B-2 and B-3 abstention test, and the chain test |
 | G1 B-1 (`hasSomethingToBuild` treated as true) | 4 | JavaScript service, declaration only, nested-package TypeScript, chain |
 | G2a B-2 package scripts place | 3 | `compile` runs tsc; Dockerfile `pnpm run build:server`; unparseable workspace manifest |
-| G2b B-2 CI place | 2 | `run: npx tsc --noEmit`; a command Cejel cannot parse |
-| G2c B-2 Dockerfile place | 2 | continued `RUN ... && npx tsc -p .`; exec form |
+| G2b B-2 CI place | 2 | a `run:` step calling `tsc --noEmit` through npx; a command Cejel cannot parse |
+| G2c B-2 Dockerfile place | 2 | a continued `RUN` line calling `tsc -p .` through npx; exec form |
 | G2d B-2 Makefile/justfile place | 2 | Makefile `tsc -p .`; justfile `build` target |
 | G3 B-3 (unsettled read as fires) | 10 | every B-3 fixture |
 
