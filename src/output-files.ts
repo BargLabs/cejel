@@ -1,5 +1,5 @@
 import { closeSync, constants, lstatSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 // The default output directory, `.cejel`, sits inside the checkout being scanned, and a checkout
 // is untrusted input: it can commit `.cejel` or `.cejel/report.json` as a symlink to any file the
@@ -29,12 +29,15 @@ function refusal(what: string, subject: string): Error {
   );
 }
 
+// lstat follows a symlink when the path ends in `/` or `/.`, so `--out .cejel/` would pass the
+// check on a symlinked `.cejel`. Resolving first strips those forms; the message keeps the path
+// as the user gave it.
 function refuseSymlinkedDirectory(dir: string, what: string): void {
-  if (isSymbolicLink(dir)) throw refusal(what, `output directory ${dir}`);
+  if (isSymbolicLink(resolve(dir))) throw refusal(what, `output directory ${dir}`);
 }
 
 function refuseSymlinkedFile(path: string, what: string): void {
-  if (isSymbolicLink(path)) throw refusal(what, path);
+  if (isSymbolicLink(resolve(path))) throw refusal(what, path);
 }
 
 /**

@@ -154,6 +154,28 @@ describe('scan output refuses a symlink planted in the scanned checkout', () => 
     expect(readdirSync(join(repoPath, '.cejel'))).toEqual(['summary.json']);
   });
 
+  // lstat follows a symlink when the path ends in `/` or `/.`; an explicit --out in either form
+  // must be refused like the bare name. Scanning a subdirectory keeps ingest's own .cejel check
+  // out of the way, as in the case above.
+  it.each(['.cejel/', '.cejel/.'])(
+    'refuses a symlinked .cejel named with --out %s (trailing separator or dot)',
+    async (outArg) => {
+      const outside = scratch('cejel-symlink-trailing-');
+      const repoPath = checkout((repo) => {
+        mkdirSync(join(repo, 'packages', 'app'), { recursive: true });
+        writeFileSync(join(repo, 'packages', 'app', 'index.ts'), 'export const app = 1;\n');
+        symlinkSync(outside, join(repo, '.cejel'));
+      });
+
+      const refused = /refusing to write scan output: output directory \.cejel[/\\]\.? is a symbolic link/;
+      await expect(
+        runInside(repoPath, ['scan', 'packages/app', '--out', outArg, '--quiet']),
+      ).rejects.toThrow(refused);
+
+      expect(readdirSync(outside)).toEqual([]);
+    },
+  );
+
   it('applies the same rule to a directory named explicitly with --out', async () => {
     const outside = scratch('cejel-symlink-explicit-out-');
     const linkParent = scratch('cejel-symlink-explicit-link-');
