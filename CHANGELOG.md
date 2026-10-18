@@ -16,6 +16,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.7] — 2026-10-18
+
 ### Security
 
 - **CLI: a scanned checkout could redirect where a scan writes its output (#508).** The default
@@ -33,6 +35,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - **v26 item 8: A3's "declares neither a build nor a typecheck script" fires only on settling evidence.** Under `witan-rubric-v26-prospective-2026-10-14` alone, which stays explicit opt-in (`--rubric-pin`; the public default stays v17), as ruled in the operator-signed `docs/calibration/v26/ruling-item-8.md` (#496): the root package must have authored TypeScript or a tsconfig, no compiler, type checker or bundler from a fixed vocabulary may run in any package script, CI `run` step, Dockerfile `RUN` or Makefile/justfile target read, and every such place must have been read; where one was not, the certificate's "What was not established" says so instead. No metric changes, and no precision or recall claim.
+
+**Public corpus.** A preregistered confirmation scored the 23 public corpus repositories under v17
+and v26, at v0.6.6 and at the fix commit (`f5348fb3`), which differs from this release only in
+version identity and records, with no change under `src/` outside tests. All 23 reports were
+byte-identical under both rubrics, so neither change moved any public repository. No public
+repository carries A3's build finding at v0.6.6 under v26, so item 8 had nothing to narrow there:
+the run is not evidence about where item 8 stops the finding
+([`docs/experiments/public-delta-0-6-7-2026-10-16/result.md`](./docs/experiments/public-delta-0-6-7-2026-10-16/result.md)).
 
 ## [0.6.6] — 2026-10-15
 
