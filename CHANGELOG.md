@@ -16,6 +16,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **CLI: a scanned checkout could redirect where a scan writes its output (#508).** The default
+  output directory, `.cejel`, is inside the checkout being scanned. A checkout could commit
+  `.cejel`, or a file in it such as `.cejel/report.json`, as a symbolic link, and a scan then
+  wrote through the link, overwriting a file the user could write outside the checkout. `scan`,
+  `issue` and `export` now refuse, before writing anything, when the output directory or an output
+  file is a symbolic link, including a dangling one, and exit non-zero; the path is resolved first,
+  so `.cejel/` and `.cejel/.` are refused like `.cejel`. Each file is also opened without following
+  a link where the platform allows it (not on Windows). An explicit `--out` follows the same rule,
+  so on macOS `--out /tmp` is refused, because `/tmp` is itself a link; name a directory inside it.
+  A link in an earlier part of an explicit `--out` path is still followed. Affects CLI scans of
+  untrusted checkouts; the HTTP server is unchanged.
+
 ### Added
 
 - **v26 item 8: A3's "declares neither a build nor a typecheck script" fires only on settling evidence.** Under `witan-rubric-v26-prospective-2026-10-14` alone, which stays explicit opt-in (`--rubric-pin`; the public default stays v17), as ruled in the operator-signed `docs/calibration/v26/ruling-item-8.md` (#496): the root package must have authored TypeScript or a tsconfig, no compiler, type checker or bundler from a fixed vocabulary may run in any package script, CI `run` step, Dockerfile `RUN` or Makefile/justfile target read, and every such place must have been read; where one was not, the certificate's "What was not established" says so instead. No metric changes, and no precision or recall claim.
