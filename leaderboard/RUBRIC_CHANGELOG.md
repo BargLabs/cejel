@@ -99,6 +99,26 @@ where A3's findings or notes change.
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
 
+### Public-corpus before-and-after — measured 2026-10-18
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-7-2026-10-16/` (preregistration `2b767b56f`, #510; result
+beside it, #511). The baseline is `v0.6.6` (`6aec9d93`). The candidate is the fix commit
+`f5348fb33`, which carries this change and #508. All 23 public corpus repositories were scored at
+their pins, under v17 and under v26. **All four preregistered expected values held.**
+
+- Under v17 and under v26, all 23 public reports are byte-identical between the two commits. No
+  score, status, metric, finding, placement or fingerprint moved.
+- **This run did not exercise item 8.** No public report carries A3's build finding at v0.6.6 under
+  v26, so item 8 had nothing to narrow. The run shows that item 8 moves nothing on these 23 rows. It
+  is not evidence about where the finding stops, and it makes no precision or recall claim.
+- 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes predate item 8, and none of
+  them is item 8's disclosure sentence.
+
+This section records the public run only; it does not report the operator's private check. The
+change shipped in 0.6.7 on 2026-10-18. v26 remains prospective and explicit opt-in; the public
+default stays v17.
+
 ## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that restores a true finding. It ships under
