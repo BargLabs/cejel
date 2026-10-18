@@ -1,0 +1,307 @@
+{
+  "schema": "cejel-public-delta-byte-identity-v1",
+  "planSha256": "4a31daa0a6db2aeef42d0de20a0921244d781e3d6e5ede94f8c2419dec0c496d",
+  "targetIdentityIdenticalAcrossRuns": true,
+  "pairs": {
+    "fixes-v17": {
+      "presentationOnly": [
+        "rubricBehaviourFingerprint"
+      ],
+      "completed": 23,
+      "errors": 0,
+      "identicalReports": 23,
+      "identicalAfterFingerprintRemoval": 23,
+      "identicalAfterPresentationRemoval": 23,
+      "rows": [
+        {
+          "name": "react",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "vue",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "svelte",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "django",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "flask",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "fastapi",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "express",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "vite",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "esbuild",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "biomejs",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "requests",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "pydantic",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "axios",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "zod",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "scorecard",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "ripgrep",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "guava",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "cobra",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "sinatra",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "automapper",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "fmt",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "carddemo",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "cejel",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        }
+      ]
+    },
+    "item8-v26": {
+      "presentationOnly": [
+        "rubricBehaviourFingerprint"
+      ],
+      "completed": 23,
+      "errors": 0,
+      "identicalReports": 23,
+      "identicalAfterFingerprintRemoval": 23,
+      "identicalAfterPresentationRemoval": 23,
+      "rows": [
+        {
+          "name": "react",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "vue",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "svelte",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "django",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "flask",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "fastapi",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "express",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "vite",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "esbuild",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "biomejs",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "requests",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "pydantic",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "axios",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "zod",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "scorecard",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "ripgrep",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "guava",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "cobra",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "sinatra",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "automapper",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "fmt",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "carddemo",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        },
+        {
+          "name": "cejel",
+          "rawIdentical": true,
+          "rawIdenticalAfterFingerprintLineRemoval": true,
+          "rawIdenticalAfterPresentationLineRemoval": true
+        }
+      ]
+    }
+  }
+}
