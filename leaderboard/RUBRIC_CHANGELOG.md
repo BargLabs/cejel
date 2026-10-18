@@ -104,15 +104,17 @@ in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
 The entry above is left as written. The preregistered public run it announced has been performed:
 `docs/experiments/public-delta-0-6-7-2026-10-16/` (preregistration `2b767b56f`, #510; result
 beside it, #511). The baseline is `v0.6.6` (`6aec9d93`). The candidate is the fix commit
-`f5348fb33`, which carries this change and #508. All 23 public corpus repositories were scored at
-their pins, under v17 and under v26. **All four preregistered expected values held.**
+`f5348fb33`, which carries this change and #508, and differs from the 0.6.7 release only in
+version identity and records, with no change under `src/` outside tests. All 23 public corpus
+repositories were scored at their pins, under v17 and under v26. **All four preregistered expected values held.**
 
 - Under v17 and under v26, all 23 public reports are byte-identical between the two commits. No
   score, status, metric, finding, placement or fingerprint moved.
-- **This run did not exercise item 8.** No public report carries A3's build finding at v0.6.6 under
-  v26, so item 8 had nothing to narrow. The run shows that item 8 moves nothing on these 23 rows. It
+- **This run did not exercise item 8.** The operator counted A3's build finding in the local raw
+  reports; the committed records do not hold that count. No public report carries it at v0.6.6
+  under v26, so item 8 had nothing to narrow. The run shows that item 8 moves nothing on these 23 rows. It
   is not evidence about where the finding stops, and it makes no precision or recall claim.
-- 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes predate item 8, and none of
+- In the same count, 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes predate item 8, and none of
   them is item 8's disclosure sentence.
 
 **The operator's private check did not precede the release.** The entry above says it would. The
@@ -210,6 +212,20 @@ previous pin byte for byte.
 The API sources, the red-first run and the guard-deletion table are in
 `docs/reviews/hmac-digest-compare-2026-10-14.md`.
 
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row moved down.
+
+- **The rule was not exercised.** A2 moved on no public row, so the HMAC digest rule changed no
+  public report. The run is not evidence about where the rule fires.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
+precision or recall claim.
+
 ## 2026-10-14 — A1 test-framework recognition (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under
@@ -305,6 +321,22 @@ measurement decision for a prospective rubric.
 
 The idiom sources, the red-first run and the guard-deletion table are in
 `docs/reviews/test-framework-recognition-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row moved down.
+
+- automapper's A1 `non_hollow_test_share` went from 8 to 22; its A1 score was unchanged.
+- express's A1 `verification_script_ratio` went from 2 to 3 and A1 rose. That move is a
+  verification-script recognition, and this run does not separate the coverage-configuration
+  change (#484) from the test-framework change (#487) for that row.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
+precision or recall claim.
 
 ## 2026-10-14 — v26 item 6: A5 and A2 tenant findings fire on settling evidence only, and A5 does not score the absence of Cejel's own format (v26 alone); no repository moved
 
@@ -406,6 +438,25 @@ certificate bytes change.
 
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a5-a2-settling-evidence-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v25 with v26, both at the #490 merge `98dbf250`, which carries this
+change, on all 23 public corpus repositories at their pins. **All six preregistered expected
+values held.**
+
+- **A5.** 16 rows carried the no-reconciliation finding under v25. Under v26 it fires on none of
+  them, each carries the ruling's disclosure sentence, `reconciliation_artifact_depth` is omitted,
+  and A5 rose on all 16. No row names a claim-reconciliation artifact.
+- **The A2 tenant rule was not exercised.** No row carries a tenant-without-RLS finding under v25
+  or v26, so the run says nothing about that rule in either direction.
+- No criterion other than A5 moved. One verdict changed as a result of A5: vite, conditional to
+  verified. v26 is explicit opt-in, so these runs do not describe the published board.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
+precision or recall claim.
 
 ## 2026-10-14 — A1 coverage-configuration recognition (every rubric, no identifier bump); public paired rescore not run
 
@@ -527,6 +578,23 @@ Re-pinned, with no pinned v17 metric moved on any of them:
 All of these recoveries are asserted in the tests. Record:
 `docs/reviews/coverage-config-recognition-2026-10-14.md`.
 
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row moved down.
+
+- scorecard's A1 `verification_script_ratio` went from 1 to 2, its "no coverage configuration"
+  finding no longer fires, and A1 rose.
+- express's A1 `verification_script_ratio` went from 2 to 3 and A1 rose. That move is a
+  verification-script recognition, and this run does not separate the coverage-configuration
+  change (#484) from the test-framework change (#487) for that row.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
+precision or recall claim.
+
 ## 2026-10-14 — A3 and B3 read declared workspace package scripts (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that removes a false absence. It ships under
@@ -607,6 +675,23 @@ collide, as declared. The v17 golden, the F2 reads-disclosure pins and the CLI b
 re-pinned. No pinned v17 metric moved on any of them, and restoring only the previous fingerprint
 reproduces each previous pin byte for byte, asserted in the tests. Record:
 `docs/reviews/workspace-package-scripts-2026-10-14.md`.
+
+### Public-corpus before-and-after — measured 2026-10-15
+
+The entry above is left as written. The preregistered public run it announced has been performed:
+`docs/experiments/public-delta-0-6-5-2026-10-15/` (preregistration `9b37aa48e`, result beside
+it, both #497). It compared v17 at `v0.6.4` (`093de2a1`) with v17 at the #490 merge `98dbf250`,
+which carries this change, on all 23 public corpus repositories at their pins. **All six
+preregistered expected values held.** No row moved down.
+
+- **B3, under v17.** biomejs's `ci_script_depth` went from 2 to 3 and B3 rose; react's went from 6
+  to 7, with B3 unchanged at its maximum. Both declare workspaces.
+- **The A3 half was not measured publicly.** A3's finding reads workspace scripts only under v20
+  through v26. This run compared v17 before and after, and its v26 pair compared v25 with v26 at
+  the same commit, so no public before-and-after covers this change's A3 effect.
+
+The operator's private check ran before the 0.6.5 release, on 2026-10-14. This section makes no
+precision or recall claim.
 
 ## 2026-10-14 — prospective v26 declared as v25's complete closure; no scoring change, no repository moved
 
