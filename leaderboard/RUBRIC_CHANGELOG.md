@@ -115,9 +115,10 @@ their pins, under v17 and under v26. **All four preregistered expected values he
 - 17 of the 23 rows carry A3 notes under v17 and v26 alike. Those notes predate item 8, and none of
   them is item 8's disclosure sentence.
 
-This section records the public run only; it does not report the operator's private check. The
-change shipped in 0.6.7 on 2026-10-18. v26 remains prospective and explicit opt-in; the public
-default stays v17.
+**The operator's private check did not precede the release.** The entry above says it would. The
+last run of that check under v26 started on 2026-10-14, before this change existed, and none ran
+between this change's merge and the 0.6.7 release. The change shipped in 0.6.7 on 2026-10-18
+without it. v26 remains prospective and explicit opt-in; the public default stays v17.
 
 ## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
 
