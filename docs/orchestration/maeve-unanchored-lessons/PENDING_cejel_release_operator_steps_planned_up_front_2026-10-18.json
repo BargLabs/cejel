@@ -1,0 +1,20 @@
+[
+  {
+    "statement": "When an agent session is asked to carry a release end to end, its plan must name, before the first step, the actions only the operator can take: merging each PR, answering the release driver's typed confirmation gates in the operator's own terminal, and merging the tap and site records. The session's own permission notes already said that merges and piped gate answers are refused, yet in the 0.6.7 release the session found out only when its merge was refused, after telling the operator it would do everything. Read the recorded permission profile first, and hand each operator-only command over at the point it becomes due, with what it unblocks.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["release", "operator-handoff", "permission-profile", "plan-before-act"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-18T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 514}
+  },
+  {
+    "statement": "A merge command handed to an operator must pin the PR head with the full 40-character commit id: gh pr merge --match-head-commit rejects an abbreviated id with a GraphQL GitObjectID coercion error, so the merge does not happen. In the 0.6.7 tap merge a short id cost a round trip. Read the id with gh pr view <n> --json headRefOid immediately before writing the command.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "release"],
+    "tags": ["release", "operator-handoff", "gh-pr-merge", "match-head-commit"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-18T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 514}
+  }
+]
