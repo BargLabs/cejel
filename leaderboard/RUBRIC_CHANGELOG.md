@@ -91,7 +91,7 @@ fingerprint projection were compared before and after.
 | Behaviour corpus (30 specimens) | v17-v26 | 300 | 0 | 290 | 10: `pr-template-directory-form` under every rubric, A4 note and citation (its CI runs `npm ci`, no lockfile) |
 | Calibration anchors (5 fixtures) | v17-v26 | 50 | 0 | not comparable | the fixtures are not hermetic, so every head sha differs between builds |
 | Public board, 23 public rows at their pinned commits, depth 1 as the board fetches them | v17 | 23 | 0 | 20 | 3: biomejs, flask, zod, A4 citation order |
-| New fixtures (32, `false-assurance-fixtures.ts`, 10 of them from review) | v17 | 32 | 3: the three LFS fixtures, `contentReadSummary.byReason.lfsPointer` only | 26 | 6: the LFS fixtures (count, labels), two A4 fixtures and `b3-test-then-publish-workflow` (A4 note and citation; its CI runs `npm ci`) |
+| New fixtures (38, `false-assurance-fixtures.ts`, 16 of them from review) | v17 | 38 | 4: the four LFS fixtures, `contentReadSummary.byReason.lfsPointer` only | 31 | 7: the LFS fixtures (count, labels), two A4 fixtures and `b3-test-then-publish-workflow` (A4 note and citation; its CI runs `npm ci`) |
 
 The private board row was not run for this entry. `report.json` comparisons are above;
 `attestation.json` changes on every scan, because it records report format 1.6.

@@ -171,12 +171,18 @@ Generated from `report.json`; every row either does not move or moves down.
 | review-a1-hook-defined-under-try | unverified | 1.4 | 1.5 | 1.3 | A1 metric only (test_to_source_ratio 3→2; score unchanged) |
 | review-a1-name-shaped-conftest-rated-hollow | at_risk | 1.7 | 1.5 | 1.8 | A1 metric only (test_to_source_ratio 2→1; score unchanged) |
 | review-a1-root-conftest-beside-vitest | at_risk | 2 → 1.9 | 2.3 → 2.1 | 1.6 | A1 verified 2.3 → warning 1.9 |
-| review-a2-lfs-data-in-not-applicable-library | unverified | 1.4 | 1.5 | 1.3 | no move |
-| review-a2-secret-beside-planted-lfs-pointer | unverified | 1.4 | 1.4 | 1.3 | no move |
+| review-a2-lfs-data-in-not-applicable-library | unverified | 1.4 → 1.2 | 1.5 → 1.1 | 1.3 | A2 not_applicable 0 → insufficient_data 0 |
+| review-a2-secret-beside-planted-lfs-pointer | unverified | 1.4 → 1.2 | 1.4 | 1.3 → 0.9 | B6 not_applicable 0 → insufficient_data 0 |
 | review-a4-bun-lock-committed | at_risk | 1.7 | 2.3 | 1.1 | no move |
 | review-a4-cargo-install-locked | at_risk | 1.7 | 2.1 | 1.3 | no move |
 | review-a4-npm-ci-in-trailing-comment | at_risk | 2.1 | 2.5 | 1.6 | no move |
 | review-b3-tox-ci-with-tag-publish | unverified | 1.3 | 1.5 | 1.1 | no move |
+| review2-a3-service-entrypoint-as-lfs-pointer | unverified | 0.7 → 0 | 1.4 → 0 | 0 | A2 not_applicable 0 → insufficient_data 0; A3 not_applicable 0 → insufficient_data 0; A4 warning 2.8 → insufficient_data 0 |
+| review2-a4-lockfile-generated-first | at_risk | 2.1 | 2.5 | 1.6 | no move |
+| review2-a4-npm-ci-guarded-by-if | at_risk | 2.1 | 2.5 | 1.6 | no move |
+| review2-a4-npm-ci-guarded-by-test-and-or | at_risk | 2.1 | 2.5 | 1.6 | no move |
+| review2-a4-npm-ci-in-disabled-job | at_risk | 2.1 | 2.5 | 1.6 | no move |
+| review2-a4-npm-ci-in-echo-and-heredoc | at_risk | 2.1 | 2.5 | 1.6 | no move |
 
 The public-board table is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-19).
 
