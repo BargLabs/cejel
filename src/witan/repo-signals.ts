@@ -333,11 +333,13 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {
     const readFailureCriteria: WitanCriterionId[] = [];
     const coverageLimitedCriteria: WitanCriterionId[] = [];
-    // v27 (#519): a criterion whose only skips are Git LFS pointer reads keeps a not-applicable
-    // result, and keeps a critical finding its collector made, rather than abstaining. Pointer
-    // text cannot produce either (it holds an oid and a size), and an abstention there would let
-    // a pointer-shaped file erase a confirmed critical finding. Such a criterion scores exactly as
-    // v17 does, and is dropped from contentReadSummary.affectedCriteria, since it did not abstain.
+    // v27 (#519): a criterion whose only skips are Git LFS pointer reads keeps a critical finding
+    // its collector made, rather than abstaining. Pointer text (an oid and a size) cannot produce a
+    // critical finding, and an abstention there would let a pointer-shaped file erase a confirmed
+    // one. Such a criterion scores exactly as v17 does, and is dropped from
+    // contentReadSummary.affectedCriteria, since it did not abstain. A not-applicable result is
+    // NOT kept: applicability is decided from what a collector fails to find in content, and a
+    // pointer is content it did not read.
     const lfsKept = new Set<WitanCriterionId>();
     const signals = (tracked.value.signals ?? []).map((signal) => {
       if (!affectedCriteria.has(signal.criterionId)) return signal;
@@ -346,8 +348,7 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
         usesV27FalseAssuranceClosure(rubricVersion) &&
         reasons.size > 0 &&
         [...reasons].every((reason) => reason === 'lfs_pointer') &&
-        (signal.notApplicable === true ||
-          (signal.findings ?? []).some(({ severity }) => severity === 'critical'))
+        (signal.findings ?? []).some(({ severity }) => severity === 'critical')
       ) {
         lfsKept.add(signal.criterionId);
         return signal;
@@ -2138,7 +2139,11 @@ function collectA1TestIntegrityEvidence(
       [...packageScripts.values()].some((script) =>
         LEAN_TEST_RUNNER_SCRIPT_PATTERN.test(script),
       )) ||
-    testFiles.some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
+    // v17's first eight, under every rubric: v27's conftest exclusion must not move a file into
+    // this sample and change the finding below.
+    v17TestFiles
+      .slice(0, 8)
+      .some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
   // A root node:test script does not make a monorepo lean when any workspace still carries a
   // heavyweight runner. v26 missed Meteor because it inspected only the root package.json and
   // therefore suppressed a real no-coverage finding despite nested Jest dependencies.
@@ -4072,7 +4077,7 @@ function collectA4DependencyEvidence(
   ];
   const knownBasenames = new Set(knownPaths.map((path) => basename(path)));
   const findRequirement = () =>
-    findLockfileRequirement(repoPath, repoFiles.filter(isCiWorkflow), (lockfiles) =>
+    findLockfileRequirement(repoPath, repoFiles.filter(isGitHubActionsWorkflow), (lockfiles) =>
       lockfiles.some((name) => knownBasenames.has(name)),
     );
   const lockfileRequirement =
@@ -4088,7 +4093,7 @@ function collectA4DependencyEvidence(
         repoPath,
         lockfileRequirement.file,
         'dependency_report',
-        `CI requires a lockfile (\`${lockfileRequirement.command}\`); the scanned inventory holds none`,
+        `CI step runs \`${lockfileRequirement.command}\`, which needs ${joinLockfileNames(lockfileRequirement.lockfiles)}; the scanned inventory holds none`,
         lockfileRequirement.line,
       );
     leadingEvidence.push(
@@ -4240,39 +4245,70 @@ function collectA4DependencyEvidence(
     notes: isAppOrService
       ? `A4 scored against app/service norms (${packagedApplicationFiles.length > 0 ? 'packaged application' : 'deploy surface'} detected): pinned dependencies and a lockfile are required for reproducible installs.`
       : lockfileRequirement
-        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. This repository's own CI requires a lockfile (\`${lockfileRequirement.command}\`, ${lockfileRequirement.file} line ${lockfileRequirement.line}), and the scanned inventory holds no recognized lockfile.`.slice(0, 1000)
+        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. An unconditional step in this repository's CI runs \`${lockfileRequirement.command}\` (${lockfileRequirement.file} line ${lockfileRequirement.line}), which exits with an error without ${joinLockfileNames(lockfileRequirement.lockfiles)}, and the scanned inventory holds none.`.slice(0, 1000)
         : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
 }
 
 // #520. Commands that exit with an error when the lockfile they read is absent, each with the
 // lockfiles that satisfy it. Only commands whose documented behaviour is to fail without a lockfile
-// are listed; commands that merely prefer one (`yarn --frozen-lockfile` on Yarn 1, `bun install
-// --frozen-lockfile`, `pipenv install --deploy`, `poetry install --sync`) and tool installs
-// (`cargo install --locked` reads the installed crate's lockfile) are not.
+// are listed; commands that merely prefer one (`yarn --frozen-lockfile` on Yarn 1, `yarn
+// --immutable`, which Yarn 1 does not know, `bun install --frozen-lockfile`, `pipenv install
+// --deploy`, `poetry install --sync`) and tool installs (`cargo install --locked` reads the
+// installed crate's lockfile) are not.
 interface LockfileRequiringCommand {
   readonly tool: string;
-  /** Accepted subcommands; `null` accepts none or `install` (Yarn's bare `yarn`). */
-  readonly subcommands: readonly string[] | null;
+  readonly subcommands: readonly string[];
   /** At least one must appear in the same command; `null` means the subcommand alone requires it. */
   readonly flags: readonly string[] | null;
   readonly lockfiles: readonly string[];
+  /** Subcommands that write the lockfile when run without one of `flags` (`npm install`, ...). */
+  readonly generators: readonly string[];
 }
 
 const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
-  { tool: 'npm', subcommands: ['ci'], flags: null, lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'] },
-  { tool: 'pnpm', subcommands: ['install', 'i'], flags: ['--frozen-lockfile'], lockfiles: ['pnpm-lock.yaml'] },
-  { tool: 'yarn', subcommands: null, flags: ['--immutable'], lockfiles: ['yarn.lock'] },
-  { tool: 'uv', subcommands: ['run', 'sync'], flags: ['--locked', '--frozen'], lockfiles: ['uv.lock'] },
+  {
+    tool: 'npm',
+    subcommands: ['ci'],
+    flags: null,
+    lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'],
+    generators: ['install', 'i', 'add', 'update', 'up'],
+  },
+  {
+    tool: 'pnpm',
+    subcommands: ['install', 'i'],
+    flags: ['--frozen-lockfile'],
+    lockfiles: ['pnpm-lock.yaml'],
+    generators: ['install', 'i', 'add', 'update', 'up'],
+  },
+  {
+    tool: 'uv',
+    subcommands: ['run', 'sync'],
+    flags: ['--locked', '--frozen'],
+    lockfiles: ['uv.lock'],
+    generators: ['run', 'sync', 'lock', 'add'],
+  },
   {
     tool: 'cargo',
     subcommands: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench'],
     flags: ['--locked', '--frozen'],
     lockfiles: ['Cargo.lock'],
+    generators: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench', 'generate-lockfile', 'update'],
   },
-  { tool: 'poetry', subcommands: ['check'], flags: ['--lock'], lockfiles: ['poetry.lock'] },
+  {
+    tool: 'poetry',
+    subcommands: ['check'],
+    flags: ['--lock'],
+    lockfiles: ['poetry.lock'],
+    generators: ['lock', 'install', 'add', 'update'],
+  },
 ];
 
+// Shell words that make a step's commands depend on something: a requirement inside such a step is
+// not stated by the repository unconditionally (`if [ -f package-lock.json ]; then npm ci; fi`).
+const CONDITIONAL_SHELL_WORDS = new Set([
+  'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', '[', '[[', 'test', '||', 'while', 'until',
+]);
 const SHELL_COMMAND_SEPARATORS = new Set(['&&', '||', ';', '|']);
 
 interface LockfileRequirement {
@@ -4280,22 +4316,29 @@ interface LockfileRequirement {
   readonly line: number;
   /** The matched command, trimmed for display. */
   readonly command: string;
+  readonly lockfiles: readonly string[];
 }
 
-/**
- * The command words of one CI line: the text before its first comment, split on spaces and tabs,
- * then into commands at shell separators. Plain string scanning only, so a pathological line costs
- * time linear in its length.
- */
-function ciLineCommands(line: string): string[][] {
+function joinLockfileNames(names: readonly string[]): string {
+  return names.length === 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
+function isGitHubActionsWorkflow(file: string): boolean {
+  return /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file);
+}
+
+/** The text of a line before its first comment. Plain string scanning, linear in its length. */
+function beforeShellComment(line: string): string {
   const trimmed = line.trimStart();
-  if (trimmed.startsWith('#')) return [];
-  const space = trimmed.indexOf(' #');
-  const tab = trimmed.indexOf('\t#');
-  const cut = [space, tab].filter((index) => index !== -1);
-  const code = cut.length > 0 ? trimmed.slice(0, Math.min(...cut)) : trimmed;
+  if (trimmed.startsWith('#')) return '';
+  const cut = [trimmed.indexOf(' #'), trimmed.indexOf('\t#')].filter((index) => index !== -1);
+  return cut.length > 0 ? trimmed.slice(0, Math.min(...cut)) : trimmed;
+}
+
+/** One line's words, split into commands at shell separators. */
+function shellCommands(line: string): string[][] {
   const commands: string[][] = [[]];
-  for (const raw of code.split(/[ \t]+/)) {
+  for (const raw of beforeShellComment(line).split(/[ \t]+/)) {
     const word = raw.endsWith(';') && raw.length > 1 ? raw.slice(0, -1) : raw;
     if (word === '') continue;
     if (SHELL_COMMAND_SEPARATORS.has(word)) {
@@ -4308,50 +4351,136 @@ function ciLineCommands(line: string): string[][] {
   return commands.filter((command) => command.length > 0);
 }
 
+/** The command only when the tool is in command position (not an argument to echo, a heredoc, ...). */
 function matchLockfileRequiringCommand(
   words: readonly string[],
   rule: LockfileRequiringCommand,
 ): string | undefined {
-  const toolIndex = words.indexOf(rule.tool);
-  if (toolIndex === -1) return undefined;
-  const rest = words.slice(toolIndex + 1);
-  const subcommand = rest[0];
-  if (rule.subcommands === null) {
-    if (subcommand !== undefined && subcommand !== 'install' && !subcommand.startsWith('-')) {
-      return undefined;
-    }
-  } else if (subcommand === undefined || !rule.subcommands.includes(subcommand)) {
-    return undefined;
-  }
-  if (rule.flags !== null) {
-    const flags = rule.flags;
-    const flagIndex = rest.findIndex((word) => flags.includes(word.split('=')[0] ?? word));
-    if (flagIndex === -1) return undefined;
-    return [rule.tool, ...rest.slice(0, flagIndex + 1)].join(' ');
-  }
-  return [rule.tool, subcommand].join(' ');
+  if (words[0] !== rule.tool) return undefined;
+  const subcommand = words[1];
+  if (subcommand === undefined || !rule.subcommands.includes(subcommand)) return undefined;
+  if (rule.flags === null) return [rule.tool, subcommand].join(' ');
+  const flags = rule.flags;
+  // Flags after `--` belong to the program being run, not to the tool.
+  const end = words.indexOf('--');
+  const own = end === -1 ? words.slice(2) : words.slice(2, end);
+  const flagIndex = own.findIndex((word) => flags.includes(word.split('=')[0] ?? word));
+  if (flagIndex === -1) return undefined;
+  return [rule.tool, subcommand, ...own.slice(0, flagIndex + 1)].join(' ');
+}
+
+interface WorkflowRunStep {
+  /** 1-based line of each command line, with its text. */
+  readonly lines: readonly { readonly line: number; readonly text: string }[];
+  /** True when the step or its job carries an `if:` condition. */
+  readonly conditional: boolean;
+}
+
+const RUN_KEY_PATTERN = /^([ \t]*)(?:-[ \t]+)?run:[ \t]*(.*)$/;
+const IF_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?if:/;
+
+function lineIndent(line: string): number {
+  return line.length - line.trimStart().length;
 }
 
 /**
- * The first CI line, in file order then line order, whose command requires a lockfile that
- * `isSatisfied` says is absent.
+ * The `run:` steps of a GitHub Actions workflow, read by indentation: a one-line value, or a `|` /
+ * `>` block. A step is conditional when an `if:` key sits in the step itself or at its job's level.
+ * Anything the reader cannot place is simply not returned, so nothing is claimed from it.
+ */
+function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
+  const lines = contents.split('\n');
+  const steps: WorkflowRunStep[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = RUN_KEY_PATTERN.exec(lines[index] ?? '');
+    if (!match) continue;
+    const keyIndent = (match[1] ?? '').length + ((lines[index] ?? '').trimStart().startsWith('-') ? 2 : 0);
+    const value = (match[2] ?? '').trim();
+    const body: { line: number; text: string }[] = [];
+    if (/^[|>][-+0-9]*$/.test(value)) {
+      for (let next = index + 1; next < lines.length; next += 1) {
+        const raw = lines[next] ?? '';
+        if (raw.trim() === '') continue;
+        if (lineIndent(raw) <= keyIndent) break;
+        body.push({ line: next + 1, text: raw });
+      }
+    } else if (value !== '') {
+      body.push({ line: index + 1, text: value.replace(/^(['"])(.*)\1$/, '$2') });
+    }
+    // The step: back to the nearest `- ` item at or above the key's indent, forward to the next.
+    let stepStart = index;
+    while (stepStart > 0 && !/^[ \t]*-[ \t]/.test(lines[stepStart] ?? '')) stepStart -= 1;
+    const stepIndent = lineIndent(lines[stepStart] ?? '');
+    let stepEnd = index + 1;
+    while (stepEnd < lines.length) {
+      const raw = lines[stepEnd] ?? '';
+      if (raw.trim() !== '' && lineIndent(raw) <= stepIndent) break;
+      stepEnd += 1;
+    }
+    const stepConditional = lines
+      .slice(stepStart, stepEnd)
+      .some((raw) => IF_KEY_PATTERN.test(raw) && lineIndent(raw) <= keyIndent);
+    // The job: the nearest line above the step, less indented than it, holding `steps:`'s parent.
+    let jobConditional = false;
+    for (let up = stepStart - 1, seenSteps = false; up >= 0; up -= 1) {
+      const raw = lines[up] ?? '';
+      if (raw.trim() === '') continue;
+      if (/^[ \t]*steps:[ \t]*$/.test(raw)) {
+        seenSteps = true;
+        const jobKeyIndent = lineIndent(raw);
+        for (let probe = up - 1; probe >= 0; probe -= 1) {
+          const other = lines[probe] ?? '';
+          if (other.trim() === '') continue;
+          if (lineIndent(other) < jobKeyIndent) break;
+          if (lineIndent(other) === jobKeyIndent && IF_KEY_PATTERN.test(other)) jobConditional = true;
+        }
+        break;
+      }
+      if (seenSteps) break;
+    }
+    steps.push({ lines: body, conditional: stepConditional || jobConditional });
+  }
+  return steps;
+}
+
+/**
+ * The first unconditional GitHub Actions step, in file order, whose command requires a lockfile
+ * that `isSatisfied` says is absent. Cejel claims nothing about a step that is conditional, whose
+ * shell is conditional or contains a heredoc, or whose workflow also runs a command that writes
+ * that lockfile (`npm install`, `uv run` without `--locked`, ...), which may create it first.
  */
 function findLockfileRequirement(
   repoPath: string,
-  ciWorkflows: readonly string[],
+  workflows: readonly string[],
   isSatisfied: (lockfiles: readonly string[]) => boolean,
 ): LockfileRequirement | undefined {
-  for (const file of ciWorkflows) {
+  for (const file of workflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
-    const lines = readRepoText(fullPath, 'utf8').split('\n');
-    for (let index = 0; index < lines.length; index += 1) {
-      for (const words of ciLineCommands(lines[index] ?? '')) {
+    const steps = githubActionsRunSteps(readRepoText(fullPath, 'utf8'));
+    const commandsOf = (step: WorkflowRunStep) =>
+      step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
+    const allCommands = steps.flatMap(commandsOf);
+    for (const step of steps) {
+      if (step.conditional) continue;
+      const commands = commandsOf(step);
+      const shellIsConditional =
+        step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
+        commands.some(({ words }) => words.some((word) => CONDITIONAL_SHELL_WORDS.has(word))) ||
+        step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)));
+      if (shellIsConditional) continue;
+      for (const { line, words } of commands) {
         for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
           const command = matchLockfileRequiringCommand(words, rule);
-          if (command !== undefined && !isSatisfied(rule.lockfiles)) {
-            return { file, line: index + 1, command: command.slice(0, 80) };
-          }
+          if (command === undefined || isSatisfied(rule.lockfiles)) continue;
+          const lockfileMayBeGenerated = allCommands.some(
+            (other) =>
+              other.words[0] === rule.tool &&
+              rule.generators.includes(other.words[1] ?? '') &&
+              matchLockfileRequiringCommand(other.words, rule) === undefined,
+          );
+          if (lockfileMayBeGenerated) continue;
+          return { file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
         }
       }
     }

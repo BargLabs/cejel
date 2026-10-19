@@ -176,8 +176,8 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
-//     read it abstains as a read failure instead of scoring the pointer text, unless it is not
-//     applicable or its collector made a critical finding (it then scores as under v17);
+//     read it abstains as a read failure instead of scoring the pointer text, unless its
+//     collector made a critical finding (it then scores as under v17);
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
 //     own CI requires a lockfile and none is committed;
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding

@@ -60,8 +60,8 @@ Stable in report format v1:
   criterion read it (`affectedCriteria` stays empty), so a gate that needs to know should treat any
   criterion as possibly affected, or require a scan with the LFS content present. Under `witan-rubric-v27-prospective-2026-10-19` the read is
   attributed, the criterion abstains as a read failure, and it appears in `affectedCriteria`,
-  except where that criterion is not applicable or its collector made a critical finding: then it
-  scores as under v17 and is not listed.
+  except where its collector made a critical finding: then it scores as under v17 and is not
+  listed.
   Absent on reports older than 1.6, and absent (not 0) when no pointer was read.
 
 Experimental within report format v1: metric presentation hints under

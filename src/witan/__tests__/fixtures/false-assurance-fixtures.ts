@@ -619,6 +619,65 @@ FALSE_ASSURANCE_FIXTURES_REVIEW.push(
   },
 );
 
+// A second review, of the fixes above, reproduced these.
+const NODE_LIBRARY_NO_LOCKFILE: Readonly<Record<string, string>> = {
+  'package.json': `${JSON.stringify({ name: 'b', version: '1.0.0', scripts: { test: 'node --test' }, dependencies: { zod: '^3.0.0' } }, null, 2)}\n`,
+  'index.js': 'export const x = 1;\n',
+  'test/index.test.js': "import test from 'node:test';\nimport assert from 'node:assert';\n\ntest('x', () => {\n  assert.strictEqual(1, 1);\n});\n",
+  'README.md': '# b\n',
+  LICENSE: 'MIT\n',
+};
+for (const [name, purpose, steps] of [
+  [
+    'review2-a4-npm-ci-guarded-by-if',
+    'A step that runs `npm ci` only when a lockfile exists does not require one.',
+    '      - run: if [ -f package-lock.json ]; then npm ci; else npm install; fi\n      - run: npm test\n',
+  ],
+  [
+    'review2-a4-npm-ci-guarded-by-test-and-or',
+    '`[ -f package-lock.json ] && npm ci || npm install` does not require a lockfile.',
+    '      - run: "[ -f package-lock.json ] && npm ci || npm install"\n      - run: npm test\n',
+  ],
+  [
+    'review2-a4-npm-ci-in-echo-and-heredoc',
+    '`npm ci` as echoed text, a heredoc line, or a step name is not a command.',
+    '      - name: npm ci\n        run: npm install\n      - run: echo tip use npm ci locally\n      - run: |\n          cat > NOTE.md <<EOF\n          npm ci\n          EOF\n      - run: npm test\n',
+  ],
+  [
+    'review2-a4-npm-ci-in-disabled-job',
+    'A job with an `if:` condition states nothing unconditionally.',
+    '      - run: npm test\n  extra:\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm ci\n',
+  ],
+  [
+    'review2-a4-lockfile-generated-first',
+    '`npm install --package-lock-only` before `npm ci` creates the lockfile the second needs.',
+    '      - run: npm install --package-lock-only\n      - run: npm ci\n      - run: npm test\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#520',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI(steps) }],
+  });
+}
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review2-a3-service-entrypoint-as-lfs-pointer',
+  issue: '#519',
+  foundInReview: true,
+  purpose:
+    'A service whose entry point is an LFS pointer: A3 must not report not-applicable from content it did not read.',
+  commits: [
+    {
+      'package.json': `${JSON.stringify({ name: 'svc', version: '1.0.0', main: 'server.js', scripts: { start: 'node server.js' }, dependencies: { express: '^4.19.0' } }, null, 2)}\n`,
+      'server.js': lfsPointerFor("const express = require('express');\nconst app = express();\napp.listen(3000);\n"),
+      '.gitattributes': 'server.js filter=lfs diff=lfs merge=lfs -text\n',
+      'README.md': '# svc\n',
+    },
+  ],
+});
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

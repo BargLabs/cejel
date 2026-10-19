@@ -39,13 +39,16 @@ claim.** Classification and the reasons for each design choice:
   other report's bytes change), itemized on the certificate, and labelled as a pointer in A1's
   evidence. No criterion abstains on it under these rubrics: the reader is told the content was
   not read, and the score is unchanged.
-- #520: A4's library note no longer says a lockfile is "not required" when the repository's own CI
-  requires one and the lockfile that command reads is absent everywhere the scan knows of. The
-  commands are those documented to fail without their lockfile: `npm ci`, `pnpm install
-  --frozen-lockfile`, `yarn --immutable`, `uv run|sync --locked|--frozen`, `cargo
-  build|test|check|clippy|doc|run|bench --locked|--frozen` and `poetry check --lock`. The line is
-  read as words before any comment, so a pathological line costs linear time. It names the command, file and line, and that line is cited first, so the
-  metric-derived finding cites it. A lockfile the file walk withheld (for example, over the size
+- #520: A4's library note no longer says a lockfile is "not required" when an unconditional
+  GitHub Actions step runs a command documented to fail without its lockfile (`npm ci`, `pnpm
+  install --frozen-lockfile`, `uv run|sync --locked|--frozen`, `cargo
+  build|test|check|clippy|doc|run|bench --locked|--frozen`, `poetry check --lock`) and that
+  lockfile is absent everywhere the scan knows of. Cejel claims nothing when the step or its job has
+  an `if:`, the step's shell is conditional (`if`, `[`, `test`, `||`, ...) or holds a heredoc, the
+  tool is not in command position (echoed text, a step name), or the workflow also runs a command
+  that writes that lockfile (`npm install`, `uv run` without `--locked`, ...). Steps are read as
+  words before any comment, in linear time. The note names the command, file, line and needed
+  lockfile, and that line is cited first, so the metric-derived finding cites it. A lockfile the file walk withheld (for example, over the size
   limit) counts as present for this purpose. Under library norms the manifest holding a dependency
   declared with no version constraint is cited first when it is not the primary manifest.
 
@@ -61,9 +64,10 @@ claim.** Classification and the reasons for each design choice:
   hollow, and is named in a warning finding; so does an unconditional one-line module-level
   `pytestmark = pytest.mark.skip`.
 - #519 (every criterion): reading an LFS pointer is a content-read skip attributed to the reading
-  criterion, which abstains as a read failure (kept in the composite at 0), except a criterion that
-  is not applicable or whose collector made a critical finding: that one scores as under v17, so a
-  pointer-shaped file cannot erase a confirmed finding.
+  criterion, which abstains as a read failure (kept in the composite at 0), including one that
+  would otherwise be not applicable, since applicability is decided from content. The exception is
+  a criterion whose collector made a critical finding: it scores as under v17, so a pointer-shaped
+  file cannot erase a confirmed finding.
 - #520 (A4): under library norms, `lockfile_coverage` is 0, not omitted, when the repository's CI
   requires a lockfile and the inventory holds none.
 - #442 (A2, B2): on a shallow clone A2 abstains unless a confirmed critical finding stands, and B2
@@ -99,6 +103,10 @@ trailing comment), a quadratic regex on the v17 path, and v27 over-reach (an LFS
 critical finding; conditional hooks and pytestmarks read as unconditional; tox CI read as
 publish-only). Each is fixed and pinned by a fixture or by a timing guard
 (`scan-path-regex-bounds.test.ts`; the previous implementation's scan is killed at 20 s).
+A second review, of those fixes, reproduced six more false lockfile notes (a step guarded by
+`if [ -f package-lock.json ]`, `[ ... ] && npm ci || npm install`, echoed text, a heredoc line, a
+disabled job, a lockfile generated earlier in the job), a not-applicable result kept from an LFS
+pointer, and an evidence-sample shift; those are fixed and pinned the same way.
 
 **Fingerprints.** Every existing pin is unchanged; v17 stays
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 is pinned at

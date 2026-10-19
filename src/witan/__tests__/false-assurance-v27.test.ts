@@ -206,7 +206,9 @@ describe('#520 — A4 says what the repository itself requires, and cites what d
     for (const rubricVersion of [V17, V27]) {
       const a4 = criterion(deleted, rubricVersion, 'A4');
       expect(a4.notes).not.toContain('not required');
-      expect(a4.notes).toContain('`uv run --locked`, .github/workflows/ci.yml line 12');
+      expect(a4.notes).toContain(
+        'An unconditional step in this repository\'s CI runs `uv run --locked` (.github/workflows/ci.yml line 12), which exits with an error without uv.lock, and the scanned inventory holds none.',
+      );
       expect(a4.evidence[0]?.path).toBe('.github/workflows/ci.yml');
       expect(a4.evidence[0]?.line).toBe(12);
     }
@@ -301,10 +303,15 @@ describe('review findings against the first implementation stay fixed', () => {
       'review-a4-cargo-install-locked',
       'review-a4-bun-lock-committed',
       'review-a4-npm-ci-in-trailing-comment',
+      'review2-a4-npm-ci-guarded-by-if',
+      'review2-a4-npm-ci-guarded-by-test-and-or',
+      'review2-a4-npm-ci-in-echo-and-heredoc',
+      'review2-a4-npm-ci-in-disabled-job',
+      'review2-a4-lockfile-generated-first',
     ]) {
       for (const rubricVersion of [V17, V27]) {
         const a4 = criterion(name, rubricVersion, 'A4');
-        expect(a4.notes ?? '', `${name}@${rubricVersion}`).not.toContain('requires a lockfile');
+        expect(a4.notes ?? '', `${name}@${rubricVersion}`).not.toContain('which exits with an error');
         expect(metricValue(a4, 'lockfile_coverage'), `${name}@${rubricVersion}`).not.toBe(0);
       }
       expect(criterion(name, V27, 'A4')).toEqual(criterion(name, V17, 'A4'));
@@ -333,13 +340,23 @@ describe('review findings against the first implementation stay fixed', () => {
     expect(criterion(name, V27, 'B3')).toEqual(criterion(name, V17, 'B3'));
   });
 
-  it('#519: an LFS pointer never erases a confirmed critical finding or a not-applicable result', () => {
+  it('#519: an LFS pointer never erases a confirmed critical finding', () => {
     const secret = criterion('review-a2-secret-beside-planted-lfs-pointer', V27, 'A2');
     expect(secret).toEqual(criterion('review-a2-secret-beside-planted-lfs-pointer', V17, 'A2'));
     expect(secret.status).toBe('critical');
-    const data = criterion('review-a2-lfs-data-in-not-applicable-library', V27, 'A2');
-    expect(data.status).toBe('not_applicable');
-    expect(report('review-a2-lfs-data-in-not-applicable-library', V27).contentReadSummary?.affectedCriteria ?? []).not.toContain('A2');
+  });
+
+  it('#519: a not-applicable result decided from an LFS pointer abstains instead', () => {
+    // Applicability is decided from what a collector fails to find in content; a pointer is
+    // content it did not read. Abstaining is a read failure, so the composite can only fall.
+    for (const [name, id] of [
+      ['review-a2-lfs-data-in-not-applicable-library', 'A2'],
+      ['review2-a3-service-entrypoint-as-lfs-pointer', 'A3'],
+    ] as const) {
+      const after = criterion(name, V27, id);
+      expect(after.status, `${name} ${id}`).toBe('insufficient_data');
+      expect(report(name, V27).contentReadSummary?.affectedCriteria).toContain(id);
+    }
   });
 
   it('#442: the v27 shallow-clone sentence does not claim A2 abstains where it is not applicable', () => {
