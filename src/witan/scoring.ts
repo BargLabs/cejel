@@ -174,6 +174,10 @@ export function createWitanReport(
       category: rubricCriterion.category,
       score: finalScore,
       ...(adjustment !== 0 ? { nativeScore: scored.score } : {}),
+      // Beside nativeScore, so a reader can tell a status that imported evidence moved from one
+      // the native evidence produced (report format 1.6). Presentation-only: finalStatus above is
+      // computed exactly as before.
+      ...(adjustment !== 0 ? { nativeStatus: scored.status } : {}),
       status: finalStatus,
       evidence: scored.evidence,
       findings: scored.findings,

@@ -1,13 +1,22 @@
 import type { WitanInputSignal, WitanReport } from './schemas.js';
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
+import { execGit } from './git-exec.js';
 import { detectHistoryLimitations } from './history-depth.js';
 import {
+  type IngestDocument,
   discoverIngestInputs,
   expandIngestPattern,
-  parseIngestFile,
+  readIngestDocument,
   resolveIngestFilePath,
 } from './ingest.js';
+import {
+  type IngestDocumentRecord,
+  type ScannedSubject,
+  assertStrictIngestBinding,
+  buildInputBinding,
+  normalizeRepositoryIdentity,
+} from './input-binding.js';
 import { buildWitanInputFromRepo, explainNoMeasurementSourceCoverage } from './repo-signals.js';
 import { assertSelectableRubricVersion } from './rubric-version.js';
 import { createWitanReport } from './scoring.js';
@@ -31,6 +40,18 @@ export interface PublicCejelScoreOptions {
   warnOnEmptyIngestMatch?: boolean;
   /** The running @cejel/cejel version, carried onto report.json's toolVersion. Not defaulted. */
   toolVersion?: string;
+  /**
+   * Refuse, before scoring, any ingested input whose declared subject is another repository or
+   * commit, that was observed before the scanned commit existed, or that duplicates another input.
+   * Default false: the binding status is recorded and scoring is identical to a build without it.
+   */
+  strictIngest?: boolean;
+  /**
+   * The scanned repository's identity (e.g. `github.com/owner/repo` or its clone URL), compared with
+   * the repository an ingested input declares. Never inferred from clone state: without it, an
+   * input's repository is recorded as `unverifiable` and binding rests on the commit.
+   */
+  subjectRepository?: string;
 }
 
 // Public scans fail closed rather than silently truncate when external evidence exceeds either
@@ -53,7 +74,17 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     ...(options.generatedAt ? { generatedAt: options.generatedAt } : {}),
     ...(options.rubricVersion ? { rubricVersion: options.rubricVersion } : {}),
   });
-  const inputSignals = resolvePublicIngestSignals(options);
+  const scannedSubject = readScannedSubject(
+    options.repoPath,
+    input.repo.headSha,
+    options.subjectRepository,
+  );
+  const { signals: inputSignals, documents } = resolvePublicIngestInputs(options);
+  const inputBinding =
+    documents.length > 0
+      ? buildInputBinding(documents, scannedSubject, options.strictIngest ? 'strict' : 'record-only')
+      : undefined;
+  if (options.strictIngest && inputBinding) assertStrictIngestBinding(documents, inputBinding);
   const scored = createWitanReport(
     input,
     inputSignals.length > 0 ? inputSignals : undefined,
@@ -62,7 +93,12 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
   );
   // Attached after scoring, so it cannot reach any score; see detectHistoryLimitations.
   const historyLimitations = detectHistoryLimitations(options.repoPath);
-  const report: WitanReport = historyLimitations ? { ...scored, historyLimitations } : scored;
+  const withHistory: WitanReport = historyLimitations
+    ? { ...scored, historyLimitations }
+    : scored;
+  // Also attached after scoring: under the default record-only policy the binding status is a
+  // disclosure, never a scoring input.
+  const report: WitanReport = inputBinding ? { ...withHistory, inputBinding } : withHistory;
   if (report.verdict !== 'insufficient_source' || !isWitanNoMeasurementAbstention(report)) {
     return report;
   }
@@ -79,6 +115,40 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     : report;
 }
 
+/**
+ * The scanned subject an ingested input is compared with: the HEAD commit the scan read, that
+ * commit's committer time (the deterministic freshness anchor; never the wall clock), and the
+ * repository identity only when the caller named it.
+ */
+export function readScannedSubject(
+  repoPath: string,
+  headSha: string | undefined,
+  subjectRepository: string | undefined,
+): ScannedSubject {
+  let repository: string | undefined;
+  if (subjectRepository !== undefined) {
+    repository = normalizeRepositoryIdentity(subjectRepository);
+    if (repository === undefined) {
+      throw new Error(
+        `Cejel: --subject-repository value is not a repository identity Cejel can compare: "${subjectRepository.slice(0, 200)}". Expected a form such as github.com/owner/repo or https://github.com/owner/repo.git.`,
+      );
+    }
+  }
+  let commitTime: string | undefined;
+  if (headSha) {
+    const result = execGit(['show', '-s', '--format=%ct', 'HEAD'], { cwd: repoPath });
+    const seconds = result.ok ? Number(result.stdout.trim()) : Number.NaN;
+    if (Number.isSafeInteger(seconds) && seconds >= 0) {
+      commitTime = new Date(seconds * 1000).toISOString();
+    }
+  }
+  return {
+    ...(repository !== undefined ? { repository } : {}),
+    ...(headSha ? { commit: headSha.toLowerCase() } : {}),
+    ...(commitTime !== undefined ? { commitTime } : {}),
+  };
+}
+
 /** Resolve the sealed public-scan ingest surface; repository-authored inputs require opt-in. */
 export function resolvePublicIngestSignals(
   options: Pick<
@@ -86,20 +156,47 @@ export function resolvePublicIngestSignals(
     'repoPath' | 'ingestPatterns' | 'autoDiscoverIngest' | 'warnOnEmptyIngestMatch'
   >,
 ): WitanInputSignal[] {
+  return resolvePublicIngestInputs(options).signals;
+}
+
+/**
+ * The ingest surface plus one binding record per document. Deduplication is unchanged: a path
+ * supplied twice is read once (and recorded as a `same-path` duplicate), and identical bytes at
+ * two paths are both scored, as they always were, and recorded as a `same-content` duplicate.
+ */
+export function resolvePublicIngestInputs(
+  options: Pick<
+    PublicCejelScoreOptions,
+    'repoPath' | 'ingestPatterns' | 'autoDiscoverIngest' | 'warnOnEmptyIngestMatch'
+  >,
+): { signals: WitanInputSignal[]; documents: IngestDocumentRecord[] } {
   const seen = new Set<string>();
   const documents: Array<{
     file: string;
+    displayPath: string;
     provenance: 'operator_supplied' | 'auto_discovered';
   }> = [];
+  // One record per distinct (path, provenance) repeat, so a path given a thousand times cannot
+  // grow the certificate past the document budget's bound.
+  const samePathRepeats = new Map<
+    string,
+    { file: string; displayPath: string; provenance: 'operator_supplied' | 'auto_discovered' }
+  >();
 
   const addDocument = (
     file: string,
     provenance: 'operator_supplied' | 'auto_discovered',
   ): void => {
     const resolved = resolveIngestFilePath(file);
-    if (seen.has(resolved)) return;
+    if (seen.has(resolved)) {
+      const key = `${resolved}\u0000${provenance}`;
+      if (!samePathRepeats.has(key)) {
+        samePathRepeats.set(key, { file: resolved, displayPath: file, provenance });
+      }
+      return;
+    }
     seen.add(resolved);
-    documents.push({ file: resolved, provenance });
+    documents.push({ file: resolved, displayPath: file, provenance });
     if (documents.length > MAX_INGEST_DOCUMENTS) {
       throw new Error(
         `Cejel: ${documents.length} unique ingest documents exceed the ${MAX_INGEST_DOCUMENTS} ingest document budget; refusing to produce a partial certificate.`,
@@ -129,12 +226,16 @@ export function resolvePublicIngestSignals(
   }
 
   const signals: WitanInputSignal[] = [];
+  const records: IngestDocumentRecord[] = [];
+  const readByPath = new Map<string, IngestDocument>();
+  const scoredDigests = new Set<string>();
   let retainedFindings = 0;
   for (const document of documents) {
-    const parsed = parseIngestFile(document.file, {
+    const read = readIngestDocument(document.file, {
       maxFindingCandidates: MAX_RETAINED_INGEST_FINDINGS - retainedFindings,
       provenance: document.provenance,
     });
+    const parsed = read.signals;
     const documentFindings = parsed.reduce((count, signal) => count + signal.findings.length, 0);
     retainedFindings += documentFindings;
     if (retainedFindings > MAX_RETAINED_INGEST_FINDINGS) {
@@ -143,6 +244,28 @@ export function resolvePublicIngestSignals(
       );
     }
     signals.push(...parsed);
+    readByPath.set(document.file, read);
+    records.push({
+      sha256: read.sha256,
+      format: read.format,
+      provenance: document.provenance,
+      identity: read.identity,
+      displayPath: document.displayPath,
+      ...(scoredDigests.has(read.sha256) ? { duplicate: 'same-content' as const } : {}),
+    });
+    scoredDigests.add(read.sha256);
   }
-  return signals;
+  for (const repeat of samePathRepeats.values()) {
+    const read = readByPath.get(repeat.file);
+    if (!read) continue;
+    records.push({
+      sha256: read.sha256,
+      format: read.format,
+      provenance: repeat.provenance,
+      identity: read.identity,
+      displayPath: repeat.displayPath,
+      duplicate: 'same-path',
+    });
+  }
+  return { signals, documents: records };
 }
