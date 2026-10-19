@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "A monotonicity property checked only on fixtures written by the author of the change proves only that those fixtures don't break it, so give the change to an adversarial reviewer before trusting it. The first implementation of witan-rubric-v27 claimed that no score could rise against v17. A test checked that claim on 22 fixtures, the 300 behaviour-corpus reports and the 23 board rows. An independent review then built a repository where it fails: __tests__/conftest.py, which v17 rates as a hollow test file, was removed from A1's non_hollow_test_share denominator, so A1 rose from 2.5 to 2.8 (src/witan/repo-signals.ts, the v27 conftest filter at the time of commit 22848bcb0). The same review found false CI-lockfile claims on the v17 default and a quadratic regex. Rule: when a claim holds for every repository, attack the mechanism with shapes chosen to break it, and add each reproduced break as a fixture.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "rubric", "reviewer-error", "property-testing"],
+    "tags": ["no-rise", "denominator", "adversarial-review", "self-certification", "fixture-coverage"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-19T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 521}
+  }
+]
