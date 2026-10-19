@@ -112,7 +112,8 @@ the behaviour corpus, the calibration anchors, the new fixtures and the public b
 
 Where the implementation is narrower than, or differs from, the classification table:
 
-- **#520, what is read.** The lockfile requirement is read from CI workflows only. tox and nox
+- **#520, what is read.** The lockfile requirement is read from CI workflows only, and only for the
+  commands documented to fail without their lockfile. tox and nox
   configuration (for example `uv-venv-lock-runner`) is not read, so a requirement stated only
   there is not reported. The "manifest holding an unconstrained dependency is cited first" change
   applies under library norms only; application norms keep their citation unchanged.
@@ -129,6 +130,14 @@ Where the implementation is narrower than, or differs from, the classification t
   name. Left open.
 - **#442, findings withheld.** When A2 abstains on a shallow clone its warning and info findings
   are withheld with it (on the board: django loses one warning, vite one info).
+
+- **Review.** An adversarial review of the first implementation found ten defects, listed in the
+  changelog entry; the fixes narrow #517 (pull-request triggers, reusable workflows and a wider
+  verification vocabulary keep a workflow counted), #518 (the share stays over v17's list; only
+  top-level hooks; only .py files; no conditional pytestmark), #519 (a not-applicable result and a
+  collector's critical finding are kept) and #520 (a fixed command list, per-command lockfiles,
+  comments ignored, linear parsing). The `fixtures/false-assurance-fixtures.ts` entries marked
+  `foundInReview` pin them.
 
 ## v17 to v27 on the fixtures
 
@@ -158,6 +167,16 @@ Generated from `report.json`; every row either does not move or moves down.
 | history-full-clone | at_risk | 1.8 | 2 | 1.5 | no move |
 | history-shallow-clone | at_risk → unverified | 1.7 → 0.8 | 2 → 1 | 1.3 → 0.5 | A2 verified 4 → insufficient_data 0; B2 warning 1.6 → insufficient_data 0 |
 | history-shallow-clone-with-committed-secret | unverified | 1.3 → 0.9 | 1.3 | 1.3 → 0.5 | B2 warning 1.6 → insufficient_data 0 |
+| review-a1-conditional-pytestmark | unverified | 1.4 | 1.5 | 1.3 | no move |
+| review-a1-hook-defined-under-try | unverified | 1.4 | 1.5 | 1.3 | A1 metric only (test_to_source_ratio 3→2; score unchanged) |
+| review-a1-name-shaped-conftest-rated-hollow | at_risk | 1.7 | 1.5 | 1.8 | A1 metric only (test_to_source_ratio 2→1; score unchanged) |
+| review-a1-root-conftest-beside-vitest | at_risk | 2 → 1.9 | 2.3 → 2.1 | 1.6 | A1 verified 2.3 → warning 1.9 |
+| review-a2-lfs-data-in-not-applicable-library | unverified | 1.4 | 1.5 | 1.3 | no move |
+| review-a2-secret-beside-planted-lfs-pointer | unverified | 1.4 | 1.4 | 1.3 | no move |
+| review-a4-bun-lock-committed | at_risk | 1.7 | 2.3 | 1.1 | no move |
+| review-a4-cargo-install-locked | at_risk | 1.7 | 2.1 | 1.3 | no move |
+| review-a4-npm-ci-in-trailing-comment | at_risk | 2.1 | 2.5 | 1.6 | no move |
+| review-b3-tox-ci-with-tag-publish | unverified | 1.3 | 1.5 | 1.1 | no move |
 
 The public-board table is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-19).
 

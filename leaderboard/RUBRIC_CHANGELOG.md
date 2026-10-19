@@ -40,21 +40,30 @@ claim.** Classification and the reasons for each design choice:
   evidence. No criterion abstains on it under these rubrics: the reader is told the content was
   not read, and the score is unchanged.
 - #520: A4's library note no longer says a lockfile is "not required" when the repository's own CI
-  requires one (`uv run --locked`, `npm ci`, `--frozen-lockfile`, and the like) and the scanned
-  inventory holds none. It names the command, file and line, and that line is cited first, so the
+  requires one and the lockfile that command reads is absent everywhere the scan knows of. The
+  commands are those documented to fail without their lockfile: `npm ci`, `pnpm install
+  --frozen-lockfile`, `yarn --immutable`, `uv run|sync --locked|--frozen`, `cargo
+  build|test|check|clippy|doc|run|bench --locked|--frozen` and `poetry check --lock`. The line is
+  read as words before any comment, so a pathological line costs linear time. It names the command, file and line, and that line is cited first, so the
   metric-derived finding cites it. A lockfile the file walk withheld (for example, over the size
   limit) counts as present for this purpose. Under library norms the manifest holding a dependency
   declared with no version constraint is cited first when it is not the primary manifest.
 
 **Scoring, v27 only.**
-- #517 (B3): a workflow with a publish, release or deploy step and no test, lint or type-check
-  command counts toward neither `ci_script_depth` nor `default_branch_ci_depth`.
-- #518 (A1): `conftest.py` is not a concrete test file. A `pytest_collection_modifyitems` hook in
-  a conftest.py that unconditionally skips or removes every item, or a module-level unconditional
-  `pytestmark = pytest.mark.skip`, makes the files in its scope hollow; the hook is named in a
-  warning finding.
+- #517 (B3): a workflow with a publish, release or deploy step, no pull-request or merge-queue
+  trigger, no reusable-workflow call, and no test, lint, type-check or other recognised
+  verification command (tox, nox, pre-commit, gradle, maven, make check, ...) counts toward neither
+  `ci_script_depth` nor `default_branch_ci_depth`. Any doubt keeps it counted.
+- #518 (A1): `conftest.py` is not a concrete test file for `test_to_source_ratio` or the
+  evidence; `non_hollow_test_share` stays measured over v17's list, so its denominator cannot
+  shrink. A top-level `pytest_collection_modifyitems` hook in a conftest.py that, with no
+  conditional anywhere in it, skips or removes every item makes the pytest files in its directory
+  hollow, and is named in a warning finding; so does an unconditional one-line module-level
+  `pytestmark = pytest.mark.skip`.
 - #519 (every criterion): reading an LFS pointer is a content-read skip attributed to the reading
-  criterion, which abstains as a read failure (kept in the composite at 0).
+  criterion, which abstains as a read failure (kept in the composite at 0), except a criterion that
+  is not applicable or whose collector made a critical finding: that one scores as under v17, so a
+  pointer-shaped file cannot erase a confirmed finding.
 - #520 (A4): under library norms, `lockfile_coverage` is 0, not omitted, when the repository's CI
   requires a lockfile and the inventory holds none.
 - #442 (A2, B2): on a shallow clone A2 abstains unless a confirmed critical finding stands, and B2
@@ -78,9 +87,18 @@ fingerprint projection were compared before and after.
 | Behaviour corpus (30 specimens) | v17-v26 | 300 | 0 | 290 | 10: `pr-template-directory-form` under every rubric, A4 note and citation (its CI runs `npm ci`, no lockfile) |
 | Calibration anchors (5 fixtures) | v17-v26 | 50 | 0 | not comparable | the fixtures are not hermetic, so every head sha differs between builds |
 | Public board, 23 public rows at their pinned commits, depth 1 as the board fetches them | v17 | 23 | 0 | 20 | 3: biomejs, flask, zod, A4 citation order |
-| New fixtures (22, `false-assurance-fixtures.ts`) | v17 | 22 | 1: `a1-js-suite-as-lfs-pointers`, `contentReadSummary.byReason.lfsPointer` 2 | 18 | 4: the LFS fixture (count and evidence labels), two A4 fixtures and `b3-test-then-publish-workflow` (A4 note and citation; its CI runs `npm ci`) |
+| New fixtures (32, `false-assurance-fixtures.ts`, 10 of them from review) | v17 | 32 | 3: the three LFS fixtures, `contentReadSummary.byReason.lfsPointer` only | 26 | 6: the LFS fixtures (count, labels), two A4 fixtures and `b3-test-then-publish-workflow` (A4 note and citation; its CI runs `npm ci`) |
 
-The private board row was not run for this entry.
+The private board row was not run for this entry. `report.json` comparisons are above;
+`attestation.json` changes on every scan, because it records report format 1.6.
+
+**Found in review.** An adversarial review of the first implementation of this change reproduced
+a score rise under v27 (a `conftest.py` that v17 rates hollow left A1's non-hollow denominator),
+false lockfile-requirement notes under v17 (`cargo install --locked`, a committed `bun.lock`, a
+trailing comment), a quadratic regex on the v17 path, and v27 over-reach (an LFS pointer erasing a
+critical finding; conditional hooks and pytestmarks read as unconditional; tox CI read as
+publish-only). Each is fixed and pinned by a fixture or by a timing guard
+(`scan-path-regex-bounds.test.ts`; the previous implementation's scan is killed at 20 s).
 
 **Fingerprints.** Every existing pin is unchanged; v17 stays
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 is pinned at
@@ -104,11 +122,11 @@ critical finding stands. Every composite falls; none rises.
 | django | conditional → at_risk | 3.1 → 1.6 | 2.6 → 1.6 | 3.6 → 1.6 | A2 warning 2.8 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
 | esbuild | conditional → at_risk | 2.5 → 2 | 2.6 | 2.4 → 1.3 | B2 warning 3.2 → insufficient_data 0 |
 | express | conditional → at_risk | 3.1 → 2.4 | 3 | 3.2 → 1.8 | B2 verified 4 → insufficient_data 0 |
-| fastapi | conditional | 3 → 2.5 | 2.8 | 3.2 → 2.1 | A1 metric only (test_to_source_ratio 604→603; score unchanged); B2 warning 3.2 → insufficient_data 0; B3 metric only (default_branch_ci_depth 9→8; score unchanged) |
-| flask | conditional → at_risk | 2.9 → 1.9 | 2.7 → 1.9 | 3 → 1.9 | A1 metric only (non_hollow_test_share 28→27, test_to_source_ratio 59→56; score unchanged); A2 verified 3.2 → insufficient_data 0; B2 warning 3.2 → insufficient_data 0 |
+| fastapi | conditional | 3 → 2.5 | 2.8 | 3.2 → 2.1 | A1 metric only (test_to_source_ratio 604→603; score unchanged); B2 warning 3.2 → insufficient_data 0 |
+| flask | conditional → at_risk | 2.9 → 1.9 | 2.7 → 1.9 | 3 → 1.9 | A1 metric only (test_to_source_ratio 59→56; score unchanged); A2 verified 3.2 → insufficient_data 0; B2 warning 3.2 → insufficient_data 0 |
 | fmt | conditional → at_risk | 2.6 → 2.2 | 2 | 3.2 → 2.4 | B2 warning 3.2 → insufficient_data 0 |
 | guava | at_risk → unverified | 1.9 → 1.1 | 1.6 | 2.2 → 0.6 | B2 warning 3.2 → insufficient_data 0 |
-| pydantic | conditional | 3.2 → 2.6 | 2.9 | 3.5 → 2.2 | A1 metric only (non_hollow_test_share 213→212, test_to_source_ratio 292→290; score unchanged); B2 verified 4 → insufficient_data 0 |
+| pydantic | conditional | 3.2 → 2.6 | 2.9 | 3.5 → 2.2 | A1 metric only (test_to_source_ratio 292→290; score unchanged); B2 verified 4 → insufficient_data 0 |
 | react | conditional → at_risk | 3 → 2.4 | 2.1 | 3.9 → 2.6 | B2 verified 4 → insufficient_data 0 |
 | requests | conditional → at_risk | 2.9 → 2.4 | 2.4 | 3.4 → 2.4 | A1 verified 2.5 → verified 2.4; B2 verified 4 → insufficient_data 0 |
 | ripgrep | at_risk | 2.1 → 1.6 | 2.1 | 2 → 1 | B2 warning 3.2 → insufficient_data 0 |
