@@ -130,7 +130,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       .map(([errno, count]) => `${errno}: ${count}`)
       .join(', ');
     lines.push(
-      `Skipped content entries: ${reads.skipped} (unreadable: ${reads.byReason.unreadable}${errnoCounts ? ` [${errnoCounts}]` : ''}; too large: ${reads.byReason.tooLarge}; excluded by extension: ${reads.byReason.excludedByExtension}; denied path: ${reads.byReason.deniedPath}; non-regular file: ${reads.byReason.nonRegularFile}).`,
+      `Skipped content entries: ${reads.skipped} (unreadable: ${reads.byReason.unreadable}${errnoCounts ? ` [${errnoCounts}]` : ''}; too large: ${reads.byReason.tooLarge}; excluded by extension: ${reads.byReason.excludedByExtension}; denied path: ${reads.byReason.deniedPath}; non-regular file: ${reads.byReason.nonRegularFile}${reads.byReason.lfsPointer ? `; Git LFS pointer: ${reads.byReason.lfsPointer}` : ''}).`,
     );
     if (reads.affectedCriteria.length > 0) {
       lines.push(

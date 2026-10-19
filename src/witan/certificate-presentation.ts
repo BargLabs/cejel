@@ -720,6 +720,8 @@ const ACTIONABLE_SKIP_REASONS: ReadonlyArray<{
   { key: 'tooLarge', label: 'too large' },
   { key: 'deniedPath', label: 'a denied path' },
   { key: 'nonRegularFile', label: 'not a regular file' },
+  // Fetch the LFS content (git lfs pull) and re-scan. Present only on report format 1.6+ (#519).
+  { key: 'lfsPointer', label: 'a Git LFS pointer whose content is not in the checkout' },
 ];
 
 function actionableSkipReasons(summary: WitanContentReadSummary | undefined): {
@@ -727,9 +729,9 @@ function actionableSkipReasons(summary: WitanContentReadSummary | undefined): {
   reasons: string[];
 } {
   if (!summary) return { count: 0, reasons: [] };
-  const present = ACTIONABLE_SKIP_REASONS.filter(({ key }) => summary.byReason[key] > 0);
+  const present = ACTIONABLE_SKIP_REASONS.filter(({ key }) => (summary.byReason[key] ?? 0) > 0);
   return {
-    count: present.reduce((sum, { key }) => sum + summary.byReason[key], 0),
+    count: present.reduce((sum, { key }) => sum + (summary.byReason[key] ?? 0), 0),
     reasons: present.map(({ label }) => label),
   };
 }
@@ -840,6 +842,8 @@ const WITHHELD_PATH_REASON_LABELS: Record<WitanWithheldPath['reason'], string> =
   unreadable: 'unreadable',
   denied_path: 'denied path',
   excluded_by_extension: 'excluded by extension',
+  // Never a withheld-path reason today (an LFS pointer is read, not withheld); the map is total.
+  lfs_pointer: 'a Git LFS pointer',
 };
 
 function describeWithheldReasons(entries: readonly WitanWithheldPath[]): string {

@@ -227,6 +227,8 @@ export const WitanContentReadSkipReasonSchema = z.enum([
   'excluded_by_extension',
   'denied_path',
   'non_regular_file',
+  // Additive, report format 1.6 (#519): the checkout held a Git LFS pointer in place of content.
+  'lfs_pointer',
 ]);
 export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReasonSchema>;
 
@@ -268,6 +270,9 @@ export const WitanContentReadSummarySchema = z
         excludedByExtension: z.number().int().nonnegative(),
         deniedPath: z.number().int().nonnegative(),
         nonRegularFile: z.number().int().nonnegative(),
+        // Additive-optional, report format 1.6 (#519): files whose checkout held a Git LFS pointer
+        // in place of their content. Present only when non-zero.
+        lfsPointer: z.number().int().positive().optional(),
       })
       .strict(),
     unreadableByErrno: z.record(z.string().min(1).max(32), z.number().int().positive()),
@@ -275,7 +280,10 @@ export const WitanContentReadSummarySchema = z
   })
   .strict()
   .superRefine((summary, context) => {
-    const reasonTotal = Object.values(summary.byReason).reduce((sum, count) => sum + count, 0);
+    const reasonTotal = Object.values(summary.byReason).reduce(
+      (sum: number, count) => sum + (count ?? 0),
+      0,
+    );
     if (reasonTotal !== summary.skipped) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -539,7 +547,10 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // reports produced before this version do not carry it.
 // 1.5 (issue #428): report.json gained optional historyLimitations, present when the scanned
 // repository is a shallow clone. Display-only; reports from before this version do not carry it.
-export const WITAN_REPORT_FORMAT_VERSION = '1.5' as const;
+// 1.6 (issue #519): contentReadSummary.byReason gained optional lfsPointer, present only when the
+// checkout held at least one Git LFS pointer in place of a file's content, and the skip-reason
+// enum gained 'lfs_pointer'. Reports without an LFS pointer are byte-identical to 1.5 reports.
+export const WITAN_REPORT_FORMAT_VERSION = '1.6' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

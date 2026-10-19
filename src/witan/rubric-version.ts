@@ -166,6 +166,30 @@ export const WITAN_RUBRIC_VERSION_V25 = 'witan-rubric-v25-prospective-2026-10-12
 // no precision or recall claim, and no public paired rescore has run.
 export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14';
 
+// Prospective false-assurance closure. V27 inherits v17 — the calibrated public default — and
+// NOT v18-v26: every rubric-version comparison in src/witan that names WITAN_RUBRIC_VERSION_V17
+// also names WITAN_RUBRIC_VERSION_V27, and the only comparison naming V27 without V17 is the one
+// v27 gate, `usesV27FalseAssuranceClosure` in src/witan/repo-signals.ts. That gate changes only
+// places where a v17 certificate asserts more than Cejel read (#517, #518, #519, #520, #442):
+//   - B3: a workflow that only publishes, releases or deploys is not counted as CI depth;
+//   - A1: conftest.py is not a concrete test file, and an unconditional run-wide pytest skip
+//     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
+//     marks the test files in its scope hollow;
+//   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
+//     read it abstains as a read failure instead of scoring the pointer text;
+//   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
+//     own CI requires a lockfile and none is committed;
+//   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
+//     stands, and B2 abstains when fewer commits are visible than its window reads.
+// Each abstention is a read failure, kept in the composite at 0, and each other change only
+// lowers a metric, so no score or status can rise against v17; the measured before/after is in
+// leaderboard/RUBRIC_CHANGELOG.md and docs/reviews/v27-false-assurance-closure-2026-10-19.md.
+// The name collides with the unrelated `useV27Detectors` detector-generation flag in
+// repo-signals.ts (free-core detector v27, which every rubric since v8 uses); the rubric gate is
+// spelt `usesV27...` to keep the two apart. The public default remains v17; callers must opt in
+// explicitly. This declaration carries no precision or recall claim, and no holdout has run.
+export const WITAN_RUBRIC_VERSION_V27 = 'witan-rubric-v27-prospective-2026-10-19';
+
 // Calibration-claim policy. The shared/public default is deliberately decoupled from rubric
 // iteration: prospective rubrics are available only by explicit opt-in — a committed evaluation
 // harness, or (on main after 0.4.4) the unreleased public
@@ -184,13 +208,14 @@ export const WITAN_PROSPECTIVE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
 ] as const);
 
 // The complete set of rubric identifiers a caller may explicitly select: the calibrated default
 // plus every wired prospective rubric. This is deliberately narrower than "every rubric version
 // this package has ever implemented" (v0-v16 remain load-bearing for historical fixtures and
 // regression tests, but are not offered as a live selection) — it is the same "callers must opt
-// in explicitly" set every V18-V26 constant above documents.
+// in explicitly" set every V18-V27 constant above documents.
 export const WITAN_SELECTABLE_RUBRIC_VERSIONS = Object.freeze([
   WITAN_LAST_CALIBRATED_RUBRIC_VERSION,
   ...WITAN_PROSPECTIVE_RUBRIC_VERSIONS,
@@ -210,7 +235,7 @@ export function assertSelectableRubricVersion(rubricVersion: string): void {
   );
 }
 
-/** True for any rubric that has not cleared the calibration gate (currently v18-v26). */
+/** True for any rubric that has not cleared the calibration gate (currently v18-v27). */
 export function isProspectiveRubricVersion(rubricVersion: string): boolean {
   return (WITAN_PROSPECTIVE_RUBRIC_VERSIONS as readonly string[]).includes(rubricVersion);
 }
