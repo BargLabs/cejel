@@ -1,4 +1,12 @@
 import { formatExternalSourceLine } from './witan/index.js';
+import { EXTERNAL_FINDINGS_DISPLAY_LIMIT } from './witan/external-findings.js';
+import {
+  describeInputBindingRecord,
+  describeScannedSubject,
+  importedAdjustmentSentence,
+  inheritedFindingNote,
+  inputBindingHeadline,
+} from './witan/input-binding-presentation.js';
 import type { WitanReport } from './witan/index.js';
 import {
   buildRelyingPartySummary,
@@ -150,6 +158,23 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     lines.push('');
   }
 
+  // Binding status of each ingested document. Read from report.json because summary.json's shape
+  // is unchanged; absent when nothing was ingested, so a no-ingest summary prints as before.
+  if (report?.inputBinding) {
+    lines.push(stripTerminalControls(inputBindingHeadline(report.inputBinding)));
+    lines.push(`  ${stripTerminalControls(describeScannedSubject(report.inputBinding))}`);
+    for (const input of report.inputBinding.inputs.slice(0, EXTERNAL_FINDINGS_DISPLAY_LIMIT)) {
+      lines.push(`  ${stripTerminalControls(describeInputBindingRecord(input))}`);
+    }
+    const remaining = report.inputBinding.inputs.length - EXTERNAL_FINDINGS_DISPLAY_LIMIT;
+    if (remaining > 0) lines.push(`  ...and ${remaining} more — see report.json inputBinding.`);
+    for (const criterion of report.criteria) {
+      const sentence = importedAdjustmentSentence(criterion);
+      if (sentence) lines.push(`  ${criterion.id}: ${sentence}`);
+    }
+    lines.push('');
+  }
+
   const measurements = report?.criteria.flatMap((criterion) =>
     criterion.metrics.map((metric) => ({
       criterionId: criterion.id,
@@ -208,6 +233,8 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
           finding.location ? ` (${stripTerminalControls(finding.location)})` : ''
         }`,
       );
+      const note = inheritedFindingNote(finding.ruleId);
+      if (note) lines.push(`    Note: ${note}`);
     }
     const remaining = summary.externalFindingCount - summary.topExternalFindings.length;
     if (remaining > 0) {

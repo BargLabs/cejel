@@ -22,6 +22,10 @@ export interface CejelScanOptions {
   warnOnEmptyIngestMatch?: boolean;
   /** The running @cejel/cejel version, carried onto report.json's toolVersion. Not defaulted. */
   toolVersion?: string;
+  /** Refuse mismatched, stale and duplicate ingested inputs before scoring. Default: record only. */
+  strictIngest?: boolean;
+  /** The scanned repository's identity, compared with the repository each ingested input declares. */
+  subjectRepository?: string;
 }
 
 export interface CejelScanResult {
@@ -53,6 +57,8 @@ export function runCejelScan(options: CejelScanOptions): CejelScanResult {
     // are third-party repositories and must opt in explicitly.
     autoDiscoverIngest: true,
     warnOnEmptyIngestMatch: options.warnOnEmptyIngestMatch,
+    ...(options.strictIngest ? { strictIngest: true } : {}),
+    ...(options.subjectRepository ? { subjectRepository: options.subjectRepository } : {}),
     ...(options.toolVersion ? { toolVersion: options.toolVersion } : {}),
   });
   const summary = buildWitanCliSummary(report);

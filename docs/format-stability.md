@@ -8,8 +8,8 @@ never be converted into a default pass or fail.
 
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
-| Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.5` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| Generic ingest JSON | root `version`, currently `1.1` | Read major first; reject unknown majors. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.6` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -49,6 +49,20 @@ Stable in report format v1:
   shallow clone. It names the criteria that read commit history. It is display-only: unlike
   `scanLimitations` it does not make the badge unrated or `--min-score` refuse, and a gate must not
   treat its absence as proof of complete history on reports older than 1.5.
+
+- input binding: `inputBinding` (report format 1.6), present only when at least one document was
+  ingested. Per document it records the sha256 of the exact input bytes, the format, the producer
+  and declared subject the format carries, the observation time, a binding `status` (`matched`,
+  `mismatched-repository`, `mismatched-commit`, `stale`, `unbound`, or `unverifiable`), the three
+  checks behind it, and whether it duplicates another input. Under the default `record-only`
+  policy it is attached after scoring and moves no score, status, abstention, badge or
+  `--min-score` outcome; under `strict` the scan refused every mismatched, stale or duplicate input
+  before scoring. A verifier holding the inputs can compare their digests with these
+  (`cejel verify --input`). See [input binding](input-binding.md). Its absence on a 1.6 report means
+  nothing was ingested; on an older report it means the field did not exist.
+- imported status moves: `criteria[].nativeStatus` (report format 1.6), set beside `nativeScore`
+  whenever ingested signals adjusted a criterion. When it differs from `status`, imported evidence
+  moved the status; consumers must not present that status as a native finding.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering

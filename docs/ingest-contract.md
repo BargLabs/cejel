@@ -5,7 +5,9 @@ external-signal contract. This page specifies the generic contract. It is an off
 input: the certificate records supplied evidence and attribution; it does not turn Cejel into the
 source tool or a decision engine.
 
-The current version is `1.0`. The published JSON Schema is
+The current version is `1.1`. Version `1.1` adds three optional identity fields (see
+"v1.1 identity fields" below); a `1.0` document is unchanged and still accepted. The published
+JSON Schema is
 [`schemas/cejel-ingest-v1.schema.json`](schemas/cejel-ingest-v1.schema.json).
 
 ## De-facto contract before v1
@@ -73,6 +75,39 @@ and `location` are bounded to the report schema's 200, 500, and 700 character li
 presentation-safety normalization preserves the supplied prefix and appends an ellipsis; it is not
 semantic guessing.
 
+## v1.1 identity fields
+
+Version `1.1` adds three optional root fields. They let a certificate say what the findings are
+about, who produced them and when, so Cejel can record whether the input is bound to the scanned
+revision (see [input binding](input-binding.md)). Adding optional fields is exactly what a minor
+version may do; nothing in `1.0` changed.
+
+```json
+{
+  "version": "1.1",
+  "tool": "my-scanner",
+  "subject": { "repository": "github.com/owner/repo", "commit": "3f9c2a7e5b1d4c6a8e0f2b4d6c8a0e2f4b6d8c0a" },
+  "producer": { "name": "my-scanner", "version": "2.4.1" },
+  "observedAt": "2026-10-19T08:00:00Z",
+  "signals": []
+}
+```
+
+- `subject.repository`: optional string, the repository the producer read. Compared after
+  normalization to `host/path`, lowercase, without scheme, credentials, port or `.git`.
+- `subject.commit`: optional, 7 to 64 hexadecimal characters. A 40- or 64-character id is compared
+  exactly with the scanned HEAD; a shorter one is compared as a prefix.
+- `producer.name` and `producer.version`: optional strings. `producer.name` defaults to `tool`.
+- `observedAt`: optional RFC 3339 date-time with an offset, the time the producer observed the
+  subject.
+
+These fields are read only from a document that declares minor `1` or later. Under `1.0` they were
+unknown fields a consumer had to ignore, so a `1.0` document carrying a field of the same name in
+another shape keeps parsing exactly as before. Under `1.1` they are stable optional fields, and an
+invalid value fails the ingest loudly like any other stable field. They never change a score: the
+default policy only records the binding status, and `--strict-ingest` refuses an input rather than
+rescoring it.
+
 ## Compatibility policy
 
 The `version` value is `<major>.<minor>`.
@@ -85,7 +120,7 @@ The `version` value is `<major>.<minor>`.
 - Cejel rejects an unknown major with an explicit unsupported-major error. It never guesses that
   an unknown major means the current shape.
 - An unversioned generic document is not v1 and is rejected. Producers must add `"version":
-  "1.0"` and satisfy the v1 stable fields.
+  "1.0"` (or `"1.1"` with the identity fields) and satisfy the v1 stable fields.
 
 `rubricVersion` in a report is not the ingest-contract version. See
 [`format-stability.md`](format-stability.md) for the output format identifiers.

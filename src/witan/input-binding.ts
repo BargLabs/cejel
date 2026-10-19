@@ -442,3 +442,49 @@ export function assertStrictIngestBinding(
     ].join('\n'),
   );
 }
+
+export interface RecordedInputDigestVerification {
+  valid: boolean;
+  lines: string[];
+}
+
+/**
+ * Check a set of input files against the digests a report records. The comparison is between
+ * SETS of distinct digests: every supplied file must be a recorded input, and every recorded,
+ * scored input must be supplied. A file swapped for another (even one with the same name, tool
+ * and finding count) has a different digest and fails; so does an input left out or added.
+ */
+export function verifyRecordedInputDigests(
+  report: { inputBinding?: WitanInputBinding },
+  inputPaths: readonly string[],
+  readFile: (path: string) => Buffer,
+): RecordedInputDigestVerification {
+  const binding = report.inputBinding;
+  if (!binding) {
+    return {
+      valid: false,
+      lines: [
+        'Cejel: input digests not verified — report.json records no inputBinding (it ingested nothing, or predates report format 1.6).',
+      ],
+    };
+  }
+  const recorded = new Set(binding.inputs.filter((input) => input.scored).map((input) => input.sha256));
+  const supplied = new Map<string, string>();
+  for (const path of inputPaths) supplied.set(sha256OfBytes(readFile(path)), path);
+  const lines: string[] = [];
+  for (const [digest, path] of supplied) {
+    if (!recorded.has(digest)) {
+      lines.push(`Cejel: input ${path} (sha256:${digest}) is not an input report.json records.`);
+    }
+  }
+  for (const digest of recorded) {
+    if (!supplied.has(digest)) {
+      lines.push(`Cejel: report.json records input sha256:${digest}, which no supplied --input matches.`);
+    }
+  }
+  if (lines.length > 0) return { valid: false, lines };
+  return {
+    valid: true,
+    lines: [`Cejel: ${recorded.size} ingested input digest${recorded.size === 1 ? '' : 's'} verified against report.json.`],
+  };
+}
