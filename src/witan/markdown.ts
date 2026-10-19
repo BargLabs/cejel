@@ -156,6 +156,11 @@ export function renderWitanMarkdownReport(
           `- Excluded by extension: ${report.contentReadSummary.byReason.excludedByExtension}`,
           `- Denied path: ${report.contentReadSummary.byReason.deniedPath}`,
           `- Non-regular file: ${report.contentReadSummary.byReason.nonRegularFile}`,
+          ...(report.contentReadSummary.byReason.lfsPointer
+            ? [
+                `- Git LFS pointer (content not in this checkout): ${report.contentReadSummary.byReason.lfsPointer}`,
+              ]
+            : []),
           `- Affected criteria: ${report.contentReadSummary.affectedCriteria.length > 0 ? `${report.contentReadSummary.affectedCriteria.join(', ')} (insufficient_data)` : 'none'}`,
           '',
           '_Counts only; skipped repository paths are intentionally omitted._',

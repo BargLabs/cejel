@@ -51,12 +51,14 @@ import {
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -360,6 +362,7 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
@@ -493,6 +496,7 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -1069,6 +1073,7 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&

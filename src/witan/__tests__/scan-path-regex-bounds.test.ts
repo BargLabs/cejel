@@ -6,7 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { analyzeCoverageConfiguration } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V26 } from '../rubric-version.js';
+import {
+  WITAN_RUBRIC_VERSION_V17,
+  WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
+} from '../rubric-version.js';
 
 // goal_cejel_scan_path_regex_bounds_2026-10-15. A scanner of untrusted repositories must never
 // evaluate a regular expression the repository supplies, and must match declared globs in bounded
@@ -111,7 +115,36 @@ const GLOB_FIXTURE: Record<string, string> = {
     'name: ci\non:\n  push:\n    branches: [main]\njobs:\n  job:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n',
 };
 
+// #520, #517, #518 (found in review of #521): the first lockfile-requirement patterns were a command
+// word, `[^\n]*?`, then a flag, quadratic in line length (a 500 KB line of `yarn ` cost about 9 s
+// per pattern), and the conftest comment strip `[ \t]+#.*$` was quadratic in a whitespace run. Each
+// workflow here is one line just under the content size limit, built from the units those patterns
+// stalled on; the conftest is one hook with a long whitespace run before a `#`.
+const LINE_BYTES = 480_000;
+const adversarialLine = (unit: string): string => unit.repeat(Math.floor(LINE_BYTES / unit.length));
+const CI_LINE_FIXTURE: Record<string, string> = {
+  'pyproject.toml': '[project]\nname = "lines"\nversion = "1.0.0"\ndependencies = ["requests>=2"]\n',
+  'src/lines/__init__.py': 'VALUE = 1\n',
+  'tests/test_lines.py': 'def test_value():\n    assert 1 == 1\n',
+  'tests/conftest.py': `def pytest_collection_modifyitems(config, items):\n    for item in items:${' '.repeat(LINE_BYTES)}#\n        item.add_marker(pytest.mark.skip)\n`,
+  ...Object.fromEntries(
+    ['yarn ', 'uv run ', 'cargo b ', 'pnpm i ', 'npm npm ', 'poetry check '].map((unit, index) => [
+      `.github/workflows/w${index}.yml`,
+      `name: w${index}\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ${adversarialLine(unit)}\n`,
+    ]),
+  ),
+};
+
 describe('timing guards: the real scan finishes on pathological repository input', () => {
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'CI lines and a conftest whitespace run just under the content limit — %s',
+    (rubric) => {
+      const scan = scanInChild(makeRepo(CI_LINE_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V26])(
     '`pnpm run /^(a+)+$/` beside a script named 40 `a`s and `!` — %s',
     (rubric) => {

@@ -9,7 +9,7 @@ never be converted into a default pass or fail.
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
 | Generic ingest JSON | root `version`, currently `1.0` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.5` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.6` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -48,7 +48,21 @@ Stable in report format v1:
 - history disclosures: `historyLimitations` (report format 1.5) when the scanned repository is a
   shallow clone. It names the criteria that read commit history. It is display-only: unlike
   `scanLimitations` it does not make the badge unrated or `--min-score` refuse, and a gate must not
-  treat its absence as proof of complete history on reports older than 1.5.
+  treat its absence as proof of complete history on reports older than 1.5. The field stays
+  display-only under every rubric. Under `witan-rubric-v27-prospective-2026-10-19` the A2 and B2
+  collectors themselves abstain on a shallow clone, and the sentence says so; under v17 and v18-v26
+  the sentence and the scoring are unchanged.
+- Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
+  when the checkout held at least one Git LFS pointer in place of a file's content, and summed
+  into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
+  `witan-rubric-v17-2026-07-24` and the other rubrics before v27 it records no abstention, so the
+  criterion that read the pointer scored the pointer's text. The report does not say which
+  criterion read it (`affectedCriteria` stays empty), so a gate that needs to know should treat any
+  criterion as possibly affected, or require a scan with the LFS content present. Under `witan-rubric-v27-prospective-2026-10-19` the read is
+  attributed, the criterion abstains as a read failure, and it appears in `affectedCriteria`,
+  except where its collector made a critical finding: then it scores as under v17 and is not
+  listed.
+  Absent on reports older than 1.6, and absent (not 0) when no pointer was read.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering
