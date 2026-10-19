@@ -86,7 +86,10 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
       expect(metricValue(after, 'default_branch_ci_depth')).toBe(
         metricValue(before, 'default_branch_ci_depth'),
       );
-      expect(after.notes).toMatch(/only publish, release or deploy .* not counted as CI verification/);
+      expect(after.notes).toBe(
+        '1 workflow that only publishes, releases or deploys (no test, lint or type-check command) is not counted as CI verification: ' +
+          `${ungated.startsWith('b3-pypi') ? '.github/workflows/publish.yaml' : '.github/workflows/release.yml'}.`,
+      );
     }
   });
 

@@ -107,3 +107,92 @@ The scorer's monotonicity rules, read from `src/witan/scoring.ts`:
 
 This is an argument, not the proof. The measured proof is the before/after tables in the PR, on
 the behaviour corpus, the calibration anchors, the new fixtures and the public board rows.
+
+## As built (added after the code; the sections above are as written before it)
+
+Where the implementation is narrower than, or differs from, the classification table:
+
+- **#520, what is read.** The lockfile requirement is read from CI workflows only. tox and nox
+  configuration (for example `uv-venv-lock-runner`) is not read, so a requirement stated only
+  there is not reported. The "manifest holding an unconstrained dependency is cited first" change
+  applies under library norms only; application norms keep their citation unchanged.
+- **#520, a withheld lockfile is present.** The public-board before/after found that fastapi's
+  `uv.lock` is committed but withheld by the file walk (over the 512,000-byte content limit). A
+  withheld lockfile now counts as present for this note and for v27's `lockfile_coverage`, and the
+  sentence says "the scanned inventory holds no recognized lockfile" rather than "none is
+  committed". Fixture `a4-uv-locked-lockfile-too-large` pins it.
+- **#519, where pointers are recognised.** In `readRepoText`, the full-text read every collector
+  uses. The semantic source gate's bounded prefix read and git-history blob reads do not recognise
+  pointers.
+- **#517, B2.** B2's `pr_trace_primitives` still counts a publish-only workflow as a CI workflow,
+  under every rubric including v27. It is the same defect class in a criterion the issue did not
+  name. Left open.
+- **#442, findings withheld.** When A2 abstains on a shallow clone its warning and info findings
+  are withheld with it (on the board: django loses one warning, vite one info).
+
+## v17 to v27 on the fixtures
+
+Generated from `report.json`; every row either does not move or moves down.
+
+| Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
+|---|---|---|---|---|---|
+| a1-conftest-is-the-only-test-directory-file | unverified | 1.2 → 1.1 | 1.1 → 0.9 | 1.3 | A1 critical 1.1 → critical 0.5 |
+| a1-js-suite | at_risk | 1.9 | 2.5 | 1.3 | no move |
+| a1-js-suite-as-lfs-pointers | at_risk → unverified | 1.8 → 1.4 | 2.2 → 1.4 | 1.3 | A1 critical 1.5 → insufficient_data 0 |
+| a1-pytest-fixture-conftest | unverified | 1.4 | 1.5 | 1.3 | A1 metric only (test_to_source_ratio 3→2; score unchanged) |
+| a1-pytest-hook-skips-every-test | unverified | 1.4 → 1.3 | 1.5 → 1.3 | 1.3 | A1 verified 2.3 → critical 1.7 |
+| a1-pytest-hook-skips-slow-only | unverified | 1.4 | 1.5 | 1.3 | A1 metric only (test_to_source_ratio 3→2; score unchanged) |
+| a1-pytest-suite | unverified | 1.4 | 1.5 | 1.3 | no move |
+| a1-pytestmark-skip-every-module | unverified | 1.4 → 1.3 | 1.5 → 1.3 | 1.3 | A1 verified 2.3 → critical 1.7 |
+| a4-library-no-lockfile-not-required | unverified | 1.4 | 1.5 | 1.3 | no move |
+| a4-root-manifest-pinned | at_risk | 1.9 | 2.5 | 1.3 | no move |
+| a4-root-manifest-unconstrained | at_risk | 1.7 | 2 | 1.3 | no move |
+| a4-uv-locked-lockfile-deleted | unverified | 1.4 | 1.5 → 1.4 | 1.3 | A4 critical 0.5 → critical 0.3 |
+| a4-uv-locked-lockfile-too-large | unverified | 1.4 | 1.5 | 1.3 | no move |
+| a4-uv-locked-with-lockfile | at_risk | 1.6 | 1.8 | 1.3 | no move |
+| b3-npm-publish-gated | at_risk | 2.3 | 2.5 | 2.1 | no move |
+| b3-npm-publish-ungated | conditional → at_risk | 2.5 → 2.3 | 2.5 | 2.4 → 2.1 | B3 verified 1.6 → verified 1 |
+| b3-pypi-publish-gated | at_risk | 1.8 | 1.5 | 2.1 | no move |
+| b3-pypi-publish-ungated | at_risk | 2 → 1.8 | 1.5 | 2.4 → 2.1 | B3 verified 1.6 → verified 1 |
+| b3-test-then-publish-workflow | conditional → at_risk | 2.5 → 2.3 | 2.5 → 2.1 | 2.4 | A4 warning 2.8 → warning 2.1 |
+| history-full-clone | at_risk | 1.8 | 2 | 1.5 | no move |
+| history-shallow-clone | at_risk → unverified | 1.7 → 0.8 | 2 → 1 | 1.3 → 0.5 | A2 verified 4 → insufficient_data 0; B2 warning 1.6 → insufficient_data 0 |
+| history-shallow-clone-with-committed-secret | unverified | 1.3 → 0.9 | 1.3 | 1.3 → 0.5 | B2 warning 1.6 → insufficient_data 0 |
+
+The public-board table is in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-19).
+
+## Promotion: two options for the operator
+
+Promotion is the operator's ruling. The standing policy (`src/witan/rubric-version.ts`,
+"Calibration-claim policy") is that promotion to the public default "requires a fresh authenticated
+untouched holdout and a separately recorded default decision". v27 was built so that either option
+below is open.
+
+**Option 1: a declared correctness-only promotion rule, no new holdout.** Amend the policy to say:
+a prospective version may become the default without a holdout when (a) every difference from the
+current default is a documented false-assurance removal, each with a public regression fixture;
+(b) a measured before/after on the behaviour corpus, the calibration anchors, the regression
+fixtures and the public board shows no score, status or composite rising; and (c) the change is
+recorded in `leaderboard/RUBRIC_CHANGELOG.md` with that table. v27 meets (a)-(c) as of this
+change.
+
+- What a v27 certificate could then say: it was scored under the default rubric, which is the
+  calibrated v17 minus the listed assurances; on the recorded sets no result rose against v17.
+- What it could not say: v17's holdout precision or recall does not transfer. Removing assertions
+  changes which repositories carry each status, so no precision or recall figure applies to v27
+  until one is measured.
+- Consequences to plan for: the public board fetches depth-1 clones, so under v27 B2 abstains on
+  every scored row and A2 on eight. The board would need full-history clones, or would stay
+  pinned to v17. Every `--min-score` gate built on v17 composites would see lower scores, so a
+  default change needs a release note and the `--rubric-pin witan-rubric-v17-2026-07-24` escape
+  hatch named in it.
+
+**Option 2: leave v27 prospective.** No policy change. The default stays v17, now with the
+presentation fixes (the LFS pointer count and label, the A4 note and citation) beside the existing
+shallow-clone disclosure. v27 stays available through `--rubric-pin` with the prospective notice.
+
+- What the default certificate keeps saying: everything v17 says now, including the five
+  assurances these issues identify. The presentation fixes tell a reader where two of them do not
+  hold (LFS content, a lockfile the repository's own CI requires) without changing the score.
+- What a v27 certificate says: nothing beyond its own evidence. No calibration claim, as for v18-v26.
+- Given the direction to stop new holdouts, under this option v27 may never become the default.

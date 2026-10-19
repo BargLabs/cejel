@@ -16,6 +16,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Certificates now say where they read less than they score (#519, #520).** Under every rubric,
+  including the default: a file whose checkout holds a Git LFS pointer is counted in
+  `contentReadSummary.byReason.lfsPointer` (report format 1.6) and labelled as a pointer in A1's
+  evidence; A4 no longer says a lockfile is "not required" when the repository's own CI requires
+  one, and cites the requiring line, or the manifest holding an unconstrained dependency, first. No
+  score, status or fingerprint moves.
+
+### Added
+
+- **`witan-rubric-v27-prospective-2026-10-19` (#517, #518, #519, #520, #442).** A prospective
+  rubric, opt-in through `--rubric-pin`, that is v17 with five false assurances removed: publish-only
+  workflows are not CI depth, a suite a pytest hook skips entirely is hollow and `conftest.py` is
+  not a test, LFS pointers abstain, a lockfile the repository's CI requires scores 0 when absent,
+  and A2 and B2 abstain on shallow clones. No score rises against v17 on any recorded set. The
+  default stays v17. See `leaderboard/RUBRIC_CHANGELOG.md`.
+
 ## [0.6.7] — 2026-10-18
 
 ### Security

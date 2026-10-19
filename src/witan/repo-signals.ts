@@ -4890,7 +4890,7 @@ function collectB3CiDisciplineEvidence(
     ],
     ...(publishOnlyWorkflows.length > 0
       ? {
-          notes: `${publishOnlyWorkflows.length} workflow${publishOnlyWorkflows.length === 1 ? '' : 's'} that only publish, release or deploy (no test, lint or type-check command) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
+          notes: `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no test, lint or type-check command) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
         }
       : {}),
   };

@@ -48,7 +48,10 @@ Stable in report format v1:
 - history disclosures: `historyLimitations` (report format 1.5) when the scanned repository is a
   shallow clone. It names the criteria that read commit history. It is display-only: unlike
   `scanLimitations` it does not make the badge unrated or `--min-score` refuse, and a gate must not
-  treat its absence as proof of complete history on reports older than 1.5.
+  treat its absence as proof of complete history on reports older than 1.5. The field stays
+  display-only under every rubric. Under `witan-rubric-v27-prospective-2026-10-19` the A2 and B2
+  collectors themselves abstain on a shallow clone, and the sentence says so; under v17 and v18-v26
+  the sentence and the scoring are unchanged.
 - Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
   when the checkout held at least one Git LFS pointer in place of a file's content, and summed
   into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under

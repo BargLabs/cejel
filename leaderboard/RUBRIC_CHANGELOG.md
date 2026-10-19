@@ -22,6 +22,105 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-19 — false-assurance closure: presentation fixes under every rubric, prospective v27 for the scoring fixes (#517, #518, #519, #520, #442); no published score moved
+
+**Status.** Two parts. The presentation fixes ship under `witan-rubric-v17-2026-07-24` and every
+selectable rubric, and move no score, status, metric, finding count, abstention or fingerprint.
+The scoring fixes ship only under a new prospective rubric, `witan-rubric-v27-prospective-2026-10-19`,
+which inherits v17 (not v18-v26) and changes only these behaviours. v27 is explicit opt-in. The
+public default stays v17 and the public board is scored under v17, so no published score, verdict
+or rank moves. **No holdout or calibration ran for v27, and this entry makes no precision or recall
+claim.** Classification and the reasons for each design choice:
+`docs/reviews/v27-false-assurance-closure-2026-10-19.md`.
+
+**Presentation, every rubric.**
+- #519: a file whose checkout holds a Git LFS pointer is counted in
+  `contentReadSummary.byReason.lfsPointer` (report format 1.6; present only when non-zero, so no
+  other report's bytes change), itemized on the certificate, and labelled as a pointer in A1's
+  evidence. No criterion abstains on it under these rubrics: the reader is told the content was
+  not read, and the score is unchanged.
+- #520: A4's library note no longer says a lockfile is "not required" when the repository's own CI
+  requires one (`uv run --locked`, `npm ci`, `--frozen-lockfile`, and the like) and the scanned
+  inventory holds none. It names the command, file and line, and that line is cited first, so the
+  metric-derived finding cites it. A lockfile the file walk withheld (for example, over the size
+  limit) counts as present for this purpose. Under library norms the manifest holding a dependency
+  declared with no version constraint is cited first when it is not the primary manifest.
+
+**Scoring, v27 only.**
+- #517 (B3): a workflow with a publish, release or deploy step and no test, lint or type-check
+  command counts toward neither `ci_script_depth` nor `default_branch_ci_depth`.
+- #518 (A1): `conftest.py` is not a concrete test file. A `pytest_collection_modifyitems` hook in
+  a conftest.py that unconditionally skips or removes every item, or a module-level unconditional
+  `pytestmark = pytest.mark.skip`, makes the files in its scope hollow; the hook is named in a
+  warning finding.
+- #519 (every criterion): reading an LFS pointer is a content-read skip attributed to the reading
+  criterion, which abstains as a read failure (kept in the composite at 0).
+- #520 (A4): under library norms, `lockfile_coverage` is 0, not omitted, when the repository's CI
+  requires a lockfile and the inventory holds none.
+- #442 (A2, B2): on a shallow clone A2 abstains unless a confirmed critical finding stands, and B2
+  abstains when fewer than 12 commits are visible. Both are read failures, kept in the composite at
+  0. A2's abstention also withholds its warning and info findings.
+
+**Why nothing can rise.** Every v27 change either lowers a metric value (B3 depths, A1
+`test_to_source_ratio` and `non_hollow_test_share`, A4 `lockfile_coverage` = 0) or is a
+read-failure abstention, which scores 0 and stays in the composite. Withholding a single metric and
+self-imposed abstention were both rejected because each can raise a score; a new `critical` or
+`warning` A4 finding was rejected because the v17 scorer sets a critical-finding criterion to 1.4
+and lets a warning finding pre-empt the critical score band. The no-rise property is a test
+(`src/witan/__tests__/false-assurance-v27.test.ts`) on every new fixture, and was checked on every
+corpus specimen and board row below.
+
+**Measured.** Previous scanner: `origin/main` `1e17e8ce3`. Full `report.json` bytes and the
+fingerprint projection were compared before and after.
+
+| Set | Rubrics | Reports | Scoring-surface moves | Byte-identical | Byte differences |
+|---|---|---|---|---|---|
+| Behaviour corpus (30 specimens) | v17-v26 | 300 | 0 | 290 | 10: `pr-template-directory-form` under every rubric, A4 note and citation (its CI runs `npm ci`, no lockfile) |
+| Calibration anchors (5 fixtures) | v17-v26 | 50 | 0 | not comparable | the fixtures are not hermetic, so every head sha differs between builds |
+| Public board, 23 public rows at their pinned commits, depth 1 as the board fetches them | v17 | 23 | 0 | 20 | 3: biomejs, flask, zod, A4 citation order |
+| New fixtures (22, `false-assurance-fixtures.ts`) | v17 | 22 | 1: `a1-js-suite-as-lfs-pointers`, `contentReadSummary.byReason.lfsPointer` 2 | 18 | 4: the LFS fixture (count and evidence labels), two A4 fixtures and `b3-test-then-publish-workflow` (A4 note and citation; its CI runs `npm ci`) |
+
+The private board row was not run for this entry.
+
+**Fingerprints.** Every existing pin is unchanged; v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 is pinned at
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`. On the corpus it
+differs from v17 only in the A4 component (`pr-template-directory-form`: A4 critical 0.5 to 0.3,
+`lockfile_coverage` 0); no report-level component differs.
+
+**v17 to v27 on the public board** (prospective; nothing published moves). Twenty-two of the 23
+rows are scored; carddemo abstains as `insufficient_source` under both. Every scored row is a
+depth-1 clone, so B2 abstains on all 22 and A2 on the 8 where it is applicable and no confirmed
+critical finding stands. Every composite falls; none rises.
+
+| Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
+|---|---|---|---|---|---|
+| automapper | at_risk → unverified | 2.2 → 1.2 | 2 | 2.3 → 0.3 | B2 verified 4 → insufficient_data 0 |
+| axios | conditional → at_risk | 3.3 → 2.4 | 2.6 → 1.8 | 3.9 → 2.9 | A2 verified 3.6 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| biomejs | conditional → at_risk | 3 → 2 | 2.9 → 1.8 | 3.1 → 2.2 | A2 verified 3.2 → insufficient_data 0; B2 verified 4 → insufficient_data 0; B3 metric only (default_branch_ci_depth 13→12; score unchanged) |
+| carddemo | insufficient_source | — | — | — | no move |
+| cejel | conditional → at_risk | 2.8 → 1.5 | 2.3 → 1.7 | 3.2 → 1.2 | A2 verified 3.3 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| cobra | conditional → at_risk | 2.5 → 1.5 | 2.6 | 2.3 → 0.3 | B2 verified 4 → insufficient_data 0 |
+| django | conditional → at_risk | 3.1 → 1.6 | 2.6 → 1.6 | 3.6 → 1.6 | A2 warning 2.8 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| esbuild | conditional → at_risk | 2.5 → 2 | 2.6 | 2.4 → 1.3 | B2 warning 3.2 → insufficient_data 0 |
+| express | conditional → at_risk | 3.1 → 2.4 | 3 | 3.2 → 1.8 | B2 verified 4 → insufficient_data 0 |
+| fastapi | conditional | 3 → 2.5 | 2.8 | 3.2 → 2.1 | A1 metric only (test_to_source_ratio 604→603; score unchanged); B2 warning 3.2 → insufficient_data 0; B3 metric only (default_branch_ci_depth 9→8; score unchanged) |
+| flask | conditional → at_risk | 2.9 → 1.9 | 2.7 → 1.9 | 3 → 1.9 | A1 metric only (non_hollow_test_share 28→27, test_to_source_ratio 59→56; score unchanged); A2 verified 3.2 → insufficient_data 0; B2 warning 3.2 → insufficient_data 0 |
+| fmt | conditional → at_risk | 2.6 → 2.2 | 2 | 3.2 → 2.4 | B2 warning 3.2 → insufficient_data 0 |
+| guava | at_risk → unverified | 1.9 → 1.1 | 1.6 | 2.2 → 0.6 | B2 warning 3.2 → insufficient_data 0 |
+| pydantic | conditional | 3.2 → 2.6 | 2.9 | 3.5 → 2.2 | A1 metric only (non_hollow_test_share 213→212, test_to_source_ratio 292→290; score unchanged); B2 verified 4 → insufficient_data 0 |
+| react | conditional → at_risk | 3 → 2.4 | 2.1 | 3.9 → 2.6 | B2 verified 4 → insufficient_data 0 |
+| requests | conditional → at_risk | 2.9 → 2.4 | 2.4 | 3.4 → 2.4 | A1 verified 2.5 → verified 2.4; B2 verified 4 → insufficient_data 0 |
+| ripgrep | at_risk | 2.1 → 1.6 | 2.1 | 2 → 1 | B2 warning 3.2 → insufficient_data 0 |
+| scorecard | conditional → at_risk | 2.9 → 2.2 | 2.2 | 3.6 → 2.2 | B2 verified 4 → insufficient_data 0 |
+| sinatra | at_risk | 2.2 → 1.5 | 2 | 2.4 → 1 | B2 verified 4 → insufficient_data 0 |
+| svelte | conditional → at_risk | 3.1 → 2 | 2.9 → 2 | 3.3 → 2 | A2 verified 3.6 → insufficient_data 0; B2 verified 4 → insufficient_data 0; B3 metric only (default_branch_ci_depth 5→4; score unchanged) |
+| vite | conditional | 3.4 → 2.5 | 2.8 → 2.2 | 4 → 2.7 | A2 verified 3.2 → insufficient_data 0; B2 verified 4 → insufficient_data 0 |
+| vue | conditional → at_risk | 2.9 → 2.3 | 2.4 | 3.4 → 2.3 | B2 warning 3.2 → insufficient_data 0 |
+| zod | conditional → at_risk | 3.2 → 2 | 3.1 → 1.9 | 3.2 → 2.1 | A2 verified 3.6 → insufficient_data 0; B2 warning 3.2 → insufficient_data 0 |
+
+Fixture-level movements are in `docs/reviews/v27-false-assurance-closure-2026-10-19.md`.
+
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
 **Status.** The second change `witan-rubric-v26-prospective-2026-10-14` makes of its own,
