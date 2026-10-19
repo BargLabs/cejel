@@ -24,6 +24,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   evidence; A4 no longer says a lockfile is "not required" when the repository's own CI requires
   one, and cites the requiring line, or the manifest holding an unconstrained dependency, first. No
   score, status or fingerprint moves.
+- **The CI lockfile note is right in more cases, and the workflow reader is linear.** Under every
+  rubric: the note fires for a step that also runs tests, for `cargo test --locked` and for CRLF
+  workflows, and is withheld for `continue-on-error`, another repository's checkout, a downloaded
+  artifact, a working directory the checkout does not hold, and a lockfile a workflow command names.
+  A 480 KB workflow of 24,000 steps scanned in 12 s; it now scans in about 0.25 s. No v17 score,
+  status or fingerprint moves.
 
 ### Added
 

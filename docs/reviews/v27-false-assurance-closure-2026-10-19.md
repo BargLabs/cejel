@@ -123,8 +123,8 @@ Where the implementation is narrower than, or differs from, the classification t
   sentence says "the scanned inventory holds no recognized lockfile" rather than "none is
   committed". Fixture `a4-uv-locked-lockfile-too-large` pins it.
 - **#519, where pointers are recognised.** In `readRepoText`, the full-text read every collector
-  uses. The semantic source gate's bounded prefix read and git-history blob reads do not recognise
-  pointers.
+  uses, and (since the third review) in the semantic source gate's bounded prefix read when that
+  read holds the whole file. Git-history blob reads do not recognise pointers.
 - **#517, B2.** B2's `pr_trace_primitives` still counts a publish-only workflow as a CI workflow,
   under every rubric including v27. It is the same defect class in a criterion the issue did not
   name. Left open.
@@ -138,6 +138,34 @@ Where the implementation is narrower than, or differs from, the classification t
   collector's critical finding are kept) and #520 (a fixed command list, per-command lockfiles,
   comments ignored, linear parsing). The `fixtures/false-assurance-fixtures.ts` entries marked
   `foundInReview` pin them.
+- **Third review (2026-10-20), of the merged implementation.** It reported ten findings; eight
+  reproduced and are fixed in the follow-up to #521, each pinned by a `review3-*` fixture or a
+  timing guard:
+  - **#520, missed claims.** `test` in the conditional-word list was matched against every word of
+    a step, so a step running `npm ci` and `npm test`, and `cargo test --locked`, were never
+    claimed. Conditional words are now read in command position only. CRLF workflows were not read
+    at all (`.` does not match `\r`); they are now. The review described the CRLF case as a false
+    claim from a job-level `if:` that is not seen; on the merged code no `run:` key was matched, so
+    the effect was a miss, and the fixture pins both directions.
+  - **#520, false claims.** A step or job with `continue-on-error`, a workflow that checks out
+    another repository or downloads an artifact, a working directory or `cd` target this checkout
+    does not hold, and a workflow command that names the lockfile (`cp ci/package-lock.json .`) each
+    withhold the claim now.
+  - **#520, scan time on the default rubric.** The step reader walked back through the file once
+    per `run:` key and rescanned every command per requiring command. A 480 KB workflow of 24,000
+    steps took 12 s under v17; 24,000 `run:` keys outside a list took 20 s. The reader is linear
+    (about 0.25 s for each); `scan-path-regex-bounds.test.ts` kills the previous implementation.
+  - **#520, citation order.** The primary manifest stays first whenever it holds an unconstrained
+    dependency itself.
+  - **#518.** Where `conftest.py` files are the only test-shaped files, v27 cites them as pytest
+    configuration and measures A1 at a test ratio of 0; before, A1 could lose its only evidence and
+    stop being scored, a path by which the composite could rise. A `conftest.py` is never credited
+    as a live test under v27, so a suite a hook skips credits 0 rather than 1 of 3. A hook that
+    empties `items` and refills it (`items.clear()` then `items.extend(ordered)`) is a reorder,
+    not a removal.
+  - **#519.** The bounded prefix read discloses a pointer as `readRepoText` does.
+  - Not fixed: repeated reads of the same files within one scan (efficiency only; tracked as a
+    `later:` issue).
 
 ## v17 to v27 on the fixtures
 
