@@ -87,7 +87,7 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
         metricValue(before, 'default_branch_ci_depth'),
       );
       expect(after.notes).toBe(
-        '1 workflow that only publishes, releases or deploys (no test, lint or type-check command) is not counted as CI verification: ' +
+        '1 workflow that only publishes, releases or deploys (no pull-request trigger and no verification command Cejel recognises) is not counted as CI verification: ' +
           `${ungated.startsWith('b3-pypi') ? '.github/workflows/publish.yaml' : '.github/workflows/release.yml'}.`,
       );
     }
@@ -284,6 +284,89 @@ describe('#442 — history Cejel did not read is not scored', () => {
     expect(a2.status).toBe('critical');
     expect(a2).toEqual(criterion('history-shallow-clone-with-committed-secret', V17, 'A2'));
   });
+});
+
+// Regression guards for what an adversarial review of the first implementation reproduced.
+describe('review findings against the first implementation stay fixed', () => {
+  it('#518: a conftest.py v17 rates hollow stays in the non-hollow share, so A1 cannot rise', () => {
+    const name = 'review-a1-name-shaped-conftest-rated-hollow';
+    const v17 = criterion(name, V17, 'A1');
+    const v27 = criterion(name, V27, 'A1');
+    expect(v27.score).toBeLessThanOrEqual(v17.score);
+    expect(metricValue(v27, 'non_hollow_test_share')).toBe(metricValue(v17, 'non_hollow_test_share'));
+  });
+
+  it('#520: no lockfile requirement is read from cargo install, a committed bun.lock, or a comment', () => {
+    for (const name of [
+      'review-a4-cargo-install-locked',
+      'review-a4-bun-lock-committed',
+      'review-a4-npm-ci-in-trailing-comment',
+    ]) {
+      for (const rubricVersion of [V17, V27]) {
+        const a4 = criterion(name, rubricVersion, 'A4');
+        expect(a4.notes ?? '', `${name}@${rubricVersion}`).not.toContain('requires a lockfile');
+        expect(metricValue(a4, 'lockfile_coverage'), `${name}@${rubricVersion}`).not.toBe(0);
+      }
+      expect(criterion(name, V27, 'A4')).toEqual(criterion(name, V17, 'A4'));
+    }
+  });
+
+  it('#518: a conditionally defined hook and a conditional pytestmark make no claim', () => {
+    for (const name of ['review-a1-hook-defined-under-try', 'review-a1-conditional-pytestmark']) {
+      const a1 = criterion(name, V27, 'A1');
+      expect(a1.findings.some(({ summary }) => summary.startsWith('A pytest collection hook'))).toBe(false);
+      expect(metricValue(a1, 'non_hollow_test_share')).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
+    }
+  });
+
+  it('#518: a root conftest.py hook governs pytest files only, not the vitest files beside them', () => {
+    const a1 = criterion('review-a1-root-conftest-beside-vitest', V27, 'A1');
+    const hook = a1.findings.find(({ summary }) => summary.startsWith('A pytest collection hook'));
+    expect(hook?.summary).toContain('so the 2 pytest files under the repository root cannot run');
+    expect(metricValue(a1, 'non_hollow_test_share')).toBe(1);
+  });
+
+  it('#517: a workflow that runs tox on pull requests and uploads on tags is still CI', () => {
+    const name = 'review-b3-tox-ci-with-tag-publish';
+    expect(criterion(name, V27, 'B3')).toEqual(criterion(name, V17, 'B3'));
+  });
+
+  it('#519: an LFS pointer never erases a confirmed critical finding or a not-applicable result', () => {
+    const secret = criterion('review-a2-secret-beside-planted-lfs-pointer', V27, 'A2');
+    expect(secret).toEqual(criterion('review-a2-secret-beside-planted-lfs-pointer', V17, 'A2'));
+    expect(secret.status).toBe('critical');
+    const data = criterion('review-a2-lfs-data-in-not-applicable-library', V27, 'A2');
+    expect(data.status).toBe('not_applicable');
+    expect(report('review-a2-lfs-data-in-not-applicable-library', V27).contentReadSummary?.affectedCriteria ?? []).not.toContain('A2');
+  });
+
+  it('#442: the v27 shallow-clone sentence does not claim A2 abstains where it is not applicable', () => {
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('where either would be scored');
+    expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('not applicable stays not applicable');
+  });
+});
+
+// v27 abstains; it does not hide. A collector's own critical finding under v17 is still present
+// under v27, unless the criterion abstained because the clone is shallow or a test file it read
+// is an LFS pointer, the two cases where the finding was derived from content Cejel did not read.
+describe('v27 keeps every collector critical finding v17 reports', () => {
+  for (const fixture of FALSE_ASSURANCE_FIXTURES) {
+    it(fixture.name, () => {
+      const after = report(fixture.name, V27);
+      for (const v17 of report(fixture.name, V17).criteria) {
+        const own = v17.findings.filter(
+          ({ severity, summary }) => severity === 'critical' && !summary.includes('metric-derived score'),
+        );
+        if (own.length === 0) continue;
+        const v27 = after.criteria.find(({ id }) => id === v17.id);
+        expect(v27?.findings.map(({ summary }) => summary), v17.id).toEqual(
+          expect.arrayContaining(own.map(({ summary }) => summary)),
+        );
+      }
+    });
+  }
 });
 
 // The property that admits v27: every movement against v17 removes an assurance. A criterion may

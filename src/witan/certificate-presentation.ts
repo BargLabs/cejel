@@ -687,6 +687,14 @@ function buildNextSteps(
       `Resolve the ${actionableSkips.count} content entr${actionableSkips.count === 1 ? 'y' : 'ies'} skipped as ${joinWithOr(actionableSkips.reasons)} (see the itemized reasons in the certificate), then reproduce the scan.`,
     );
   }
+  // #519. Not "skipped": under most rubrics the pointer's text was read and scored. Report format
+  // 1.6+ only; absent otherwise.
+  const lfsPointers = report.contentReadSummary?.byReason.lfsPointer ?? 0;
+  if (lfsPointers > 0) {
+    steps.push(
+      `Fetch the Git LFS content for the ${lfsPointers} file${lfsPointers === 1 ? '' : 's'} whose checkout holds a pointer (git lfs pull), then reproduce the scan.`,
+    );
+  }
 
   if (steps.length === 0) {
     steps.push(
@@ -713,15 +721,13 @@ function joinWithAnd(items: readonly string[]): string {
 // Skip reasons a repository owner can act on, in the order the certificate itemizes them.
 // excluded_by_extension is absent on purpose: Cejel does not read those file types at all.
 const ACTIONABLE_SKIP_REASONS: ReadonlyArray<{
-  key: Exclude<keyof WitanContentReadSummary['byReason'], 'excludedByExtension'>;
+  key: Exclude<keyof WitanContentReadSummary['byReason'], 'excludedByExtension' | 'lfsPointer'>;
   label: string;
 }> = [
   { key: 'unreadable', label: 'unreadable' },
   { key: 'tooLarge', label: 'too large' },
   { key: 'deniedPath', label: 'a denied path' },
   { key: 'nonRegularFile', label: 'not a regular file' },
-  // Fetch the LFS content (git lfs pull) and re-scan. Present only on report format 1.6+ (#519).
-  { key: 'lfsPointer', label: 'a Git LFS pointer whose content is not in the checkout' },
 ];
 
 function actionableSkipReasons(summary: WitanContentReadSummary | undefined): {
@@ -729,9 +735,9 @@ function actionableSkipReasons(summary: WitanContentReadSummary | undefined): {
   reasons: string[];
 } {
   if (!summary) return { count: 0, reasons: [] };
-  const present = ACTIONABLE_SKIP_REASONS.filter(({ key }) => (summary.byReason[key] ?? 0) > 0);
+  const present = ACTIONABLE_SKIP_REASONS.filter(({ key }) => summary.byReason[key] > 0);
   return {
-    count: present.reduce((sum, { key }) => sum + (summary.byReason[key] ?? 0), 0),
+    count: present.reduce((sum, { key }) => sum + summary.byReason[key], 0),
     reasons: present.map(({ label }) => label),
   };
 }
@@ -977,6 +983,12 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
   if (actionableSkips > 0) {
     gaps.push(
       `${contentEntries(actionableSkips, 'was', 'were')} skipped for the reasons itemized in the certificate.`,
+    );
+  }
+  const lfsPointerCount = report.contentReadSummary?.byReason.lfsPointer ?? 0;
+  if (lfsPointerCount > 0) {
+    gaps.push(
+      `${lfsPointerCount} file${lfsPointerCount === 1 ? ' is a Git LFS pointer' : 's are Git LFS pointers'} in this checkout, so ${lfsPointerCount === 1 ? 'its' : 'their'} content was not read. A criterion that read one either abstained (it is listed among the affected criteria) or scored the pointer's text.`,
     );
   }
   const excludedByExtension = report.contentReadSummary?.byReason.excludedByExtension ?? 0;

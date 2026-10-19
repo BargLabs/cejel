@@ -20,6 +20,8 @@ import { HERMETIC_GIT_ENV } from './behaviour-corpus.js';
 export interface FalseAssuranceFixture {
   readonly name: string;
   readonly issue: '#517' | '#518' | '#519' | '#520' | '#442';
+  /** Set for a case an adversarial review of #521 found against the first implementation. */
+  readonly foundInReview?: true;
   readonly purpose: string;
   /** Each entry is one commit: path -> contents, or null to delete the path. */
   readonly commits: readonly Readonly<Record<string, string | null>>[];
@@ -269,7 +271,9 @@ const HISTORY_WITH_SECRET = {
   subjects: [...HISTORY.subjects, 'add billing'],
 };
 
-export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
+const FALSE_ASSURANCE_FIXTURES_REVIEW: FalseAssuranceFixture[] = [];
+
+const FALSE_ASSURANCE_FIXTURES_ISSUES: readonly FalseAssuranceFixture[] = [
   // #517 ------------------------------------------------------------------------------------
   {
     name: 'b3-pypi-publish-gated',
@@ -446,6 +450,178 @@ export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
     subjects: HISTORY_WITH_SECRET.subjects,
     shallow: true,
   },
+];
+
+const PR_CI = (steps: string): string =>
+  `name: ci\non:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n${steps}`;
+
+const RAISES_ASSERTION_TEST =
+  'import pytest\n\n\ndef test_get():\n    with pytest.raises(KeyError):\n        {}["a"]\n';
+
+// Cases an adversarial review of the first implementation of #521 reproduced. Each pins a defect
+// that shipped in that implementation and is fixed in this one.
+FALSE_ASSURANCE_FIXTURES_REVIEW.push(
+  {
+    name: 'review-a1-name-shaped-conftest-rated-hollow',
+    issue: '#518',
+    foundInReview: true,
+    purpose:
+      'v17 rates __tests__/conftest.py hollow (the __tests__/ name shape). Dropping it from the non-hollow denominator raised A1; the share must stay measured over the v17 list.',
+    commits: [
+      {
+        'pyproject.toml':
+          '[project]\nname = "c"\nversion = "1.0.0"\ndependencies = []\n\n[tool.pytest.ini_options]\ntestpaths = ["__tests__"]\n',
+        'README.md': '# c\n',
+        LICENSE: 'MIT\n',
+        'c.py': 'def f():\n    return 1\n',
+        '__tests__/conftest.py': CONFTEST_FIXTURE_ONLY,
+        '__tests__/test_c.py': RAISES_ASSERTION_TEST,
+        '.github/workflows/ci.yml': PR_CI(
+          '      - run: pip install pytest ruff mypy\n      - run: ruff check .\n      - run: mypy .\n      - run: pytest --cov\n',
+        ),
+      },
+    ],
+  },
+  {
+    name: 'review-a4-cargo-install-locked',
+    issue: '#520',
+    foundInReview: true,
+    purpose: "`cargo install <tool> --locked` refers to the tool's lockfile, not the repository's.",
+    commits: [
+      {
+        'Cargo.toml': '[package]\nname = "kl"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\nserde = "1"\n',
+        'src/lib.rs': 'pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n',
+        'tests/add_test.rs': 'use kl::add;\n\n#[test]\nfn adds() {\n    assert_eq!(add(1, 2), 3);\n}\n',
+        'README.md': '# kl\n',
+        LICENSE: 'MIT\n',
+        '.github/workflows/ci.yml': PR_CI(
+          '      - run: cargo install cargo-nextest --locked\n      - run: cargo nextest run\n      - run: cargo test\n',
+        ),
+      },
+    ],
+  },
+  {
+    name: 'review-a4-bun-lock-committed',
+    issue: '#520',
+    foundInReview: true,
+    purpose: 'bun.lock is committed but is not a lockfile A4 recognises; the requirement is met.',
+    commits: [
+      {
+        'package.json': `${JSON.stringify({ name: 'b', version: '1.0.0', scripts: { test: 'bun test' }, dependencies: { zod: '^3.0.0' } }, null, 2)}\n`,
+        'bun.lock': '{\n  "lockfileVersion": 1,\n  "workspaces": {}\n}\n',
+        'index.ts': 'export const x = 1;\n',
+        'index.test.ts': "import { expect, test } from 'bun:test';\n\ntest('x', () => {\n  expect(1).toBe(1);\n});\n",
+        'README.md': '# b\n',
+        LICENSE: 'MIT\n',
+        '.github/workflows/ci.yml': PR_CI('      - run: bun install --frozen-lockfile\n      - run: bun test\n'),
+      },
+    ],
+  },
+  {
+    name: 'review-a4-npm-ci-in-trailing-comment',
+    issue: '#520',
+    foundInReview: true,
+    purpose: 'A trailing comment that mentions `npm ci` is not a command.',
+    commits: [
+      {
+        'package.json': `${JSON.stringify({ name: 'b', version: '1.0.0', scripts: { test: 'node --test' }, dependencies: { zod: '^3.0.0' } }, null, 2)}\n`,
+        'index.js': 'export const x = 1;\n',
+        'test/index.test.js': "import test from 'node:test';\nimport assert from 'node:assert';\n\ntest('x', () => {\n  assert.strictEqual(1, 1);\n});\n",
+        'README.md': '# b\n',
+        LICENSE: 'MIT\n',
+        '.github/workflows/ci.yml': PR_CI(
+          '      - run: npm install # no lockfile on purpose; do not use npm ci\n      - run: npm test\n',
+        ),
+      },
+    ],
+  },
+  {
+    name: 'review-a1-hook-defined-under-try',
+    issue: '#518',
+    foundInReview: true,
+    purpose: 'A hook defined only when an import fails is conditional, so no claim is made.',
+    commits: [
+      PY_LIBRARY,
+      {
+        'tests/conftest.py':
+          'import pytest\n\ntry:\n    import numpy  # noqa\nexcept ImportError:\n    def pytest_collection_modifyitems(config, items):\n        for item in items:\n            item.add_marker(pytest.mark.skip(reason="numpy missing"))\n',
+      },
+    ],
+  },
+  {
+    name: 'review-a1-root-conftest-beside-vitest',
+    issue: '#518',
+    foundInReview: true,
+    purpose: 'A root conftest.py skip hook disables pytest tests, never the vitest tests beside them.',
+    commits: [
+      PY_LIBRARY,
+      {
+        'conftest.py': CONFTEST_SKIP_ALL,
+        'package.json': `${JSON.stringify({ name: 'w', version: '1.0.0', scripts: { test: 'vitest run' }, devDependencies: { vitest: '^1.0.0' } }, null, 2)}\n`,
+        'web/a.ts': 'export const a = 1;\n',
+        'web/a.test.ts': "import { expect, it } from 'vitest';\nimport { a } from './a';\n\nit('a', () => {\n  expect(a).toBe(1);\n});\n",
+      },
+    ],
+  },
+  {
+    name: 'review-a1-conditional-pytestmark',
+    issue: '#518',
+    foundInReview: true,
+    purpose: 'A one-line conditional `pytestmark = pytest.mark.skip(...) if ... else []` is not unconditional.',
+    commits: [
+      PY_LIBRARY,
+      {
+        'tests/test_cache.py': `import os\nimport pytest\n\npytestmark = pytest.mark.skip(reason="no db") if not os.environ.get("DB") else []\n\n${PY_LIBRARY['tests/test_cache.py']}`,
+        'tests/test_lru.py': `import os\nimport pytest\n\npytestmark = pytest.mark.skip(reason="no db") if not os.environ.get("DB") else []\n\n${PY_LIBRARY['tests/test_lru.py']}`,
+      },
+    ],
+  },
+  {
+    name: 'review-b3-tox-ci-with-tag-publish',
+    issue: '#517',
+    foundInReview: true,
+    purpose: 'One workflow runs tox on every push and pull request, then uploads on tags. It is CI.',
+    commits: [
+      {
+        ...PY_LIBRARY,
+        'tox.ini': '[tox]\nenvlist = py311\n\n[testenv]\ndeps = pytest\ncommands = pytest\n',
+        '.github/workflows/ci.yml':
+          "name: ci\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip install tox\n      - run: tox\n  release:\n    needs: test\n    if: startsWith(github.ref, 'refs/tags/')\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: python -m build\n      - run: twine upload dist/*\n",
+      },
+    ],
+  },
+  {
+    name: 'review-a2-secret-beside-planted-lfs-pointer',
+    issue: '#519',
+    foundInReview: true,
+    purpose:
+      'A pointer-shaped file next to a confirmed critical secret must not erase the finding through the LFS abstention.',
+    commits: [
+      {
+        ...PY_LIBRARY,
+        'src/cachelib/billing.py': `# Fixture only: a synthetic value in a real-looking assignment.\nSTRIPE_SECRET_KEY = "${SYNTHETIC_BRANDED_SECRET}"\n`,
+        'src/cachelib/blob.py': lfsPointerFor('x'),
+      },
+    ],
+  },
+  {
+    name: 'review-a2-lfs-data-in-not-applicable-library',
+    issue: '#519',
+    foundInReview: true,
+    purpose: 'An LFS-tracked data file in a library where A2 is not applicable must not turn A2 into a 0.',
+    commits: [
+      {
+        ...PY_LIBRARY,
+        '.gitattributes': '*.json filter=lfs diff=lfs merge=lfs -text\n',
+        'data/sample.json': lfsPointerFor('{"a":1}'),
+      },
+    ],
+  },
+);
+
+export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
+  ...FALSE_ASSURANCE_FIXTURES_ISSUES,
+  ...FALSE_ASSURANCE_FIXTURES_REVIEW,
 ];
 
 export function falseAssuranceFixture(name: string): FalseAssuranceFixture {

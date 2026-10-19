@@ -21,9 +21,10 @@ export const SHALLOW_HISTORY_LIMITATION =
 export const SHALLOW_HISTORY_V27_ABSTENTION =
   'This repository is a shallow clone (git rev-parse --is-shallow-repository reports true), so its ' +
   'commit history is truncated. A2 (credentials and .env files in earlier commits) and B2 (pull-request ' +
-  'merge ratio over recent commits) read history. Under this rubric A2 abstains unless a confirmed ' +
-  'critical secret finding stands, and B2 abstains when fewer commits are visible than it reads; each ' +
-  'abstention counts as 0 in the composite, as any evidence Cejel expected to read and could not does. ' +
+  'merge ratio over recent commits) read history. Under this rubric, where either would be scored, A2 ' +
+  'abstains unless a confirmed critical secret finding stands, and B2 abstains when fewer commits are ' +
+  'visible than it reads; each abstention counts as 0 in the composite, as any evidence Cejel expected ' +
+  'to read and could not does. A criterion that is not applicable stays not applicable. ' +
   'Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
 
 /** True when `repoPath` is a shallow clone. False when it is complete or not a git repository. */

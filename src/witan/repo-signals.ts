@@ -333,9 +333,25 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {
     const readFailureCriteria: WitanCriterionId[] = [];
     const coverageLimitedCriteria: WitanCriterionId[] = [];
+    // v27 (#519): a criterion whose only skips are Git LFS pointer reads keeps a not-applicable
+    // result, and keeps a critical finding its collector made, rather than abstaining. Pointer
+    // text cannot produce either (it holds an oid and a size), and an abstention there would let
+    // a pointer-shaped file erase a confirmed critical finding. Such a criterion scores exactly as
+    // v17 does, and is dropped from contentReadSummary.affectedCriteria, since it did not abstain.
+    const lfsKept = new Set<WitanCriterionId>();
     const signals = (tracked.value.signals ?? []).map((signal) => {
       if (!affectedCriteria.has(signal.criterionId)) return signal;
       const reasons = skipReasonsForCriterion(signal.criterionId, tracked);
+      if (
+        usesV27FalseAssuranceClosure(rubricVersion) &&
+        reasons.size > 0 &&
+        [...reasons].every((reason) => reason === 'lfs_pointer') &&
+        (signal.notApplicable === true ||
+          (signal.findings ?? []).some(({ severity }) => severity === 'critical'))
+      ) {
+        lfsKept.add(signal.criterionId);
+        return signal;
+      }
       const { insufficientDataReason } = classifyAbstentionReason(reasons);
       (insufficientDataReason !== undefined ? coverageLimitedCriteria : readFailureCriteria).push(
         signal.criterionId,
@@ -357,7 +373,13 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       ...tracked.value,
       signals,
       ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
-      contentReadSummary: tracked.summary,
+      contentReadSummary:
+        lfsKept.size > 0
+          ? {
+              ...tracked.summary,
+              affectedCriteria: tracked.summary.affectedCriteria.filter((id) => !lfsKept.has(id)),
+            }
+          : tracked.summary,
     };
   }
 
@@ -1993,13 +2015,19 @@ function collectA1TestIntegrityEvidence(
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
-  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests. Every other rubric counts
-  // it as a test file because it sits in a test directory.
-  const allTestFiles = findConcreteTestFiles(
+  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests, so it does not count as
+  // test surface (test_to_source_ratio) or test evidence. Every other rubric counts it because it
+  // sits in a test directory. The non-hollow share below is still measured over the v17 list:
+  // v17 rates a name-shaped conftest (e.g. under __tests__/) hollow, and dropping it from that
+  // denominator would raise the share.
+  const v17TestFiles = findConcreteTestFiles(
     repoPath,
     repoFiles,
     reviewableSourceProof ? WITAN_RUBRIC_VERSION_V17 : undefined,
-  ).filter((file) => !useV27FalseAssuranceClosure || !PYTEST_CONFTEST_PATTERN.test(file));
+  );
+  const allTestFiles = useV27FalseAssuranceClosure
+    ? v17TestFiles.filter((file) => !PYTEST_CONFTEST_PATTERN.test(file))
+    : v17TestFiles;
   // v27 (#518): a conftest.py hook that skips or deselects every collected test disables the
   // whole suite under it, so those files cannot fail. Read only under v27.
   const runWideSkips = useV27FalseAssuranceClosure
@@ -2297,24 +2325,22 @@ function collectA1TestIntegrityEvidence(
   const nonHollowShare = withContentReadSignal('A1', 'non_hollow_test_share', () =>
     measureNonHollowTestShare(
       repoPath,
-      allTestFiles,
+      v17TestFiles,
       reviewableSourceProof !== undefined,
       useV27FalseAssuranceClosure
         ? {
             disabledByRunWideSkip: (file) =>
-              runWideSkips.some(({ scope }) => scope === '' || file.startsWith(`${scope}/`)),
+              runWideSkips.some((skip) => isGovernedPytestFile(skip, file)),
           }
         : undefined,
     ),
   );
   for (const skip of runWideSkips.slice(0, 2)) {
-    const governed = allTestFiles.filter(
-      (file) => skip.scope === '' || file.startsWith(`${skip.scope}/`),
-    ).length;
+    const governed = allTestFiles.filter((file) => isGovernedPytestFile(skip, file)).length;
     if (governed === 0) continue;
     findings.push({
       severity: 'warning',
-      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} test file${governed === 1 ? '' : 's'} under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`} cannot fail.`,
+      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} pytest file${governed === 1 ? '' : 's'} under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`} cannot run.`,
       evidence: evidenceForRelativeAtLine(
         repoPath,
         skip.path,
@@ -4034,13 +4060,23 @@ function collectA4DependencyEvidence(
   // it. Those reads are of CI workflows B3 reads anyway and are attributed to nothing, so no
   // rubric's score or abstention can move. v27 also scores it (lockfile_coverage below), and there
   // the read is A4's own, so a workflow A4 cannot read abstains A4.
+  //
+  // A requirement is reported only when the specific lockfile its command needs is absent from
+  // everything the scan knows of: the inventory, the monorepo root, and the paths the file walk
+  // withheld (a lockfile over the size limit is still committed). Lockfiles A4 does not count
+  // (bun.lock, Gemfile.lock, ...) still satisfy the command that reads them.
+  const knownPaths = [
+    ...repoFiles,
+    ...(mono?.sharedFiles ?? []),
+    ...withheldRepoPaths().map(({ path }) => path),
+  ];
+  const knownBasenames = new Set(knownPaths.map((path) => basename(path)));
   const findRequirement = () =>
-    findLockfileRequirement(repoPath, repoFiles.filter(isCiWorkflow));
-  // A lockfile the file walk withheld (too large, unreadable, ...) is committed even though A4's
-  // inventory lacks it, so the requirement is not reported as unmet then.
-  const lockfileWithheld = withheldRepoPaths().some(({ path }) => isLockfile(path));
+    findLockfileRequirement(repoPath, repoFiles.filter(isCiWorkflow), (lockfiles) =>
+      lockfiles.some((name) => knownBasenames.has(name)),
+    );
   const lockfileRequirement =
-    hasLockfile || lockfileWithheld || !manifest
+    hasLockfile || !manifest
       ? undefined
       : useV27FalseAssuranceClosure
         ? withContentReadSignal('A4', 'lockfile_coverage', findRequirement)
@@ -4209,19 +4245,35 @@ function collectA4DependencyEvidence(
   };
 }
 
-// #520. Commands that fail without a committed lockfile, matched per line as a command word with
-// its flag. A bare `--locked` is not enough on its own: it must follow the tool that reads it.
-const LOCKFILE_REQUIRING_COMMAND_PATTERNS: readonly RegExp[] = [
-  /\buv[ \t]+(?:run|sync|export|tree)\b[^\n]*?[ \t]--(?:locked|frozen)\b/,
-  /\bnpm[ \t]+ci\b/,
-  /\bpnpm[ \t]+(?:install|i)\b[^\n]*?[ \t]--frozen-lockfile\b/,
-  /\byarn\b[^\n]*?[ \t]--(?:frozen-lockfile|immutable)\b/,
-  /\bbun[ \t]+(?:install|i)\b[^\n]*?[ \t]--frozen-lockfile\b/,
-  /\bcargo[ \t]+[a-z-]+\b[^\n]*?[ \t]--(?:locked|frozen)\b/,
-  /\bpoetry[ \t]+(?:check[ \t]+--lock|lock[ \t]+--check|install[^\n]*?[ \t]--sync)\b/,
-  /\bpipenv[ \t]+(?:install[^\n]*?[ \t]--deploy|sync)\b/,
-  /\bbundle[ \t]+install\b[^\n]*?[ \t]--frozen\b/,
+// #520. Commands that exit with an error when the lockfile they read is absent, each with the
+// lockfiles that satisfy it. Only commands whose documented behaviour is to fail without a lockfile
+// are listed; commands that merely prefer one (`yarn --frozen-lockfile` on Yarn 1, `bun install
+// --frozen-lockfile`, `pipenv install --deploy`, `poetry install --sync`) and tool installs
+// (`cargo install --locked` reads the installed crate's lockfile) are not.
+interface LockfileRequiringCommand {
+  readonly tool: string;
+  /** Accepted subcommands; `null` accepts none or `install` (Yarn's bare `yarn`). */
+  readonly subcommands: readonly string[] | null;
+  /** At least one must appear in the same command; `null` means the subcommand alone requires it. */
+  readonly flags: readonly string[] | null;
+  readonly lockfiles: readonly string[];
+}
+
+const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
+  { tool: 'npm', subcommands: ['ci'], flags: null, lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'] },
+  { tool: 'pnpm', subcommands: ['install', 'i'], flags: ['--frozen-lockfile'], lockfiles: ['pnpm-lock.yaml'] },
+  { tool: 'yarn', subcommands: null, flags: ['--immutable'], lockfiles: ['yarn.lock'] },
+  { tool: 'uv', subcommands: ['run', 'sync'], flags: ['--locked', '--frozen'], lockfiles: ['uv.lock'] },
+  {
+    tool: 'cargo',
+    subcommands: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench'],
+    flags: ['--locked', '--frozen'],
+    lockfiles: ['Cargo.lock'],
+  },
+  { tool: 'poetry', subcommands: ['check'], flags: ['--lock'], lockfiles: ['poetry.lock'] },
 ];
+
+const SHELL_COMMAND_SEPARATORS = new Set(['&&', '||', ';', '|']);
 
 interface LockfileRequirement {
   readonly file: string;
@@ -4230,22 +4282,76 @@ interface LockfileRequirement {
   readonly command: string;
 }
 
-/** The first CI line that requires a committed lockfile, in file order then line order. */
+/**
+ * The command words of one CI line: the text before its first comment, split on spaces and tabs,
+ * then into commands at shell separators. Plain string scanning only, so a pathological line costs
+ * time linear in its length.
+ */
+function ciLineCommands(line: string): string[][] {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith('#')) return [];
+  const space = trimmed.indexOf(' #');
+  const tab = trimmed.indexOf('\t#');
+  const cut = [space, tab].filter((index) => index !== -1);
+  const code = cut.length > 0 ? trimmed.slice(0, Math.min(...cut)) : trimmed;
+  const commands: string[][] = [[]];
+  for (const raw of code.split(/[ \t]+/)) {
+    const word = raw.endsWith(';') && raw.length > 1 ? raw.slice(0, -1) : raw;
+    if (word === '') continue;
+    if (SHELL_COMMAND_SEPARATORS.has(word)) {
+      commands.push([]);
+      continue;
+    }
+    commands[commands.length - 1]?.push(word);
+    if (raw.endsWith(';') && raw.length > 1) commands.push([]);
+  }
+  return commands.filter((command) => command.length > 0);
+}
+
+function matchLockfileRequiringCommand(
+  words: readonly string[],
+  rule: LockfileRequiringCommand,
+): string | undefined {
+  const toolIndex = words.indexOf(rule.tool);
+  if (toolIndex === -1) return undefined;
+  const rest = words.slice(toolIndex + 1);
+  const subcommand = rest[0];
+  if (rule.subcommands === null) {
+    if (subcommand !== undefined && subcommand !== 'install' && !subcommand.startsWith('-')) {
+      return undefined;
+    }
+  } else if (subcommand === undefined || !rule.subcommands.includes(subcommand)) {
+    return undefined;
+  }
+  if (rule.flags !== null) {
+    const flags = rule.flags;
+    const flagIndex = rest.findIndex((word) => flags.includes(word.split('=')[0] ?? word));
+    if (flagIndex === -1) return undefined;
+    return [rule.tool, ...rest.slice(0, flagIndex + 1)].join(' ');
+  }
+  return [rule.tool, subcommand].join(' ');
+}
+
+/**
+ * The first CI line, in file order then line order, whose command requires a lockfile that
+ * `isSatisfied` says is absent.
+ */
 function findLockfileRequirement(
   repoPath: string,
   ciWorkflows: readonly string[],
+  isSatisfied: (lockfiles: readonly string[]) => boolean,
 ): LockfileRequirement | undefined {
   for (const file of ciWorkflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const lines = readRepoText(fullPath, 'utf8').split('\n');
     for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index] ?? '';
-      if (/^\s*#/.test(line)) continue;
-      for (const pattern of LOCKFILE_REQUIRING_COMMAND_PATTERNS) {
-        const match = pattern.exec(line);
-        if (match) {
-          return { file, line: index + 1, command: match[0].trim().slice(0, 80) };
+      for (const words of ciLineCommands(lines[index] ?? '')) {
+        for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
+          const command = matchLockfileRequiringCommand(words, rule);
+          if (command !== undefined && !isSatisfied(rule.lockfiles)) {
+            return { file, line: index + 1, command: command.slice(0, 80) };
+          }
         }
       }
     }
@@ -4890,7 +4996,7 @@ function collectB3CiDisciplineEvidence(
     ],
     ...(publishOnlyWorkflows.length > 0
       ? {
-          notes: `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no test, lint or type-check command) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
+          notes: `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger and no verification command Cejel recognises) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
         }
       : {}),
   };
@@ -4902,10 +5008,21 @@ function collectB3CiDisciplineEvidence(
 const PUBLISH_OR_DEPLOY_STEP_PATTERN =
   /\b(?:npm|pnpm|yarn|bun)[ \t]+(?:npm[ \t]+)?publish\b|\bpypa\/gh-action-pypi-publish\b|\btwine[ \t]+upload\b|\b(?:uv|poetry|flit|hatch|cargo)[ \t]+publish\b|\bgem[ \t]+push\b|\bgh[ \t]+release[ \t]+create\b|\bsoftprops\/action-gh-release\b|\bgoreleaser\b|\bsemantic-release\b|\bchangesets\/action\b|\bdocker[ \t]+(?:image[ \t]+)?push\b|\bdocker\/build-push-action\b|\b(?:vercel|netlify|flyctl|fly|firebase|serverless|wrangler)[ \t]+deploy\b|\bkubectl[ \t]+apply\b|\bhelm[ \t]+upgrade\b|\bterraform[ \t]+apply\b/i;
 
+// Verification Cejel recognises beyond the B3 command categories, used only to keep a workflow
+// counted (#517): test runners invoked through a task runner or build tool, and pre-commit.
+const PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN =
+  /\b(?:tox|nox|pre-commit|bazel[ \t]+test|gradlew?[ \t]+(?:test|check|build)|mvnw?[ \t]+(?:verify|test|package)|make[ \t]+(?:check|test)|just[ \t]+test|cargo[ \t]+(?:clippy|check|nextest)|turbo[ \t]+(?:run[ \t]+)?test)\b|[ \t]-r[ \t]+test\b|\brun[ \t]+test\b/i;
+// A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
+const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
+// A job that calls a reusable workflow runs steps this file does not show.
+const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
+
 /**
- * True for a CI workflow whose job is to publish, release or deploy: it has a step from
- * PUBLISH_OR_DEPLOY_STEP_PATTERN and no test, lint or type-check command anywhere in it. A
- * workflow that verifies and then publishes still counts as CI, because its verification runs.
+ * True for a CI workflow whose job is to publish, release or deploy, and nothing else Cejel can
+ * see: it has a step from PUBLISH_OR_DEPLOY_STEP_PATTERN, no pull-request trigger, no call to a
+ * reusable workflow, and no test, lint, type-check or other recognised verification command. Any
+ * doubt keeps the workflow counted: a workflow that verifies and then publishes is still CI, and
+ * so is one whose verification Cejel does not recognise.
  */
 function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
   const fullPath = join(repoPath, file);
@@ -4913,9 +5030,12 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
   const contents = readRepoText(fullPath, 'utf8');
   return (
     PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) &&
+    !PULL_REQUEST_TRIGGER_PATTERN.test(contents) &&
+    !REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) &&
     !CI_TEST_COMMAND_PATTERN.test(contents) &&
     !CI_LINT_COMMAND_PATTERN.test(contents) &&
-    !CI_TYPECHECK_COMMAND_PATTERN.test(contents)
+    !CI_TYPECHECK_COMMAND_PATTERN.test(contents) &&
+    !PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents)
   );
 }
 
@@ -6637,8 +6757,7 @@ function measureNonHollowTestShare(
     // that still run.
     const runWideDisabled =
       runWideSkip !== undefined &&
-      (runWideSkip.disabledByRunWideSkip(file) ||
-        (/\.py$/.test(file) && PYTEST_MODULE_SKIP_PATTERN.test(contents)));
+      (runWideSkip.disabledByRunWideSkip(file) || hasUnconditionalPytestModuleSkip(file, contents));
     const nonHollow =
       asserting &&
       !SUITE_LEVEL_SKIP_PATTERN.test(contents) &&
@@ -6663,10 +6782,38 @@ function measureNonHollowTestShare(
 //
 // A conftest.py is pytest's per-directory plugin: fixtures and hooks, never tests.
 const PYTEST_CONFTEST_PATTERN = /(^|\/)conftest\.py$/;
-// A module-level, unconditional skip of every test in the file: `pytestmark = pytest.mark.skip`,
-// with or without arguments, alone or in a list. `skipif` is conditional and does not match.
-const PYTEST_MODULE_SKIP_PATTERN = /^pytestmark\s*=[^\n]*\bpytest\.mark\.skip\b(?!if)/m;
-const PYTEST_COLLECTION_HOOK_PATTERN = /^([ \t]*)def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
+// A module-level, unconditional skip of every test in the file: a top-level `pytestmark = ...`
+// statement on one line naming `pytest.mark.skip`, with or without arguments, alone or in a list.
+// `skipif`, and any `if` on that line (a conditional expression), is not unconditional.
+const PYTEST_MODULE_SKIP_MARK_PATTERN = /\bpytest\.mark\.skip\b(?!if)/;
+const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=/;
+
+function hasUnconditionalPytestModuleSkip(file: string, contents: string): boolean {
+  if (!/\.py$/.test(file)) return false;
+  for (const line of contents.split('\n')) {
+    if (!PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(line)) continue;
+    const code = stripPythonLineComment(line);
+    if (/\bif\b/.test(code)) continue;
+    if (PYTEST_MODULE_SKIP_MARK_PATTERN.test(code)) return true;
+  }
+  return false;
+}
+
+/** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
+function stripPythonLineComment(line: string): string {
+  const hash = line.indexOf('#');
+  return hash === -1 ? line : line.slice(0, hash);
+}
+
+/** A pytest test file a run-wide hook governs: a .py test file under the conftest's directory. */
+function isGovernedPytestFile(skip: PytestRunWideSkip, file: string): boolean {
+  if (!/\.py$/.test(file) || PYTEST_CONFTEST_PATTERN.test(file)) return false;
+  return skip.scope === '' || file.startsWith(`${skip.scope}/`);
+}
+
+// Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
+// or other block exists only on some runs, so it is conditional too.
+const PYTEST_COLLECTION_HOOK_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
 // Inside the hook: any of these makes what it does depend on something, and Cejel then makes no
 // claim about it.
 const PYTEST_HOOK_CONDITIONAL_PATTERN =
@@ -6705,16 +6852,14 @@ function findPytestRunWideSkips(
     if (!isRegularFile(fullPath)) continue;
     const lines = readRepoText(fullPath, 'utf8').split('\n');
     for (let index = 0; index < lines.length; index += 1) {
-      const hook = PYTEST_COLLECTION_HOOK_PATTERN.exec(lines[index] ?? '');
-      if (!hook) continue;
-      const indent = (hook[1] ?? '').length;
+      if (!PYTEST_COLLECTION_HOOK_PATTERN.test(lines[index] ?? '')) continue;
       const body: string[] = [];
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
         const trimmed = raw.trim();
         if (trimmed === '' || trimmed.startsWith('#')) continue;
-        if (raw.length - raw.trimStart().length <= indent) break;
-        body.push(trimmed.replace(/[ \t]+#.*$/, ''));
+        if (raw.length === raw.trimStart().length) break;
+        body.push(stripPythonLineComment(trimmed).trim());
       }
       if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
       const kind = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement))

@@ -176,13 +176,16 @@ export const WITAN_RUBRIC_VERSION_V26 = 'witan-rubric-v26-prospective-2026-10-14
 //     (a collection hook that skips or clears every item, or a module-level pytestmark skip)
 //     marks the test files in its scope hollow;
 //   - every criterion: a read of a Git LFS pointer is a content-read skip, so the criterion that
-//     read it abstains as a read failure instead of scoring the pointer text;
+//     read it abstains as a read failure instead of scoring the pointer text, unless it is not
+//     applicable or its collector made a critical finding (it then scores as under v17);
 //   - A4: under library norms, lockfile_coverage is 0 rather than omitted when the repository's
 //     own CI requires a lockfile and none is committed;
 //   - A2 and B2: on a shallow clone, A2 abstains unless a confirmed critical secret finding
 //     stands, and B2 abstains when fewer commits are visible than its window reads.
 // Each abstention is a read failure, kept in the composite at 0, and each other change only
-// lowers a metric, so no score or status can rise against v17; the measured before/after is in
+// lowers a metric or adds a zero-valued one (A1's non-hollow share stays measured over v17's test
+// list, so excluding conftest.py cannot shrink its denominator), so no score or status can rise
+// against v17; the measured before/after is in
 // leaderboard/RUBRIC_CHANGELOG.md and docs/reviews/v27-false-assurance-closure-2026-10-19.md.
 // The name collides with the unrelated `useV27Detectors` detector-generation flag in
 // repo-signals.ts (free-core detector v27, which every rubric since v8 uses); the rubric gate is

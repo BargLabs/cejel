@@ -56,9 +56,12 @@ Stable in report format v1:
   when the checkout held at least one Git LFS pointer in place of a file's content, and summed
   into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
   `witan-rubric-v17-2026-07-24` and the other rubrics before v27 it records no abstention, so the
-  criterion that read the pointer scored the pointer's text, and a gate should treat that
-  criterion's result as unestablished. Under `witan-rubric-v27-prospective-2026-10-19` the read is
-  attributed, the criterion abstains as a read failure, and it appears in `affectedCriteria`.
+  criterion that read the pointer scored the pointer's text. The report does not say which
+  criterion read it (`affectedCriteria` stays empty), so a gate that needs to know should treat any
+  criterion as possibly affected, or require a scan with the LFS content present. Under `witan-rubric-v27-prospective-2026-10-19` the read is
+  attributed, the criterion abstains as a read failure, and it appears in `affectedCriteria`,
+  except where that criterion is not applicable or its collector made a critical finding: then it
+  scores as under v17 and is not listed.
   Absent on reports older than 1.6, and absent (not 0) when no pointer was read.
 
 Experimental within report format v1: metric presentation hints under
