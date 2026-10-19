@@ -2,11 +2,11 @@
 
 `cejel --ingest` folds other scanners' output into a certificate. An ingested document is
 evidence about some repository, at some commit, observed at some time, by some producer. Before
-report format 1.6 Cejel read none of that. A Scorecard result for another repository, for an older
+report format 1.7 Cejel read none of that. A Scorecard result for another repository, for an older
 commit, or from a run made long before the scanned revision existed was scored exactly like a
 matching one, and the certificate attributed it only by tool name and `operator_supplied`.
 
-From report format 1.6, every ingested document is recorded in `report.json` under
+From report format 1.7, every ingested document is recorded in `report.json` under
 `inputBinding`, with what its own format says about its subject and producer and whether that
 subject is the revision the certificate is about.
 
@@ -73,7 +73,7 @@ Deduplication is unchanged, and each duplicate is recorded:
 
 - **Default, `record-only`.** The binding record is attached after scoring. It moves no score,
   status, abstention, badge or `--min-score` outcome. A certificate scored with a mismatched input
-  has exactly the scores it had before report format 1.6.
+  has exactly the scores it had before report format 1.7.
 - **`--strict-ingest`.** Before scoring, Cejel refuses every input whose status is
   `mismatched-repository`, `mismatched-commit` or `stale`, and every duplicate, and writes no
   certificate. The error names each refused file, why, and what it was compared against. `unbound`

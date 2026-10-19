@@ -227,6 +227,8 @@ export const WitanContentReadSkipReasonSchema = z.enum([
   'excluded_by_extension',
   'denied_path',
   'non_regular_file',
+  // Additive, report format 1.6 (#519): the checkout held a Git LFS pointer in place of content.
+  'lfs_pointer',
 ]);
 export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReasonSchema>;
 
@@ -268,6 +270,9 @@ export const WitanContentReadSummarySchema = z
         excludedByExtension: z.number().int().nonnegative(),
         deniedPath: z.number().int().nonnegative(),
         nonRegularFile: z.number().int().nonnegative(),
+        // Additive-optional, report format 1.6 (#519): files whose checkout held a Git LFS pointer
+        // in place of their content. Present only when non-zero.
+        lfsPointer: z.number().int().positive().optional(),
       })
       .strict(),
     unreadableByErrno: z.record(z.string().min(1).max(32), z.number().int().positive()),
@@ -275,7 +280,10 @@ export const WitanContentReadSummarySchema = z
   })
   .strict()
   .superRefine((summary, context) => {
-    const reasonTotal = Object.values(summary.byReason).reduce((sum, count) => sum + count, 0);
+    const reasonTotal = Object.values(summary.byReason).reduce(
+      (sum: number, count) => sum + (count ?? 0),
+      0,
+    );
     if (reasonTotal !== summary.skipped) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -350,7 +358,7 @@ export const WitanCriterionScoreSchema = z
     category: WitanCriterionCategorySchema,
     score: z.number().min(0).max(4),
     nativeScore: z.number().min(0).max(4).optional(),
-    // Additive-optional (report format 1.6): the status the native evidence alone produced, set
+    // Additive-optional (report format 1.7): the status the native evidence alone produced, set
     // beside nativeScore whenever ingested signals adjusted this criterion. When it differs from
     // `status`, imported evidence moved the status; a reader must not take the moved status as a
     // native Cejel finding. Absent when no ingested signal adjusted the criterion.
@@ -415,7 +423,7 @@ export const WitanConsumedSignalSummarySchema = z
   })
   .strict();
 
-// Input binding (report format 1.6). One record per ingested document: what subject and
+// Input binding (report format 1.7). One record per ingested document: what subject and
 // producer the document's own format declared, whether that subject is the scanned revision, and
 // whether the document was observed before the scanned commit existed. Recorded after scoring under
 // the default `record-only` policy, so it cannot move a score; `--strict-ingest` refuses
@@ -524,7 +532,7 @@ const WitanReportCommonSchema = z.object({
   // Rubric-driven: length matches whatever rubric produced this report, not a fixed enum.
   criteria: z.array(WitanCriterionScoreSchema).min(1),
   consumedSignals: z.array(WitanConsumedSignalSummarySchema).optional(),
-  // Additive-optional (report format 1.6): present only when at least one document was ingested,
+  // Additive-optional (report format 1.7): present only when at least one document was ingested,
   // so a no-ingest report stays byte-identical. See WitanInputBindingSchema.
   inputBinding: WitanInputBindingSchema.optional(),
   archetype: WitanRepoArchetypeSchema.optional(),
@@ -620,10 +628,13 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // reports produced before this version do not carry it.
 // 1.5 (issue #428): report.json gained optional historyLimitations, present when the scanned
 // repository is a shallow clone. Display-only; reports from before this version do not carry it.
-// 1.6: report.json gained optional inputBinding (per ingested document: digest, producer, declared
+// 1.6 (issue #519): contentReadSummary.byReason gained optional lfsPointer, present only when the
+// checkout held at least one Git LFS pointer in place of a file's content, and the skip-reason
+// enum gained 'lfs_pointer'. Reports without an LFS pointer are byte-identical to 1.5 reports.
+// 1.7 (#525): report.json gained optional inputBinding (per ingested document: digest, producer, declared
 // subject, binding status) and optional criteria[].nativeStatus beside nativeScore. Both are
 // present only on reports that ingested external documents; a no-ingest report is byte-identical.
-export const WITAN_REPORT_FORMAT_VERSION = '1.6' as const;
+export const WITAN_REPORT_FORMAT_VERSION = '1.7' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

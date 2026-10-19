@@ -29,6 +29,7 @@ import {
   classifyAbstentionReason,
   type ContentReadSkipReason,
   contentReadSignalKey,
+  isGitLfsPointerText,
   readRepoText,
   readRepoTextPrefix,
   recordContentSkip,
@@ -40,6 +41,7 @@ import {
   withContentReadSignal,
   withContentReadSignals,
   withheldRepoPaths,
+  withoutContentReadAttribution,
 } from './content-reads.js';
 
 import {
@@ -58,6 +60,7 @@ import {
   isExpectedGitAbsence,
   type GitExecResult,
 } from './git-exec.js';
+import { isShallowRepository } from './history-depth.js';
 import { stripBom } from './json-safe.js';
 import {
   WITAN_RUBRIC_VERSION_V9,
@@ -78,11 +81,13 @@ import {
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -93,6 +98,14 @@ function usesV17DetectorClosure(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V25 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V26
   );
+}
+
+// witan-rubric-v27's one gate (#517, #518, #519, #520, #442). Checked against V27 alone and never
+// inherited: v17 (the public default) and v18-v26 stay byte-stable. v27 is otherwise v17's
+// closure (it appears beside V17 in every comparison above and in scoring.ts). See the
+// WITAN_RUBRIC_VERSION_V27 declaration in rubric-version.ts.
+export function usesV27FalseAssuranceClosure(rubricVersion: string): boolean {
+  return rubricVersion === WITAN_RUBRIC_VERSION_V27;
 }
 
 interface InventoryScanPatternSet {
@@ -272,7 +285,9 @@ function wholesaleCriterionAbstention(
     notes:
       insufficientDataReason !== undefined
         ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
-        : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
+        : reasons?.size === 1 && reasons.has('lfs_pointer')
+          ? 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
+          : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
 }
 
@@ -304,9 +319,13 @@ function skipReasonsForSignal(
 }
 
 export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanReportInputPayload {
-  const tracked = trackContentReads(options.repoPath, () => buildWitanInputFromRepoUntracked(options));
-  const affectedCriteria = tracked.affectedCriteria;
   const rubricVersion = options.rubricVersion ?? WITAN_RUBRIC_VERSION;
+  const tracked = trackContentReads(
+    options.repoPath,
+    () => buildWitanInputFromRepoUntracked(options),
+    { lfsPointerAbstention: usesV27FalseAssuranceClosure(rubricVersion) },
+  );
+  const affectedCriteria = tracked.affectedCriteria;
 
   // v17 and v22 (and every other rubric) keep the exact pre-v23 wholesale-wipe behavior below,
   // byte-for-byte — this branch is untouched by the per-signal work
@@ -314,9 +333,26 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
   if (rubricVersion !== WITAN_RUBRIC_VERSION_V23) {
     const readFailureCriteria: WitanCriterionId[] = [];
     const coverageLimitedCriteria: WitanCriterionId[] = [];
+    // v27 (#519): a criterion whose only skips are Git LFS pointer reads keeps a critical finding
+    // its collector made, rather than abstaining. Pointer text (an oid and a size) cannot produce a
+    // critical finding, and an abstention there would let a pointer-shaped file erase a confirmed
+    // one. Such a criterion scores exactly as v17 does, and is dropped from
+    // contentReadSummary.affectedCriteria, since it did not abstain. A not-applicable result is
+    // NOT kept: applicability is decided from what a collector fails to find in content, and a
+    // pointer is content it did not read.
+    const lfsKept = new Set<WitanCriterionId>();
     const signals = (tracked.value.signals ?? []).map((signal) => {
       if (!affectedCriteria.has(signal.criterionId)) return signal;
       const reasons = skipReasonsForCriterion(signal.criterionId, tracked);
+      if (
+        usesV27FalseAssuranceClosure(rubricVersion) &&
+        reasons.size > 0 &&
+        [...reasons].every((reason) => reason === 'lfs_pointer') &&
+        (signal.findings ?? []).some(({ severity }) => severity === 'critical')
+      ) {
+        lfsKept.add(signal.criterionId);
+        return signal;
+      }
       const { insufficientDataReason } = classifyAbstentionReason(reasons);
       (insufficientDataReason !== undefined ? coverageLimitedCriteria : readFailureCriteria).push(
         signal.criterionId,
@@ -338,7 +374,13 @@ export function buildWitanInputFromRepo(options: BuildWitanInputOptions): WitanR
       ...tracked.value,
       signals,
       ...(scanLimitations.length > 0 ? { scanLimitations } : {}),
-      contentReadSummary: tracked.summary,
+      contentReadSummary:
+        lfsKept.size > 0
+          ? {
+              ...tracked.summary,
+              affectedCriteria: tracked.summary.affectedCriteria.filter((id) => !lfsKept.has(id)),
+            }
+          : tracked.summary,
     };
   }
 
@@ -630,6 +672,7 @@ function buildWitanInputFromRepoUntracked(
   // abstains, with a disclosure sentence when a place went unread. Checked against V26 alone and
   // never inherited: v17 (the public default) and v18-v25 stay byte-stable.
   const usesV26BuildStepEvidence = rubricVersion === WITAN_RUBRIC_VERSION_V26;
+  const usesV27Closure = usesV27FalseAssuranceClosure(rubricVersion);
   const structuralArchetype = classifyRepoArchetype(inventoryFiles, rubricVersion);
   const readableArchetype =
     rubricVersion === WITAN_RUBRIC_VERSION_V13 ||
@@ -724,6 +767,7 @@ function buildWitanInputFromRepoUntracked(
     usesV25InlineHealthRoute,
     usesV26SettlingEvidence,
     usesV26BuildStepEvidence,
+    usesV27Closure,
     reviewableSourceProof,
     inventoryAbsenceContext,
     scanLimitations,
@@ -1815,6 +1859,7 @@ function collectRepoSignals(
   useV25InlineHealthRoute: boolean,
   useV26SettlingEvidence: boolean,
   useV26BuildStepEvidence: boolean,
+  useV27FalseAssuranceClosure: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
   scanLimitations: Set<string> = new Set(),
@@ -1835,6 +1880,7 @@ function collectRepoSignals(
       useV23StrictCoverageAndRecipeRunners,
       reviewableSourceProof,
       inventoryAbsenceContext,
+      useV27FalseAssuranceClosure,
     ),
   );
   const a2Signal = collectCriterion('A2', () =>
@@ -1852,6 +1898,7 @@ function collectRepoSignals(
       inventoryAbsenceContext,
       scanLimitations,
       useV26SettlingEvidence,
+      useV27FalseAssuranceClosure,
     ),
   );
   const a3Signal = collectCriterion('A3', () =>
@@ -1875,6 +1922,7 @@ function collectRepoSignals(
       useV27Detectors,
       useV47Detectors,
       inventoryAbsenceContext,
+      useV27FalseAssuranceClosure,
     ),
   );
   const a5Signal = collectCriterion('A5', () =>
@@ -1891,9 +1939,11 @@ function collectRepoSignals(
     'B1',
     'Repository scans do not evaluate the dispatch-trace process dimension.',
   );
-  const b2Signal = collectCriterion('B2', () => collectB2PrTraceEvidence(repoPath, repoFiles));
+  const b2Signal = collectCriterion('B2', () =>
+    collectB2PrTraceEvidence(repoPath, repoFiles, useV27FalseAssuranceClosure),
+  );
   const b3Signal = collectCriterion('B3', () =>
-    collectB3CiDisciplineEvidence(repoPath, repoFiles, mono),
+    collectB3CiDisciplineEvidence(repoPath, repoFiles, mono, useV27FalseAssuranceClosure),
   );
   // B4 measures generic audit-trail hygiene (CHANGELOG/SECURITY/AUDIT/STATUS + docs
   // runbooks/incident/security notes) via collectB4AuditEvidence — this is NOT
@@ -1962,14 +2012,28 @@ function collectA1TestIntegrityEvidence(
   useV23StrictCoverageAndRecipeRunners: boolean,
   reviewableSourceProof?: ReviewableSourceProof,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
+  useV27FalseAssuranceClosure = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
-  const allTestFiles = findConcreteTestFiles(
+  // v27 (#518): conftest.py holds pytest fixtures and hooks, not tests, so it does not count as
+  // test surface (test_to_source_ratio) or test evidence. Every other rubric counts it because it
+  // sits in a test directory. The non-hollow share below is still measured over the v17 list:
+  // v17 rates a name-shaped conftest (e.g. under __tests__/) hollow, and dropping it from that
+  // denominator would raise the share.
+  const v17TestFiles = findConcreteTestFiles(
     repoPath,
     repoFiles,
     reviewableSourceProof ? WITAN_RUBRIC_VERSION_V17 : undefined,
   );
+  const allTestFiles = useV27FalseAssuranceClosure
+    ? v17TestFiles.filter((file) => !PYTEST_CONFTEST_PATTERN.test(file))
+    : v17TestFiles;
+  // v27 (#518): a conftest.py hook that skips or deselects every collected test disables the
+  // whole suite under it, so those files cannot fail. Read only under v27.
+  const runWideSkips = useV27FalseAssuranceClosure
+    ? findPytestRunWideSkips(repoPath, repoFiles)
+    : [];
   const testFiles = allTestFiles.slice(0, 8);
   const sourceFiles = repoFiles.filter(isSourceFile);
   const runnerFiles = repoFiles
@@ -2075,7 +2139,11 @@ function collectA1TestIntegrityEvidence(
       [...packageScripts.values()].some((script) =>
         LEAN_TEST_RUNNER_SCRIPT_PATTERN.test(script),
       )) ||
-    testFiles.some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
+    // v17's first eight, under every rubric: v27's conftest exclusion must not move a file into
+    // this sample and change the finding below.
+    v17TestFiles
+      .slice(0, 8)
+      .some((file) => fileContains(repoPath, file, LEAN_TEST_RUNNER_IMPORT_PATTERN));
   // A root node:test script does not make a monorepo lean when any workspace still carries a
   // heavyweight runner. v26 missed Meteor because it inspected only the root package.json and
   // therefore suppressed a real no-coverage finding despite nested Jest dependencies.
@@ -2085,7 +2153,21 @@ function collectA1TestIntegrityEvidence(
   const isLeanTestToolchain = usesLeanBuiltInTestRunner && !hasHeavyTestDependency;
 
   for (const file of testFiles) {
-    evidence.push(evidenceForRelative(repoPath, file, 'test_run', 'Detected test file'));
+    // Every rubric (#519): a Git LFS pointer is named as one, so the evidence does not present
+    // pointer text as a test. The file is read here exactly as evidenceForRelative reads it.
+    const testPath = join(repoPath, file);
+    const isLfsPointer =
+      isRegularFile(testPath) && isGitLfsPointerText(readRepoText(testPath, 'utf8'));
+    evidence.push(
+      evidenceForRelative(
+        repoPath,
+        file,
+        'test_run',
+        isLfsPointer
+          ? 'Detected test file (Git LFS pointer; its content is not in this checkout)'
+          : 'Detected test file',
+      ),
+    );
   }
   for (const file of runnerFiles) {
     evidence.push(evidenceForRelative(repoPath, file, 'test_run', 'Configured test runner'));
@@ -2246,8 +2328,33 @@ function collectA1TestIntegrityEvidence(
   // Scoped to the 'non_hollow_test_share' signal for the same reason as coverage_percent above:
   // an unreadable test file should only abstain this metric, not the whole A1 criterion.
   const nonHollowShare = withContentReadSignal('A1', 'non_hollow_test_share', () =>
-    measureNonHollowTestShare(repoPath, allTestFiles, reviewableSourceProof !== undefined),
+    measureNonHollowTestShare(
+      repoPath,
+      v17TestFiles,
+      reviewableSourceProof !== undefined,
+      useV27FalseAssuranceClosure
+        ? {
+            disabledByRunWideSkip: (file) =>
+              runWideSkips.some((skip) => isGovernedPytestFile(skip, file)),
+          }
+        : undefined,
+    ),
   );
+  for (const skip of runWideSkips.slice(0, 2)) {
+    const governed = allTestFiles.filter((file) => isGovernedPytestFile(skip, file)).length;
+    if (governed === 0) continue;
+    findings.push({
+      severity: 'warning',
+      summary: `A pytest collection hook in ${skip.path} ${skip.kind === 'skip' ? 'marks every collected test skipped' : 'removes every collected test'}, so the ${governed} pytest file${governed === 1 ? '' : 's'} under ${skip.scope === '' ? 'the repository root' : `${skip.scope}/`} cannot run.`,
+      evidence: evidenceForRelativeAtLine(
+        repoPath,
+        skip.path,
+        'test_run',
+        'Run-wide pytest skip hook',
+        skip.line,
+      ),
+    });
+  }
 
   return {
     criterionId: 'A1',
@@ -2416,6 +2523,7 @@ function collectA2IsolationEvidence(
   inventoryAbsenceContext: InventoryAbsenceContext,
   scanLimitations: Set<string>,
   useV26SettlingEvidence = false,
+  useV27FalseAssuranceClosure = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -2937,6 +3045,14 @@ function collectA2IsolationEvidence(
   // metrics entirely so a secret-clean single-tenant repo is never scored as critical
   // for absence of isolation mechanisms it does not need.
   const hasCriticalFinding = findings.some((finding) => finding.severity === 'critical');
+  // v27 (#442): on a shallow clone the history half of A2 read only the commits present, so a
+  // clean result asserts something about history Cejel did not read. A2 then abstains as a read
+  // failure (kept in the composite at 0). A confirmed critical finding stands on what was read,
+  // so A2 keeps scoring it. Withholding only secret_cleanliness is not done: the calibrated A2
+  // state needs that metric, and its score-band fallback can land on a less severe status.
+  if (useV27FalseAssuranceClosure && !hasCriticalFinding && isShallowRepository(repoPath)) {
+    return shallowHistoryAbstention('A2', V27_A2_SHALLOW_HISTORY_NOTE);
+  }
   const secretCleanliness = hasCriticalFinding ? 0 : 1;
   // v24 withholds the metric — never scores it 0, never scores it 1 — when the current-tree scan
   // ended on a value it could not classify and nothing else produced a critical. A zero earned by
@@ -3786,6 +3902,7 @@ function collectA4DependencyEvidence(
   useV27Detectors: boolean,
   useV47Detectors: boolean,
   inventoryAbsenceContext: InventoryAbsenceContext = LEGACY_INVENTORY_ABSENCE_CONTEXT,
+  useV27FalseAssuranceClosure = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const findings: WitanCriterionSignalPayload['findings'] = [];
@@ -3942,6 +4059,86 @@ function collectA4DependencyEvidence(
     });
   }
 
+  // #520. The repository's own CI can require a committed lockfile (`uv run --locked`, `npm ci`,
+  // ...). Every rubric uses this for presentation only: the library note stops saying a lockfile
+  // is "not required", and the requiring line is cited first, so the metric-derived finding cites
+  // it. Those reads are of CI workflows B3 reads anyway and are attributed to nothing, so no
+  // rubric's score or abstention can move. v27 also scores it (lockfile_coverage below), and there
+  // the read is A4's own, so a workflow A4 cannot read abstains A4.
+  //
+  // A requirement is reported only when the specific lockfile its command needs is absent from
+  // everything the scan knows of: the inventory, the monorepo root, and the paths the file walk
+  // withheld (a lockfile over the size limit is still committed). Lockfiles A4 does not count
+  // (bun.lock, Gemfile.lock, ...) still satisfy the command that reads them.
+  const knownPaths = [
+    ...repoFiles,
+    ...(mono?.sharedFiles ?? []),
+    ...withheldRepoPaths().map(({ path }) => path),
+  ];
+  const knownBasenames = new Set(knownPaths.map((path) => basename(path)));
+  const findRequirement = () =>
+    findLockfileRequirement(repoPath, repoFiles.filter(isGitHubActionsWorkflow), (lockfiles) =>
+      lockfiles.some((name) => knownBasenames.has(name)),
+    );
+  const lockfileRequirement =
+    hasLockfile || !manifest
+      ? undefined
+      : useV27FalseAssuranceClosure
+        ? withContentReadSignal('A4', 'lockfile_coverage', findRequirement)
+        : withoutContentReadAttribution(findRequirement);
+  const leadingEvidence: WitanEvidencePointer[] = [];
+  if (lockfileRequirement) {
+    const cite = () =>
+      evidenceForRelativeAtLine(
+        repoPath,
+        lockfileRequirement.file,
+        'dependency_report',
+        `CI step runs \`${lockfileRequirement.command}\`, which needs ${joinLockfileNames(lockfileRequirement.lockfiles)}; the scanned inventory holds none`,
+        lockfileRequirement.line,
+      );
+    leadingEvidence.push(
+      useV27FalseAssuranceClosure
+        ? withContentReadSignal('A4', 'lockfile_coverage', cite)
+        : withoutContentReadAttribution(cite),
+    );
+  }
+  // #520, every rubric, presentation only. Under library norms the manifest cited first is the
+  // one holding a dependency declared with no version constraint, when that is not already the
+  // primary manifest. The primary manifest is chosen by spec count and also feeds the
+  // suspicious-dependency check, so it is not changed; only the citation order is. These are
+  // re-reads of manifests the ratio metrics above already read, in the same signal scope.
+  if (!isAppOrService && manifest) {
+    const unconstrained = withContentReadSignals(
+      'A4',
+      ['pinned_dependency_ratio', 'declared_version_range_ratio', 'dependency_count_sanity'],
+      () =>
+        manifests
+          .map((file) => ({
+            file,
+            count: readDependencySpecs(repoPath, [file]).filter(
+              (dependency) => !hasDeclaredVersionConstraint(dependency),
+            ).length,
+          }))
+          .find(({ count }) => count > 0),
+    );
+    if (unconstrained && unconstrained.file !== manifest) {
+      leadingEvidence.push(
+        withContentReadSignals(
+          'A4',
+          ['pinned_dependency_ratio', 'declared_version_range_ratio', 'dependency_count_sanity'],
+          () =>
+            evidenceForRelative(
+              repoPath,
+              unconstrained.file,
+              'dependency_report',
+              `Dependency manifest with ${unconstrained.count} ${unconstrained.count === 1 ? 'dependency' : 'dependencies'} declared without a version constraint`,
+            ),
+        ),
+      );
+    }
+  }
+  evidence.unshift(...leadingEvidence);
+
   const automationMetric = metric(
     'dependency_automation_ratio',
     'Dependency automation ratio',
@@ -4013,7 +4210,21 @@ function collectA4DependencyEvidence(
             'Credited when present (reproducible dev/CI installs); a library without a committed lockfile is not penalized — consumers resolve their own trees.',
           ),
         ]
-      : []),
+      : useV27FalseAssuranceClosure && lockfileRequirement
+        ? [
+            // v27 (#520): the repository's own CI requires a lockfile, so its absence is not the
+            // library norm. A zero term can only lower the weighted mean.
+            metric(
+              'lockfile_coverage',
+              'Lockfile coverage',
+              0,
+              1,
+              0.3,
+              'present',
+              "Scored 0: this repository's own CI requires a lockfile, and the scanned inventory holds no recognized lockfile.",
+            ),
+          ]
+        : []),
     automationMetric,
     metric(
       'dependency_count_sanity',
@@ -4033,8 +4244,248 @@ function collectA4DependencyEvidence(
     metrics: isAppOrService ? appMetrics : libraryMetrics,
     notes: isAppOrService
       ? `A4 scored against app/service norms (${packagedApplicationFiles.length > 0 ? 'packaged application' : 'deploy surface'} detected): pinned dependencies and a lockfile are required for reproducible installs.`
-      : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
+      : lockfileRequirement
+        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. An unconditional step in this repository's CI runs \`${lockfileRequirement.command}\` (${lockfileRequirement.file} line ${lockfileRequirement.line}), which exits with an error without ${joinLockfileNames(lockfileRequirement.lockfiles)}, and the scanned inventory holds none.`.slice(0, 1000)
+        : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
+}
+
+// #520. Commands that exit with an error when the lockfile they read is absent, each with the
+// lockfiles that satisfy it. Only commands whose documented behaviour is to fail without a lockfile
+// are listed; commands that merely prefer one (`yarn --frozen-lockfile` on Yarn 1, `yarn
+// --immutable`, which Yarn 1 does not know, `bun install --frozen-lockfile`, `pipenv install
+// --deploy`, `poetry install --sync`) and tool installs (`cargo install --locked` reads the
+// installed crate's lockfile) are not.
+interface LockfileRequiringCommand {
+  readonly tool: string;
+  readonly subcommands: readonly string[];
+  /** At least one must appear in the same command; `null` means the subcommand alone requires it. */
+  readonly flags: readonly string[] | null;
+  readonly lockfiles: readonly string[];
+  /** Subcommands that write the lockfile when run without one of `flags` (`npm install`, ...). */
+  readonly generators: readonly string[];
+}
+
+const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
+  {
+    tool: 'npm',
+    subcommands: ['ci'],
+    flags: null,
+    lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'],
+    generators: ['install', 'i', 'add', 'update', 'up'],
+  },
+  {
+    tool: 'pnpm',
+    subcommands: ['install', 'i'],
+    flags: ['--frozen-lockfile'],
+    lockfiles: ['pnpm-lock.yaml'],
+    generators: ['install', 'i', 'add', 'update', 'up'],
+  },
+  {
+    tool: 'uv',
+    subcommands: ['run', 'sync'],
+    flags: ['--locked', '--frozen'],
+    lockfiles: ['uv.lock'],
+    generators: ['run', 'sync', 'lock', 'add'],
+  },
+  {
+    tool: 'cargo',
+    subcommands: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench'],
+    flags: ['--locked', '--frozen'],
+    lockfiles: ['Cargo.lock'],
+    generators: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench', 'generate-lockfile', 'update'],
+  },
+  {
+    tool: 'poetry',
+    subcommands: ['check'],
+    flags: ['--lock'],
+    lockfiles: ['poetry.lock'],
+    generators: ['lock', 'install', 'add', 'update'],
+  },
+];
+
+// Shell words that make a step's commands depend on something: a requirement inside such a step is
+// not stated by the repository unconditionally (`if [ -f package-lock.json ]; then npm ci; fi`).
+const CONDITIONAL_SHELL_WORDS = new Set([
+  'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', '[', '[[', 'test', '||', 'while', 'until',
+]);
+const SHELL_COMMAND_SEPARATORS = new Set(['&&', '||', ';', '|']);
+
+interface LockfileRequirement {
+  readonly file: string;
+  readonly line: number;
+  /** The matched command, trimmed for display. */
+  readonly command: string;
+  readonly lockfiles: readonly string[];
+}
+
+function joinLockfileNames(names: readonly string[]): string {
+  return names.length === 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
+function isGitHubActionsWorkflow(file: string): boolean {
+  return /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file);
+}
+
+/** The text of a line before its first comment. Plain string scanning, linear in its length. */
+function beforeShellComment(line: string): string {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith('#')) return '';
+  const cut = [trimmed.indexOf(' #'), trimmed.indexOf('\t#')].filter((index) => index !== -1);
+  return cut.length > 0 ? trimmed.slice(0, Math.min(...cut)) : trimmed;
+}
+
+/** One line's words, split into commands at shell separators. */
+function shellCommands(line: string): string[][] {
+  const commands: string[][] = [[]];
+  for (const raw of beforeShellComment(line).split(/[ \t]+/)) {
+    const word = raw.endsWith(';') && raw.length > 1 ? raw.slice(0, -1) : raw;
+    if (word === '') continue;
+    if (SHELL_COMMAND_SEPARATORS.has(word)) {
+      commands.push([]);
+      continue;
+    }
+    commands[commands.length - 1]?.push(word);
+    if (raw.endsWith(';') && raw.length > 1) commands.push([]);
+  }
+  return commands.filter((command) => command.length > 0);
+}
+
+/** The command only when the tool is in command position (not an argument to echo, a heredoc, ...). */
+function matchLockfileRequiringCommand(
+  words: readonly string[],
+  rule: LockfileRequiringCommand,
+): string | undefined {
+  if (words[0] !== rule.tool) return undefined;
+  const subcommand = words[1];
+  if (subcommand === undefined || !rule.subcommands.includes(subcommand)) return undefined;
+  if (rule.flags === null) return [rule.tool, subcommand].join(' ');
+  const flags = rule.flags;
+  // Flags after `--` belong to the program being run, not to the tool.
+  const end = words.indexOf('--');
+  const own = end === -1 ? words.slice(2) : words.slice(2, end);
+  const flagIndex = own.findIndex((word) => flags.includes(word.split('=')[0] ?? word));
+  if (flagIndex === -1) return undefined;
+  return [rule.tool, subcommand, ...own.slice(0, flagIndex + 1)].join(' ');
+}
+
+interface WorkflowRunStep {
+  /** 1-based line of each command line, with its text. */
+  readonly lines: readonly { readonly line: number; readonly text: string }[];
+  /** True when the step or its job carries an `if:` condition. */
+  readonly conditional: boolean;
+}
+
+const RUN_KEY_PATTERN = /^([ \t]*)(?:-[ \t]+)?run:[ \t]*(.*)$/;
+const IF_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?if:/;
+
+function lineIndent(line: string): number {
+  return line.length - line.trimStart().length;
+}
+
+/**
+ * The `run:` steps of a GitHub Actions workflow, read by indentation: a one-line value, or a `|` /
+ * `>` block. A step is conditional when an `if:` key sits in the step itself or at its job's level.
+ * Anything the reader cannot place is simply not returned, so nothing is claimed from it.
+ */
+function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
+  const lines = contents.split('\n');
+  const steps: WorkflowRunStep[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = RUN_KEY_PATTERN.exec(lines[index] ?? '');
+    if (!match) continue;
+    const keyIndent = (match[1] ?? '').length + ((lines[index] ?? '').trimStart().startsWith('-') ? 2 : 0);
+    const value = (match[2] ?? '').trim();
+    const body: { line: number; text: string }[] = [];
+    if (/^[|>][-+0-9]*$/.test(value)) {
+      for (let next = index + 1; next < lines.length; next += 1) {
+        const raw = lines[next] ?? '';
+        if (raw.trim() === '') continue;
+        if (lineIndent(raw) <= keyIndent) break;
+        body.push({ line: next + 1, text: raw });
+      }
+    } else if (value !== '') {
+      body.push({ line: index + 1, text: value.replace(/^(['"])(.*)\1$/, '$2') });
+    }
+    // The step: back to the nearest `- ` item at or above the key's indent, forward to the next.
+    let stepStart = index;
+    while (stepStart > 0 && !/^[ \t]*-[ \t]/.test(lines[stepStart] ?? '')) stepStart -= 1;
+    const stepIndent = lineIndent(lines[stepStart] ?? '');
+    let stepEnd = index + 1;
+    while (stepEnd < lines.length) {
+      const raw = lines[stepEnd] ?? '';
+      if (raw.trim() !== '' && lineIndent(raw) <= stepIndent) break;
+      stepEnd += 1;
+    }
+    const stepConditional = lines
+      .slice(stepStart, stepEnd)
+      .some((raw) => IF_KEY_PATTERN.test(raw) && lineIndent(raw) <= keyIndent);
+    // The job: the nearest line above the step, less indented than it, holding `steps:`'s parent.
+    let jobConditional = false;
+    for (let up = stepStart - 1, seenSteps = false; up >= 0; up -= 1) {
+      const raw = lines[up] ?? '';
+      if (raw.trim() === '') continue;
+      if (/^[ \t]*steps:[ \t]*$/.test(raw)) {
+        seenSteps = true;
+        const jobKeyIndent = lineIndent(raw);
+        for (let probe = up - 1; probe >= 0; probe -= 1) {
+          const other = lines[probe] ?? '';
+          if (other.trim() === '') continue;
+          if (lineIndent(other) < jobKeyIndent) break;
+          if (lineIndent(other) === jobKeyIndent && IF_KEY_PATTERN.test(other)) jobConditional = true;
+        }
+        break;
+      }
+      if (seenSteps) break;
+    }
+    steps.push({ lines: body, conditional: stepConditional || jobConditional });
+  }
+  return steps;
+}
+
+/**
+ * The first unconditional GitHub Actions step, in file order, whose command requires a lockfile
+ * that `isSatisfied` says is absent. Cejel claims nothing about a step that is conditional, whose
+ * shell is conditional or contains a heredoc, or whose workflow also runs a command that writes
+ * that lockfile (`npm install`, `uv run` without `--locked`, ...), which may create it first.
+ */
+function findLockfileRequirement(
+  repoPath: string,
+  workflows: readonly string[],
+  isSatisfied: (lockfiles: readonly string[]) => boolean,
+): LockfileRequirement | undefined {
+  for (const file of workflows) {
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const steps = githubActionsRunSteps(readRepoText(fullPath, 'utf8'));
+    const commandsOf = (step: WorkflowRunStep) =>
+      step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
+    const allCommands = steps.flatMap(commandsOf);
+    for (const step of steps) {
+      if (step.conditional) continue;
+      const commands = commandsOf(step);
+      const shellIsConditional =
+        step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
+        commands.some(({ words }) => words.some((word) => CONDITIONAL_SHELL_WORDS.has(word))) ||
+        step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)));
+      if (shellIsConditional) continue;
+      for (const { line, words } of commands) {
+        for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
+          const command = matchLockfileRequiringCommand(words, rule);
+          if (command === undefined || isSatisfied(rule.lockfiles)) continue;
+          const lockfileMayBeGenerated = allCommands.some(
+            (other) =>
+              other.words[0] === rule.tool &&
+              rule.generators.includes(other.words[1] ?? '') &&
+              matchLockfileRequiringCommand(other.words, rule) === undefined,
+          );
+          if (lockfileMayBeGenerated) continue;
+          return { file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
+        }
+      }
+    }
+  }
+  return undefined;
 }
 
 // Full credit up to this many declared dependency specs (aggregated across all manifests,
@@ -4346,9 +4797,41 @@ function collectA5ClaimRealityEvidence(
   };
 }
 
+// The window B2's pr_merge_ratio reads (readRecentCommits).
+const RECENT_COMMIT_WINDOW = 12;
+
+const V27_A2_SHALLOW_HISTORY_NOTE =
+  'A2 abstained: this repository is a shallow clone, so the scan for credentials and .env files in ' +
+  'earlier commits read only the commits present, and no confirmed critical finding stands on what ' +
+  'was read. Re-scan a full clone (for actions/checkout, set fetch-depth: 0).';
+const V27_B2_SHALLOW_HISTORY_NOTE =
+  `B2 abstained: this repository is a shallow clone with fewer than ${RECENT_COMMIT_WINDOW} commits ` +
+  'visible, so the pull-request merge ratio cannot be read over its window. Re-scan a full clone ' +
+  '(for actions/checkout, set fetch-depth: 0).';
+
+/**
+ * A criterion that reads commit history, abstaining because the clone is shallow (v27, #442). No
+ * insufficientDataReason: it is a read failure, so it stays in the composite at 0 and a shallow
+ * clone can never score higher than the full clone would have on that account.
+ */
+function shallowHistoryAbstention(
+  criterionId: 'A2' | 'B2',
+  notes: string,
+): WitanCriterionSignalPayload {
+  return {
+    criterionId,
+    positiveEvidence: [],
+    findings: [],
+    metrics: [],
+    insufficientData: true,
+    notes,
+  };
+}
+
 function collectB2PrTraceEvidence(
   repoPath: string,
   repoFiles: readonly string[],
+  useV27FalseAssuranceClosure = false,
 ): WitanCriterionSignalPayload | null {
   const workflows = repoFiles.filter(isCiWorkflow);
   // GitHub recognizes both the single-file form (pull_request_template.md) and the directory
@@ -4386,6 +4869,17 @@ function collectB2PrTraceEvidence(
       : []),
   ];
   if (evidence.length === 0) return null;
+  // v27 (#442): pr_merge_ratio reads the most recent RECENT_COMMIT_WINDOW commits. A shallow clone
+  // with fewer visible has truncated that window; B2 abstains rather than score the remainder.
+  // Withholding only pr_merge_ratio is not done: B2 would then score on pr_trace_primitives alone,
+  // which can be higher.
+  if (
+    useV27FalseAssuranceClosure &&
+    isShallowRepository(repoPath) &&
+    readRecentCommits(repoPath).length < RECENT_COMMIT_WINDOW
+  ) {
+    return shallowHistoryAbstention('B2', V27_B2_SHALLOW_HISTORY_NOTE);
+  }
   return {
     criterionId: 'B2',
     positiveEvidence: evidence,
@@ -4434,6 +4928,7 @@ function collectB3CiDisciplineEvidence(
   repoPath: string,
   repoFiles: readonly string[],
   mono?: MonorepoContext | null,
+  useV27FalseAssuranceClosure = false,
 ): WitanCriterionSignalPayload | null {
   const evidence: WitanEvidencePointer[] = [];
   const packageJson = findRootPackageJson(repoFiles);
@@ -4442,12 +4937,27 @@ function collectB3CiDisciplineEvidence(
   const workflow = workflows[0];
   // CI workflows at the MONOREPO ROOT gate this sub-package's PRs too — count them.
   const rootWorkflows = mono ? mono.sharedFiles.filter(isCiWorkflow) : [];
+  // v27 (#517): a workflow that only publishes, releases or deploys is not CI verification, so it
+  // counts toward neither depth metric. It stays in `workflows` for evidence and the read count,
+  // so a repository whose only workflow publishes still reports B3, at depth 0. Every other rubric
+  // counts it: making it run on every push raised B3.
+  const countsAsCi = (root: string) => (file: string) =>
+    !useV27FalseAssuranceClosure || !isPublishOnlyWorkflow(root, file);
   const defaultBranchCiCount = withContentReadSignal('B3', 'default_branch_ci_depth', () =>
-    workflows.filter((file) => workflowTargetsDefaultBranch(repoPath, file)).length +
+    workflows
+      .filter(countsAsCi(repoPath))
+      .filter((file) => workflowTargetsDefaultBranch(repoPath, file)).length +
       (mono
-        ? rootWorkflows.filter((file) => workflowTargetsDefaultBranch(mono.root, file)).length
+        ? rootWorkflows
+            .filter(countsAsCi(mono.root))
+            .filter((file) => workflowTargetsDefaultBranch(mono.root, file)).length
         : 0),
   );
+  const publishOnlyWorkflows = useV27FalseAssuranceClosure
+    ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+        workflows.filter((file) => isPublishOnlyWorkflow(repoPath, file)),
+      )
+    : [];
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -4553,11 +5063,13 @@ function collectB3CiDisciplineEvidence(
     'ci_script_depth',
     () => ({
       repoCategoryHits: CI_COMMAND_CATEGORIES.map((pattern) =>
-        workflows.some((file) => fileContains(repoPath, file, pattern)),
+        workflows.filter(countsAsCi(repoPath)).some((file) => fileContains(repoPath, file, pattern)),
       ),
       rootCategoryHits: mono
         ? CI_COMMAND_CATEGORIES.map((pattern) =>
-            rootWorkflows.some((file) => fileContains(mono.root, file, pattern)),
+            rootWorkflows
+              .filter(countsAsCi(mono.root))
+              .some((file) => fileContains(mono.root, file, pattern)),
           )
         : [],
     }),
@@ -4611,7 +5123,49 @@ function collectB3CiDisciplineEvidence(
         'saturating_count',
       ),
     ],
+    ...(publishOnlyWorkflows.length > 0
+      ? {
+          notes: `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger and no verification command Cejel recognises) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
+        }
+      : {}),
   };
+}
+
+// v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
+// vocabulary matched as a command or action name: package registry publishes, release creation,
+// image pushes, and deploy commands. Matching is by word, never by file or job name.
+const PUBLISH_OR_DEPLOY_STEP_PATTERN =
+  /\b(?:npm|pnpm|yarn|bun)[ \t]+(?:npm[ \t]+)?publish\b|\bpypa\/gh-action-pypi-publish\b|\btwine[ \t]+upload\b|\b(?:uv|poetry|flit|hatch|cargo)[ \t]+publish\b|\bgem[ \t]+push\b|\bgh[ \t]+release[ \t]+create\b|\bsoftprops\/action-gh-release\b|\bgoreleaser\b|\bsemantic-release\b|\bchangesets\/action\b|\bdocker[ \t]+(?:image[ \t]+)?push\b|\bdocker\/build-push-action\b|\b(?:vercel|netlify|flyctl|fly|firebase|serverless|wrangler)[ \t]+deploy\b|\bkubectl[ \t]+apply\b|\bhelm[ \t]+upgrade\b|\bterraform[ \t]+apply\b/i;
+
+// Verification Cejel recognises beyond the B3 command categories, used only to keep a workflow
+// counted (#517): test runners invoked through a task runner or build tool, and pre-commit.
+const PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN =
+  /\b(?:tox|nox|pre-commit|bazel[ \t]+test|gradlew?[ \t]+(?:test|check|build)|mvnw?[ \t]+(?:verify|test|package)|make[ \t]+(?:check|test)|just[ \t]+test|cargo[ \t]+(?:clippy|check|nextest)|turbo[ \t]+(?:run[ \t]+)?test)\b|[ \t]-r[ \t]+test\b|\brun[ \t]+test\b/i;
+// A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
+const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
+// A job that calls a reusable workflow runs steps this file does not show.
+const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
+
+/**
+ * True for a CI workflow whose job is to publish, release or deploy, and nothing else Cejel can
+ * see: it has a step from PUBLISH_OR_DEPLOY_STEP_PATTERN, no pull-request trigger, no call to a
+ * reusable workflow, and no test, lint, type-check or other recognised verification command. Any
+ * doubt keeps the workflow counted: a workflow that verifies and then publishes is still CI, and
+ * so is one whose verification Cejel does not recognise.
+ */
+function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  const contents = readRepoText(fullPath, 'utf8');
+  return (
+    PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) &&
+    !PULL_REQUEST_TRIGGER_PATTERN.test(contents) &&
+    !REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) &&
+    !CI_TEST_COMMAND_PATTERN.test(contents) &&
+    !CI_LINT_COMMAND_PATTERN.test(contents) &&
+    !CI_TYPECHECK_COMMAND_PATTERN.test(contents) &&
+    !PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents)
+  );
 }
 
 export function auditFreshnessCommitterYearFromGitResult(
@@ -6300,10 +6854,17 @@ interface NonHollowTestShare {
   ratedCount: number;
 }
 
+interface RunWideSkipOptions {
+  /** True for a test file a run-wide pytest hook disables (findPytestRunWideSkips). */
+  readonly disabledByRunWideSkip: (file: string) => boolean;
+}
+
 function measureNonHollowTestShare(
   repoPath: string,
   files: readonly string[],
   useV17Detectors = false,
+  // witan-rubric-v27 only (#518). Absent, this function behaves exactly as it does for v17.
+  runWideSkip?: RunWideSkipOptions,
 ): NonHollowTestShare {
   let nonHollowCount = 0;
   let ratedCount = 0;
@@ -6314,26 +6875,135 @@ function measureNonHollowTestShare(
     let maskedSource: MaskedSource | undefined;
     const masked = () => (maskedSource ??= maskCommentsAndStrings(contents));
     const frameworkSuiteSkipped = /\bIgnored?\b/.test(contents) && hasFrameworkSuiteLevelSkip(masked());
+    const asserting =
+      JS_TEST_ASSERTION_PATTERN.test(contents) ||
+      CPP_TEST_ASSERTION_PATTERN.test(contents) ||
+      MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
+      hasLiveAvaAssertion(contents) ||
+      hasLiveFrameworkAssertion(masked());
+    // A file the run cannot execute is hollow however live its assertions read. It stays in the
+    // denominator, so disabling a suite can only lower the share, never shrink it to the files
+    // that still run.
+    const runWideDisabled =
+      runWideSkip !== undefined &&
+      (runWideSkip.disabledByRunWideSkip(file) || hasUnconditionalPytestModuleSkip(file, contents));
     const nonHollow =
-      (JS_TEST_ASSERTION_PATTERN.test(contents) ||
-        CPP_TEST_ASSERTION_PATTERN.test(contents) ||
-        MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
-        hasLiveAvaAssertion(contents) ||
-        hasLiveFrameworkAssertion(masked())) &&
+      asserting &&
       !SUITE_LEVEL_SKIP_PATTERN.test(contents) &&
-      !frameworkSuiteSkipped;
+      !frameworkSuiteSkipped &&
+      !runWideDisabled;
     if (nonHollow) {
       nonHollowCount += 1;
       ratedCount += 1;
     } else if (
       NAME_SHAPED_TEST_FILE_PATTERN.test(file) ||
       (useV17Detectors && NAME_SHAPED_TEST_FILE_PATTERN_V17.test(file)) ||
-      (frameworkSuiteSkipped && SUITE_SKIP_NAME_SHAPED_TEST_FILE_PATTERN.test(file))
+      (frameworkSuiteSkipped && SUITE_SKIP_NAME_SHAPED_TEST_FILE_PATTERN.test(file)) ||
+      (runWideDisabled && asserting)
     ) {
       ratedCount += 1;
     }
   }
   return { nonHollowCount, ratedCount };
+}
+
+// ---- Run-wide pytest skips (witan-rubric-v27, #518) ----------------------------------------
+//
+// A conftest.py is pytest's per-directory plugin: fixtures and hooks, never tests.
+const PYTEST_CONFTEST_PATTERN = /(^|\/)conftest\.py$/;
+// A module-level, unconditional skip of every test in the file: a top-level `pytestmark = ...`
+// statement on one line naming `pytest.mark.skip`, with or without arguments, alone or in a list.
+// `skipif`, and any `if` on that line (a conditional expression), is not unconditional.
+const PYTEST_MODULE_SKIP_MARK_PATTERN = /\bpytest\.mark\.skip\b(?!if)/;
+const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=/;
+
+function hasUnconditionalPytestModuleSkip(file: string, contents: string): boolean {
+  if (!/\.py$/.test(file)) return false;
+  for (const line of contents.split('\n')) {
+    if (!PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(line)) continue;
+    const code = stripPythonLineComment(line);
+    if (/\bif\b/.test(code)) continue;
+    if (PYTEST_MODULE_SKIP_MARK_PATTERN.test(code)) return true;
+  }
+  return false;
+}
+
+/** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
+function stripPythonLineComment(line: string): string {
+  const hash = line.indexOf('#');
+  return hash === -1 ? line : line.slice(0, hash);
+}
+
+/** A pytest test file a run-wide hook governs: a .py test file under the conftest's directory. */
+function isGovernedPytestFile(skip: PytestRunWideSkip, file: string): boolean {
+  if (!/\.py$/.test(file) || PYTEST_CONFTEST_PATTERN.test(file)) return false;
+  return skip.scope === '' || file.startsWith(`${skip.scope}/`);
+}
+
+// Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
+// or other block exists only on some runs, so it is conditional too.
+const PYTEST_COLLECTION_HOOK_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
+// Inside the hook: any of these makes what it does depend on something, and Cejel then makes no
+// claim about it.
+const PYTEST_HOOK_CONDITIONAL_PATTERN =
+  /^(?:if|elif|else|while|try|except|finally|with|match|case|return|break|continue|yield)\b|\bskipif\b|\bif\b/;
+const PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN = /\badd_marker\s*\(\s*pytest\.mark\.skip\b(?!if)/;
+const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+[A-Za-z_]\w*[ \t]+in[ \t]+items[ \t]*:/;
+const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
+  /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*\[\s*\]|del[ \t]+items\[\s*:\s*\])/;
+
+interface PytestRunWideSkip {
+  /** The conftest.py, repository-relative. */
+  readonly path: string;
+  /** 1-based line of the hook's `def`. */
+  readonly line: number;
+  /** The directory the conftest governs, '' for the repository root. */
+  readonly scope: string;
+  readonly kind: 'skip' | 'clear';
+}
+
+/**
+ * Finds conftest.py hooks that disable every test they collect: a `pytest_collection_modifyitems`
+ * whose body, with no conditional anywhere in it, either loops over `items` adding a skip marker
+ * or empties the list. Anything conditional is not reported, so a hook that skips only slow tests,
+ * or only on one platform, is never read as disabling the suite.
+ */
+function findPytestRunWideSkips(
+  repoPath: string,
+  repoFiles: readonly string[],
+): PytestRunWideSkip[] {
+  const found: PytestRunWideSkip[] = [];
+  for (const file of repoFiles) {
+    // Test directories are where a conftest.py lives, so only generated or vendored copies are
+    // excluded here, not test paths.
+    if (!PYTEST_CONFTEST_PATTERN.test(file) || GENERATED_OR_VENDOR_PATH_PATTERN.test(file)) continue;
+    const fullPath = join(repoPath, file);
+    if (!isRegularFile(fullPath)) continue;
+    const lines = readRepoText(fullPath, 'utf8').split('\n');
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!PYTEST_COLLECTION_HOOK_PATTERN.test(lines[index] ?? '')) continue;
+      const body: string[] = [];
+      for (let next = index + 1; next < lines.length; next += 1) {
+        const raw = lines[next] ?? '';
+        const trimmed = raw.trim();
+        if (trimmed === '' || trimmed.startsWith('#')) continue;
+        if (raw.length === raw.trimStart().length) break;
+        body.push(stripPythonLineComment(trimmed).trim());
+      }
+      if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
+      const kind = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement))
+        ? ('clear' as const)
+        : body.some((statement) => PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.test(statement)) &&
+            body.some((statement) => PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN.test(statement))
+          ? ('skip' as const)
+          : undefined;
+      if (!kind) continue;
+      const scope = dirname(file);
+      found.push({ path: file, line: index + 1, scope: scope === '.' ? '' : scope, kind });
+      break;
+    }
+  }
+  return found;
 }
 
 function countFilesContaining(repoPath: string, files: readonly string[], pattern: RegExp): number {
@@ -12133,7 +12803,7 @@ interface GitCommitSummary {
 
 function readRecentCommits(repoPath: string): GitCommitSummary[] {
   const historyResult = execGit(
-    ['log', '--no-show-signature', '--max-count=12', '--format=%H%x00%s'],
+    ['log', '--no-show-signature', `--max-count=${RECENT_COMMIT_WINDOW}`, '--format=%H%x00%s'],
     {
       cwd: repoPath,
     },

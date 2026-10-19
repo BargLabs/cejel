@@ -51,12 +51,14 @@ import {
   WITAN_RUBRIC_VERSION_V24,
   WITAN_RUBRIC_VERSION_V25,
   WITAN_RUBRIC_VERSION_V26,
+  WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
 import { WITAN_RUBRIC, type WitanRubricCriterion } from './rubric.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -175,7 +177,7 @@ export function createWitanReport(
       score: finalScore,
       ...(adjustment !== 0 ? { nativeScore: scored.score } : {}),
       // Beside nativeScore, so a reader can tell a status that imported evidence moved from one
-      // the native evidence produced (report format 1.6). Presentation-only: finalStatus above is
+      // the native evidence produced (report format 1.7). Presentation-only: finalStatus above is
       // computed exactly as before.
       ...(adjustment !== 0 ? { nativeStatus: scored.status } : {}),
       status: finalStatus,
@@ -364,6 +366,7 @@ function statusAfterInputAdjustment(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&
@@ -497,6 +500,7 @@ function usesMetricScoring(rubricVersion: string): boolean {
     rubricVersion === WITAN_RUBRIC_VERSION_V15 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V16 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V17 ||
+    rubricVersion === WITAN_RUBRIC_VERSION_V27 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V18 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V19 ||
     rubricVersion === WITAN_RUBRIC_VERSION_V20 ||
@@ -1073,6 +1077,7 @@ function ensureFindingsExplainStatus(
     rubricVersion !== WITAN_RUBRIC_VERSION_V15 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V16 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V17 &&
+    rubricVersion !== WITAN_RUBRIC_VERSION_V27 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V18 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V19 &&
     rubricVersion !== WITAN_RUBRIC_VERSION_V20 &&

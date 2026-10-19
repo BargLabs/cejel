@@ -16,9 +16,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Certificates now say where they read less than they score (#519, #520).** Under every rubric,
+  including the default: a file whose checkout holds a Git LFS pointer is counted in
+  `contentReadSummary.byReason.lfsPointer` (report format 1.6) and labelled as a pointer in A1's
+  evidence; A4 no longer says a lockfile is "not required" when the repository's own CI requires
+  one, and cites the requiring line, or the manifest holding an unconstrained dependency, first. No
+  score, status or fingerprint moves.
+
 ### Added
 
-- **Ingest: every ingested document is bound to its subject, and recorded (report format 1.6).**
+- **`witan-rubric-v27-prospective-2026-10-19` (#517, #518, #519, #520, #442).** A prospective
+  rubric, opt-in through `--rubric-pin`, that is v17 with five false assurances removed: publish-only
+  workflows are not CI depth, a suite a pytest hook skips entirely is hollow and `conftest.py` is
+  not a test, LFS pointers abstain, a lockfile the repository's CI requires scores 0 when absent,
+  and A2 and B2 abstain on shallow clones. No score rises against v17 on any recorded set. The
+  default stays v17. See `leaderboard/RUBRIC_CHANGELOG.md`.
+- **Ingest: every ingested document is bound to its subject, and recorded (report format 1.7).**
   `report.json` gains `inputBinding`, present only when something was ingested: per document, the
   sha256 of its exact bytes, its format, the producer and subject its own format declares
   (Scorecard `repo.name`, `repo.commit`, `date`, `scorecard.version`/`commit`; SARIF
@@ -36,7 +51,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   binding policy and subject repository from the report it reproduces.
 - **Generic ingest contract 1.1:** optional `subject.repository`, `subject.commit`,
   `producer.name`, `producer.version` and `observedAt`. A 1.0 document is unchanged.
-- **`criteria[].nativeStatus`** (report format 1.6), beside `nativeScore` when ingested signals
+- **`criteria[].nativeStatus`** (report format 1.7), beside `nativeScore` when ingested signals
   adjusted a criterion. The certificate now says when imported evidence moved a status, and that
   the move is not a native finding. Scorecard Dependency-Update-Tool and Security-Policy findings
   are labelled as restating evidence Cejel reads natively, and Scorecard SAST as not a secrets

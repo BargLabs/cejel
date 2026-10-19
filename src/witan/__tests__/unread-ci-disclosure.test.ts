@@ -165,6 +165,10 @@ const LABEL_FREE_PINS: Readonly<Record<string, string>> = {
     '28f85650fd6e8fc28c8e9a1d395479fdcf96a5c27a8384e06e38e6a1bc8c2d88',
   'witan-rubric-v26-prospective-2026-10-14':
     '8e99f3f5c36125b0e259e3db80b342d33d3c97c1250dff52ec89fd3fc92a17f5',
+  // v27 scores these fixtures exactly as v17 does, criterion by criterion and composite by
+  // composite; the digest differs from v17's only because report.json names the rubric.
+  'witan-rubric-v27-prospective-2026-10-19':
+    'd4ac3395e9ec8598cf67dae4b10be8f6210bdd3d006edc1777b3ef74be33305a',
 };
 
 function withoutEvidenceLabels(value: unknown): unknown {

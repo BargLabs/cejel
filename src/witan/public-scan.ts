@@ -17,7 +17,11 @@ import {
   buildInputBinding,
   normalizeRepositoryIdentity,
 } from './input-binding.js';
-import { buildWitanInputFromRepo, explainNoMeasurementSourceCoverage } from './repo-signals.js';
+import {
+  buildWitanInputFromRepo,
+  explainNoMeasurementSourceCoverage,
+  usesV27FalseAssuranceClosure,
+} from './repo-signals.js';
 import { assertSelectableRubricVersion } from './rubric-version.js';
 import { createWitanReport } from './scoring.js';
 
@@ -92,7 +96,10 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
     options.toolVersion,
   );
   // Attached after scoring, so it cannot reach any score; see detectHistoryLimitations.
-  const historyLimitations = detectHistoryLimitations(options.repoPath);
+  const historyLimitations = detectHistoryLimitations(
+    options.repoPath,
+    usesV27FalseAssuranceClosure(scored.rubricVersion),
+  );
   const withHistory: WitanReport = historyLimitations
     ? { ...scored, historyLimitations }
     : scored;

@@ -464,7 +464,7 @@ export function verifyRecordedInputDigests(
     return {
       valid: false,
       lines: [
-        'Cejel: input digests not verified — report.json records no inputBinding (it ingested nothing, or predates report format 1.6).',
+        'Cejel: input digests not verified — report.json records no inputBinding (it ingested nothing, or predates report format 1.7).',
       ],
     };
   }

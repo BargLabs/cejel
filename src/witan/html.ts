@@ -308,7 +308,12 @@ function renderContentReadSummary(report: WitanReport): string {
         <li>Too large: ${summary.byReason.tooLarge}</li>
         <li>Excluded by extension: ${summary.byReason.excludedByExtension}</li>
         <li>Denied path: ${summary.byReason.deniedPath}</li>
-        <li>Non-regular file: ${summary.byReason.nonRegularFile}</li>
+        <li>Non-regular file: ${summary.byReason.nonRegularFile}</li>${
+          summary.byReason.lfsPointer
+            ? `
+        <li>Git LFS pointer (content not in this checkout): ${summary.byReason.lfsPointer}</li>`
+            : ''
+        }
       </ul>
       ${affected}
     </section>`;
