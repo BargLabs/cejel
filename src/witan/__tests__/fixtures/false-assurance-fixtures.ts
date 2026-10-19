@@ -678,6 +678,142 @@ FALSE_ASSURANCE_FIXTURES_REVIEW.push({
   ],
 });
 
+// A third review, of the merged implementation, reproduced these. The first group must claim the
+// requirement (it was missed); the second must not (the claim would be false).
+const RUST_LIBRARY_NO_LOCKFILE: Readonly<Record<string, string>> = {
+  'Cargo.toml': '[package]\nname = "kl"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\nserde = "1"\n',
+  'src/lib.rs': 'pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n',
+  'tests/add_test.rs': 'use kl::add;\n\n#[test]\nfn adds() {\n    assert_eq!(add(1, 2), 3);\n}\n',
+  'README.md': '# kl\n',
+  LICENSE: 'MIT\n',
+};
+for (const [name, purpose, files] of [
+  [
+    'review3-a4-npm-ci-then-npm-test-in-one-step',
+    '`npm ci` and `npm test` in one step: `test` is a conditional only in command position.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          npm ci\n          npm test\n') },
+  ],
+  [
+    'review3-a4-cargo-test-locked',
+    '`cargo test --locked` requires Cargo.lock; its own `test` is not a conditional.',
+    { ...RUST_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cargo test --locked\n') },
+  ],
+  [
+    'review3-a4-crlf-workflow',
+    'A workflow saved with CRLF line endings is read like any other.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n      - run: npm test\n').replace(/\n/g, '\r\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#520', foundInReview: true, purpose, commits: [files] });
+}
+for (const [name, purpose, files] of [
+  [
+    'review3-a4-crlf-npm-ci-in-disabled-job',
+    'CRLF line endings must not hide a job-level `if:`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm test\n  extra:\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm ci\n').replace(/\n/g, '\r\n') },
+  ],
+  [
+    'review3-a4-npm-ci-continue-on-error-step',
+    'A step that may fail without failing its job does not require anything.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n        continue-on-error: true\n      - run: npm test\n') },
+  ],
+  [
+    'review3-a4-npm-ci-continue-on-error-job',
+    'A job that may fail without failing the run does not require anything.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm test\n  extra:\n    runs-on: ubuntu-latest\n    continue-on-error: true\n    steps:\n      - run: npm ci\n') },
+  ],
+  [
+    'review3-a4-npm-ci-in-other-repository-checkout',
+    '`npm ci` inside another repository checked out by the workflow reads that repository’s lockfile.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/checkout@v4\n        with:\n          repository: acme/app\n          path: app\n      - run: npm ci\n        working-directory: app\n') },
+  ],
+  [
+    'review3-a4-npm-ci-in-directory-outside-checkout',
+    'A working directory or `cd` target this checkout does not hold is made by the workflow.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n        working-directory: generated\n'), '.github/workflows/cd.yml': PR_CI('      - run: cd generated && npm ci\n') },
+  ],
+  [
+    'review3-a4-lockfile-copied-in-first',
+    'A workflow that names the lockfile in a command (here copying it in) may create it.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cp ci/package-lock.json package-lock.json\n      - run: npm ci\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#520', foundInReview: true, purpose, commits: [files] });
+}
+FALSE_ASSURANCE_FIXTURES_REVIEW.push(
+  {
+    name: 'review3-a4-primary-manifest-unconstrained',
+    issue: '#520',
+    foundInReview: true,
+    purpose: 'Another manifest is cited ahead of the primary only when the primary has no unconstrained dependency.',
+    commits: [
+      {
+        ...NODE_LIBRARY_NO_LOCKFILE,
+        'package.json': `${JSON.stringify({ name: 'b', version: '1.0.0', scripts: { test: 'node --test' }, dependencies: { zod: '*', a: '^1.0.0', b: '^1.0.0', c: '^1.0.0' } }, null, 2)}\n`,
+        'docs/package.json': `${JSON.stringify({ name: 'docs', private: true, dependencies: { vitepress: 'latest' } }, null, 2)}\n`,
+      },
+    ],
+  },
+  {
+    name: 'review3-a1-conftest-only-no-runner',
+    issue: '#518',
+    foundInReview: true,
+    purpose: 'conftest.py is the only test-shaped file and nothing else names a runner: A1 stays measured.',
+    commits: [
+      {
+        'pyproject.toml': '[project]\nname = "c"\nversion = "1.0.0"\ndependencies = []\n',
+        'README.md': '# c\n',
+        LICENSE: 'MIT\n',
+        'src/c/__init__.py': 'def get(cache, key, default=None):\n    return cache.get(key, default)\n',
+        'src/c/lru.py': 'class LRU:\n    def __init__(self, size):\n        self.size = size\n',
+        'tests/conftest.py': CONFTEST_FIXTURE_ONLY,
+      },
+    ],
+  },
+  {
+    name: 'review3-a1-conftest-only-unproven-source',
+    issue: '#518',
+    foundInReview: true,
+    purpose:
+      'As above where the reviewable-source proof fails (mostly empty modules): without the conftest, A1 had no evidence at all.',
+    commits: [
+      {
+        'pyproject.toml': '[project]\nname = "c"\nversion = "1.0.0"\ndependencies = []\n',
+        'README.md': '# c\n',
+        LICENSE: 'MIT\n',
+        'src/c/__init__.py': 'def get(cache, key, default=None):\n    return cache.get(key, default)\n',
+        ...Object.fromEntries(['a', 'b', 'd', 'e', 'f', 'g'].map((name) => [`src/c/${name}/__init__.py`, ''])),
+        'tests/conftest.py': CONFTEST_FIXTURE_ONLY,
+      },
+    ],
+  },
+  {
+    name: 'review3-a1-hook-reorders-items',
+    issue: '#518',
+    foundInReview: true,
+    purpose: '`items.clear()` then `items.extend(ordered)` reorders the run; every test still runs.',
+    commits: [
+      PY_LIBRARY,
+      {
+        'tests/conftest.py':
+          'def pytest_collection_modifyitems(session, config, items):\n    ordered = sorted(items, key=lambda item: item.name)\n    items.clear()\n    items.extend(ordered)\n',
+      },
+    ],
+  },
+  {
+    name: 'review3-a1-skip-hook-beside-asserting-conftest',
+    issue: '#518',
+    foundInReview: true,
+    purpose: 'A conftest.py with an assert in a fixture is not a live test, whether or not its hook skips the suite.',
+    commits: [
+      PY_LIBRARY,
+      {
+        'tests/conftest.py': `${CONFTEST_SKIP_ALL}\n\n@pytest.fixture\ndef cache():\n    value = {}\n    assert value == {}\n    return value\n`,
+      },
+    ],
+  },
+);
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

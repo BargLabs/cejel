@@ -1,8 +1,11 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
-import { isGitLfsPointerText } from '../content-reads.js';
+import { isGitLfsPointerText, readRepoTextPrefix, trackContentReads } from '../content-reads.js';
 import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
@@ -362,6 +365,92 @@ describe('review findings against the first implementation stay fixed', () => {
   it('#442: the v27 shallow-clone sentence does not claim A2 abstains where it is not applicable', () => {
     expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('where either would be scored');
     expect(SHALLOW_HISTORY_V27_ABSTENTION).toContain('not applicable stays not applicable');
+  });
+});
+
+// Regression guards for what a third review, of the merged implementation, reproduced.
+describe('third-review findings against the merged implementation stay fixed', () => {
+  it('#520: a requirement is claimed when a step also runs tests, for cargo test --locked, and under CRLF', () => {
+    for (const [name, command, line] of [
+      ['review3-a4-npm-ci-then-npm-test-in-one-step', 'npm ci', 12],
+      ['review3-a4-cargo-test-locked', 'cargo test --locked', 11],
+      ['review3-a4-crlf-workflow', 'npm ci', 11],
+    ] as const) {
+      const v17 = criterion(name, V17, 'A4');
+      expect(v17.notes ?? '', name).toContain(`runs \`${command}\``);
+      expect(v17.evidence[0]?.path, name).toBe('.github/workflows/ci.yml');
+      expect(v17.evidence[0]?.line, name).toBe(line);
+      expect(metricValue(criterion(name, V27, 'A4'), 'lockfile_coverage'), name).toBe(0);
+    }
+  });
+
+  it('#520: nothing is claimed for continue-on-error, another checkout, a directory the workflow makes, or a copied lockfile', () => {
+    for (const name of [
+      'review3-a4-crlf-npm-ci-in-disabled-job',
+      'review3-a4-npm-ci-continue-on-error-step',
+      'review3-a4-npm-ci-continue-on-error-job',
+      'review3-a4-npm-ci-in-other-repository-checkout',
+      'review3-a4-npm-ci-in-directory-outside-checkout',
+      'review3-a4-lockfile-copied-in-first',
+    ]) {
+      for (const rubricVersion of [V17, V27]) {
+        const a4 = criterion(name, rubricVersion, 'A4');
+        expect(a4.notes ?? '', `${name}@${rubricVersion}`).not.toContain('which exits with an error');
+        expect(metricValue(a4, 'lockfile_coverage'), `${name}@${rubricVersion}`).not.toBe(0);
+      }
+      expect(criterion(name, V27, 'A4')).toEqual(criterion(name, V17, 'A4'));
+    }
+  });
+
+  it('#520: the primary manifest stays first when it holds an unconstrained dependency itself', () => {
+    for (const rubricVersion of [V17, V27]) {
+      const a4 = criterion('review3-a4-primary-manifest-unconstrained', rubricVersion, 'A4');
+      expect(a4.evidence[0]?.path).toBe('package.json');
+      expect(a4.evidence.some(({ path }) => path === 'docs/package.json')).toBe(false);
+    }
+  });
+
+  it('#518: a conftest.py that is the only test-shaped file keeps A1 measured, at a test ratio of 0', () => {
+    for (const name of ['review3-a1-conftest-only-no-runner', 'review3-a1-conftest-only-unproven-source']) {
+      const v17 = criterion(name, V17, 'A1');
+      const v27 = criterion(name, V27, 'A1');
+      expect(v27.status, name).toBe(v17.status);
+      expect(metricValue(v27, 'test_to_source_ratio'), name).toBe(0);
+      expect(v27.evidence[0]?.label, name).toBe('pytest configuration (conftest.py), not a test file');
+      expect(v27.score, name).toBeLessThanOrEqual(v17.score);
+    }
+  });
+
+  it('#518: a hook that empties and refills items reorders the run and is not read as removing it', () => {
+    const name = 'review3-a1-hook-reorders-items';
+    const a1 = criterion(name, V27, 'A1');
+    expect(a1.findings.some(({ summary }) => summary.startsWith('A pytest collection hook'))).toBe(false);
+    expect(metricValue(a1, 'non_hollow_test_share')).toBe(
+      metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+    );
+  });
+
+  it('#518: a conftest.py is never credited as a live test, so a skipped suite credits nothing', () => {
+    const name = 'review3-a1-skip-hook-beside-asserting-conftest';
+    expect(metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share')).toBe(3);
+    const a1 = criterion(name, V27, 'A1');
+    expect(metricValue(a1, 'non_hollow_test_share')).toBe(0);
+    expect(a1.findings.some(({ summary }) => summary.includes('marks every collected test skipped'))).toBe(true);
+  });
+
+  it('#519: the bounded prefix reader discloses an LFS pointer as readRepoText does', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cejel-prefix-lfs-'));
+    const pointer = join(dir, 'index.html');
+    const page = join(dir, 'page.html');
+    writeFileSync(pointer, lfsPointerFor('<html></html>\n'));
+    writeFileSync(page, '<html></html>\n');
+    const read = trackContentReads(dir, () => [
+      readRepoTextPrefix(pointer, 16 * 1024),
+      readRepoTextPrefix(page, 16 * 1024),
+    ]);
+    expect(read.value[0]).toBe(lfsPointerFor('<html></html>\n'));
+    expect(read.summary.byReason.lfsPointer).toBe(1);
+    expect(read.summary.skipped).toBe(1);
   });
 });
 

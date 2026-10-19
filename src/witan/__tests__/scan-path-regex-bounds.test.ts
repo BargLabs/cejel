@@ -135,11 +135,35 @@ const CI_LINE_FIXTURE: Record<string, string> = {
   ),
 };
 
+// #520 (third review of #521): the workflow step reader walked back through the file once per
+// `run:` key to find its list item and its job's `steps:`, and each lockfile-requiring command
+// rescanned every command in the workflow for one that writes the lockfile, so the reader was
+// quadratic in the number of steps under every rubric. Each workflow here is just under the
+// content size limit: 24,000 steps in one job (12 s before the fix), and 24,000 `run:` keys outside
+// any list (20 s).
+const STEP_COUNT = 24_000;
+const WORKFLOW_HEAD = 'name: ci\non: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n';
+const LONG_WORKFLOW_FIXTURE: Record<string, string> = {
+  'package.json': '{"name":"steps","version":"1.0.0","dependencies":{"zod":"^3.0.0"}}\n',
+  'index.js': 'export const a = 1;\n',
+  '.github/workflows/steps.yml': `${WORKFLOW_HEAD}${'      - run: npm ci\n'.repeat(STEP_COUNT)}      - run: npm install\n`,
+  '.github/workflows/keys.yml': `${WORKFLOW_HEAD}${'        run: npm ci\n'.repeat(STEP_COUNT)}`,
+};
+
 describe('timing guards: the real scan finishes on pathological repository input', () => {
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
     'CI lines and a conftest whitespace run just under the content limit — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(CI_LINE_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'workflows of 24,000 steps in one job and 24,000 `run:` keys outside a list — %s',
+    (rubric) => {
+      const scan = scanInChild(makeRepo(LONG_WORKFLOW_FIXTURE), rubric);
       expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,
