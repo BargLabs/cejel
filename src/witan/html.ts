@@ -19,6 +19,13 @@ import {
   collectExternalFindings,
   formatExternalSourceLabel,
 } from './external-findings.js';
+import {
+  describeInputBindingRecord,
+  describeScannedSubject,
+  importedAdjustmentSentence,
+  inheritedFindingNote,
+  inputBindingHeadline,
+} from './input-binding-presentation.js';
 import { renderFindingSummary } from './finding-presentation.js';
 import {
   buildRelyingPartySummary,
@@ -196,6 +203,8 @@ export function renderWitanHtmlReport(
         : ''
     }
 
+    ${renderInputBindingSection(report)}
+
     ${renderGlossary(glossaryEntriesForReport(report))}
   </main>
 </body>
@@ -368,13 +377,32 @@ function renderExternalFindingItems(findings: readonly WitanExternalFinding[]): 
     (f) =>
       `<li><strong>${escapeHtml(f.label)} → ${escapeHtml(f.dimension)}</strong><span>${escapeHtml(f.severity)}: ${escapeHtml(f.ruleId)} — ${escapeHtml(f.message)}${
         f.location ? ` (${escapeHtml(f.location)})` : ''
-      }</span></li>`,
+      }</span>${renderInheritedFindingNote(f.ruleId)}</li>`,
   );
   const remaining = findings.length - shown.length;
   if (remaining > 0) {
     items.push(`<li><em>...and ${remaining} more — see report.json for the full list.</em></li>`);
   }
   return items;
+}
+
+function renderInheritedFindingNote(ruleId: string): string {
+  const note = inheritedFindingNote(ruleId);
+  return note ? `<span class="external-note">${escapeHtml(note)}</span>` : '';
+}
+
+// Per ingested document: digest, producer, declared subject and binding status. Present only when
+// report.json carries inputBinding, so a certificate without ingest is byte-identical.
+function renderInputBindingSection(report: WitanReport): string {
+  const binding = report.inputBinding;
+  if (!binding) return '';
+  return `<section class="external-findings-section" aria-label="Ingested inputs">
+      <article class="evidence-section">
+        <h2>Ingested inputs</h2>
+        <p class="external-note">${escapeHtml(inputBindingHeadline(binding))} ${escapeHtml(describeScannedSubject(binding))}</p>
+        <ul>${binding.inputs.map((input) => `<li>${escapeHtml(describeInputBindingRecord(input))}</li>`).join('')}</ul>
+      </article>
+    </section>`;
 }
 
 function criteriaByCategory(
@@ -449,7 +477,7 @@ function renderCriterionCard(
               ${renderStatusChip(criterion.id, criterion.status)}
             </div>
             <div class="criterion-score">${criterion.status === 'not_applicable' ? 'N/A' : criterion.status === 'insufficient_data' ? 'No data' : formatScore(criterion.score)}</div>
-            ${statusReconciliation}
+            ${statusReconciliation}${renderImportedAdjustment(criterion)}
             ${historyWarning}
             <ul class="criterion-metrics">
               ${metrics.length > 0 ? metrics.map((item) => `<li>${item}</li>`).join('') : '<li>No measured depth metrics supplied.</li>'}
@@ -458,6 +486,11 @@ function renderCriterionCard(
               ${evidence.length > 0 ? evidence.map((item) => `<li>${item}</li>`).join('') : '<li>No concrete evidence supplied.</li>'}
             </ul>
           </article>`;
+}
+
+function renderImportedAdjustment(criterion: WitanCriterionScore): string {
+  const sentence = importedAdjustmentSentence(criterion);
+  return sentence ? `\n            <p class="status-explanation">${escapeHtml(sentence)}</p>` : '';
 }
 
 function renderStatusReconciliation(criterion: WitanCriterionScore): string {

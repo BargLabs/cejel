@@ -33,6 +33,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   not a test, LFS pointers abstain, a lockfile the repository's CI requires scores 0 when absent,
   and A2 and B2 abstain on shallow clones. No score rises against v17 on any recorded set. The
   default stays v17. See `leaderboard/RUBRIC_CHANGELOG.md`.
+- **Ingest: every ingested document is bound to its subject, and recorded (report format 1.7).**
+  `report.json` gains `inputBinding`, present only when something was ingested: per document, the
+  sha256 of its exact bytes, its format, the producer and subject its own format declares
+  (Scorecard `repo.name`, `repo.commit`, `date`, `scorecard.version`/`commit`; SARIF
+  `versionControlProvenance`, `tool.driver`, `invocations`; generic contract 1.1 `subject`,
+  `producer`, `observedAt`), and a binding status: `matched`, `mismatched-repository`,
+  `mismatched-commit`, `stale`, `unbound` or `unverifiable`. Freshness is measured against the
+  scanned HEAD's committer time with a declared one-day window, never the wall clock. Duplicates
+  keep the existing deduplication and are recorded as `same-path` or `same-content`. **Default
+  scoring is unchanged:** the record is attached after scoring. Docs: `docs/input-binding.md`.
+- **`--strict-ingest`** refuses mismatched, stale and duplicate inputs before scoring, with an
+  error naming each file and what it was compared against. **`--subject-repository <repo>`** names
+  the scanned repository for the comparison; it is never inferred from clone state.
+- **`cejel verify ... --input <file>`** checks a set of input files against the digests
+  `report.json` records, and fails on a swapped, missing or extra input. `cejel issue` reads the
+  binding policy and subject repository from the report it reproduces.
+- **Generic ingest contract 1.1:** optional `subject.repository`, `subject.commit`,
+  `producer.name`, `producer.version` and `observedAt`. A 1.0 document is unchanged.
+- **`criteria[].nativeStatus`** (report format 1.7), beside `nativeScore` when ingested signals
+  adjusted a criterion. The certificate now says when imported evidence moved a status, and that
+  the move is not a native finding. Scorecard Dependency-Update-Tool and Security-Policy findings
+  are labelled as restating evidence Cejel reads natively, and Scorecard SAST as not a secrets
+  finding. Labels only; no score changes.
 
 ## [0.6.7] — 2026-10-18
 

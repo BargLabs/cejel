@@ -67,9 +67,14 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8')) as unknown;
 }
 
+// The heal-log mapping emits a 1.0 document: it carries none of 1.1's optional identity fields,
+// and the preregistered fixture it is compared with was written under 1.0. A minor contract bump
+// must not move a preregistered fixture, so the mapping pins the minor it actually uses.
+const HEAL_LOG_CONTRACT_VERSION = '1.0';
+
 function mapSyntheticHealLog(raw: SyntheticHealLog): GenericSignalDocumentV1 {
   return {
-    version: CEJEL_GENERIC_INGEST_CONTRACT_VERSION,
+    version: HEAL_LOG_CONTRACT_VERSION,
     tool: `${raw.workflow}-heal-log`,
     signals: [
       {

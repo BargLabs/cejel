@@ -4,10 +4,13 @@ import { z } from 'zod';
 
 import type { WitanCriterionId, WitanInputSignal } from './schemas.js';
 
+import { type IngestDocumentIdentity, genericIdentity } from './input-binding.js';
 import { stripBom } from './json-safe.js';
 import { resolveIngestFilePath } from './ingest-files.js';
 
-export const CEJEL_GENERIC_INGEST_CONTRACT_VERSION = '1.0' as const;
+// 1.1 added the optional identity fields `subject`, `producer` and `observedAt` (see
+// GenericIdentityV1_1Schema). A 1.0 document is unchanged and still accepted.
+export const CEJEL_GENERIC_INGEST_CONTRACT_VERSION = '1.1' as const;
 export const CEJEL_GENERIC_INGEST_CONTRACT_MAJOR = 1;
 
 const GenericFindingV1Schema = z
@@ -38,6 +41,33 @@ export const GenericSignalDocumentV1Schema = z
   .passthrough();
 
 export type GenericSignalDocumentV1 = z.infer<typeof GenericSignalDocumentV1Schema>;
+
+// Optional identity fields, contract 1.1. Read only from documents that declare minor 1 or later:
+// under 1.0 these names were unknown fields a consumer had to ignore, so a 1.0 document that
+// happens to carry a differently shaped `subject` must keep parsing exactly as before. Under 1.1
+// they are stable optional fields, so an invalid value fails loudly like any other stable field.
+const GenericIdentityV1_1Schema = z
+  .object({
+    subject: z
+      .object({
+        repository: z.string().trim().min(1).max(2048).optional(),
+        commit: z
+          .string()
+          .regex(/^[0-9a-fA-F]{7,64}$/, 'expected a 7-64 character hexadecimal commit id')
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
+    producer: z
+      .object({
+        name: z.string().trim().min(1).max(200).optional(),
+        version: z.string().trim().min(1).max(200).optional(),
+      })
+      .passthrough()
+      .optional(),
+    observedAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .passthrough();
 
 interface GenericDocumentShape {
   version?: unknown;
@@ -86,7 +116,17 @@ function formatValidationIssues(error: z.ZodError): string {
 // unknown additive fields are ignored. Invalid stable fields fail loudly: dropping malformed
 // evidence would make the certificate look cleaner than the supplied record.
 export function parseGenericJson(raw: unknown): WitanInputSignal[] {
-  if (!isGenericSignalDocument(raw)) return [];
+  return parseGenericDocument(raw).signals;
+}
+
+/** Signals plus the identity a 1.1 document declares (a 1.0 document declares only `tool`). */
+export function parseGenericDocument(raw: unknown): {
+  signals: WitanInputSignal[];
+  identity: IngestDocumentIdentity;
+} {
+  if (!isGenericSignalDocument(raw)) {
+    return { signals: [], identity: { producers: [], subjects: [] } };
+  }
   assertSupportedContractVersion(raw.version);
 
   const parsed = GenericSignalDocumentV1Schema.safeParse(raw);
@@ -96,7 +136,24 @@ export function parseGenericJson(raw: unknown): WitanInputSignal[] {
     );
   }
 
-  return parsed.data.signals.map((signal) => ({
+  const minor = Number(/^\d+\.(\d+)$/.exec(parsed.data.version)?.[1] ?? '0');
+  let identity = genericIdentity({ tool: parsed.data.tool });
+  if (minor >= 1) {
+    const identityFields = GenericIdentityV1_1Schema.safeParse(raw);
+    if (!identityFields.success) {
+      throw new Error(
+        `Cejel: invalid generic ingest contract v${parsed.data.version}: ${formatValidationIssues(identityFields.error)}`,
+      );
+    }
+    identity = genericIdentity({
+      tool: parsed.data.tool,
+      ...(identityFields.data.subject ? { subject: identityFields.data.subject } : {}),
+      ...(identityFields.data.producer ? { producer: identityFields.data.producer } : {}),
+      ...(identityFields.data.observedAt ? { observedAt: identityFields.data.observedAt } : {}),
+    });
+  }
+
+  const signals = parsed.data.signals.map((signal) => ({
     source: parsed.data.tool,
     dimension: signal.dimension as WitanCriterionId,
     weight: signal.weight,
@@ -107,6 +164,7 @@ export function parseGenericJson(raw: unknown): WitanInputSignal[] {
       ...(finding.location ? { location: finding.location } : {}),
     })),
   }));
+  return { signals, identity };
 }
 
 // Parse a generic Cejel external-signal JSON file at the given path. No network — local file only.

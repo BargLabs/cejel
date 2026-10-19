@@ -6,7 +6,14 @@ import type { WitanIngestProvenance, WitanInputSignal } from './schemas.js';
 import { sanitizePresentationLine } from '../presentation-safety.js';
 
 import { clampFinding } from './finding-limits.js';
-import { isGenericSignalDocument, parseGenericJson } from './generic-adapter.js';
+import { isGenericSignalDocument, parseGenericDocument } from './generic-adapter.js';
+import {
+  type IngestDocumentIdentity,
+  type IngestFormat,
+  extractSarifIdentity,
+  extractScorecardIdentity,
+  sha256OfBytes,
+} from './input-binding.js';
 import { stripBom } from './json-safe.js';
 import { type SarifDimensionRule, parseSarifJson } from './sarif-adapter.js';
 import { parseScorecardJson } from './scorecard-adapter.js';
@@ -83,10 +90,28 @@ export function parseIngestFile(
   filePath: string,
   options: ParseIngestFileOptions = {},
 ): WitanInputSignal[] {
+  return readIngestDocument(filePath, options).signals;
+}
+
+/** One ingested document: its mapped signals, the digest of its exact bytes, and its identity. */
+export interface IngestDocument {
+  signals: WitanInputSignal[];
+  /** sha256 of the file's exact bytes, before BOM stripping or parsing. */
+  sha256: string;
+  format: IngestFormat;
+  identity: IngestDocumentIdentity;
+}
+
+export function readIngestDocument(
+  filePath: string,
+  options: ParseIngestFileOptions = {},
+): IngestDocument {
   const resolvedFilePath = resolveIngestFilePath(filePath);
+  const bytes = readFileSync(resolvedFilePath);
+  const sha256 = sha256OfBytes(bytes);
   let raw: unknown;
   try {
-    raw = JSON.parse(stripBom(readFileSync(resolvedFilePath, 'utf8')));
+    raw = JSON.parse(stripBom(bytes.toString('utf8')));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Cejel: could not parse ingest file as JSON: ${filePath} (${message})`);
@@ -103,11 +128,24 @@ export function parseIngestFile(
   }
 
   let signals: WitanInputSignal[] | undefined;
-  if (looksLikeSarif(raw)) signals = parseSarifJson(raw, options.extraSarifDimensionRules);
-  else if (looksLikeScorecard(raw)) signals = parseScorecardJson(raw);
-  else if (isGenericSignalDocument(raw)) signals = parseGenericJson(raw);
+  let format: IngestFormat | undefined;
+  let identity: IngestDocumentIdentity = { producers: [], subjects: [] };
+  if (looksLikeSarif(raw)) {
+    signals = parseSarifJson(raw, options.extraSarifDimensionRules);
+    format = 'sarif';
+    identity = extractSarifIdentity(raw);
+  } else if (looksLikeScorecard(raw)) {
+    signals = parseScorecardJson(raw);
+    format = 'scorecard';
+    identity = extractScorecardIdentity(raw);
+  } else if (isGenericSignalDocument(raw)) {
+    const generic = parseGenericDocument(raw);
+    signals = generic.signals;
+    format = 'generic';
+    identity = generic.identity;
+  }
 
-  if (!signals) {
+  if (!signals || !format) {
     throw new Error(
       `Cejel: unrecognized ingest file format: ${filePath} — expected SARIF (a "runs" array), OpenSSF Scorecard JSON (a "checks" array), or the versioned generic Cejel external-signal shape (a "version" string + "tool" string + "signals" array). See the cejel README "Aggregate your scanners".`,
     );
@@ -126,12 +164,17 @@ export function parseIngestFile(
   // caps here, at the single funnel all three adapters' output passes through — a scanner
   // that emits one over-long message must degrade to a truncated string, never fail the
   // whole certificate downstream in WitanReportSchema.parse().
-  return signals.map((signal) => ({
-    ...signal,
-    source: sanitizeIngestSource(signal.source),
-    provenance: options.provenance ?? 'operator_supplied',
-    findings: signal.findings.map(clampFinding),
-  }));
+  return {
+    signals: signals.map((signal) => ({
+      ...signal,
+      source: sanitizeIngestSource(signal.source),
+      provenance: options.provenance ?? 'operator_supplied',
+      findings: signal.findings.map(clampFinding),
+    })),
+    sha256,
+    format,
+    identity,
+  };
 }
 
 // Expand a glob-ish --ingest argument into concrete file paths. Supports a bare file path or
