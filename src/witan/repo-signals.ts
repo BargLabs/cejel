@@ -4036,8 +4036,11 @@ function collectA4DependencyEvidence(
   // the read is A4's own, so a workflow A4 cannot read abstains A4.
   const findRequirement = () =>
     findLockfileRequirement(repoPath, repoFiles.filter(isCiWorkflow));
+  // A lockfile the file walk withheld (too large, unreadable, ...) is committed even though A4's
+  // inventory lacks it, so the requirement is not reported as unmet then.
+  const lockfileWithheld = withheldRepoPaths().some(({ path }) => isLockfile(path));
   const lockfileRequirement =
-    hasLockfile || !manifest
+    hasLockfile || lockfileWithheld || !manifest
       ? undefined
       : useV27FalseAssuranceClosure
         ? withContentReadSignal('A4', 'lockfile_coverage', findRequirement)
@@ -4049,7 +4052,7 @@ function collectA4DependencyEvidence(
         repoPath,
         lockfileRequirement.file,
         'dependency_report',
-        `CI requires a committed lockfile (\`${lockfileRequirement.command}\`); none is committed`,
+        `CI requires a lockfile (\`${lockfileRequirement.command}\`); the scanned inventory holds none`,
         lockfileRequirement.line,
       );
     leadingEvidence.push(
@@ -4177,7 +4180,7 @@ function collectA4DependencyEvidence(
               1,
               0.3,
               'present',
-              "Scored 0: this repository's own CI requires a committed lockfile, and none is committed.",
+              "Scored 0: this repository's own CI requires a lockfile, and the scanned inventory holds no recognized lockfile.",
             ),
           ]
         : []),
@@ -4201,7 +4204,7 @@ function collectA4DependencyEvidence(
     notes: isAppOrService
       ? `A4 scored against app/service norms (${packagedApplicationFiles.length > 0 ? 'packaged application' : 'deploy surface'} detected): pinned dependencies and a lockfile are required for reproducible installs.`
       : lockfileRequirement
-        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. This repository's own CI requires a committed lockfile (\`${lockfileRequirement.command}\`, ${lockfileRequirement.file} line ${lockfileRequirement.line}), and none is committed.`.slice(0, 1000)
+        ? `A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior. This repository's own CI requires a lockfile (\`${lockfileRequirement.command}\`, ${lockfileRequirement.file} line ${lockfileRequirement.line}), and the scanned inventory holds no recognized lockfile.`.slice(0, 1000)
         : 'A4 scored against library/CLI norms (no deploy surface detected — same archetype line as A3): declared version ranges are correct library behavior; a committed lockfile is credited but not required.',
   };
 }

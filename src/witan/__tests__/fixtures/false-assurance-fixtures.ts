@@ -252,6 +252,23 @@ function historyCommits(): {
 
 const HISTORY = historyCommits();
 
+/**
+ * A synthetic branded secret shape, assembled from segments so this source file never contains one
+ * contiguous credential-shaped literal (the technique behaviour-corpus.ts and
+ * calibration-fixtures.ts use).
+ */
+const SYNTHETIC_BRANDED_SECRET = ['sk', 'liveFIXTUREonly0000abcdEFGH1234ijklMNOP'].join('-');
+
+const HISTORY_WITH_SECRET = {
+  commits: [
+    ...HISTORY.commits,
+    {
+      'src/cachelib/billing.py': `# Fixture only: a synthetic value in a real-looking assignment.\nSTRIPE_SECRET_KEY = "${SYNTHETIC_BRANDED_SECRET}"\n`,
+    },
+  ],
+  subjects: [...HISTORY.subjects, 'add billing'],
+};
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   // #517 ------------------------------------------------------------------------------------
   {
@@ -371,6 +388,19 @@ export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
     ],
   },
   {
+    name: 'a4-uv-locked-lockfile-too-large',
+    issue: '#520',
+    purpose:
+      'Corner: uv.lock is committed but over the content size limit, so the file walk withholds it; the requirement is met and must not be reported as unmet.',
+    commits: [
+      {
+        ...PY_LIBRARY,
+        'uv.lock': `${UV_LOCK}${'# padding to exceed the repository content size limit\n'.repeat(11_000)}`,
+        '.github/workflows/ci.yml': UV_LOCKED_CI,
+      },
+    ],
+  },
+  {
     name: 'a4-library-no-lockfile-not-required',
     issue: '#520',
     purpose: 'Corner: a library with no lockfile and no automation requiring one keeps the library note.',
@@ -405,6 +435,15 @@ export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
     purpose: 'Change: the same repository cloned at depth 1.',
     commits: HISTORY.commits,
     subjects: HISTORY.subjects,
+    shallow: true,
+  },
+  {
+    name: 'history-shallow-clone-with-committed-secret',
+    issue: '#442',
+    purpose:
+      'Corner: a depth-1 clone whose current tree holds a secret-shaped value. The confirmed critical finding stands on what was read, so A2 keeps scoring it.',
+    commits: HISTORY_WITH_SECRET.commits,
+    subjects: HISTORY_WITH_SECRET.subjects,
     shallow: true,
   },
 ];
