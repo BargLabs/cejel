@@ -2169,6 +2169,16 @@ function collectA1TestIntegrityEvidence(
       ),
     );
   }
+  // v27 (#518): where conftest.py files are the only test-shaped files, they are cited as what
+  // they are. A1 then measures a suite with no test file (test_to_source_ratio 0), as v17 measured
+  // it, instead of losing its only evidence and leaving the composite, which could raise it.
+  if (useV27FalseAssuranceClosure && allTestFiles.length === 0) {
+    for (const file of v17TestFiles.slice(0, 8)) {
+      evidence.push(
+        evidenceForRelative(repoPath, file, 'test_run', 'pytest configuration (conftest.py), not a test file'),
+      );
+    }
+  }
   for (const file of runnerFiles) {
     evidence.push(evidenceForRelative(repoPath, file, 'test_run', 'Configured test runner'));
   }
@@ -4111,17 +4121,23 @@ function collectA4DependencyEvidence(
     const unconstrained = withContentReadSignals(
       'A4',
       ['pinned_dependency_ratio', 'declared_version_range_ratio', 'dependency_count_sanity'],
-      () =>
-        manifests
-          .map((file) => ({
-            file,
-            count: readDependencySpecs(repoPath, [file]).filter(
-              (dependency) => !hasDeclaredVersionConstraint(dependency),
-            ).length,
-          }))
-          .find(({ count }) => count > 0),
+      () => {
+        const unconstrainedCount = (file: string) =>
+          readDependencySpecs(repoPath, [file]).filter(
+            (dependency) => !hasDeclaredVersionConstraint(dependency),
+          ).length;
+        // The primary manifest already leads the evidence: another is cited ahead of it only when
+        // the primary itself declares every dependency with a constraint.
+        if (unconstrainedCount(manifest) > 0) return undefined;
+        for (const file of manifests) {
+          if (file === manifest) continue;
+          const count = unconstrainedCount(file);
+          if (count > 0) return { file, count };
+        }
+        return undefined;
+      },
     );
-    if (unconstrained && unconstrained.file !== manifest) {
+    if (unconstrained) {
       leadingEvidence.push(
         withContentReadSignals(
           'A4',
@@ -4306,10 +4322,13 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
 
 // Shell words that make a step's commands depend on something: a requirement inside such a step is
 // not stated by the repository unconditionally (`if [ -f package-lock.json ]; then npm ci; fi`).
+// Read only in command position: `npm test` and `cargo test --locked` are not conditionals.
 const CONDITIONAL_SHELL_WORDS = new Set([
-  'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', '[', '[[', 'test', '||', 'while', 'until',
+  'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', '[', '[[', 'test', 'while', 'until', 'for',
+  'do', 'done',
 ]);
 const SHELL_COMMAND_SEPARATORS = new Set(['&&', '||', ';', '|']);
+const DIRECTORY_CHANGE_COMMANDS = new Set(['cd', 'pushd']);
 
 interface LockfileRequirement {
   readonly file: string;
@@ -4372,24 +4391,94 @@ function matchLockfileRequiringCommand(
 interface WorkflowRunStep {
   /** 1-based line of each command line, with its text. */
   readonly lines: readonly { readonly line: number; readonly text: string }[];
-  /** True when the step or its job carries an `if:` condition. */
+  /**
+   * True when the step or its job carries an `if:` condition or a `continue-on-error:` other than
+   * `false`, or when the reader cannot place the step inside a list item.
+   */
   readonly conditional: boolean;
 }
 
 const RUN_KEY_PATTERN = /^([ \t]*)(?:-[ \t]+)?run:[ \t]*(.*)$/;
 const IF_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?if:/;
+const CONTINUE_ON_ERROR_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*(.*)$/;
+const STEPS_KEY_PATTERN = /^[ \t]*steps:[ \t]*$/;
+const LIST_ITEM_PATTERN = /^[ \t]*-[ \t]/;
 
 function lineIndent(line: string): number {
   return line.length - line.trimStart().length;
 }
 
+/** An `if:` key, or a `continue-on-error:` whose value is anything but a literal `false`. */
+function isStepOrJobGuard(line: string): boolean {
+  if (IF_KEY_PATTERN.test(line)) return true;
+  const continueOnError = CONTINUE_ON_ERROR_KEY_PATTERN.exec(line);
+  if (!continueOnError) return false;
+  const value = beforeShellComment(continueOnError[1] ?? '').trim().replace(/^(['"])(.*)\1$/, '$2');
+  return value !== 'false';
+}
+
+/**
+ * For each line, the index of the next non-blank line whose indent is at most (`orEqual`) or
+ * strictly below its own; `lines.length` where there is none. One pass with a stack.
+ */
+function nextDedentIndexes(lines: readonly string[], orEqual: boolean): number[] {
+  const next = new Array<number>(lines.length).fill(lines.length);
+  const open: number[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (raw.trim() === '') continue;
+    const indent = lineIndent(raw);
+    while (open.length > 0) {
+      const top = open[open.length - 1] ?? 0;
+      const topIndent = lineIndent(lines[top] ?? '');
+      if (orEqual ? topIndent < indent : topIndent <= indent) break;
+      next[top] = index;
+      open.pop();
+    }
+    open.push(index);
+  }
+  return next;
+}
+
 /**
  * The `run:` steps of a GitHub Actions workflow, read by indentation: a one-line value, or a `|` /
- * `>` block. A step is conditional when an `if:` key sits in the step itself or at its job's level.
- * Anything the reader cannot place is simply not returned, so nothing is claimed from it.
+ * `>` block. A step is conditional when an `if:` or `continue-on-error:` key sits in the step
+ * itself or at its job's level. Anything the reader cannot place is not claimed from. Linear in
+ * the file: each lookup below is a precomputed index or is computed once per step or job.
  */
 function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
-  const lines = contents.split('\n');
+  const lines = contents.split(/\r?\n/);
+  const itemAtOrAbove = new Array<number>(lines.length);
+  const stepsKeyAbove = new Array<number>(lines.length);
+  const lessIndentedAbove = new Array<number>(lines.length);
+  {
+    let lastItem = 0;
+    let lastStepsKey = -1;
+    const open: number[] = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const raw = lines[index] ?? '';
+      if (LIST_ITEM_PATTERN.test(raw)) lastItem = index;
+      itemAtOrAbove[index] = lastItem;
+      stepsKeyAbove[index] = lastStepsKey;
+      if (STEPS_KEY_PATTERN.test(raw)) lastStepsKey = index;
+      if (raw.trim() === '') {
+        lessIndentedAbove[index] = -1;
+        continue;
+      }
+      const indent = lineIndent(raw);
+      while (open.length > 0 && lineIndent(lines[open[open.length - 1] ?? 0] ?? '') >= indent) {
+        open.pop();
+      }
+      lessIndentedAbove[index] = open.length > 0 ? (open[open.length - 1] ?? -1) : -1;
+      open.push(index);
+    }
+  }
+  const nextAtOrBelow = nextDedentIndexes(lines, true);
+  const nextBelow = nextDedentIndexes(lines, false);
+  // The least-indented guard key inside each step, by the step's first line.
+  const stepGuardIndent = new Map<number, number>();
+  // Whether a job carries a guard at its own key level, by `<header line>:<key indent>`.
+  const jobGuarded = new Map<string, boolean>();
   const steps: WorkflowRunStep[] = [];
   for (let index = 0; index < lines.length; index += 1) {
     const match = RUN_KEY_PATTERN.exec(lines[index] ?? '');
@@ -4397,57 +4486,109 @@ function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
     const keyIndent = (match[1] ?? '').length + ((lines[index] ?? '').trimStart().startsWith('-') ? 2 : 0);
     const value = (match[2] ?? '').trim();
     const body: { line: number; text: string }[] = [];
+    let lastBodyLine = index;
     if (/^[|>][-+0-9]*$/.test(value)) {
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
         if (raw.trim() === '') continue;
         if (lineIndent(raw) <= keyIndent) break;
         body.push({ line: next + 1, text: raw });
+        lastBodyLine = next;
       }
     } else if (value !== '') {
       body.push({ line: index + 1, text: value.replace(/^(['"])(.*)\1$/, '$2') });
     }
-    // The step: back to the nearest `- ` item at or above the key's indent, forward to the next.
-    let stepStart = index;
-    while (stepStart > 0 && !/^[ \t]*-[ \t]/.test(lines[stepStart] ?? '')) stepStart -= 1;
-    const stepIndent = lineIndent(lines[stepStart] ?? '');
-    let stepEnd = index + 1;
-    while (stepEnd < lines.length) {
-      const raw = lines[stepEnd] ?? '';
-      if (raw.trim() !== '' && lineIndent(raw) <= stepIndent) break;
-      stepEnd += 1;
-    }
-    const stepConditional = lines
-      .slice(stepStart, stepEnd)
-      .some((raw) => IF_KEY_PATTERN.test(raw) && lineIndent(raw) <= keyIndent);
-    // The job: the nearest line above the step, less indented than it, holding `steps:`'s parent.
-    let jobConditional = false;
-    for (let up = stepStart - 1, seenSteps = false; up >= 0; up -= 1) {
-      const raw = lines[up] ?? '';
-      if (raw.trim() === '') continue;
-      if (/^[ \t]*steps:[ \t]*$/.test(raw)) {
-        seenSteps = true;
-        const jobKeyIndent = lineIndent(raw);
-        for (let probe = up - 1; probe >= 0; probe -= 1) {
-          const other = lines[probe] ?? '';
-          if (other.trim() === '') continue;
-          if (lineIndent(other) < jobKeyIndent) break;
-          if (lineIndent(other) === jobKeyIndent && IF_KEY_PATTERN.test(other)) jobConditional = true;
-        }
-        break;
+    // The step: the nearest `- ` item at or above the key, to the next line no deeper than it. A
+    // key that is not inside that item's extent (malformed, or a mapping outside any list) is not
+    // placed, so nothing is claimed from it.
+    const stepStart = itemAtOrAbove[index] ?? 0;
+    const stepEnd = nextAtOrBelow[stepStart] ?? lines.length;
+    const placed = stepStart === index || stepEnd > index;
+    let guardIndent = stepGuardIndent.get(stepStart);
+    if (guardIndent === undefined) {
+      guardIndent = Number.POSITIVE_INFINITY;
+      for (let line = stepStart; line < stepEnd; line += 1) {
+        const raw = lines[line] ?? '';
+        if (isStepOrJobGuard(raw)) guardIndent = Math.min(guardIndent, lineIndent(raw));
       }
-      if (seenSteps) break;
+      stepGuardIndent.set(stepStart, guardIndent);
     }
-    steps.push({ lines: body, conditional: stepConditional || jobConditional });
+    const stepConditional = guardIndent <= keyIndent;
+    // The job: the mapping holding the nearest `steps:` key above the step. A guard key at that
+    // key's own indent, before or after `steps:`, conditions every step in the job.
+    let jobConditional = false;
+    const stepsKey = stepsKeyAbove[stepStart] ?? -1;
+    if (stepsKey !== -1) {
+      const jobKeyIndent = lineIndent(lines[stepsKey] ?? '');
+      const header = lessIndentedAbove[stepsKey] ?? -1;
+      const cacheKey = `${header}:${jobKeyIndent}`;
+      const cached = jobGuarded.get(cacheKey);
+      if (cached !== undefined) {
+        jobConditional = cached;
+      } else {
+        const end = nextBelow[stepsKey] ?? lines.length;
+        for (let line = header + 1; line < end; line += 1) {
+          const raw = lines[line] ?? '';
+          if (lineIndent(raw) === jobKeyIndent && isStepOrJobGuard(raw)) {
+            jobConditional = true;
+            break;
+          }
+        }
+        jobGuarded.set(cacheKey, jobConditional);
+      }
+    }
+    steps.push({ lines: body, conditional: !placed || stepConditional || jobConditional });
+    // A block body is shell text, not workflow keys: never read a `run:` inside it as a step.
+    index = lastBodyLine;
   }
   return steps;
 }
 
+const WORKFLOW_OTHER_REPOSITORY_PATTERN = /^[ \t]*(?:-[ \t]+)?repository:[ \t]*\S/;
+const WORKFLOW_DOWNLOAD_ARTIFACT_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*['"]?actions\/download-artifact@/;
+const WORKFLOW_WORKING_DIRECTORY_PATTERN = /^[ \t]*(?:-[ \t]+)?working-directory:[ \t]*(.*)$/;
+
+/** True when `path`, as written in a workflow, names a directory inside this checkout. */
+function isCheckoutDirectory(repoPath: string, path: string): boolean {
+  if (path === '' || /[$~`*?]/.test(path) || path.startsWith('/')) return false;
+  if (path.split('/').some((segment) => segment === '..')) return false;
+  try {
+    return lstatSync(join(repoPath, path)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * False when the workflow can put files in its workspace that the scanned tree does not hold:
+ * another repository checked out, an artifact downloaded, or a working directory that is not a
+ * directory of this checkout. A lockfile could then come from outside what Cejel read.
+ */
+function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean {
+  for (const raw of contents.split(/\r?\n/)) {
+    if (WORKFLOW_OTHER_REPOSITORY_PATTERN.test(raw)) return false;
+    if (WORKFLOW_DOWNLOAD_ARTIFACT_PATTERN.test(raw)) return false;
+    const workingDirectory = WORKFLOW_WORKING_DIRECTORY_PATTERN.exec(raw);
+    if (workingDirectory) {
+      const value = beforeShellComment(workingDirectory[1] ?? '')
+        .trim()
+        .replace(/^(['"])(.*)\1$/, '$2')
+        .replace(/\/+$/, '')
+        .replace(/^\.\//, '');
+      if (value !== '.' && !isCheckoutDirectory(repoPath, value)) return false;
+    }
+  }
+  return true;
+}
+
 /**
  * The first unconditional GitHub Actions step, in file order, whose command requires a lockfile
- * that `isSatisfied` says is absent. Cejel claims nothing about a step that is conditional, whose
- * shell is conditional or contains a heredoc, or whose workflow also runs a command that writes
- * that lockfile (`npm install`, `uv run` without `--locked`, ...), which may create it first.
+ * that `isSatisfied` says is absent. Cejel claims nothing about a step that is conditional or may
+ * fail without failing its job, whose shell is conditional or contains a heredoc, or that changes
+ * into a directory this checkout does not hold; nor about a workflow that can bring in files from
+ * outside the scanned tree, or that also runs a command that writes or names that lockfile
+ * (`npm install`, `uv run` without `--locked`, `cp ci/package-lock.json .`), which may create it
+ * first. Linear in the workflow: what the workflow may generate is decided once per workflow.
  */
 function findLockfileRequirement(
   repoPath: string,
@@ -4457,29 +4598,44 @@ function findLockfileRequirement(
   for (const file of workflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
-    const steps = githubActionsRunSteps(readRepoText(fullPath, 'utf8'));
+    const contents = readRepoText(fullPath, 'utf8');
+    if (!workflowReadsOnlyThisTree(repoPath, contents)) continue;
+    const steps = githubActionsRunSteps(contents);
     const commandsOf = (step: WorkflowRunStep) =>
       step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
-    const allCommands = steps.flatMap(commandsOf);
-    for (const step of steps) {
+    const stepCommands = steps.map(commandsOf);
+    const mayBeGenerated = new Set<LockfileRequiringCommand>();
+    for (const { words } of stepCommands.flat()) {
+      for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
+        if (mayBeGenerated.has(rule)) continue;
+        const generates =
+          words[0] === rule.tool &&
+          rule.generators.includes(words[1] ?? '') &&
+          matchLockfileRequiringCommand(words, rule) === undefined;
+        const names = words.some((word) => rule.lockfiles.some((lockfile) => word.includes(lockfile)));
+        if (generates || names) mayBeGenerated.add(rule);
+      }
+    }
+    for (const [stepIndex, step] of steps.entries()) {
       if (step.conditional) continue;
-      const commands = commandsOf(step);
+      const commands = stepCommands[stepIndex] ?? [];
       const shellIsConditional =
         step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
-        commands.some(({ words }) => words.some((word) => CONDITIONAL_SHELL_WORDS.has(word))) ||
+        commands.some(({ words }) => CONDITIONAL_SHELL_WORDS.has(words[0] ?? '')) ||
         step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)));
       if (shellIsConditional) continue;
+      const leavesCheckout = commands.some(
+        ({ words }) =>
+          DIRECTORY_CHANGE_COMMANDS.has(words[0] ?? '') &&
+          !isCheckoutDirectory(repoPath, (words[1] ?? '').replace(/\/+$/, '').replace(/^\.\//, '')),
+      );
+      if (leavesCheckout) continue;
       for (const { line, words } of commands) {
         for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
           const command = matchLockfileRequiringCommand(words, rule);
-          if (command === undefined || isSatisfied(rule.lockfiles)) continue;
-          const lockfileMayBeGenerated = allCommands.some(
-            (other) =>
-              other.words[0] === rule.tool &&
-              rule.generators.includes(other.words[1] ?? '') &&
-              matchLockfileRequiringCommand(other.words, rule) === undefined,
-          );
-          if (lockfileMayBeGenerated) continue;
+          if (command === undefined || isSatisfied(rule.lockfiles) || mayBeGenerated.has(rule)) {
+            continue;
+          }
           return { file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
         }
       }
@@ -6881,17 +7037,20 @@ function measureNonHollowTestShare(
       MULTI_ECOSYSTEM_TEST_ASSERTION_PATTERN.test(contents) ||
       hasLiveAvaAssertion(contents) ||
       hasLiveFrameworkAssertion(masked());
-    // A file the run cannot execute is hollow however live its assertions read. It stays in the
-    // denominator, so disabling a suite can only lower the share, never shrink it to the files
-    // that still run.
-    const runWideDisabled =
+    // A file the run cannot execute as a test is hollow however live its assertions read: one a
+    // run-wide skip disables, and (v27) a conftest.py, which pytest never collects tests from. It
+    // stays where v17 rates it, so this can only lower the share, never shrink the denominator to
+    // the files that still run.
+    const cannotRunAsTest =
       runWideSkip !== undefined &&
-      (runWideSkip.disabledByRunWideSkip(file) || hasUnconditionalPytestModuleSkip(file, contents));
+      (PYTEST_CONFTEST_PATTERN.test(file) ||
+        runWideSkip.disabledByRunWideSkip(file) ||
+        hasUnconditionalPytestModuleSkip(file, contents));
     const nonHollow =
       asserting &&
       !SUITE_LEVEL_SKIP_PATTERN.test(contents) &&
       !frameworkSuiteSkipped &&
-      !runWideDisabled;
+      !cannotRunAsTest;
     if (nonHollow) {
       nonHollowCount += 1;
       ratedCount += 1;
@@ -6899,7 +7058,7 @@ function measureNonHollowTestShare(
       NAME_SHAPED_TEST_FILE_PATTERN.test(file) ||
       (useV17Detectors && NAME_SHAPED_TEST_FILE_PATTERN_V17.test(file)) ||
       (frameworkSuiteSkipped && SUITE_SKIP_NAME_SHAPED_TEST_FILE_PATTERN.test(file)) ||
-      (runWideDisabled && asserting)
+      (cannotRunAsTest && asserting)
     ) {
       ratedCount += 1;
     }
@@ -6951,6 +7110,10 @@ const PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN = /\badd_marker\s*\(\s*pytest\.mark\.s
 const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+[A-Za-z_]\w*[ \t]+in[ \t]+items[ \t]*:/;
 const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
   /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*\[\s*\]|del[ \t]+items\[\s*:\s*\])/;
+// Any statement that puts items back (`items.clear()` then `items.extend(ordered)` is how a hook
+// reorders the run): the list is not left empty, so the hook is not read as removing the suite.
+const PYTEST_HOOK_REFILL_ITEMS_PATTERN =
+  /^items(?:[ \t]*\.[ \t]*(?:extend|append|insert)[ \t]*\(|[ \t]*\+=|[ \t]*\[[^\]]*\][ \t]*=(?!=))/;
 
 interface PytestRunWideSkip {
   /** The conftest.py, repository-relative. */
@@ -6991,7 +7154,13 @@ function findPytestRunWideSkips(
         body.push(stripPythonLineComment(trimmed).trim());
       }
       if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
-      const kind = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement))
+      const clears = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement));
+      const refills = body.some(
+        (statement) =>
+          !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement) &&
+          PYTEST_HOOK_REFILL_ITEMS_PATTERN.test(statement),
+      );
+      const kind = clears && !refills
         ? ('clear' as const)
         : body.some((statement) => PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.test(statement)) &&
             body.some((statement) => PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN.test(statement))

@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "In a promotion argument, report how many defects each review found, not how many reviews ran. A rate that is not falling toward zero argues against promoting. On 2026-10-19 I wrote a ruling on cejel#526 recommending that witan-rubric-v27 become the default. As evidence it said v27 had survived two independent adversarial reviews and that the second found no rise. A day later a third review of the merged code found eight real defects. They include a path by which A1 could stop being scored under v27, letting the composite rise, and a 12 s stall on the default rubric. The three reviews reproduced 10, 8 and 8 defects. Fix: the ruling on #526 is corrected to cite those counts and makes another clean review a precondition for any default change.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "rubric", "reviewer-error", "self-certification"],
+    "tags": ["promotion", "adversarial-review", "defect-rate", "overclaim", "ruling"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-20T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 533}
+  }
+]

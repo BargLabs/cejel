@@ -22,6 +22,61 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-20 — third review of the v27 closure: eight corrections; no published score moved
+
+**Status.** A third adversarial review, of the merged #521, reported ten findings. Eight
+reproduced. The A4 note and citation corrections ship under every rubric and move no v17 score,
+status, metric, finding count or fingerprint. The A1 and `lockfile_coverage` corrections ship only
+under `witan-rubric-v27-prospective-2026-10-19`, which keeps its identifier: it is unreleased,
+opt-in, and its pinned fingerprint does not move. The default stays v17. **No holdout or
+calibration ran, and this entry makes no precision or recall claim.** Details and the fixture for
+each finding: `docs/reviews/v27-false-assurance-closure-2026-10-19.md`, "Third review".
+
+**Every rubric (presentation under v17).**
+- The CI lockfile-requirement note was missed where a step also ran tests (`npm ci` then
+  `npm test`), for `cargo test --locked`, and for any workflow saved with CRLF line endings. It now
+  fires there.
+- It was made where it is not true: a step or job with `continue-on-error`, a workflow that checks
+  out another repository or downloads an artifact, a working directory or `cd` target the checkout
+  does not hold, and a workflow that names the lockfile in a command. It is withheld there.
+- The workflow step reader was quadratic in the number of steps: a 480 KB workflow of 24,000 steps
+  took 12 s to scan under v17. It is linear (about 0.25 s); a timing guard kills the previous
+  implementation.
+- Under library norms, A4 no longer cites a secondary manifest ahead of the primary one when the
+  primary holds an unconstrained dependency itself.
+- The bounded prefix read used by the semantic source gate now counts a Git LFS pointer in
+  `contentReadSummary.byReason.lfsPointer`, as the full read does.
+
+**v27 only.**
+- A1 never credits a `conftest.py` as a live test, so a suite a hook skips credits 0. Where
+  `conftest.py` files are the only test-shaped files, A1 cites them as pytest configuration and
+  scores a test ratio of 0. Before, A1 could lose its only evidence and stop being scored, which
+  could raise the composite. This was not observed as a rise on any recorded set.
+- A pytest hook that empties `items` and refills it is read as a reorder, not as removing the
+  suite.
+- `lockfile_coverage` follows the note above in both directions.
+
+**Measured, main (`7db216363`) against this change.**
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Public board, 23 rows | 0 | 23 | 2 (metric only) | 0 violations |
+| False-assurance fixtures (52) | 0 | 43 (the 9 that differ are the new `review3-a4-*` notes and citations) | 11 (the new `review3-*` fixtures) | 0 violations |
+
+On the board under v27, flask and pydantic each had one `conftest.py` credited as a live test:
+`non_hollow_test_share` falls 28 to 27 and 213 to 212, and neither A1 score moves at the reported
+precision. No other v27 board row moves.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`: no corpus fixture has
+any of these shapes.
+
+**Not fixed.** Repeated reads of the same files within one scan (efficiency only), tracked as an
+issue.
+
 ## 2026-10-19 — false-assurance closure: presentation fixes under every rubric, prospective v27 for the scoring fixes (#517, #518, #519, #520, #442); no published score moved
 
 **Status.** Two parts. The presentation fixes ship under `witan-rubric-v17-2026-07-24` and every

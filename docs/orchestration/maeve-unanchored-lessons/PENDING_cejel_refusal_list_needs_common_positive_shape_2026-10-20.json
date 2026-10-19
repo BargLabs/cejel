@@ -1,0 +1,11 @@
+[
+  {
+    "statement": "When adding a refusal that stops false claims, add a positive fixture for the most common real shape too. A refusal list that is too wide switches the detector off without anyone noticing. Cejel's CI-lockfile detector, after the second review of #521, refused any step in which a word from CONDITIONAL_SHELL_WORDS appeared anywhere, and the list included `test`. So a step running `npm ci` and then `npm test`, and `cargo test --locked`, were never claimed (src/witan/repo-signals.ts, findLockfileRequirement at 7db216363). Every positive fixture had a single-command step, so nothing failed. A third review found it. Fix: read conditional words only in command position, and add positive fixtures with multi-command steps, cargo test --locked and CRLF line endings.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "rubric", "reviewer-error", "fixture-coverage"],
+    "tags": ["refusal-list", "detector", "positive-fixture", "silent-disable", "github-actions"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-20T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 533}
+  }
+]

@@ -562,7 +562,12 @@ export function readRepoTextPrefix(path: string, byteLimit: number): string {
     descriptor = openSync(path, 'r');
     const buffer = Buffer.allocUnsafe(byteLimit);
     const bytesRead = readSync(descriptor, buffer, 0, byteLimit, 0);
-    return buffer.subarray(0, bytesRead).toString('utf8');
+    const contents = buffer.subarray(0, bytesRead).toString('utf8');
+    // The same disclosure readRepoText makes (#519), when this read holds the whole file.
+    if (bytesRead < byteLimit && isGitLfsPointerText(contents)) {
+      recordSkip(path, 'lfs_pointer', undefined, activeSession?.lfsPointerAbstention === true, true);
+    }
+    return contents;
   } catch (error: unknown) {
     recordFilesystemSkip(path, error);
     return '';
