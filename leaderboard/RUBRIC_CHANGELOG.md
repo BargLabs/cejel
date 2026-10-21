@@ -202,6 +202,16 @@ critical finding stands. Every composite falls; none rises.
 
 Fixture-level movements are in `docs/reviews/v27-false-assurance-closure-2026-10-19.md`.
 
+### Correction — 2026-10-21: these board rows are depth-1 checkouts, not the board's method
+
+The board table near the top of this entry says "depth 1 as the board fetches them". The v17 to v27 table above
+was measured on the same depth-1 checkouts, as was the "Public board, 23 rows" row of the 2026-10-20
+entry above (#533). The board does not fetch them that way: it has been scored on
+full-history clones since the 0.6.3 regeneration (the 2026-10-11 entry below; #431, #452, #455). Both
+tables are left as measured. They compare two scanners on the same depth-1 inputs. They do not show what
+v27 would publish: on full-history clones, A2 and B2 do not abstain for shallow history. How v27
+compares with v17 there has not been measured. Found by a review pass on #542.
+
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
 **Status.** The second change `witan-rubric-v26-prospective-2026-10-14` makes of its own,
