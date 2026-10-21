@@ -13180,7 +13180,7 @@ export function placeholderSetAsideDisclosure(
   budget = Number.POSITIVE_INFINITY,
 ): string {
   const total = files.reduce((sum, file) => sum + file.count, 0);
-  const lead = `${WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX}${placeholderSetAsideValues(files)} as documentation placeholder${total === 1 ? '' : 's'} because ${total === 1 ? 'it contains' : 'they contain'} a placeholder marker such as "example", so ${total === 1 ? 'it was' : 'they were'} not counted against secret cleanliness and were not checked further`;
+  const lead = `${WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX}${placeholderSetAsideValues(files)} as ${total === 1 ? 'a documentation placeholder because it contains' : 'documentation placeholders because they contain'} a placeholder marker such as "example", so ${total === 1 ? 'it was' : 'they were'} not counted against secret cleanliness or checked further`;
   for (let shown = Math.min(files.length, PLACEHOLDER_SET_ASIDE_PATHS_SHOWN); shown > 0; shown -= 1) {
     const sentence = `${lead}: ${placeholderSetAsidePathList(files, shown)}.`;
     if (sentence.length <= budget) return sentence;
