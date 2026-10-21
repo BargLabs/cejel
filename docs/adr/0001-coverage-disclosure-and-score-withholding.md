@@ -196,3 +196,29 @@ attestation when an unrelated artifact changed — do not discover it late.
 4. [ ] Phase 3 — preregister the withholding threshold from the measured distribution; schedule the
        holdout re-run in the same plan, not after it.
 5. [ ] Separate ADR — measure what the size gate actually saves, and whether it should exist.
+
+---
+
+## Operator ruling (2026-10-22): a shallow-clone abstention is a read failure
+
+Recorded by an AI agent (Claude Opus 5.5, Claude Code) at the operator's instruction. This answers
+condition 6 of the 2026-10-21 ruling on #526 (`docs/reviews/v27-false-assurance-closure-2026-10-19.md`,
+accepted 2026-10-22). The text above is unchanged.
+
+**Ruling.** When `witan-rubric-v27-prospective-2026-10-19` abstains on A2 or B2 because the
+repository is a shallow clone (`shallowHistoryAbstention` in `src/witan/repo-signals.ts`), the
+abstention is a **read failure** under this ADR. It keeps the full denominator with a zero
+contribution, so a shallow clone can never score higher than the full clone. It is not a coverage
+discount.
+
+**Why, given the Context above.** The Context calls a read failure "rare and accidental", and a
+depth-1 checkout is neither: it is the `actions/checkout` default. The ruling still treats it as
+a read failure, for three reasons:
+- the history Cejel needs is absent from the checkout, not present and skipped;
+- the scanning user can remove the limit, and the certificate says how (`fetch-depth: 0`);
+- treating it as coverage would drop A2 and B2 from the denominator instead, which can raise a
+  composite.
+
+**What it does not change.** No code, rubric, policy text or default changes. v17 and v18-v26 do not
+abstain on a shallow clone; they disclose it as a history limitation, as before. The ruling covers
+only the v27 shallow-clone abstentions. Any other systematic limit needs its own ruling.

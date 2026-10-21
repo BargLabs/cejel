@@ -159,6 +159,10 @@ The npm package is scoped as `@cejel/cejel`; its executable remains the short co
 
 `actions/checkout` fetches one commit by default. On a shallow clone, A2 and B2 see only that
 commit, and the certificate says so under "History limitations".
+Under the prospective v27 rubric (`--rubric-pin witan-rubric-v27-prospective-2026-10-19`), a
+shallow clone goes further. A2 abstains unless a confirmed critical secret finding stands or A2
+does not apply, and B2 abstains when fewer than 12 commits are visible. Each abstention counts as
+0 in the composite, so a shallow checkout lowers the v27 score.
 
 For an executed public example that binds a release artifact to the same commit named by its
 Cejel certificate, see [Certified releases with GitHub build provenance](./docs/certified-release-example.md).
