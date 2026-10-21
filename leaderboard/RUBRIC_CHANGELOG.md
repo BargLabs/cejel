@@ -134,6 +134,11 @@ Restoring exactly the old B2 label recovers the previous pins byte for byte.
   (one 500 KB workflow: 0.37 s at main, 172 s). Three rounds of refusing shapes had each left one
   more, so the reader was rewritten as the allowlist above. The super-linear regex is gone, and the
   ReDoS guard gains quote-and-backslash families.
+- **Fifth round:** a top-level `env`/`defaults` placed after `jobs:` and another key slipped past (the
+  scan now reads every top-level key, and refuses a repeated `jobs:` or a document marker); a lone CR
+  or NEL, which YAML treats as a line break, hid a command and drove the readers' `.*` regexes
+  quadratic (such workflows are now not read, and the regexes use `[^]*`); and a line mixing `"` and
+  `'` could leave a quote open (one quote kind per line now).
 
 The review also moved the sentences out of `notes` into `criteria[].disclosures`, which fixes #539
 (a partial or wholesale abstention rewrote the notes and dropped them) and stops a not-applicable
@@ -151,7 +156,7 @@ count inside the detection pass (5), and naming monorepo-root workflows (1). The
 measured then were removed with the branch sentence. After the second and third reviews: removing the
 placed-step checks fails 15; after the fourth, the round-3 reader fails 6 of the allowlist's new pins
 (a quote left open into a `#` line, twice; a quoted `shell` key, twice; a checkout with inputs; a job
-with `services`); keeping B3's disclosure through its abstention fails 1, and the
+with `services`); after the fifth, the round-4 reader fails all 8 new pins; keeping B3's disclosure through its abstention fails 1, and the
 pre-rework source fails the reproduction, terminal, linear-time and literal-pattern pins (4). Dropping the attribution guard on the B2 and B3 re-reads fails
 nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
 redundant with existing behaviour. It is kept as the documented pattern for presentation-only

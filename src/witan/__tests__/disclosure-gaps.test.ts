@@ -409,6 +409,9 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
       ['a flow-mapping env', '      - run: echo ok\n        env: {BASH_ENV: ./t.sh}\n'],
       ['a checkout with inputs', '        with:\n          ref: other\n      - run: echo ok\n'],
       ['a backslash continuation', '      - run: |\n          echo a \\\n          && pnpm test\n'],
+      ['a lone CR in a block body', '      - run: |\n          echo hi\r          pnpm test\n'],
+      ['a NEL in a block body', '      - run: |\n          echo hi\u0085          pnpm test\n'],
+      ['mixed quotes leaving one open into a # line', '      - run: |\n          echo "\'"\'\n          #\'; pnpm test\n'],
     ])('claims nothing for %s', (_shape, steps) => {
       expect(isPrintOnlyWorkflow(workflow(steps))).toBe(false);
     });
@@ -422,9 +425,23 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     ['workflow defaults', 'defaults:\n  run:\n    shell: npm test -- {0}\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
     ['a workflow env', 'env:\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
     ['a second job that runs tests', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n'],
+    ['a workflow env after jobs and another key', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\npermissions:\n  contents: read\nenv:\n  BASH_ENV: ./t.sh\n'],
+    ['workflow defaults after jobs and another key', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\nconcurrency: x\ndefaults:\n  run:\n    shell: npm test -- {0}\n'],
+    ['a repeated jobs key', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\nname: x\njobs:\n  real:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n'],
+    ['a second YAML document', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n---\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n'],
   ])('claims nothing for %s at the job or workflow level', (_shape, jobs) => {
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\njobs:\n  e2e:\n    name: E2E\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`)).toBe(true);
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${jobs}`)).toBe(false);
+  });
+
+  it('reads lines that end in a lone line terminator in linear time', () => {
+    for (const ending of ['\r', '\u2028']) {
+      const contents = `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on:${' '.repeat(250_000)}${ending}x\n    steps:\n      - run: echo ok\n`;
+      const started = performance.now();
+      expect(isPrintOnlyWorkflow(contents)).toBe(false);
+      expect(githubWorkflowTriggers(`on:\n  - ${' '.repeat(250_000)}${ending}x\n`)).toBeNull();
+      expect(performance.now() - started).toBeLessThan(1_000);
+    }
   });
 
   it('reads a key followed by a long run of blanks in linear time', () => {

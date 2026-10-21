@@ -5439,8 +5439,12 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
 const WORKFLOW_ON_KEY_PATTERN = /^(?:on|"on"|'on'|true):(?:[ \t]|$)/;
 const WORKFLOW_TRIGGER_NAME_PATTERN = /^[a-z_]+$/;
 
+// YAML breaks a line at a lone CR, and YAML 1.1 parsers at NEL; the readers split on LF and CRLF
+// only, so a workflow holding either (or LS/PS, which `.` does not match) is not placed.
+const YAML_LINE_BREAK_NOT_SPLIT_PATTERN = /\r(?!\n)|[\u0085\u2028\u2029]/;
+
 function stripYamlComment(text: string): string {
-  return text.replace(/(?:^|[ \t])#.*$/, '');
+  return text.replace(/(?:^|[ \t])#[^]*$/, '');
 }
 
 function unquoteYamlScalar(text: string): string {
@@ -5467,6 +5471,7 @@ function yamlInlineList(text: string): string[] | null {
  * about the file's triggers. A trigger's own settings (filters, types, cron lines) are skipped.
  */
 export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | null {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return null;
   const lines = contents.split(/\r?\n/);
   const onIndex = lines.findIndex((line) => WORKFLOW_ON_KEY_PATTERN.test(line));
   if (onIndex === -1) return null;
@@ -5490,7 +5495,7 @@ export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | 
     for (let index = firstIndex; index < lines.length; index += 1) {
       const raw = lines[index] ?? '';
       if (!isContent(raw)) continue;
-      const item = /^-[ \t]+(.*)$/.exec(raw);
+      const item = /^-[ \t]+([^]*)$/.exec(raw);
       if (!item) break;
       const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
       if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
@@ -5514,7 +5519,7 @@ export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | 
       if (!inTrigger) return null;
       continue;
     }
-    const item = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
+    const item = /^[ \t]*-[ \t]+([^]*)$/.exec(raw);
     // A compact sequence under a trigger key (`schedule:` then `- cron: ...`) is that trigger's
     // value, not another trigger.
     if (item && mappingForm === true) continue;
@@ -5528,7 +5533,7 @@ export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | 
     }
     if (mappingForm === false) return null;
     mappingForm = true;
-    const key = /^[ \t]*([A-Za-z_]+):(.*)$/.exec(raw);
+    const key = /^[ \t]*([A-Za-z_]+):([^]*)$/.exec(raw);
     if (!key || !WORKFLOW_TRIGGER_NAME_PATTERN.test(key[1] ?? '')) return null;
     const rest = stripYamlComment(key[2] ?? '').trim();
     // `push: {}` or `push: null` is an unfiltered trigger; anything else inline is not placed.
@@ -5593,13 +5598,17 @@ const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
 const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
 const PRINT_ONLY_STEP_KEYS = new Set(['name', 'uses', 'run']);
 // Matched against trimmed text only; greedy, so a long run of spaces cannot backtrack.
-const UNQUOTED_KEY_PATTERN = /^([a-z][a-z-]*):(?:[ \t]+(.*))?$/;
+const UNQUOTED_KEY_PATTERN = /^([a-z][a-z-]*):(?:[ \t]+([^]*))?$/;
 const CHECKOUT_ACTION_PATTERN = /^actions\/checkout@[A-Za-z0-9._/-]+$/;
 
 /** One shell line that only prints: quotes balanced on the line, so none spans into the next. */
 function isPrintOnlyShellLine(text: string): boolean {
   const command = text.trim();
-  const balanced = (command.split('"').length - 1) % 2 === 0 && (command.split("'").length - 1) % 2 === 0;
+  // One quote kind per line, evenly counted: with no backslash allowed, that is a closed quote.
+  // Mixed kinds (`"'"'`) can leave one open, which a count cannot see.
+  const doubles = command.split('"').length - 1;
+  const singles = command.split("'").length - 1;
+  const balanced = (doubles === 0 || singles === 0) && doubles % 2 === 0 && singles % 2 === 0;
   return balanced && PRINT_ONLY_RUN_LINE_PATTERN.test(command);
 }
 
@@ -5621,18 +5630,20 @@ function isOneLineScalar(value: string): boolean {
  * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
  */
 export function isPrintOnlyWorkflow(contents: string): boolean {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return false;
   const lines = contents.split(/\r?\n/);
   const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  // Every top-level key, in any order: workflow-wide settings reach every step, a quoted or `?`
+  // key or a document marker is not placed, and a second `jobs:` may be the one a parser keeps.
   let jobsStart = -1;
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
     if (!isContent(raw) || lineIndent(raw) > 0) continue;
+    if (/^(?:env|defaults)[ \t]*:/.test(raw) || /^["'?]/.test(raw) || /^(?:---|\.\.\.)/.test(raw)) return false;
     if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+      if (jobsStart !== -1) return false;
       jobsStart = index;
-      break;
     }
-    // Workflow-wide settings that reach every step; a quoted top-level key is not placed.
-    if (/^(?:env|defaults)[ \t]*:/.test(raw) || /^["'?]/.test(raw)) return false;
   }
   if (jobsStart === -1) return false;
   let jobIndent = -1;
@@ -5665,11 +5676,8 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     }
     if (!isContent(raw)) continue;
     const text = stripYamlComment(raw).trimEnd();
-    if (indent === 0) {
-      // The next top-level key ends the jobs section; nothing after it can add a step.
-      if (/^(?:env|defaults)[ \t]*:/.test(text) || /^["'?]/.test(text)) return false;
-      break;
-    }
+    // The next top-level key ends the jobs section; the scan above has read every one.
+    if (indent === 0) break;
     if (jobIndent === -1) jobIndent = indent;
     if (indent < jobIndent) return false;
     if (indent === jobIndent) {
@@ -5701,7 +5709,7 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     let column = indent;
     if (isItem) {
       if (!closeStep()) return false;
-      const item = /^([ \t]*-[ \t]+)(.*)$/.exec(text);
+      const item = /^([ \t]*-[ \t]+)([^]*)$/.exec(text);
       keyText = item?.[2] ?? '';
       column = (item?.[1] ?? '').length;
       stepKeyColumn = column;
