@@ -279,6 +279,40 @@ where A3's findings or notes change.
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
 
+## 2026-10-15 — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
+
+*Entry added 2026-10-21 (#516). #502 shipped in 0.6.6 and was recorded only in `CHANGELOG.md`
+`[0.6.6]`. The facts below are all from that release's records.*
+
+**Status.** A security fix that is also a scoring change under every selectable rubric, with no
+identifier bump and with weights and thresholds unchanged. Merged as `3baf55aae`, shipped in 0.6.6.
+This entry makes no statement about calibration, precision or recall.
+
+**The change, every rubric.**
+- **A `pnpm run /<regex>/` selector in a package script is no longer compiled or run.** Before #502
+  (present since 0.4.7, #276), Cejel compiled the selector and ran it against the repository's own
+  script names, so a crafted pattern could backtrack for minutes. The selector is now treated as an
+  unresolved reference. That withholds both A1's coverage-command credit and the "no coverage
+  configuration" finding, and A1's notes say the reachability was unresolved. A repository whose
+  only route to its coverage script is a regex selector loses that credit. This is the scoring
+  change.
+- **Declared workspace globs (#479) are matched without a regex**, in time linear in the path, with a
+  cap of 256 characters and 32 segments. A longer pattern is treated like any pattern Cejel cannot
+  parse: an include pattern is skipped, and an exclusion pattern makes Cejel read only the root
+  `package.json`. Matching is otherwise unchanged, so this half moves nothing below the caps.
+
+**Fingerprint.** #502 changed no behaviour-fingerprint pin: the synthetic corpus has no regex
+selector. One recognition test changed its expectation:
+`coverage-command-recognition-v23.test.ts` ("withholds both credit and absence for a
+`pnpm run /regex/` test-family selector"), which had credited the coverage command before #502.
+
+**Public corpus: measured, no repository moved.** The preregistered 0.6.6 confirmation
+(`docs/experiments/public-delta-0-6-6-2026-10-15/`; preregistration `31909f02b`, a strict ancestor
+of the result, #505) scored the 23 public rows under v17 and v26 at v0.6.5 (`a8e582a0`) and at the
+fix commit (`82cba330`). All 23 reports were byte-identical under both rubrics. No public row has a
+selector that reaches the changed behaviour. The run tests where public scores would move. It does
+not test the fix itself, which #502's tests cover.
+
 ## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
 
 **Status.** A recognition fix that restores a true finding. It ships under
