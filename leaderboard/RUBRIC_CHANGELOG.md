@@ -22,6 +22,83 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-21 — A2, B2 and B3 say what they set aside or did not check (every rubric, presentation only); no published score moved
+
+**Status.** Presentation only, under `witan-rubric-v17-2026-07-24` and every selectable rubric. No
+score, status, metric value, finding count, abstention or fingerprint moves, and no rubric
+identifier changes. Found on a constructed demo repository scanned by 0.6.7 under v17. Two of its
+certificates asserted more than Cejel had checked: "Secret cleanliness: clean" beside a committed
+env file holding credential-shaped values Cejel had read and silently discarded, and
+"Pull-request CI workflow" on a workflow that only runs by hand. **No holdout or calibration ran, and
+this entry makes no precision or recall claim.** Changing which values or workflows count is
+scoring, left to a prospective rubric: #535 (B3 count), #536 (B3 lint and type-check categories),
+#537 (A2 surface and the placeholder rule).
+
+**Every rubric (presentation).**
+- A2: a value that is credential-shaped (`looksLikeSecretValue`) but that `isPlaceholderSecretValue`
+  sets aside is counted by file, using the same assignment grammar and the same file set as the
+  current-tree scan. The AWS documentation pair is an example: it contains "EXAMPLE". Count and
+  paths, never the value, appear on the secret-cleanliness metric line (`presentation.condition`),
+  as the last sentence of A2's notes (including a not-applicable reason) and under "What was not
+  established". Under v24 a value its classifier reports is never also described as set aside. A
+  scan that stopped at a confirmed secret names nothing, because it did not read the rest. The
+  placeholder rule itself is unchanged.
+- A2: the evidence label ".env files are gitignored" is replaced, when the scanned tree includes a
+  non-template env-format file (`.env`, `.env.<name>`, `<name>.env`), by one naming that file. A
+  `.gitignore` rule does not untrack a committed file. The pointer and the `env_handling_depth`
+  component it supports stay.
+- B2: each cited workflow is labelled by its own top-level `on:` triggers. One with a
+  `pull_request`, `pull_request_target` or `merge_group` trigger keeps "Pull-request CI workflow".
+  One without reads "CI workflow with no pull-request trigger (on: ...)". A non-GitHub CI file, or
+  a workflow whose triggers the reader cannot place, reads "CI workflow (trigger not read)". Which
+  files are cited and every count are unchanged. The re-read is attributed to no criterion
+  (`withoutContentReadAttribution`), so it cannot make B2 abstain.
+- B3: workflows that `default_branch_ci_depth` counted but that Cejel did not see run a check are
+  named on that metric line, in B3's notes and under "What was not established". There are two
+  shapes. One is a workflow whose every step only prints text, with no action other than
+  `actions/checkout`. The other is a workflow whose push and pull-request triggers name only
+  `master` (or only `main`) when the repository's default branch is the other one and no ref by the
+  named branch exists. The default branch is read from `origin/HEAD`, else from the checked-out
+  branch. A detached checkout with neither, as on a CI runner, claims nothing. The count is
+  unchanged.
+
+**Measured, main (`1d0d4388d`) against this change.** Every report was compared by scoring-surface
+projection (`projectWitanScoringSurface`) and by full `report.json` bytes.
+
+| Set | Rubrics | Reports | Scoring-surface moves | Byte differences |
+|---|---|---|---|---|
+| Behaviour corpus (30) | v17-v27 | 330 | 0 | 6 fixtures × 11 rubrics: B2 label on a workflow with no pull-request trigger; `workspace-package-scripts` also gains the B3 note (its CI runs only `echo ok`) |
+| False-assurance fixtures (52) | v17-v27 | 572 | 0 | 5 fixtures × 11 rubrics, B2 label |
+| Calibration anchors (5) | v17-v27 | 55 | 0 | not comparable: the fixtures are not hermetic, so head shas differ between runs |
+| New fixtures (15, `disclosure-gap-fixtures.ts`) | v17-v27 | 165 | 0 | 8 fixtures, the intended disclosures; every control and corner is byte-identical |
+| Public board, 23 public rows at their pinned commits, depth 1 | v17 | 23 | 0 | 16 rows, B2 labels only (for example react `compiler_prereleases.yml`, "on: workflow_call"; vue `close-cant-reproduce-issues.yml`, "on: schedule"; cejel `publish-distribution.yml`, "on: workflow_dispatch") |
+| The demo repository at its scanned commit | v17 | 1 | 0 | A2 set-aside and citation, B2 manual-dispatch label, B3 names the echo-only and master-only workflows; the base digest reproduced the digest recorded for 0.6.7 |
+
+No board row has a set-aside value or a committed env file beside a `.gitignore` rule, and no board
+row gets the B3 note: the board fetches detached, so no default branch is read. The private board
+row was not run. `src/witan/__tests__/disclosure-gaps.test.ts` pins each new fixture's scoring
+surface under every selectable rubric to main's value. Two `v17-scoring-surface-golden.test.ts`
+report hashes moved, because their CI is `on: [push]`. Restoring exactly the old B2 label
+recovers the previous pins byte for byte.
+
+**Found while measuring.** The first trigger reader did not read YAML compact sequences: a filter
+list at its key's indent (ripgrep `ci.yml`) and a trigger list at column 0 (cobra `labeler.yml`).
+It cited both as "trigger not read". Both are fixed and pinned by unit tests.
+
+**Mutations.** Dropping the credential-shape requirement fails one test; dropping the "no ref by
+that name" check fails five. Dropping the attribution guard on the B2 and B3 re-reads fails
+nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
+redundant with existing behaviour. It is kept as the documented pattern for presentation-only
+reads, and the LFS-pointer and unreadable-workflow fixtures pin the scoring surface either way.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
+
+**Not fixed.** The unnamed "excluded by extension" entry (#538). A partial abstention rewrites a
+criterion's notes and drops these sentences, though the metric-line form remains while the metric
+is scored (#539).
+
 ## 2026-10-20 — third review of the v27 closure: eight corrections; no published score moved
 
 **Status.** A third adversarial review, of the merged #521, reported ten findings. Eight

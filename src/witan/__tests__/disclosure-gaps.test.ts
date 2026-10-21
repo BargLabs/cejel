@@ -269,9 +269,9 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
 });
 
 describe('every disclosure is presentation only', () => {
-  // Captured from origin/main 1d0d4388d (before this change) with the same fixtures and options:
-  // sha256 of JSON.stringify(projectWitanScoringSurface(report)), per fixture and rubric. The
-  // capture script is described in the RUBRIC_CHANGELOG.md entry for this change.
+  // Captured by scoring these fixtures, with the options in report() above, using origin/main
+  // 1d0d4388d's scanner (before this change): sha256 of
+  // JSON.stringify(projectWitanScoringSurface(report)), per fixture and selectable rubric.
   it('leaves every scoring surface where origin/main left it, under every selectable rubric', async () => {
     const { createHash } = await import('node:crypto');
     const pins = SCORING_SURFACE_PINS;
