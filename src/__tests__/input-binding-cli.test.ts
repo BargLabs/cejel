@@ -96,7 +96,7 @@ describe('input binding through the CLI', () => {
       [sha256File(files.scorecard), sha256File(files.sarif)].sort(),
     );
     const attestation = JSON.parse(readFileSync(join(first, 'attestation.json'), 'utf8'));
-    expect(attestation.predicate.reportFormatVersion).toBe('1.7');
+    expect(attestation.predicate.reportFormatVersion).toBe('1.8');
   });
 
   it('verify --input accepts the recorded inputs and detects a swapped one', async () => {

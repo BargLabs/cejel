@@ -40,6 +40,9 @@ const families = [
   { name: 'repeated-a-dot-255', input: `${'a.'.repeat(127)}a` },
   { name: 'hyphens-255', input: '-'.repeat(255) },
   { name: 'path-separators-255', input: `${'a/'.repeat(127)}a` },
+  // A quote then a run of the character two adjacent classes share (review of #540: `"[^"]*\\[^"]*"`).
+  { name: 'quote-backslashes', input: `"${'\\'.repeat(20_000)}` },
+  { name: 'closed-quote-backslashes', input: `"${'\\a'.repeat(10_000)}"` },
 ];
 
 test('scan regex literals finish each adversarial family within 50 ms', () => {

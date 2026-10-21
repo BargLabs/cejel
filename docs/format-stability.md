@@ -9,7 +9,7 @@ never be converted into a default pass or fail.
 | Artifact | Version identifier | Consumer rule |
 | --- | --- | --- |
 | Generic ingest JSON | root `version`, currently `1.1` | Read major first; reject unknown majors. |
-| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.7` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
+| `report.json` | paired `attestation.json` field `predicate.reportFormatVersion`, currently `1.8` | Verify the digest binding, then route by report-format major. Legacy scan/v1 attestations without this additive field are report format 1.0. |
 | `attestation.json` | `_type` and `predicateType`; Cejel currently emits `https://in-toto.io/Statement/v1` and `https://cejel.dev/attestations/scan/v1` | Require exact supported identifiers. An unknown predicate major is unsupported. |
 | `issuance.json` | `predicate.issuanceFormatVersion`, currently `1.0` | Optional artifact. Verify the signature and the subject digests, then route by issuance-format major. Absent for every certificate that has no issuance, which is most of them. |
 | `certificate.html` | `<meta name="cejel-certificate-format" content="1.0">` | The meta value identifies the human format. Gates should consume the bound JSON pair, not scrape HTML. |
@@ -84,6 +84,16 @@ Stable in report format v1:
 - imported status moves: `criteria[].nativeStatus` (report format 1.7), set beside `nativeScore`
   whenever ingested signals adjusted a criterion. When it differs from `status`, imported evidence
   moved the status; consumers must not present that status as a native finding.
+- criterion disclosures: `criteria[].disclosures` (report format 1.8), up to four sentences, each
+  naming something the criterion's collector read and set aside, or counted without seeing it do
+  what it is counted for. A2 names credential-shaped values it set aside as documentation
+  placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
+  see run a check. The certificate lists them under "What was not established". They are kept
+  apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
+  move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
+  `report.json` of a scan with no disclosure is byte-identical to a 1.7 one (its paired
+  `attestation.json` records `1.8`). On an older report, A2 and B3 may
+  have set values aside or counted such workflows without saying so.
 
 Experimental within report format v1: metric presentation hints under
 `criteria[].metrics[].presentation`, optional multi-category `categoryScores`, and the exact ordering

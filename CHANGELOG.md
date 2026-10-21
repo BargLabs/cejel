@@ -18,6 +18,33 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A "clean" secrets result and the CI citations now say what Cejel set aside or did not check.**
+  Under every rubric, including the default:
+  - A2 names credential-shaped values it read and then set aside as documentation placeholders
+    (for example the AWS documentation key pair, which contains "EXAMPLE"), by count and path. The
+    names appear on the secret-cleanliness line and under "What was not established", including
+    when A2 is not applicable or abstains. No value is printed, and the placeholder rule itself is
+    unchanged.
+  - A2 no longer cites ".env files are gitignored" beside a committed env file. A `.gitignore` rule
+    does not untrack a committed file, so the citation names the file instead.
+  - B2 labels each cited workflow by its own trigger. A workflow with no pull-request trigger is no
+    longer called "Pull-request CI workflow", and a non-GitHub CI file is cited as "trigger not
+    read". Trigger names are dropped from the label as needed to keep it within the 180-character
+    evidence label limit.
+  - B3 names workflows its PR-gate count includes whose only steps print text, its own and a
+    monorepo root's. The count is unchanged. A workflow confined to a branch that does not exist is
+    not named: whether a branch exists is checkout state, not part of the scanned revision, and a
+    report must reproduce from the revision alone (#535 tracks counting it).
+  - These sentences are a new `criteria[].disclosures` field (report format 1.8), kept apart from
+    `notes`, so an abstention or a merge that rewrites the notes no longer drops them (#539). The
+    `report.json` of a scan with nothing to disclose is byte-identical to a 1.7 one; its
+    `attestation.json` records report format 1.8.
+  - Repository paths in "What was not established" and on metric lines are stripped of terminal
+    control characters before they are printed, as other repository text already was.
+
+  No score, status, metric value, finding count or fingerprint moves. Changing which values or
+  workflows count is left to a prospective rubric (#535, #536, #537).
+
 - **Certificates now say where they read less than they score (#519, #520).** Under every rubric,
   including the default: a file whose checkout holds a Git LFS pointer is counted in
   `contentReadSummary.byReason.lfsPointer` (report format 1.6) and labelled as a pointer in A1's

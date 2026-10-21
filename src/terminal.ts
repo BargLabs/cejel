@@ -106,7 +106,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       `Scope: ${relyingPartySummary.scope}`,
       `What was examined: ${stripTerminalControls(relyingPartySummary.examined)}`,
       `What was established: ${relyingPartySummary.established}`,
-      `What was not established: ${relyingPartySummary.notEstablished}`,
+      `What was not established: ${stripTerminalControls(relyingPartySummary.notEstablished)}`,
       `What to do next: ${relyingPartySummary.next}`,
       '',
     );
@@ -183,7 +183,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     lines.push('Measurements:');
     for (const measurement of measurements ?? []) {
       lines.push(
-        `  ${measurement.criterionId} — ${measurement.label}: ${measurement.value} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
+        `  ${measurement.criterionId} — ${measurement.label}: ${stripTerminalControls(measurement.value)} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
       );
     }
     lines.push('');

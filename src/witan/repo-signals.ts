@@ -45,7 +45,9 @@ import {
 } from './content-reads.js';
 
 import {
+  WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
@@ -282,6 +284,9 @@ function wholesaleCriterionAbstention(
     metrics: [],
     insufficientData: true as const,
     ...(insufficientDataReason !== undefined ? { insufficientDataReason } : {}),
+    // What the collector read and set aside is still true of the content it did read. B3's names
+    // workflows in a count this abstention removes, so it goes with the count.
+    ...withoutCountDisclosures(signal.disclosures),
     notes:
       insufficientDataReason !== undefined
         ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
@@ -289,6 +294,11 @@ function wholesaleCriterionAbstention(
           ? 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
           : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
+}
+
+function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
+  const kept = (disclosures ?? []).filter((text) => !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX));
+  return kept.length > 0 ? { disclosures: kept } : {};
 }
 
 /** Union of every skip reason recorded against a criterion, whether unattributed or signal-scoped. */
@@ -2552,10 +2562,11 @@ function collectA2IsolationEvidence(
   // of a finding that genuinely depends on file content (goal_cejel_v23_instrument_all_
   // criteria_2026-09-07) — an unreadable file here must abstain the committed-secret finding
   // and the secret_cleanliness metric, never silently report "clean" from a file it never saw.
-  const { committedSecret, ambiguousSecret, currentSecretFingerprintsByPath } =
+  const { committedSecret, ambiguousSecret, currentSecretFingerprintsByPath, placeholderSetAside } =
     withContentReadSignal('A2', 'secret_cleanliness', () => {
       let match_: { path: string; match: RealSecretAssignmentMatch } | undefined;
       let ambiguous_: { path: string; match: RealSecretAssignmentMatch } | undefined;
+      const setAsideFiles: PlaceholderSetAsideFile[] = [];
       for (const path of repoFiles) {
         // v24: the credential-specific path exemptions do not decide this scan. The shared
         // non-production/generated/vendor inventory rule (isAuthoredProductionPath) is unchanged
@@ -2576,6 +2587,7 @@ function collectA2IsolationEvidence(
         ) {
           continue;
         }
+        const setAside: PlaceholderSetAsideCount = { count: 0 };
         if (useV24SecretContentContext) {
           const classified = findV24ClassifiedSecretInFile(
             repoPath,
@@ -2583,7 +2595,9 @@ function collectA2IsolationEvidence(
             useV36Detectors,
             useV39Detectors,
             useV47Detectors,
+            setAside,
           );
+          if (setAside.count > 0) setAsideFiles.push({ path, count: setAside.count });
           if (!classified) continue;
           if (classified.classification === 'real') {
             match_ = { path, match: classified.match };
@@ -2599,7 +2613,9 @@ function collectA2IsolationEvidence(
           useV39Detectors,
           useV47Detectors,
           useV23PemPrivateKeyGrammar,
+          setAside,
         );
+        if (setAside.count > 0) setAsideFiles.push({ path, count: setAside.count });
         if (!found) continue;
         match_ = { path, match: found };
         break;
@@ -2631,6 +2647,9 @@ function collectA2IsolationEvidence(
         // unclassifiable value to withhold a metric a confirmed leak already decided.
         ambiguousSecret: match_ ? undefined : ambiguous_,
         currentSecretFingerprintsByPath: fingerprintsByPath,
+        // Only a scan that read every eligible file can say what it set aside; one that stopped at
+        // a confirmed secret did not, and the certificate already reports that secret.
+        placeholderSetAside: match_ ? [] : setAsideFiles,
       };
     });
   // Current-tree and ancestor-history evidence are independent propositions. A current secret
@@ -2712,10 +2731,13 @@ function collectA2IsolationEvidence(
     !hasConfirmedSecretFinding &&
     !cryptoHygiene.hasSurface
   ) {
-    return buildNotApplicableSignal(
-      'A2',
-      'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
-    );
+    return {
+      ...buildNotApplicableSignal(
+        'A2',
+        'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
+      ),
+      ...placeholderSetAsideDisclosures(placeholderSetAside),
+    };
   }
 
   // Push at least one evidence anchor so evidenceCount > 0 after the full evidence-collection
@@ -2833,7 +2855,12 @@ function collectA2IsolationEvidence(
   if (gitignoreEnvFile) {
     withContentReadSignal('A2', 'env_handling_depth', () =>
       evidence.push(
-        evidenceForRelative(repoPath, gitignoreEnvFile, 'secret_scan', '.env files are gitignored'),
+        evidenceForRelative(
+          repoPath,
+          gitignoreEnvFile,
+          'secret_scan',
+          gitignoreEnvRuleLabel(repoFiles.filter(isCommittedEnvFormatPath)),
+        ),
       ),
     );
   }
@@ -3081,6 +3108,10 @@ function collectA2IsolationEvidence(
             isMultiTenant ? 0.25 : 0.7,
             'clean',
             'Credits absence of committed or recent-history secret findings in the static scan.',
+            undefined,
+            secretCleanliness === 1 && placeholderSetAside.length > 0
+              ? { condition: placeholderSetAsideCondition(placeholderSetAside) }
+              : undefined,
           ),
         ]),
     metric(
@@ -3175,7 +3206,40 @@ function collectA2IsolationEvidence(
         : []),
       ...(tenantIsolationUnsettled ? [WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE] : []),
     ].join(' '),
+    ...placeholderSetAsideDisclosures(placeholderSetAside),
   };
+}
+
+// A committed file in env format that is not a template: `.env`, `.env.<name>` or `<name>.env`.
+// The template rule is the widest one any rubric uses, so a template is never called a committed
+// env file. Presentation only (the gitignore citation below); A2's surface and metrics are
+// unchanged.
+function isCommittedEnvFormatPath(path: string): boolean {
+  const name = basename(path);
+  // Neither test covers the other: isEnvTemplatePath also knows `.dist` and the v47 translated
+  // suffixes but only as the final suffix of a `.env` name; the word test also catches
+  // `example.env` and `.env.example.local`, which isEnvTemplatePath does not.
+  return (
+    /^\.env(?:\..+)?$|.\.env$/i.test(name) &&
+    !isEnvTemplatePath(path, true) &&
+    !/(?:example|sample|template)/i.test(name)
+  );
+}
+
+// A .gitignore rule does not untrack a committed file, so ".env files are gitignored" is not cited
+// beside an env file the scanned tree still holds; the citation names that file instead. "Scanned
+// tree", not "committed": a scan without git walks the directory. Only the label changes: the
+// evidence pointer and the env_handling_depth component it supports stay.
+function gitignoreEnvRuleLabel(committedEnvFiles: readonly string[]): string {
+  const count = committedEnvFiles.length;
+  if (count === 0) return '.env files are gitignored';
+  const lead = `.gitignore has an .env rule, but the scanned tree includes ${count} env file${count === 1 ? '' : 's'}`;
+  for (let shown = Math.min(count, 2); shown > 0; shown -= 1) {
+    const more = count - shown;
+    const label = `${lead}: ${committedEnvFiles.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}`;
+    if (label.length <= EVIDENCE_LABEL_MAX_LENGTH) return label;
+  }
+  return lead;
 }
 
 interface CryptoHygieneSignal {
@@ -5176,15 +5240,21 @@ function collectB2PrTraceEvidence(
     (file) => /branch.*protection|review.*gate/i.test(file) || GITHUB_CODEOWNERS_PATH_PATTERN.test(file),
   );
   const citedWorkflows = workflows.slice(0, 3);
-  const workflowLabel = ciWorkflowCitationLabel(
-    'Pull-request CI workflow',
-    'counted',
-    workflows.length,
-    citedWorkflows.length,
-    unreadCiWorkflowReasons(() => true),
-  );
+  const unreadWorkflows = unreadCiWorkflowReasons(() => true);
+  const workflowLabel = (file: string) =>
+    fittedCiWorkflowCitationLabel(b2WorkflowCitationBaseLabels(repoPath, file), (baseLabel) =>
+      ciWorkflowCitationLabel(
+        baseLabel,
+        'counted',
+        workflows.length,
+        citedWorkflows.length,
+        unreadWorkflows,
+      ),
+    );
   const evidence = [
-    ...citedWorkflows.map((file) => evidenceForRelative(repoPath, file, 'ci_run', workflowLabel)),
+    ...citedWorkflows.map((file) =>
+      evidenceForRelative(repoPath, file, 'ci_run', workflowLabel(file)),
+    ),
     ...(prTemplate
       ? [evidenceForRelative(repoPath, prTemplate, 'pull_request', 'Pull request template')]
       : []),
@@ -5274,15 +5344,36 @@ function collectB3CiDisciplineEvidence(
   // counts it: making it run on every push raised B3.
   const countsAsCi = (root: string) => (file: string) =>
     !useV27FalseAssuranceClosure || !isPublishOnlyWorkflow(root, file);
-  const defaultBranchCiCount = withContentReadSignal('B3', 'default_branch_ci_depth', () =>
-    workflows
-      .filter(countsAsCi(repoPath))
-      .filter((file) => workflowTargetsDefaultBranch(repoPath, file)).length +
-      (mono
+  const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
+    'B3',
+    'default_branch_ci_depth',
+    () => {
+      const counted = workflows
+        .filter(countsAsCi(repoPath))
+        .filter((file) => workflowTargetsDefaultBranch(repoPath, file));
+      const rootCounted = mono
         ? rootWorkflows
             .filter(countsAsCi(mono.root))
-            .filter((file) => workflowTargetsDefaultBranch(mono.root, file)).length
-        : 0),
+            .filter((file) => workflowTargetsDefaultBranch(mono.root, file))
+        : [];
+      return {
+        defaultBranchCiCount: counted.length + rootCounted.length,
+        defaultBranchCiWorkflows: counted,
+        rootDefaultBranchCiWorkflows: rootCounted,
+      };
+    },
+  );
+  // Presentation only: the counted workflows Cejel did not see run a check, the repository's own
+  // and a monorepo root's (named as such, since their paths are relative to that root).
+  const unshownCheckWorkflows = mergeB3UnshownCheckWorkflows(
+    findB3UnshownCheckWorkflows(repoPath, defaultBranchCiWorkflows),
+    mono
+      ? findB3UnshownCheckWorkflows(
+          mono.root,
+          rootDefaultBranchCiWorkflows,
+          (file) => `${file} at the monorepo root`,
+        )
+      : { printOnly: [] },
   );
   const publishOnlyWorkflows = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
@@ -5452,14 +5543,23 @@ function collectB3CiDisciplineEvidence(
         'workflows',
         'Counts CI workflows that target pull requests or the default branch, up to 4.',
         'saturating_count',
+        b3UnshownCheckCount(unshownCheckWorkflows) > 0
+          ? { condition: b3UnshownCheckCondition(unshownCheckWorkflows) }
+          : undefined,
       ),
     ],
-    ...(publishOnlyWorkflows.length > 0
-      ? {
-          notes: `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger and no verification command Cejel recognises) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
-        }
-      : {}),
+    ...(publishOnlyWorkflows.length > 0 ? { notes: b3PublishOnlyNote(publishOnlyWorkflows) } : {}),
+    ...b3UnshownCheckDisclosures(unshownCheckWorkflows),
   };
+}
+
+function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosures?: string[] } {
+  const sentence = b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH);
+  return sentence ? { disclosures: [sentence] } : {};
+}
+
+function b3PublishOnlyNote(publishOnlyWorkflows: readonly string[]): string {
+  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger and no verification command Cejel recognises) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
@@ -5473,7 +5573,10 @@ const PUBLISH_OR_DEPLOY_STEP_PATTERN =
 const PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN =
   /\b(?:tox|nox|pre-commit|bazel[ \t]+test|gradlew?[ \t]+(?:test|check|build)|mvnw?[ \t]+(?:verify|test|package)|make[ \t]+(?:check|test)|just[ \t]+test|cargo[ \t]+(?:clippy|check|nextest)|turbo[ \t]+(?:run[ \t]+)?test)\b|[ \t]-r[ \t]+test\b|\brun[ \t]+test\b/i;
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
-const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
+// One list feeds both v27's publish-only test (a word match) and B2's trigger label (a parsed key).
+// A literal, so the ReDoS guard reads it; disclosure-gaps.test.ts pins it to PULL_REQUEST_TRIGGERS.
+export const PULL_REQUEST_TRIGGERS = ['pull_request', 'pull_request_target', 'merge_group'] as const;
+export const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
 // A job that calls a reusable workflow runs steps this file does not show.
 const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
 
@@ -5497,6 +5600,396 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
     !CI_TYPECHECK_COMMAND_PATTERN.test(contents) &&
     !PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents)
   );
+}
+
+// ---- B2 and B3 workflow disclosures, every rubric (presentation only) ------------------------
+// B2 cited every CI file as "Pull-request CI workflow" without reading its trigger, and B3's
+// PR-gate count credits a workflow on a `pull_request` token without checking that it runs a
+// check. Whether a `main`/`master` filter names a branch that exists is not disclosed: branch
+// state lies outside the scanned revision, and the report must reproduce from the revision alone. Which workflows count is a
+// scoring question, left to a prospective rubric. What changes here is what the certificate says
+// about the workflows it counted: B2 labels each cited file by its own trigger, and B3 names
+// counted workflows Cejel did not see run a check. Nothing here feeds a metric or a finding.
+
+const WORKFLOW_ON_KEY_PATTERN = /^(?:on|"on"|'on'|true):(?:[ \t]|$)/;
+const WORKFLOW_TRIGGER_NAME_PATTERN = /^[a-z_]+$/;
+
+// YAML breaks a line at a lone CR, and YAML 1.1 parsers at NEL; the readers split on LF and CRLF
+// only, so a workflow holding either (or LS/PS, which `.` does not match) is not placed.
+const YAML_LINE_BREAK_NOT_SPLIT_PATTERN = /\r(?!\n)|[\u0085\u2028\u2029]/;
+
+function stripYamlComment(text: string): string {
+  return text.replace(/(?:^|[ \t])#[^]*$/, '');
+}
+
+function unquoteYamlScalar(text: string): string {
+  return text.trim().replace(/^(['"])(.*)\1$/, '$2');
+}
+
+/** `[a, b]`, a bare scalar, or nothing; null for anything else (a flow mapping, an anchor). */
+function yamlInlineList(text: string): string[] | null {
+  const value = stripYamlComment(text).trim();
+  if (value === '') return [];
+  const flow = /^\[(.*)\]$/.exec(value);
+  if (flow) {
+    return (flow[1] ?? '')
+      .split(',')
+      .map(unquoteYamlScalar)
+      .filter((item) => item !== '');
+  }
+  return /^[{&*|>]/.test(value) ? null : [unquoteYamlScalar(value)];
+}
+
+/**
+ * The top-level `on:` trigger names of a GitHub Actions workflow, read by indentation. Null when
+ * there is no `on:` key or the reader cannot place what it holds; every caller then claims nothing
+ * about the file's triggers. A trigger's own settings (filters, types, cron lines) are skipped.
+ */
+export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | null {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return null;
+  const lines = contents.split(/\r?\n/);
+  const onIndex = lines.findIndex((line) => WORKFLOW_ON_KEY_PATTERN.test(line));
+  if (onIndex === -1) return null;
+  const onLine = lines[onIndex] ?? '';
+  const inline = yamlInlineList(onLine.slice(onLine.indexOf(':') + 1));
+  if (inline === null) return null;
+  const triggers = new Set<string>();
+  if (inline.length > 0) {
+    for (const name of inline) {
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
+    }
+    return triggers;
+  }
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  // YAML allows a block sequence at its parent key's own indent ("compact" form), so a list of
+  // trigger names may sit at column 0 under `on:`, and a trigger's own list may sit at that key's
+  // indent.
+  const firstIndex = lines.findIndex((line, index) => index > onIndex && isContent(line));
+  if (firstIndex !== -1 && /^-[ \t]/.test(lines[firstIndex] ?? '')) {
+    for (let index = firstIndex; index < lines.length; index += 1) {
+      const raw = lines[index] ?? '';
+      if (!isContent(raw)) continue;
+      const item = /^-[ \t]+([^]*)$/.exec(raw);
+      if (!item) break;
+      const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
+    }
+    return triggers.size > 0 ? triggers : null;
+  }
+  let triggerIndent = -1;
+  // True once a `name:` key is read at the trigger indent, false once a `- name` item is.
+  let mappingForm: boolean | null = null;
+  let inTrigger = false;
+  for (let index = onIndex + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw)) continue;
+    const indent = lineIndent(raw);
+    if (indent === 0) break;
+    if (triggerIndent === -1) triggerIndent = indent;
+    if (indent < triggerIndent) return null;
+    if (indent > triggerIndent) {
+      // A trigger's own settings; a deeper line under a `- name` item is not placed.
+      if (!inTrigger) return null;
+      continue;
+    }
+    const item = /^[ \t]*-[ \t]+([^]*)$/.exec(raw);
+    // A compact sequence under a trigger key (`schedule:` then `- cron: ...`) is that trigger's
+    // value, not another trigger.
+    if (item && mappingForm === true) continue;
+    if (item) {
+      mappingForm = false;
+      inTrigger = false;
+      const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
+      continue;
+    }
+    if (mappingForm === false) return null;
+    mappingForm = true;
+    const key = /^[ \t]*([A-Za-z_]+):([^]*)$/.exec(raw);
+    if (!key || !WORKFLOW_TRIGGER_NAME_PATTERN.test(key[1] ?? '')) return null;
+    const rest = stripYamlComment(key[2] ?? '').trim();
+    // `push: {}` or `push: null` is an unfiltered trigger; anything else inline is not placed.
+    if (rest !== '' && rest !== '{}' && rest !== 'null' && rest !== '~') return null;
+    triggers.add(key[1] ?? '');
+    inTrigger = true;
+  }
+  return triggers.size > 0 ? triggers : null;
+}
+
+const PULL_REQUEST_TRIGGER_NAMES: ReadonlySet<string> = new Set(PULL_REQUEST_TRIGGERS);
+const PULL_REQUEST_CI_WORKFLOW_LABEL = 'Pull-request CI workflow';
+
+const WORKFLOW_WITHOUT_PULL_REQUEST_TRIGGER_LABEL = 'CI workflow with no pull-request trigger';
+const WORKFLOW_TRIGGER_NOT_READ_LABEL = 'CI workflow (trigger not read)';
+
+/**
+ * B2's citation labels for one CI file, from its own trigger, most specific first; B2 cites the
+ * first that fits the evidence label limit with its count suffix. A GitHub Actions workflow with a
+ * pull-request or merge-queue trigger keeps the label B2 always used; one without says so and
+ * names up to three of its triggers, then fewer, then none; any other CI file, or a workflow whose
+ * triggers Cejel could not read, is cited without a pull-request claim.
+ */
+function b2WorkflowCitationBaseLabels(repoPath: string, file: string): readonly string[] {
+  if (!/^\.github\/workflows\//.test(file)) return [WORKFLOW_TRIGGER_NOT_READ_LABEL];
+  const fullPath = join(repoPath, file);
+  // B3's two depth signals read every CI workflow; this presentation-only re-read is attributed to
+  // nothing, so it cannot make B2 abstain under any rubric.
+  const triggers = isRegularFile(fullPath)
+    ? githubWorkflowTriggers(withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8')))
+    : null;
+  if (!triggers) return [WORKFLOW_TRIGGER_NOT_READ_LABEL];
+  const names = [...triggers.keys()];
+  if (names.some((name) => PULL_REQUEST_TRIGGER_NAMES.has(name))) {
+    return [PULL_REQUEST_CI_WORKFLOW_LABEL];
+  }
+  const named = [3, 2, 1]
+    .filter((shown) => shown <= names.length)
+    .map(
+      (shown) =>
+        `${WORKFLOW_WITHOUT_PULL_REQUEST_TRIGGER_LABEL} (on: ${names.slice(0, shown).join(', ')}${names.length > shown ? ', ...' : ''})`,
+    );
+  return [...named, WORKFLOW_WITHOUT_PULL_REQUEST_TRIGGER_LABEL];
+}
+
+/** The first candidate whose full label fits; the last candidate is short enough to always fit. */
+function fittedCiWorkflowCitationLabel(
+  candidates: readonly string[],
+  label: (baseLabel: string) => string,
+): string {
+  for (const candidate of candidates) {
+    const full = label(candidate);
+    if (full.length <= EVIDENCE_LABEL_MAX_LENGTH) return full;
+  }
+  return label(candidates[candidates.length - 1] ?? WORKFLOW_TRIGGER_NOT_READ_LABEL);
+}
+
+// A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
+// substitution, a redirect) or any other command is not claimed.
+const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>\\]*)?|true|:|exit[ \t]+0)$/;
+const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
+const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
+// The top-level keys a print-only workflow may hold, written plain at column 0. `env` and
+// `defaults` reach every step; anything else (an anchor, a tag, a merge or alias key, another
+// spelling) is not placed.
+const PRINT_ONLY_TOP_LEVEL_KEY_PATTERN = /^(?:name|run-name|on|true|permissions|concurrency|jobs)[ \t]*:/;
+// A line that starts, after spaces and tabs, with any other blank (a byte-order mark, NBSP):
+// `trimStart` would count it as indent where YAML reads it as text.
+const OTHER_LEADING_BLANK_PATTERN = /^[ \t]*[\v\f\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]/m;
+const PRINT_ONLY_STEP_KEYS = new Set(['name', 'uses', 'run']);
+// Matched against trimmed text only; greedy, so a long run of spaces cannot backtrack.
+const UNQUOTED_KEY_PATTERN = /^([a-z][a-z-]*):(?:[ \t]+([^]*))?$/;
+const CHECKOUT_ACTION_PATTERN = /^actions\/checkout@[A-Za-z0-9._/-]+$/;
+
+/** One shell line that only prints: quotes balanced on the line, so none spans into the next. */
+function isPrintOnlyShellLine(text: string): boolean {
+  const command = text.trim();
+  // One quote kind per line, evenly counted: with no backslash allowed, that is a closed quote.
+  // Mixed kinds (`"'"'`) can leave one open, which a count cannot see.
+  const doubles = command.split('"').length - 1;
+  const singles = command.split("'").length - 1;
+  const balanced = (doubles === 0 || singles === 0) && doubles % 2 === 0 && singles % 2 === 0;
+  return balanced && PRINT_ONLY_RUN_LINE_PATTERN.test(command);
+}
+
+/** A one-line scalar: plain, or quoted and closed on the same line. */
+function isOneLineScalar(value: string): boolean {
+  const quote = value[0];
+  if (quote !== '"' && quote !== "'") return true;
+  return value.length > 1 && value.endsWith(quote);
+}
+
+/**
+ * True for a GitHub Actions workflow whose every step only prints text. This is a claim about
+ * every step, so it is made only when every line of the `jobs:` section fits a small grammar the
+ * reader fully places, and nothing else is in it: each job holds only `runs-on`, `name`,
+ * `timeout-minutes` and `steps`; each step holds only `name` and either
+ * `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a `|`/`>` block,
+ * matches PRINT_ONLY_RUN_LINE_PATTERN with its quotes balanced on the line. Any other key (`env`,
+ * `shell`, `services`, `with`, `if`, a quoted or capitalised key, a top-level `env` or
+ * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
+ */
+export function isPrintOnlyWorkflow(contents: string): boolean {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return false;
+  const lines = contents.split(/\r?\n/);
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  // Every top-level key, in any order, must be one the allowlist names, written plain; a second
+  // `jobs:` may be the one a parser keeps.
+  let jobsStart = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
+    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return false;
+    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+      if (jobsStart !== -1) return false;
+      jobsStart = index;
+    }
+  }
+  if (jobsStart === -1) return false;
+  let jobIndent = -1;
+  let keyIndent = -1;
+  let inSteps = false;
+  let stepKeyColumn = -1;
+  let step: { run?: boolean; uses?: boolean } | null = null;
+  let body: { column: number; block: boolean } | null = null;
+  let runSteps = 0;
+  const closeStep = () => {
+    if (step && step.run && step.uses) return false;
+    if (step?.run) runSteps += 1;
+    step = null;
+    return true;
+  };
+  for (let index = jobsStart + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (raw.trim() === '') continue;
+    const indent = lineIndent(raw);
+    if (body) {
+      if (indent > body.column) {
+        // A block body is shell text: a line is a comment only when it starts with `#`, and the
+        // balanced-quote rule means no quote is open from an earlier line.
+        if (!body.block) return false;
+        const text = raw.trim();
+        if (!text.startsWith('#') && !isPrintOnlyShellLine(text)) return false;
+        continue;
+      }
+      body = null;
+    }
+    if (!isContent(raw)) continue;
+    const text = stripYamlComment(raw).trimEnd();
+    // The next top-level key ends the jobs section; the scan above has read every one.
+    if (indent === 0) break;
+    if (jobIndent === -1) jobIndent = indent;
+    if (indent < jobIndent) return false;
+    if (indent === jobIndent) {
+      if (!closeStep()) return false;
+      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return false;
+      keyIndent = -1;
+      inSteps = false;
+      continue;
+    }
+    if (keyIndent === -1) keyIndent = indent;
+    const isItem = /^[ \t]*-[ \t]+/.test(text);
+    if (indent < keyIndent) return false;
+    if (indent === keyIndent && !(inSteps && isItem)) {
+      if (!closeStep()) return false;
+      inSteps = false;
+      const key = UNQUOTED_KEY_PATTERN.exec(text.trim());
+      if (!key || !PRINT_ONLY_JOB_KEYS.has(key[1] ?? '')) return false;
+      const value = key[2] ?? '';
+      if (key[1] === 'steps') {
+        if (value !== '') return false;
+        inSteps = true;
+        continue;
+      }
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+      continue;
+    }
+    if (!inSteps) return false;
+    let keyText = text;
+    let column = indent;
+    if (isItem) {
+      if (!closeStep()) return false;
+      const item = /^([ \t]*-[ \t]+)([^]*)$/.exec(text);
+      keyText = item?.[2] ?? '';
+      column = (item?.[1] ?? '').length;
+      stepKeyColumn = column;
+      step = {};
+    } else if (indent !== stepKeyColumn || !step) {
+      return false;
+    }
+    const key = UNQUOTED_KEY_PATTERN.exec(keyText.trim());
+    if (!key || !PRINT_ONLY_STEP_KEYS.has(key[1] ?? '')) return false;
+    const value = key[2] ?? '';
+    const current: { run?: boolean; uses?: boolean } = step ?? {};
+    if (key[1] === 'name') {
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+    } else if (key[1] === 'uses') {
+      if (current.uses || !CHECKOUT_ACTION_PATTERN.test(value)) return false;
+      current.uses = true;
+    } else {
+      if (current.run) return false;
+      current.run = true;
+      if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+        body = { column, block: true };
+      } else {
+        if (value === '' || !isPrintOnlyShellLine(value) || /^["']/.test(value)) return false;
+        // A plain value continued on a deeper line is not placed.
+        body = { column, block: false };
+      }
+    }
+  }
+  if (!closeStep()) return false;
+  return runSteps > 0;
+}
+
+export interface B3UnshownCheckWorkflows {
+  readonly printOnly: readonly string[];
+}
+
+/**
+ * B3: of the workflows default_branch_ci_depth counted, those Cejel did not see run a check. Reads
+ * only files that count already read.
+ */
+function findB3UnshownCheckWorkflows(
+  root: string,
+  counted: readonly string[],
+  describePath: (file: string) => string = (file) => file,
+): B3UnshownCheckWorkflows {
+  const printOnly: string[] = [];
+  for (const file of counted.filter((path) => /^\.github\/workflows\//.test(path))) {
+    const fullPath = join(root, file);
+    if (!isRegularFile(fullPath)) continue;
+    const contents = withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8'));
+    if (isPrintOnlyWorkflow(contents)) printOnly.push(describePath(file));
+  }
+  return { printOnly };
+}
+
+function mergeB3UnshownCheckWorkflows(
+  own: B3UnshownCheckWorkflows,
+  root: B3UnshownCheckWorkflows,
+): B3UnshownCheckWorkflows {
+  return { printOnly: [...own.printOnly, ...root.printOnly] };
+}
+
+function b3UnshownCheckCount(unshown: B3UnshownCheckWorkflows): number {
+  return new Set(unshown.printOnly).size;
+}
+
+/**
+ * B3's disclosure, starting with WITAN_B3_UNSHOWN_CHECK_PREFIX; the certificate lists it under
+ * "What was not established". `budget` is the schema's room for one disclosure.
+ */
+export function b3UnshownCheckDisclosure(
+  unshown: B3UnshownCheckWorkflows,
+  budget = Number.POSITIVE_INFINITY,
+): string {
+  const count = b3UnshownCheckCount(unshown);
+  if (count === 0) return '';
+  const tail = ` The PR-gate CI workflow count still includes ${count === 1 ? 'it' : 'them'}.`;
+  const parts = (shown: number) => [
+    `${unshown.printOnly.slice(0, shown).join(', ')}${unshown.printOnly.length > shown ? ` and ${unshown.printOnly.length - shown} more` : ''} only print${unshown.printOnly.length === 1 ? 's' : ''} text`,
+  ];
+  for (let shown = 3; shown > 0; shown -= 1) {
+    const sentence = `${WITAN_B3_UNSHOWN_CHECK_PREFIX}${parts(shown).join('; ')}.${tail}`;
+    if (sentence.length <= budget) return sentence;
+  }
+  const countOnly = `${WITAN_B3_UNSHOWN_CHECK_PREFIX}${count} workflow${count === 1 ? '' : 's'}.${tail}`;
+  return countOnly.length <= budget ? countOnly : '';
+}
+
+/** The same fact for the default_branch_ci_depth metric line (schema maximum 240). */
+function b3UnshownCheckCondition(unshown: B3UnshownCheckWorkflows): string {
+  const count = b3UnshownCheckCount(unshown);
+  const files = unshown.printOnly.map((path) => `${basename(path)} only prints text`);
+  const lead = `includes ${count} not shown to run a check`;
+  for (let shown = Math.min(files.length, 3); shown > 0; shown -= 1) {
+    const condition = `${lead}: ${files.slice(0, shown).join('; ')}${files.length > shown ? '; ...' : ''}`;
+    if (condition.length <= METRIC_CONDITION_MAX_LENGTH) return condition;
+  }
+  return lead;
 }
 
 export function auditFreshnessCommitterYearFromGitResult(
@@ -11923,6 +12416,7 @@ function findCommittedSecretInFile(
   useV39Detectors = false,
   useV47Detectors = false,
   useV23PemPrivateKeyGrammar = false,
+  setAside?: PlaceholderSetAsideCount,
 ): RealSecretAssignmentMatch | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
@@ -11936,8 +12430,17 @@ function findCommittedSecretInFile(
     useV39Detectors,
     useV47Detectors,
   );
+  // The count rides on the detection pass. That pass stops only at a match, and a match ends the
+  // A2 scan, which then reports no set-aside values; otherwise it has seen every value.
   const secret = findRealSecretAssignment(secretScanContents, new Set(), {
     allowCredentialNamedDigest: useV36Detectors,
+    ...(setAside
+      ? {
+          observeValue: (value: string, outcome: V24ClassificationOutcome) => {
+            if (isPlaceholderSetAsideSecret(value, outcome)) setAside.count += 1;
+          },
+        }
+      : {}),
   });
   if (secret) return secret;
   if (useV23PemPrivateKeyGrammar) {
@@ -11970,6 +12473,7 @@ function findV24ClassifiedSecretInFile(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors: boolean,
+  setAside?: PlaceholderSetAsideCount,
 ): V24ClassifiedCommittedSecret | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
@@ -11991,7 +12495,7 @@ function findV24ClassifiedSecretInFile(
   // evidence this mechanism exists to read.
   const rawLines = contents.split(/\r?\n/);
   const classifyFor =
-    (wanted: Exclude<V24SecretClassification, 'no_finding'>) =>
+    (wanted: Exclude<V24SecretClassification, 'no_finding'>, countSetAside = false) =>
     (value: string, identifier: string, line: number): V24ClassificationOutcome => {
       const outcome = classifyV24SecretShapedValue(
         value,
@@ -12000,6 +12504,12 @@ function findV24ClassifiedSecretInFile(
         rawLines,
         useV36Detectors,
       );
+      // Counted on the first pass only, from the classifier's own verdict: a value v24 reports as
+      // real or ambiguous is never also described as set aside. That pass sees every value unless
+      // it stops at a real one, which ends the A2 scan with no set-aside values reported.
+      if (countSetAside && setAside && isPlaceholderSetAsideSecret(value, outcome)) {
+        setAside.count += 1;
+      }
       return outcome.classification === wanted ? outcome : V24_NO_FINDING;
     };
 
@@ -12009,7 +12519,7 @@ function findV24ClassifiedSecretInFile(
   // extra linear scan and the cost of the flagging case is unchanged.
   const real = findRealSecretAssignment(secretScanContents, new Set(), {
     allowCredentialNamedDigest: useV36Detectors,
-    classifyValue: classifyFor('real'),
+    classifyValue: classifyFor('real', true),
   });
   if (real) return { match: real, classification: 'real' };
 
@@ -12236,6 +12746,8 @@ interface SecretAssignmentOptions {
    * rubric, so the legacy branch below is reached unchanged.
    */
   classifyValue?: (value: string, identifier: string, line: number) => V24ClassificationOutcome;
+  /** Sees every assignment value the pass reaches, with its verdict. Never changes the verdict. */
+  observeValue?: (value: string, outcome: V24ClassificationOutcome) => void;
 }
 
 function findRealSecretAssignment(
@@ -12317,6 +12829,7 @@ function findRealSecretAssignments(
                   isExplicitCredentialIdentifier(identifier)))
             ? V24_REAL
             : V24_NO_FINDING;
+        options.observeValue?.(value, outcome);
         if (outcome.classification !== 'no_finding') {
           const valueFingerprint = createHash('sha256').update(value).digest('hex');
           const characterClasses = [
@@ -12897,6 +13410,90 @@ export function isPlaceholderSecretValue(value: string): boolean {
     isSyntheticFixtureSecretValue(normalized) ||
     isFillerRunSecretValue(normalized)
   );
+}
+
+// A2 disclosure, every rubric. A value that has the shape of a credential (looksLikeSecretValue)
+// but that isPlaceholderSecretValue sets aside — the AWS documentation pair, for example, which
+// contains "EXAMPLE" — does not count against secret cleanliness. That is a precision choice and is
+// unchanged. Before this, it left no trace, so "clean" read as "nothing credential-shaped was
+// found". These values are now counted, by file, and named on the certificate. Nothing here feeds
+// a metric, a finding or an evidence pointer.
+interface PlaceholderSetAsideCount {
+  count: number;
+}
+
+/**
+ * A credential-shaped value the placeholder rule set aside: the scan reported nothing for it, it
+ * carries a placeholder marker, and without that marker it would read as a secret.
+ */
+function isPlaceholderSetAsideSecret(value: string, outcome: V24ClassificationOutcome): boolean {
+  return (
+    outcome.classification === 'no_finding' &&
+    isPlaceholderSecretValue(value) &&
+    looksLikeSecretValue(value)
+  );
+}
+
+export interface PlaceholderSetAsideFile {
+  readonly path: string;
+  readonly count: number;
+}
+
+const PLACEHOLDER_SET_ASIDE_PATHS_SHOWN = 3;
+
+function placeholderSetAsidePathList(files: readonly PlaceholderSetAsideFile[], shown: number): string {
+  const named = files.slice(0, shown).map((file) => file.path);
+  const more = files.length - named.length;
+  return more > 0 ? `${named.join(', ')} and ${more} more file${more === 1 ? '' : 's'}` : named.join(', ');
+}
+
+function placeholderSetAsideValues(files: readonly PlaceholderSetAsideFile[]): string {
+  const total = files.reduce((sum, file) => sum + file.count, 0);
+  return `${total} credential-shaped value${total === 1 ? '' : 's'}`;
+}
+
+/**
+ * A2's disclosure, which the certificate lists under "What was not established". It always starts
+ * with WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX. `budget` is the schema's room for one disclosure;
+ * paths are dropped to fit.
+ */
+export function placeholderSetAsideDisclosure(
+  files: readonly PlaceholderSetAsideFile[],
+  budget = Number.POSITIVE_INFINITY,
+): string {
+  const total = files.reduce((sum, file) => sum + file.count, 0);
+  const lead = `${WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX}${placeholderSetAsideValues(files)} as ${total === 1 ? 'a documentation placeholder because it contains' : 'documentation placeholders because they contain'} a placeholder marker such as "example", so ${total === 1 ? 'it was' : 'they were'} not counted against secret cleanliness or checked further`;
+  for (let shown = Math.min(files.length, PLACEHOLDER_SET_ASIDE_PATHS_SHOWN); shown > 0; shown -= 1) {
+    const sentence = `${lead}: ${placeholderSetAsidePathList(files, shown)}.`;
+    if (sentence.length <= budget) return sentence;
+  }
+  const countOnly = `${lead}, in ${files.length} file${files.length === 1 ? '' : 's'}.`;
+  return countOnly.length <= budget ? countOnly : '';
+}
+
+/** The same fact, short enough for the secret_cleanliness metric line (schema maximum 240). */
+function placeholderSetAsideCondition(files: readonly PlaceholderSetAsideFile[]): string {
+  const lead = `${placeholderSetAsideValues(files)} set aside as documentation placeholders, not counted`;
+  for (let shown = Math.min(files.length, PLACEHOLDER_SET_ASIDE_PATHS_SHOWN); shown > 0; shown -= 1) {
+    const condition = `${lead}: ${placeholderSetAsidePathList(files, shown)}`;
+    if (condition.length <= METRIC_CONDITION_MAX_LENGTH) return condition;
+  }
+  return `${lead} (${files.length} file${files.length === 1 ? '' : 's'})`;
+}
+
+// WitanCriterionMetric presentation `condition` maximum.
+const METRIC_CONDITION_MAX_LENGTH = 240;
+// WitanCriterionSignalPayload `notes` maximum.
+const CRITERION_NOTES_MAX_LENGTH = 1000;
+// WitanCriterionDisclosuresSchema's per-sentence maximum.
+const CRITERION_DISCLOSURE_MAX_LENGTH = 1000;
+
+function placeholderSetAsideDisclosures(
+  files: readonly PlaceholderSetAsideFile[],
+): { disclosures?: string[] } {
+  if (files.length === 0) return {};
+  const sentence = placeholderSetAsideDisclosure(files, CRITERION_DISCLOSURE_MAX_LENGTH);
+  return sentence ? { disclosures: [sentence] } : {};
 }
 
 // A doc placeholder often looks like a real token — a plausible prefix followed
