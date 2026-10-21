@@ -689,10 +689,11 @@ describe('post-merge review findings against #521 stay fixed', () => {
     expect(depth?.presentation?.components?.find(({ label }) => label === 'repository CI command: build')?.count).toBe(1);
   });
 
-  it('#517: setup, npm ci and npx semantic-release on every push is still publish-only', () => {
-    const b3 = criterion('review5-b3-semantic-release-after-setup', V27, 'B3');
-    expect(b3.notes).toContain('1 workflow that only publishes, releases or deploys');
-    expect(b3.notes).toContain('.github/workflows/release.yml');
+  it('#517: npx semantic-release is not a publish Cejel admits (it runs configured plugins), so the workflow stays counted', () => {
+    // Changed by the re-run of review pass 1 on #553: this fixture was a publish-only corner.
+    const name = 'review5-b3-semantic-release-after-setup';
+    expect(criterion(name, V27, 'B3')).toEqual(criterion(name, V17, 'B3'));
+    expect(criterion(name, V27, 'B3').notes ?? '').not.toContain('only publish');
   });
 });
 
@@ -713,11 +714,11 @@ describe('review findings against #553 stay fixed', () => {
     }
   });
 
-  it('#517: the published positives, with needs, permissions, with and env, are still publish-only', () => {
+  it('#517: the published positives, with needs, permissions, with and env, and cargo publish --no-verify, are still publish-only', () => {
     for (const [name, file] of [
       ['b3-pypi-publish-ungated', '.github/workflows/publish.yaml'],
       ['b3-npm-publish-ungated', '.github/workflows/release.yml'],
-      ['review5-b3-semantic-release-after-setup', '.github/workflows/release.yml'],
+      ['review7-b3-cargo-publish-no-verify', '.github/workflows/release.yml'],
       ['review6-b3-changesets-without-command-inputs', '.github/workflows/main.yml'],
     ] as const) {
       const notes = criterion(name, V27, 'B3').notes ?? '';
@@ -753,6 +754,50 @@ describe('review findings against #553 stay fixed', () => {
         metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
       );
       expect(metricValue(v27, 'non_hollow_test_share'), name).toBeGreaterThan(0);
+    }
+  });
+});
+
+// Regression guards for what the re-run of review pass 1 on #553 reproduced.
+describe('re-run review findings against #553 stay fixed', () => {
+  it('#517: a command that runs repository-configured code, a code-loading variable, or an unnamed setup action keeps the workflow counted', () => {
+    for (const name of [
+      'review7-b3-prepublishonly-script',
+      'review7-b3-prepare-script',
+      'review7-b3-npmrc-present',
+      'review7-b3-semantic-release-with-config',
+      'review7-b3-goreleaser-cli-with-hooks',
+      'review7-b3-cargo-publish-verifies',
+      'review7-b3-node-options-leading',
+      'review7-b3-node-options-exported',
+      'review7-b3-echo-into-github-env',
+      'review7-b3-step-env-ld-preload',
+      'review7-b3-step-env-pythonpath-twine',
+      'review7-b3-python-build-runs-setup-py',
+      'review7-b3-third-party-setup-action',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#518: a clear in a nested function or a loop, or a hook name bound elsewhere, makes no claim', () => {
+    for (const name of [
+      'review7-a1-hook-clear-in-nested-def',
+      'review7-a1-hook-clear-in-zero-iteration-loop',
+      'review7-a1-hook-clear-in-loop-over-other-iterable',
+      'review7-a1-hook-conditional-redefinition',
+      'review7-a1-hook-rebound-by-assignment',
+    ]) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(
+        v27.findings.some(({ summary }) => summary.startsWith('A pytest collection hook')),
+        name,
+      ).toBe(false);
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
     }
   });
 });

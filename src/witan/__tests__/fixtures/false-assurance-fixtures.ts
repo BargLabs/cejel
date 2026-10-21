@@ -1317,6 +1317,124 @@ for (const [name, purpose, mark] of [
   });
 }
 
+// The re-run of review pass 1 on #553: admitted commands that run code the repository configures,
+// environment bypasses, setup actions by name, and the hook's clear kind and other bindings.
+const jsWithScripts = (scripts: Record<string, string>): Record<string, string> => ({
+  ...JS_LIBRARY,
+  'check.js': 'process.exit(0);\n',
+  'package.json': `${JSON.stringify({ name: 'deq', version: '1.0.0', main: 'index.js', scripts: { test: 'uvu test', ...scripts }, devDependencies: { uvu: '^0.5.0' } }, null, 2)}\n`,
+});
+const NPM_CI_PUBLISH = '      - run: npm ci\n      - run: npm publish\n';
+for (const [name, purpose, files] of [
+  [
+    'review7-b3-prepublishonly-script',
+    '`npm publish` runs the package\'s `prepublishOnly` script, which runs a check: kept counted.',
+    { ...jsWithScripts({ prepublishOnly: 'node check.js' }), '.github/workflows/main.yml': PUSH_WORKFLOW(NPM_CI_PUBLISH) },
+  ],
+  [
+    'review7-b3-prepare-script',
+    '`npm ci` runs the package\'s `prepare` script: kept counted.',
+    { ...jsWithScripts({ prepare: 'node check.js' }), '.github/workflows/main.yml': PUSH_WORKFLOW(NPM_CI_PUBLISH) },
+  ],
+  [
+    'review7-b3-npmrc-present',
+    'A committed .npmrc can set a script shell or Node options for every npm command: kept counted.',
+    { ...JS_LIBRARY, '.npmrc': 'node-options=--require ./check.js\n', '.github/workflows/main.yml': PUSH_WORKFLOW(NPM_CI_PUBLISH) },
+  ],
+  [
+    'review7-b3-semantic-release-with-config',
+    'semantic-release runs configured plugins (`@semantic-release/exec` here): kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.releaserc.json': `${JSON.stringify({ plugins: [['@semantic-release/exec', { verifyConditionsCmd: 'node check.js' }]] })}\n`, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm ci\n      - run: npx semantic-release\n') },
+  ],
+  [
+    'review7-b3-goreleaser-cli-with-hooks',
+    'The goreleaser CLI runs the repository\'s `before.hooks`: kept counted.',
+    { ...JS_LIBRARY, '.goreleaser.yaml': 'before:\n  hooks:\n    - go vet ./...\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: goreleaser release --clean\n') },
+  ],
+  [
+    'review7-b3-cargo-publish-verifies',
+    '`cargo publish` without `--no-verify` builds the crate: kept counted.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish\n') },
+  ],
+  [
+    'review7-b3-cargo-publish-no-verify',
+    'Corner, still excluded: `cargo publish --no-verify` uploads without building.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+  ],
+  [
+    'review7-b3-node-options-leading',
+    'A leading `NODE_OPTIONS=--require=./check.js` loads repository code into `npm publish`: kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: NODE_OPTIONS=--require=./check.js npm publish\n') },
+  ],
+  [
+    'review7-b3-node-options-exported',
+    '`export NODE_OPTIONS=...` before `npm publish`: kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: |\n          export NODE_OPTIONS=--require=./check.js\n          npm publish\n') },
+  ],
+  [
+    'review7-b3-echo-into-github-env',
+    '`echo ... >> $GITHUB_ENV` can set a code-loading variable for later steps: kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: echo NODE_OPTIONS=--require=./check.js >> $GITHUB_ENV\n      - run: npm publish\n') },
+  ],
+  [
+    'review7-b3-step-env-ld-preload',
+    'A step `env:` holding `LD_PRELOAD`: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm publish\n        env:\n          LD_PRELOAD: ./libcheck.so\n') },
+  ],
+  [
+    'review7-b3-step-env-pythonpath-twine',
+    'A step `env:` holding `PYTHONPATH` on `twine upload`: kept counted.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: pip install twine\n      - run: twine upload dist/*\n        env:\n          PYTHONPATH: ./tools\n') },
+  ],
+  [
+    'review7-b3-python-build-runs-setup-py',
+    '`python -m build` runs the repository\'s setup.py: kept counted.',
+    { ...PY_LIBRARY, 'setup.py': 'import subprocess\nsubprocess.check_call(["python", "-m", "unittest"])\nfrom setuptools import setup\nsetup(name="cachelib")\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: pip install build twine\n      - run: python -m build\n      - run: twine upload dist/*\n') },
+  ],
+  [
+    'review7-b3-third-party-setup-action',
+    'A `*/setup-*` action from an owner Cejel does not name: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - uses: some-org/setup-and-verify@v1\n      - run: npm publish\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+for (const [name, purpose, conftest] of [
+  [
+    'review7-a1-hook-clear-in-nested-def',
+    '`items.clear()` sits in a nested function the hook never calls.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    def _drop_all():\n        items.clear()\n    config._drop_all = _drop_all\n',
+  ],
+  [
+    'review7-a1-hook-clear-in-zero-iteration-loop',
+    '`items.clear()` sits inside `for _ in range(0):`.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for _ in range(0):\n        items.clear()\n',
+  ],
+  [
+    'review7-a1-hook-clear-in-loop-over-other-iterable',
+    '`items.clear()` sits inside a loop over a configured list that may be empty.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    for reason in config.getini("drop_all_reasons"):\n        items.clear()\n',
+  ],
+  [
+    'review7-a1-hook-conditional-redefinition',
+    'The last top-level hook skips every item, but a conditional redefinition follows it.',
+    'import os\nimport pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip(reason="wip"))\n\n\nif os.environ.get("RUN_ALL"):\n    def pytest_collection_modifyitems(items):\n        pass\n',
+  ],
+  [
+    'review7-a1-hook-rebound-by-assignment',
+    'The hook name is rebound by an assignment after the def.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip(reason="wip"))\n\n\ndef _noop(items):\n    pass\n\n\npytest_collection_modifyitems = _noop\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }],
+  });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

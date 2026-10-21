@@ -209,13 +209,19 @@ const NESTED_HOOK_LOOPS = Array.from({ length: 900 }, (_, depth) => `${' '.repea
 const REVIEW_521_READER_FIXTURE: Record<string, string> = {
   'package.json': '{"name":"readers","version":"1.0.0","dependencies":{"zod":"^3.0.0"}}\n',
   'index.js': 'export const a = 1;\n',
-  'pyproject.toml': '[project]\nname = "readers"\nversion = "1.0.0"\ndependencies = []\n',
+  'pyproject.toml': `[project]\nname = "readers"\nversion = "1.0.0"\ndependencies = []\n${'[tool.hatch.build.targets.wheelx\n'.repeat(14_000)}`,
   'tests/test_a.py': `import pytest\npytestmark = pytest.mark.skip(\n${'(\n'.repeat(200_000)}def test_a():\n    assert 1\n`,
   'tests/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n${NESTED_HOOK_LOOPS}`,
   // Review of #553: an unclosed quote run of escaped quotes inside a `for item in items:` loop.
   'tests/unclosed/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        x = '${"a\\'".repeat(160_000)}\n`,
   '.github/workflows/assignments.yml': `${WORKFLOW_HEAD}      - run: ${PUBLISH_ONLY_ASSIGNMENTS}npm publish\n`,
   '.github/workflows/runner-flags.yml': `${WORKFLOW_HEAD}      - run: npx ${PUBLISH_ONLY_RUNNER_FLAGS}semantic-release\n`,
+  // The repository reads a publish-only workflow triggers (re-run of review pass 1 on #553): the
+  // root manifest for npm lifecycle scripts, and pyproject.toml for in-tree build code, here a
+  // 14,000-line run of near-miss hook tables.
+  '.github/workflows/package-check.yml': `${WORKFLOW_HEAD}      - run: npm ci\n      - run: npm publish\n`,
+  '.github/workflows/python-check.yml': `${WORKFLOW_HEAD}      - run: python -m build\n      - run: twine upload dist/x\n`,
+  'tests/bound/conftest.py': `def pytest_collection_modifyitems(items):\n${'    items.clear()\n'.repeat(28_000)}`,
 };
 
 describe('timing guards: the real scan finishes on pathological repository input', () => {

@@ -130,16 +130,24 @@ v27 stays prospective and opt-in. This makes no precision, recall or calibration
   more than it read:
   - a workflow is publish-only only when a reader that places every line of its jobs section
     (a flow-mapping step, a quoted or capitalised key, or a key outside a short allowlist
-    places nothing) finds that every `run:` command is a publish, release or deploy, or one of a
-    listed set of setup and packaging commands, every `uses:` step is checkout, setup, cache,
-    artifact, registry login or a publish action, and some step publishes. `bun test`, `pnpm run
-    lint`, `cargo build`, `rustup run`, `npx size-limit`, `changesets/action` with a `publish` or
-    `version` input, a command glued to an admitted word (`echo ok&&node check.js`), a publish
-    word only in a comment, and `npm publish --dry-run` keep a workflow counted;
-  - a collection hook is read as skipping every test only when it is the last top-level
-    definition of the hook and the skip marker is applied to the loop variable of a loop over
-    `items` at the hook body's own first indent, not when a loop and a skip merely co-occur, nor
-    when the loop sits in a nested function or another loop;
+    places nothing) finds that every `run:` command is an admitted publish or setup command, every
+    `uses:` step is a named setup or publish action, and some step publishes. A command is
+    admitted only if it runs no code the repository configures, or if Cejel reads that
+    configuration and finds none: an npm-family install or publish needs a scanned root
+    `package.json` with no lifecycle script, workspaces or local dependency and no package-manager
+    configuration file; a Python build needs a scanned `pyproject.toml` with no in-tree build code
+    and no `setup.py`. semantic-release, goreleaser, the deploy CLIs, `cargo publish` without
+    `--no-verify`, `cd`, a code-loading variable (`NODE_OPTIONS`, `LD_PRELOAD`, `PYTHONPATH`, ...),
+    a redirect from `echo`, another owner's `setup-*` action, `bun test`, `pnpm run lint`,
+    `cargo build`, `rustup run`, `changesets/action` with a `publish` or `version` input, a
+    command glued to an admitted word, a publish word only in a comment, and `--dry-run` keep a
+    workflow counted. A setup, `npm ci` and semantic-release (through `npx`) workflow, publish-only in the
+    first version of this correction, is therefore counted;
+  - a collection hook is read as skipping or removing every test only when it is the last
+    top-level definition, the hook name is bound nowhere else in the module, and the skip marker
+    is applied to the loop variable of a loop over `items`, or `items` is cleared, at the hook
+    body's own first indent; not when a loop and a skip merely co-occur, nor when the loop or the
+    clear sits in a nested function or another loop;
   - a module-level `pytestmark` skip is unconditional only when the module names `pytestmark` once
     (two statements on one line count twice), the skip is named in code rather than in a string,
     and no line of the statement, including one reached by a bracket, holds an `if`; a `\`
