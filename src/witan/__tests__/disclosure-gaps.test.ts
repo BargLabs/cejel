@@ -212,7 +212,9 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
   it('fits the notes field', () => {
     const unshown = {
       printOnly: Array.from({ length: 5 }, (_, index) => `.github/workflows/${'p'.repeat(60)}-${index}.yml`),
-      absentBranch: [{ path: '.github/workflows/security.yml', target: 'master', current: 'main' }],
+      absentBranch: [
+        { path: '.github/workflows/security.yml', target: 'master', current: 'main', source: 'checkout' as const },
+      ],
     };
     expect(b3UnshownCheckDisclosure(unshown)).toContain('and 2 more only print text');
     const tight = b3UnshownCheckDisclosure(unshown, 200);

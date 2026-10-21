@@ -5557,11 +5557,24 @@ function b2WorkflowCitationBaseLabel(repoPath: string, file: string): string {
   return `CI workflow with no pull-request trigger (on: ${shown}${names.length > 3 ? ', ...' : ''})`;
 }
 
-/** The checkout's branch and every local and remote-tracking branch name; null when unreadable. */
-function readCheckoutBranches(repoPath: string): { current: string; known: Set<string> } | null {
-  const head = execGit(['symbolic-ref', '-q', '--short', 'HEAD'], { cwd: repoPath });
-  if (!head.ok) return null;
-  const current = head.stdout.trim();
+interface CheckoutBranches {
+  /** The default branch: origin's HEAD when the clone records one, else the checked-out branch. */
+  readonly current: string;
+  readonly source: 'origin' | 'checkout';
+  /** Every local and remote-tracking branch name, plus `current`. */
+  readonly known: ReadonlySet<string>;
+}
+
+/** Null when neither origin's HEAD nor a checked-out branch can be read (a detached CI checkout). */
+function readCheckoutBranches(repoPath: string): CheckoutBranches | null {
+  const originHead = execGit(['symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'], {
+    cwd: repoPath,
+  });
+  const originDefault = originHead.ok ? /^origin\/(.+)$/.exec(originHead.stdout.trim())?.[1] : undefined;
+  const head = originDefault
+    ? null
+    : execGit(['symbolic-ref', '-q', '--short', 'HEAD'], { cwd: repoPath });
+  const current = originDefault ?? (head?.ok ? head.stdout.trim() : '');
   if (current === '') return null;
   const refs = execGit(
     ['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'],
@@ -5575,21 +5588,21 @@ function readCheckoutBranches(repoPath: string): { current: string; known: Set<s
     const name = local?.[1] ?? remote?.[1];
     if (name && name !== 'HEAD') known.add(name);
   }
-  return { current, known };
+  return { current, source: originDefault ? 'origin' : 'checkout', known };
 }
 
 const DEFAULT_BRANCH_NAMES = new Set(['main', 'master']);
 
 /**
  * The default-branch name a counted workflow's push and pull-request triggers are confined to,
- * when that name is not the checkout's: every such trigger carries a `branches:` filter naming
- * only `main` or `master`, the checkout is on the other one, and no ref by the named one exists.
- * Any other shape (an unfiltered trigger, a glob, a third branch, a detached checkout) claims
- * nothing.
+ * when that name is not the repository's: every such trigger carries a `branches:` filter naming
+ * only `main` or `master`, the default branch (readCheckoutBranches) is the other one, and no ref
+ * by the named one exists. Any other shape (an unfiltered trigger, a glob, a third branch, an
+ * unknown default branch) claims nothing.
  */
 function absentDefaultBranchTarget(
   contents: string,
-  branches: { current: string; known: ReadonlySet<string> } | null,
+  branches: CheckoutBranches | null,
 ): string | null {
   if (!branches || !DEFAULT_BRANCH_NAMES.has(branches.current)) return null;
   const triggers = githubWorkflowTriggers(contents);
@@ -5639,9 +5652,18 @@ function isPrintOnlyWorkflow(contents: string): boolean {
   );
 }
 
+export interface B3AbsentBranchWorkflow {
+  readonly path: string;
+  /** The only branch its push and pull-request triggers name. */
+  readonly target: string;
+  /** The repository's default branch, and where Cejel read it. */
+  readonly current: string;
+  readonly source: 'origin' | 'checkout';
+}
+
 export interface B3UnshownCheckWorkflows {
   readonly printOnly: readonly string[];
-  readonly absentBranch: readonly { readonly path: string; readonly target: string; readonly current: string }[];
+  readonly absentBranch: readonly B3AbsentBranchWorkflow[];
 }
 
 /**
@@ -5653,7 +5675,7 @@ function findB3UnshownCheckWorkflows(
   counted: readonly string[],
 ): B3UnshownCheckWorkflows {
   const printOnly: string[] = [];
-  const absentBranch: { path: string; target: string; current: string }[] = [];
+  const absentBranch: B3AbsentBranchWorkflow[] = [];
   const githubWorkflows = counted.filter((file) => /^\.github\/workflows\//.test(file));
   if (githubWorkflows.length === 0) return { printOnly, absentBranch };
   const branches = readCheckoutBranches(root);
@@ -5663,7 +5685,9 @@ function findB3UnshownCheckWorkflows(
     const contents = withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8'));
     if (isPrintOnlyWorkflow(contents)) printOnly.push(file);
     const target = absentDefaultBranchTarget(contents, branches);
-    if (target && branches) absentBranch.push({ path: file, target, current: branches.current });
+    if (target && branches) {
+      absentBranch.push({ path: file, target, current: branches.current, source: branches.source });
+    }
   }
   return { printOnly, absentBranch };
 }
@@ -5693,7 +5717,7 @@ export function b3UnshownCheckDisclosure(
       .slice(0, shown)
       .map(
         (entry) =>
-          `${entry.path} runs only on ${entry.target}, and this checkout is on ${entry.current} with no ${entry.target} branch`,
+          `${entry.path} runs only on ${entry.target}, and ${entry.source === 'origin' ? "the clone's default branch is" : 'this checkout is on'} ${entry.current} with no ${entry.target} branch`,
       ),
     ...(unshown.absentBranch.length > shown
       ? [`${unshown.absentBranch.length - shown} more run only on a branch this checkout does not hold`]
