@@ -101,4 +101,10 @@ The text above is left as written. These corrections were found by the second re
 - **Run times.** The arms ran in this session between the preregistration push (18:02 UTC) and the
   result push (18:06 UTC), from full-history clones made earlier in the session. No other run of
   this plan exists.
-
+- **Superseded candidate (added later on 2026-10-21).** The post-merge review of #521 changed
+  `src/` after this run (#553), so this candidate is not the source being released. A successor
+  preregistration, `../public-delta-0-6-8-successor-2026-10-21/` (`437ad684a`), measured the new
+  candidate. All three expected values held there too.
+- **Site count.** The preregistration's table says "Fourteen regex sites" for #549 and `224f605ae`.
+  A recount found thirteen call sites (#549's count included a constant definition). This is a
+  description, not a forecast.

@@ -152,7 +152,8 @@ opt-in. This makes no precision, recall or calibration claim.
     and no line of the statement, including one reached by a bracket, holds an `if`; a `\`
     continuation is never read as unconditional.
 
-  Each correction can only remove a v27-only reduction, so v27 still never scores above v17. The
+  Each correction can only remove a v27-only reduction, so v27 still scores no higher than v17 on
+  any recorded set (no-rise is shown on recorded sets only; see #531). The
   CRLF pointer detection under Fixed also makes v27 abstain on such pointers, as it does on LF
   ones, which can only lower it.
 - **Ingest: every ingested document is bound to its subject, and recorded (report format 1.7).**

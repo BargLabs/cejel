@@ -11,6 +11,15 @@
   - Targets: the same full-history clones as the original confirmation, none shallow.
 - **Records:** `paired-result.json` is as the harness wrote it, unedited (sha256 `f766d907…82909`).
   Raw reports stay local.
+- **Wording note (after review of #552).** The forecasts E0-E2 are carried over verbatim, and
+  `plan.json`'s `expected` is the original's word for word. In `PREREGISTRATION.md`, two
+  *unforecast* bullets were reworded:
+  - E1's "B2 labels and A4 notes are expected to differ on some rows" was dropped;
+  - E2's recorded quantity reads "the A2 and B2 abstentions v27 adds" instead of "the A2 and B2
+    `insufficient_data` counts under v27".
+
+  So "word for word" there holds for the forecasts, not for every line. This result reports both
+  the states and the additions.
 - **The original lesson applied.** Abstention counts below are read from the raw reports as
   states. `norise.mjs`'s count is what v27 *adds* (see the original's erratum).
 

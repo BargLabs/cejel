@@ -124,10 +124,10 @@ or recall claim.** Fixtures: `review5-*` in `src/witan/__tests__/fixtures/false-
   goreleaser, the deploy CLIs, `docker push`, shell builtins (`echo`, `export`, `cd`, ...),
   `--dry-run`, any redirect, substitution or separator glued inside a word, `changesets/action`,
   and every action not named above. Code-loading variables, refused on a command line and in a
-  step `env:`, are `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `LD_PRELOAD`, `LD_LIBRARY_PATH`,
+  step `env:`, are `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `LD_PRELOAD`, `LD_AUDIT`, `LD_LIBRARY_PATH`,
   `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `PERL5LIB`, `RUBYOPT`, `PATH`,
-  `NPM_CONFIG_NODE_OPTIONS` and `NPM_CONFIG_SCRIPT_SHELL`, case-insensitive and with any quotes
-  around the name removed.
+  `NPM_CONFIG_NODE_OPTIONS` and `NPM_CONFIG_SCRIPT_SHELL`, case-insensitive. A quoted name is not
+  placed, so it keeps the workflow counted too.
 
   **A deliberate recall reduction.** #517's own repros (`b3-pypi-publish-ungated`, which runs
   `pip install build` and `python -m build` before the upload, and `b3-npm-publish-ungated`, which
