@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -28,6 +28,13 @@ export interface FalseAssuranceFixture {
   /** Commit subjects, one per commit. Defaults to `commit <n>`. */
   readonly subjects?: readonly string[];
   readonly shallow?: boolean;
+  /**
+   * Tracked symlinks, committed with the first commit: link path -> a subdirectory made inside a
+   * fresh host directory outside the repository, which the link points at.
+   */
+  readonly symlinksToHostDirectory?: Readonly<Record<string, string>>;
+  /** Directories made in the working tree after the last commit, and never tracked. */
+  readonly untrackedDirectories?: readonly string[];
 }
 
 const PY_LIBRARY: Readonly<Record<string, string>> = {
@@ -814,6 +821,232 @@ FALSE_ASSURANCE_FIXTURES_REVIEW.push(
   },
 );
 
+// A fourth review, of #533's own fixes, reproduced these. The A4 cases must not claim that CI
+// requires a lockfile (the claim would be false), except the `review4-a4-claims-*` controls, which
+// must still claim it. Shell that YAML would read as a tag (`!`) or a flow mapping (`{`) is in a
+// `|` block, as a workflow would write it.
+const PY_LIBRARY_NO_LOCKFILE: Readonly<Record<string, string>> = {
+  'pyproject.toml': '[project]\nname = "pl"\nversion = "1.0.0"\ndependencies = ["requests>=2"]\n',
+  'src/pl/__init__.py': 'VALUE = 1\n',
+  'tests/test_pl.py': 'def test_value():\n    assert 1 == 1\n',
+  'README.md': '# pl\n',
+  LICENSE: 'MIT\n',
+};
+const NODE_WORKSPACE_PACKAGE = {
+  'packages/app/package.json': `${JSON.stringify({ name: 'app', version: '1.0.0', dependencies: { zod: '^3.0.0' } }, null, 2)}\n`,
+  'packages/app/index.js': 'export const app = 1;\n',
+};
+for (const [name, purpose, files] of [
+  // Finding 1: a guard behind a leading `(`, `{` or `!`, and the other shapes #533 newly claimed.
+  [
+    'review4-a4-guard-in-subshell',
+    'A `[` guard inside a subshell, `( [ -n "$FULL" ] && npm ci )`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( [ -n "$FULL" ] && npm ci )\n') },
+  ],
+  [
+    'review4-a4-test-guard-in-subshell',
+    'A `test` guard inside a subshell, `( test -n "$X" && npm ci )`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( test -n "$X" && npm ci )\n') },
+  ],
+  [
+    'review4-a4-guard-in-brace-group',
+    'A `[[` guard inside a brace group, `{ [[ -n "$FULL" ]] && npm ci; }`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          { [[ -n "$FULL" ]] && npm ci; }\n') },
+  ],
+  [
+    'review4-a4-negated-guard',
+    'A negated guard, `! [ -n "$SKIP" ] && npm ci`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          ! [ -n "$SKIP" ] && npm ci\n') },
+  ],
+  [
+    'review4-a4-negated-subshell-guard',
+    'Combined: `( ! test -f .skip && npm ci )`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( ! test -f .skip && npm ci )\n') },
+  ],
+  [
+    'review4-a4-arithmetic-guard',
+    'An arithmetic guard, `(( FULL )) && npm ci`, is a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: (( FULL )) && npm ci\n') },
+  ],
+  [
+    'review4-a4-negated-npm-ci',
+    '`! npm ci` passes the step when `npm ci` fails: peeling `!` must not make it claimable.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          ! npm ci\n') },
+  ],
+  [
+    'review4-a4-set-plus-e-then-npm-test',
+    '`set +e` lets `npm ci` fail without failing the step, here followed by `npm test`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          set +e\n          npm ci\n          npm test\n') },
+  ],
+  [
+    'review4-a4-cd-inside-subshell',
+    '`( cd generated && npm ci )` leaves the checkout inside the subshell.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( cd generated && npm ci )\n') },
+  ],
+  // Finding 2: a directory or manifest passed as a flag that the inventory does not hold.
+  [
+    'review4-a4-npm-ci-prefix-outside',
+    '`npm ci --prefix generated` reads generated/package-lock.json, which the scan never saw.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci --prefix generated\n') },
+  ],
+  [
+    'review4-a4-npm-ci-prefix-equals-outside',
+    'As above, written `--prefix=generated`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci --prefix=generated\n') },
+  ],
+  [
+    'review4-a4-pnpm-dir-outside',
+    '`pnpm install --frozen-lockfile --dir generated`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: pnpm install --frozen-lockfile --dir generated\n') },
+  ],
+  [
+    'review4-a4-pnpm-short-dir-outside',
+    '`pnpm install --frozen-lockfile -C generated`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: pnpm install --frozen-lockfile -C generated\n') },
+  ],
+  [
+    'review4-a4-uv-sync-directory-outside',
+    '`uv sync --locked --directory generated`.',
+    { ...PY_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: uv sync --locked --directory generated\n') },
+  ],
+  [
+    'review4-a4-uv-run-project-outside',
+    '`uv run --locked --project generated pytest`.',
+    { ...PY_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: uv run --locked --project generated pytest\n') },
+  ],
+  [
+    'review4-a4-cargo-manifest-path-outside',
+    '`cargo test --locked --manifest-path generated/Cargo.toml` reads a manifest the scan never saw.',
+    { ...RUST_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cargo test --locked --manifest-path generated/Cargo.toml\n') },
+  ],
+  // Finding 5: each workflow-reader rule isolated, so deleting one fails a test.
+  [
+    'review4-a4-other-repository-checkout-at-root',
+    'Another repository checked out over the workspace root, with no working directory.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/checkout@v4\n        with:\n          repository: acme/app\n      - run: npm ci\n') },
+  ],
+  [
+    'review4-a4-artifact-downloaded-first',
+    'An artifact downloaded into the workspace before `npm ci`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/download-artifact@v4\n        with:\n          name: deps\n      - run: npm ci\n') },
+  ],
+  [
+    'review4-a4-run-key-outside-any-step',
+    'A `run:` key after the steps list ends is not inside any step, so it is not placed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('    container:\n      run: npm ci\n') },
+  ],
+  [
+    'review4-a4-run-key-inside-block-body',
+    'A `- run:` line inside a block body (a heredoc writing YAML) is shell text, not a step.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI("      - run: |\n          cat > generated.yml <<'EOF'\n          - run: npm ci\n          EOF\n") },
+  ],
+  [
+    'review4-a4-run-key-inside-action-script',
+    'A `run:` line inside a script passed to an action is that script’s text, not a step.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/github-script@v7\n        with:\n          script: |\n            run: npm ci\n') },
+  ],
+  [
+    'review4-a4-job-guard-after-steps',
+    'A job-level `if:` written after the job’s `steps:` still conditions every step.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm test\n  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm ci\n    if: false\n') },
+  ],
+  [
+    'review4-a4-steps-key-inside-block-body',
+    'A `steps:` line inside an earlier step’s block body must not hide the job’s own `if:`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI("      - run: npm test\n  extra:\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          cat > x.yml <<'EOF'\n          steps:\n            - name: hi\n          EOF\n      - run: npm ci\n") },
+  ],
+  // Finding 3: which directories the checkout holds is read from the inventory, exact-case.
+  [
+    'review4-a4-cd-wrong-case',
+    '`cd SRC` where the inventory holds `src/`: a Linux runner has no SRC directory.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, 'src/util.js': 'export const u = 1;\n', '.github/workflows/ci.yml': PR_CI('      - run: cd SRC && npm ci\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#520', foundInReview: true, purpose, commits: [files] });
+}
+FALSE_ASSURANCE_FIXTURES_REVIEW.push(
+  {
+    name: 'review4-a4-working-directory-through-tracked-symlink',
+    issue: '#520',
+    foundInReview: true,
+    purpose:
+      'A working directory under a tracked symlink to a host directory is not in the checkout, whatever the scanning host holds.',
+    symlinksToHostDirectory: { vendor: 'pkg' },
+    commits: [{ ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n        working-directory: vendor/pkg\n') }],
+  },
+  {
+    name: 'review4-a4-working-directory-untracked-empty',
+    issue: '#520',
+    foundInReview: true,
+    purpose: 'An untracked empty directory on the scanning host is not in the checkout a runner makes.',
+    untrackedDirectories: ['build'],
+    commits: [{ ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n        working-directory: build\n') }],
+  },
+);
+// Controls: a directory the inventory holds is still followed. No file of the lockfile's name is
+// anywhere in the inventory, so none is in that directory either, and the claim stays true.
+for (const [name, purpose, files] of [
+  [
+    'review4-a4-claims-cd-into-tracked-directory',
+    '`cd src && npm ci` where the inventory holds `src/`: still claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, 'src/util.js': 'export const u = 1;\n', '.github/workflows/ci.yml': PR_CI('      - run: cd src && npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-prefix-into-tracked-directory',
+    '`npm ci --prefix packages/app` where the inventory holds packages/app/: still claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, ...NODE_WORKSPACE_PACKAGE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci --prefix packages/app\n') },
+  ],
+  [
+    'review4-a4-claims-manifest-path-tracked',
+    '`cargo test --locked --manifest-path Cargo.toml`, a manifest the inventory holds: still claimed.',
+    { ...RUST_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cargo test --locked --manifest-path ./Cargo.toml\n') },
+  ],
+  [
+    'review4-a4-claims-block-indicator-with-comment',
+    'A `run: |` whose block indicator carries a comment is a block like any other: newly claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: | # install\n          npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-dash-line-in-earlier-block',
+    'A `- ` line inside a block scalar before `run:` is text, not a step boundary: newly claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - name: install\n        env:\n          NOTE: |\n            - a list line\n        run: npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-after-brace-group',
+    'A brace group with no guard (`{ echo start; }`) does not make a later `npm ci` conditional: still claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          { echo start; }\n          npm ci\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#520', foundInReview: true, purpose, commits: [files] });
+}
+// Finding 6 (#518): a hook that empties `items` and puts back nothing removes the suite, on one
+// line or two; a one-line reorder is still a reorder.
+for (const [name, purpose, hook] of [
+  [
+    'review4-a1-hook-empties-and-refills-nothing',
+    '`items.clear()` then `items.extend([])` leaves no test to run.',
+    '    items.clear()\n    items.extend([])\n',
+  ],
+  [
+    'review4-a1-hook-empties-and-refills-nothing-one-line',
+    '`items.clear(); items.extend([])` on one line leaves no test to run.',
+    '    items.clear(); items.extend([])\n',
+  ],
+  [
+    'review4-a1-hook-reorders-items-one-line',
+    '`items.clear(); items.extend(ordered)` on one line reorders the run; every test still runs.',
+    '    ordered = sorted(items, key=lambda item: item.name)\n    items.clear(); items.extend(ordered)\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': `def pytest_collection_modifyitems(session, config, items):\n${hook}` }],
+  });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,
@@ -839,6 +1072,14 @@ export function buildFalseAssuranceFixture(fixture: FalseAssuranceFixture): stri
       mkdirSync(dirname(fullPath), { recursive: true });
       writeFileSync(fullPath, contents, 'utf8');
     }
+    if (index === 0) {
+      for (const [link, subdirectory] of Object.entries(fixture.symlinksToHostDirectory ?? {})) {
+        const host = mkdtempSync(join(tmpdir(), 'cejel-false-assurance-host-'));
+        mkdirSync(join(host, subdirectory), { recursive: true });
+        mkdirSync(dirname(join(dir, link)), { recursive: true });
+        symlinkSync(host, join(dir, link));
+      }
+    }
     git(dir, ['add', '-A']);
     git(dir, [
       'commit',
@@ -849,6 +1090,9 @@ export function buildFalseAssuranceFixture(fixture: FalseAssuranceFixture): stri
       fixture.subjects?.[index] ?? `commit ${index}`,
     ]);
   });
+  for (const directory of fixture.untrackedDirectories ?? []) {
+    mkdirSync(join(dir, directory), { recursive: true });
+  }
   if (!fixture.shallow) return dir;
   const shallow = mkdtempSync(join(tmpdir(), `cejel-false-assurance-${fixture.name}-depth1-`));
   rmSync(shallow, { recursive: true, force: true });

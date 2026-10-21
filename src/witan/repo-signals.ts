@@ -4080,15 +4080,22 @@ function collectA4DependencyEvidence(
   // everything the scan knows of: the inventory, the monorepo root, and the paths the file walk
   // withheld (a lockfile over the size limit is still committed). Lockfiles A4 does not count
   // (bun.lock, Gemfile.lock, ...) still satisfy the command that reads them.
-  const knownPaths = [
-    ...repoFiles,
-    ...(mono?.sharedFiles ?? []),
-    ...withheldRepoPaths().map(({ path }) => path),
-  ];
+  //
+  // Which directories the checkout holds is decided from the same inventory, never from the
+  // working tree: the scanned paths and the withheld paths, both relative to the scan root. A
+  // tracked symlink is a withheld path, never a directory; an untracked directory is not in the
+  // checkout a runner makes; and the comparison is exact-case, as on a Linux runner. The monorepo
+  // root's shared files are left out of this one set: they are relative to a different root, so
+  // they could only add directories this checkout may not hold.
+  const checkoutPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
+  const knownPaths = [...checkoutPaths, ...(mono?.sharedFiles ?? [])];
   const knownBasenames = new Set(knownPaths.map((path) => basename(path)));
   const findRequirement = () =>
-    findLockfileRequirement(repoPath, repoFiles.filter(isGitHubActionsWorkflow), (lockfiles) =>
-      lockfiles.some((name) => knownBasenames.has(name)),
+    findLockfileRequirement(
+      repoPath,
+      repoFiles.filter(isGitHubActionsWorkflow),
+      checkoutInventory(checkoutPaths),
+      (lockfiles) => lockfiles.some((name) => knownBasenames.has(name)),
     );
   const lockfileRequirement =
     hasLockfile || !manifest
@@ -4280,6 +4287,13 @@ interface LockfileRequiringCommand {
   readonly lockfiles: readonly string[];
   /** Subcommands that write the lockfile when run without one of `flags` (`npm install`, ...). */
   readonly generators: readonly string[];
+  /**
+   * Flags that point the command at another directory (`npm ci --prefix sub`). A short flag also
+   * takes its value glued on (`-Csub`).
+   */
+  readonly directoryFlags: readonly string[];
+  /** Flags that point the command at a manifest file in another directory (`--manifest-path`). */
+  readonly manifestFlags: readonly string[];
 }
 
 const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
@@ -4289,6 +4303,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: null,
     lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'],
     generators: ['install', 'i', 'add', 'update', 'up'],
+    directoryFlags: ['--prefix', '-C'],
+    manifestFlags: [],
   },
   {
     tool: 'pnpm',
@@ -4296,6 +4312,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--frozen-lockfile'],
     lockfiles: ['pnpm-lock.yaml'],
     generators: ['install', 'i', 'add', 'update', 'up'],
+    directoryFlags: ['--dir', '-C'],
+    manifestFlags: [],
   },
   {
     tool: 'uv',
@@ -4303,6 +4321,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--locked', '--frozen'],
     lockfiles: ['uv.lock'],
     generators: ['run', 'sync', 'lock', 'add'],
+    directoryFlags: ['--directory', '--project'],
+    manifestFlags: [],
   },
   {
     tool: 'cargo',
@@ -4310,6 +4330,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--locked', '--frozen'],
     lockfiles: ['Cargo.lock'],
     generators: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench', 'generate-lockfile', 'update'],
+    directoryFlags: ['-C'],
+    manifestFlags: ['--manifest-path'],
   },
   {
     tool: 'poetry',
@@ -4317,12 +4339,15 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--lock'],
     lockfiles: ['poetry.lock'],
     generators: ['lock', 'install', 'add', 'update'],
+    directoryFlags: ['--directory', '-C', '--project', '-P'],
+    manifestFlags: [],
   },
 ];
 
 // Shell words that make a step's commands depend on something: a requirement inside such a step is
 // not stated by the repository unconditionally (`if [ -f package-lock.json ]; then npm ci; fi`).
-// Read only in command position: `npm test` and `cargo test --locked` are not conditionals.
+// Read only in command position, which is after any leading `(`, `{` or `!` (commandHead):
+// `npm test` and `cargo test --locked` are not conditionals, `( test -n "$X" && npm ci )` is.
 const CONDITIONAL_SHELL_WORDS = new Set([
   'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', '[', '[[', 'test', 'while', 'until', 'for',
   'do', 'done',
@@ -4388,6 +4413,46 @@ function matchLockfileRequiringCommand(
   return [rule.tool, subcommand, ...own.slice(0, flagIndex + 1)].join(' ');
 }
 
+/**
+ * A command's first word once leading `(`, `{` and `!` are peeled off (`( [ -n "$X" ] && npm ci )`,
+ * `{ test -f x && npm ci; }`), and the index its arguments start at. `inverted` is set by a `!` and
+ * by an arithmetic `((`: the exit status of what follows is negated or computed, not the command's.
+ * Plain character scanning, linear in the words.
+ */
+function commandHead(words: readonly string[]): {
+  readonly word: string;
+  readonly argsFrom: number;
+  readonly inverted: boolean;
+} {
+  let inverted = false;
+  for (let index = 0; index < words.length; index += 1) {
+    const raw = words[index] ?? '';
+    let lead = 0;
+    while (lead < raw.length && (raw[lead] === '(' || raw[lead] === '{' || raw[lead] === '!')) lead += 1;
+    const prefix = raw.slice(0, lead);
+    if (prefix.includes('!') || prefix.includes('((')) inverted = true;
+    if (lead < raw.length) return { word: raw.slice(lead), argsFrom: index + 1, inverted };
+  }
+  return { word: '', argsFrom: words.length, inverted };
+}
+
+/**
+ * True when a command makes what follows it depend on something (`if`, `[`, `test`, ... in command
+ * position, after any `(`, `{` or `!`), inverts an exit status (`!`, `((`), or lets a failing
+ * command pass the step (`set +e`, `set +o errexit`).
+ */
+function isConditionalShellCommand(words: readonly string[]): boolean {
+  const head = commandHead(words);
+  if (head.inverted || CONDITIONAL_SHELL_WORDS.has(head.word)) return true;
+  if (head.word !== 'set') return false;
+  const args = words.slice(head.argsFrom);
+  return args.some(
+    (arg, index) =>
+      (arg === '+o' && args[index + 1] === 'errexit') ||
+      (arg.length > 1 && arg.startsWith('+') && /^[A-Za-z]+$/.test(arg.slice(1)) && arg.includes('e')),
+  );
+}
+
 interface WorkflowRunStep {
   /** 1-based line of each command line, with its text. */
   readonly lines: readonly { readonly line: number; readonly text: string }[];
@@ -4403,6 +4468,10 @@ const IF_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?if:/;
 const CONTINUE_ON_ERROR_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*(.*)$/;
 const STEPS_KEY_PATTERN = /^[ \t]*steps:[ \t]*$/;
 const LIST_ITEM_PATTERN = /^[ \t]*-[ \t]/;
+// A key whose value is a `|` or `>` block scalar, optionally followed by a comment. The key is a
+// run of characters up to the line's first `:`, so the match is linear in the line.
+const BLOCK_SCALAR_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?[^\s:#'"-][^:]*:[ \t]*[|>][-+0-9]*(?:[ \t]+(?:#.*)?)?$/;
+const BLOCK_SCALAR_VALUE_PATTERN = /^[|>][-+0-9]*$/;
 
 function lineIndent(line: string): number {
   return line.length - line.trimStart().length;
@@ -4417,23 +4486,44 @@ function isStepOrJobGuard(line: string): boolean {
   return value !== 'false';
 }
 
+/** The column a key starts at: `- run:` keys sit two columns inside their item's dash. */
+function workflowKeyIndent(line: string, indent: number): number {
+  return indent + (line.trimStart().startsWith('-') ? 2 : 0);
+}
+
 /**
- * For each line, the index of the next non-blank line whose indent is at most (`orEqual`) or
- * strictly below its own; `lines.length` where there is none. One pass with a stack.
+ * For each line, whether it is text inside a `|` / `>` block scalar: the shell of a `run:` body, a
+ * script passed to an action, a heredoc. Such a line is never read as a workflow key. One pass:
+ * each block is walked once, from its key to the first non-blank line no deeper than the key.
  */
-function nextDedentIndexes(lines: readonly string[], orEqual: boolean): number[] {
-  const next = new Array<number>(lines.length).fill(lines.length);
-  const open: number[] = [];
+function blockScalarBodyLines(lines: readonly string[], indents: readonly number[]): boolean[] {
+  const body = new Array<boolean>(lines.length).fill(false);
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
-    if (raw.trim() === '') continue;
-    const indent = lineIndent(raw);
-    while (open.length > 0) {
-      const top = open[open.length - 1] ?? 0;
-      const topIndent = lineIndent(lines[top] ?? '');
-      if (orEqual ? topIndent < indent : topIndent <= indent) break;
-      next[top] = index;
-      open.pop();
+    if (!BLOCK_SCALAR_KEY_PATTERN.test(raw)) continue;
+    const keyIndent = workflowKeyIndent(raw, indents[index] ?? 0);
+    let next = index + 1;
+    for (; next < lines.length; next += 1) {
+      if ((lines[next] ?? '').trim() !== '' && (indents[next] ?? 0) <= keyIndent) break;
+      body[next] = true;
+    }
+    index = next - 1;
+  }
+  return body;
+}
+
+/**
+ * For each structural line, the index of the next structural line whose indent is at most its own;
+ * `lines.length` where there is none. One pass with a stack of open lines.
+ */
+function nextAtOrBelowIndexes(structural: readonly boolean[], indents: readonly number[]): number[] {
+  const next = new Array<number>(structural.length).fill(structural.length);
+  const open: number[] = [];
+  for (let index = 0; index < structural.length; index += 1) {
+    if (!structural[index]) continue;
+    const indent = indents[index] ?? 0;
+    while (open.length > 0 && (indents[open[open.length - 1] ?? 0] ?? 0) >= indent) {
+      next[open.pop() ?? 0] = index;
     }
     open.push(index);
   }
@@ -4441,105 +4531,115 @@ function nextDedentIndexes(lines: readonly string[], orEqual: boolean): number[]
 }
 
 /**
+ * For each structural line, the least indent of a guard key in its extent: the line itself and
+ * every following line deeper than it, which is the extent `nextAtOrBelowIndexes` ends. The same
+ * stack pass: a line's least guard indent is folded into the line below it on the stack when it
+ * closes, so every line is visited once whatever the nesting depth.
+ */
+function leastGuardIndentWithin(
+  structural: readonly boolean[],
+  indents: readonly number[],
+  isGuard: readonly boolean[],
+): number[] {
+  const least = new Array<number>(structural.length).fill(Number.POSITIVE_INFINITY);
+  const open: number[] = [];
+  const close = (): void => {
+    const top = open.pop() ?? 0;
+    const below = open[open.length - 1];
+    if (below !== undefined) least[below] = Math.min(least[below] ?? 0, least[top] ?? 0);
+  };
+  for (let index = 0; index < structural.length; index += 1) {
+    if (!structural[index]) continue;
+    const indent = indents[index] ?? 0;
+    while (open.length > 0 && (indents[open[open.length - 1] ?? 0] ?? 0) >= indent) close();
+    if (isGuard[index]) least[index] = indent;
+    open.push(index);
+  }
+  while (open.length > 0) close();
+  return least;
+}
+
+/**
  * The `run:` steps of a GitHub Actions workflow, read by indentation: a one-line value, or a `|` /
  * `>` block. A step is conditional when an `if:` or `continue-on-error:` key sits in the step
- * itself or at its job's level. Anything the reader cannot place is not claimed from. Linear in
- * the file: each lookup below is a precomputed index or is computed once per step or job.
+ * itself or at its job's level. Text inside any block scalar is never read as a key. Anything the
+ * reader cannot place is not claimed from.
+ *
+ * Linear in the file whatever its nesting depth: each line is tested once for each pattern, and
+ * every per-step and per-job lookup is an index or set built by a single pass beforehand.
  */
 function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
   const lines = contents.split(/\r?\n/);
+  const indents = lines.map(lineIndent);
+  const inBlockScalar = blockScalarBodyLines(lines, indents);
+  // A line that can carry workflow structure: not blank, and not text inside a block scalar.
+  const structural = lines.map((raw, index) => !inBlockScalar[index] && raw.trim() !== '');
+  const isGuard = lines.map((raw, index) => (structural[index] ?? false) && isStepOrJobGuard(raw));
   const itemAtOrAbove = new Array<number>(lines.length);
   const stepsKeyAbove = new Array<number>(lines.length);
   const lessIndentedAbove = new Array<number>(lines.length);
   {
-    let lastItem = 0;
+    let lastItem = -1;
     let lastStepsKey = -1;
     const open: number[] = [];
     for (let index = 0; index < lines.length; index += 1) {
       const raw = lines[index] ?? '';
-      if (LIST_ITEM_PATTERN.test(raw)) lastItem = index;
+      if (structural[index] && LIST_ITEM_PATTERN.test(raw)) lastItem = index;
       itemAtOrAbove[index] = lastItem;
       stepsKeyAbove[index] = lastStepsKey;
-      if (STEPS_KEY_PATTERN.test(raw)) lastStepsKey = index;
-      if (raw.trim() === '') {
+      if (!structural[index]) {
         lessIndentedAbove[index] = -1;
         continue;
       }
-      const indent = lineIndent(raw);
-      while (open.length > 0 && lineIndent(lines[open[open.length - 1] ?? 0] ?? '') >= indent) {
-        open.pop();
-      }
+      if (STEPS_KEY_PATTERN.test(raw)) lastStepsKey = index;
+      const indent = indents[index] ?? 0;
+      while (open.length > 0 && (indents[open[open.length - 1] ?? 0] ?? 0) >= indent) open.pop();
       lessIndentedAbove[index] = open.length > 0 ? (open[open.length - 1] ?? -1) : -1;
       open.push(index);
     }
   }
-  const nextAtOrBelow = nextDedentIndexes(lines, true);
-  const nextBelow = nextDedentIndexes(lines, false);
-  // The least-indented guard key inside each step, by the step's first line.
-  const stepGuardIndent = new Map<number, number>();
-  // Whether a job carries a guard at its own key level, by `<header line>:<key indent>`.
-  const jobGuarded = new Map<string, boolean>();
+  const nextAtOrBelow = nextAtOrBelowIndexes(structural, indents);
+  const leastGuardIndent = leastGuardIndentWithin(structural, indents, isGuard);
+  // A job is guarded when a guard key sits at its `steps:` key's own indent, before or after
+  // `steps:`, under the same parent line: the lines between that parent and the job's end are all
+  // at least that deep, so a guard there has the same parent and indent as `steps:`.
+  const guardedJobs = new Set<string>();
+  for (let index = 0; index < lines.length; index += 1) {
+    if (isGuard[index]) guardedJobs.add(`${lessIndentedAbove[index] ?? -1}:${indents[index] ?? 0}`);
+  }
   const steps: WorkflowRunStep[] = [];
   for (let index = 0; index < lines.length; index += 1) {
-    const match = RUN_KEY_PATTERN.exec(lines[index] ?? '');
+    if (!structural[index]) continue;
+    const raw = lines[index] ?? '';
+    const match = RUN_KEY_PATTERN.exec(raw);
     if (!match) continue;
-    const keyIndent = (match[1] ?? '').length + ((lines[index] ?? '').trimStart().startsWith('-') ? 2 : 0);
+    const keyIndent = workflowKeyIndent(raw, (match[1] ?? '').length);
     const value = (match[2] ?? '').trim();
     const body: { line: number; text: string }[] = [];
-    let lastBodyLine = index;
-    if (/^[|>][-+0-9]*$/.test(value)) {
-      for (let next = index + 1; next < lines.length; next += 1) {
-        const raw = lines[next] ?? '';
-        if (raw.trim() === '') continue;
-        if (lineIndent(raw) <= keyIndent) break;
-        body.push({ line: next + 1, text: raw });
-        lastBodyLine = next;
+    if (BLOCK_SCALAR_VALUE_PATTERN.test(beforeShellComment(value).trim())) {
+      for (let next = index + 1; next < lines.length && inBlockScalar[next]; next += 1) {
+        const text = lines[next] ?? '';
+        if (text.trim() !== '') body.push({ line: next + 1, text });
       }
     } else if (value !== '') {
       body.push({ line: index + 1, text: value.replace(/^(['"])(.*)\1$/, '$2') });
     }
     // The step: the nearest `- ` item at or above the key, to the next line no deeper than it. A
-    // key that is not inside that item's extent (malformed, or a mapping outside any list) is not
-    // placed, so nothing is claimed from it.
-    const stepStart = itemAtOrAbove[index] ?? 0;
-    const stepEnd = nextAtOrBelow[stepStart] ?? lines.length;
-    const placed = stepStart === index || stepEnd > index;
-    let guardIndent = stepGuardIndent.get(stepStart);
-    if (guardIndent === undefined) {
-      guardIndent = Number.POSITIVE_INFINITY;
-      for (let line = stepStart; line < stepEnd; line += 1) {
-        const raw = lines[line] ?? '';
-        if (isStepOrJobGuard(raw)) guardIndent = Math.min(guardIndent, lineIndent(raw));
-      }
-      stepGuardIndent.set(stepStart, guardIndent);
+    // key outside every item, or not inside the nearest item's extent (malformed, or a mapping
+    // outside any list), is not placed, so nothing is claimed from it.
+    const stepStart = itemAtOrAbove[index] ?? -1;
+    if (stepStart === -1) {
+      steps.push({ lines: body, conditional: true });
+      continue;
     }
-    const stepConditional = guardIndent <= keyIndent;
-    // The job: the mapping holding the nearest `steps:` key above the step. A guard key at that
-    // key's own indent, before or after `steps:`, conditions every step in the job.
-    let jobConditional = false;
+    const placed = stepStart === index || (nextAtOrBelow[stepStart] ?? lines.length) > index;
+    const stepConditional = (leastGuardIndent[stepStart] ?? Number.POSITIVE_INFINITY) <= keyIndent;
+    // The job: the mapping holding the nearest `steps:` key above the step.
     const stepsKey = stepsKeyAbove[stepStart] ?? -1;
-    if (stepsKey !== -1) {
-      const jobKeyIndent = lineIndent(lines[stepsKey] ?? '');
-      const header = lessIndentedAbove[stepsKey] ?? -1;
-      const cacheKey = `${header}:${jobKeyIndent}`;
-      const cached = jobGuarded.get(cacheKey);
-      if (cached !== undefined) {
-        jobConditional = cached;
-      } else {
-        const end = nextBelow[stepsKey] ?? lines.length;
-        for (let line = header + 1; line < end; line += 1) {
-          const raw = lines[line] ?? '';
-          if (lineIndent(raw) === jobKeyIndent && isStepOrJobGuard(raw)) {
-            jobConditional = true;
-            break;
-          }
-        }
-        jobGuarded.set(cacheKey, jobConditional);
-      }
-    }
+    const jobConditional =
+      stepsKey !== -1 &&
+      guardedJobs.has(`${lessIndentedAbove[stepsKey] ?? -1}:${indents[stepsKey] ?? 0}`);
     steps.push({ lines: body, conditional: !placed || stepConditional || jobConditional });
-    // A block body is shell text, not workflow keys: never read a `run:` inside it as a step.
-    index = lastBodyLine;
   }
   return steps;
 }
@@ -4547,24 +4647,91 @@ function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
 const WORKFLOW_OTHER_REPOSITORY_PATTERN = /^[ \t]*(?:-[ \t]+)?repository:[ \t]*\S/;
 const WORKFLOW_DOWNLOAD_ARTIFACT_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*['"]?actions\/download-artifact@/;
 const WORKFLOW_WORKING_DIRECTORY_PATTERN = /^[ \t]*(?:-[ \t]+)?working-directory:[ \t]*(.*)$/;
+// Characters a shell expands or a workflow interpolates: a path holding one is not read literally.
+const EXPANDED_PATH_PATTERN = /[$~`*?[\]{}'"\\]/;
 
-/** True when `path`, as written in a workflow, names a directory inside this checkout. */
-function isCheckoutDirectory(repoPath: string, path: string): boolean {
-  if (path === '' || /[$~`*?]/.test(path) || path.startsWith('/')) return false;
-  if (path.split('/').some((segment) => segment === '..')) return false;
-  try {
-    return lstatSync(join(repoPath, path)).isDirectory();
-  } catch {
-    return false;
+/** What the scanned inventory holds, relative to the scan root, exact-case. */
+interface CheckoutInventory {
+  readonly files: ReadonlySet<string>;
+  readonly directories: ReadonlySet<string>;
+}
+
+/**
+ * The files and directories of a checkout, from its inventory alone. A directory is held exactly
+ * when some inventoried path lies under it. Each path walks up its ancestors only until one is
+ * already known, so the set is built in time linear in the total length of the paths.
+ */
+function checkoutInventory(paths: readonly string[]): CheckoutInventory {
+  const directories = new Set<string>();
+  for (const path of paths) {
+    for (let end = path.lastIndexOf('/'); end > 0; end = path.lastIndexOf('/', end - 1)) {
+      const directory = path.slice(0, end);
+      if (directories.has(directory)) break;
+      directories.add(directory);
+    }
   }
+  return { files: new Set(paths), directories };
+}
+
+/** `path` as written in a workflow, without trailing slashes or a leading `./`; `undefined` if expanded. */
+function literalCheckoutPath(written: string): string | undefined {
+  let end = written.length;
+  while (end > 1 && written[end - 1] === '/') end -= 1;
+  let path = written.slice(0, end);
+  while (path.startsWith('./')) path = path.slice(2);
+  if (path === '' || path.startsWith('/') || EXPANDED_PATH_PATTERN.test(path)) return undefined;
+  return path;
+}
+
+/** True when `written`, as a workflow or shell writes it, names a directory the inventory holds. */
+function isCheckoutDirectory(inventory: CheckoutInventory, written: string): boolean {
+  const path = literalCheckoutPath(written);
+  return path !== undefined && (path === '.' || inventory.directories.has(path));
+}
+
+/** True when `written` names a file the inventory holds. */
+function isCheckoutFile(inventory: CheckoutInventory, written: string): boolean {
+  const path = literalCheckoutPath(written);
+  return path !== undefined && inventory.files.has(path);
+}
+
+/**
+ * False when the command points itself at a directory or manifest the inventory does not hold
+ * (`npm ci --prefix generated`, `cargo test --locked --manifest-path generated/Cargo.toml`): the
+ * lockfile it reads would then be one Cejel never saw. A flag with no value is not held either.
+ */
+function commandStaysInCheckout(
+  words: readonly string[],
+  rule: LockfileRequiringCommand,
+  inventory: CheckoutInventory,
+): boolean {
+  const end = words.indexOf('--');
+  const own = end === -1 ? words.slice(2) : words.slice(2, end);
+  const checks = [
+    [rule.directoryFlags, isCheckoutDirectory],
+    [rule.manifestFlags, isCheckoutFile],
+  ] as const;
+  for (const [index, word] of own.entries()) {
+    for (const [flags, holds] of checks) {
+      for (const flag of flags) {
+        let value: string;
+        if (word === flag) value = own[index + 1] ?? '';
+        else if (word.startsWith(`${flag}=`)) value = word.slice(flag.length + 1);
+        else if (!flag.startsWith('--') && word.startsWith(flag)) value = word.slice(flag.length);
+        else continue;
+        if (!holds(inventory, value)) return false;
+      }
+    }
+  }
+  return true;
 }
 
 /**
  * False when the workflow can put files in its workspace that the scanned tree does not hold:
- * another repository checked out, an artifact downloaded, or a working directory that is not a
- * directory of this checkout. A lockfile could then come from outside what Cejel read.
+ * another repository checked out, an artifact downloaded, or a working directory the inventory
+ * does not hold. A lockfile could then come from outside what Cejel read.
  */
-function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean {
+function workflowReadsOnlyThisTree(inventory: CheckoutInventory, contents: string): boolean {
   for (const raw of contents.split(/\r?\n/)) {
     if (WORKFLOW_OTHER_REPOSITORY_PATTERN.test(raw)) return false;
     if (WORKFLOW_DOWNLOAD_ARTIFACT_PATTERN.test(raw)) return false;
@@ -4572,10 +4739,8 @@ function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean 
     if (workingDirectory) {
       const value = beforeShellComment(workingDirectory[1] ?? '')
         .trim()
-        .replace(/^(['"])(.*)\1$/, '$2')
-        .replace(/\/+$/, '')
-        .replace(/^\.\//, '');
-      if (value !== '.' && !isCheckoutDirectory(repoPath, value)) return false;
+        .replace(/^(['"])(.*)\1$/, '$2');
+      if (!isCheckoutDirectory(inventory, value)) return false;
     }
   }
   return true;
@@ -4584,22 +4749,25 @@ function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean 
 /**
  * The first unconditional GitHub Actions step, in file order, whose command requires a lockfile
  * that `isSatisfied` says is absent. Cejel claims nothing about a step that is conditional or may
- * fail without failing its job, whose shell is conditional or contains a heredoc, or that changes
- * into a directory this checkout does not hold; nor about a workflow that can bring in files from
- * outside the scanned tree, or that also runs a command that writes or names that lockfile
- * (`npm install`, `uv run` without `--locked`, `cp ci/package-lock.json .`), which may create it
- * first. Linear in the workflow: what the workflow may generate is decided once per workflow.
+ * fail without failing its job, whose shell is conditional (in command position, after any `(`,
+ * `{` or `!`), inverts a status, turns off `errexit` or contains a heredoc, or that changes into a
+ * directory the inventory does not hold; nor about a command pointed by a flag at a directory or
+ * manifest the inventory does not hold; nor about a workflow that can bring in files from outside
+ * the scanned tree, or that also runs a command that writes or names that lockfile (`npm install`,
+ * `uv run` without `--locked`, `cp ci/package-lock.json .`), which may create it first. Linear in
+ * the workflow: what the workflow may generate is decided once per workflow.
  */
 function findLockfileRequirement(
   repoPath: string,
   workflows: readonly string[],
+  inventory: CheckoutInventory,
   isSatisfied: (lockfiles: readonly string[]) => boolean,
 ): LockfileRequirement | undefined {
   for (const file of workflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const contents = readRepoText(fullPath, 'utf8');
-    if (!workflowReadsOnlyThisTree(repoPath, contents)) continue;
+    if (!workflowReadsOnlyThisTree(inventory, contents)) continue;
     const steps = githubActionsRunSteps(contents);
     const commandsOf = (step: WorkflowRunStep) =>
       step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
@@ -4621,19 +4789,26 @@ function findLockfileRequirement(
       const commands = stepCommands[stepIndex] ?? [];
       const shellIsConditional =
         step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
-        commands.some(({ words }) => CONDITIONAL_SHELL_WORDS.has(words[0] ?? '')) ||
+        commands.some(({ words }) => isConditionalShellCommand(words)) ||
         step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)));
       if (shellIsConditional) continue;
-      const leavesCheckout = commands.some(
-        ({ words }) =>
-          DIRECTORY_CHANGE_COMMANDS.has(words[0] ?? '') &&
-          !isCheckoutDirectory(repoPath, (words[1] ?? '').replace(/\/+$/, '').replace(/^\.\//, '')),
-      );
+      const leavesCheckout = commands.some(({ words }) => {
+        const head = commandHead(words);
+        return (
+          DIRECTORY_CHANGE_COMMANDS.has(head.word) &&
+          !isCheckoutDirectory(inventory, words[head.argsFrom] ?? '')
+        );
+      });
       if (leavesCheckout) continue;
       for (const { line, words } of commands) {
         for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
           const command = matchLockfileRequiringCommand(words, rule);
-          if (command === undefined || isSatisfied(rule.lockfiles) || mayBeGenerated.has(rule)) {
+          if (
+            command === undefined ||
+            isSatisfied(rule.lockfiles) ||
+            mayBeGenerated.has(rule) ||
+            !commandStaysInCheckout(words, rule, inventory)
+          ) {
             continue;
           }
           return { file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
@@ -7114,6 +7289,22 @@ const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
 // reorders the run): the list is not left empty, so the hook is not read as removing the suite.
 const PYTEST_HOOK_REFILL_ITEMS_PATTERN =
   /^items(?:[ \t]*\.[ \t]*(?:extend|append|insert)[ \t]*\(|[ \t]*\+=|[ \t]*\[[^\]]*\][ \t]*=(?!=))/;
+// ...except one that puts back an empty literal (`items.extend([])`, `items += ()`), which leaves
+// the list empty.
+const PYTEST_HOOK_EMPTY_REFILL_PATTERN =
+  /^items(?:[ \t]*\.[ \t]*extend[ \t]*\([ \t]*|[ \t]*\+=[ \t]*)(?:\[[ \t]*\]|\([ \t]*\))[ \t]*(?:\)[ \t]*)?$/;
+
+/**
+ * A hook body line's statements: split at `;` unless the line holds a quote, where a `;` may be
+ * inside a string and the line is kept whole.
+ */
+function pythonLineStatements(line: string): string[] {
+  if (!line.includes(';') || /['"]/.test(line)) return [line];
+  return line
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter((statement) => statement !== '');
+}
 
 interface PytestRunWideSkip {
   /** The conftest.py, repository-relative. */
@@ -7151,13 +7342,14 @@ function findPytestRunWideSkips(
         const trimmed = raw.trim();
         if (trimmed === '' || trimmed.startsWith('#')) continue;
         if (raw.length === raw.trimStart().length) break;
-        body.push(stripPythonLineComment(trimmed).trim());
+        body.push(...pythonLineStatements(stripPythonLineComment(trimmed).trim()));
       }
       if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
       const clears = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement));
       const refills = body.some(
         (statement) =>
           !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement) &&
+          !PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(statement) &&
           PYTEST_HOOK_REFILL_ITEMS_PATTERN.test(statement),
       );
       const kind = clears && !refills

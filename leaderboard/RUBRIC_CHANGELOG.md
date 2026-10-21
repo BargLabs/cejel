@@ -22,6 +22,96 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-21 — post-merge review of #533: the CI lockfile reader's own fixes corrected; no published score moved
+
+**Status.** #533 merged the third-review corrections without a review of its own. Two post-merge
+review passes then found four defects in its CI lockfile reader, one test gap and one nit. This
+entry corrects all six, and a seventh defect found while fixing them. The A4 note and citation corrections ship under every rubric and move no v17
+score, status, metric, finding count or fingerprint. The `lockfile_coverage` and A1 corrections
+ship only under `witan-rubric-v27-prospective-2026-10-19`, which keeps its identifier: it is
+unreleased and opt-in, and its pinned fingerprint does not move. The default stays v17. **No
+holdout or calibration ran, and this entry makes no precision or recall claim.** Fixtures:
+`review4-*` in `src/witan/__tests__/fixtures/false-assurance-fixtures.ts`.
+
+**Two corrections to the 2026-10-20 entry.**
+- It called the workflow step reader "linear". That held for the number of steps in a flat
+  workflow only. Each nested list item rescanned its own extent for a guard key, and each nested
+  `steps:` key rescanned its job's extent, so the cost was nesting depth times file size. The
+  timing guard used flat steps only, so it could not see this.
+- #533 introduced a false claim. It began reading a conditional word in command position only,
+  so a guard behind `(`, `{` or `!` was lost: `( [ -n "$FULL" ] && npm ci )` made v17's note claim
+  that CI requires a lockfile, and scored v27's `lockfile_coverage` 0. The parent of #533 made no
+  claim there. The same change newly claimed `cargo test --locked --manifest-path
+  generated/Cargo.toml` and a `set +e` step that also runs `npm test`.
+
+**Every rubric (presentation under v17).** The CI lockfile note is withheld for:
+- a guard behind `(`, `{` or `!`, in any combination, and an arithmetic `((` guard. A command
+  after a `!` is never claimed: its failure passes the step.
+- `set +e` and `set +o errexit`.
+- a `cd` inside a subshell (`( cd generated && npm ci )`).
+- a directory or manifest passed as a flag that the scanned inventory does not hold. This covers
+  `npm ci --prefix`, `pnpm --dir` and `-C`, `uv --directory` and `--project`, and
+  `cargo --manifest-path` and `-C`, in the `--flag value`, `--flag=value` and glued short forms.
+  Where the inventory does hold the directory, the claim stands. The inventory then holds no file
+  of the lockfile's name anywhere, so it holds none in that directory either.
+- a `run:` or `steps:` line inside a `|` or `>` block scalar, such as a heredoc or a script passed
+  to an action. That line is text, not a workflow key. Before, a `steps:` line in an earlier
+  step's heredoc could detach a later step from its job's `if: false`.
+
+Reading block scalars as text also makes the note fire in two true shapes it missed. One is a
+`run: |` whose indicator carries a comment. The other is a step where a block scalar before
+`run:` holds a line starting with `- `, which was read as a step boundary.
+
+Which directories the checkout holds is decided from the scanned inventory: the scanned and
+withheld paths, exact-case. It is never decided from `lstat` on the working tree. Before, three
+things on the scanning host changed the certificate: a tracked symlink to a host directory, a
+case-insensitive volume (`cd SRC` with tracked `src/`), and an untracked empty directory. They no
+longer do. This also removes one uncached `lstat` per `cd` or `working-directory` occurrence.
+
+Guard keys are now evaluated once per line. Step and job guard extents come from one stack pass.
+
+**v27 only.**
+- `lockfile_coverage` follows the note above.
+- A pytest hook that empties `items` and puts back only an empty literal (`items.extend([])`) is
+  read as removing the suite, not as a reorder.
+- `items.clear(); items.extend(ordered)` written on one line is read as a reorder, as it already
+  was on two lines. Before, it was read as removing the suite.
+
+**Measured, main (`1d0d4388d`) against this change.** Reports are compared byte for byte, with
+the repository path normalised.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| False-assurance fixtures, existing (52) | 0 | 52 | 0 | 0 violations |
+| False-assurance fixtures, new `review4-*` (35) | 0 | 13 (of the 22 that differ, 20 have the false note and citation withheld and 2 gain a true one) | 24 (20 `review4-a4-*`: `lockfile_coverage` 0 to absent; 2 `review4-a4-claims-*`: absent to 0; 2 `review4-a1-*`: the hook finding) | 0 violations |
+
+The public board was not re-scored. Under v17 the reader feeds only A4's note and citation, so no
+v17 board score, status or rank can move. v27 board rows were not measured.
+
+Timing, scan only, one run each on the author's machine. Eight workflows, each just under the
+content size limit, held 990 nested `- run:` items or 490 nested `steps:` keys. They took 7.2 s to
+8.3 s on main and take 0.30 s (v17) and 0.35 s (v27) now. Sixteen took 15.0 s and take 0.5 s. A
+child-process timing guard with a 2 s budget fails against main's reader.
+
+A third timing defect turned up while fixing these, and neither review reported it. #533 trimmed
+a `cd` target and a `working-directory` value with `.replace(/\/+$/, '')`. A 480,000-slash value
+followed by one letter took about 80 s per workflow on main, because the trim is quadratic in a
+slash run that does not end the value. Paths are now trimmed by a loop: 0.3 s. A timing guard kills
+main's reader at 20 s.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`. No corpus fixture has
+any of these shapes.
+
+**Not fixed.** Other false-claim shapes that predate #533 are tracked in #546. They are: `needs:`
+on a skipped job, an `if: false` job whose `steps:` line carries a comment, `shell: bash {0}`, a
+generator that is not the first word, and a checkout of another ref. This change also withholds
+the claim for `set +e`, one of the shapes #546 lists. Not reviewed here: a step whose
+`npm ci` is piped (`| tee`) or backgrounded (`&`). Under the default shell, neither fails the step.
+
 ## 2026-10-20 — third review of the v27 closure: eight corrections; no published score moved
 
 **Status.** A third adversarial review, of the merged #521, reported ten findings. Eight
