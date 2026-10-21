@@ -16,7 +16,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.6.8] — 2026-10-21
+## [0.6.8] — 2026-10-22
 
 **Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from
 full-history clones: under v17 at v0.6.7 and at the release candidate (`4016f659e`), and under v27
