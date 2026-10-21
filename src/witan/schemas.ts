@@ -471,7 +471,8 @@ export const WitanInputBindingRecordSchema = z
       .max(8),
     // Additive-optional (1.7, #525 follow-up): distinct declared subjects beyond the 8 recorded.
     // Every declared subject is checked; only the record is capped. Absent when none were omitted.
-    subjectsOmitted: z.number().int().min(1).optional(),
+    // Bounded by the 8 MiB ingest document budget: each distinct subject takes at least one byte.
+    subjectsOmitted: z.number().int().min(1).max(8 * 1024 * 1024).optional(),
     observedAt: z.string().datetime().optional(),
     status: WitanInputBindingStatusSchema,
     checks: z

@@ -136,6 +136,64 @@ describe('finding: credentials in an un-normalizable repository identity are nev
   });
 });
 
+describe('finding: a declared repository that is not a string is withheld, not absent', () => {
+  const scorecard = (head: string) =>
+    JSON.stringify({
+      date: ONE_HOUR_AFTER,
+      repo: { name: { host: 'github.com', path: 'evil/other' }, commit: head },
+      scorecard: { version: 'v5' },
+      checks: [{ name: 'Code-Review', score: 3, reason: 'r', details: null }],
+    });
+  const sarifObject = (head: string) =>
+    JSON.stringify({
+      version: '2.1.0',
+      runs: [
+        {
+          tool: { driver: { name: 't' } },
+          results: [],
+          versionControlProvenance: [{ repositoryUri: { uri: 'https://github.com/evil/other' }, revisionId: head }],
+        },
+      ],
+    });
+
+  it.each([
+    ['Scorecard repo.name object', (head: string) => writeInput(scorecard(head), 'scorecard.json')],
+    ['SARIF repositoryUri object', (head: string) => writeInput(sarifObject(head))],
+  ])('%s: mismatched with --subject-repository, refused when strict', (_label, make) => {
+    const path = make(repo.head);
+    const record = score([path]).inputBinding?.inputs[0];
+    expect(record?.subjects).toEqual([{ repositoryWithheld: true, commit: repo.head }]);
+    expect(record?.status).toBe('mismatched-repository');
+    expect(() => score([path], { strictIngest: true })).toThrow(/mismatched-repository/);
+  });
+
+  it('without --subject-repository the repository check is unverifiable', () => {
+    const record = score([writeInput(sarifObject(repo.head))], { subjectRepository: null }).inputBinding
+      ?.inputs[0];
+    expect(record?.checks.repository).toBe('unverifiable');
+  });
+
+  it('a null or blank repository is still absent', () => {
+    const record = score([
+      writeInput(sarif([{ provenance: [{ repositoryUri: null as unknown as string, revisionId: repo.head }] }])),
+    ]).inputBinding?.inputs[0];
+    expect(record?.subjects).toEqual([{ commit: repo.head }]);
+    expect(record?.status).toBe('matched');
+  });
+});
+
+describe('finding: an identity whose path keeps an `@` is withheld', () => {
+  it.each(['https://ci.bot:1234/glpat-TOKEN0123@gitlab.com/g/r', 'git@gitlab.com:glpat-TOKEN0123@x/r'])(
+    'refuses to normalize %s',
+    (uri) => {
+      expect(normalizeRepositoryIdentity(uri)).toBeUndefined();
+      const report = score([writeInput(sarif([{ provenance: [{ repositoryUri: uri, revisionId: repo.head }] }]))]);
+      expect(JSON.stringify(report)).not.toContain('TOKEN0123');
+      expect(report.inputBinding?.inputs[0]?.subjects).toEqual([{ repositoryWithheld: true, commit: repo.head }]);
+    },
+  );
+});
+
 describe('finding: every declared subject is checked, not only the first 8', () => {
   // Eight distinct abbreviations of HEAD for the right repository, then one foreign subject.
   const abbreviations = (head: string) =>

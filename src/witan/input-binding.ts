@@ -136,6 +136,9 @@ export function normalizeRepositoryIdentity(value: string): string | undefined {
     .toLowerCase();
   if (!/^[a-z0-9.-]+\.[a-z]{2,}$|^localhost$/.test(host) || path.length === 0) return undefined;
   if (/[\p{Cc}\p{Cf}\s]/u.test(path)) return undefined;
+  // An `@` left in the path is userinfo the forms above did not recognize
+  // (`https://host:1234/<token>@gitlab.com/g/r`, `git@host:<token>@x/r`): refuse, so it is withheld.
+  if (path.includes('@')) return undefined;
   const normalized = `${host}/${path}`;
   return normalized.length <= MAX_REPOSITORY_LENGTH ? normalized : undefined;
 }
@@ -228,10 +231,17 @@ function pushUnique<T>(items: T[], item: T): void {
  * verbatim, because the verbatim text is exactly where URL userinfo credentials live.
  */
 function subjectFrom(repository: unknown, commit: unknown): IngestSubjectIdentity | undefined {
-  const declaredRepository = typeof repository === 'string' && repository.trim().length > 0;
-  const normalizedRepository = declaredRepository
-    ? normalizeRepositoryIdentity(repository)
-    : undefined;
+  // Declared means present: anything but undefined, null or a blank string. A declared value that
+  // is not a string (Scorecard `repo.name: {host, path}`, SARIF `repositoryUri: {uri}`) cannot be
+  // normalized, so it is withheld like an un-normalizable string, never silently read as absent.
+  const declaredRepository =
+    repository !== undefined &&
+    repository !== null &&
+    !(typeof repository === 'string' && repository.trim().length === 0);
+  const normalizedRepository =
+    typeof repository === 'string' && declaredRepository
+      ? normalizeRepositoryIdentity(repository)
+      : undefined;
   const normalizedCommit = normalizeCommit(commit);
   if (!declaredRepository && normalizedCommit === undefined) return undefined;
   return {
