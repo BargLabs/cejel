@@ -152,6 +152,7 @@ export function createWitanReport(
         findings: scored.findings,
         metrics: scored.metrics,
         ...(signal?.notes ? { notes: signal.notes } : {}),
+        ...(signal?.disclosures ? { disclosures: signal.disclosures } : {}),
       } satisfies WitanCriterionScore;
     }
 
@@ -185,6 +186,7 @@ export function createWitanReport(
       findings: scored.findings,
       metrics: scored.metrics,
       ...(signal?.notes ? { notes: signal.notes } : {}),
+      ...(signal?.disclosures ? { disclosures: signal.disclosures } : {}),
     } satisfies WitanCriterionScore;
   });
 
@@ -456,6 +458,7 @@ function mergeSignalsByCriterion(
       findings: [...existing.findings, ...signal.findings],
       metrics: [...(existing.metrics ?? []), ...(signal.metrics ?? [])],
       notes: signal.notes ?? existing.notes,
+      ...mergedDisclosures(existing.disclosures, signal.disclosures),
       ...(existingAbstains || signalAbstains
         ? {
             insufficientData: true as const,
@@ -468,6 +471,15 @@ function mergeSignalsByCriterion(
   }
 
   return merged;
+}
+
+// Both collectors' disclosures survive a merge, unlike notes; the schema caps the list at four.
+function mergedDisclosures(
+  existing: readonly string[] | undefined,
+  incoming: readonly string[] | undefined,
+): { disclosures?: string[] } {
+  const disclosures = [...new Set([...(existing ?? []), ...(incoming ?? [])])].slice(0, 4);
+  return disclosures.length > 0 ? { disclosures } : {};
 }
 
 // Rubric versions whose criteria carry weighted metrics as the primary signal (rather than

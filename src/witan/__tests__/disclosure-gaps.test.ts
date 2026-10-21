@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { platform } from 'node:os';
+
+import { afterAll, describe, expect, it } from 'vitest';
 
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
@@ -19,6 +21,7 @@ import {
   DISCLOSURE_GAP_FIXTURES,
   buildDisclosureGapFixture,
   disclosureGapFixture,
+  removeDisclosureGapFixtures,
 } from './fixtures/disclosure-gap-fixtures.js';
 
 // A2 placeholder set-aside and gitignore citation, B2 trigger labels, B3 counted workflows not
@@ -32,6 +35,17 @@ import {
 // a status, a metric value or a finding count fails there by fixture and rubric.
 
 const V17 = WITAN_RUBRIC_VERSION_V17;
+// chmod 000 does not stop root reading a file, so the unreadable fixtures test nothing there.
+const canDenyReadAccess = platform() !== 'win32' && process.getuid?.() !== 0;
+const NEEDS_READ_DENIAL = new Set(
+  DISCLOSURE_GAP_FIXTURES.filter((fixture) => (fixture.unreadable ?? []).length > 0).map(
+    (fixture) => fixture.name,
+  ),
+);
+
+afterAll(() => {
+  removeDisclosureGapFixtures();
+});
 
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
@@ -80,7 +94,7 @@ function notEstablished(name: string, rubricVersion: string = V17): string {
 }
 
 describe('A2: credential-shaped values set aside as placeholders are named', () => {
-  it('names the committed env file holding the documentation pair, on the metric line, in notes and on the summary', () => {
+  it('names the committed env file holding the documentation pair, on the metric line, as a disclosure and on the summary', () => {
     const name = 'a2-doc-example-pair-in-committed-env-file';
     const a2 = criterion(name, 'A2');
     expect(a2.metrics.find((metric) => metric.name === 'secret_cleanliness')?.value).toBe(1);
@@ -89,20 +103,21 @@ describe('A2: credential-shaped values set aside as placeholders are named', () 
     );
     const sentence =
       'Cejel read and set aside 2 credential-shaped values as documentation placeholders because they contain a placeholder marker such as "example", so they were not counted against secret cleanliness or checked further: config/dev.env.';
-    expect(a2.notes?.endsWith(` ${sentence}`)).toBe(true);
+    expect(a2.disclosures).toEqual([sentence]);
+    expect(a2.notes).not.toContain(WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX);
     expect(notEstablished(name)).toContain(sentence);
   });
 
   it('names a source file holding the documentation key id', () => {
-    expect(criterion('a2-doc-example-id-in-source', 'A2').notes).toContain(
+    expect(criterion('a2-doc-example-id-in-source', 'A2').disclosures).toEqual([
       'Cejel read and set aside 1 credential-shaped value as a documentation placeholder because it contains a placeholder marker such as "example", so it was not counted against secret cleanliness or checked further: src/creds.ts.',
-    );
+    ]);
     expect(notEstablished('a2-doc-example-id-in-source')).toContain('or checked further: src/creds.ts.');
   });
 
   it('names nothing when the placeholders are not credential-shaped', () => {
     const name = 'a2-control-non-credential-placeholders';
-    expect(criterion(name, 'A2').notes).not.toContain(WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX);
+    expect(criterion(name, 'A2').disclosures).toBeUndefined();
     expect(metricLine(name, 'A2', 'secret_cleanliness')).toBe(
       'clean — no critical secret findings detected',
     );
@@ -114,19 +129,42 @@ describe('A2: credential-shaped values set aside as placeholders are named', () 
     const a2 = criterion(name, 'A2');
     expect(a2.metrics.find((metric) => metric.name === 'secret_cleanliness')?.value).toBe(0);
     expect(a2.findings.some((finding) => finding.severity === 'critical')).toBe(true);
-    expect(a2.notes).not.toContain(WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX);
+    expect(a2.disclosures).toBeUndefined();
     expect(notEstablished(name)).not.toContain(WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX);
   });
 
-  it('adds the sentence to a not-applicable reason and to the summary', () => {
+  it('discloses on a not-applicable A2 once, apart from its reason', () => {
     const name = 'a2-not-applicable-with-set-aside';
     const a2 = criterion(name, 'A2');
     expect(a2.status).toBe('not_applicable');
-    expect(a2.notes).toMatch(/^No data layer .* Cejel read and set aside 1 credential-shaped value .*: tool\.py\.$/);
-    expect(notEstablished(name)).toContain('or checked further: tool.py.');
+    expect(a2.notes).toMatch(/^No data layer .*do not qualify\.$/);
+    expect(a2.disclosures).toHaveLength(1);
+    expect(a2.disclosures?.[0]).toMatch(/^Cejel read and set aside 1 credential-shaped value .*: tool\.py\.$/);
+    const summary = notEstablished(name);
+    expect(summary.split('or checked further: tool.py.').length - 1).toBe(1);
   });
 
-  it('fits the notes field: paths are dropped before the sentence is', () => {
+  it.skipIf(!canDenyReadAccess)(
+    'keeps the disclosure when A2 abstains and its notes are rewritten, under every rubric (#539)',
+    () => {
+      const name = 'a2-set-aside-with-unreadable-source';
+      const sentence =
+        'Cejel read and set aside 2 credential-shaped values as documentation placeholders because they contain a placeholder marker such as "example", so they were not counted against secret cleanliness or checked further: config/dev.env.';
+      const rewritten: string[] = [];
+      for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
+        const a2 = criterion(name, 'A2', rubricVersion);
+        if (a2.notes?.startsWith('Cejel abstained') || a2.notes?.startsWith('Cejel declined')) {
+          rewritten.push(rubricVersion);
+        }
+        expect(notEstablished(name, rubricVersion), rubricVersion).toContain(sentence);
+        expect(a2.disclosures, rubricVersion).toEqual([sentence]);
+      }
+      // The fixture exercises the rewrite on at least one rubric, or it proves nothing.
+      expect(rewritten.length).toBeGreaterThan(0);
+    },
+  );
+
+  it('fits a disclosure: paths are dropped before the sentence is', () => {
     const files = Array.from({ length: 6 }, (_, index) => ({
       path: `services/service-${index}/config/${'deeply/'.repeat(8)}settings.env`,
       count: 1,
@@ -183,6 +221,19 @@ describe('B2: each cited workflow is labelled by its own trigger', () => {
   it('cites a non-GitHub CI file without a pull-request claim', () => {
     expect(labels('b2-gitlab-ci', 'B2')).toContain('CI workflow (trigger not read)');
   });
+
+  it('names fewer triggers, then none, to fit the evidence label limit, and the scan completes', () => {
+    expect(labels('b2-long-trigger-names', 'B2')).toEqual([
+      // One 170-character name cannot fit; of three 50-character names, two can.
+      'CI workflow with no pull-request trigger',
+      `CI workflow with no pull-request trigger (on: a_${'a'.repeat(48)}, b_${'b'.repeat(48)}, ...)`,
+    ]);
+    for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
+      for (const pointer of criterion('b2-long-trigger-names', 'B2', rubricVersion).evidence) {
+        expect(pointer.label.length).toBeLessThanOrEqual(180);
+      }
+    }
+  });
 });
 
 describe('the workflow trigger reader', () => {
@@ -235,11 +286,30 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
   it('names the print-only workflow and the one confined to an absent master branch', () => {
     const b3 = criterion('b2b3-planted-workflows', 'B3');
     expect(b3.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(3);
-    expect(b3.notes).toBe(sentence);
+    expect(b3.disclosures).toEqual([sentence]);
+    expect(b3.notes).toBeUndefined();
     expect(metricLine('b2b3-planted-workflows', 'B3', 'default_branch_ci_depth')).toBe(
       '3/4 workflows; includes 2 not shown to run a check: e2e.yml only prints text; security.yml runs only on master',
     );
     expect(notEstablished('b2b3-planted-workflows')).toContain(sentence);
+  });
+
+  it('names the absent branch from a full clone by its recorded default branch', () => {
+    const name = 'b3-master-target-full-clone';
+    expect(criterion(name, 'B3').disclosures).toEqual([
+      "B3 counted workflows Cejel did not see run a check: .github/workflows/security.yml runs only on master, and the clone's default branch is main with no master branch. The PR-gate CI workflow count still includes it.",
+    ]);
+  });
+
+  it('names a counted monorepo-root workflow as a root workflow', () => {
+    const name = 'b3-monorepo-root-print-only';
+    const sentence =
+      'B3 counted workflows Cejel did not see run a check: .github/workflows/e2e.yml at the monorepo root only prints text. The PR-gate CI workflow count still includes it.';
+    expect(notEstablished(name)).toContain(sentence);
+    expect(criterion(name, 'B3').disclosures).toEqual([sentence]);
+    expect(metricLine(name, 'B3', 'default_branch_ci_depth')).toContain(
+      'includes 1 not shown to run a check: e2e.yml at the monorepo root only prints text',
+    );
   });
 
   it.each([
@@ -248,12 +318,16 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     'b3-master-target-detached',
     'b3-echo-with-action',
     'b3-echo-with-substitution',
+    'b3-master-target-with-schedule',
+    'b3-master-target-with-dispatch',
+    'b3-master-target-depth-1-clone',
+    'b3-master-target-single-branch-clone',
   ])('claims nothing for %s', (name) => {
-    expect(criterion(name, 'B3').notes ?? '').not.toContain(WITAN_B3_UNSHOWN_CHECK_PREFIX);
+    expect(criterion(name, 'B3').disclosures).toBeUndefined();
     expect(notEstablished(name)).not.toContain(WITAN_B3_UNSHOWN_CHECK_PREFIX);
   });
 
-  it('fits the notes field', () => {
+  it('fits a disclosure', () => {
     const unshown = {
       printOnly: Array.from({ length: 5 }, (_, index) => `.github/workflows/${'p'.repeat(60)}-${index}.yml`),
       absentBranch: [
@@ -270,13 +344,15 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
 
 describe('every disclosure is presentation only', () => {
   // Captured by scoring these fixtures, with the options in report() above, using origin/main
-  // 1d0d4388d's scanner (before this change): sha256 of
+  // 1d0d4388d's scanner (before this change; the fixtures after 'b2-gitlab-ci' were added after
+  // review and captured the same way): sha256 of
   // JSON.stringify(projectWitanScoringSurface(report)), per fixture and selectable rubric.
   it('leaves every scoring surface where origin/main left it, under every selectable rubric', async () => {
     const { createHash } = await import('node:crypto');
     const pins = SCORING_SURFACE_PINS;
     const moved: string[] = [];
     for (const fixture of DISCLOSURE_GAP_FIXTURES) {
+      if (!canDenyReadAccess && NEEDS_READ_DENIAL.has(fixture.name)) continue;
       for (const rubricVersion of WITAN_SELECTABLE_RUBRIC_VERSIONS) {
         const key = `${fixture.name}@${rubricVersion}`;
         const surface = createHash('sha256')
@@ -623,4 +699,180 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     '277b21f32eeb0afbdd8469dbe820c3ae3c24205161e99bf9fc9400cbc5c44968',
   'b2-gitlab-ci@witan-rubric-v27-prospective-2026-10-19':
     'd3815e51c075e9bfc3f0d789e81b9a45f5e4f845bd800f9316d83698fbd524d7',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v17-2026-07-24':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v18-prospective-2026-07-25':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v19-prospective-2026-08-09':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v20-prospective-2026-08-10':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v21-prospective-2026-08-10':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v22-prospective-2026-08-10':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v23-prospective-2026-09-06':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v24-prospective-2026-09-15':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v25-prospective-2026-10-12':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v26-prospective-2026-10-14':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'a2-set-aside-with-unreadable-source@witan-rubric-v27-prospective-2026-10-19':
+    '3e07817e2a12413329337d12d7ccbf68d290407c194709d882de25650efb209e',
+  'b2-long-trigger-names@witan-rubric-v17-2026-07-24':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v18-prospective-2026-07-25':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v19-prospective-2026-08-09':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v20-prospective-2026-08-10':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v21-prospective-2026-08-10':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v22-prospective-2026-08-10':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v23-prospective-2026-09-06':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v24-prospective-2026-09-15':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v25-prospective-2026-10-12':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b2-long-trigger-names@witan-rubric-v26-prospective-2026-10-14':
+    '6cf9586a0c2368ab6c476a9dd9c62082274ffd12420a72fd6e62348b637f2746',
+  'b2-long-trigger-names@witan-rubric-v27-prospective-2026-10-19':
+    'bb2dae4bed9224ff70a5b255cdcec0527a56c9ff966deb67d0293ed95149833f',
+  'b3-master-target-with-schedule@witan-rubric-v17-2026-07-24':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v18-prospective-2026-07-25':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v19-prospective-2026-08-09':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v20-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v21-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v22-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v23-prospective-2026-09-06':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v24-prospective-2026-09-15':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v25-prospective-2026-10-12':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-schedule@witan-rubric-v26-prospective-2026-10-14':
+    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+  'b3-master-target-with-schedule@witan-rubric-v27-prospective-2026-10-19':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v17-2026-07-24':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v18-prospective-2026-07-25':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v19-prospective-2026-08-09':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v20-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v21-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v22-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v23-prospective-2026-09-06':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v24-prospective-2026-09-15':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v25-prospective-2026-10-12':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-with-dispatch@witan-rubric-v26-prospective-2026-10-14':
+    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+  'b3-master-target-with-dispatch@witan-rubric-v27-prospective-2026-10-19':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v17-2026-07-24':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v18-prospective-2026-07-25':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v19-prospective-2026-08-09':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v20-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v21-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v22-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v23-prospective-2026-09-06':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v24-prospective-2026-09-15':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v25-prospective-2026-10-12':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-full-clone@witan-rubric-v26-prospective-2026-10-14':
+    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+  'b3-master-target-full-clone@witan-rubric-v27-prospective-2026-10-19':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v17-2026-07-24':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v18-prospective-2026-07-25':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v19-prospective-2026-08-09':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v20-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v21-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v22-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v23-prospective-2026-09-06':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v24-prospective-2026-09-15':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v25-prospective-2026-10-12':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-depth-1-clone@witan-rubric-v26-prospective-2026-10-14':
+    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+  'b3-master-target-depth-1-clone@witan-rubric-v27-prospective-2026-10-19':
+    '087aca30f7590afba5d9c6004a72d3b9c42dcab71fd0df75aa0e0d1614978b44',
+  'b3-master-target-single-branch-clone@witan-rubric-v17-2026-07-24':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v18-prospective-2026-07-25':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v19-prospective-2026-08-09':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v20-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v21-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v22-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v23-prospective-2026-09-06':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v24-prospective-2026-09-15':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v25-prospective-2026-10-12':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-single-branch-clone@witan-rubric-v26-prospective-2026-10-14':
+    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+  'b3-master-target-single-branch-clone@witan-rubric-v27-prospective-2026-10-19':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-monorepo-root-print-only@witan-rubric-v17-2026-07-24':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v18-prospective-2026-07-25':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v19-prospective-2026-08-09':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v20-prospective-2026-08-10':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v21-prospective-2026-08-10':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v22-prospective-2026-08-10':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v23-prospective-2026-09-06':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v24-prospective-2026-09-15':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v25-prospective-2026-10-12':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+  'b3-monorepo-root-print-only@witan-rubric-v26-prospective-2026-10-14':
+    'dbc5b7c625981fd7810e9995da0387d73c510fac2423e771a301aedf55e5b989',
+  'b3-monorepo-root-print-only@witan-rubric-v27-prospective-2026-10-19':
+    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
 };

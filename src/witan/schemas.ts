@@ -232,6 +232,12 @@ export const WitanContentReadSkipReasonSchema = z.enum([
 ]);
 export type WitanContentReadSkipReason = z.infer<typeof WitanContentReadSkipReasonSchema>;
 
+// Additive-optional (report format 1.8): sentences naming what a criterion's collector read and
+// set aside or counted without seeing it do what it is counted for. Carried apart from `notes`, so
+// an abstention or merge that rewrites the notes cannot drop them; the certificate lists them under
+// "What was not established". Presentation only: no score, status or metric reads them.
+export const WitanCriterionDisclosuresSchema = z.array(z.string().min(1).max(1000)).min(1).max(4);
+
 export const WitanCriterionSignalSchema = z
   .object({
     criterionId: WitanCriterionIdSchema,
@@ -239,6 +245,7 @@ export const WitanCriterionSignalSchema = z
     findings: z.array(WitanFindingSchema).default([]),
     metrics: z.array(WitanCriterionMetricSchema).default([]),
     notes: z.string().min(1).max(1000).optional(),
+    disclosures: WitanCriterionDisclosuresSchema.optional(),
     notApplicable: z.literal(true).optional(),
     // A collector reached relevant files but could not read their contents. This is a
     // measurement gap, never negative evidence: scoreCriterion maps it to insufficient_data.
@@ -368,6 +375,7 @@ export const WitanCriterionScoreSchema = z
     findings: z.array(WitanFindingSchema),
     metrics: z.array(WitanCriterionMetricSchema).default([]),
     notes: z.string().min(1).max(1000).optional(),
+    disclosures: WitanCriterionDisclosuresSchema.optional(),
   })
   .strict();
 
@@ -634,7 +642,10 @@ export const WITAN_ATTESTATION_PREDICATE_TYPE = 'https://cejel.dev/attestations/
 // 1.7 (#525): report.json gained optional inputBinding (per ingested document: digest, producer, declared
 // subject, binding status) and optional criteria[].nativeStatus beside nativeScore. Both are
 // present only on reports that ingested external documents; a no-ingest report is byte-identical.
-export const WITAN_REPORT_FORMAT_VERSION = '1.7' as const;
+// 1.8 (#540): criteria[].disclosures, present only when a collector read and set aside a
+// credential-shaped placeholder (A2) or counted a workflow it did not see run a check (B3). A
+// report with neither is byte-identical to a 1.7 report.
+export const WITAN_REPORT_FORMAT_VERSION = '1.8' as const;
 
 export const WitanAttestationOutcomeSchema = z.discriminatedUnion('status', [
   z

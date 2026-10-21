@@ -32,12 +32,12 @@ export const WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE =
   'Whether this package has a build or type-check step outside the files read cannot be settled from static evidence; Cejel makes no finding on it.';
 // Every rubric, presentation only: A2 names credential-shaped values it read and set aside as
 // documentation placeholders (placeholderSetAsideDisclosure in repo-signals.ts). The sentence is
-// the last one in A2's notes and starts with this prefix; the certificate lifts it from there into
+// one of A2's criteria[].disclosures and starts with this prefix; the certificate lists it under
 // "What was not established". It names paths and counts, never a value.
 export const WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX = 'Cejel read and set aside ';
 // Every rubric, presentation only: B3 names workflows its PR-gate count includes that Cejel did not
-// see run a check (b3UnshownCheckDisclosure in repo-signals.ts). Last in B3's notes, lifted from
-// this prefix into "What was not established". The count itself is unchanged.
+// see run a check (b3UnshownCheckDisclosure in repo-signals.ts). One of B3's criteria[].disclosures,
+// listed under "What was not established". The count itself is unchanged.
 export const WITAN_B3_UNSHOWN_CHECK_PREFIX = 'B3 counted workflows Cejel did not see run a check: ';
 
 export function isWitanNoMeasurementAbstention(report: WitanReport): boolean {

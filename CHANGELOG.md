@@ -22,16 +22,25 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Under every rubric, including the default:
   - A2 names credential-shaped values it read and then set aside as documentation placeholders
     (for example the AWS documentation key pair, which contains "EXAMPLE"), by count and path. The
-    names appear on the secret-cleanliness line, in A2's notes and under "What was not established".
-    No value is printed, and the placeholder rule itself is unchanged.
+    names appear on the secret-cleanliness line and under "What was not established", including
+    when A2 is not applicable or abstains. No value is printed, and the placeholder rule itself is
+    unchanged.
   - A2 no longer cites ".env files are gitignored" beside a committed env file. A `.gitignore` rule
     does not untrack a committed file, so the citation names the file instead.
   - B2 labels each cited workflow by its own trigger. A workflow with no pull-request trigger is no
     longer called "Pull-request CI workflow", and a non-GitHub CI file is cited as "trigger not
-    read".
-  - B3 names workflows its PR-gate count includes that Cejel did not see run a check: one whose
-    only steps print text, and one confined to `master` when the repository's default branch is
-    `main` and no `master` ref exists. The count is unchanged.
+    read". Trigger names are dropped from the label as needed to keep it within the 180-character
+    evidence label limit.
+  - B3 names workflows its PR-gate count includes that Cejel did not see run a check, its own and
+    a monorepo root's: one whose only steps print text, and one whose every trigger is a push or
+    pull-request trigger confined to `master` when the default branch is `main` and no `master`
+    ref exists. It claims nothing about branches when the workflow has any other trigger
+    (`schedule`, `workflow_dispatch` and the rest), or when the checkout may lack branches its
+    remote has: a shallow clone, a single-branch clone, or a detached checkout. The count is
+    unchanged.
+  - These sentences are a new `criteria[].disclosures` field (report format 1.8), kept apart from
+    `notes`, so an abstention or a merge that rewrites the notes no longer drops them (#539). A
+    report with nothing to disclose is byte-identical to a 1.7 report.
 
   No score, status, metric value, finding count or fingerprint moves. Changing which values or
   workflows count is left to a prospective rubric (#535, #536, #537).

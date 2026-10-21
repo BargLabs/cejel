@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -32,8 +32,12 @@ export interface DisclosureGapFixture {
   readonly extraBranches?: readonly string[];
   /** Check out HEAD detached, as a CI runner does. */
   readonly detached?: boolean;
-  /** Paths made unreadable (mode 000) after the commit. */
+  /** Paths made unreadable (mode 000) after the commit. Has no effect when tests run as root. */
   readonly unreadable?: readonly string[];
+  /** Scan a clone of the committed repository instead of the repository itself. */
+  readonly clone?: 'full' | 'depth-1' | 'single-branch';
+  /** Scan this subdirectory, as a monorepo sub-package. */
+  readonly scanPath?: string;
 }
 
 const GITIGNORE_ENV = '.env\nnode_modules\n';
@@ -64,6 +68,22 @@ const DISPATCH_ONLY_WORKFLOW =
   'name: release\non:\n  workflow_dispatch:\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pnpm run build\n';
 const MASTER_ONLY_WORKFLOW =
   'name: security\non:\n  push:\n    branches: [master]\n  pull_request:\n    branches:\n      - master\njobs:\n  audit:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pnpm audit --prod\n';
+
+const MASTER_ONLY_WITH_SCHEDULE_WORKFLOW = MASTER_ONLY_WORKFLOW.replace(
+  'jobs:\n',
+  "  schedule:\n    - cron: '0 3 * * *'\njobs:\n",
+);
+const MASTER_ONLY_WITH_DISPATCH_WORKFLOW = MASTER_ONLY_WORKFLOW.replace(
+  'jobs:\n',
+  '  workflow_dispatch:\njobs:\n',
+);
+// Trigger names are read as [a-z_]+ whatever GitHub defines, so a label must fit any length.
+const LONG_TRIGGER_NAME = `on_${'x'.repeat(167)}`;
+const MEDIUM_TRIGGER_NAMES = ['a', 'b', 'c'].map((letter) => `${letter}_${letter.repeat(48)}`);
+
+function dispatchWorkflow(name: string, on: string): string {
+  return `name: ${name}\non: ${on}\njobs:\n  run:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pnpm run build\n`;
+}
 
 function envFile(accessKeyId: string, secretAccessKey: string): string {
   return `AWS_ACCESS_KEY_ID=${accessKeyId}\nAWS_SECRET_ACCESS_KEY=${secretAccessKey}\nDATABASE_HOST=localhost\n`;
@@ -224,6 +244,78 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
       '.gitlab-ci.yml': 'test:\n  image: node:22\n  script:\n    - pnpm test\n',
     },
   },
+  // ---- review of #540 --------------------------------------------------------------------
+  {
+    name: 'a2-set-aside-with-unreadable-source',
+    purpose:
+      'The documentation pair in config/dev.env beside a source file that cannot be read, so A2 abstains on what read it and its notes are rewritten (#539). The set-aside disclosure survives the rewrite.',
+    files: {
+      ...NODE_APP,
+      '.gitignore': GITIGNORE_ENV,
+      'config/dev.env': envFile(AWS_DOC_ACCESS_KEY_ID, AWS_DOC_SECRET_ACCESS_KEY),
+      'src/hmac.ts':
+        "import { createHmac } from 'node:crypto';\nexport const sign = (key: string, body: string) => createHmac('sha256', key).update(body).digest('hex');\n",
+    },
+    unreadable: ['src/hmac.ts'],
+  },
+  {
+    name: 'b2-long-trigger-names',
+    purpose:
+      'Workflows whose trigger names make the label too long for the evidence label limit (180). The label names fewer triggers, then none; the scan must not fail schema validation.',
+    files: {
+      ...NODE_APP,
+      '.github/workflows/a-long.yml': dispatchWorkflow('long', `[${LONG_TRIGGER_NAME}]`),
+      '.github/workflows/b-medium.yml': dispatchWorkflow('medium', `[${MEDIUM_TRIGGER_NAMES.join(', ')}]`),
+    },
+  },
+  {
+    name: 'b3-master-target-with-schedule',
+    purpose:
+      'Corner: the master-only workflow also runs on a schedule, which runs on the default branch. Not named.',
+    files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WITH_SCHEDULE_WORKFLOW },
+  },
+  {
+    name: 'b3-master-target-with-dispatch',
+    purpose:
+      'Corner: the master-only workflow can also be started by hand on any branch. Not named.',
+    files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WITH_DISPATCH_WORKFLOW },
+  },
+  {
+    name: 'b3-master-target-full-clone',
+    purpose:
+      "A full clone of a repository with no master branch: named, from the clone's recorded default branch.",
+    files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
+    clone: 'full',
+  },
+  {
+    name: 'b3-master-target-depth-1-clone',
+    purpose:
+      'Corner: a --depth 1 clone of a repository that has a master branch. The clone holds only main, so nothing is claimed.',
+    files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
+    extraBranches: ['master'],
+    clone: 'depth-1',
+  },
+  {
+    name: 'b3-master-target-single-branch-clone',
+    purpose:
+      'Corner: a --single-branch clone of a repository that has a master branch. Its refspec maps only main, so nothing is claimed.',
+    files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
+    extraBranches: ['master'],
+    clone: 'single-branch',
+  },
+  {
+    name: 'b3-monorepo-root-print-only',
+    purpose:
+      'A sub-package scan whose monorepo root holds an echo-only pull-request workflow. B3 counts it and now names it as a root workflow.',
+    files: {
+      '.github/workflows/e2e.yml': PRINT_ONLY_WORKFLOW,
+      '.github/workflows/test.yml': TEST_WORKFLOW,
+      ...Object.fromEntries(
+        Object.entries(NODE_APP).map(([path, contents]) => [`packages/app/${path}`, contents]),
+      ),
+    },
+    scanPath: 'packages/app',
+  },
 ];
 
 export function disclosureGapFixture(name: string): DisclosureGapFixture {
@@ -232,9 +324,15 @@ export function disclosureGapFixture(name: string): DisclosureGapFixture {
   return found;
 }
 
-/** Materialise a fixture into a fresh temp directory with one hermetic commit. */
+const createdDirectories: string[] = [];
+
+/**
+ * Materialise a fixture into a fresh temp directory with one hermetic commit, and return the path
+ * to scan. removeDisclosureGapFixtures deletes every directory this created.
+ */
 export function buildDisclosureGapFixture(fixture: DisclosureGapFixture): string {
   const dir = mkdtempSync(join(tmpdir(), `cejel-disclosure-gap-${fixture.name}-`));
+  createdDirectories.push(dir);
   git(dir, ['init', '--quiet', '--initial-branch=main']);
   for (const [relativePath, contents] of Object.entries(fixture.files)) {
     const fullPath = join(dir, relativePath);
@@ -246,7 +344,24 @@ export function buildDisclosureGapFixture(fixture: DisclosureGapFixture): string
   for (const branch of fixture.extraBranches ?? []) git(dir, ['branch', branch]);
   if (fixture.detached) git(dir, ['checkout', '--quiet', '--detach']);
   for (const relativePath of fixture.unreadable ?? []) chmodSync(join(dir, relativePath), 0o000);
-  return dir;
+  const scanned = fixture.clone ? cloneFixture(dir, fixture) : dir;
+  return fixture.scanPath ? join(scanned, fixture.scanPath) : scanned;
+}
+
+function cloneFixture(source: string, fixture: DisclosureGapFixture): string {
+  const parent = mkdtempSync(join(tmpdir(), `cejel-disclosure-gap-${fixture.name}-clone-`));
+  createdDirectories.push(parent);
+  const target = join(parent, 'clone');
+  const options =
+    fixture.clone === 'depth-1' ? ['--depth', '1'] : fixture.clone === 'single-branch' ? ['--single-branch'] : [];
+  // file:// so --depth is honoured; a plain local path clone ignores it.
+  git(parent, ['clone', '--quiet', ...options, `file://${source}`, target]);
+  return target;
+}
+
+/** Delete every fixture directory built so far, unreadable files included. */
+export function removeDisclosureGapFixtures(): void {
+  for (const dir of createdDirectories.splice(0)) rmSync(dir, { recursive: true, force: true });
 }
 
 function git(dir: string, args: readonly string[]): string {

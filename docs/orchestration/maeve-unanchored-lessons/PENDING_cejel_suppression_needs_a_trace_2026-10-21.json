@@ -16,5 +16,14 @@
     "lastSeenAt": "2026-10-21T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
+  },
+  {
+    "statement": "A fix for false assurance can repeat the false statement it fixes. Review of cejel PR 540, which added sentences naming what a certificate had not checked, found the PR's own: \"runs only on master\" ignored schedule and workflow_dispatch triggers that run the workflow on main; \"no master branch\" was read from a --depth 1 or --single-branch clone that holds only the default branch (reproduced); an uncapped label with a long trigger name broke the 180-character schema limit and crashed the scan (reproduced); and the disclosure, carried inside free-text notes, was lost whenever notes were rewritten (#539). Rules: a sentence asserting absence or exclusivity must first establish that Cejel's view is complete, and say nothing when it cannot; fit every built string to its schema limit where it is built; give text the certificate must show its own field.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "false-assurance", "claim-hygiene", "reviewer-error"],
+    "tags": ["absence-claim", "shallow-clone", "schema-limit", "structured-field", "self-review"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
   }
 ]
