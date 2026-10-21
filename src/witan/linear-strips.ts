@@ -99,3 +99,40 @@ export function isShellScriptPath(text: string): boolean {
   const slash = text.indexOf('/', start);
   return slash !== -1 && text.length - (slash + 1) >= 3;
 }
+
+/**
+ * `pattern.exec(line)` for a pattern shaped `^<prefix>(.*)$` with no `m` or `s` flag, whose prefix
+ * cannot match a line terminator. Such a pattern can match only a line holding no terminator (the
+ * prefix cannot consume one and `.` does not), so a line holding one returns null at once instead
+ * of letting the engine retry the prefix's blank runs against `(.*)$` (quadratic).
+ */
+export function execOnTerminatorFreeLine(pattern: RegExp, line: string): RegExpExecArray | null {
+  return LINE_TERMINATOR_PATTERN.test(line) ? null : pattern.exec(line);
+}
+
+const VERSION_OPERATOR_CHARACTERS = new Set(['>', '<', '=', '~', '!', '^']);
+const VERSION_DIGIT_PATTERN = /[\d.]/;
+
+/**
+ * `/([><=~!^]+[\d.]+)/.exec(text)?.[1]`: the first run of version operators that is followed by a
+ * digit or `.`, with the digits and dots after it. One left-to-right pass: a maximal operator run
+ * either is followed by a digit or `.` (the match starts at the run's first character) or no
+ * suffix of it can be.
+ */
+export function firstVersionConstraint(text: string): string | undefined {
+  let index = 0;
+  while (index < text.length) {
+    if (!VERSION_OPERATOR_CHARACTERS.has(text[index] ?? '')) {
+      index += 1;
+      continue;
+    }
+    const start = index;
+    while (index < text.length && VERSION_OPERATOR_CHARACTERS.has(text[index] ?? '')) index += 1;
+    if (index < text.length && VERSION_DIGIT_PATTERN.test(text[index] ?? '')) {
+      let end = index;
+      while (end < text.length && VERSION_DIGIT_PATTERN.test(text[end] ?? '')) end += 1;
+      return text.slice(start, end);
+    }
+  }
+  return undefined;
+}

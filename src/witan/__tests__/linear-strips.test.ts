@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  execOnTerminatorFreeLine,
+  firstVersionConstraint,
   hasScheduleCronTrigger,
   isShellScriptPath,
   stripFromQueryOrFragment,
@@ -61,6 +63,21 @@ describe('linear replacements for quadratic strip regexes', () => {
     for (const text of samples(tokens, 60_000)) expect(isShellScriptPath(text)).toBe(pattern.test(text));
   });
 
+  it('reads a run key exactly as /^([ \\t]*)(?:-[ \\t]+)?run:[ \\t]*(.*)$/ does', () => {
+    const pattern = /^([ \t]*)(?:-[ \t]+)?run:[ \t]*(.*)$/;
+    const tokens = [' ', '\t', '-', 'run:', 'run', ':', 'x', '\r', '\n', '\u2028', '\u2029', '\u00a0', '|'];
+    for (const text of samples(tokens, 60_000)) {
+      expect(JSON.stringify(execOnTerminatorFreeLine(pattern, text))).toBe(JSON.stringify(pattern.exec(text)));
+    }
+  });
+
+  it('finds a version constraint exactly as /([><=~!^]+[\\d.]+)/ does', () => {
+    const tokens = ['>', '<', '=', '~', '!', '^', '1', '.', 'a', '-', ',', '>=', '~=', '0.1'];
+    for (const text of samples(tokens, 60_000)) {
+      expect(firstVersionConstraint(text)).toBe(/([><=~!^]+[\d.]+)/.exec(text)?.[1]);
+    }
+  });
+
   it('stays linear on 500,000-character blank runs and candidate runs', () => {
     const blanks = ' '.repeat(500_000);
     const hashes = ' #'.repeat(250_000);
@@ -78,6 +95,10 @@ describe('linear replacements for quadratic strip regexes', () => {
     expect(stripTrailingSlashes(`./${'/'.repeat(500_000)}a`)).toBe(`./${'/'.repeat(500_000)}a`);
     expect(hasScheduleCronTrigger(`${' \n'.repeat(250_000)}\t`)).toBe(false);
     expect(isShellScriptPath(`${'/'.repeat(500_000)}x`)).toBe(false);
+    const runKey = /^([ \t]*)(?:-[ \t]+)?run:[ \t]*(.*)$/;
+    expect(execOnTerminatorFreeLine(runKey, `      - run:${'\t'.repeat(500_000)}\rx`)).toBeNull();
+    expect(firstVersionConstraint(`a${'~'.repeat(500_000)}x`)).toBeUndefined();
+    expect(firstVersionConstraint(`a${'~'.repeat(500_000)}1`)).toBe(`${'~'.repeat(500_000)}1`);
     expect(isShellScriptPath(`a ${'/a'.repeat(250_000)}.sh`)).toBe(true);
     expect(performance.now() - started).toBeLessThan(500);
   });

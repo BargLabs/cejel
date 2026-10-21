@@ -18,13 +18,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
-- **Some repository lines could stall a scan.** Seven strip and match steps on repository and
-  ingest text used regular expressions that retried from every position of a long run: blanks before
-  `#` or `)` (`/\s+#.*$/`, `/\s+#.*$/u`, `/\s*\)+$/u`), slashes (`/\/+$/` at three sites,
-  `/(?:^|\/)\.?[^\s]*\.sh$/i`), blank lines before a schedule trigger, or many `#`/`?` candidates
-  before a lone line terminator (`/(^|\s)#.*$/`, `/[?#].*$/`, the second also in ingest repository
-  identities). An 80,000-character line took 3-4 s, and a 500 KB line would take minutes. Each is
-  now a linear scan with exactly the same result, which a test checks against the old expression.
+- **Some repository lines could stall a scan.** Fourteen strip and match sites on repository and
+  ingest text used regular expressions that retried from every position of a long run:
+  - blanks before `#` or `)`: `/\s+#.*$/`, `/\s+#.*$/u`, `/\s*\)+$/u`;
+  - slashes: `/\/+$/` and `/\/+$/u` at three sites, and `/(?:^|\/)\.?[^\s]*\.sh$/i`;
+  - blank lines before a schedule trigger;
+  - many `#`/`?` candidates before a lone line terminator: `/(^|\s)#.*$/`, and `/[?#].*$/`, the
+    second also in ingest repository identities;
+  - a `run:` key followed by blanks and a lone CR;
+  - a run of version operators in a `pyproject.toml` dependency (`/([><=~!^]+[\d.]+)/`).
+
+  An 80,000-character line took 3-4 s, and single 500 KB files scanned in 89-681 s. Each is now a
+  linear scan with exactly the same result, which a test checks against the old expression.
   The ReDoS guard gains blank-run and line-terminator families. Present in 0.6.7 and earlier; no
   score, status or report byte changes. A wider class of `^\s*…` patterns under the `m` flag is
   tracked separately.

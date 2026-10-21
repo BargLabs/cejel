@@ -93,6 +93,8 @@ import {
   stripTrailingSlashes,
   hasScheduleCronTrigger,
   isShellScriptPath,
+  execOnTerminatorFreeLine,
+  firstVersionConstraint,
 } from './linear-strips.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
@@ -4684,7 +4686,7 @@ function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
   for (let index = 0; index < lines.length; index += 1) {
     if (!structural[index]) continue;
     const raw = lines[index] ?? '';
-    const match = RUN_KEY_PATTERN.exec(raw);
+    const match = execOnTerminatorFreeLine(RUN_KEY_PATTERN, raw);
     if (!match) continue;
     const keyIndent = workflowKeyIndent(raw, (match[1] ?? '').length);
     const value = (match[2] ?? '').trim();
@@ -8103,10 +8105,10 @@ function readPyprojectDependencySpecs(path: string): DependencySpec[] {
         const dep = rawDep.replace(/["'\s]/g, '');
         if (!dep) continue;
         const nameMatch = /^([A-Za-z0-9][\w.-]*)/.exec(dep);
-        const versionMatch = /([><=~!^]+[\d.]+)/.exec(dep);
+        const versionConstraint = firstVersionConstraint(dep);
         const depName = nameMatch?.[1];
         if (depName) {
-          specs.push({ name: depName, version: versionMatch?.[1] ?? dep });
+          specs.push({ name: depName, version: versionConstraint ?? dep });
         }
       }
     }
