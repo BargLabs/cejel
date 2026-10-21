@@ -25,5 +25,14 @@
     "lastSeenAt": "2026-10-21T00:00:00.000Z",
     "stagingVersion": 2,
     "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
+  },
+  {
+    "statement": "A certificate sentence must be decidable from what the attestation binds. Cejel PR 540's second review found a presentation-only B3 sentence (\"no master branch\") that read branch state outside the scanned revision: the same commit gave different report.json bytes on a branch, detached, in a fresh clone, or with one more branch, so cejel issue refused honest reproductions, and its git calls sat outside the hardened read-only allowlist. It also found a universal claim (\"only prints text\") built on readers written for recall, which skip shapes they cannot place, so six unplaced step shapes running real checks were called print-only. Rules: a claim about every item must refuse on any item the reader cannot place; never derive report text from state the attestation does not bind; route new repository text through the existing output sanitiser.",
+    "scope": ["repo:BargLabs/cejel", "dev-task", "false-assurance", "claim-hygiene", "reviewer-error"],
+    "tags": ["reproducibility", "universal-claim", "unplaced-shape", "issuance", "self-review"],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {"kind": "pr-merged", "repository": "BargLabs/cejel", "number": 540}
   }
 ]
