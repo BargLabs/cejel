@@ -32,6 +32,9 @@ function literals() {
 }
 
 const families = [
+  // A key, a long blank run, then a non-blank: an unanchored `\s+X` or a lazy group before a
+  // trailing `[ \t]*$` retries the run from every position (found while reviewing #540).
+  { name: 'key-blank-run', input: `a:${' '.repeat(20_000)}x` },
   { name: 'env-dotted-rejection', input: `.env${'.a'.repeat(120)}!` },
   { name: 'repeated-a-dot', input: 'a.'.repeat(120) },
   { name: 'hyphens', input: '-'.repeat(250) },

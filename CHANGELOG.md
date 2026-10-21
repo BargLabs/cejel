@@ -16,6 +16,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **A long run of blanks in a workflow line could stall a scan.** Three comment- and
+  parenthesis-stripping steps on repository text used regular expressions (`/\s+#.*$/` twice,
+  `/\s*\)+$/u`) that retried a blank run from every position. An 80,000-character line took 3-4 s,
+  and a 500 KB line would take minutes. They are now linear, with exactly the same results, which a
+  test checks against the old expressions. The ReDoS guard gains a blank-run family that would have
+  caught them. Present in 0.6.7 and earlier; no score, status or report byte changes.
+
 ### Fixed
 
 - **Certificates now say where they read less than they score (#519, #520).** Under every rubric,

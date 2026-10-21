@@ -5324,6 +5324,9 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
   );
 }
 
+/** Exported for the equivalence and timing tests only. */
+export const linearStripsForTest = { stripTrailingHashComment, stripTrailingCloseParentheses };
+
 export function auditFreshnessCommitterYearFromGitResult(
   result: GitExecResult,
   scanLimitations: Set<string>,
@@ -10856,8 +10859,32 @@ function readPnpmWorkspacePatterns(yamlPath: string): string[] | null {
   return patterns;
 }
 
+const LINE_TERMINATOR_PATTERN = /[\n\r\u2028\u2029]/;
+
+/**
+ * `text.replace(/\s+#.*$/, '')` in linear time: drops the first whitespace run that is followed
+ * by `#` and by no line terminator after it, with everything after the run. The regex form retries
+ * its `\s+` from every position of a long blank run, which is quadratic on repository text.
+ */
+function stripTrailingHashComment(text: string): string {
+  for (let index = text.indexOf('#'); index !== -1; index = text.indexOf('#', index + 1)) {
+    if (index === 0 || !/\s/.test(text[index - 1] ?? '')) continue;
+    if (LINE_TERMINATOR_PATTERN.test(text.slice(index))) continue;
+    return text.slice(0, index).trimEnd();
+  }
+  return text;
+}
+
+/** `segment.replace(/\s*\)+$/u, '')` in linear time: a trailing `)` run and the blanks before it. */
+function stripTrailingCloseParentheses(segment: string): string {
+  let end = segment.length;
+  while (end > 0 && segment[end - 1] === ')') end -= 1;
+  if (end === segment.length) return segment;
+  return segment.slice(0, end).trimEnd();
+}
+
 function stripYamlLineComment(text: string): string {
-  return /^\s*#/.test(text) ? '' : text.replace(/\s+#.*$/, '');
+  return /^\s*#/.test(text) ? '' : stripTrailingHashComment(text);
 }
 
 function yamlScalar(raw: string): string | null {
@@ -11086,7 +11113,7 @@ function extractWorkflowUsesValues(contents: string): string[] {
     }
     const match = /^\s*(?:-\s*)?uses\s*:\s*(.*)$/u.exec(line);
     if (match) {
-      const value = (match[1] ?? '').replace(/\s+#.*$/u, '').trim();
+      const value = stripTrailingHashComment(match[1] ?? '').trim();
       const quoted = /^(?:"(.*)"|'(.*)')$/u.exec(value);
       values.push(quoted ? (quoted[1] ?? quoted[2] ?? '') : value);
       continue;
@@ -11456,7 +11483,7 @@ function stripUnbalancedShellParentheses(segment: string): string {
   const opens = segment.split('(').length - 1;
   const closes = segment.split(')').length - 1;
   if (opens > closes) return segment.replace(/^\(+\s*/u, '');
-  if (closes > opens) return segment.replace(/\s*\)+$/u, '');
+  if (closes > opens) return stripTrailingCloseParentheses(segment);
   return segment;
 }
 
