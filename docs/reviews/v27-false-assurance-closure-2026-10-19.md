@@ -277,14 +277,14 @@ model family) as v27's author and reviewers.
 **Ruling.** v27 is not promoted. The default stays `witan-rubric-v17-2026-07-24`, and the
 calibration-claim policy in `src/witan/rubric-version.ts` is unchanged.
 
-v27 may reach the default by the correctness-only route (Option 1, with the fourth part below). The
+v27 may reach the default by the correctness-only route (Option 1 plus part 3 of the rule below, independent review). The
 reason is the operator's direction that no new holdout will run (Option 2 above). That direction is
 not recorded in this repository, and the operator confirms it on accepting this ruling. Under the
 current policy, a rubric that needs a holdout would never be promoted. Until every condition below
 holds, Option 2 applies.
 
-**The rule.** This is the four-part rule from the 2026-10-19 ruling, word for word. It adds part 3,
-independent review, to Option 1's (a)-(c).
+**The rule.** This is the four-part rule from the 2026-10-19 ruling, word for word. Parts 1, 2 and 4 are
+Option 1's (a)-(c); part 3, independent review, is new.
 
 > A prospective version may become the default without a holdout only when all of the following
 > hold:
@@ -327,11 +327,13 @@ conditions 2 and 4 below.
   - "runs only on master" for a workflow that also runs on a schedule;
   - "no master branch" read from a depth-1 clone;
   - a label long enough to crash the scan.
-- **ADR-0001 has not been applied to v27's shallow-clone abstentions.** v27 keeps those abstentions
-  in the composite at 0, so its composite falls on every depth-1 checkout, which is the
-  `actions/checkout` default. ADR-0001 (Accepted) rules that coverage never discounts a score, and
-  it treats read failures as rare and accidental. Whether that rule covers this case is the
-  operator's call, not this ruling's.
+- **ADR-0001 has not been applied to v27's shallow-clone abstentions.** ADR-0001 (Accepted) endorses
+  the mechanism v27 uses: "Read-failure abstentions retain the full denominator with a conservative
+  zero contribution." But its Context treats a read failure as "rare and accidental", while a
+  systematic coverage limit falls under "Coverage never discounts a score". v27's shallow-clone
+  abstentions are systematic: on a depth-1 checkout, which is the `actions/checkout` default, the
+  composite falls wherever v17 scored B2 or A2. Whether such an abstention is a read failure under
+  ADR-0001 or a coverage discount is the operator's call, not this ruling's.
 
 **Conditions, all required before the default changes.** "The candidate" means one v27 behaviour,
 identified by its `rubricBehaviourFingerprint` at a named commit.
@@ -339,15 +341,15 @@ identified by its `rubricBehaviourFingerprint` at a named commit.
 1. The candidate ships prospective in a tagged release.
 2. #531 is done for the candidate. Its items (a)-(c) pass: abstentions are checked to be read
    failures, null composites are compared, and generated repository shapes are covered.
-3. #527 and #535 are fixed in v27 before the candidate is fixed. B2 and B3 stop crediting workflows
+3. #527 and #535 are fixed in v27 before the candidate is pinned. B2 and B3 stop crediting workflows
    that run no check.
 4. An independent adversarial review of the candidate reproduces no defect that makes a false
    assertion or raises a score. It covers the full v17-to-v27 scoring diff at the candidate's
    commit.
    - The reviewer is a human where one is available. A reviewer is not independent if they wrote
      any v27 commit or belong to the session or task that produced one.
-   - The review records the fields in `docs/review-policy.md`, including any model-family overlap
-     with v27's authors.
+   - The review records the fields `docs/review-policy.md` requires and, in addition, any
+     model-family overlap with v27's authors.
    - If the review finds such a defect, it is fixed, the fix makes a new candidate, and the gate is
      the next review, not the fix.
 5. A v27 shadow board, on the board's full-history method, is published beside v17 for at least one
