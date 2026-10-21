@@ -61,7 +61,9 @@ scoring, left to a prospective rubric: #535 (B3 count), #536 (B3 lint and type-c
   qualifies only when the reader places every step line: a plain `run:` key with a one-line plain
   value or a `|`/`>` block whose every command line only prints, and no `uses:` other than
   `actions/checkout`. A flow-mapping step, a quoted key, a quoted `run` value, a plain value
-  continued on the next line, or a `run:` count that differs from the steps read claims nothing.
+  continued on the next line, a `run:` count that differs from the steps read, a `shell:` setting
+  or a `BASH_ENV`/`ENV` setting claims nothing. A block body is shell text, matched whole, so a
+  quoted `#` cannot hide the rest of a command.
   When B3 abstains wholesale, its disclosure goes with the count it names. The count is unchanged.
 - B3 does **not** name a workflow confined by its branch filters to a `master` (or `main`) branch
   that does not exist (#535). Whether a branch exists is checkout state, outside the scanned
@@ -119,6 +121,14 @@ Restoring exactly the old B2 label recovers the previous pins byte for byte.
   reads trigger names only, linearly.
 - **A wholesale-abstained B3 kept a disclosure** naming a count the report no longer showed.
 
+**Found in the third review round** (re-runs on `17317dc3c`), all fixed:
+- **A quoted `#` in a block body hid a check.** The reader stripped `#…` from shell lines as if it
+  were a YAML comment, so `echo "Running shard #1" && pnpm test` read as print-only. Block bodies
+  are now matched whole.
+- **Step settings that run code were ignored:** a custom `shell:` program, `BASH_ENV`/`ENV`, an
+  explicit `? key`, an escaped quoted key and a capitalised `Run:` now claim nothing.
+- **The stricter reader was quadratic** in a long blank tail (a per-line slice). It is linear, and pinned.
+
 The review also moved the sentences out of `notes` into `criteria[].disclosures`, which fixes #539
 (a partial or wholesale abstention rewrote the notes and dropped them) and stops a not-applicable
 A2 printing the sentence twice. Report format moves to 1.8; a report with no disclosure is
@@ -132,8 +142,8 @@ It cited both as "trigger not read". Both are fixed and pinned by unit tests.
 each removal fails at least one test: the label fit (2: the label test, and the pinned scan that
 no longer completes), keeping disclosures through a wholesale abstention (1: #539), the set-aside
 count inside the detection pass (5), and naming monorepo-root workflows (1). The branch guards
-measured then were removed with the branch sentence. After the second review: removing the
-placed-step checks fails 7, keeping B3's disclosure through its abstention fails 1, and the
+measured then were removed with the branch sentence. After the second and third reviews: removing the
+placed-step checks fails 15, keeping B3's disclosure through its abstention fails 1, and the
 pre-rework source fails the reproduction, terminal, linear-time and literal-pattern pins (4). Dropping the attribution guard on the B2 and B3 re-reads fails
 nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
 redundant with existing behaviour. It is kept as the documented pattern for presentation-only

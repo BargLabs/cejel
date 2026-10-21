@@ -379,6 +379,7 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     it.each([
       ['a one-line echo', '      - run: echo ok\n'],
       ['a named step and a block', '      - name: say\n        run: |\n          echo one\n          printf two\n'],
+      ['a block with a whole-line shell comment', '      - run: |\n          # say hello\n          echo hello\n'],
       ['a step after a checkout with inputs', '      - run: echo ok\n'.replace('', '        with:\n          fetch-depth: 0\n')],
     ])('claims %s', (_shape, steps) => {
       expect(isPrintOnlyWorkflow(workflow(steps))).toBe(true);
@@ -392,6 +393,14 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
       ['a double-quoted run value with an escaped newline', '      - run: "echo start\\npnpm test"\n'],
       ['a quoted run key', '      - "run": pnpm test\n      - run: echo done\n'],
       ['a third-party action', '      - uses: org/run-tests@v1\n      - run: echo done\n'],
+      ['a quoted # in a block body', '      - run: |\n          echo "Running shard #1" && pnpm test\n'],
+      ["a single-quoted # in a block body", "      - run: |\n          echo 'see #2'; pnpm test\n"],
+      ['a quoted # in a folded body', '      - run: >\n          echo "a #" ; pnpm test\n'],
+      ['a custom shell program', '      - shell: npm test -- {0}\n        run: echo ok\n'],
+      ['a BASH_ENV script', '      - run: echo ok\n        env:\n          BASH_ENV: ./scripts/run-tests.sh\n'],
+      ['an explicit key', '      - ? run\n        : pnpm test\n      - run: echo done\n'],
+      ['an escaped quoted key', '      - "r\\u0075n": pnpm test\n      - run: echo done\n'],
+      ['a capitalised key', '      - Run: pnpm test\n      - run: echo done\n'],
     ])('claims nothing for %s', (_shape, steps) => {
       expect(isPrintOnlyWorkflow(workflow(steps))).toBe(false);
     });
@@ -399,6 +408,13 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
 
   // A workflow whose checkout holds a Git LFS pointer makes B3 abstain under v27; the disclosure
   // names workflows in a count the abstention removes, so it goes too (review of #540).
+  it('reads 12,800 one-line steps before a long blank tail in linear time', () => {
+    const contents = `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n${'      - run: echo a\n'.repeat(12_800)}${'\n'.repeat(250_000)}`;
+    const started = performance.now();
+    expect(isPrintOnlyWorkflow(contents)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('drops its disclosure when B3 abstains wholesale', () => {
     const planted = disclosureGapFixture('b2b3-planted-workflows');
     const repo = buildDisclosureGapFixture({

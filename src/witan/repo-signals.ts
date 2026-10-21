@@ -5589,8 +5589,12 @@ function fittedCiWorkflowCitationLabel(
 // A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
 // substitution) or any other command is not claimed.
 const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>]*)?|true|:|exit[ \t]+0)$/;
-// Any line naming a `run` or `uses` key, in any shape: quoted, inside a flow mapping, or plain.
-const STEP_KEY_TOKEN_PATTERN = /\b(?:run|uses)\b["']?[ \t]*:/;
+// Any line naming a `run` or `uses` key, in any shape or case: quoted, in a flow mapping, or plain.
+const STEP_KEY_TOKEN_PATTERN = /\b(?:run|uses)\b["']?[ \t]*:/i;
+// Settings that run code besides the step's own commands: a custom `shell:` program, a file that
+// bash sources first (`BASH_ENV`, `ENV`), an explicit `? key`, or a quoted key holding an escape.
+const STEP_SIDE_EXECUTION_PATTERN =
+  /^[ \t]*(?:-[ \t]+)?(?:shell[ \t]*:|\?(?:[ \t]|$)|"[^"]*\\[^"]*"[ \t]*:)|\b(?:BASH_ENV|ENV)\b["']?[ \t]*:/i;
 const PLACED_USES_LINE_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*(\S+)[ \t]*$/;
 const PLACED_RUN_LINE_PATTERN = /^([ \t]*(?:-[ \t]+)?)run:[ \t]*(.*)$/;
 const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
@@ -5601,15 +5605,27 @@ const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
  * other than actions/checkout. This is a claim about every step, so every line naming a `run` or
  * `uses` key must be one the reader places: a plain `run:` key with a one-line plain value or a
  * `|`/`>` block, or a plain `uses: actions/checkout@...` line. A flow-mapping step, a quoted key, a
- * quoted `run` value (it may hold escaped newlines), a plain value continued on the next line, or
- * a `run:` count that differs from the steps read all claim nothing.
+ * quoted `run` value (it may hold escaped newlines), a plain value continued on the next line, a
+ * `run:` count that differs from the steps read, a `shell:` setting, or a `BASH_ENV`/`ENV` setting
+ * all claim nothing. A block body is shell text, where YAML has no comments: its lines are matched
+ * whole, so a quoted `#` cannot hide the rest of a command.
  */
 export function isPrintOnlyWorkflow(contents: string): boolean {
   const lines = contents.split(/\r?\n/);
-  let runKeys = 0;
+  const blockRunKeys: boolean[] = [];
+  // The next content line after each line, from one backward pass, so the loop stays linear.
+  const nextContent = new Array<number>(lines.length + 1).fill(-1);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const following = lines[index + 1];
+    nextContent[index] =
+      following !== undefined && following.trim() !== '' && !following.trimStart().startsWith('#')
+        ? index + 1
+        : (nextContent[index + 1] ?? -1);
+  }
   for (let index = 0; index < lines.length; index += 1) {
     const text = stripYamlComment(lines[index] ?? '');
     if (/^[ \t]*-[ \t]*[{[]/.test(text)) return false;
+    if (STEP_SIDE_EXECUTION_PATTERN.test(text)) return false;
     if (!STEP_KEY_TOKEN_PATTERN.test(text)) continue;
     const uses = PLACED_USES_LINE_PATTERN.exec(text);
     if (uses) {
@@ -5618,27 +5634,29 @@ export function isPrintOnlyWorkflow(contents: string): boolean {
     }
     const run = PLACED_RUN_LINE_PATTERN.exec(text);
     if (!run) return false;
-    runKeys += 1;
     const value = (run[2] ?? '').trim();
+    blockRunKeys.push(value === '' || BLOCK_SCALAR_INDICATOR_PATTERN.test(value));
     if (value.startsWith('"') || value.startsWith("'")) return false;
     if (value !== '' && !BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
       // A plain scalar continues on any following line indented past its key.
       const keyColumn = (run[1] ?? '').length;
-      const next = lines.slice(index + 1).find((line) => line.trim() !== '' && !line.trimStart().startsWith('#'));
-      if (next !== undefined && lineIndent(next) > keyColumn) return false;
+      const next = nextContent[index] ?? -1;
+      if (next !== -1 && lineIndent(lines[next] ?? '') > keyColumn) return false;
     }
   }
   const steps = githubActionsRunSteps(contents);
-  if (steps.length === 0 || steps.length !== runKeys) return false;
-  return steps.every(
-    (step) =>
-      step.lines.length > 0 &&
-      step.lines.every((line) => {
-        const command = stripYamlComment(line.text).trim();
-        return command === '' || PRINT_ONLY_RUN_LINE_PATTERN.test(command);
-      }) &&
-      step.lines.some((line) => stripYamlComment(line.text).trim() !== ''),
-  );
+  if (steps.length === 0 || steps.length !== blockRunKeys.length) return false;
+  return steps.every((step, index) => {
+    // A one-line plain value may end in a YAML comment; a block body is shell text, matched whole,
+    // where only a line that starts with `#` is a comment.
+    const command = (text: string) =>
+      blockRunKeys[index] ? text.trim() : stripYamlComment(text).trim();
+    const isCommand = (text: string) => command(text) !== '' && !command(text).startsWith('#');
+    return (
+      step.lines.some((line) => isCommand(line.text)) &&
+      step.lines.every((line) => !isCommand(line.text) || PRINT_ONLY_RUN_LINE_PATTERN.test(command(line.text)))
+    );
+  });
 }
 
 export interface B3UnshownCheckWorkflows {
