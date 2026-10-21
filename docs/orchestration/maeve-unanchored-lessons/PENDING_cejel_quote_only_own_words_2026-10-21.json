@@ -1,0 +1,27 @@
+[
+  {
+    "statement": "A collector that quotes repository text into a certificate must quote only its own words. Cejel PR 521 built A4's quoted CI command from every word between the tool and the matched flag, so a token in `uv sync --extra-index-url https://user:<token>@host --locked` reached report.json and certificate.html unredacted under the default rubric, while A2 redacted the same value in the same report. The same PR's v27 detectors made universal claims from co-occurrence: a pytest hook was read as skipping every test because a loop over items and a skip marker both appeared, and a workflow was called publish-only because Cejel did not recognise its verification. Rules: build quoted text from the rule's constants, never the matched input; tie a claim about every item structurally (the marker on the loop variable, every parsed step classified), and let any unclassified step withhold it.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "claim-hygiene",
+      "security"
+    ],
+    "tags": [
+      "credential-leak",
+      "quoted-command",
+      "universal-claim",
+      "co-occurrence",
+      "publish-only"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 553
+    }
+  }
+]

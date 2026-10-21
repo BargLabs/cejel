@@ -5719,22 +5719,24 @@ function classifyPublishOnlyRunCommand(input: readonly string[]): 'publish' | 's
   if (input.some((word) => word.includes('$(') || word.includes('`') || word.includes('<('))) {
     return 'other';
   }
-  let words = input;
-  // Leading `NAME=value` assignments set the command's environment.
-  while (words.length > 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0] ?? '')) words = words.slice(1);
-  if (words.length === 0) return 'setup';
+  // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
+  // so a long run of them stays linear.
+  let start = 0;
+  while (start < input.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(input[start] ?? '')) start += 1;
+  if (start === input.length) return 'setup';
   // `npx`, `bunx`, `pnpm dlx` and `yarn dlx` run the named package's command.
   const runner =
-    words[0] === 'npx' || words[0] === 'bunx'
+    input[start] === 'npx' || input[start] === 'bunx'
       ? 1
-      : (words[0] === 'pnpm' || words[0] === 'yarn') && words[1] === 'dlx'
+      : (input[start] === 'pnpm' || input[start] === 'yarn') && input[start + 1] === 'dlx'
         ? 2
         : 0;
   if (runner > 0) {
-    words = words.slice(runner);
-    while (words.length > 0 && (words[0] ?? '').startsWith('-')) words = words.slice(1);
-    if (words.length === 0) return 'other';
+    start += runner;
+    while (start < input.length && (input[start] ?? '').startsWith('-')) start += 1;
+    if (start === input.length) return 'other';
   }
+  const words = input.slice(start);
   const [first = '', second = '', third = ''] = words;
   const python = first === 'python' || first === 'python3';
   if (python && second === '-m' && third === 'pip' && words[3] === 'install') return 'setup';

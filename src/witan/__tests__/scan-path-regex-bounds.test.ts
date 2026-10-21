@@ -200,6 +200,22 @@ const SLASH_RUN_FIXTURE: Record<string, string> = {
   '.github/workflows/wd.yml': `${WORKFLOW_HEAD}      - run: npm ci\n        working-directory: ${SLASH_RUN}\n`,
 };
 
+// The readers the post-merge review of #521 added (v27): the publish-only step classifier, the
+// collection-hook loop tie, and the multi-line pytestmark reader. A run of 120,000 environment
+// assignments before `npm publish` took about 23 s when each was dropped with a fresh array slice.
+const PUBLISH_ONLY_ASSIGNMENTS = 'X=1 '.repeat(120_000);
+const PUBLISH_ONLY_RUNNER_FLAGS = '-y '.repeat(150_000);
+const NESTED_HOOK_LOOPS = Array.from({ length: 900 }, (_, depth) => `${' '.repeat(4 + depth)}for item in items:\n`).join('');
+const REVIEW_521_READER_FIXTURE: Record<string, string> = {
+  'package.json': '{"name":"readers","version":"1.0.0","dependencies":{"zod":"^3.0.0"}}\n',
+  'index.js': 'export const a = 1;\n',
+  'pyproject.toml': '[project]\nname = "readers"\nversion = "1.0.0"\ndependencies = []\n',
+  'tests/test_a.py': `import pytest\npytestmark = pytest.mark.skip(\n${'(\n'.repeat(200_000)}def test_a():\n    assert 1\n`,
+  'tests/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n${NESTED_HOOK_LOOPS}`,
+  '.github/workflows/assignments.yml': `${WORKFLOW_HEAD}      - run: ${PUBLISH_ONLY_ASSIGNMENTS}npm publish\n`,
+  '.github/workflows/runner-flags.yml': `${WORKFLOW_HEAD}      - run: npx ${PUBLISH_ONLY_RUNNER_FLAGS}semantic-release\n`,
+};
+
 describe('timing guards: the real scan finishes on pathological repository input', () => {
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
     'CI lines and a conftest whitespace run just under the content limit — %s',
@@ -235,6 +251,18 @@ describe('timing guards: the real scan finishes on pathological repository input
     'a `cd` target and a `working-directory` of 480,000 slashes before a letter — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(SLASH_RUN_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'a publish step behind 120,000 assignments or 150,000 runner flags, 900 nested hook loops, and a 200,000-line pytestmark — %s',
+    (rubric) => {
+      for (const contents of Object.values(REVIEW_521_READER_FIXTURE)) {
+        expect(contents.length).toBeLessThan(512_000);
+      }
+      const scan = scanInChild(makeRepo(REVIEW_521_READER_FIXTURE), rubric);
       expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,

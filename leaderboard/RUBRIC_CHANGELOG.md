@@ -22,6 +22,115 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved
+
+**Status.** #521 merged without a recorded review pass. Two post-merge review passes, both AI
+(fresh-context subagents, not human), found five defects
+(https://github.com/BargLabs/cejel/pull/521#issuecomment-6323551442). This entry corrects all five.
+Two ship under every rubric and move no v17 score, status, metric value, finding count or
+fingerprint. Three ship only under `witan-rubric-v27-prospective-2026-10-19`.
+
+**v27 changed under its unchanged identifier.** v27 has not shipped: it is prospective, opt-in, and
+first ships in 0.6.8. Its identifier is kept because no released certificate carries it. Each
+change removes a place where v27 itself asserted more than it read, so v27 rises only toward v17,
+never above it. Its pinned fingerprint does not move: no behaviour-corpus fixture has any of these
+shapes. The default stays v17. **No holdout or calibration ran, and this entry makes no precision
+or recall claim.** Fixtures: `review5-*` in `src/witan/__tests__/fixtures/false-assurance-fixtures.ts`.
+
+**Every rubric (presentation under v17).**
+- **A4 printed a credential from a CI command (security).** The lockfile-requiring command quoted in
+  A4's note and evidence label was every word from the tool to the flag. A credential between them
+  appeared verbatim, for example `uv sync --extra-index-url https://user:<token>@host --locked`:
+  3 times in `report.json` and 4 times in `certificate.html`. A2 redacts the same kind of value in
+  the same report. The quoted command is now built from the rule's own words only: tool,
+  subcommand and the flag's name, with `…` where words were omitted (`uv sync … --locked`). A
+  flag's `=value` is never quoted. The `npm ci` path (no flag) already quoted only `npm ci`. No
+  other A4 or B3 label or note quotes repository command text: B2 and B3 labels name trigger names
+  (`[a-z_]+`), file paths and counts.
+- **A Git LFS pointer with CRLF line endings was not detected.** A pointer committed without
+  `.gitattributes` and checked out with `core.autocrlf=true` ends every line in CRLF. It is now
+  read as the LF pointer it was committed as, so the same commit is classified the same way on
+  every checkout. Text with any other mix of CR and LF is judged exactly as before. Under v17 this
+  adds the pointer to `contentReadSummary.byReason.lfsPointer` and A1's evidence label; no score,
+  status or metric moves. Under v27, A1 abstains on it as on an LF pointer.
+
+**v27 only.**
+- **A collection hook was read as skipping every test when a loop and a skip merely co-occurred.**
+  A hook that added a timeout to every item and skipped one known-broken test made A1 critical
+  (2.3 to 1.7), `non_hollow_test_share` 0, with the finding "marks every collected test skipped".
+  The `skip` kind is now claimed only when the hook body holds `for <name> in items:` whose own
+  first-level body calls `<name>.add_marker(pytest.mark.skip...)`, with nothing in the loop
+  rebinding `<name>` and nothing in the hook rebinding `items`. `items[0].add_marker(...)`, a skip
+  on another variable, and a skip in a nested loop or function are not claimed. The genuine
+  every-item skip, in block or one-line form, is still claimed.
+- **`pytestmark` was judged from its first line only.** A module-level skip is now unconditional
+  only when no other line of the module names `pytestmark` (a later reassignment, one inside an
+  `if`, an `append`), no line of the statement holds an `if` (including a line an open bracket
+  carries it onto), and no line ends in a `\` continuation. The skip must still be named on the
+  statement's first line, so this only ever claims less than before.
+- **The publish-only rule fired beyond its stated evidence.** It excluded any workflow with a
+  publish word and no recognised verification word, contrary to its own rule that any doubt keeps
+  a workflow counted. A workflow is now publish-only only when, in addition to the earlier
+  conditions, every `run:` command (read by the workflow step reader, with comments dropped and
+  `\` continuations joined) is a publish, release or deploy command or a narrow setup or packaging
+  command, every `uses:` step is checkout, toolchain setup, cache, artifact transfer, registry
+  login or a publish action, and some step publishes. `--dry-run` is not a publish. Setup: package
+  installs, `corepack`, `rustup`, `npm config`, `docker login`, `git config`, `echo`, `printf`,
+  `cd`, `export` and `set`. Packaging: `python -m build`, `pyproject-build`, and `uv`, `poetry`,
+  `hatch`, `flit` and `gem build`, none of them in B3's build category. A command substitution, or
+  any command not listed, keeps the workflow counted. So do `docker/build-push-action` (with
+  `push: false` it is a build check) and goreleaser's action. Each reviewer case is now counted:
+  `bun test` then `bun publish`; `pnpm run lint`, `typecheck` and `build` then `pnpm publish`;
+  `cargo build --release` with a GitHub release, which also regains B3's build category; a
+  publish word only in a YAML comment; and `npm publish --dry-run`. The B3 note now reads "no
+  pull-request trigger, and every step Cejel reads checks out, sets up, installs, packages or
+  publishes". It never names a counted workflow.
+
+**Measured, release/0.6.8 (`fe4524773`) against this change.** Fixtures were built once from this
+change's definitions and scored by both scanners. Reports were compared byte for byte, with the
+repository path normalised.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Disclosure-gap fixtures (24) | 0 | 24 | 0 | 0 violations |
+| False-assurance fixtures, existing (87) | 0 | 87 | 0 (4 `b3-*-publish-*` reports differ in the B3 note's wording only) | 0 violations |
+| False-assurance fixtures, new `review5-*` (20) | 1 (`review5-a1-js-suite-as-crlf-lfs-pointers`: `contentReadSummary` gains 2 LFS pointers; no criterion moves) | 17 (3 differ: 2 `review5-a4-*` with the shortened command, and the CRLF pointers) | 14 (see below) | 0 violations |
+
+v27 moves on the new fixtures, before to after:
+- 1 CRLF pointer fixture: A1 critical 1.5 to insufficient_data 0; overall 1.8 to 1.4.
+- 3 `review5-a1-hook-*`: A1 critical 1.7 to verified 2.3, the v17 value; the hook finding is gone.
+- 4 `review5-a1-pytestmark-*`: A1 critical 1.7 to verified 2.3, the v17 value.
+- 6 `review5-b3-*`: B3 1.0 to 1.6 (5 fixtures, `default_branch_ci_depth` 1 to 2) or 1.0 to 1.5
+  (`cargo build`, `ci_script_depth` 1 to 2), each the v17 value.
+
+The two corners stay as they were: the one-line every-item skip and the unconditional skip whose
+reason holds `#` are still claimed, and setup, `npm ci` and `npx semantic-release` is still
+publish-only.
+
+Timing, scan only, one run each on the author's machine, on 13 hostile files just under the
+content size limit aimed at the new readers (sibling and 900-deep nested hook loops, long quoted
+and `for`/`as` lines, a 200,000-line bracketed `pytestmark`, many `pytestmark` lines, 24,000
+publish-workflow steps, a 24,000-line `\` chain, a long `uses:` value, long argument and
+assignment runs): 0.09 s to 0.32 s under both rubrics. The first version of the step classifier
+dropped each leading `NAME=value` with a fresh array slice; 120,000 assignments before
+`npm publish` took 23.5 s under v27. It now walks an index (0.22 s). A child-process timing guard
+in `scan-path-regex-bounds.test.ts` kills that version at 20 s.
+
+The public board was not re-scored. Under v17 these changes reach only A4's quoted command and the
+LFS pointer count. The preregistered 0.6.8 public confirmation
+(`docs/experiments/public-delta-0-6-8-2026-10-21/`) ran at `224f605ae`, before this change, and was
+not re-run on it.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
+
+**Not fixed.** A lockfile flag given an explicit false value (`pnpm install
+--frozen-lockfile=false`) is still read as requiring the lockfile. This predates #521 and is
+recorded on #546 with the other pre-existing shapes.
+
 ## 2026-10-21 — post-merge review of #533: the CI lockfile reader's own fixes corrected; no published score moved
 
 **Status.** #533 merged the third-review corrections without a review of its own. Two post-merge
