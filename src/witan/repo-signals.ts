@@ -4470,22 +4470,36 @@ function shellCommands(line: string): string[][] {
   return commands.filter((command) => command.length > 0);
 }
 
-/** The command only when the tool is in command position (not an argument to echo, a heredoc, ...). */
+// Stands in for the words between a matched subcommand and its flag, which are never quoted.
+const OMITTED_COMMAND_WORDS_MARKER = '…';
+
+/**
+ * The command only when the tool is in command position (not an argument to echo, a heredoc, ...).
+ *
+ * What is returned is quoted in A4's note and evidence label under every rubric, so it is built
+ * from the rule's own words only: the tool, the subcommand and the flag's name, never repository
+ * text. Any words between the subcommand and the flag become OMITTED_COMMAND_WORDS_MARKER, and a
+ * flag's `=value` is dropped. Those words can carry a credential (`uv sync --extra-index-url
+ * https://user:token@host --locked`), and A4 has no redaction of its own.
+ */
 function matchLockfileRequiringCommand(
   words: readonly string[],
   rule: LockfileRequiringCommand,
 ): string | undefined {
   if (words[0] !== rule.tool) return undefined;
-  const subcommand = words[1];
-  if (subcommand === undefined || !rule.subcommands.includes(subcommand)) return undefined;
-  if (rule.flags === null) return [rule.tool, subcommand].join(' ');
+  const subcommand = rule.subcommands.find((candidate) => candidate === words[1]);
+  if (subcommand === undefined) return undefined;
+  if (rule.flags === null) return `${rule.tool} ${subcommand}`;
   const flags = rule.flags;
   // Flags after `--` belong to the program being run, not to the tool.
   const end = words.indexOf('--');
   const own = end === -1 ? words.slice(2) : words.slice(2, end);
-  const flagIndex = own.findIndex((word) => flags.includes(word.split('=')[0] ?? word));
-  if (flagIndex === -1) return undefined;
-  return [rule.tool, subcommand, ...own.slice(0, flagIndex + 1)].join(' ');
+  for (const [index, word] of own.entries()) {
+    const flag = flags.find((candidate) => candidate === (word.split('=')[0] ?? word));
+    if (flag === undefined) continue;
+    return `${rule.tool} ${subcommand}${index > 0 ? ` ${OMITTED_COMMAND_WORDS_MARKER}` : ''} ${flag}`;
+  }
+  return undefined;
 }
 
 /**
@@ -5570,7 +5584,7 @@ function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosu
 }
 
 function b3PublishOnlyNote(publishOnlyWorkflows: readonly string[]): string {
-  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger and no verification command Cejel recognises) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
+  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads checks out, sets up, installs, packages or publishes) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
@@ -5592,25 +5606,241 @@ export const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_targ
 const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
 
 /**
- * True for a CI workflow whose job is to publish, release or deploy, and nothing else Cejel can
- * see: it has a step from PUBLISH_OR_DEPLOY_STEP_PATTERN, no pull-request trigger, no call to a
- * reusable workflow, and no test, lint, type-check or other recognised verification command. Any
- * doubt keeps the workflow counted: a workflow that verifies and then publishes is still CI, and
- * so is one whose verification Cejel does not recognise.
+ * True for a GitHub Actions workflow whose job is to publish, release or deploy, and nothing else
+ * Cejel can see. Every condition must hold, and any doubt keeps the workflow counted:
+ *   - no pull-request trigger, no call to a reusable workflow, and no test, lint, type-check or
+ *     other recognised verification command anywhere in the file (a word match, so a mention in a
+ *     comment also keeps it counted);
+ *   - every `run:` command, read by the workflow step reader with comments dropped, is a publish,
+ *     release or deploy command or one of a narrow set of setup and packaging commands
+ *     (classifyPublishOnlyRunCommand);
+ *   - every `uses:` step is a checkout, setup, cache, artifact or registry-login action, or a
+ *     publish action (classifyPublishOnlyUsesStep);
+ *   - at least one parsed step publishes. A publish word only in a comment, or behind `--dry-run`,
+ *     is not one.
+ * A build, a bundle-size check, a docs build, or any command Cejel does not know keeps the
+ * workflow counted, as does a workflow the step reader cannot split into lines.
  */
 function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
+  if (!isGitHubActionsWorkflow(file)) return false;
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   const contents = readRepoText(fullPath, 'utf8');
-  return (
-    PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) &&
-    !PULL_REQUEST_TRIGGER_PATTERN.test(contents) &&
-    !REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) &&
-    !CI_TEST_COMMAND_PATTERN.test(contents) &&
-    !CI_LINT_COMMAND_PATTERN.test(contents) &&
-    !CI_TYPECHECK_COMMAND_PATTERN.test(contents) &&
-    !PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents)
+  if (
+    !PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) ||
+    PULL_REQUEST_TRIGGER_PATTERN.test(contents) ||
+    REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) ||
+    CI_TEST_COMMAND_PATTERN.test(contents) ||
+    CI_LINT_COMMAND_PATTERN.test(contents) ||
+    CI_TYPECHECK_COMMAND_PATTERN.test(contents) ||
+    PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents) ||
+    YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)
+  ) {
+    return false;
+  }
+  let publishes = false;
+  for (const step of githubActionsRunSteps(contents)) {
+    for (const text of joinShellContinuationLines(step.lines.map((entry) => entry.text))) {
+      for (const words of shellCommands(text)) {
+        const kind = classifyPublishOnlyRunCommand(words);
+        if (kind === 'other') return false;
+        if (kind === 'publish') publishes = true;
+      }
+    }
+  }
+  for (const uses of extractWorkflowUsesValues(contents)) {
+    const kind = classifyPublishOnlyUsesStep(uses);
+    if (kind === 'other') return false;
+    if (kind === 'publish') publishes = true;
+  }
+  return publishes;
+}
+
+/** A step body's lines with each `\`-continued line joined to the next, as the shell reads them. */
+function joinShellContinuationLines(lines: readonly string[]): string[] {
+  const joined: string[] = [];
+  let pending = '';
+  for (const line of lines) {
+    const code = beforeShellComment(line).trimEnd();
+    if (code.endsWith('\\')) {
+      pending += `${code.slice(0, -1)} `;
+      continue;
+    }
+    joined.push(`${pending}${line}`);
+    pending = '';
+  }
+  if (pending !== '') joined.push(pending);
+  return joined;
+}
+
+// Setup a publish workflow runs before it publishes, which cannot verify anything: installing
+// dependencies or a toolchain, writing registry credentials, configuring git, and shell builtins
+// that only set state. Also packaging the Python or Ruby package the workflow then publishes
+// (`uv build`, `poetry build`, `hatch build`, `flit build`, `gem build`, `pyproject-build`, and
+// `python -m build` below): none is in B3's build category, and each only packages what the
+// publish step uploads. Keyed by the first word; `true` admits every use of the word, an array
+// admits only those second words.
+const PUBLISH_ONLY_SETUP_COMMANDS: ReadonlyMap<string, true | readonly string[]> = new Map<
+  string,
+  true | readonly string[]
+>([
+  ['npm', ['ci', 'install', 'i', 'config']],
+  ['pnpm', ['install', 'i', 'config']],
+  ['yarn', ['install', 'config']],
+  ['bun', ['install', 'i']],
+  ['pip', ['install']],
+  ['pip3', ['install']],
+  ['pipx', ['install']],
+  ['uv', ['sync', 'build']],
+  ['poetry', ['install', 'config', 'build']],
+  ['hatch', ['build']],
+  ['flit', ['build']],
+  ['gem', ['build']],
+  ['pyproject-build', true],
+  ['corepack', ['enable', 'prepare']],
+  ['rustup', true],
+  ['docker', ['login']],
+  ['git', ['config']],
+  ['echo', true],
+  ['printf', true],
+  ['cd', true],
+  ['export', true],
+  ['set', true],
+]);
+
+/**
+ * One shell command of a run step, in a workflow being tested as publish-only: a publish,
+ * release or deploy command from PUBLISH_OR_DEPLOY_STEP_PATTERN's vocabulary ('publish'), setup or
+ * packaging ('setup'), or anything else ('other', which keeps the workflow counted). A publish run
+ * with `--dry-run` publishes nothing and is 'other'.
+ */
+function classifyPublishOnlyRunCommand(input: readonly string[]): 'publish' | 'setup' | 'other' {
+  // A command substitution runs a command this reading does not see.
+  if (input.some((word) => word.includes('$(') || word.includes('`') || word.includes('<('))) {
+    return 'other';
+  }
+  let words = input;
+  // Leading `NAME=value` assignments set the command's environment.
+  while (words.length > 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0] ?? '')) words = words.slice(1);
+  if (words.length === 0) return 'setup';
+  // `npx`, `bunx`, `pnpm dlx` and `yarn dlx` run the named package's command.
+  const runner =
+    words[0] === 'npx' || words[0] === 'bunx'
+      ? 1
+      : (words[0] === 'pnpm' || words[0] === 'yarn') && words[1] === 'dlx'
+        ? 2
+        : 0;
+  if (runner > 0) {
+    words = words.slice(runner);
+    while (words.length > 0 && (words[0] ?? '').startsWith('-')) words = words.slice(1);
+    if (words.length === 0) return 'other';
+  }
+  const [first = '', second = '', third = ''] = words;
+  const python = first === 'python' || first === 'python3';
+  if (python && second === '-m' && third === 'pip' && words[3] === 'install') return 'setup';
+  if (python && second === '-m' && third === 'build') return 'setup';
+  if (first === 'uv' && second === 'pip' && third === 'install') return 'setup';
+  if (first === 'yarn' && (words.length === 1 || second.startsWith('-'))) return 'setup';
+  const setup = PUBLISH_ONLY_SETUP_COMMANDS.get(first);
+  if (setup === true || (setup !== undefined && setup.includes(second))) return 'setup';
+  if (!isPublishOrDeployCommand(first, second, third, words)) return 'other';
+  const dryRun = words.some(
+    (word) =>
+      word.startsWith('--dry-run') ||
+      (first === 'cargo' && word === '-n') ||
+      (first === 'semantic-release' && word === '-d'),
   );
+  return dryRun ? 'other' : 'publish';
+}
+
+/** PUBLISH_OR_DEPLOY_STEP_PATTERN's command vocabulary, read as a command's leading words. */
+function isPublishOrDeployCommand(
+  first: string,
+  second: string,
+  third: string,
+  words: readonly string[],
+): boolean {
+  switch (first) {
+    case 'npm':
+    case 'pnpm':
+    case 'bun':
+      return second === 'publish';
+    case 'yarn':
+      return second === 'publish' || (second === 'npm' && third === 'publish');
+    case 'twine':
+      return second === 'upload';
+    case 'uv':
+    case 'poetry':
+    case 'flit':
+    case 'hatch':
+    case 'cargo':
+      return second === 'publish';
+    case 'gem':
+      return second === 'push';
+    case 'gh':
+      return second === 'release' && third === 'create';
+    case 'goreleaser':
+      // A snapshot or a skipped publish builds without releasing.
+      return (
+        (second === '' || second === 'release' || second.startsWith('-')) &&
+        !words.some((word) => word.startsWith('--snapshot') || word.startsWith('--skip'))
+      );
+    case 'semantic-release':
+      return true;
+    case 'docker':
+      return second === 'push' || (second === 'image' && third === 'push');
+    case 'vercel':
+    case 'netlify':
+    case 'flyctl':
+    case 'fly':
+    case 'firebase':
+    case 'serverless':
+    case 'wrangler':
+      return second === 'deploy';
+    case 'kubectl':
+      return second === 'apply';
+    case 'helm':
+      return second === 'upgrade';
+    case 'terraform':
+      return second === 'apply';
+    default:
+      return false;
+  }
+}
+
+// `uses:` steps a publish-only workflow may hold besides its publish action: checkout, toolchain
+// setup (`actions/setup-node`, `astral-sh/setup-uv`, `pnpm/action-setup`), caching, artifact
+// transfer between its own jobs, and registry login.
+const PUBLISH_ONLY_SETUP_ACTIONS = new Set([
+  'actions/checkout',
+  'actions/cache',
+  'actions/upload-artifact',
+  'actions/download-artifact',
+  'docker/login-action',
+]);
+// Actions that publish or release and do nothing else. `docker/build-push-action` is not one: with
+// `push: false` it is a build check.
+const PUBLISH_ONLY_PUBLISH_ACTIONS = new Set([
+  'pypa/gh-action-pypi-publish',
+  'softprops/action-gh-release',
+  'changesets/action',
+]);
+
+/** One `uses:` value, in a workflow being tested as publish-only. */
+function classifyPublishOnlyUsesStep(uses: string): 'publish' | 'setup' | 'other' {
+  const at = uses.indexOf('@');
+  if (at === -1) return 'other';
+  const action = uses.slice(0, at);
+  const parts = action.split('/');
+  if (parts.length !== 2 || parts.some((part) => part === '' || part === '.' || part === '..')) {
+    return 'other';
+  }
+  if (PUBLISH_ONLY_PUBLISH_ACTIONS.has(action)) return 'publish';
+  const name = parts[1] ?? '';
+  if (PUBLISH_ONLY_SETUP_ACTIONS.has(action) || name.startsWith('setup-') || name === 'action-setup') {
+    return 'setup';
+  }
+  return 'other';
 }
 
 // ---- B2 and B3 workflow disclosures, every rubric (presentation only) ------------------------
@@ -7749,20 +7979,82 @@ function measureNonHollowTestShare(
 // A conftest.py is pytest's per-directory plugin: fixtures and hooks, never tests.
 const PYTEST_CONFTEST_PATTERN = /(^|\/)conftest\.py$/;
 // A module-level, unconditional skip of every test in the file: a top-level `pytestmark = ...`
-// statement on one line naming `pytest.mark.skip`, with or without arguments, alone or in a list.
-// `skipif`, and any `if` on that line (a conditional expression), is not unconditional.
+// statement naming `pytest.mark.skip`, with or without arguments, alone or in a list, that is the
+// only place the module names `pytestmark`. `skipif`, an `if` anywhere in the statement (a
+// conditional expression), a `\` continuation, and any other mention of `pytestmark` in the
+// module (a later reassignment, one inside an `if`, an `append`) are not unconditional.
 const PYTEST_MODULE_SKIP_MARK_PATTERN = /\bpytest\.mark\.skip\b(?!if)/;
-const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=/;
+const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=(?!=)/;
+const PYTEST_MARK_NAME_PATTERN = /\bpytestmark\b/;
+// How many lines a bracketed `pytestmark = (...)` statement may span before Cejel stops reading it.
+const PYTEST_MODULE_SKIP_MAX_STATEMENT_LINES = 20;
+
+/**
+ * A line's code with its comment removed and each one-line string literal's contents blanked
+ * (`"..."` becomes `""`), so neither a `#` nor a bracket inside a string is read as code. A quote
+ * left open at the end of the line blanks the rest of it. Linear in the line.
+ */
+function pythonCodeOutsideStrings(line: string): string {
+  let code = '';
+  let quote = '';
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index] ?? '';
+    if (quote !== '') {
+      if (character === '\\') index += 1;
+      else if (character === quote) {
+        code += character;
+        quote = '';
+      }
+      continue;
+    }
+    if (character === '#') break;
+    if (character === '"' || character === "'") quote = character;
+    code += character;
+  }
+  return code;
+}
+
+/** The change in bracket depth across code already free of strings and comments. */
+function pythonBracketDelta(code: string): number {
+  let depth = 0;
+  for (const character of code) {
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+  }
+  return depth;
+}
 
 function hasUnconditionalPytestModuleSkip(file: string, contents: string): boolean {
   if (!/\.py$/.test(file)) return false;
-  for (const line of contents.split('\n')) {
-    if (!PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(line)) continue;
-    const code = stripPythonLineComment(line);
-    if (/\bif\b/.test(code)) continue;
-    if (PYTEST_MODULE_SKIP_MARK_PATTERN.test(code)) return true;
+  const lines = contents.split('\n');
+  // Every line that names `pytestmark` outside a comment, a string included.
+  const mentions = lines.flatMap((line, index) =>
+    PYTEST_MARK_NAME_PATTERN.test(stripPythonLineComment(line)) ||
+    PYTEST_MARK_NAME_PATTERN.test(pythonCodeOutsideStrings(line))
+      ? [index]
+      : [],
+  );
+  // One statement may name `pytestmark`; a second mention may undo or change it.
+  if (mentions.length !== 1) return false;
+  const start = mentions[0] ?? 0;
+  if (!PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(lines[start] ?? '')) return false;
+  // The whole statement: the line, and the lines an open bracket carries it onto. Its text is
+  // read as before, up to each line's first `#` (a skip reason holding `if` still withholds the
+  // claim); its brackets are counted outside strings and comments.
+  const statement: string[] = [];
+  let depth = 0;
+  for (let index = start; index < lines.length; index += 1) {
+    if (statement.length === PYTEST_MODULE_SKIP_MAX_STATEMENT_LINES) return false;
+    const raw = (lines[index] ?? '').replace(/\r$/, '');
+    const code = pythonCodeOutsideStrings(raw);
+    if (/\\[ \t]*$/.test(code) || /\\[ \t]*$/.test(raw)) return false;
+    statement.push(stripPythonLineComment(raw));
+    depth += pythonBracketDelta(code);
+    if (depth <= 0) break;
   }
-  return false;
+  if (depth > 0) return false;
+  const text = statement.join('\n');
+  return !/\bif\b/.test(text) && PYTEST_MODULE_SKIP_MARK_PATTERN.test(text);
 }
 
 /** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
@@ -7784,8 +8076,10 @@ const PYTEST_COLLECTION_HOOK_PATTERN = /^def[ \t]+pytest_collection_modifyitems[
 // claim about it.
 const PYTEST_HOOK_CONDITIONAL_PATTERN =
   /^(?:if|elif|else|while|try|except|finally|with|match|case|return|break|continue|yield)\b|\bskipif\b|\bif\b/;
-const PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN = /\badd_marker\s*\(\s*pytest\.mark\.skip\b(?!if)/;
-const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+[A-Za-z_]\w*[ \t]+in[ \t]+items[ \t]*:/;
+// `for <name> in items:`, with any inline body after the colon in group 2.
+const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+([A-Za-z_]\w*)[ \t]+in[ \t]+items[ \t]*:(.*)$/;
+// A statement that rebinds `items` itself, so a later loop over it may not cover every item.
+const PYTEST_HOOK_REBIND_ITEMS_PATTERN = /^(?:del[ \t]+)?items[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|$)|\bitems[ \t]*:=/;
 const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
   /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*\[\s*\]|del[ \t]+items\[\s*:\s*\])/;
 // Any statement that puts items back (`items.clear()` then `items.extend(ordered)` is how a hook
@@ -7807,6 +8101,75 @@ function pythonLineStatements(line: string): string[] {
     .split(';')
     .map((statement) => statement.trim())
     .filter((statement) => statement !== '');
+}
+
+/** One statement of a hook body, with the indent of the line it is on. */
+interface PythonHookStatement {
+  readonly indent: number;
+  readonly text: string;
+}
+
+// `<name>.add_marker(pytest.mark.skip...)`, with the receiver in group 1.
+const PYTEST_HOOK_SKIP_MARKER_PATTERN =
+  /^([A-Za-z_]\w*)[ \t]*\.[ \t]*add_marker[ \t]*\([ \t]*pytest\.mark\.skip\b(?!if)/;
+// The start of a statement that assigns to the name in group 1 (`x = `, `x += `, `x, y = `, `del x`).
+const PYTHON_ASSIGNMENT_TARGET_PATTERN = /^(?:del[ \t]+)?([A-Za-z_]\w*)[ \t]*(?:[-+*/%&|^@]?=(?!=)|,)/;
+const PYTHON_IDENTIFIER_PATTERN = /[A-Za-z_]\w*/g;
+
+/** True when `text` holds `name` as a whole identifier. Linear in `text`. */
+function containsPythonIdentifier(text: string, name: string): boolean {
+  for (const match of text.matchAll(PYTHON_IDENTIFIER_PATTERN)) if (match[0] === name) return true;
+  return false;
+}
+
+// A one-line string literal, so a `for` or `as` in a skip reason is not read as code.
+const PYTHON_ONE_LINE_STRING_PATTERN = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g;
+
+/**
+ * True when a statement may rebind `name`: an assignment to it, or a `for`, `as` or `:=` outside a
+ * string literal in a statement naming it.
+ */
+function mayRebindPythonName(text: string, name: string): boolean {
+  if (PYTHON_ASSIGNMENT_TARGET_PATTERN.exec(text)?.[1] === name) return true;
+  const code = text.replace(PYTHON_ONE_LINE_STRING_PATTERN, '""');
+  return /\bfor\b|\bas\b|:=/.test(code) && containsPythonIdentifier(code, name);
+}
+
+/**
+ * True when the hook body (already free of any conditional) holds a `for <name> in items:` loop
+ * whose own body, at its first level, adds a skip marker to `<name>` itself, and nothing in the
+ * loop rebinds `<name>` and nothing in the hook rebinds `items`. A skip and a loop that merely
+ * co-occur (a timeout on every item and a skip on one, `items[0].add_marker(...)`, a skip inside
+ * a nested loop or function) are not tied together, so nothing is claimed. Linear in the body
+ * for sibling loops; nested loops rescan only their own extent.
+ */
+function hookSkipsEveryItem(body: readonly PythonHookStatement[]): boolean {
+  if (body.some(({ text }) => PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(text))) return false;
+  const skips = (text: string, name: string): boolean =>
+    PYTEST_HOOK_SKIP_MARKER_PATTERN.exec(text)?.[1] === name;
+  for (let index = 0; index < body.length; index += 1) {
+    const statement = body[index] as PythonHookStatement;
+    const loop = PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.exec(statement.text);
+    if (!loop) continue;
+    const name = loop[1] ?? '';
+    const inline = (loop[2] ?? '').trim();
+    if (inline !== '') {
+      if (skips(inline, name)) return true;
+      continue;
+    }
+    const childIndent = body[index + 1]?.indent;
+    if (childIndent === undefined || childIndent <= statement.indent) continue;
+    let skipped = false;
+    let rebound = false;
+    for (let inner = index + 1; inner < body.length; inner += 1) {
+      const { indent, text } = body[inner] as PythonHookStatement;
+      if (indent <= statement.indent) break;
+      if (mayRebindPythonName(text, name)) rebound = true;
+      if (indent === childIndent && skips(text, name)) skipped = true;
+    }
+    if (skipped && !rebound) return true;
+  }
+  return false;
 }
 
 interface PytestRunWideSkip {
@@ -7839,14 +8202,18 @@ function findPytestRunWideSkips(
     const lines = readRepoText(fullPath, 'utf8').split('\n');
     for (let index = 0; index < lines.length; index += 1) {
       if (!PYTEST_COLLECTION_HOOK_PATTERN.test(lines[index] ?? '')) continue;
-      const body: string[] = [];
+      const indented: PythonHookStatement[] = [];
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
         const trimmed = raw.trim();
         if (trimmed === '' || trimmed.startsWith('#')) continue;
-        if (raw.length === raw.trimStart().length) break;
-        body.push(...pythonLineStatements(stripPythonLineComment(trimmed).trim()));
+        const indent = raw.length - raw.trimStart().length;
+        if (indent === 0) break;
+        for (const text of pythonLineStatements(stripPythonLineComment(trimmed).trim())) {
+          indented.push({ indent, text });
+        }
       }
+      const body = indented.map(({ text }) => text);
       if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
       const clears = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement));
       const refills = body.some(
@@ -7857,8 +8224,7 @@ function findPytestRunWideSkips(
       );
       const kind = clears && !refills
         ? ('clear' as const)
-        : body.some((statement) => PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.test(statement)) &&
-            body.some((statement) => PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN.test(statement))
+        : hookSkipsEveryItem(indented)
           ? ('skip' as const)
           : undefined;
       if (!kind) continue;

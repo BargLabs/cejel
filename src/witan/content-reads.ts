@@ -535,8 +535,24 @@ const GIT_LFS_POINTER_OID_LINE = /^oid sha256:[0-9a-f]{64}$/m;
 const GIT_LFS_POINTER_SIZE_LINE = /^size [0-9]+$/m;
 const GIT_LFS_POINTER_KEY_LINE = /^[a-z0-9.-]+ \S[^\n]*$/;
 
-/** True when `contents` is a Git LFS pointer rather than file content. */
+/**
+ * True when `contents` is a Git LFS pointer rather than file content. A pointer checked out with
+ * `core.autocrlf=true` and no `.gitattributes` has every line ending in CRLF; it is read as the LF
+ * pointer it was committed as, so the same commit is classified the same way on every checkout.
+ * Text with any other mix of CR and LF is judged exactly as written.
+ */
 export function isGitLfsPointerText(contents: string): boolean {
+  if (isLfGitLfsPointerText(contents)) return true;
+  return (
+    contents.length < 2 * GIT_LFS_POINTER_MAX_BYTES &&
+    contents.includes('\r\n') &&
+    !/\r(?!\n)/.test(contents) &&
+    !/(?:^|[^\r])\n/.test(contents) &&
+    isLfGitLfsPointerText(contents.replaceAll('\r\n', '\n'))
+  );
+}
+
+function isLfGitLfsPointerText(contents: string): boolean {
   if (contents.length >= GIT_LFS_POINTER_MAX_BYTES || !contents.startsWith('version ')) return false;
   if (!GIT_LFS_POINTER_VERSION_LINE.test(contents)) return false;
   const lines = contents.replace(/\n$/, '').split('\n');
