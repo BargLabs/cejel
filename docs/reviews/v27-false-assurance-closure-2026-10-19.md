@@ -249,3 +249,70 @@ shallow-clone disclosure. v27 stays available through `--rubric-pin` with the pr
   hold (LFS content, a lockfile the repository's own CI requires) without changing the score.
 - What a v27 certificate says: nothing beyond its own evidence. No calibration claim, as for v18-v26.
 - Given the direction to stop new holdouts, under this option v27 may never become the default.
+
+## Ruling (2026-10-21)
+
+The operator asked for a ruling on #526 on 2026-10-21. This is the operative position on promotion.
+It replaces the 2026-10-19 ruling on #526 and that ruling's correction.
+
+Disclosure: I did not build v27, and I did not run any of its three reviews. I wrote #540, which
+changes certificate wording under every rubric, v27 included. I am the same kind of agent as v27's
+author and reviewers.
+
+**Ruling.** v27 is not promoted. The default stays `witan-rubric-v17-2026-07-24`, and the
+calibration-claim policy in `src/witan/rubric-version.ts` is unchanged.
+
+v27 may reach the default by the correctness-only route (Option 1), because no new holdout will
+run. Under the current policy, a rubric that needs a holdout would never be promoted. The policy
+amendment and the default change land together, in one release PR that the operator approves,
+and only once every condition below holds. Until then, Option 2 applies.
+
+**Why not now.** The facts below are as of `origin/main` `1d0d4388d`.
+
+- **v27 has not shipped.** It is listed under Unreleased in `CHANGELOG.md`, and `v0.6.7` is the
+  latest tag. The soak that the 2026-10-19 ruling required has not started.
+- **Option 1 rests on two properties, and neither is established yet.** The properties: every
+  difference from v17 removes an assertion, and no score, status or composite rises.
+  - The no-rise test checks curated fixtures only (#531). It skips criteria that become
+    `insufficient_data`, and skips null composites. The one rise found so far was outside the
+    curated set.
+  - The three reviews reproduced 10, 8 and 8 defects. No review has run since #533.
+- **v27 keeps one false assurance of the class it removes.** B2 still credits a publish-only
+  workflow as CI (#527), while v27 already removes that same credit from B3 (#517). A rubric
+  promoted as "v17 with the false assurances removed" should not keep one it knows about, in the
+  same class, without listing it.
+- **The public board has not been moved to full history.** Its clones are depth 1. On those, v27
+  abstains B2 on every scored row and A2 on eight. This repository has no full-history board
+  pipeline and no v27 shadow board.
+- **Work of this kind needs an independent review before anyone trusts it.** The review of #540
+  found three false statements in code written to remove false assurance:
+  - "runs only on master" for a workflow that also runs on a schedule;
+  - "no master branch" read from a depth-1 clone;
+  - a label long enough to crash the scan.
+
+**Conditions, all required before the default changes.**
+
+1. v27 ships prospective in a tagged release.
+2. #531 is done. The no-rise test covers abstentions, null composites and generated repository
+   shapes, and it passes.
+3. #527 is fixed in v27: B2 stops counting publish-only workflows, as B3 already does.
+4. An independent adversarial review of the then-current v27 reproduces no defect that makes a
+   false assertion or raises a score. The reviewer must be an agent or person that did not build
+   v27. If the review finds such a defect, it is fixed, and the gate is the next review, not the
+   fix.
+5. The board runs on full-history clones. A v27 shadow board is published beside v17 for at least
+   one release, with the A2 and B2 abstention counts recorded.
+6. The release PR carries all of the following:
+   - **The policy amendment:** `src/witan/rubric-version.ts`, `docs/format-stability.md` and the
+     README. It states the four-part rule from the 2026-10-19 ruling, and makes conditions 2 and
+     4 standing requirements for any later correctness-only promotion.
+   - **The release note:**
+     - composites fall;
+     - depth-1 checkouts abstain A2 and B2, so use `fetch-depth: 0`;
+     - `--min-score` gates may start failing;
+     - `--rubric-pin witan-rubric-v17-2026-07-24` keeps the old behaviour.
+   - **Certificate wording** that never calls the default calibrated: v17's holdout results do not
+     carry over to v27.
+
+**What this ruling does not do.** It changes no code, policy text or default, and it is not a
+release.
