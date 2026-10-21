@@ -149,7 +149,9 @@ each removal fails at least one test: the label fit (2: the label test, and the 
 no longer completes), keeping disclosures through a wholesale abstention (1: #539), the set-aside
 count inside the detection pass (5), and naming monorepo-root workflows (1). The branch guards
 measured then were removed with the branch sentence. After the second and third reviews: removing the
-placed-step checks fails 30, keeping B3's disclosure through its abstention fails 1, and the
+placed-step checks fails 15; after the fourth, the round-3 reader fails 6 of the allowlist's new pins
+(a quote left open into a `#` line, twice; a quoted `shell` key, twice; a checkout with inputs; a job
+with `services`); keeping B3's disclosure through its abstention fails 1, and the
 pre-rework source fails the reproduction, terminal, linear-time and literal-pattern pins (4). Dropping the attribution guard on the B2 and B3 re-reads fails
 nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
 redundant with existing behaviour. It is kept as the documented pattern for presentation-only
