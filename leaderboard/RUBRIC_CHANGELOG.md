@@ -57,13 +57,14 @@ scoring, left to a prospective rubric: #535 (B3 count), #536 (B3 lint and type-c
   (`withoutContentReadAttribution`), so it cannot make B2 abstain.
 - B3: workflows that `default_branch_ci_depth` counted but whose every step only prints text are
   named on that metric line, in B3's `criteria[].disclosures` and under "What was not
-  established", including a monorepo root's counted workflows ("at the monorepo root"). A workflow
-  qualifies only when the reader places every step line: a plain `run:` key with a one-line plain
-  value or a `|`/`>` block whose every command line only prints, and no `uses:` other than
-  `actions/checkout`. A flow-mapping step, a quoted key, a quoted `run` value, a plain value
-  continued on the next line, a `run:` count that differs from the steps read, a `shell:` setting
-  or a `BASH_ENV`/`ENV` setting claims nothing. A block body is shell text, matched whole, so a
-  quoted `#` cannot hide the rest of a command.
+  established", including a monorepo root's counted workflows ("at the monorepo root"). The claim is
+  about every step, so it is made only when every line of the workflow's `jobs:` section fits a small
+  grammar: each job holds only `runs-on`, `name`, `timeout-minutes` and `steps`; each step holds only
+  `name` and either `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a
+  `|`/`>` block, only prints (`echo`, `printf`, `true`, `:`, `exit 0`, with no pipe, `&&`, `;`,
+  substitution or redirect), with its quotes balanced on the line. Any other key (`env`, `shell`,
+  `services`, `with`, `if`, a quoted or capitalised key), a workflow-level `env` or `defaults`, a
+  flow collection, or any line the grammar does not place claims nothing.
   When B3 abstains wholesale, its disclosure goes with the count it names. The count is unchanged.
 - B3 does **not** name a workflow confined by its branch filters to a `master` (or `main`) branch
   that does not exist (#535). Whether a branch exists is checkout state, outside the scanned
@@ -121,13 +122,18 @@ Restoring exactly the old B2 label recovers the previous pins byte for byte.
   reads trigger names only, linearly.
 - **A wholesale-abstained B3 kept a disclosure** naming a count the report no longer showed.
 
-**Found in the third review round** (re-runs on `17317dc3c`), all fixed:
+**Found in the third and fourth review rounds** (re-runs on `17317dc3c` and `d0b3056e2`), all fixed:
 - **A quoted `#` in a block body hid a check.** The reader stripped `#…` from shell lines as if it
   were a YAML comment, so `echo "Running shard #1" && pnpm test` read as print-only. Block bodies
   are now matched whole.
 - **Step settings that run code were ignored:** a custom `shell:` program, `BASH_ENV`/`ENV`, an
   explicit `? key`, an escaped quoted key and a capitalised `Run:` now claim nothing.
 - **The stricter reader was quadratic** in a long blank tail (a per-line slice). It is linear, and pinned.
+- **A quote left open into a `#` line hid a command**, a quoted `'shell'` key slipped past, and the
+  regex added to refuse side-execution settings was super-linear on a quote followed by backslashes
+  (one 500 KB workflow: 0.37 s at main, 172 s). Three rounds of refusing shapes had each left one
+  more, so the reader was rewritten as the allowlist above. The super-linear regex is gone, and the
+  ReDoS guard gains quote-and-backslash families.
 
 The review also moved the sentences out of `notes` into `criteria[].disclosures`, which fixes #539
 (a partial or wholesale abstention rewrote the notes and dropped them) and stops a not-applicable
@@ -143,7 +149,7 @@ each removal fails at least one test: the label fit (2: the label test, and the 
 no longer completes), keeping disclosures through a wholesale abstention (1: #539), the set-aside
 count inside the detection pass (5), and naming monorepo-root workflows (1). The branch guards
 measured then were removed with the branch sentence. After the second and third reviews: removing the
-placed-step checks fails 15, keeping B3's disclosure through its abstention fails 1, and the
+placed-step checks fails 30, keeping B3's disclosure through its abstention fails 1, and the
 pre-rework source fails the reproduction, terminal, linear-time and literal-pattern pins (4). Dropping the attribution guard on the B2 and B3 re-reads fails
 nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
 redundant with existing behaviour. It is kept as the documented pattern for presentation-only

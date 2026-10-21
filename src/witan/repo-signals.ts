@@ -5587,76 +5587,151 @@ function fittedCiWorkflowCitationLabel(
 }
 
 // A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
-// substitution) or any other command is not claimed.
-const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>]*)?|true|:|exit[ \t]+0)$/;
-// Any line naming a `run` or `uses` key, in any shape or case: quoted, in a flow mapping, or plain.
-const STEP_KEY_TOKEN_PATTERN = /\b(?:run|uses)\b["']?[ \t]*:/i;
-// Settings that run code besides the step's own commands: a custom `shell:` program, a file that
-// bash sources first (`BASH_ENV`, `ENV`), an explicit `? key`, or a quoted key holding an escape.
-const STEP_SIDE_EXECUTION_PATTERN =
-  /^[ \t]*(?:-[ \t]+)?(?:shell[ \t]*:|\?(?:[ \t]|$)|"[^"]*\\[^"]*"[ \t]*:)|\b(?:BASH_ENV|ENV)\b["']?[ \t]*:/i;
-const PLACED_USES_LINE_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*(\S+)[ \t]*$/;
-const PLACED_RUN_LINE_PATTERN = /^([ \t]*(?:-[ \t]+)?)run:[ \t]*(.*)$/;
+// substitution, a redirect) or any other command is not claimed.
+const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>\\]*)?|true|:|exit[ \t]+0)$/;
 const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
+const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
+const PRINT_ONLY_STEP_KEYS = new Set(['name', 'uses', 'run']);
+// Matched against trimmed text only; greedy, so a long run of spaces cannot backtrack.
+const UNQUOTED_KEY_PATTERN = /^([a-z][a-z-]*):(?:[ \t]+(.*))?$/;
+const CHECKOUT_ACTION_PATTERN = /^actions\/checkout@[A-Za-z0-9._/-]+$/;
+
+/** One shell line that only prints: quotes balanced on the line, so none spans into the next. */
+function isPrintOnlyShellLine(text: string): boolean {
+  const command = text.trim();
+  const balanced = (command.split('"').length - 1) % 2 === 0 && (command.split("'").length - 1) % 2 === 0;
+  return balanced && PRINT_ONLY_RUN_LINE_PATTERN.test(command);
+}
+
+/** A one-line scalar: plain, or quoted and closed on the same line. */
+function isOneLineScalar(value: string): boolean {
+  const quote = value[0];
+  if (quote !== '"' && quote !== "'") return true;
+  return value.length > 1 && value.endsWith(quote);
+}
 
 /**
- * True for a GitHub Actions workflow whose every step only prints text: at least one `run:` step,
- * every command line in every `run:` step matches PRINT_ONLY_RUN_LINE_PATTERN, and no `uses:`
- * other than actions/checkout. This is a claim about every step, so every line naming a `run` or
- * `uses` key must be one the reader places: a plain `run:` key with a one-line plain value or a
- * `|`/`>` block, or a plain `uses: actions/checkout@...` line. A flow-mapping step, a quoted key, a
- * quoted `run` value (it may hold escaped newlines), a plain value continued on the next line, a
- * `run:` count that differs from the steps read, a `shell:` setting, or a `BASH_ENV`/`ENV` setting
- * all claim nothing. A block body is shell text, where YAML has no comments: its lines are matched
- * whole, so a quoted `#` cannot hide the rest of a command.
+ * True for a GitHub Actions workflow whose every step only prints text. This is a claim about
+ * every step, so it is made only when every line of the `jobs:` section fits a small grammar the
+ * reader fully places, and nothing else is in it: each job holds only `runs-on`, `name`,
+ * `timeout-minutes` and `steps`; each step holds only `name` and either
+ * `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a `|`/`>` block,
+ * matches PRINT_ONLY_RUN_LINE_PATTERN with its quotes balanced on the line. Any other key (`env`,
+ * `shell`, `services`, `with`, `if`, a quoted or capitalised key, a top-level `env` or
+ * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
  */
 export function isPrintOnlyWorkflow(contents: string): boolean {
   const lines = contents.split(/\r?\n/);
-  const blockRunKeys: boolean[] = [];
-  // The next content line after each line, from one backward pass, so the loop stays linear.
-  const nextContent = new Array<number>(lines.length + 1).fill(-1);
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const following = lines[index + 1];
-    nextContent[index] =
-      following !== undefined && following.trim() !== '' && !following.trimStart().startsWith('#')
-        ? index + 1
-        : (nextContent[index + 1] ?? -1);
-  }
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  let jobsStart = -1;
   for (let index = 0; index < lines.length; index += 1) {
-    const text = stripYamlComment(lines[index] ?? '');
-    if (/^[ \t]*-[ \t]*[{[]/.test(text)) return false;
-    if (STEP_SIDE_EXECUTION_PATTERN.test(text)) return false;
-    if (!STEP_KEY_TOKEN_PATTERN.test(text)) continue;
-    const uses = PLACED_USES_LINE_PATTERN.exec(text);
-    if (uses) {
-      if (!/^actions\/checkout@/.test(unquoteYamlScalar(uses[1] ?? ''))) return false;
+    const raw = lines[index] ?? '';
+    if (!isContent(raw) || lineIndent(raw) > 0) continue;
+    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+      jobsStart = index;
+      break;
+    }
+    // Workflow-wide settings that reach every step; a quoted top-level key is not placed.
+    if (/^(?:env|defaults)[ \t]*:/.test(raw) || /^["'?]/.test(raw)) return false;
+  }
+  if (jobsStart === -1) return false;
+  let jobIndent = -1;
+  let keyIndent = -1;
+  let inSteps = false;
+  let stepKeyColumn = -1;
+  let step: { run?: boolean; uses?: boolean } | null = null;
+  let body: { column: number; block: boolean } | null = null;
+  let runSteps = 0;
+  const closeStep = () => {
+    if (step && step.run && step.uses) return false;
+    if (step?.run) runSteps += 1;
+    step = null;
+    return true;
+  };
+  for (let index = jobsStart + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (raw.trim() === '') continue;
+    const indent = lineIndent(raw);
+    if (body) {
+      if (indent > body.column) {
+        // A block body is shell text: a line is a comment only when it starts with `#`, and the
+        // balanced-quote rule means no quote is open from an earlier line.
+        if (!body.block) return false;
+        const text = raw.trim();
+        if (!text.startsWith('#') && !isPrintOnlyShellLine(text)) return false;
+        continue;
+      }
+      body = null;
+    }
+    if (!isContent(raw)) continue;
+    const text = stripYamlComment(raw).trimEnd();
+    if (indent === 0) {
+      // The next top-level key ends the jobs section; nothing after it can add a step.
+      if (/^(?:env|defaults)[ \t]*:/.test(text) || /^["'?]/.test(text)) return false;
+      break;
+    }
+    if (jobIndent === -1) jobIndent = indent;
+    if (indent < jobIndent) return false;
+    if (indent === jobIndent) {
+      if (!closeStep()) return false;
+      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return false;
+      keyIndent = -1;
+      inSteps = false;
       continue;
     }
-    const run = PLACED_RUN_LINE_PATTERN.exec(text);
-    if (!run) return false;
-    const value = (run[2] ?? '').trim();
-    blockRunKeys.push(value === '' || BLOCK_SCALAR_INDICATOR_PATTERN.test(value));
-    if (value.startsWith('"') || value.startsWith("'")) return false;
-    if (value !== '' && !BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
-      // A plain scalar continues on any following line indented past its key.
-      const keyColumn = (run[1] ?? '').length;
-      const next = nextContent[index] ?? -1;
-      if (next !== -1 && lineIndent(lines[next] ?? '') > keyColumn) return false;
+    if (keyIndent === -1) keyIndent = indent;
+    const isItem = /^[ \t]*-[ \t]+/.test(text);
+    if (indent < keyIndent) return false;
+    if (indent === keyIndent && !(inSteps && isItem)) {
+      if (!closeStep()) return false;
+      inSteps = false;
+      const key = UNQUOTED_KEY_PATTERN.exec(text.trim());
+      if (!key || !PRINT_ONLY_JOB_KEYS.has(key[1] ?? '')) return false;
+      const value = key[2] ?? '';
+      if (key[1] === 'steps') {
+        if (value !== '') return false;
+        inSteps = true;
+        continue;
+      }
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+      continue;
+    }
+    if (!inSteps) return false;
+    let keyText = text;
+    let column = indent;
+    if (isItem) {
+      if (!closeStep()) return false;
+      const item = /^([ \t]*-[ \t]+)(.*)$/.exec(text);
+      keyText = item?.[2] ?? '';
+      column = (item?.[1] ?? '').length;
+      stepKeyColumn = column;
+      step = {};
+    } else if (indent !== stepKeyColumn || !step) {
+      return false;
+    }
+    const key = UNQUOTED_KEY_PATTERN.exec(keyText.trim());
+    if (!key || !PRINT_ONLY_STEP_KEYS.has(key[1] ?? '')) return false;
+    const value = key[2] ?? '';
+    const current: { run?: boolean; uses?: boolean } = step ?? {};
+    if (key[1] === 'name') {
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+    } else if (key[1] === 'uses') {
+      if (current.uses || !CHECKOUT_ACTION_PATTERN.test(value)) return false;
+      current.uses = true;
+    } else {
+      if (current.run) return false;
+      current.run = true;
+      if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+        body = { column, block: true };
+      } else {
+        if (value === '' || !isPrintOnlyShellLine(value) || /^["']/.test(value)) return false;
+        // A plain value continued on a deeper line is not placed.
+        body = { column, block: false };
+      }
     }
   }
-  const steps = githubActionsRunSteps(contents);
-  if (steps.length === 0 || steps.length !== blockRunKeys.length) return false;
-  return steps.every((step, index) => {
-    // A one-line plain value may end in a YAML comment; a block body is shell text, matched whole,
-    // where only a line that starts with `#` is a comment.
-    const command = (text: string) =>
-      blockRunKeys[index] ? text.trim() : stripYamlComment(text).trim();
-    const isCommand = (text: string) => command(text) !== '' && !command(text).startsWith('#');
-    return (
-      step.lines.some((line) => isCommand(line.text)) &&
-      step.lines.every((line) => !isCommand(line.text) || PRINT_ONLY_RUN_LINE_PATTERN.test(command(line.text)))
-    );
-  });
+  if (!closeStep()) return false;
+  return runSteps > 0;
 }
 
 export interface B3UnshownCheckWorkflows {

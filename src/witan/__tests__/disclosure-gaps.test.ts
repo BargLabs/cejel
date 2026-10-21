@@ -380,7 +380,7 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
       ['a one-line echo', '      - run: echo ok\n'],
       ['a named step and a block', '      - name: say\n        run: |\n          echo one\n          printf two\n'],
       ['a block with a whole-line shell comment', '      - run: |\n          # say hello\n          echo hello\n'],
-      ['a step after a checkout with inputs', '      - run: echo ok\n'.replace('', '        with:\n          fetch-depth: 0\n')],
+      ['several print-only steps', "      - name: say\n        run: echo 'a 1'\n      - run: printf b\n"],
     ])('claims %s', (_shape, steps) => {
       expect(isPrintOnlyWorkflow(workflow(steps))).toBe(true);
     });
@@ -401,6 +401,14 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
       ['an explicit key', '      - ? run\n        : pnpm test\n      - run: echo done\n'],
       ['an escaped quoted key', '      - "r\\u0075n": pnpm test\n      - run: echo done\n'],
       ['a capitalised key', '      - Run: pnpm test\n      - run: echo done\n'],
+      ['a quote left open into a # line', '      - run: |\n          echo "start\n          # "; pnpm test\n'],
+      ["a single quote left open into a # line", "      - run: |\n          echo 'a\n          #'; pnpm test\n"],
+      ["a quoted shell key", "      - 'shell': npm test -- {0}\n        run: echo ok\n"],
+      ['a double-quoted shell key', '      - "shell": npm test -- {0}\n        run: echo ok\n'],
+      ['a step env block', '      - run: echo ok\n        env:\n          BASH_FUNC_echo%%: () { pnpm test; }\n'],
+      ['a flow-mapping env', '      - run: echo ok\n        env: {BASH_ENV: ./t.sh}\n'],
+      ['a checkout with inputs', '        with:\n          ref: other\n      - run: echo ok\n'],
+      ['a backslash continuation', '      - run: |\n          echo a \\\n          && pnpm test\n'],
     ])('claims nothing for %s', (_shape, steps) => {
       expect(isPrintOnlyWorkflow(workflow(steps))).toBe(false);
     });
@@ -408,6 +416,24 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
 
   // A workflow whose checkout holds a Git LFS pointer makes B3 abstain under v27; the disclosure
   // names workflows in a count the abstention removes, so it goes too (review of #540).
+  it.each([
+    ['a job with services', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    services:\n      tests:\n        image: org/test-runner:latest\n    steps:\n      - run: echo ok\n'],
+    ['a job env', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    env:\n      LD_PRELOAD: ./x.so\n    steps:\n      - run: echo ok\n'],
+    ['workflow defaults', 'defaults:\n  run:\n    shell: npm test -- {0}\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['a workflow env', 'env:\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['a second job that runs tests', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n'],
+  ])('claims nothing for %s at the job or workflow level', (_shape, jobs) => {
+    expect(isPrintOnlyWorkflow(`on:\n  pull_request:\njobs:\n  e2e:\n    name: E2E\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`)).toBe(true);
+    expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${jobs}`)).toBe(false);
+  });
+
+  it('reads a key followed by a long run of blanks in linear time', () => {
+    const contents = `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on:${' '.repeat(200_000)}ubuntu-latest\n    steps:\n      - run: echo ok\n`;
+    const started = performance.now();
+    expect(isPrintOnlyWorkflow(contents)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('reads 12,800 one-line steps before a long blank tail in linear time', () => {
     const contents = `on:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n${'      - run: echo a\n'.repeat(12_800)}${'\n'.repeat(250_000)}`;
     const started = performance.now();
