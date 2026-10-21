@@ -126,7 +126,7 @@ reads, and the LFS-pointer and unreadable-workflow fixtures pin the scoring surf
 `sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
 
 **Not fixed.** The unnamed "excluded by extension" entry (#538). A workflow file can still be read
-more than once per scan by B2 and B3 under different read attributions (#541).
+more than once per scan by B2 and B3 under different read attributions (#534).
 
 ## 2026-10-20 — third review of the v27 closure: eight corrections; no published score moved
 
