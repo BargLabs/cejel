@@ -1230,6 +1230,93 @@ for (const [name, purpose, files] of [
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
 }
 
+// Review pass 1 of #553 (the fix for the #521 review): what v27 still claimed from shapes it could
+// not tie together or did not read.
+for (const [name, purpose, files] of [
+  [
+    'review6-b3-flow-mapping-run-step',
+    'A flow-mapping step `- { name: check, run: node check.js }` is not placed: the workflow stays counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - { name: check, run: node check.js }\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-flow-mapping-uses-step',
+    'A flow-mapping `uses` step is not placed: the workflow stays counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - { uses: some-org/run-checks@v1 }\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-quoted-run-key',
+    'A quoted `"run":` key is not placed: the workflow stays counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - "run": node check.js\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-rustup-run-cargo-build',
+    '`rustup run stable cargo build --release` runs a build: rustup is setup only for its toolchain subcommands.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: rustup run stable cargo build --release\n      - run: cargo publish\n') },
+  ],
+  [
+    'review6-b3-changesets-publish-input',
+    'changesets/action with a `publish:` input runs that input as a command: the workflow stays counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm ci\n      - uses: changesets/action@v1\n        with:\n          publish: npm run release\n') },
+  ],
+  [
+    'review6-b3-command-glued-to-echo',
+    '`echo ok&&node check.js` carries a command glued to an admitted word: the workflow stays counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: echo ok&&node check.js\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-changesets-without-command-inputs',
+    'Corner, still excluded: changesets/action with only a `title` input and a token, after `npm ci`.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm ci\n      - uses: changesets/action@v1\n        with:\n          title: Release\n        env:\n          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+for (const [name, purpose, conftest] of [
+  [
+    'review6-a1-hook-loop-in-nested-def',
+    'The every-item skip sits in a nested function the hook never calls.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    def _skip_all(reason):\n        for item in items:\n            item.add_marker(pytest.mark.skip(reason=reason))\n    config._skip_all = _skip_all\n',
+  ],
+  [
+    'review6-a1-hook-loop-in-zero-iteration-loop',
+    'The every-item skip sits inside `for _ in range(0):`, which never runs.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for _ in range(0):\n        for item in items:\n            item.add_marker(pytest.mark.skip(reason="never"))\n',
+  ],
+  [
+    'review6-a1-hook-redefined-later',
+    'A skipping hook redefined later in the same conftest.py by one that does nothing: Python keeps the last.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip(reason="wip"))\n\n\ndef pytest_collection_modifyitems(items):\n    pass\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }],
+  });
+}
+for (const [name, purpose, mark] of [
+  [
+    'review6-a1-pytestmark-skip-then-reassigned-same-line',
+    'A skip and a reassignment on one line (`pytestmark = pytest.mark.skip(...); pytestmark = []`).',
+    'pytestmark = pytest.mark.skip(reason="x"); pytestmark = []',
+  ],
+  [
+    'review6-a1-pytestmark-xfail-reason-names-skip',
+    'An `xfail` whose reason string names `pytest.mark.skip`.',
+    'pytestmark = pytest.mark.xfail(reason="flaky; was pytest.mark.skip before")',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, withModuleMark(mark)],
+  });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

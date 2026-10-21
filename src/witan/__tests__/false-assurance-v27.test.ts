@@ -696,6 +696,67 @@ describe('post-merge review findings against #521 stay fixed', () => {
   });
 });
 
+// Regression guards for what review pass 1 of #553 reproduced against its first version.
+describe('review findings against #553 stay fixed', () => {
+  it('#517: a step the reader cannot place, rustup run, changesets with a command input, or a command glued to an admitted word keeps the workflow counted', () => {
+    for (const name of [
+      'review6-b3-flow-mapping-run-step',
+      'review6-b3-flow-mapping-uses-step',
+      'review6-b3-quoted-run-key',
+      'review6-b3-rustup-run-cargo-build',
+      'review6-b3-changesets-publish-input',
+      'review6-b3-command-glued-to-echo',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#517: the published positives, with needs, permissions, with and env, are still publish-only', () => {
+    for (const [name, file] of [
+      ['b3-pypi-publish-ungated', '.github/workflows/publish.yaml'],
+      ['b3-npm-publish-ungated', '.github/workflows/release.yml'],
+      ['review5-b3-semantic-release-after-setup', '.github/workflows/release.yml'],
+      ['review6-b3-changesets-without-command-inputs', '.github/workflows/main.yml'],
+    ] as const) {
+      const notes = criterion(name, V27, 'B3').notes ?? '';
+      expect(notes, name).toContain('1 workflow that only publishes, releases or deploys');
+      expect(notes, name).toContain(file);
+    }
+  });
+
+  it('#518: a skip loop in a nested function or a loop that never runs, or a hook redefined later, makes no claim', () => {
+    for (const name of [
+      'review6-a1-hook-loop-in-nested-def',
+      'review6-a1-hook-loop-in-zero-iteration-loop',
+      'review6-a1-hook-redefined-later',
+    ]) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(
+        v27.findings.some(({ summary }) => summary.startsWith('A pytest collection hook')),
+        name,
+      ).toBe(false);
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
+    }
+  });
+
+  it('#518: pytestmark reassigned on the same line, or a skip named only in a string, is not unconditional', () => {
+    for (const name of [
+      'review6-a1-pytestmark-skip-then-reassigned-same-line',
+      'review6-a1-pytestmark-xfail-reason-names-skip',
+    ]) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBeGreaterThan(0);
+    }
+  });
+});
+
 // v27 abstains; it does not hide. A collector's own critical finding under v17 is still present
 // under v27, unless the criterion abstained because the clone is shallow or a test file it read
 // is an LFS pointer, the two cases where the finding was derived from content Cejel did not read.

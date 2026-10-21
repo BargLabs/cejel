@@ -5638,22 +5638,220 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
   ) {
     return false;
   }
+  // Every step comes from a reader that places every line of the jobs section or claims nothing.
+  const steps = placedPublishWorkflowSteps(contents);
+  if (steps === null) return false;
   let publishes = false;
-  for (const step of githubActionsRunSteps(contents)) {
-    for (const text of joinShellContinuationLines(step.lines.map((entry) => entry.text))) {
-      for (const words of shellCommands(text)) {
-        const kind = classifyPublishOnlyRunCommand(words);
-        if (kind === 'other') return false;
-        if (kind === 'publish') publishes = true;
-      }
-    }
-  }
-  for (const uses of extractWorkflowUsesValues(contents)) {
-    const kind = classifyPublishOnlyUsesStep(uses);
+  for (const step of steps) {
+    const kind =
+      step.uses !== undefined
+        ? classifyPublishOnlyUsesStep(step.uses, step.inputs)
+        : classifyPublishOnlyRunLines(step.run ?? []);
     if (kind === 'other') return false;
     if (kind === 'publish') publishes = true;
   }
   return publishes;
+}
+
+/** A run step's shell lines, each command classified; 'other' as soon as one is. */
+function classifyPublishOnlyRunLines(lines: readonly string[]): 'publish' | 'setup' | 'other' {
+  let kind: 'publish' | 'setup' = 'setup';
+  for (const text of joinShellContinuationLines(lines)) {
+    for (const words of shellCommands(text)) {
+      const command = classifyPublishOnlyRunCommand(words);
+      if (command === 'other') return 'other';
+      if (command === 'publish') kind = 'publish';
+    }
+  }
+  return kind;
+}
+
+/** One step a publish-only reading placed: a `uses:` action with its input names, or run lines. */
+interface PlacedWorkflowStep {
+  readonly uses?: string;
+  readonly inputs: ReadonlySet<string>;
+  readonly run?: readonly string[];
+}
+
+// The keys a job of a publish-only workflow may hold, and those a step may hold. Anything else
+// (`strategy`, `container`, `services`, `defaults`, `if`, `shell`, `working-directory`,
+// `continue-on-error`, a quoted or capitalised key) is not placed.
+const PUBLISH_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'needs', 'permissions', 'environment', 'steps']);
+const PUBLISH_ONLY_JOB_MAPPING_KEYS = new Set(['permissions', 'environment']);
+const PUBLISH_ONLY_STEP_KEYS = new Set(['name', 'id', 'uses', 'run', 'with', 'env']);
+// A mapping entry under `with:`, `env:`, `permissions:` or `environment:`: a plain key and a
+// value. Matched against trimmed text only.
+const PLAIN_MAPPING_ENTRY_PATTERN = /^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]+([^]*))?$/;
+// Environment variables that make a shell or runtime load code before the step's own command.
+const CODE_LOADING_ENV_KEYS = new Set(['BASH_ENV', 'ENV', 'NODE_OPTIONS']);
+// `needs: [build, test]`: a flow sequence of plain job names, the one flow form placed.
+const NEEDS_FLOW_SEQUENCE_PATTERN = /^\[[ \t]*[A-Za-z0-9_-]+(?:[ \t]*,[ \t]*[A-Za-z0-9_-]+)*[ \t]*\]$/;
+
+/** A one-line scalar value that is not a flow collection, an anchor, an alias, a tag or a block. */
+function isPlainOneLineValue(value: string): boolean {
+  return value !== '' && !/^[[{&*|>!]/.test(value) && isOneLineScalar(value);
+}
+
+/**
+ * The steps of a GitHub Actions workflow, read with isPrintOnlyWorkflow's grammar widened to what
+ * a publish workflow holds, or null when any line of the jobs section is one the grammar does not
+ * place. The top level holds only the keys PRINT_ONLY_TOP_LEVEL_KEY_PATTERN names (no top-level
+ * `env` or `defaults`), and one `jobs:`. A job holds only PUBLISH_ONLY_JOB_KEYS, with
+ * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries.
+ * A step holds only PUBLISH_ONLY_STEP_KEYS and exactly one of `uses` and `run`; `with` and `env`
+ * are one-level mappings of plain entries, a `with` value may be a `|`/`>` block, and an `env`
+ * key never loads code (CODE_LOADING_ENV_KEYS). A flow item, a quoted, capitalised or explicit
+ * key, a lone CR or other YAML line break, a plain value continued onto a deeper line, and a quoted
+ * `run:` value are not placed. Linear in the file.
+ */
+function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | null {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return null;
+  const lines = contents.split(/\r?\n/);
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  let jobsStart = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
+    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return null;
+    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+      if (jobsStart !== -1) return null;
+      jobsStart = index;
+    }
+  }
+  if (jobsStart === -1) return null;
+  const steps: PlacedWorkflowStep[] = [];
+  let jobIndent = -1;
+  let keyIndent = -1;
+  let inSteps = false;
+  let stepKeyColumn = -1;
+  let step: { uses?: string; inputs: Set<string>; run?: string[] } | null = null;
+  // Lines deeper than `column`: shell text of a `run:` block, a continuation of a plain value
+  // (never placed), or the entries of a one-level mapping (with `textColumn` set while inside a
+  // `with` entry's `|`/`>` block, whose text is skipped).
+  let body:
+    | { kind: 'run'; column: number }
+    | { kind: 'plain'; column: number }
+    | { kind: 'mapping'; column: number; entryColumn: number; textColumn: number; owner: 'with' | 'env' | 'job' }
+    | null = null;
+  const openStep = () => step as { uses?: string; inputs: Set<string>; run?: string[] } | null;
+  const closeStep = (): boolean => {
+    if (step === null) return true;
+    const placed = step;
+    step = null;
+    if ((placed.uses === undefined) === (placed.run === undefined)) return false;
+    steps.push(placed);
+    return true;
+  };
+  for (let index = jobsStart + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (raw.trim() === '') continue;
+    const indent = lineIndent(raw);
+    if (body) {
+      if (indent > body.column) {
+        if (body.kind === 'plain') return null;
+        if (body.kind === 'run') {
+          openStep()?.run?.push(raw.trim());
+          continue;
+        }
+        // A one-level mapping: every entry at one column; deeper lines only inside a `with` block.
+        if (body.textColumn !== -1 && indent > body.textColumn) continue;
+        body.textColumn = -1;
+        if (!isContent(raw)) continue;
+        if (body.entryColumn === -1) body.entryColumn = indent;
+        if (indent !== body.entryColumn) return null;
+        const entry = PLAIN_MAPPING_ENTRY_PATTERN.exec(stripYamlComment(raw).trim());
+        if (!entry) return null;
+        const name = entry[1] ?? '';
+        const value = (entry[2] ?? '').trim();
+        if (body.owner === 'env' && CODE_LOADING_ENV_KEYS.has(name)) return null;
+        if (body.owner === 'with') {
+          openStep()?.inputs.add(name);
+          if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+            body.textColumn = indent;
+            continue;
+          }
+        }
+        if (!isPlainOneLineValue(value)) return null;
+        continue;
+      }
+      body = null;
+    }
+    if (!isContent(raw)) continue;
+    const text = stripYamlComment(raw).trimEnd();
+    if (indent === 0) break;
+    if (jobIndent === -1) jobIndent = indent;
+    if (indent < jobIndent) return null;
+    if (indent === jobIndent) {
+      if (!closeStep()) return null;
+      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return null;
+      keyIndent = -1;
+      inSteps = false;
+      continue;
+    }
+    if (keyIndent === -1) keyIndent = indent;
+    const isItem = /^[ \t]*-[ \t]+/.test(text);
+    if (indent < keyIndent) return null;
+    if (indent === keyIndent && !(inSteps && isItem)) {
+      if (!closeStep()) return null;
+      inSteps = false;
+      const key = UNQUOTED_KEY_PATTERN.exec(text.trim());
+      if (!key || !PUBLISH_ONLY_JOB_KEYS.has(key[1] ?? '')) return null;
+      const value = (key[2] ?? '').trim();
+      if (key[1] === 'steps') {
+        if (value !== '') return null;
+        inSteps = true;
+        continue;
+      }
+      if (value === '' && PUBLISH_ONLY_JOB_MAPPING_KEYS.has(key[1] ?? '')) {
+        body = { kind: 'mapping', column: indent, entryColumn: -1, textColumn: -1, owner: 'job' };
+        continue;
+      }
+      if (key[1] === 'needs' && NEEDS_FLOW_SEQUENCE_PATTERN.test(value)) continue;
+      if (!isPlainOneLineValue(value)) return null;
+      body = { kind: 'plain', column: indent };
+      continue;
+    }
+    if (!inSteps) return null;
+    let keyText = text;
+    let column = indent;
+    if (isItem) {
+      if (!closeStep()) return null;
+      const item = /^([ \t]*-[ \t]+)([^]*)$/.exec(text);
+      keyText = item?.[2] ?? '';
+      column = (item?.[1] ?? '').length;
+      stepKeyColumn = column;
+      step = { inputs: new Set<string>() };
+    } else if (indent !== stepKeyColumn || !step) {
+      return null;
+    }
+    const key = UNQUOTED_KEY_PATTERN.exec(keyText.trim());
+    if (!key || !PUBLISH_ONLY_STEP_KEYS.has(key[1] ?? '')) return null;
+    const value = (key[2] ?? '').trim();
+    const current: { uses?: string; inputs: Set<string>; run?: string[] } = step ?? { inputs: new Set<string>() };
+    if (key[1] === 'with' || key[1] === 'env') {
+      if (value !== '') return null;
+      body = { kind: 'mapping', column, entryColumn: -1, textColumn: -1, owner: key[1] };
+    } else if (key[1] === 'uses') {
+      if (current.uses !== undefined || !isPlainOneLineValue(value)) return null;
+      current.uses = value.replace(/^(['"])(.*)\1$/, '$2');
+      body = { kind: 'plain', column };
+    } else if (key[1] === 'run') {
+      if (current.run !== undefined) return null;
+      if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+        current.run = [];
+        body = { kind: 'run', column };
+      } else {
+        if (!isPlainOneLineValue(value) || /^["']/.test(value)) return null;
+        current.run = [value];
+        body = { kind: 'plain', column };
+      }
+    } else {
+      if (!isPlainOneLineValue(value)) return null;
+      body = { kind: 'plain', column };
+    }
+  }
+  if (!closeStep()) return null;
+  return steps;
 }
 
 /** A step body's lines with each `\`-continued line joined to the next, as the shell reads them. */
@@ -5698,7 +5896,7 @@ const PUBLISH_ONLY_SETUP_COMMANDS: ReadonlyMap<string, true | readonly string[]>
   ['gem', ['build']],
   ['pyproject-build', true],
   ['corepack', ['enable', 'prepare']],
-  ['rustup', true],
+  ['rustup', ['install', 'toolchain', 'component', 'target', 'default', 'override', 'update']],
   ['docker', ['login']],
   ['git', ['config']],
   ['echo', true],
@@ -5715,10 +5913,10 @@ const PUBLISH_ONLY_SETUP_COMMANDS: ReadonlyMap<string, true | readonly string[]>
  * with `--dry-run` publishes nothing and is 'other'.
  */
 function classifyPublishOnlyRunCommand(input: readonly string[]): 'publish' | 'setup' | 'other' {
-  // A command substitution runs a command this reading does not see.
-  if (input.some((word) => word.includes('$(') || word.includes('`') || word.includes('<('))) {
-    return 'other';
-  }
+  // A command substitution, or a separator or process substitution glued inside a word
+  // (`echo a&&node check.js`, `cd x;node t.js`, `> >(node t.js)`), runs a command this reading
+  // does not split out.
+  if (input.some((word) => /[`&|;]|\$\(|[<>]\(/.test(word))) return 'other';
   // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
   // so a long run of them stays linear.
   let start = 0;
@@ -5829,7 +6027,10 @@ const PUBLISH_ONLY_PUBLISH_ACTIONS = new Set([
 ]);
 
 /** One `uses:` value, in a workflow being tested as publish-only. */
-function classifyPublishOnlyUsesStep(uses: string): 'publish' | 'setup' | 'other' {
+function classifyPublishOnlyUsesStep(
+  uses: string,
+  inputs: ReadonlySet<string>,
+): 'publish' | 'setup' | 'other' {
   const at = uses.indexOf('@');
   if (at === -1) return 'other';
   const action = uses.slice(0, at);
@@ -5837,6 +6038,8 @@ function classifyPublishOnlyUsesStep(uses: string): 'publish' | 'setup' | 'other
   if (parts.length !== 2 || parts.some((part) => part === '' || part === '.' || part === '..')) {
     return 'other';
   }
+  // changesets/action runs its `publish` and `version` inputs as commands.
+  if (action === 'changesets/action' && (inputs.has('publish') || inputs.has('version'))) return 'other';
   if (PUBLISH_ONLY_PUBLISH_ACTIONS.has(action)) return 'publish';
   const name = parts[1] ?? '';
   if (PUBLISH_ONLY_SETUP_ACTIONS.has(action) || name.startsWith('setup-') || name === 'action-setup') {
@@ -7988,7 +8191,6 @@ const PYTEST_CONFTEST_PATTERN = /(^|\/)conftest\.py$/;
 // inside an `if`, an `append`) are not unconditional.
 const PYTEST_MODULE_SKIP_MARK_PATTERN = /\bpytest\.mark\.skip\b(?!if)/;
 const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=(?!=)/;
-const PYTEST_MARK_NAME_PATTERN = /\bpytestmark\b/;
 // How many lines a bracketed `pytestmark = (...)` statement may span before Cejel stops reading it.
 const PYTEST_MODULE_SKIP_MAX_STATEMENT_LINES = 20;
 
@@ -8017,6 +8219,12 @@ function pythonCodeOutsideStrings(line: string): string {
   return code;
 }
 
+const PYTEST_MARK_NAME_GLOBAL_PATTERN = /\bpytestmark\b/g;
+
+function countPytestMarkMentions(text: string): number {
+  return [...text.matchAll(PYTEST_MARK_NAME_GLOBAL_PATTERN)].length;
+}
+
 /** The change in bracket depth across code already free of strings and comments. */
 function pythonBracketDelta(code: string): number {
   let depth = 0;
@@ -8030,22 +8238,27 @@ function pythonBracketDelta(code: string): number {
 function hasUnconditionalPytestModuleSkip(file: string, contents: string): boolean {
   if (!/\.py$/.test(file)) return false;
   const lines = contents.split('\n');
-  // Every line that names `pytestmark` outside a comment, a string included.
-  const mentions = lines.flatMap((line, index) =>
-    PYTEST_MARK_NAME_PATTERN.test(stripPythonLineComment(line)) ||
-    PYTEST_MARK_NAME_PATTERN.test(pythonCodeOutsideStrings(line))
-      ? [index]
-      : [],
-  );
+  // Every mention of `pytestmark` outside a comment, a string included, counted per occurrence so
+  // two statements on one line (`pytestmark = ...; pytestmark = []`) are two mentions.
+  let mentionCount = 0;
+  let start = -1;
+  for (const [index, line] of lines.entries()) {
+    const count = Math.max(
+      countPytestMarkMentions(stripPythonLineComment(line)),
+      countPytestMarkMentions(pythonCodeOutsideStrings(line)),
+    );
+    if (count > 0 && start === -1) start = index;
+    mentionCount += count;
+  }
   // One statement may name `pytestmark`; a second mention may undo or change it.
-  if (mentions.length !== 1) return false;
-  const start = mentions[0] ?? 0;
+  if (mentionCount !== 1) return false;
   const first = lines[start] ?? '';
-  // The skip is named on the statement's first line, as before: a statement continued onto more
-  // lines is only ever read as fewer claims than its first line alone.
+  // The skip is named in code on the statement's first line, not inside a string (an `xfail`
+  // whose reason names `pytest.mark.skip`): a statement continued onto more lines is only ever
+  // read as fewer claims than its first line alone.
   if (
     !PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(first) ||
-    !PYTEST_MODULE_SKIP_MARK_PATTERN.test(stripPythonLineComment(first))
+    !PYTEST_MODULE_SKIP_MARK_PATTERN.test(pythonCodeOutsideStrings(first))
   ) {
     return false;
   }
@@ -8132,8 +8345,6 @@ function containsPythonIdentifier(text: string, name: string): boolean {
   return false;
 }
 
-// A one-line string literal, so a `for` or `as` in a skip reason is not read as code.
-const PYTHON_ONE_LINE_STRING_PATTERN = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g;
 
 /**
  * True when a statement may rebind `name`: an assignment to it, or a `for`, `as` or `:=` outside a
@@ -8141,13 +8352,15 @@ const PYTHON_ONE_LINE_STRING_PATTERN = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/
  */
 function mayRebindPythonName(text: string, name: string): boolean {
   if (PYTHON_ASSIGNMENT_TARGET_PATTERN.exec(text)?.[1] === name) return true;
-  const code = text.replace(PYTHON_ONE_LINE_STRING_PATTERN, '""');
+  // One pass: string contents blanked, so a `for` or `as` in a skip reason is not read as code.
+  // (A regex alternation over quoted strings retried from every quote of an unclosed run.)
+  const code = pythonCodeOutsideStrings(text);
   return /\bfor\b|\bas\b|:=/.test(code) && containsPythonIdentifier(code, name);
 }
 
 /**
- * True when the hook body (already free of any conditional) holds a `for <name> in items:` loop
- * whose own body, at its first level, adds a skip marker to `<name>` itself, and nothing in the
+ * True when the hook body (already free of any conditional) holds, at its own first indent, a
+ * `for <name> in items:` loop whose own body, at its first level, adds a skip marker to `<name>`, and nothing in the
  * loop rebinds `<name>` and nothing in the hook rebinds `items`. A skip and a loop that merely
  * co-occur (a timeout on every item and a skip on one, `items[0].add_marker(...)`, a skip inside
  * a nested loop or function) are not tied together, so nothing is claimed. Linear in the body
@@ -8155,10 +8368,14 @@ function mayRebindPythonName(text: string, name: string): boolean {
  */
 function hookSkipsEveryItem(body: readonly PythonHookStatement[]): boolean {
   if (body.some(({ text }) => PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(text))) return false;
+  // The loop must run when the hook does: at the hook body's own first indent, not inside a nested
+  // function or another loop.
+  const hookIndent = body[0]?.indent;
   const skips = (text: string, name: string): boolean =>
     PYTEST_HOOK_SKIP_MARKER_PATTERN.exec(text)?.[1] === name;
   for (let index = 0; index < body.length; index += 1) {
     const statement = body[index] as PythonHookStatement;
+    if (statement.indent !== hookIndent) continue;
     const loop = PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.exec(statement.text);
     if (!loop) continue;
     const name = loop[1] ?? '';
@@ -8210,8 +8427,13 @@ function findPytestRunWideSkips(
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const lines = readRepoText(fullPath, 'utf8').split('\n');
+    // Python keeps the last top-level definition of a name, so only that hook runs.
+    let last = -1;
     for (let index = 0; index < lines.length; index += 1) {
-      if (!PYTEST_COLLECTION_HOOK_PATTERN.test(lines[index] ?? '')) continue;
+      if (PYTEST_COLLECTION_HOOK_PATTERN.test(lines[index] ?? '')) last = index;
+    }
+    // At most one pass, over that last definition (a loop so `continue` withholds the claim).
+    for (let index = last; index !== -1; index = -1) {
       const indented: PythonHookStatement[] = [];
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
@@ -8240,7 +8462,6 @@ function findPytestRunWideSkips(
       if (!kind) continue;
       const scope = dirname(file);
       found.push({ path: file, line: index + 1, scope: scope === '.' ? '' : scope, kind });
-      break;
     }
   }
   return found;

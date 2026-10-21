@@ -22,8 +22,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 full-history clones: under v17 at v0.6.7 and at the release candidate (`224f605ae`), and under v27
 at the candidate. The release changes `src/` after that candidate (#553, the post-merge review of
 #521): v17 presentation only (A4's quoted CI command, and Git LFS pointers with CRLF line endings
-counted as pointers), and v27 in the three places listed under Added. The confirmation was not
-re-run on that change, so the figures below describe the candidate.
+counted as pointers), and v27 in the three places listed under Added.
 - Under v17, no score, status, metric value, finding count, placement or fingerprint moved. 17
   reports differ only in B2's evidence labels and A4's evidence and finding text.
 - Under v27, no composite and no criterion score was higher than under v17. v27 added no A2 or B2
@@ -129,16 +128,22 @@ v27 stays prospective and opt-in. This makes no precision, recall or calibration
   default stays v17. See `leaderboard/RUBRIC_CHANGELOG.md`.
   Corrected before first shipping, under the same identifier (#553), where v27 itself asserted
   more than it read:
-  - a workflow is publish-only only when every `run:` command is a publish, release or deploy, or
-    a narrow set of setup and packaging commands, every `uses:` step is checkout, setup, cache,
+  - a workflow is publish-only only when a reader that places every line of its jobs section
+    (a flow-mapping step, a quoted or capitalised key, or a key outside a short allowlist
+    places nothing) finds that every `run:` command is a publish, release or deploy, or one of a
+    listed set of setup and packaging commands, every `uses:` step is checkout, setup, cache,
     artifact, registry login or a publish action, and some step publishes. `bun test`, `pnpm run
-    lint`, `cargo build`, `npx size-limit`, a publish word only in a comment, and
-    `npm publish --dry-run` keep a workflow counted;
-  - a collection hook is read as skipping every test only when the skip marker is applied to the
-    loop variable of a loop over `items`, not when a loop and a skip merely co-occur;
-  - a module-level `pytestmark` skip is unconditional only when nothing else in the module names
-    `pytestmark` and no line of the statement, including one reached by a bracket, holds an `if`;
-    a `\` continuation is never read as unconditional.
+    lint`, `cargo build`, `rustup run`, `npx size-limit`, `changesets/action` with a `publish` or
+    `version` input, a command glued to an admitted word (`echo ok&&node check.js`), a publish
+    word only in a comment, and `npm publish --dry-run` keep a workflow counted;
+  - a collection hook is read as skipping every test only when it is the last top-level
+    definition of the hook and the skip marker is applied to the loop variable of a loop over
+    `items` at the hook body's own first indent, not when a loop and a skip merely co-occur, nor
+    when the loop sits in a nested function or another loop;
+  - a module-level `pytestmark` skip is unconditional only when the module names `pytestmark` once
+    (two statements on one line count twice), the skip is named in code rather than in a string,
+    and no line of the statement, including one reached by a bracket, holds an `if`; a `\`
+    continuation is never read as unconditional.
 
   Each correction can only remove a v27-only reduction, so v27 still never scores above v17. The
   CRLF pointer detection under Fixed also makes v27 abstain on such pointers, as it does on LF

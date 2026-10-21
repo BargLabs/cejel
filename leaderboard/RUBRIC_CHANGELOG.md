@@ -26,7 +26,8 @@ section, which this changelog continues.
 
 **Status.** #521 merged without a recorded review pass. Two post-merge review passes, both AI
 (fresh-context subagents, not human), found five defects
-(https://github.com/BargLabs/cejel/pull/521#issuecomment-6323551442). This entry corrects all five.
+(https://github.com/BargLabs/cejel/pull/521#issuecomment-6323551442). This entry corrects all five,
+and what the two review passes of the fix itself (#553) then found in its first version.
 Two ship under every rubric and move no v17 score, status, metric value, finding count or
 fingerprint. Three ship only under `witan-rubric-v27-prospective-2026-10-19`.
 
@@ -58,28 +59,50 @@ or recall claim.** Fixtures: `review5-*` in `src/witan/__tests__/fixtures/false-
 - **A collection hook was read as skipping every test when a loop and a skip merely co-occurred.**
   A hook that added a timeout to every item and skipped one known-broken test made A1 critical
   (2.3 to 1.7), `non_hollow_test_share` 0, with the finding "marks every collected test skipped".
-  The `skip` kind is now claimed only when the hook body holds `for <name> in items:` whose own
-  first-level body calls `<name>.add_marker(pytest.mark.skip...)`, with nothing in the loop
-  rebinding `<name>` and nothing in the hook rebinding `items`. `items[0].add_marker(...)`, a skip
-  on another variable, and a skip in a nested loop or function are not claimed. The genuine
-  every-item skip, in block or one-line form, is still claimed.
+  The `skip` kind is now claimed only when the hook body holds, at its own first indent,
+  `for <name> in items:` whose own first-level body calls `<name>.add_marker(pytest.mark.skip...)`,
+  with nothing in the loop rebinding `<name>` and nothing in the hook rebinding `items`. Only the
+  last top-level definition of `pytest_collection_modifyitems` in a conftest.py is read: Python
+  keeps that one. `items[0].add_marker(...)`, a skip on another variable, a skip in a loop nested
+  in another loop (`for _ in range(0):`), and a loop inside a nested function are not claimed.
+  The genuine every-item skip, in block or one-line form, is still claimed. The `clear` kind
+  (a hook that empties `items`) is unchanged, apart from also reading only the last definition.
 - **`pytestmark` was judged from its first line only.** A module-level skip is now unconditional
-  only when no other line of the module names `pytestmark` (a later reassignment, one inside an
-  `if`, an `append`), no line of the statement holds an `if` (including a line an open bracket
-  carries it onto), and no line ends in a `\` continuation. The skip must still be named on the
-  statement's first line, so this only ever claims less than before.
+  only when the module names `pytestmark` exactly once, counted per occurrence so two statements
+  on one line count twice (a later reassignment, one inside an `if`, an `append`, or
+  `pytestmark = pytest.mark.skip(...); pytestmark = []`), no line of the statement holds an `if`
+  (including a line an open bracket carries it onto), and no line ends in a `\` continuation. The
+  skip must be named in code on the statement's first line, not only inside a string (an `xfail`
+  whose reason mentions `pytest.mark.skip`), so this only ever claims less than before.
 - **The publish-only rule fired beyond its stated evidence.** It excluded any workflow with a
   publish word and no recognised verification word, contrary to its own rule that any doubt keeps
   a workflow counted. A workflow is now publish-only only when, in addition to the earlier
-  conditions, every `run:` command (read by the workflow step reader, with comments dropped and
-  `\` continuations joined) is a publish, release or deploy command or a narrow setup or packaging
-  command, every `uses:` step is checkout, toolchain setup, cache, artifact transfer, registry
-  login or a publish action, and some step publishes. `--dry-run` is not a publish. Setup: package
-  installs, `corepack`, `rustup`, `npm config`, `docker login`, `git config`, `echo`, `printf`,
-  `cd`, `export` and `set`. Packaging: `python -m build`, `pyproject-build`, and `uv`, `poetry`,
-  `hatch`, `flit` and `gem build`, none of them in B3's build category. A command substitution, or
-  any command not listed, keeps the workflow counted. So do `docker/build-push-action` (with
-  `push: false` it is a build check) and goreleaser's action. Each reviewer case is now counted:
+  conditions, its steps come from a reader that places every line of the jobs section, and
+  claims nothing otherwise. That reader is `isPrintOnlyWorkflow`'s grammar widened to what a
+  publish workflow holds: the same top-level allowlist (no top-level `env` or `defaults`); job keys
+  `runs-on`, `name`, `timeout-minutes`, `needs` (a scalar or a flow list of plain names),
+  `permissions` and `environment` (a scalar or a one-level mapping), and `steps`; step keys
+  `name`, `id`, `uses`, `run`, and `with` and `env` as one-level mappings (an `env` key that loads
+  code, `BASH_ENV`, `ENV` or `NODE_OPTIONS`, is not placed). A flow-mapping step, a quoted,
+  capitalised or explicit key, any other key, a lone CR, a plain value continued onto a deeper
+  line, and a quoted `run:` value are not placed. On the placed steps: every `run:` command, with
+  comments dropped and `\` continuations joined, is a publish, release or deploy command or a
+  listed setup or packaging command; every `uses:` step is checkout, toolchain setup, cache,
+  artifact transfer, registry login or a publish action; and some step publishes. `--dry-run` is
+  not a publish. Setup, by first word: package installs (`npm ci`/`install`, `pnpm install`,
+  `yarn` and `yarn install`, `bun install`, `pip`/`pip3`/`pipx install`, `python -m pip install`,
+  `uv sync`, `uv pip install`, `poetry install`), `corepack enable`/`prepare`, `rustup` with
+  `install`, `toolchain`, `component`, `target`, `default`, `override` or `update`, `npm`/`pnpm`/
+  `yarn`/`poetry config`, `docker login`, `git config`, and `echo`, `printf`, `cd`, `export` and
+  `set` in any form. Packaging: `python -m build`, `pyproject-build`, and `uv`, `poetry`, `hatch`,
+  `flit` and `gem build`, none of them in B3's build category. A command is split at `&&`, `||`,
+  `;` and `|` written as separate words before it is classified, and a word holding `&`, `|`, `;`,
+  a backtick, `$(`, `<(` or `>(` keeps the workflow counted, so a listed word cannot carry another
+  command (`echo ok&&node check.js`). Any other
+  first word or subcommand (`rustup run`, `sudo`, `env`, `bash -c`, a script), and any command
+  substitution, keeps the workflow counted. So do `changesets/action` with a `publish` or `version`
+  input (it runs them as commands), `docker/build-push-action` (with `push: false` it is a build
+  check) and goreleaser's action. Each reviewer case is now counted:
   `bun test` then `bun publish`; `pnpm run lint`, `typecheck` and `build` then `pnpm publish`;
   `cargo build --release` with a GitHub release, which also regains B3's build category; a
   publish word only in a YAML comment; and `npm publish --dry-run`. The B3 note now reads "no
@@ -97,6 +120,7 @@ repository path normalised.
 | Disclosure-gap fixtures (24) | 0 | 24 | 0 | 0 violations |
 | False-assurance fixtures, existing (87) | 0 | 87 | 0 (4 `b3-*-publish-*` reports differ in the B3 note's wording only) | 0 violations |
 | False-assurance fixtures, new `review5-*` (20) | 1 (`review5-a1-js-suite-as-crlf-lfs-pointers`: `contentReadSummary` gains 2 LFS pointers; no criterion moves) | 17 (3 differ: 2 `review5-a4-*` with the shortened command, and the CRLF pointers) | 14 (see below) | 0 violations |
+| False-assurance fixtures, new `review6-*` (12, from the review of #553) | 0 | 12 | 11 (see below) | 0 violations |
 
 v27 moves on the new fixtures, before to after:
 - 1 CRLF pointer fixture: A1 critical 1.5 to insufficient_data 0; overall 1.8 to 1.4.
@@ -104,24 +128,40 @@ v27 moves on the new fixtures, before to after:
 - 4 `review5-a1-pytestmark-*`: A1 critical 1.7 to verified 2.3, the v17 value.
 - 6 `review5-b3-*`: B3 1.0 to 1.6 (5 fixtures, `default_branch_ci_depth` 1 to 2) or 1.0 to 1.5
   (`cargo build`, `ci_script_depth` 1 to 2), each the v17 value.
+- 6 `review6-b3-*` (a flow-mapping `run` step, a flow-mapping `uses` step, a quoted `"run":` key,
+  `rustup run stable cargo build`, `changesets/action` with a `publish` input, `echo ok&&node
+  check.js`): B3 1.0 to 1.6, or 1.0 to 2.0 for `rustup run`, each the v17 value.
+- 3 `review6-a1-hook-*` (a loop in a nested function, a loop in `for _ in range(0):`, a hook
+  redefined later) and 2 `review6-a1-pytestmark-*` (reassigned on the same line, skip named only
+  in an `xfail` reason): A1 critical 1.7 to verified 2.3, the v17 value.
 
-The two corners stay as they were: the one-line every-item skip and the unconditional skip whose
-reason holds `#` are still claimed, and setup, `npm ci` and `semantic-release` run through `npx` is
-still publish-only.
+The corners stay as they were: the one-line every-item skip and the unconditional skip whose
+reason holds `#` are still claimed; setup, `npm ci` and `semantic-release` run through `npx` is
+still publish-only, as is `changesets/action` with only a `title` input and a token; and the
+published positives, with `needs: [build]`, `permissions`, `with` and `env`, stay excluded.
 
-Timing, scan only, one run each on the author's machine, on 13 hostile files just under the
-content size limit aimed at the new readers (sibling and 900-deep nested hook loops, long quoted
-and `for`/`as` lines, a 200,000-line bracketed `pytestmark`, many `pytestmark` lines, 24,000
-publish-workflow steps, a 24,000-line `\` chain, a long `uses:` value, long argument and
-assignment runs): 0.09 s to 0.32 s under both rubrics. The first version of the step classifier
-dropped each leading `NAME=value` with a fresh array slice; 120,000 assignments before
-`npm publish` took 23.5 s under v27. It now walks an index (0.22 s). A child-process timing guard
-in `scan-path-regex-bounds.test.ts` kills that version at 20 s.
+Timing, scan only, one run each on the author's machine, on 18 hostile files just under the
+content size limit aimed at the new readers: sibling and 900-deep nested hook loops; long `for`/`as`
+lines and closed quoted lines; an unclosed run of escaped quotes in a hook loop (the second review's
+fixture); a 200,000-line bracketed `pytestmark`; many `pytestmark` lines; 24,000 publish-workflow
+steps; 9,000 jobs; a 30,000-line `run:` block and a 30,000-line `with:` block; a 24,000-line `\`
+chain; a long `uses:` value; long argument and assignment runs. Each took 0.09 s to 0.32 s under
+both rubrics. Two defects in the first version of this change were quadratic:
+- the step classifier dropped each leading `NAME=value` with a fresh array slice; 120,000
+  assignments before `npm publish` took 23.5 s under v27;
+- the hook loop's rebinding check blanked string literals with
+  `/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g`, which retried from every quote of an unclosed
+  run of escaped quotes. 510 KB inside a `for item in items:` loop took 42.8 s under v27, and
+  three such files took 117 s; found by the second review of #553.
+
+The first now walks an index and the second uses the one-pass quote scanner already written for
+`pytestmark` (0.12 s on the reviewer's fixture). A child-process timing guard in
+`scan-path-regex-bounds.test.ts` kills both earlier versions at 20 s, and two unclosed escaped-quote
+families in `regex-redos-guard.test.ts` time the old expression out at 50 ms.
 
 The public board was not re-scored. Under v17 these changes reach only A4's quoted command and the
 LFS pointer count. The preregistered 0.6.8 public confirmation
-(`docs/experiments/public-delta-0-6-8-2026-10-21/`) ran at `224f605ae`, before this change, and was
-not re-run on it.
+(`docs/experiments/public-delta-0-6-8-2026-10-21/`) ran at `224f605ae`, before this change.
 
 **Fingerprints.** Unchanged. v17 stays
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays

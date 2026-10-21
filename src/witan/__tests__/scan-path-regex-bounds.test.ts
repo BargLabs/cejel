@@ -212,6 +212,8 @@ const REVIEW_521_READER_FIXTURE: Record<string, string> = {
   'pyproject.toml': '[project]\nname = "readers"\nversion = "1.0.0"\ndependencies = []\n',
   'tests/test_a.py': `import pytest\npytestmark = pytest.mark.skip(\n${'(\n'.repeat(200_000)}def test_a():\n    assert 1\n`,
   'tests/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n${NESTED_HOOK_LOOPS}`,
+  // Review of #553: an unclosed quote run of escaped quotes inside a `for item in items:` loop.
+  'tests/unclosed/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        x = '${"a\\'".repeat(160_000)}\n`,
   '.github/workflows/assignments.yml': `${WORKFLOW_HEAD}      - run: ${PUBLISH_ONLY_ASSIGNMENTS}npm publish\n`,
   '.github/workflows/runner-flags.yml': `${WORKFLOW_HEAD}      - run: npx ${PUBLISH_ONLY_RUNNER_FLAGS}semantic-release\n`,
 };
@@ -257,7 +259,7 @@ describe('timing guards: the real scan finishes on pathological repository input
   );
 
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
-    'a publish step behind 120,000 assignments or 150,000 runner flags, 900 nested hook loops, and a 200,000-line pytestmark — %s',
+    'a publish step behind 120,000 assignments or 150,000 runner flags, 900 nested hook loops, an unclosed run of escaped quotes in a hook loop, and a 200,000-line pytestmark — %s',
     (rubric) => {
       for (const contents of Object.values(REVIEW_521_READER_FIXTURE)) {
         expect(contents.length).toBeLessThan(512_000);
