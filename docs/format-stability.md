@@ -74,6 +74,13 @@ Stable in report format v1:
   before scoring. A verifier holding the inputs can compare their digests with these
   (`cejel verify --input`). See [input binding](input-binding.md). Its absence on a 1.7 report means
   nothing was ingested; on an older report it means the field did not exist.
+  Two optional fields within a record, added before 1.7 was released: `subjects[].repositoryWithheld`
+  (`true` when the input declared a repository Cejel could not normalize to `host/path`; the
+  declared text is never recorded, because it may carry URL credentials, and the input is never
+  treated as the named subject repository) and `subjectsOmitted` (the number of distinct declared
+  subjects beyond the eight recorded, at most 8,388,608, the ingest byte budget; every declared
+  subject is checked, only the record is capped). Each is absent when it does not apply. `inputs` holds at most 256 records: one per
+  document (at most 128) and at most one same-path repeat per document.
 - imported status moves: `criteria[].nativeStatus` (report format 1.7), set beside `nativeScore`
   whenever ingested signals adjusted a criterion. When it differs from `status`, imported evidence
   moved the status; consumers must not present that status as a native finding.

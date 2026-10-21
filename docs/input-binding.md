@@ -23,8 +23,21 @@ This page is the specification. The conformance suite at the end is checked mech
 | Generic contract 1.0 | none | none | none | `tool` |
 
 A date-only Scorecard `date` (`2026-10-01`) is read as the last second of that UTC day, so day
-granularity never makes an input look older than it is. A SARIF document with several runs, or
-several provenance entries, is checked against every subject it declares; the worst result wins.
+granularity never makes an input look older than it is. A time whose UTC form falls outside years
+0000-9999 (`9999-12-31T23:00:00-02:00` is year 10000 in UTC) is treated as not declared. The
+earliest of several SARIF times is chosen by instant, not by text.
+
+A SARIF document with several runs, or several provenance entries, is checked against every subject
+it declares, however many there are; the worst result wins. `report.json` records at most eight
+distinct subjects per input. When a document declares more, `subjectsOmitted` counts the rest, and
+the recorded eight start with the subjects that on their own disagree with the scanned subject, so
+the record shows what decided the status. The cap applies to the record, never to the comparison.
+
+A SARIF document is `matched` only when every declared subject declares a commit and every declared
+commit is the scanned HEAD. A run with no version-control provenance, beside runs that have it, is
+recorded as an empty subject (`{}`); it and a provenance entry with no `revisionId` leave the
+document `unbound`, because the findings of that run are bound to no revision. A document in which
+no run declares a subject records `subjects: []` and is `unbound` as before.
 
 ## What the scan compares against
 
@@ -33,8 +46,17 @@ several provenance entries, is checked against every subject it declares; the wo
 - **Repository:** only what the operator names with `--subject-repository`. Cejel never infers a
   repository identity from clone state (a remote URL describes the clone, not the revision). Both
   sides are normalized to `host/path`, lowercase, without scheme, credentials, port, `.git` or a
-  trailing slash. Without `--subject-repository`, an input's repository is recorded as
-  `unverifiable`, and binding rests on the commit.
+  trailing slash; normalizing a normalized identity returns it unchanged. Without
+  `--subject-repository`, an input's repository is recorded as `unverifiable`, and binding rests on
+  the commit.
+- **A repository Cejel cannot normalize** (an IP address or single-label host, a host with a
+  trailing dot, a URL with no path, a path that still holds an `@`, or a declared value that is not
+  a string, such as an object) is never recorded: the declared text is where URL credentials
+  live. The subject records `repositoryWithheld: true` instead. With `--subject-repository`, a
+  withheld repository counts as `mismatched` (it is not demonstrably the named repository) and is
+  refused under `--strict-ingest`; without it, the repository check is `unverifiable`, as for any
+  declared repository. A `--subject-repository` value that does not normalize is refused without
+  echoing it.
 - **Freshness:** the HEAD commit's committer time, read offline with
   `git show -s --format=%ct HEAD`. An input observed more than `freshnessWindowSeconds` (86,400,
   one day, to absorb clock skew between a scanner host and a committer) before that time was
@@ -64,7 +86,8 @@ declares none) or `unverifiable` (the scan has nothing to compare with). `checks
 Deduplication is unchanged, and each duplicate is recorded:
 
 - **`same-path`:** a path supplied twice, or both with `--ingest` and through `.cejel/inputs`, is
-  read and scored once, as it always was. The repeat is recorded with `scored: false`.
+  read and scored once, as it always was. The first repeat is recorded with `scored: false`; later
+  repeats of the same path add no further record.
 - **`same-content`:** identical bytes at two paths are both scored, as they always were. The second
   is recorded as a `same-content` duplicate with `scored: true`. Scoring it twice counts the same
   findings twice; `--strict-ingest` refuses it.
@@ -91,9 +114,18 @@ Deduplication is unchanged, and each duplicate is recorded:
   so the reproduction uses the invocation the report records. A swapped input changes the recorded
   digest and therefore the bytes, and is refused.
 - `cejel verify <report.json> <attestation.json> --input <file> ...` checks a set of input files
-  against the recorded digests: every supplied file must be a recorded, scored input, and every
-  recorded, scored input must be supplied. A file swapped for another, even with the same name,
-  tool and finding count, fails.
+  against the recorded digests. The comparison is between sets of distinct sha256 digests: every
+  supplied file's digest must be a recorded, scored input's, and every recorded, scored input's
+  digest must be supplied. Supplying one file twice, or two files with identical bytes, counts once,
+  so a `same-content` duplicate is satisfied by either copy. A file swapped for another, even with
+  the same name, tool and finding count, fails. Each `--input` is read under the same checks ingest
+  applies: a regular file, not a symlink, in a directory that is not a symlink, within the 8 MiB
+  ingest budget. Anything else is refused before it is read.
+- `inputBinding.inputs` holds at most 256 records: one per document (the ingest budget is 128
+  documents) and at most one `same-path` repeat per document, however many times, or through
+  however many routes, the path was supplied.
+- The assembled report is validated against the schema `cejel verify` applies before anything is
+  written. A scan that would produce a report its own verifier rejects fails instead.
 
 ## Conformance suite
 
