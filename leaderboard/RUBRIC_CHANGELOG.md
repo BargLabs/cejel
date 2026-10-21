@@ -279,10 +279,12 @@ where A3's findings or notes change.
 The synthetic suite, the choices made where the ruling is silent, and the guard-deletion table are
 in `docs/reviews/v26-a3-build-step-evidence-2026-10-15.md`.
 
-## 2026-10-15 — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
+## 2026-10-15 (entry added 2026-10-21) — #502: a `pnpm run /<regex>/` selector is no longer evaluated (every rubric, no identifier bump); no public repository moved
 
 *Entry added 2026-10-21 (#516). #502 shipped in 0.6.6 and was recorded only in `CHANGELOG.md`
-`[0.6.6]`. The facts below are all from that release's records.*
+`[0.6.6]`. Neither control forced an entry: the rubric identifier did not change, and the
+behaviour-fingerprint corpus has no regex selector, so no pin moved. The facts below are all from
+that release's records.*
 
 **Status.** A security fix that is also a scoring change under every selectable rubric, with no
 identifier bump and with weights and thresholds unchanged. Merged as `3baf55aae`, shipped in 0.6.6.
@@ -309,8 +311,8 @@ selector. One recognition test changed its expectation:
 **Public corpus: measured, no repository moved.** The preregistered 0.6.6 confirmation
 (`docs/experiments/public-delta-0-6-6-2026-10-15/`; preregistration `31909f02b`, a strict ancestor
 of the result, #505) scored the 23 public rows under v17 and v26 at v0.6.5 (`a8e582a0`) and at the
-fix commit (`82cba330`). All 23 reports were byte-identical under both rubrics. No public row has a
-selector that reaches the changed behaviour. The run tests where public scores would move. It does
+fix commit (`82cba330`). All 23 reports were byte-identical under both rubrics, so none of these
+rows reaches the changed behaviour in a way that alters `report.json` (the result's own wording). The run tests where public scores would move. It does
 not test the fix itself, which #502's tests cover.
 
 ## 2026-10-14 — A2 HMAC digest compare by keyed computation (every rubric, no identifier bump); public paired rescore not run
