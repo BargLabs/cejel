@@ -19,18 +19,19 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.6.8] — 2026-10-21
 
 **Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from
-full-history clones: under v17 at v0.6.7 and at the release candidate (`224f605ae`), and under v27
-at the candidate. The release changes `src/` after that candidate (#553, the post-merge review of
-#521): v17 presentation only (A4's quoted CI command, and Git LFS pointers with CRLF line endings
-counted as pointers), and v27 in the three places listed under Added.
-- Under v17, no score, status, metric value, finding count, placement or fingerprint moved. 17
-  reports differ only in B2's evidence labels and A4's evidence and finding text.
+full-history clones: under v17 at v0.6.7 and at the release candidate (`4016f659e`), and under v27
+at the candidate. The candidate differs from this release only in records, with no change under
+`src/`.
+- Under v17, no score, status, metric value, finding count, placement or fingerprint moved. Beyond
+  `toolVersion`, 17 reports differ only in B2's evidence labels and A4's evidence and finding text.
 - Under v27, no composite and no criterion score was higher than under v17. v27 added no A2 or B2
   abstention on any row (B2 stays unscored on carddemo under both rubrics), and one score moved
   (requests A1, 2.5 to 2.4).
 
-See [`docs/experiments/public-delta-0-6-8-2026-10-21/result.md`](./docs/experiments/public-delta-0-6-8-2026-10-21/result.md).
-v27 stays prospective and opt-in. This makes no precision, recall or calibration claim.
+See [`docs/experiments/public-delta-0-6-8-successor-2026-10-21/result.md`](./docs/experiments/public-delta-0-6-8-successor-2026-10-21/result.md).
+It succeeds an earlier confirmation of a candidate the #521 review fixes superseded, which is kept
+with its erratum (`docs/experiments/public-delta-0-6-8-2026-10-21/`). v27 stays prospective and
+opt-in. This makes no precision, recall or calibration claim.
 
 ### Security
 
