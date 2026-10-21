@@ -16,6 +16,19 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **Some repository lines could stall a scan.** Seven strip and match steps on repository and
+  ingest text used regular expressions that retried from every position of a long run: blanks before
+  `#` or `)` (`/\s+#.*$/`, `/\s+#.*$/u`, `/\s*\)+$/u`), slashes (`/\/+$/` at three sites,
+  `/(?:^|\/)\.?[^\s]*\.sh$/i`), blank lines before a schedule trigger, or many `#`/`?` candidates
+  before a lone line terminator (`/(^|\s)#.*$/`, `/[?#].*$/`, the second also in ingest repository
+  identities). An 80,000-character line took 3-4 s, and a 500 KB line would take minutes. Each is
+  now a linear scan with exactly the same result, which a test checks against the old expression.
+  The ReDoS guard gains blank-run and line-terminator families. Present in 0.6.7 and earlier; no
+  score, status or report byte changes. A wider class of `^\s*…` patterns under the `m` flag is
+  tracked separately.
+
 ### Fixed
 
 - **A "clean" secrets result and the CI citations now say what Cejel set aside or did not check.**

@@ -8,6 +8,7 @@ import type {
 } from './schemas.js';
 
 import { sanitizePresentationLine, stripTerminalControls } from '../presentation-safety.js';
+import { stripFromQueryOrFragment } from './linear-strips.js';
 
 // INPUT BINDING — is an ingested scanner document about the thing this certificate is about?
 //
@@ -124,7 +125,7 @@ export function normalizeRepositoryIdentity(value: string): string | undefined {
     const slash = text.indexOf('/');
     if (at !== -1 && (slash === -1 || at < slash)) text = text.slice(at + 1);
   }
-  text = text.replace(/[?#].*$/, '');
+  text = stripFromQueryOrFragment(text);
   const [hostWithPort, ...pathParts] = text.split('/');
   const host = (hostWithPort ?? '').replace(/:\d+$/, '').toLowerCase();
   // Empty segments, then every trailing `.git` and slash together, so that the output is a fixed

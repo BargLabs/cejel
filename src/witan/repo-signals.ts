@@ -85,6 +85,15 @@ import {
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
+import {
+  stripFromQueryOrFragment,
+  stripHashCommentAtStartOrAfterBlank,
+  stripTrailingCloseParentheses,
+  stripTrailingHashComment,
+  stripTrailingSlashes,
+  hasScheduleCronTrigger,
+  isShellScriptPath,
+} from './linear-strips.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
@@ -2219,7 +2228,7 @@ function collectA1TestIntegrityEvidence(
   // its result to nothing but an ephemeral CI artifact earns the warning.
   const scheduledHealthWorkflow = ciWorkflows.find(
     (file) =>
-      fileContains(repoPath, file, SCHEDULE_TRIGGER_PATTERN) &&
+      fileSatisfies(repoPath, file, hasScheduleCronTrigger) &&
       fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN) &&
       (!useV36Detectors ||
         SCHEDULED_HEALTH_PATH_PATTERN.test(file) ||
@@ -6615,7 +6624,6 @@ const CI_TYPECHECK_COMMAND_PATTERN = /\b(tsc|mypy|pyright)\b/i;
 // suggests nightly health verification but lacks the shape (no schedule trigger or
 // test-run command) is not flagged at all
 // (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12).
-const SCHEDULE_TRIGGER_PATTERN = /(^|\n)\s*schedule:\s*\r?\n\s*-\s*cron:/;
 // Durable-publication markers: the workflow visibly does more than hand its result
 // to an ephemeral, access-gated CI artifact — it pushes a persisted, checkable
 // record (a public pages deploy, a commit back to the repo, a PR/issue comment).
@@ -9221,7 +9229,7 @@ function normaliseDeclaredClaimArtifactPath(candidate: string, baseDir: string):
   const joined = candidate.startsWith('/')
     ? posix.normalize(candidate.slice(1))
     : posix.normalize(posix.join(baseDir, candidate));
-  const path = joined.replace(/\/+$/, '');
+  const path = stripTrailingSlashes(joined);
   if (path === '' || path === '.' || path === '..' || path.startsWith('../') || path.startsWith('/')) {
     return null;
   }
@@ -9233,7 +9241,7 @@ function markdownLinkTarget(target: string): string | null {
   if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('#')) {
     return null;
   }
-  const withoutSuffix = target.replace(/[?#].*$/, '');
+  const withoutSuffix = stripFromQueryOrFragment(target);
   try {
     return decodeURIComponent(withoutSuffix);
   } catch {
@@ -9327,7 +9335,7 @@ function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDecla
     writeContinues = false;
   };
   contents.split(/\r?\n/).forEach((rawLine, index) => {
-    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    const line = stripHashCommentAtStartOrAfterBlank(rawLine);
     if (line.trim() === '') return;
     const indent = line.length - line.trimStart().length;
     if (
@@ -10387,7 +10395,7 @@ function reachableShellWrapper(
 ): string | undefined {
   const executable = basename(words[0] ?? '').toLowerCase();
   const candidate = /^(?:ba|da|k|z)?sh$/u.test(executable) ? words[1] : words[0];
-  if (!candidate || !/(?:^|\/)\.?[^\s]*\.sh$/i.test(candidate)) return undefined;
+  if (!candidate || !isShellScriptPath(candidate)) return undefined;
   const normalized = candidate.replace(/^\.\//u, '');
   if (normalized.startsWith('/') || normalized.split('/').includes('..')) return undefined;
   return repoFiles.has(normalized) ? normalized : undefined;
@@ -11542,7 +11550,7 @@ function readPnpmWorkspacePatterns(yamlPath: string): string[] | null {
 }
 
 function stripYamlLineComment(text: string): string {
-  return /^\s*#/.test(text) ? '' : text.replace(/\s+#.*$/, '');
+  return /^\s*#/.test(text) ? '' : stripTrailingHashComment(text);
 }
 
 function yamlScalar(raw: string): string | null {
@@ -11571,7 +11579,7 @@ export const WORKSPACE_GLOB_MAX_SEGMENTS = 32;
 export function workspaceGlobMatcher(pattern: string): ((dir: string) => boolean) | null {
   // Capped before any normalisation, so no regex below ever sees an unbounded pattern.
   if (pattern.length > WORKSPACE_GLOB_MAX_LENGTH) return null;
-  const normalised = pattern.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+  const normalised = stripTrailingSlashes(pattern.trim().replace(/^\.\//, ''));
   if (
     normalised === '' ||
     normalised.startsWith('/') ||
@@ -11744,7 +11752,7 @@ function countDelegatedCiSteps(root: string, workflows: readonly string[]): Dele
         continue;
       }
       if (!uses.startsWith('./') || /^\.\/\.github\/workflows\//.test(uses)) continue;
-      const directory = uses.slice(2).replace(/\/+$/u, '');
+      const directory = stripTrailingSlashes(uses.slice(2));
       if (directory.length === 0 || directory.split('/').includes('..')) continue;
       if (
         isRegularFile(join(root, directory, 'action.yml')) ||
@@ -11771,7 +11779,7 @@ function extractWorkflowUsesValues(contents: string): string[] {
     }
     const match = /^\s*(?:-\s*)?uses\s*:\s*(.*)$/u.exec(line);
     if (match) {
-      const value = (match[1] ?? '').replace(/\s+#.*$/u, '').trim();
+      const value = stripTrailingHashComment(match[1] ?? '').trim();
       const quoted = /^(?:"(.*)"|'(.*)')$/u.exec(value);
       values.push(quoted ? (quoted[1] ?? quoted[2] ?? '') : value);
       continue;
@@ -12141,7 +12149,7 @@ function stripUnbalancedShellParentheses(segment: string): string {
   const opens = segment.split('(').length - 1;
   const closes = segment.split(')').length - 1;
   if (opens > closes) return segment.replace(/^\(+\s*/u, '');
-  if (closes > opens) return segment.replace(/\s*\)+$/u, '');
+  if (closes > opens) return stripTrailingCloseParentheses(segment);
   return segment;
 }
 
@@ -12220,6 +12228,13 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   return pattern.test(readRepoText(fullPath, 'utf8'));
+}
+
+/** fileContains for a test that is not a regex (a linear scan in place of a quadratic pattern). */
+function fileSatisfies(repoPath: string, file: string, test: (contents: string) => boolean): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  return test(readRepoText(fullPath, 'utf8'));
 }
 
 // Same as fileContains, but strips comments before testing. Used wherever a match is credited as
