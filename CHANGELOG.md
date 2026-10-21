@@ -24,12 +24,28 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   evidence; A4 no longer says a lockfile is "not required" when the repository's own CI requires
   one, and cites the requiring line, or the manifest holding an unconstrained dependency, first. No
   score, status or fingerprint moves.
-- **The CI lockfile note is right in more cases, and the workflow reader is linear.** Under every
-  rubric: the note fires for a step that also runs tests, for `cargo test --locked` and for CRLF
-  workflows, and is withheld for `continue-on-error`, another repository's checkout, a downloaded
-  artifact, a working directory the checkout does not hold, and a lockfile a workflow command names.
-  A 480 KB workflow of 24,000 steps scanned in 12 s; it now scans in about 0.25 s. No v17 score,
-  status or fingerprint moves.
+- **The CI lockfile note is right in more cases, and the workflow reader is linear in its number
+  of steps.** Under every rubric: the note fires for a step that also runs tests, for
+  `cargo test --locked` and for CRLF workflows, and is withheld for `continue-on-error`, another
+  repository's checkout, a downloaded artifact, a working directory the checkout does not hold, and
+  a lockfile a workflow command names. A 480 KB workflow of 24,000 steps scanned in 12 s; it now
+  scans in about 0.25 s. No v17 score, status or fingerprint moves.
+- **The CI lockfile note is withheld where the change above made it false, and the reader is
+  linear however deeply a workflow nests.** Under every rubric, the note is withheld for: a guard
+  behind `(`, `{` or `!` (`( [ -n "$X" ] && npm ci )`), an arithmetic `((` guard, `set +e`, and a
+  `cd` inside a subshell; a directory or manifest passed as a flag that the scanned inventory does
+  not hold (`npm ci --prefix`, `pnpm --dir`/`-C`, `uv --directory`/`--project`,
+  `cargo --manifest-path`); and a `run:` or `steps:` line inside a block scalar (a heredoc, an
+  action's script), which is text, not a workflow key. Which directories the checkout holds is now
+  read from the scanned inventory, exact-case, never from the scanning host: a tracked symlink, a
+  case-insensitive volume or an untracked empty directory no longer changes the certificate. The
+  "linear" above held for flat workflows only: eight workflows of 990 nested items or 490 nested
+  `steps:` keys took 7.2 s; they now take 0.3 s. A `cd` target or `working-directory` of 480,000
+  slashes before a letter took about 80 s per workflow (a quadratic trailing-slash trim); it now
+  takes 0.3 s. Under v27, a pytest hook that empties
+  `items` and puts back nothing (`items.extend([])`) is read as removing the suite, and
+  `items.clear(); items.extend(ordered)` written on one line as a reorder. No v17 score, status or
+  fingerprint moves.
 
 ### Added
 

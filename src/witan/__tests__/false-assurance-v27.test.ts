@@ -454,6 +454,111 @@ describe('third-review findings against the merged implementation stay fixed', (
   });
 });
 
+// Regression guards for what two post-merge reviews of #533's own fixes reproduced.
+describe('fourth-review findings against #533 stay fixed', () => {
+  const withheld = (name: string): void => {
+    for (const rubricVersion of [V17, V27]) {
+      const a4 = criterion(name, rubricVersion, 'A4');
+      expect(a4.notes ?? '', `${name}@${rubricVersion}`).not.toContain('which exits with an error');
+      expect(a4.evidence[0]?.path ?? '', `${name}@${rubricVersion}`).not.toBe('.github/workflows/ci.yml');
+      expect(metricValue(a4, 'lockfile_coverage'), `${name}@${rubricVersion}`).not.toBe(0);
+    }
+    expect(criterion(name, V27, 'A4'), name).toEqual(criterion(name, V17, 'A4'));
+  };
+
+  it('#520: a guard behind a leading (, { or !, an arithmetic guard, and set +e withhold the claim', () => {
+    for (const name of [
+      'review4-a4-guard-in-subshell',
+      'review4-a4-test-guard-in-subshell',
+      'review4-a4-guard-in-brace-group',
+      'review4-a4-negated-guard',
+      'review4-a4-negated-subshell-guard',
+      'review4-a4-arithmetic-guard',
+      'review4-a4-negated-npm-ci',
+      'review4-a4-set-plus-e-then-npm-test',
+      'review4-a4-cd-inside-subshell',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: a directory or manifest named by a flag that the inventory does not hold withholds the claim', () => {
+    for (const name of [
+      'review4-a4-npm-ci-prefix-outside',
+      'review4-a4-npm-ci-prefix-equals-outside',
+      'review4-a4-pnpm-dir-outside',
+      'review4-a4-pnpm-short-dir-outside',
+      'review4-a4-uv-sync-directory-outside',
+      'review4-a4-uv-run-project-outside',
+      'review4-a4-cargo-manifest-path-outside',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: checkout directories come from the inventory, never the scanning host', () => {
+    for (const name of [
+      'review4-a4-working-directory-through-tracked-symlink',
+      'review4-a4-working-directory-untracked-empty',
+      'review4-a4-cd-wrong-case',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: each workflow-reader rule withholds the claim on its own', () => {
+    for (const name of [
+      'review4-a4-other-repository-checkout-at-root',
+      'review4-a4-artifact-downloaded-first',
+      'review4-a4-run-key-outside-any-step',
+      'review4-a4-run-key-inside-block-body',
+      'review4-a4-run-key-inside-action-script',
+      'review4-a4-job-guard-after-steps',
+      'review4-a4-steps-key-inside-block-body',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: a directory or manifest the inventory holds is still followed, and an unguarded brace group is not a guard', () => {
+    for (const [name, command, line] of [
+      ['review4-a4-claims-cd-into-tracked-directory', 'npm ci', 11],
+      ['review4-a4-claims-prefix-into-tracked-directory', 'npm ci', 11],
+      ['review4-a4-claims-manifest-path-tracked', 'cargo test --locked', 11],
+      ['review4-a4-claims-after-brace-group', 'npm ci', 13],
+    ] as const) {
+      const v17 = criterion(name, V17, 'A4');
+      expect(v17.notes ?? '', name).toContain(`runs \`${command}\``);
+      expect(v17.evidence[0]?.path, name).toBe('.github/workflows/ci.yml');
+      expect(v17.evidence[0]?.line, name).toBe(line);
+      expect(metricValue(criterion(name, V27, 'A4'), 'lockfile_coverage'), name).toBe(0);
+    }
+  });
+
+  it('#518: a hook that empties items and puts back nothing removes the suite, on one line or two', () => {
+    for (const name of [
+      'review4-a1-hook-empties-and-refills-nothing',
+      'review4-a1-hook-empties-and-refills-nothing-one-line',
+    ]) {
+      const a1 = criterion(name, V27, 'A1');
+      expect(
+        a1.findings.some(({ summary }) => summary.includes('removes every collected test')),
+        name,
+      ).toBe(true);
+      expect(metricValue(a1, 'non_hollow_test_share'), name).toBe(0);
+    }
+  });
+
+  it('#518: a one-line clear-and-extend reorders the run and is not read as removing it', () => {
+    const name = 'review4-a1-hook-reorders-items-one-line';
+    const a1 = criterion(name, V27, 'A1');
+    expect(a1.findings.some(({ summary }) => summary.startsWith('A pytest collection hook'))).toBe(false);
+    expect(metricValue(a1, 'non_hollow_test_share')).toBe(
+      metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+    );
+  });
+});
+
 // v27 abstains; it does not hide. A collector's own critical finding under v17 is still present
 // under v27, unless the criterion abstained because the clone is shallow or a test file it read
 // is an LFS pointer, the two cases where the finding was derived from content Cejel did not read.
