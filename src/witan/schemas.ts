@@ -460,11 +460,18 @@ export const WitanInputBindingRecordSchema = z
         z
           .object({
             repository: z.string().min(1).max(300).optional(),
+            // Additive-optional (1.7, #525 follow-up): the input declared a repository Cejel could
+            // not normalize to host/path. The declared text is withheld, never recorded, because
+            // it may carry URL credentials. Never treated as the named subject repository.
+            repositoryWithheld: z.literal(true).optional(),
             commit: z.string().min(1).max(80).optional(),
           })
           .strict(),
       )
       .max(8),
+    // Additive-optional (1.7, #525 follow-up): distinct declared subjects beyond the 8 recorded.
+    // Every declared subject is checked; only the record is capped. Absent when none were omitted.
+    subjectsOmitted: z.number().int().min(1).optional(),
     observedAt: z.string().datetime().optional(),
     status: WitanInputBindingStatusSchema,
     checks: z

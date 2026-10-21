@@ -25,7 +25,9 @@ const INHERITED_FINDING_NOTES: Readonly<Record<string, string>> = Object.freeze(
 });
 
 export function inheritedFindingNote(ruleId: string): string | undefined {
-  return INHERITED_FINDING_NOTES[ruleId];
+  // Own properties only. ruleId is ingested text: a plain-object index would return an
+  // Object.prototype member for `constructor`, `toString` or `__proto__`, which is not a string.
+  return Object.hasOwn(INHERITED_FINDING_NOTES, ruleId) ? INHERITED_FINDING_NOTES[ruleId] : undefined;
 }
 
 export function inheritedFindingNoteRuleIds(): readonly string[] {
@@ -46,8 +48,18 @@ export function importedAdjustmentSentence(criterion: WitanCriterionScore): stri
   if (criterion.status === 'not_applicable' || criterion.status === 'insufficient_data') {
     return `Ingested findings were folded into this dimension, but it is ${criterion.status}, so they moved no score.`;
   }
-  const delta = formatScore(Math.abs(criterion.nativeScore - criterion.score));
-  if (criterion.nativeStatus !== undefined && criterion.nativeStatus !== criterion.status) {
+  const statusMoved =
+    criterion.nativeStatus !== undefined && criterion.nativeStatus !== criterion.status;
+  // A clamped adjustment (a native score already at 0.0) leaves the score where it was; "lowered
+  // by 0.0" would claim a move that did not happen.
+  if (criterion.nativeScore === criterion.score) {
+    return statusMoved
+      ? `Imported evidence moved this status: Cejel's own evidence gave ${criterion.nativeStatus} at ${formatScore(criterion.nativeScore)}/4.0; ingested findings did not move the score but moved the status to ${criterion.status}. The move is not a native Cejel finding.`
+      : `Ingested findings were folded into this dimension but did not move its score from Cejel's own ${formatScore(criterion.nativeScore)}/4.0; the status is the native one.`;
+  }
+  const difference = Math.abs(criterion.nativeScore - criterion.score);
+  const delta = difference < 0.05 ? 'less than 0.1' : formatScore(difference);
+  if (statusMoved) {
     return `Imported evidence moved this status: Cejel's own evidence gave ${criterion.nativeStatus} at ${formatScore(criterion.nativeScore)}/4.0; ingested findings lowered the score by ${delta} to ${formatScore(criterion.score)}, which moved the status to ${criterion.status}. The move is not a native Cejel finding.`;
   }
   return `Ingested findings lowered this score by ${delta} from Cejel's own ${formatScore(criterion.nativeScore)}/4.0; the status is the native one.`;
@@ -81,9 +93,19 @@ export function inputBindingHeadline(binding: WitanInputBinding): string {
 
 function describeSubject(record: WitanInputBindingRecord): string {
   if (record.subjects.length === 0) return 'no declared subject';
-  return record.subjects
-    .map((subject) => `${subject.repository ?? 'repository not declared'} @ ${subject.commit ?? 'commit not declared'}`)
+  const listed = record.subjects
+    .map((subject) => {
+      const repository =
+        subject.repository ??
+        (subject.repositoryWithheld
+          ? 'repository withheld (declared, not normalizable)'
+          : 'repository not declared');
+      return `${repository} @ ${subject.commit ?? 'commit not declared'}`;
+    })
     .join('; ');
+  return record.subjectsOmitted
+    ? `${listed}; and ${record.subjectsOmitted} more declared subject${record.subjectsOmitted === 1 ? '' : 's'}, all checked, not recorded`
+    : listed;
 }
 
 function describeProducer(record: WitanInputBindingRecord): string {

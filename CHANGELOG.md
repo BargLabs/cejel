@@ -55,6 +55,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`cejel verify ... --input <file>`** checks a set of input files against the digests
   `report.json` records, and fails on a swapped, missing or extra input. `cejel issue` reads the
   binding policy and subject repository from the report it reproduces.
+- **Input binding, hardened before release (#525 review follow-up).** A repository identity Cejel
+  cannot normalize is withheld (`subjects[].repositoryWithheld`), never recorded verbatim, so URL
+  credentials cannot reach `report.json`, the certificate or the terminal; with
+  `--subject-repository` it counts as a mismatch. Every declared subject is checked, not only the
+  eight recorded (`subjectsOmitted` counts the rest), so a foreign subject cannot hide past the cap
+  under `--strict-ingest`. A SARIF document with a run that declares no commit is `unbound`, not
+  `matched`. Times outside years 0000-9999 in UTC, including a HEAD committer time, are treated as
+  not declared, so a scan can no longer crash on one or write a report `cejel verify` rejects; the
+  final report is validated before it is written, and `inputs` stays within its 256 bound. An
+  ingested `ruleId` such as `constructor` no longer crashes the scan. `verify --input` reads files
+  under ingest's path checks. Default scoring is unchanged.
 - **Generic ingest contract 1.1:** optional `subject.repository`, `subject.commit`,
   `producer.name`, `producer.version` and `observedAt`. A 1.0 document is unchanged.
 - **`criteria[].nativeStatus`** (report format 1.7), beside `nativeScore` when ingested signals

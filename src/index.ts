@@ -38,6 +38,8 @@ import { serveCejelMcpOverStdio } from './mcp/stdio.js';
 import { npxVersionMismatchWarning } from './npx-version-guard.js';
 import { refuseSymlinkedOutputs, writeOutputFile, writeOutputFiles } from './output-files.js';
 import { runCejelScan } from './scan.js';
+import { stripTerminalControls } from './presentation-safety.js';
+import { resolveIngestFilePath } from './witan/ingest-files.js';
 import { verifyRecordedInputDigests } from './witan/input-binding.js';
 import { computeApplicableMeasuredCoverage } from './witan/coverage.js';
 import {
@@ -785,10 +787,22 @@ function runVerifyBinding(invocation: CejelVerifyInvocation): number {
   process.stdout.write('Cejel: report/attestation binding verified.\n');
 
   if (invocation.inputPaths) {
-    const inputCheck = verifyRecordedInputDigests(reportResult.data, invocation.inputPaths, (path) =>
-      readFileSync(path),
-    );
-    for (const line of inputCheck.lines) process.stdout.write(`${line}\n`);
+    let inputCheck: ReturnType<typeof verifyRecordedInputDigests>;
+    try {
+      // The same checks ingest applies before reading a file: a regular file, not a symlink, in a
+      // directory that is not a symlink, under the ingest byte budget. A FIFO, a device or a
+      // symlink to one is refused before it can hang the verifier or exhaust its memory.
+      inputCheck = verifyRecordedInputDigests(reportResult.data, invocation.inputPaths, (path) =>
+        readFileSync(resolveIngestFilePath(path)),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(
+        `Cejel: input digests not verified — ${stripTerminalControls(message.replace(/^Cejel: /, ''))}\n`,
+      );
+      return 1;
+    }
+    for (const line of inputCheck.lines) process.stdout.write(`${stripTerminalControls(line)}\n`);
     if (!inputCheck.valid) return 1;
   }
 

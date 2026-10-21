@@ -28,3 +28,12 @@ export function sanitizePresentationLine(
 export function escapeMarkdownInline(value: string): string {
   return value.replace(/([\\`*_[\]<>|#])/g, '\\$1');
 }
+
+/**
+ * Removes C0 controls, DEL and C1 controls (U+0080-U+009F) from a repository- or ingest-derived
+ * string before it reaches the terminal; a newline or tab inside the field becomes a space. The
+ * visible text around a removed control is kept. Cejel's own text never passes through here.
+ */
+export function stripTerminalControls(text: string): string {
+  return text.replace(/[\t\n]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
+}
