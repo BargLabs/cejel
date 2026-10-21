@@ -5595,14 +5595,14 @@ function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosu
 }
 
 function b3PublishOnlyNote(publishOnlyWorkflows: readonly string[]): string {
-  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads checks out, sets up, installs, packages or publishes) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
+  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
 // vocabulary matched as a command or action name: package registry publishes, release creation,
 // image pushes, and deploy commands. Matching is by word, never by file or job name.
 const PUBLISH_OR_DEPLOY_STEP_PATTERN =
-  /\b(?:npm|pnpm|yarn|bun)[ \t]+(?:npm[ \t]+)?publish\b|\bpypa\/gh-action-pypi-publish\b|\btwine[ \t]+upload\b|\b(?:uv|poetry|flit|hatch|cargo)[ \t]+publish\b|\bgem[ \t]+push\b|\bgh[ \t]+release[ \t]+create\b|\bsoftprops\/action-gh-release\b|\bgoreleaser\b|\bsemantic-release\b|\bchangesets\/action\b|\bdocker[ \t]+(?:image[ \t]+)?push\b|\bdocker\/build-push-action\b|\b(?:vercel|netlify|flyctl|fly|firebase|serverless|wrangler)[ \t]+deploy\b|\bkubectl[ \t]+apply\b|\bhelm[ \t]+upgrade\b|\bterraform[ \t]+apply\b/i;
+  /\b(?:npm|pnpm|yarn|bun)[ \t]+(?:npm[ \t]+)?publish\b|\bpypa\/gh-action-pypi-publish\b|\btwine[ \t]+upload\b|\b(?:uv|poetry|flit|hatch|cargo)[ \t]+publish\b|\bgem[ \t]+push\b|\bgh[ \t]+release[ \t]+(?:create|upload)\b|\bsoftprops\/action-gh-release\b|\bgoreleaser\b|\bsemantic-release\b|\bchangesets\/action\b|\bdocker[ \t]+(?:image[ \t]+)?push\b|\bdocker\/build-push-action\b|\b(?:vercel|netlify|flyctl|fly|firebase|serverless|wrangler)[ \t]+deploy\b|\bkubectl[ \t]+apply\b|\bhelm[ \t]+upgrade\b|\bterraform[ \t]+apply\b/i;
 
 // Verification Cejel recognises beyond the B3 command categories, used only to keep a workflow
 // counted (#517): test runners invoked through a task runner or build tool, and pre-commit.
@@ -5617,20 +5617,18 @@ export const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_targ
 const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
 
 /**
- * True for a GitHub Actions workflow whose job is to publish, release or deploy, and nothing else
- * Cejel can see. Every condition must hold, and any doubt keeps the workflow counted:
+ * True for a GitHub Actions workflow that only checks out, configures credentials and uploads an
+ * already-built artifact; any install, build or package step keeps it counted. Every condition
+ * must hold, and any doubt keeps the workflow counted:
  *   - no pull-request trigger, no call to a reusable workflow, and no test, lint, type-check or
  *     other recognised verification command anywhere in the file (a word match, so a mention in a
  *     comment also keeps it counted);
- *   - every `run:` command, read by the workflow step reader with comments dropped, is a publish,
- *     release or deploy command or one of a narrow set of setup and packaging commands
- *     (classifyPublishOnlyRunCommand);
- *   - every `uses:` step is a checkout, setup, cache, artifact or registry-login action, or a
- *     publish action (classifyPublishOnlyUsesStep);
- *   - at least one parsed step publishes. A publish word only in a comment, or behind `--dry-run`,
- *     is not one.
- * A build, a bundle-size check, a docs build, or any command Cejel does not know keeps the
- * workflow counted, as does a workflow the step reader cannot split into lines.
+ *   - every line of the jobs section is placed by placedPublishWorkflowSteps;
+ *   - every `run:` command is credential configuration or an upload
+ *     (classifyPublishOnlyRunCommand), and every `uses:` step is a named setup action or an upload
+ *     action (classifyPublishOnlyUsesStep);
+ *   - at least one step uploads, and an npm-family publish only when the root manifest runs no
+ *     script (packageManifestRunsNoRepositoryCode).
  */
 function isPublishOnlyWorkflow(
   repoPath: string,
@@ -5668,13 +5666,10 @@ function isPublishOnlyWorkflow(
     for (const need of classified.needs ?? []) needs.add(need);
   }
   if (!publishes) return false;
-  // An admitted command that runs code the repository configures (npm lifecycle scripts, a Python
-  // build backend) is admitted only when that configuration is read and holds none.
+  // An npm-family publish runs the root package's scripts (`prepack`, `prepublishOnly`, `publish`,
+  // ...), so it is admitted only when that manifest is read and holds none.
   if (needs.size > 0 && inventory === null) return false;
   if (needs.has('package') && !packageManifestRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
-    return false;
-  }
-  if (needs.has('python') && !pythonBuildRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
     return false;
   }
   return true;
@@ -5689,7 +5684,7 @@ interface PublishOnlyInventory {
 }
 
 /** The repository configuration an admitted command runs code from. */
-type PublishOnlyRepositoryCheck = 'package' | 'python';
+type PublishOnlyRepositoryCheck = 'package';
 
 interface PublishOnlyClassification {
   readonly kind: 'publish' | 'setup' | 'other';
@@ -5717,15 +5712,19 @@ const PACKAGE_LIFECYCLE_SCRIPTS = [
   'preinstall', 'install', 'postinstall', 'preprepare', 'prepare', 'postprepare', 'prepack',
   'postpack', 'prepublish', 'prepublishOnly', 'publish', 'postpublish', 'dependencies',
 ];
-// Files that configure a package manager to run repository code: a script shell or Node options
-// (`.npmrc`), Yarn plugins and settings, a pnpm hook file, Bun preloads.
-const PACKAGE_MANAGER_CODE_CONFIG_FILES = ['.npmrc', '.yarnrc', '.yarnrc.yml', '.pnpmfile.cjs', 'pnpmfile.js', 'bunfig.toml'];
+// Files that configure a package manager to run repository code, or declare packages whose scripts
+// also run: a script shell or Node options (`.npmrc`), Yarn plugins and settings, a pnpm hook file,
+// Bun preloads, pnpm or Lerna workspaces, and a native addon (`binding.gyp`, built implicitly).
+const PACKAGE_MANAGER_CODE_CONFIG_FILES = [
+  '.npmrc', '.yarnrc', '.yarnrc.yml', '.pnpmfile.cjs', 'pnpmfile.js', 'bunfig.toml',
+  'pnpm-workspace.yaml', 'lerna.json', 'binding.gyp',
+];
 const PACKAGE_DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
 
 /**
  * True only when the root package.json is scanned, parses, defines no lifecycle script, declares
- * no workspaces and no local dependency (`file:`, `link:`, `workspace:`, `portal:`, a path), and no
- * package-manager configuration file that can run code exists. Anything else, including a
+ * no workspaces, no `gypfile` and no local dependency (`file:`, `link:`, `workspace:`, `portal:`, a
+ * path), and none of PACKAGE_MANAGER_CODE_CONFIG_FILES exists. Anything else, including a
  * package.json Cejel did not read, is doubt.
  */
 function packageManifestRunsNoRepositoryCode(root: string, inventory: PublishOnlyInventory): boolean {
@@ -5733,7 +5732,7 @@ function packageManifestRunsNoRepositoryCode(root: string, inventory: PublishOnl
   if (PACKAGE_MANAGER_CODE_CONFIG_FILES.some((file) => inventory.known.has(file))) return false;
   if (inventory.hasYarnPlugins) return false;
   const manifest = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'));
-  if (!manifest || 'workspaces' in manifest) return false;
+  if (!manifest || 'workspaces' in manifest || 'gypfile' in manifest) return false;
   const scripts = manifest.scripts;
   if (scripts !== undefined && !isRecord(scripts)) return false;
   if (isRecord(scripts) && PACKAGE_LIFECYCLE_SCRIPTS.some((name) => name in scripts)) return false;
@@ -5747,23 +5746,6 @@ function packageManifestRunsNoRepositoryCode(root: string, inventory: PublishOnl
     }
   }
   return true;
-}
-
-// Root files a Python build runs as code: a setup script, and in-tree build hooks.
-const PYTHON_BUILD_CODE_FILES = ['setup.py', 'hatch_build.py', 'pdm_build.py', 'build.py'];
-// pyproject.toml settings that run repository code during a build, or install from a local path.
-const PYTHON_BUILD_CODE_SETTING_PATTERN =
-  /backend-path|build-script|cmdclass|\[tool\.hatch\.build\.(?:targets\.[a-z-]+\.)?hooks|\[tool\.poetry\.build\]|file:/;
-
-/**
- * True only when pyproject.toml is scanned and names no in-tree backend, build script or hook, and
- * no root build-code file exists. A build without pyproject.toml (a legacy setup.py project), or
- * with one Cejel did not read, is doubt.
- */
-function pythonBuildRunsNoRepositoryCode(root: string, inventory: PublishOnlyInventory): boolean {
-  if (!inventory.scanned.has('pyproject.toml')) return false;
-  if (PYTHON_BUILD_CODE_FILES.some((file) => inventory.known.has(file))) return false;
-  return !PYTHON_BUILD_CODE_SETTING_PATTERN.test(readRepoText(join(root, 'pyproject.toml'), 'utf8'));
 }
 
 /** One step a publish-only reading placed: a `uses:` action with its input names, or run lines. */
@@ -5977,18 +5959,18 @@ const CODE_LOADING_ENV_KEYS = new Set([
   'PERL5OPT', 'PERL5LIB', 'RUBYOPT', 'PATH', 'NPM_CONFIG_NODE_OPTIONS', 'NPM_CONFIG_SCRIPT_SHELL',
 ]);
 
-function isCodeLoadingEnvKey(name: string): boolean {
+function isCodeLoadingEnvKey(written: string): boolean {
+  // Quotes around a name (`export "NODE_OPTIONS=..."`) do not change which variable is set.
+  const name = written.replace(/^["']+/, '').replace(/["']+$/, '');
   return CODE_LOADING_ENV_KEYS.has(name) || CODE_LOADING_ENV_KEYS.has(name.toUpperCase());
 }
 
-// npm-family flags that point a command at another package or directory, whose manifest Cejel did
+// npm-family flags that point a publish at another package or directory, whose manifest Cejel did
 // not read.
 const PACKAGE_TARGET_FLAGS = new Set([
   '--prefix', '-C', '--dir', '--cwd', '--workspace', '-w', '--workspaces', '-ws', '--filter', '-F',
   '-r', '--recursive', '--global', '-g',
 ]);
-// pip flags that read a repository file or install the project in place.
-const PIP_REPOSITORY_FLAGS = new Set(['-r', '--requirement', '-e', '--editable', '-c', '--constraint']);
 
 /** A flag's name without `=value`. */
 function flagName(word: string): string {
@@ -5996,18 +5978,9 @@ function flagName(word: string): string {
   return equals === -1 ? word : word.slice(0, equals);
 }
 
-/** npm-family arguments that stay on the root package: flags only, none redirecting it. */
-function targetsRootPackageOnly(args: readonly string[], allowPositional: boolean): boolean {
-  return args.every((word) =>
-    word.startsWith('-') ? !PACKAGE_TARGET_FLAGS.has(flagName(word)) : allowPositional && !/[/:]|^\./.test(word),
-  );
-}
-
-/** pip-style `install` arguments naming only index packages: no path, URL or repository file. */
-function installsIndexPackagesOnly(args: readonly string[]): boolean {
-  return args.every((word) =>
-    word.startsWith('-') ? !PIP_REPOSITORY_FLAGS.has(flagName(word)) : !/[/:]|^\./.test(word),
-  );
+/** npm-family publish arguments that stay on the root package: flags only, none redirecting it. */
+function targetsRootPackageOnly(args: readonly string[]): boolean {
+  return args.every((word) => word.startsWith('-') && !PACKAGE_TARGET_FLAGS.has(flagName(word)));
 }
 
 // `npm config set <key>` keys that only point at a registry or hold its token.
@@ -6016,33 +5989,22 @@ function isRegistryConfigKey(key: string): boolean {
 }
 
 /**
- * One shell command of a run step, in a workflow being tested as publish-only, as 'publish' (a
- * publish or release that runs no repository-configured build), 'setup', or 'other' (anything
- * else, which keeps the workflow counted). `needs` names the repository configuration an admitted
- * command runs code from, which the caller then reads: npm lifecycle scripts for npm-family
- * installs and publishes, the Python build backend for builds and project installs.
- *
- * Admitted setup, by first word and subcommand only:
- *   - npm `ci`/`install`/`i`, pnpm `install`/`i`, yarn (bare or `install`), bun `install`/`i`,
- *     with no flag pointing at another package (needs 'package');
- *   - `npm`/`pnpm`/`yarn config set` of a registry or token key;
- *   - `pip`/`pip3`/`pipx install`, `python -m pip install`, `uv pip install` of index packages only;
- *   - `uv sync`, `poetry install`, and the builds `python -m build`, `pyproject-build`, `uv build`,
- *     `poetry build`, `hatch build`, `flit build` (needs 'python');
- *   - `corepack enable`/`prepare`, `rustup` toolchain subcommands, `docker login`,
- *     `git config [--global] user.name|user.email`, `echo`/`printf` without a redirect, `set`, and
- *     `export` of anything but a code-loading variable.
- * Admitted publishes: npm/pnpm/bun `publish`, yarn `publish`/`npm publish` (no positional target;
- * needs 'package'), `twine upload`, `uv`/`flit`/`hatch publish`, `poetry publish` (needs 'python'
- * with `--build`), `cargo publish --no-verify`, `gem push`, `gh release create`, `docker push`.
- * semantic-release, goreleaser and the deploy CLIs run plugins, hooks or builds the repository
- * configures, so they are 'other'. So is `--dry-run`, `cd` (the manifest read is the root's), a
- * leading assignment of a code-loading variable, and any separator, substitution or redirect
- * glued inside a word.
+ * One shell command of a run step, in a workflow being tested as publish-only. A publish-only
+ * workflow only checks out, configures credentials and uploads an already-built artifact, so the
+ * admitted commands are exactly:
+ *   - credential or registry configuration: `npm`/`pnpm`/`yarn config set` of a registry or token
+ *     key ('setup'), and leading `NAME=value` credentials on an admitted command;
+ *   - uploads of an artifact already built ('publish'): `twine upload`, `uv publish` with no build
+ *     flag, `poetry publish` without `--build`, `gh release create`/`upload`,
+ *     `cargo publish --no-verify`, and npm/pnpm/yarn `publish` with no positional target or
+ *     package-redirecting flag, which runs the root package's scripts and so needs 'package'.
+ * Everything else is 'other' and keeps the workflow counted: any install, sync, build or package
+ * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, a code-loading
+ * variable assignment, and any separator, substitution or redirect glued inside a word.
  */
 function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyClassification {
   const other = { kind: 'other' } as const;
-  if (input.some((word) => /[`&|;]|\$\(|[<>]\(/.test(word))) return other;
+  if (input.some((word) => /[`&|;<>]|\$\(/.test(word))) return other;
   // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
   // so a long run of them stays linear.
   let start = 0;
@@ -6050,101 +6012,43 @@ function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyCla
     if (isCodeLoadingEnvKey(flagName(input[start] ?? ''))) return other;
     start += 1;
   }
-  if (start === input.length) return { kind: 'setup' };
+  if (start === input.length) return other;
   const words = input.slice(start);
   const [first = '', second = '', third = ''] = words;
-  const rest = (from: number) => words.slice(from);
-  const python = first === 'python' || first === 'python3';
   if (words.some((word) => word.startsWith('--dry-run'))) return other;
   switch (first) {
-    case 'echo':
-    case 'printf':
-      // A redirect can write $GITHUB_ENV, $GITHUB_PATH or a package manager's configuration.
-      return words.some((word) => word.includes('>')) ? other : { kind: 'setup' };
-    case 'set':
-      return { kind: 'setup' };
-    case 'export':
-      return rest(1).some((word) => isCodeLoadingEnvKey(flagName(word))) ? other : { kind: 'setup' };
-    case 'corepack':
-      return second === 'enable' || second === 'prepare' ? { kind: 'setup' } : other;
-    case 'rustup':
-      return ['install', 'toolchain', 'component', 'target', 'default', 'override', 'update'].includes(second)
-        ? { kind: 'setup' }
-        : other;
-    case 'docker':
-      if (second === 'login') return { kind: 'setup' };
-      return second === 'push' || (second === 'image' && third === 'push') ? { kind: 'publish' } : other;
-    case 'git': {
-      const args = rest(2).filter((word) => word !== '--global' && word !== '--local');
-      return second === 'config' && (args[0] === 'user.name' || args[0] === 'user.email') && args.length <= 2
-        ? { kind: 'setup' }
-        : other;
-    }
     case 'npm':
     case 'pnpm':
-    case 'yarn':
-    case 'bun': {
+    case 'yarn': {
       if (second === 'config') {
-        return (first !== 'bun' && third === 'set' && isRegistryConfigKey(words[3] ?? '') && words.length <= 5)
-          ? { kind: 'setup' }
-          : other;
-      }
-      const install =
-        (first === 'npm' && ['ci', 'install', 'i'].includes(second)) ||
-        ((first === 'pnpm' || first === 'bun') && ['install', 'i'].includes(second)) ||
-        (first === 'yarn' && (second === '' || second === 'install' || second.startsWith('-')));
-      if (install) {
-        const args = first === 'yarn' && (second === '' || second.startsWith('-')) ? rest(1) : rest(2);
-        return targetsRootPackageOnly(args, true) ? { kind: 'setup', needs: ['package'] } : other;
+        return third === 'set' && isRegistryConfigKey(words[3] ?? '') && words.length <= 5 ? { kind: 'setup' } : other;
       }
       const publishFrom = second === 'publish' ? 2 : first === 'yarn' && second === 'npm' && third === 'publish' ? 3 : -1;
       if (publishFrom === -1) return other;
-      return targetsRootPackageOnly(rest(publishFrom), false) ? { kind: 'publish', needs: ['package'] } : other;
+      return targetsRootPackageOnly(words.slice(publishFrom)) ? { kind: 'publish', needs: ['package'] } : other;
     }
-    case 'pip':
-    case 'pip3':
-    case 'pipx':
-      return second === 'install' && installsIndexPackagesOnly(rest(2)) ? { kind: 'setup' } : other;
-    case 'python':
-    case 'python3':
-      if (python && second === '-m' && third === 'pip' && words[3] === 'install') {
-        return installsIndexPackagesOnly(rest(4)) ? { kind: 'setup' } : other;
-      }
-      return second === '-m' && third === 'build' ? { kind: 'setup', needs: ['python'] } : other;
-    case 'pyproject-build':
-      return { kind: 'setup', needs: ['python'] };
-    case 'uv':
-      if (second === 'pip' && third === 'install') return installsIndexPackagesOnly(rest(3)) ? { kind: 'setup' } : other;
-      if (second === 'sync' || second === 'build') return { kind: 'setup', needs: ['python'] };
-      return second === 'publish' ? { kind: 'publish' } : other;
-    case 'poetry':
-      if (second === 'install' || second === 'build') return { kind: 'setup', needs: ['python'] };
-      if (second !== 'publish') return other;
-      return words.includes('--build') ? { kind: 'publish', needs: ['python'] } : { kind: 'publish' };
-    case 'hatch':
-    case 'flit':
-      if (second === 'build') return { kind: 'setup', needs: ['python'] };
-      return second === 'publish' ? { kind: 'publish', needs: first === 'flit' ? ['python'] : [] } : other;
     case 'twine':
       return second === 'upload' ? { kind: 'publish' } : other;
+    case 'uv':
+      return second === 'publish' && !words.some((word) => word.includes('build')) ? { kind: 'publish' } : other;
+    case 'poetry':
+      return second === 'publish' && !words.some((word) => word.startsWith('--build')) ? { kind: 'publish' } : other;
+    case 'gh':
+      return second === 'release' && (third === 'create' || third === 'upload') ? { kind: 'publish' } : other;
     case 'cargo':
       // `cargo publish` builds the crate, running its build script, unless told not to verify.
       return second === 'publish' && words.includes('--no-verify') && !words.includes('-n')
         ? { kind: 'publish' }
         : other;
-    case 'gem':
-      return second === 'push' ? { kind: 'publish' } : other;
-    case 'gh':
-      return second === 'release' && third === 'create' ? { kind: 'publish' } : other;
     default:
       return other;
   }
 }
 
 // `uses:` steps a publish-only workflow may hold besides its publish action, named exactly: checkout,
-// toolchain setup, caching, artifact transfer between its own jobs, and registry login. Each maps to
-// the inputs it may carry; any other input (a checkout of another repository or ref, submodules,
-// pnpm's own install) is doubt. `null` admits any input.
+// toolchain setup that installs nothing, caching, artifact transfer, and registry login. Each maps
+// to the inputs it may carry; any other input (a checkout of another repository or ref,
+// submodules, pnpm's own install) is doubt. `null` admits any input.
 const PUBLISH_ONLY_SETUP_ACTIONS: ReadonlyMap<string, readonly string[] | null> = new Map<
   string,
   readonly string[] | null
@@ -6152,7 +6056,7 @@ const PUBLISH_ONLY_SETUP_ACTIONS: ReadonlyMap<string, readonly string[] | null> 
   ['actions/checkout', ['fetch-depth', 'token', 'persist-credentials', 'fetch-tags', 'show-progress']],
   ['actions/cache', null],
   ['actions/upload-artifact', null],
-  ['actions/download-artifact', ['name', 'path', 'pattern', 'merge-multiple']],
+  ['actions/download-artifact', ['name', 'path', 'pattern', 'merge-multiple', 'run-id', 'github-token']],
   ['actions/setup-node', null],
   ['actions/setup-python', null],
   ['actions/setup-go', null],
@@ -6162,16 +6066,6 @@ const PUBLISH_ONLY_SETUP_ACTIONS: ReadonlyMap<string, readonly string[] | null> 
   ['oven-sh/setup-bun', null],
   ['pnpm/action-setup', ['version', 'package_json_file', 'dest', 'standalone']],
   ['docker/login-action', null],
-  ['docker/setup-buildx-action', null],
-  ['docker/setup-qemu-action', null],
-]);
-// Actions that publish or release and run nothing the repository configures. `docker/build-push-action`
-// is not one (with `push: false` it is a build check), nor goreleaser's action (it runs the
-// repository's configured hooks).
-const PUBLISH_ONLY_PUBLISH_ACTIONS = new Set([
-  'pypa/gh-action-pypi-publish',
-  'softprops/action-gh-release',
-  'changesets/action',
 ]);
 
 /** One `uses:` value, in a workflow being tested as publish-only. */
@@ -6182,9 +6076,10 @@ function classifyPublishOnlyUsesStep(
   const at = uses.indexOf('@');
   if (at === -1) return 'other';
   const action = uses.slice(0, at);
-  // changesets/action runs its `publish` and `version` inputs as commands.
-  if (action === 'changesets/action' && (inputs.has('publish') || inputs.has('version'))) return 'other';
-  if (PUBLISH_ONLY_PUBLISH_ACTIONS.has(action)) return 'publish';
+  // Uploads of an already-built artifact. softprops/action-gh-release counts only with `files`;
+  // without them it creates a release and uploads nothing.
+  if (action === 'pypa/gh-action-pypi-publish') return 'publish';
+  if (action === 'softprops/action-gh-release') return inputs.has('files') ? 'publish' : 'other';
   if (!PUBLISH_ONLY_SETUP_ACTIONS.has(action)) return 'other';
   const allowed = PUBLISH_ONLY_SETUP_ACTIONS.get(action);
   return allowed === null || [...inputs].every((input) => (allowed ?? []).includes(input)) ? 'setup' : 'other';

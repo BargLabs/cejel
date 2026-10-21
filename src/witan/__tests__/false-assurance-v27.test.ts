@@ -83,21 +83,22 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
     }
   });
 
-  it('v27: removing the human gate and running on every push does not raise B3', () => {
-    for (const [gated, ungated] of [
-      ['b3-pypi-publish-gated', 'b3-pypi-publish-ungated'],
-      ['b3-npm-publish-gated', 'b3-npm-publish-ungated'],
-    ] as const) {
-      const before = criterion(gated, V27, 'B3');
-      const after = criterion(ungated, V27, 'B3');
-      expect(after.score).toBe(before.score);
-      expect(metricValue(after, 'default_branch_ci_depth')).toBe(
-        metricValue(before, 'default_branch_ci_depth'),
-      );
-      expect(after.notes).toBe(
-        '1 workflow that only publishes, releases or deploys (no pull-request trigger, and every step Cejel reads checks out, sets up, installs, packages or publishes) is not counted as CI verification: ' +
-          `${ungated.startsWith('b3-pypi') ? '.github/workflows/publish.yaml' : '.github/workflows/release.yml'}.`,
-      );
+  it('v27: removing the human gate from an upload-only workflow and running it on every push does not raise B3', () => {
+    const before = criterion('review8-b3-pypi-upload-only-gated', V27, 'B3');
+    const after = criterion('review8-b3-pypi-upload-only-ungated', V27, 'B3');
+    expect(after.score).toBe(before.score);
+    expect(metricValue(after, 'default_branch_ci_depth')).toBe(metricValue(before, 'default_branch_ci_depth'));
+    expect(after.notes).toBe(
+      '1 workflow that only publishes, releases or deploys (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) is not counted as CI verification: .github/workflows/publish.yml.',
+    );
+    expect(criterion('review8-b3-pypi-upload-only-ungated', V17, 'B3').score).toBeGreaterThan(
+      criterion('review8-b3-pypi-upload-only-gated', V17, 'B3').score,
+    );
+  });
+
+  it('v27: the issue\'s own repros build or install before they publish, so they stay counted (a recorded recall reduction)', () => {
+    for (const name of ['b3-pypi-publish-ungated', 'b3-npm-publish-ungated']) {
+      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
     }
   });
 
@@ -714,12 +715,13 @@ describe('review findings against #553 stay fixed', () => {
     }
   });
 
-  it('#517: the published positives, with needs, permissions, with and env, and cargo publish --no-verify, are still publish-only', () => {
+  it('#517: upload-only workflows, with permissions, with and env, are still publish-only', () => {
     for (const [name, file] of [
-      ['b3-pypi-publish-ungated', '.github/workflows/publish.yaml'],
-      ['b3-npm-publish-ungated', '.github/workflows/release.yml'],
+      ['review8-b3-pypi-upload-only-ungated', '.github/workflows/publish.yml'],
+      ['review8-b3-twine-upload-only', '.github/workflows/publish.yml'],
+      ['review8-b3-npm-publish-without-install', '.github/workflows/release.yml'],
+      ['review8-b3-gh-release-upload', '.github/workflows/release.yml'],
       ['review7-b3-cargo-publish-no-verify', '.github/workflows/release.yml'],
-      ['review6-b3-changesets-without-command-inputs', '.github/workflows/main.yml'],
     ] as const) {
       const notes = criterion(name, V27, 'B3').notes ?? '';
       expect(notes, name).toContain('1 workflow that only publishes, releases or deploys');
@@ -798,6 +800,31 @@ describe('re-run review findings against #553 stay fixed', () => {
       expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
         metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
       );
+    }
+  });
+});
+
+// Regression guards for the second re-run of review pass 1 on #553 and the narrower rule it led to.
+describe('publish-only means checkout, credentials and an upload of a built artifact', () => {
+  it('#517: native addons, pnpm workspaces, installs, builds, a quoted code-loading export, or a release with no files keep the workflow counted', () => {
+    for (const name of [
+      'review8-b3-binding-gyp-publish',
+      'review8-b3-gypfile-publish',
+      'review8-b3-pnpm-workspace-publish',
+      'review8-b3-uv-sync-path-source',
+      'review8-b3-maturin-build',
+      'review8-b3-quoted-export-node-options',
+      'review8-b3-softprops-without-files',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#517: a workflow that installs before it publishes, or uses changesets, is counted (recorded recall reductions)', () => {
+    for (const name of ['review6-b3-changesets-without-command-inputs', 'review5-b3-semantic-release-after-setup']) {
+      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
     }
   });
 });

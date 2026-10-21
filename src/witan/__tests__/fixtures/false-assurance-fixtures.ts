@@ -1435,6 +1435,78 @@ for (const [name, purpose, conftest] of [
   });
 }
 
+// The second re-run of review pass 1 on #553, and the coordinator's decision that followed: a
+// publish-only workflow only checks out, configures credentials and uploads an already-built
+// artifact; any install, build or package step keeps it counted.
+const PYPI_UPLOAD_STEPS =
+  '      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n          run-id: ${{ github.event.workflow_run.id }}\n          github-token: ${{ secrets.GITHUB_TOKEN }}\n      - uses: pypa/gh-action-pypi-publish@release/v1\n';
+const PYPI_UPLOAD_ONLY = (on: string, environment: string): string =>
+  `name: publish\n${on}jobs:\n  publish:\n    runs-on: ubuntu-latest\n${environment}    permissions:\n      id-token: write\n    steps:\n${PYPI_UPLOAD_STEPS}`;
+for (const [name, purpose, files] of [
+  [
+    'review8-b3-pypi-upload-only-gated',
+    'Control: a tag-triggered workflow behind an environment that downloads a built artifact and uploads it to PyPI.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '    environment: pypi\n') },
+  ],
+  [
+    'review8-b3-pypi-upload-only-ungated',
+    'Change: the same upload runs on every push to main with no environment. Still publish-only.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY('on:\n  push:\n    branches: [main]\n', '') },
+  ],
+  [
+    'review8-b3-twine-upload-only',
+    'Still publish-only: download a built artifact and `twine upload dist/*` with credentials in `env`.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n      - run: twine upload dist/*\n        env:\n          TWINE_USERNAME: __token__\n          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}\n') },
+  ],
+  [
+    'review8-b3-npm-publish-without-install',
+    'Still publish-only: setup-node with a registry, then `npm publish` of a package with no scripts that run on publish.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: actions/setup-node@v4\n        with:\n          registry-url: https://registry.npmjs.org\n      - run: npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  [
+    'review8-b3-gh-release-upload',
+    'Still publish-only: download a built artifact and `gh release upload` it.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n      - run: gh release upload v1.0.0 dist/app.tgz\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n') },
+  ],
+  [
+    'review8-b3-binding-gyp-publish',
+    '(a) A root `binding.gyp`: npm builds the native addon implicitly. Kept counted.',
+    { ...JS_LIBRARY, 'binding.gyp': "{ 'targets': [{ 'target_name': 'addon', 'sources': ['addon.cc'] }] }\n", '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm publish\n') },
+  ],
+  [
+    'review8-b3-gypfile-publish',
+    '(a) `"gypfile": true` in package.json. Kept counted.',
+    { ...JS_LIBRARY, 'package.json': `${JSON.stringify({ name: 'deq', version: '1.0.0', main: 'index.js', gypfile: true, scripts: { test: 'uvu test' }, devDependencies: { uvu: '^0.5.0' } }, null, 2)}\n`, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm publish\n') },
+  ],
+  [
+    'review8-b3-pnpm-workspace-publish',
+    '(b) Workspaces declared in pnpm-workspace.yaml, whose members\' lifecycle scripts run. Kept counted.',
+    { ...JS_LIBRARY, 'pnpm-workspace.yaml': "packages:\n  - 'packages/*'\n", '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: pnpm publish --no-git-checks\n') },
+  ],
+  [
+    'review8-b3-uv-sync-path-source',
+    '(c) `uv sync` installs a local path source with a setup.py. Kept counted: no install is admitted.',
+    { ...PY_LIBRARY, 'pyproject.toml': `${PY_LIBRARY['pyproject.toml']}\n[tool.uv.sources]\nhelper = { path = "vendor/helper" }\n`, 'vendor/helper/setup.py': 'from setuptools import setup\nsetup(name="helper")\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: uv sync\n      - run: uv publish\n') },
+  ],
+  [
+    'review8-b3-maturin-build',
+    '(d) A native build backend (maturin) under `python -m build`. Kept counted: no build is admitted.',
+    { ...PY_LIBRARY, 'pyproject.toml': `[build-system]\nrequires = ["maturin>=1.0"]\nbuild-backend = "maturin"\n\n${PY_LIBRARY['pyproject.toml']}`, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: python -m build\n      - run: twine upload dist/*\n') },
+  ],
+  [
+    'review8-b3-quoted-export-node-options',
+    '`export "NODE_OPTIONS=--require ./check.js"` before `npm publish`. Kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: |\n          export "NODE_OPTIONS=--require ./check.js"\n          npm publish\n') },
+  ],
+  [
+    'review8-b3-softprops-without-files',
+    'softprops/action-gh-release with no `files` uploads nothing. Kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: softprops/action-gh-release@v2\n        with:\n          name: Release\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

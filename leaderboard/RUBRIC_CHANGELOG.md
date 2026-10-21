@@ -80,80 +80,73 @@ or recall claim.** Fixtures: `review5-*` in `src/witan/__tests__/fixtures/false-
   whose reason mentions `pytest.mark.skip`), so this only ever claims less than before.
 - **The publish-only rule fired beyond its stated evidence.** It excluded any workflow with a
   publish word and no recognised verification word, contrary to its own rule that any doubt keeps
-  a workflow counted. A workflow is now publish-only only when, in addition to the earlier
-  conditions, its steps come from a reader that places every line of the jobs section, and
-  claims nothing otherwise. That reader is `isPrintOnlyWorkflow`'s grammar widened to what a
-  publish workflow holds: the same top-level allowlist (no top-level `env` or `defaults`); job keys
-  `runs-on`, `name`, `timeout-minutes`, `needs` (a scalar or a flow list of plain names),
-  `permissions` and `environment` (a scalar or a one-level mapping), and `steps`; step keys
-  `name`, `id`, `uses`, `run`, and `with` and `env` as one-level mappings. A flow-mapping step, a
-  quoted, capitalised or explicit key, any other key (job-level `env` included), a lone CR, a
-  plain value continued onto a deeper line, and a quoted `run:` value are not placed.
+  a workflow counted. **The rule is now: a publish-only workflow is one that only checks out,
+  configures credentials and uploads an already-built artifact; any install, build or package step
+  keeps it counted.** This replaces two earlier attempts in this change to admit setup and build
+  commands by reading the configuration they run (lifecycle scripts, build backends), which three
+  review passes showed cannot be made complete: `binding.gyp`, pnpm workspaces, uv and poetry path
+  sources, and native build backends each ran repository code past the reads.
 
-  On the placed steps, every `run:` command (comments dropped, `\` continuations joined, split at
-  `&&`, `||`, `;` and `|` written as separate words) must be admitted, and some step must publish.
-  The admitted set follows one principle: a command is admitted only if it runs no code the
-  repository configures, or if Cejel reads that configuration and finds none.
-  - Setup: npm `ci`/`install`/`i`, pnpm `install`/`i`, yarn (bare or `install`), bun `install`/`i`,
-    each with no flag pointing at another package (`--prefix`, `-C`, `--dir`, `--cwd`,
-    `--workspace(s)`, `-w`, `--filter`, `-r`, `-g`); `npm`/`pnpm`/`yarn config set` of a registry
-    or token key; `pip`/`pip3`/`pipx install`, `python -m pip install` and `uv pip install` of
-    index packages only (no path, URL, `-r`, `-e` or `-c`); `uv sync`, `poetry install`, and the
-    builds `python -m build`, `pyproject-build`, `uv build`, `poetry build`, `hatch build` and
-    `flit build`; `corepack enable`/`prepare`; `rustup` with `install`, `toolchain`, `component`,
-    `target`, `default`, `override` or `update`; `docker login`; `git config [--global|--local]
-    user.name|user.email`; `echo` and `printf` without a redirect; `set`; and `export` of anything
-    but a code-loading variable.
-  - Publish: npm/pnpm/bun `publish` and yarn `publish`/`npm publish` with no positional target or
-    package-redirecting flag; `twine upload`; `uv`, `flit` and `hatch publish`; `poetry publish`;
-    `cargo publish --no-verify`; `gem push`; `gh release create`; `docker push` and `docker image
-    push`.
-  - Repository configuration read: an npm-family install or publish is admitted only when the root
-    `package.json` is scanned, parses, defines none of `preinstall`, `install`, `postinstall`,
-    `preprepare`, `prepare`, `postprepare`, `prepack`, `postpack`, `prepublish`, `prepublishOnly`,
-    `publish`, `postpublish` or `dependencies`, declares no `workspaces` and no local dependency
-    (`file:`, `link:`, `workspace:`, `portal:`, a path), and no `.npmrc`, `.yarnrc`, `.yarnrc.yml`,
-    `.yarn/plugins/`, `.pnpmfile.cjs`, `pnpmfile.js` or `bunfig.toml` exists. A Python build or
-    project install (and `flit publish` and `poetry publish --build`, which build) is admitted only
-    when `pyproject.toml` is scanned and names no `backend-path`, `build-script`, `cmdclass`, hatch
-    build hook, `[tool.poetry.build]` or `file:` source, and no root `setup.py`, `hatch_build.py`,
-    `pdm_build.py` or `build.py` exists. Which files exist is read from the scanned inventory and
-    its withheld paths, never the host. A monorepo root's workflows have no inventory read for
-    them, so any command needing these reads keeps them counted.
-  - Not admitted, so the workflow stays counted: semantic-release and goreleaser (CLI or action),
-    which run configured plugins and hooks; every deploy CLI (`vercel`, `netlify`, `fly`,
-    `firebase`, `serverless`, `wrangler`, `kubectl apply`, `helm upgrade`, `terraform apply`), which
-    run configured builds or hooks; `cargo publish` without `--no-verify`, which builds the crate;
-    `gem build`, which runs the gemspec; `cd`, because only the root manifest is read; `--dry-run`;
-    a leading or exported assignment of a code-loading variable; and a word holding `&`, `|`, `;`, a
-    backtick, `$(`, `<(`, `>(` or, for `echo`/`printf`, a redirect `>` (it can write `$GITHUB_ENV`
-    or `$GITHUB_PATH`). Every command not listed above is not admitted either.
-  - Code-loading variables, refused on a command line, after `export`, and in a step `env:`:
-    `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `LD_PRELOAD`, `LD_LIBRARY_PATH`, `PYTHONPATH`,
-    `PYTHONSTARTUP`, `PERL5OPT`, `PERL5LIB`, `RUBYOPT`, `PATH`, `NPM_CONFIG_NODE_OPTIONS` and
-    `NPM_CONFIG_SCRIPT_SHELL` (case-insensitive). Job-level and workflow-level `env` are not
-    placed at all.
-  - `uses:` steps are named exactly: setup is `actions/checkout` (inputs `fetch-depth`, `token`,
-    `persist-credentials`, `fetch-tags` and `show-progress` only, so no other repository, ref or
-    submodules), `actions/cache`, `actions/upload-artifact`, `actions/download-artifact` (inputs
-    `name`, `path`, `pattern` and `merge-multiple` only), `actions/setup-node`, `-python`, `-go`,
-    `-java` and `-dotnet`, `astral-sh/setup-uv`, `oven-sh/setup-bun`, `pnpm/action-setup` (without
-    `run_install`), `docker/login-action`, `docker/setup-buildx-action` and
-    `docker/setup-qemu-action`. Publish actions are `pypa/gh-action-pypi-publish`,
-    `softprops/action-gh-release`, and `changesets/action` without a `publish` or `version`
-    input (it runs those as commands). Any other action, including another owner's `setup-*`,
-    keeps the workflow counted, as do `docker/build-push-action` (with `push: false` it is a
-    build check) and goreleaser's action.
+  In detail, every condition must hold, in addition to the earlier ones:
+  - every line of the jobs section is placed by `isPrintOnlyWorkflow`'s grammar, widened to a
+    publish workflow: the same top-level allowlist (no top-level `env` or `defaults`); job keys
+    `runs-on`, `name`, `timeout-minutes`, `needs` (a scalar or a flow list of plain names),
+    `permissions` and `environment` (a scalar or a one-level mapping), and `steps`; step keys
+    `name`, `id`, `uses`, `run`, and `with` and `env` as one-level mappings. A flow-mapping step,
+    a quoted, capitalised or explicit key, any other key, a lone CR, a plain value continued onto
+    a deeper line, and a quoted `run:` value are not placed;
+  - every `run:` command (comments dropped, `\` continuations joined, split at separators written
+    as separate words) is one of: `npm`/`pnpm`/`yarn config set` of a registry or token key;
+    `twine upload`; `uv publish` with no build flag; `poetry publish` without `--build`;
+    `gh release create` or `upload`; `cargo publish --no-verify`; or `npm`/`pnpm`/`yarn publish`
+    with no positional target or package-redirecting flag. Leading `NAME=value` credentials are
+    allowed; a code-loading variable is not;
+  - an npm-family publish also needs the root `package.json` to be scanned and parse, with no
+    lifecycle script (`preinstall`, `install`, `postinstall`, `pre`/`post`/`prepare`, `prepack`,
+    `postpack`, `prepublish`, `prepublishOnly`, `publish`, `postpublish`, `dependencies`), no
+    `workspaces`, no `gypfile` and no local dependency, and no `.npmrc`, `.yarnrc(.yml)`,
+    `.yarn/plugins/`, pnpmfile, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` or
+    `binding.gyp`, because publishing runs the package's scripts. Which files exist is read from
+    the scanned inventory and its withheld paths; a monorepo root's workflows get no such read,
+    so an npm-family publish there stays counted;
+  - every `uses:` step is `actions/checkout` (inputs `fetch-depth`, `token`,
+    `persist-credentials`, `fetch-tags` and `show-progress` only), `actions/cache`,
+    `actions/upload-artifact`, `actions/download-artifact` (inputs `name`, `path`, `pattern`,
+    `merge-multiple`, `run-id` and `github-token` only), `actions/setup-node`, `-python`, `-go`,
+    `-java` or `-dotnet`, `astral-sh/setup-uv`, `oven-sh/setup-bun`, `pnpm/action-setup` (without
+    `run_install`), `docker/login-action`, `pypa/gh-action-pypi-publish`, or
+    `softprops/action-gh-release` with a `files` input;
+  - at least one step uploads.
 
-  This is narrower than the first v27 in a recorded way: setup, `npm ci` and semantic-release run
-  through `npx`, a publish-only corner of the first version of this change
-  (`review5-b3-semantic-release-after-setup`), is now counted, by the conservative choice above.
-  Each reviewer case is now counted:
-  `bun test` then `bun publish`; `pnpm run lint`, `typecheck` and `build` then `pnpm publish`;
-  `cargo build --release` with a GitHub release, which also regains B3's build category; a
-  publish word only in a YAML comment; and `npm publish --dry-run`. The B3 note now reads "no
-  pull-request trigger, and every step Cejel reads checks out, sets up, installs, packages or
-  publishes". It never names a counted workflow.
+  So every install, sync, build or package command keeps a workflow counted (`npm ci`/`install`,
+  `pnpm install`, `yarn`, `bun install`, `pip install`, `uv sync`/`build`, `python -m build`,
+  `poetry install`/`build`, `cargo build`, `npm pack`, `gem build`, ...), as do semantic-release,
+  goreleaser, the deploy CLIs, `docker push`, shell builtins (`echo`, `export`, `cd`, ...),
+  `--dry-run`, any redirect, substitution or separator glued inside a word, `changesets/action`,
+  and every action not named above. Code-loading variables, refused on a command line and in a
+  step `env:`, are `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `LD_PRELOAD`, `LD_LIBRARY_PATH`,
+  `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `PERL5LIB`, `RUBYOPT`, `PATH`,
+  `NPM_CONFIG_NODE_OPTIONS` and `NPM_CONFIG_SCRIPT_SHELL`, case-insensitive and with any quotes
+  around the name removed.
+
+  **A deliberate recall reduction.** #517's own repros (`b3-pypi-publish-ungated`, which runs
+  `pip install build` and `python -m build` before the upload, and `b3-npm-publish-ungated`, which
+  runs `npm install`) are now counted under v27, as under v17, and so are a changesets workflow
+  (`review6-b3-changesets-without-command-inputs`) and a semantic-release workflow
+  (`review5-b3-semantic-release-after-setup`). v27 now removes CI credit only from upload-only
+  workflows: `review8-b3-pypi-upload-only-ungated` (download a built artifact, upload with the
+  PyPI action) is not counted, and dropping its environment gate and running it on every push no
+  longer raises B3; nor do a `twine upload`, an `npm publish` with no install, a `gh release
+  upload`, or `cargo publish --no-verify`. `gh release upload`, added to the publish vocabulary
+  here, is a new v27 exclusion against the first v27 (`review8-b3-gh-release-upload`: B3 1.6 to
+  1.0, below v17's 1.6).
+
+  Each reviewer case is still counted: `bun test` then `bun publish`; `pnpm run lint`,
+  `typecheck` and `build` then `pnpm publish`; `cargo build --release` with a GitHub release,
+  which also regains B3's build category; a publish word only in a YAML comment; and
+  `npm publish --dry-run`. The B3 note now reads "no pull-request trigger, and every step Cejel
+  reads only checks out, sets up a toolchain, configures credentials or uploads an already-built
+  artifact". It never names a counted workflow.
 
 **Measured, release/0.6.8 (`fe4524773`) against this change.** Fixtures were built once from this
 change's definitions and scored by both scanners. Reports were compared byte for byte, with the
@@ -164,10 +157,11 @@ repository path normalised.
 | Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
 | Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
 | Disclosure-gap fixtures (24) | 0 | 24 | 0 | 0 violations |
-| False-assurance fixtures, existing (87) | 0 | 87 | 0 (4 `b3-*-publish-*` reports differ in the B3 note's wording only) | 0 violations |
+| False-assurance fixtures, existing (87) | 0 | 87 | 2 (`b3-pypi-publish-ungated` and `b3-npm-publish-ungated` are now counted: the recorded recall reduction; 2 more `b3-*-publish-gated` reports differ in the B3 note's wording only) | 0 violations |
 | False-assurance fixtures, new `review5-*` (20) | 1 (`review5-a1-js-suite-as-crlf-lfs-pointers`: `contentReadSummary` gains 2 LFS pointers; no criterion moves) | 17 (3 differ: 2 `review5-a4-*` with the shortened command, and the CRLF pointers) | 14 (see below) | 0 violations |
 | False-assurance fixtures, new `review6-*` (12, from the review of #553) | 0 | 12 | 11 (see below) | 0 violations |
 | False-assurance fixtures, new `review7-*` (19, from the re-run of that review) | 0 | 19 | 18 (see below) | 0 violations |
+| False-assurance fixtures, new `review8-*` (12, from the second re-run and the narrower rule) | 0 | 12 | 8 (see below) | 0 violations |
 
 v27 moves on the new fixtures, before to after:
 - 1 CRLF pointer fixture: A1 critical 1.5 to insufficient_data 0; overall 1.8 to 1.4.
@@ -189,14 +183,22 @@ v27 moves on the new fixtures, before to after:
 - 5 `review7-a1-hook-*` (a clear in a nested function, in `for _ in range(0):` and in a loop over
   another iterable; a conditional redefinition; a rebinding assignment): A1 critical 1.7 to
   verified 2.3, the v17 value.
-- `review5-b3-semantic-release-after-setup`: B3 1.0 to 1.6, the v17 value. It is now counted, by the
-  conservative choice recorded above.
+- `review5-b3-semantic-release-after-setup` and `review6-b3-changesets-without-command-inputs`:
+  B3 1.0 to 1.6, the v17 value; now counted (the recorded recall reduction). The 13 `review7-b3-*`
+  above stay counted under the narrower rule; `review7-b3-cargo-publish-no-verify` stays
+  publish-only.
+- 7 `review8-b3-*` (a root `binding.gyp`, `"gypfile": true`, `pnpm-workspace.yaml`, `uv sync` with
+  a path source, a maturin build, a quoted `export "NODE_OPTIONS=..."`, softprops with no
+  `files`): B3 1.0 to 1.6, the v17 value.
+- `review8-b3-gh-release-upload`: B3 1.6 to 1.0, a new exclusion (see above); v17 stays 1.6.
+- `b3-pypi-publish-ungated` and `b3-npm-publish-ungated`: B3 1.0 to 1.6, the v17 value (the
+  recorded recall reduction).
 
 The other corners stay as they were: the one-line every-item skip, the unconditional skip whose
 reason holds `#`, and the genuine clear (`items.clear()` at the hook's own indent) are still
-claimed; `changesets/action` with only a `title` input and a token, and `cargo publish
---no-verify`, are still publish-only; and the published positives, with `needs: [build]`,
-`permissions`, `with` and `env`, stay excluded.
+claimed; and the upload-only positives (`review8-b3-pypi-upload-only-*`,
+`review8-b3-twine-upload-only`, `review8-b3-npm-publish-without-install`,
+`review8-b3-gh-release-upload`, `review7-b3-cargo-publish-no-verify`) are publish-only.
 
 Timing, scan only, one run each on the author's machine, on 18 hostile files just under the
 content size limit aimed at the new readers: sibling and 900-deep nested hook loops; long `for`/`as`
@@ -204,9 +206,8 @@ lines and closed quoted lines; an unclosed run of escaped quotes in a hook loop 
 fixture); a 200,000-line bracketed `pytestmark`; many `pytestmark` lines; 24,000 publish-workflow
 steps; 9,000 jobs; a 30,000-line `run:` block and a 30,000-line `with:` block; a 24,000-line `\`
 chain; a long `uses:` value; long argument and assignment runs. Each took 0.09 s to 0.32 s under
-both rubrics. The repository reads the publish-only check makes (the root `package.json`, and
-`pyproject.toml` with a 14,000-line run of near-miss hook tables) and a 28,000-line clearing hook
-are in the same child-process timing guard, which passes in 0.6 s. Two defects in the first version of this change were quadratic:
+both rubrics. The root `package.json` read the publish-only check makes, and a 28,000-line clearing
+hook, are in the same child-process timing guard, which passes in 0.6 s. Two defects in the first version of this change were quadratic:
 - the step classifier dropped each leading `NAME=value` with a fresh array slice; 120,000
   assignments before `npm publish` took 23.5 s under v27;
 - the hook loop's rebinding check blanked string literals with

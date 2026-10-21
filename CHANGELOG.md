@@ -128,21 +128,19 @@ v27 stays prospective and opt-in. This makes no precision, recall or calibration
   default stays v17. See `leaderboard/RUBRIC_CHANGELOG.md`.
   Corrected before first shipping, under the same identifier (#553), where v27 itself asserted
   more than it read:
-  - a workflow is publish-only only when a reader that places every line of its jobs section
-    (a flow-mapping step, a quoted or capitalised key, or a key outside a short allowlist
-    places nothing) finds that every `run:` command is an admitted publish or setup command, every
-    `uses:` step is a named setup or publish action, and some step publishes. A command is
-    admitted only if it runs no code the repository configures, or if Cejel reads that
-    configuration and finds none: an npm-family install or publish needs a scanned root
-    `package.json` with no lifecycle script, workspaces or local dependency and no package-manager
-    configuration file; a Python build needs a scanned `pyproject.toml` with no in-tree build code
-    and no `setup.py`. semantic-release, goreleaser, the deploy CLIs, `cargo publish` without
-    `--no-verify`, `cd`, a code-loading variable (`NODE_OPTIONS`, `LD_PRELOAD`, `PYTHONPATH`, ...),
-    a redirect from `echo`, another owner's `setup-*` action, `bun test`, `pnpm run lint`,
-    `cargo build`, `rustup run`, `changesets/action` with a `publish` or `version` input, a
-    command glued to an admitted word, a publish word only in a comment, and `--dry-run` keep a
-    workflow counted. A setup, `npm ci` and semantic-release (through `npx`) workflow, publish-only in the
-    first version of this correction, is therefore counted;
+  - a publish-only workflow is one that only checks out, configures credentials and uploads an
+    already-built artifact; any install, build or package step keeps it counted. Every line of
+    its jobs section must be placed by a strict reader (a flow-mapping step, a quoted or
+    capitalised key, or a key outside a short allowlist places nothing). Admitted uploads are
+    `twine upload`, `uv publish`, `poetry publish` without `--build`, `gh release create`/`upload`,
+    `cargo publish --no-verify`, the PyPI publish action, `softprops/action-gh-release` with
+    files, and an npm/pnpm/yarn `publish` only when the root `package.json` runs no script on
+    publish and no workspace, native-addon or package-manager configuration file exists.
+    Admitted setup is checkout, named toolchain, cache and artifact actions that install
+    nothing, `docker/login-action`, and registry configuration. **Recorded recall reduction:**
+    #517's own repros, which install or build before they publish, are now counted under v27,
+    as under v17, as are changesets and semantic-release workflows; v27 removes CI credit only
+    from upload-only workflows;
   - a collection hook is read as skipping or removing every test only when it is the last
     top-level definition, the hook name is bound nowhere else in the module, and the skip marker
     is applied to the loop variable of a loop over `items`, or `items` is cleared, at the hook

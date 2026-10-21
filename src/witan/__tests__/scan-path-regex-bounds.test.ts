@@ -216,10 +216,10 @@ const REVIEW_521_READER_FIXTURE: Record<string, string> = {
   'tests/unclosed/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        x = '${"a\\'".repeat(160_000)}\n`,
   '.github/workflows/assignments.yml': `${WORKFLOW_HEAD}      - run: ${PUBLISH_ONLY_ASSIGNMENTS}npm publish\n`,
   '.github/workflows/runner-flags.yml': `${WORKFLOW_HEAD}      - run: npx ${PUBLISH_ONLY_RUNNER_FLAGS}semantic-release\n`,
-  // The repository reads a publish-only workflow triggers (re-run of review pass 1 on #553): the
-  // root manifest for npm lifecycle scripts, and pyproject.toml for in-tree build code, here a
-  // 14,000-line run of near-miss hook tables.
-  '.github/workflows/package-check.yml': `${WORKFLOW_HEAD}      - run: npm ci\n      - run: npm publish\n`,
+  // The repository read a publish-only workflow triggers (review of #553): the root manifest, for
+  // npm lifecycle scripts, when the workflow publishes with npm. The Python workflow is not
+  // admitted (a build), and its 14,000-line pyproject.toml is read by the other criteria.
+  '.github/workflows/package-check.yml': `${WORKFLOW_HEAD}      - run: npm publish\n`,
   '.github/workflows/python-check.yml': `${WORKFLOW_HEAD}      - run: python -m build\n      - run: twine upload dist/x\n`,
   'tests/bound/conftest.py': `def pytest_collection_modifyitems(items):\n${'    items.clear()\n'.repeat(28_000)}`,
 };
