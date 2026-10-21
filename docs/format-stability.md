@@ -83,8 +83,9 @@ Stable in report format v1:
   placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
   see run a check. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
-  move no score, status or metric under any rubric. Absent when there is nothing to disclose; a
-  report with no disclosure is byte-identical to a 1.7 report. On an older report, A2 and B3 may
+  move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
+  `report.json` of a scan with no disclosure is byte-identical to a 1.7 one (its paired
+  `attestation.json` records `1.8`). On an older report, A2 and B3 may
   have set values aside or counted such workflows without saying so.
 
 Experimental within report format v1: metric presentation hints under

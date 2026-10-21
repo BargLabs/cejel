@@ -155,7 +155,7 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
   {
     name: 'b2b3-planted-workflows',
     purpose:
-      'Five workflows: test (PR), e2e (PR, echo only), release (manual dispatch only), security (push and PR to master; the checkout is on main and holds no master). B2 labels release by its trigger; B3 names e2e and security.',
+      'Five workflows: test (PR), e2e (PR, echo only), release (manual dispatch only), security (push and PR to master; the checkout is on main and holds no master). B2 labels release by its trigger; B3 names e2e. security is not named: whether master exists is branch state, outside the scanned revision.',
     files: {
       ...NODE_APP,
       '.github/workflows/test.yml': TEST_WORKFLOW,
@@ -180,14 +180,14 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
   {
     name: 'b3-master-target-with-master-branch',
     purpose:
-      'Corner: the master-only workflow in a checkout that also holds a master branch. Not named.',
+      'Control: the master-only workflow in a checkout that also holds a master branch. Not named, and the report equals the one without the branch.',
     files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
     extraBranches: ['master'],
   },
   {
     name: 'b3-master-target-detached',
     purpose:
-      'Corner: the master-only workflow in a detached checkout, as on a CI runner. The checkout branch is unknown, so nothing is claimed.',
+      'Control: the master-only workflow in a detached checkout, as on a CI runner. Not named.',
     files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
     detached: true,
   },
@@ -283,14 +283,14 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
   {
     name: 'b3-master-target-full-clone',
     purpose:
-      "A full clone of a repository with no master branch: named, from the clone's recorded default branch.",
+      'Control: a full clone of a repository with no master branch. Not named: branch state is outside the scanned revision.',
     files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
     clone: 'full',
   },
   {
     name: 'b3-master-target-depth-1-clone',
     purpose:
-      'Corner: a --depth 1 clone of a repository that has a master branch. The clone holds only main, so nothing is claimed.',
+      'Control: a --depth 1 clone of a repository that has a master branch. Not named.',
     files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
     extraBranches: ['master'],
     clone: 'depth-1',
@@ -298,7 +298,7 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
   {
     name: 'b3-master-target-single-branch-clone',
     purpose:
-      'Corner: a --single-branch clone of a repository that has a master branch. Its refspec maps only main, so nothing is claimed.',
+      'Control: a --single-branch clone of a repository that has a master branch. Not named.',
     files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
     extraBranches: ['master'],
     clone: 'single-branch',
@@ -306,7 +306,7 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
   {
     name: 'b3-master-target-ci-fetch',
     purpose:
-      'Corner: a checkout built the way actions/checkout builds one: a remote with the full refs/heads/* refspec, then a depth-1 fetch of main alone onto a local main. The upstream has master; only the shallow test can tell, so nothing is claimed.',
+      'Corner: a checkout built the way actions/checkout builds one: a remote with the full refs/heads/* refspec, then a depth-1 fetch of main alone onto a local main. The upstream has master. Not named.',
     files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
     extraBranches: ['master'],
     clone: 'ci-fetch',

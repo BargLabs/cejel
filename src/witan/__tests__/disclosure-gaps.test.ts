@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { platform } from 'node:os';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -8,11 +9,16 @@ import {
   WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_B3_UNSHOWN_CHECK_PREFIX,
 } from '../abstention.js';
+import { buildWitanCliSummary } from '../../summary.js';
+import { renderTerminalCertificate } from '../../terminal.js';
 import { buildRelyingPartySummary, formatCertificateMetricValue } from '../certificate-presentation.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import {
+  PULL_REQUEST_TRIGGERS,
+  PULL_REQUEST_TRIGGER_PATTERN,
   b3UnshownCheckDisclosure,
   githubWorkflowTriggers,
+  isPrintOnlyWorkflow,
   placeholderSetAsideDisclosure,
 } from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
@@ -50,6 +56,18 @@ afterAll(() => {
 const repos = new Map<string, string>();
 const reports = new Map<string, WitanReport>();
 
+function scoreAt(repoPath: string, rubricVersion: string = V17): WitanReport {
+  return scoreRepoWithPublicCejel({
+    repoPath,
+    productSlug: 'disclosure-gap-fixture',
+    productDisplayName: 'Disclosure-gap fixture',
+    generatedAt: '2026-10-21T00:00:00.000Z',
+    rubricVersion,
+    ingestPatterns: [],
+    autoDiscoverIngest: false,
+  });
+}
+
 function report(name: string, rubricVersion: string = V17): WitanReport {
   const key = `${name}@${rubricVersion}`;
   const cached = reports.get(key);
@@ -59,15 +77,7 @@ function report(name: string, rubricVersion: string = V17): WitanReport {
     repo = buildDisclosureGapFixture(disclosureGapFixture(name));
     repos.set(name, repo);
   }
-  const scored = scoreRepoWithPublicCejel({
-    repoPath: repo,
-    productSlug: 'disclosure-gap-fixture',
-    productDisplayName: 'Disclosure-gap fixture',
-    generatedAt: '2026-10-21T00:00:00.000Z',
-    rubricVersion,
-    ingestPatterns: [],
-    autoDiscoverIngest: false,
-  });
+  const scored = scoreAt(repo, rubricVersion);
   reports.set(key, scored);
   return scored;
 }
@@ -239,32 +249,27 @@ describe('B2: each cited workflow is labelled by its own trigger', () => {
 describe('the workflow trigger reader', () => {
   const read = (contents: string) => {
     const triggers = githubWorkflowTriggers(contents);
-    return triggers ? Object.fromEntries(triggers) : null;
+    return triggers ? [...triggers] : null;
   };
-  const none = { kind: 'none' };
 
   it.each([
-    ['a scalar', 'on: push\n', { push: none }],
-    ['a flow list', 'on: [push, pull_request] # both\n', { push: none, pull_request: none }],
-    ['a quoted key', '"on":\n  pull_request:\n', { pull_request: none }],
-    ['a YAML 1.1 true key', 'true:\n  workflow_dispatch:\n', { workflow_dispatch: none }],
+    ['a scalar', 'on: push\n', ['push']],
+    ['a flow list', 'on: [push, pull_request] # both\n', ['push', 'pull_request']],
+    ['a quoted key', '"on":\n  pull_request:\n', ['pull_request']],
+    ['a YAML 1.1 true key', 'true:\n  workflow_dispatch:\n', ['workflow_dispatch']],
     [
       'inline and block branch filters',
       'on:\n  push:\n    branches: [main, "release"]\n  pull_request:\n    branches:\n      - master\n',
-      { push: { kind: 'names', names: ['main', 'release'] }, pull_request: { kind: 'names', names: ['master'] } },
+      ['push', 'pull_request'],
     ],
     [
       'compact sequences under a trigger and a filter',
       "on:\n  pull_request:\n  push:\n    branches:\n    - master\n  schedule:\n  - cron: '00 01 * * *'\n\npermissions:\n  contents: read\n",
-      { pull_request: none, push: { kind: 'names', names: ['master'] }, schedule: none },
+      ['pull_request', 'push', 'schedule'],
     ],
-    ['a compact list at column 0', 'on:\n- pull_request_target\n\npermissions:\n  contents: read\n', { pull_request_target: none }],
-    ['an indented list', 'on:\n  - push\n  - workflow_dispatch\n', { push: none, workflow_dispatch: none }],
-    [
-      'an ignore list it does not evaluate',
-      'on:\n  push:\n    branches-ignore: [gh-pages]\n',
-      { push: { kind: 'unread' } },
-    ],
+    ['a compact list at column 0', 'on:\n- pull_request_target\n\npermissions:\n  contents: read\n', ['pull_request_target']],
+    ['an indented list', 'on:\n  - push\n  - workflow_dispatch\n', ['push', 'workflow_dispatch']],
+    ['an ignore list', 'on:\n  push:\n    branches-ignore: [gh-pages]\n', ['push']],
   ])('reads %s', (_shape, contents, expected) => {
     expect(read(contents)).toEqual(expected);
   });
@@ -274,31 +279,69 @@ describe('the workflow trigger reader', () => {
     ['a flow mapping', 'on: {push: {branches: [main]}}\n'],
     ['an anchor', 'on: &triggers\n  push:\n'],
     ['an inline trigger value', 'on:\n  push: main\n'],
+    ['a nested line under a list item', 'on:\n  - push\n    - main\n'],
   ])('claims nothing for %s', (_shape, contents) => {
     expect(read(contents)).toBeNull();
+  });
+
+  it('reads a 46,000-item branch list in linear time', () => {
+    const contents = `on:\n  push:\n    branches:\n${'      - main\n'.repeat(46_000)}`;
+    const started = performance.now();
+    expect(read(contents)).toEqual(['push']);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
+  it('matches exactly the pull-request trigger names with its literal pattern', () => {
+    for (const name of PULL_REQUEST_TRIGGERS) expect(PULL_REQUEST_TRIGGER_PATTERN.test(name)).toBe(true);
+    expect(PULL_REQUEST_TRIGGER_PATTERN.source).toBe(`\\b(?:${PULL_REQUEST_TRIGGERS.join('|')})\\b`);
   });
 });
 
 describe('B3: counted PR-gate workflows not shown to run a check are named', () => {
   const sentence =
-    'B3 counted workflows Cejel did not see run a check: .github/workflows/e2e.yml only prints text; .github/workflows/security.yml runs only on master, and this checkout is on main with no master branch. The PR-gate CI workflow count still includes them.';
+    'B3 counted workflows Cejel did not see run a check: .github/workflows/e2e.yml only prints text. The PR-gate CI workflow count still includes it.';
 
-  it('names the print-only workflow and the one confined to an absent master branch', () => {
+  it('names the print-only workflow, and not the one confined to an absent master branch', () => {
     const b3 = criterion('b2b3-planted-workflows', 'B3');
     expect(b3.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(3);
     expect(b3.disclosures).toEqual([sentence]);
     expect(b3.notes).toBeUndefined();
     expect(metricLine('b2b3-planted-workflows', 'B3', 'default_branch_ci_depth')).toBe(
-      '3/4 workflows; includes 2 not shown to run a check: e2e.yml only prints text; security.yml runs only on master',
+      '3/4 workflows; includes 1 not shown to run a check: e2e.yml only prints text',
     );
     expect(notEstablished('b2b3-planted-workflows')).toContain(sentence);
   });
 
-  it('names the absent branch from a full clone by its recorded default branch', () => {
-    const name = 'b3-master-target-full-clone';
-    expect(criterion(name, 'B3').disclosures).toEqual([
-      "B3 counted workflows Cejel did not see run a check: .github/workflows/security.yml runs only on master, and the clone's default branch is main with no master branch. The PR-gate CI workflow count still includes it.",
-    ]);
+  // Branch state lies outside the scanned revision. A sentence read from it made report.json
+  // differ between a branch checkout, a detached one, a fresh clone and a checkout with one more
+  // branch, all of the same commit, so `cejel issue` refused honest reproductions (review of #540).
+  it('writes the same report for the same commit whatever the checkout holds', () => {
+    const repo = buildDisclosureGapFixture(disclosureGapFixture('b2b3-planted-workflows'));
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: repo, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+    const onBranch = JSON.stringify(scoreAt(repo));
+    git('branch', 'master');
+    const withMaster = JSON.stringify(scoreAt(repo));
+    git('-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach');
+    const detached = JSON.stringify(scoreAt(repo));
+    expect(withMaster).toBe(onBranch);
+    expect(detached).toBe(onBranch);
+  });
+
+  it('strips terminal controls from repository paths it prints', () => {
+    const scored = structuredClone(report('b2b3-planted-workflows'));
+    const b3 = scored.criteria.find((entry) => entry.id === 'B3');
+    if (!b3?.disclosures) throw new Error('B3 has no disclosure');
+    const hostile = '.github/workflows/e2e\u001b]0;PWNED\u0007\u001b[2J.yml';
+    b3.disclosures = b3.disclosures.map((text) => text.replace('.github/workflows/e2e.yml', hostile));
+    for (const metric of b3.metrics) {
+      if (metric.presentation?.condition) {
+        metric.presentation.condition = metric.presentation.condition.replace('e2e.yml', hostile);
+      }
+    }
+    const printed = renderTerminalCertificate(buildWitanCliSummary(scored), scored);
+    expect(printed).toContain('e2e]0;PWNED[2J.yml');
+    expect(printed).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
   });
 
   it('names a counted monorepo-root workflow as a root workflow', () => {
@@ -316,6 +359,7 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     'b2b3-control-pr-workflows',
     'b3-master-target-with-master-branch',
     'b3-master-target-detached',
+    'b3-master-target-full-clone',
     'b3-echo-with-action',
     'b3-echo-with-substitution',
     'b3-master-target-with-schedule',
@@ -328,14 +372,57 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     expect(notEstablished(name)).not.toContain(WITAN_B3_UNSHOWN_CHECK_PREFIX);
   });
 
+  describe('the print-only reader claims only steps it places (review of #540)', () => {
+    const workflow = (steps: string) =>
+      `on:\n  pull_request:\n    branches: [main]\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n${steps}`;
+
+    it.each([
+      ['a one-line echo', '      - run: echo ok\n'],
+      ['a named step and a block', '      - name: say\n        run: |\n          echo one\n          printf two\n'],
+      ['a step after a checkout with inputs', '      - run: echo ok\n'.replace('', '        with:\n          fetch-depth: 0\n')],
+    ])('claims %s', (_shape, steps) => {
+      expect(isPrintOnlyWorkflow(workflow(steps))).toBe(true);
+    });
+
+    it.each([
+      ['a flow-mapping uses step', '      - { uses: org/run-tests@v1 }\n      - run: echo done\n'],
+      ['a quoted uses key', '      - "uses": org/run-tests@v1\n      - run: echo done\n'],
+      ['a flow-mapping run step', '      - { name: t, run: pnpm test }\n      - run: echo done\n'],
+      ['a plain run value continued', '      - run: echo start\n          && pnpm test\n'],
+      ['a double-quoted run value with an escaped newline', '      - run: "echo start\\npnpm test"\n'],
+      ['a quoted run key', '      - "run": pnpm test\n      - run: echo done\n'],
+      ['a third-party action', '      - uses: org/run-tests@v1\n      - run: echo done\n'],
+    ])('claims nothing for %s', (_shape, steps) => {
+      expect(isPrintOnlyWorkflow(workflow(steps))).toBe(false);
+    });
+  });
+
+  // A workflow whose checkout holds a Git LFS pointer makes B3 abstain under v27; the disclosure
+  // names workflows in a count the abstention removes, so it goes too (review of #540).
+  it('drops its disclosure when B3 abstains wholesale', () => {
+    const planted = disclosureGapFixture('b2b3-planted-workflows');
+    const repo = buildDisclosureGapFixture({
+      ...planted,
+      name: 'b3-abstains-with-print-only',
+      files: {
+        ...planted.files,
+        '.github/workflows/a.yml': `version https://git-lfs.github.com/spec/v1\noid sha256:${'a'.repeat(64)}\nsize 1234\n`,
+      },
+    });
+    const abstained = scoreAt(repo, 'witan-rubric-v27-prospective-2026-10-19').criteria.find(
+      (entry) => entry.id === 'B3',
+    );
+    expect(abstained?.status).toBe('insufficient_data');
+    expect(abstained?.disclosures).toBeUndefined();
+    const scored = scoreAt(repo).criteria.find((entry) => entry.id === 'B3');
+    expect(scored?.disclosures?.[0]).toContain('.github/workflows/e2e.yml only prints text');
+  });
+
   it('fits a disclosure', () => {
     const unshown = {
-      printOnly: Array.from({ length: 5 }, (_, index) => `.github/workflows/${'p'.repeat(60)}-${index}.yml`),
-      absentBranch: [
-        { path: '.github/workflows/security.yml', target: 'master', current: 'main', source: 'checkout' as const },
-      ],
+      printOnly: Array.from({ length: 6 }, (_, index) => `.github/workflows/${'p'.repeat(60)}-${index}.yml`),
     };
-    expect(b3UnshownCheckDisclosure(unshown)).toContain('and 2 more only print text');
+    expect(b3UnshownCheckDisclosure(unshown)).toContain('and 3 more only print text');
     const tight = b3UnshownCheckDisclosure(unshown, 200);
     expect(tight).toBe(
       'B3 counted workflows Cejel did not see run a check: 6 workflows. The PR-gate CI workflow count still includes them.',

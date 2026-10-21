@@ -31,16 +31,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     longer called "Pull-request CI workflow", and a non-GitHub CI file is cited as "trigger not
     read". Trigger names are dropped from the label as needed to keep it within the 180-character
     evidence label limit.
-  - B3 names workflows its PR-gate count includes that Cejel did not see run a check, its own and
-    a monorepo root's: one whose only steps print text, and one whose every trigger is a push or
-    pull-request trigger confined to `master` when the default branch is `main` and no `master`
-    ref exists. It claims nothing about branches when the workflow has any other trigger
-    (`schedule`, `workflow_dispatch` and the rest), or when the checkout may lack branches its
-    remote has: a shallow clone, a single-branch clone, or a detached checkout. The count is
-    unchanged.
+  - B3 names workflows its PR-gate count includes whose only steps print text, its own and a
+    monorepo root's. The count is unchanged. A workflow confined to a branch that does not exist is
+    not named: whether a branch exists is checkout state, not part of the scanned revision, and a
+    report must reproduce from the revision alone (#535 tracks counting it).
   - These sentences are a new `criteria[].disclosures` field (report format 1.8), kept apart from
-    `notes`, so an abstention or a merge that rewrites the notes no longer drops them (#539). A
-    report with nothing to disclose is byte-identical to a 1.7 report.
+    `notes`, so an abstention or a merge that rewrites the notes no longer drops them (#539). The
+    `report.json` of a scan with nothing to disclose is byte-identical to a 1.7 one; its
+    `attestation.json` records report format 1.8.
+  - Repository paths in "What was not established" and on metric lines are stripped of terminal
+    control characters before they are printed, as other repository text already was.
 
   No score, status, metric value, finding count or fingerprint moves. Changing which values or
   workflows count is left to a prospective rubric (#535, #536, #537).

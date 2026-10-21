@@ -284,8 +284,9 @@ function wholesaleCriterionAbstention(
     metrics: [],
     insufficientData: true as const,
     ...(insufficientDataReason !== undefined ? { insufficientDataReason } : {}),
-    // What the collector read and set aside is still true of the content it did read.
-    ...(signal.disclosures ? { disclosures: signal.disclosures } : {}),
+    // What the collector read and set aside is still true of the content it did read. B3's names
+    // workflows in a count this abstention removes, so it goes with the count.
+    ...withoutCountDisclosures(signal.disclosures),
     notes:
       insufficientDataReason !== undefined
         ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
@@ -293,6 +294,11 @@ function wholesaleCriterionAbstention(
           ? 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
           : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
+}
+
+function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
+  const kept = (disclosures ?? []).filter((text) => !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX));
+  return kept.length > 0 ? { disclosures: kept } : {};
 }
 
 /** Union of every skip reason recorded against a criterion, whether unattributed or signal-scoped. */
@@ -5192,7 +5198,7 @@ function collectB3CiDisciplineEvidence(
           rootDefaultBranchCiWorkflows,
           (file) => `${file} at the monorepo root`,
         )
-      : { printOnly: [], absentBranch: [] },
+      : { printOnly: [] },
   );
   const publishOnlyWorkflows = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
@@ -5393,8 +5399,9 @@ const PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN =
   /\b(?:tox|nox|pre-commit|bazel[ \t]+test|gradlew?[ \t]+(?:test|check|build)|mvnw?[ \t]+(?:verify|test|package)|make[ \t]+(?:check|test)|just[ \t]+test|cargo[ \t]+(?:clippy|check|nextest)|turbo[ \t]+(?:run[ \t]+)?test)\b|[ \t]-r[ \t]+test\b|\brun[ \t]+test\b/i;
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
 // One list feeds both v27's publish-only test (a word match) and B2's trigger label (a parsed key).
-const PULL_REQUEST_TRIGGERS = ['pull_request', 'pull_request_target', 'merge_group'] as const;
-const PULL_REQUEST_TRIGGER_PATTERN = new RegExp(`\\b(?:${PULL_REQUEST_TRIGGERS.join('|')})\\b`);
+// A literal, so the ReDoS guard reads it; disclosure-gaps.test.ts pins it to PULL_REQUEST_TRIGGERS.
+export const PULL_REQUEST_TRIGGERS = ['pull_request', 'pull_request_target', 'merge_group'] as const;
+export const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
 // A job that calls a reusable workflow runs steps this file does not show.
 const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
 
@@ -5422,17 +5429,12 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
 
 // ---- B2 and B3 workflow disclosures, every rubric (presentation only) ------------------------
 // B2 cited every CI file as "Pull-request CI workflow" without reading its trigger, and B3's
-// PR-gate count credits a workflow on a `pull_request` token or a `main`/`master` branch filter
-// without checking that it runs a check or that the branch exists. Which workflows count is a
+// PR-gate count credits a workflow on a `pull_request` token without checking that it runs a
+// check. Whether a `main`/`master` filter names a branch that exists is not disclosed: branch
+// state lies outside the scanned revision, and the report must reproduce from the revision alone. Which workflows count is a
 // scoring question, left to a prospective rubric. What changes here is what the certificate says
 // about the workflows it counted: B2 labels each cited file by its own trigger, and B3 names
 // counted workflows Cejel did not see run a check. Nothing here feeds a metric or a finding.
-
-/** A trigger's `branches:` filter: none, a list of literal names, or one Cejel did not read. */
-export type WorkflowBranchFilter =
-  | { readonly kind: 'none' }
-  | { readonly kind: 'names'; readonly names: readonly string[] }
-  | { readonly kind: 'unread' };
 
 const WORKFLOW_ON_KEY_PATTERN = /^(?:on|"on"|'on'|true):(?:[ \t]|$)/;
 const WORKFLOW_TRIGGER_NAME_PATTERN = /^[a-z_]+$/;
@@ -5460,29 +5462,29 @@ function yamlInlineList(text: string): string[] | null {
 }
 
 /**
- * The top-level `on:` triggers of a GitHub Actions workflow, read by indentation, with each
- * trigger's `branches:` filter. Null when there is no `on:` key or the reader cannot place what it
- * holds; every caller then claims nothing about the file's triggers.
+ * The top-level `on:` trigger names of a GitHub Actions workflow, read by indentation. Null when
+ * there is no `on:` key or the reader cannot place what it holds; every caller then claims nothing
+ * about the file's triggers. A trigger's own settings (filters, types, cron lines) are skipped.
  */
-export function githubWorkflowTriggers(contents: string): Map<string, WorkflowBranchFilter> | null {
+export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | null {
   const lines = contents.split(/\r?\n/);
   const onIndex = lines.findIndex((line) => WORKFLOW_ON_KEY_PATTERN.test(line));
   if (onIndex === -1) return null;
   const onLine = lines[onIndex] ?? '';
   const inline = yamlInlineList(onLine.slice(onLine.indexOf(':') + 1));
   if (inline === null) return null;
-  const triggers = new Map<string, WorkflowBranchFilter>();
+  const triggers = new Set<string>();
   if (inline.length > 0) {
     for (const name of inline) {
       if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
-      triggers.set(name, { kind: 'none' });
+      triggers.add(name);
     }
     return triggers;
   }
   const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
   // YAML allows a block sequence at its parent key's own indent ("compact" form), so a list of
-  // trigger names may sit at column 0 under `on:`, and a trigger's or a filter's list may sit at
-  // that key's indent.
+  // trigger names may sit at column 0 under `on:`, and a trigger's own list may sit at that key's
+  // indent.
   const firstIndex = lines.findIndex((line, index) => index > onIndex && isContent(line));
   if (firstIndex !== -1 && /^-[ \t]/.test(lines[firstIndex] ?? '')) {
     for (let index = firstIndex; index < lines.length; index += 1) {
@@ -5492,20 +5494,14 @@ export function githubWorkflowTriggers(contents: string): Map<string, WorkflowBr
       if (!item) break;
       const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
       if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
-      triggers.set(name, { kind: 'none' });
+      triggers.add(name);
     }
     return triggers.size > 0 ? triggers : null;
   }
   let triggerIndent = -1;
   // True once a `name:` key is read at the trigger indent, false once a `- name` item is.
   let mappingForm: boolean | null = null;
-  let current: { name: string; filter: WorkflowBranchFilter } | null = null;
-  let branchesIndent = -1;
-  const close = () => {
-    if (current) triggers.set(current.name, current.filter);
-    current = null;
-    branchesIndent = -1;
-  };
+  let inTrigger = false;
   for (let index = onIndex + 1; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
     if (!isContent(raw)) continue;
@@ -5513,63 +5509,33 @@ export function githubWorkflowTriggers(contents: string): Map<string, WorkflowBr
     if (indent === 0) break;
     if (triggerIndent === -1) triggerIndent = indent;
     if (indent < triggerIndent) return null;
-    if (indent === triggerIndent) {
-      const item = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
-      // A compact sequence under a trigger key (`schedule:` then `- cron: ...`) is that trigger's
-      // value, not another trigger.
-      if (item && mappingForm === true) continue;
-      close();
-      if (item) {
-        mappingForm = false;
-        const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
-        if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
-        triggers.set(name, { kind: 'none' });
-        continue;
-      }
-      if (mappingForm === false) return null;
-      mappingForm = true;
-      const key = /^[ \t]*([A-Za-z_]+):(.*)$/.exec(raw);
-      if (!key || !WORKFLOW_TRIGGER_NAME_PATTERN.test(key[1] ?? '')) return null;
-      const rest = stripYamlComment(key[2] ?? '').trim();
-      // `push: {}` or `push: null` is an unfiltered trigger; anything else inline is not placed.
-      if (rest !== '' && rest !== '{}' && rest !== 'null' && rest !== '~') return null;
-      current = { name: key[1] ?? '', filter: { kind: 'none' } };
+    if (indent > triggerIndent) {
+      // A trigger's own settings; a deeper line under a `- name` item is not placed.
+      if (!inTrigger) return null;
       continue;
     }
-    if (!current) return null;
-    const active: { name: string; filter: WorkflowBranchFilter } = current;
-    if (
-      branchesIndent !== -1 &&
-      (indent > branchesIndent || (indent === branchesIndent && LIST_ITEM_PATTERN.test(raw)))
-    ) {
-      const item = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
-      if (!item || active.filter.kind !== 'names') {
-        active.filter = { kind: 'unread' };
-        continue;
-      }
-      active.filter = {
-        kind: 'names',
-        names: [...active.filter.names, unquoteYamlScalar(stripYamlComment(item[1] ?? ''))],
-      };
+    const item = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
+    // A compact sequence under a trigger key (`schedule:` then `- cron: ...`) is that trigger's
+    // value, not another trigger.
+    if (item && mappingForm === true) continue;
+    if (item) {
+      mappingForm = false;
+      inTrigger = false;
+      const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
       continue;
     }
-    branchesIndent = -1;
-    const filterKey = /^[ \t]*(branches|branches-ignore|tags|tags-ignore):(.*)$/.exec(raw);
-    if (!filterKey) continue;
-    if (filterKey[1] !== 'branches') {
-      // A tag-only push or an ignore list is a filter Cejel does not evaluate.
-      active.filter = { kind: 'unread' };
-      continue;
-    }
-    const names = yamlInlineList(filterKey[2] ?? '');
-    if (names === null || active.filter.kind === 'unread') {
-      active.filter = { kind: 'unread' };
-      continue;
-    }
-    active.filter = { kind: 'names', names };
-    if (names.length === 0) branchesIndent = indent;
+    if (mappingForm === false) return null;
+    mappingForm = true;
+    const key = /^[ \t]*([A-Za-z_]+):(.*)$/.exec(raw);
+    if (!key || !WORKFLOW_TRIGGER_NAME_PATTERN.test(key[1] ?? '')) return null;
+    const rest = stripYamlComment(key[2] ?? '').trim();
+    // `push: {}` or `push: null` is an unfiltered trigger; anything else inline is not placed.
+    if (rest !== '' && rest !== '{}' && rest !== 'null' && rest !== '~') return null;
+    triggers.add(key[1] ?? '');
+    inTrigger = true;
   }
-  close();
   return triggers.size > 0 ? triggers : null;
 }
 
@@ -5620,109 +5586,50 @@ function fittedCiWorkflowCitationLabel(
   return label(candidates[candidates.length - 1] ?? WORKFLOW_TRIGGER_NOT_READ_LABEL);
 }
 
-interface CheckoutBranches {
-  /** The default branch: origin's HEAD when the clone records one, else the checked-out branch. */
-  readonly current: string;
-  readonly source: 'origin' | 'checkout';
-}
-
-/**
- * The default branch, from a checkout whose branch list Cejel can treat as complete. Null when
- * neither origin's HEAD nor a checked-out branch can be read (a detached CI checkout), and when
- * the checkout may lack branches its remote has: a shallow clone, a remote whose fetch refspecs do
- * not map every branch (a single-branch clone), or a remote with no fetched branch at all.
- */
-function readCheckoutBranches(repoPath: string): CheckoutBranches | null {
-  const originHead = execGit(['symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'], {
-    cwd: repoPath,
-  });
-  const originDefault = originHead.ok ? /^origin\/(.+)$/.exec(originHead.stdout.trim())?.[1] : undefined;
-  const head = originDefault
-    ? null
-    : execGit(['symbolic-ref', '-q', '--short', 'HEAD'], { cwd: repoPath });
-  const current = originDefault ?? (head?.ok ? head.stdout.trim() : '');
-  if (current === '' || !checkoutHoldsEveryBranch(repoPath)) return null;
-  return { current, source: originDefault ? 'origin' : 'checkout' };
-}
-
-function checkoutHoldsEveryBranch(repoPath: string): boolean {
-  const shallow = execGit(['rev-parse', '--is-shallow-repository'], { cwd: repoPath });
-  if (!shallow.ok || shallow.stdout.trim() !== 'false') return false;
-  const remotes = execGit(['remote'], { cwd: repoPath });
-  if (!remotes.ok) return false;
-  const names = remotes.stdout.split('\n').map((name) => name.trim()).filter(Boolean);
-  if (names.length === 0) return true;
-  const fetch = execGit(['config', '--get-regexp', '^remote\\..*\\.fetch$'], { cwd: repoPath });
-  if (!fetch.ok) return false;
-  const lines = fetch.stdout.split('\n');
-  for (const name of names) {
-    const refspecs = lines
-      .filter((line) => line.startsWith(`remote.${name}.fetch `))
-      .map((line) => line.slice(`remote.${name}.fetch `.length).trim());
-    // A negative refspec drops branches; only `refs/heads/*` maps every one.
-    if (refspecs.some((refspec) => refspec.startsWith('^'))) return false;
-    if (!refspecs.some((refspec) => refspec.replace(/^\+/, '').split(':')[0] === 'refs/heads/*')) {
-      return false;
-    }
-    const fetched = execGit(['for-each-ref', '--count=1', '--format=%(refname)', `refs/remotes/${name}/`], {
-      cwd: repoPath,
-    });
-    if (!fetched.ok || fetched.stdout.trim() === '') return false;
-  }
-  return true;
-}
-
-/** True when a local or remote-tracking branch of that name exists; null when git cannot say. */
-function checkoutHasBranch(repoPath: string, name: string): boolean | null {
-  const refs = execGit(
-    ['for-each-ref', '--count=1', '--format=%(refname)', `refs/heads/${name}`, `refs/remotes/*/${name}`],
-    { cwd: repoPath },
-  );
-  return refs.ok ? refs.stdout.trim() !== '' : null;
-}
-
-const DEFAULT_BRANCH_NAMES = new Set(['main', 'master']);
-
-/**
- * The default-branch name a counted workflow is confined to: every trigger is a push or
- * pull-request trigger, each carries a `branches:` filter, and together they name only `main` or
- * only `master`. Any other shape claims nothing: an unfiltered trigger, a glob, a third branch, or
- * any other trigger (schedule, workflow_dispatch, workflow_call and the rest can run the workflow
- * on the default branch whatever the filters say).
- */
-function confinedDefaultBranchTarget(contents: string): string | null {
-  const triggers = githubWorkflowTriggers(contents);
-  if (!triggers) return null;
-  const named = new Set<string>();
-  for (const [name, filter] of triggers) {
-    if (name !== 'push' && !PULL_REQUEST_TRIGGER_NAMES.has(name)) return null;
-    if (filter.kind !== 'names' || filter.names.length === 0) return null;
-    for (const branch of filter.names) named.add(branch);
-  }
-  if (named.size !== 1) return null;
-  const [target] = [...named];
-  return target && DEFAULT_BRANCH_NAMES.has(target) ? target : null;
-}
-
 // A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
 // substitution) or any other command is not claimed.
 const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>]*)?|true|:|exit[ \t]+0)$/;
-const ANY_USES_STEP_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*(\S+)/;
+// Any line naming a `run` or `uses` key, in any shape: quoted, inside a flow mapping, or plain.
+const STEP_KEY_TOKEN_PATTERN = /\b(?:run|uses)\b["']?[ \t]*:/;
+const PLACED_USES_LINE_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*(\S+)[ \t]*$/;
+const PLACED_RUN_LINE_PATTERN = /^([ \t]*(?:-[ \t]+)?)run:[ \t]*(.*)$/;
+const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
 
 /**
  * True for a GitHub Actions workflow whose every step only prints text: at least one `run:` step,
  * every command line in every `run:` step matches PRINT_ONLY_RUN_LINE_PATTERN, and no `uses:`
- * other than actions/checkout. A workflow that calls any other action runs code this file does
- * not show, so it is never claimed.
+ * other than actions/checkout. This is a claim about every step, so every line naming a `run` or
+ * `uses` key must be one the reader places: a plain `run:` key with a one-line plain value or a
+ * `|`/`>` block, or a plain `uses: actions/checkout@...` line. A flow-mapping step, a quoted key, a
+ * quoted `run` value (it may hold escaped newlines), a plain value continued on the next line, or
+ * a `run:` count that differs from the steps read all claim nothing.
  */
-function isPrintOnlyWorkflow(contents: string): boolean {
+export function isPrintOnlyWorkflow(contents: string): boolean {
   const lines = contents.split(/\r?\n/);
-  for (const line of lines) {
-    const uses = ANY_USES_STEP_PATTERN.exec(line);
-    if (uses && !/^actions\/checkout@/.test(unquoteYamlScalar(uses[1] ?? ''))) return false;
+  let runKeys = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const text = stripYamlComment(lines[index] ?? '');
+    if (/^[ \t]*-[ \t]*[{[]/.test(text)) return false;
+    if (!STEP_KEY_TOKEN_PATTERN.test(text)) continue;
+    const uses = PLACED_USES_LINE_PATTERN.exec(text);
+    if (uses) {
+      if (!/^actions\/checkout@/.test(unquoteYamlScalar(uses[1] ?? ''))) return false;
+      continue;
+    }
+    const run = PLACED_RUN_LINE_PATTERN.exec(text);
+    if (!run) return false;
+    runKeys += 1;
+    const value = (run[2] ?? '').trim();
+    if (value.startsWith('"') || value.startsWith("'")) return false;
+    if (value !== '' && !BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+      // A plain scalar continues on any following line indented past its key.
+      const keyColumn = (run[1] ?? '').length;
+      const next = lines.slice(index + 1).find((line) => line.trim() !== '' && !line.trimStart().startsWith('#'));
+      if (next !== undefined && lineIndent(next) > keyColumn) return false;
+    }
   }
   const steps = githubActionsRunSteps(contents);
-  if (steps.length === 0) return false;
+  if (steps.length === 0 || steps.length !== runKeys) return false;
   return steps.every(
     (step) =>
       step.lines.length > 0 &&
@@ -5734,18 +5641,8 @@ function isPrintOnlyWorkflow(contents: string): boolean {
   );
 }
 
-export interface B3AbsentBranchWorkflow {
-  readonly path: string;
-  /** The only branch its push and pull-request triggers name. */
-  readonly target: string;
-  /** The repository's default branch, and where Cejel read it. */
-  readonly current: string;
-  readonly source: 'origin' | 'checkout';
-}
-
 export interface B3UnshownCheckWorkflows {
   readonly printOnly: readonly string[];
-  readonly absentBranch: readonly B3AbsentBranchWorkflow[];
 }
 
 /**
@@ -5758,46 +5655,24 @@ function findB3UnshownCheckWorkflows(
   describePath: (file: string) => string = (file) => file,
 ): B3UnshownCheckWorkflows {
   const printOnly: string[] = [];
-  const absentBranch: B3AbsentBranchWorkflow[] = [];
-  // Read only when a workflow is confined to main or master, so most scans run no git here.
-  let branches: CheckoutBranches | null | undefined;
   for (const file of counted.filter((path) => /^\.github\/workflows\//.test(path))) {
     const fullPath = join(root, file);
     if (!isRegularFile(fullPath)) continue;
     const contents = withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8'));
     if (isPrintOnlyWorkflow(contents)) printOnly.push(describePath(file));
-    const target = confinedDefaultBranchTarget(contents);
-    if (!target) continue;
-    if (branches === undefined) branches = readCheckoutBranches(root);
-    if (
-      branches &&
-      DEFAULT_BRANCH_NAMES.has(branches.current) &&
-      branches.current !== target &&
-      checkoutHasBranch(root, target) === false
-    ) {
-      absentBranch.push({
-        path: describePath(file),
-        target,
-        current: branches.current,
-        source: branches.source,
-      });
-    }
   }
-  return { printOnly, absentBranch };
+  return { printOnly };
 }
 
 function mergeB3UnshownCheckWorkflows(
   own: B3UnshownCheckWorkflows,
   root: B3UnshownCheckWorkflows,
 ): B3UnshownCheckWorkflows {
-  return {
-    printOnly: [...own.printOnly, ...root.printOnly],
-    absentBranch: [...own.absentBranch, ...root.absentBranch],
-  };
+  return { printOnly: [...own.printOnly, ...root.printOnly] };
 }
 
 function b3UnshownCheckCount(unshown: B3UnshownCheckWorkflows): number {
-  return new Set([...unshown.printOnly, ...unshown.absentBranch.map((entry) => entry.path)]).size;
+  return new Set(unshown.printOnly).size;
 }
 
 /**
@@ -5812,20 +5687,7 @@ export function b3UnshownCheckDisclosure(
   if (count === 0) return '';
   const tail = ` The PR-gate CI workflow count still includes ${count === 1 ? 'it' : 'them'}.`;
   const parts = (shown: number) => [
-    ...(unshown.printOnly.length > 0
-      ? [
-          `${unshown.printOnly.slice(0, shown).join(', ')}${unshown.printOnly.length > shown ? ` and ${unshown.printOnly.length - shown} more` : ''} only print${unshown.printOnly.length === 1 ? 's' : ''} text`,
-        ]
-      : []),
-    ...unshown.absentBranch
-      .slice(0, shown)
-      .map(
-        (entry) =>
-          `${entry.path} runs only on ${entry.target}, and ${entry.source === 'origin' ? "the clone's default branch is" : 'this checkout is on'} ${entry.current} with no ${entry.target} branch`,
-      ),
-    ...(unshown.absentBranch.length > shown
-      ? [`${unshown.absentBranch.length - shown} more run only on a branch this checkout does not hold`]
-      : []),
+    `${unshown.printOnly.slice(0, shown).join(', ')}${unshown.printOnly.length > shown ? ` and ${unshown.printOnly.length - shown} more` : ''} only print${unshown.printOnly.length === 1 ? 's' : ''} text`,
   ];
   for (let shown = 3; shown > 0; shown -= 1) {
     const sentence = `${WITAN_B3_UNSHOWN_CHECK_PREFIX}${parts(shown).join('; ')}.${tail}`;
@@ -5838,10 +5700,7 @@ export function b3UnshownCheckDisclosure(
 /** The same fact for the default_branch_ci_depth metric line (schema maximum 240). */
 function b3UnshownCheckCondition(unshown: B3UnshownCheckWorkflows): string {
   const count = b3UnshownCheckCount(unshown);
-  const files = [
-    ...unshown.printOnly.map((path) => `${basename(path)} only prints text`),
-    ...unshown.absentBranch.map((entry) => `${basename(entry.path)} runs only on ${entry.target}`),
-  ];
+  const files = unshown.printOnly.map((path) => `${basename(path)} only prints text`);
   const lead = `includes ${count} not shown to run a check`;
   for (let shown = Math.min(files.length, 3); shown > 0; shown -= 1) {
     const condition = `${lead}: ${files.slice(0, shown).join('; ')}${files.length > shown ? '; ...' : ''}`;
