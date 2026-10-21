@@ -153,8 +153,10 @@ Where the implementation is narrower than, or differs from, the classification t
     withhold the claim now.
   - **#520, scan time on the default rubric.** The step reader walked back through the file once
     per `run:` key and rescanned every command per requiring command. A 480 KB workflow of 24,000
-    steps took 12 s under v17; 24,000 `run:` keys outside a list took 20 s. The reader is linear
-    (about 0.25 s for each); `scan-path-regex-bounds.test.ts` kills the previous implementation.
+    steps took 12 s under v17; 24,000 `run:` keys outside a list took 20 s. The reader became linear
+    in its number of steps (about 0.25 s for each); `scan-path-regex-bounds.test.ts` kills the
+    previous implementation. *Note added 2026-10-21:* it was still depth × size on nested steps,
+    and that was fixed in #548.
   - **#520, citation order.** The primary manifest stays first whenever it holds an unconstrained
     dependency itself.
   - **#518.** Where `conftest.py` files are the only test-shaped files, v27 cites them as pytest

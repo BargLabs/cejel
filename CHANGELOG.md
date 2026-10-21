@@ -16,6 +16,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.8] — 2026-10-21
+
+**Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from
+full-history clones: under v17 at v0.6.7 and at the release candidate (`224f605ae`), which differs
+from this release only in version identity and records, with no change under `src/` outside tests;
+and under v27 at the candidate.
+- Under v17, no score, status, metric value, finding count, placement or fingerprint moved. 17
+  reports differ only in B2's evidence labels and A4's evidence and finding text.
+- Under v27, no composite and no criterion score was higher than under v17. v27 abstained neither
+  A2 nor B2 on any row, and one score moved (requests A1, 2.5 to 2.4).
+
+See [`docs/experiments/public-delta-0-6-8-2026-10-21/result.md`](./docs/experiments/public-delta-0-6-8-2026-10-21/result.md).
+v27 stays prospective and opt-in. This makes no precision, recall or calibration claim.
+
 ### Security
 
 - **Some repository lines could stall a scan.** Fourteen strip and match sites on repository and
