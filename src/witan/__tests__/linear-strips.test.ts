@@ -49,6 +49,9 @@ describe('linear replacements for quadratic strip regexes', () => {
     expect(stripTrailingHashComment(`a:${blanks}# c`)).toBe('a:');
     expect(stripTrailingCloseParentheses(`a${blanks}x`)).toBe(`a${blanks}x`);
     expect(stripTrailingCloseParentheses(`a${blanks})`)).toBe('a');
+    // Many comment candidates that a final line terminator disqualifies.
+    const hashes = ' #'.repeat(250_000);
+    expect(stripTrailingHashComment(`${hashes}\n`)).toBe(`${hashes}\n`.replace(/\s+#.*$/, ''));
     expect(performance.now() - started).toBeLessThan(500);
   });
 });

@@ -10867,9 +10867,16 @@ const LINE_TERMINATOR_PATTERN = /[\n\r\u2028\u2029]/;
  * its `\s+` from every position of a long blank run, which is quadratic on repository text.
  */
 function stripTrailingHashComment(text: string): string {
-  for (let index = text.indexOf('#'); index !== -1; index = text.indexOf('#', index + 1)) {
+  // `.*$` cannot cross a line terminator, so only a `#` after the last one can start the comment.
+  let lastTerminator = -1;
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    if (LINE_TERMINATOR_PATTERN.test(text[index] ?? '')) {
+      lastTerminator = index;
+      break;
+    }
+  }
+  for (let index = text.indexOf('#', lastTerminator + 1); index !== -1; index = text.indexOf('#', index + 1)) {
     if (index === 0 || !/\s/.test(text[index - 1] ?? '')) continue;
-    if (LINE_TERMINATOR_PATTERN.test(text.slice(index))) continue;
     return text.slice(0, index).trimEnd();
   }
   return text;
