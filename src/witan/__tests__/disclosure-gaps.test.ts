@@ -429,6 +429,13 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     ['workflow defaults after jobs and another key', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\nconcurrency: x\ndefaults:\n  run:\n    shell: npm test -- {0}\n'],
     ['a repeated jobs key', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\nname: x\njobs:\n  real:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n'],
     ['a second YAML document', 'jobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n---\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n'],
+    ['a byte-order-marked workflow env', '\ufeffenv:\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['an anchored workflow env key', '&k env:\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['a tagged workflow defaults key', '!!str defaults:\n  run:\n    shell: npm test -- {0}\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['a merge key holding env', '<<: {env: {BASH_ENV: ./t.sh}}\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['an alias key for env', 'name: &k env\n*k :\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['a capitalised workflow Env', 'Env:\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
+    ['an NBSP-indented key', '\u00a0env:\n  BASH_ENV: ./t.sh\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n'],
   ])('claims nothing for %s at the job or workflow level', (_shape, jobs) => {
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\njobs:\n  e2e:\n    name: E2E\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`)).toBe(true);
     expect(isPrintOnlyWorkflow(`on:\n  pull_request:\n${jobs}`)).toBe(false);

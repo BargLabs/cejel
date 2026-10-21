@@ -5596,6 +5596,13 @@ function fittedCiWorkflowCitationLabel(
 const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>\\]*)?|true|:|exit[ \t]+0)$/;
 const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
 const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
+// The top-level keys a print-only workflow may hold, written plain at column 0. `env` and
+// `defaults` reach every step; anything else (an anchor, a tag, a merge or alias key, another
+// spelling) is not placed.
+const PRINT_ONLY_TOP_LEVEL_KEY_PATTERN = /^(?:name|run-name|on|true|permissions|concurrency|jobs)[ \t]*:/;
+// A line that starts, after spaces and tabs, with any other blank (a byte-order mark, NBSP):
+// `trimStart` would count it as indent where YAML reads it as text.
+const OTHER_LEADING_BLANK_PATTERN = /^[ \t]*[\v\f\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]/m;
 const PRINT_ONLY_STEP_KEYS = new Set(['name', 'uses', 'run']);
 // Matched against trimmed text only; greedy, so a long run of spaces cannot backtrack.
 const UNQUOTED_KEY_PATTERN = /^([a-z][a-z-]*):(?:[ \t]+([^]*))?$/;
@@ -5630,16 +5637,16 @@ function isOneLineScalar(value: string): boolean {
  * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
  */
 export function isPrintOnlyWorkflow(contents: string): boolean {
-  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return false;
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return false;
   const lines = contents.split(/\r?\n/);
   const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
-  // Every top-level key, in any order: workflow-wide settings reach every step, a quoted or `?`
-  // key or a document marker is not placed, and a second `jobs:` may be the one a parser keeps.
+  // Every top-level key, in any order, must be one the allowlist names, written plain; a second
+  // `jobs:` may be the one a parser keeps.
   let jobsStart = -1;
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
-    if (!isContent(raw) || lineIndent(raw) > 0) continue;
-    if (/^(?:env|defaults)[ \t]*:/.test(raw) || /^["'?]/.test(raw) || /^(?:---|\.\.\.)/.test(raw)) return false;
+    if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
+    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return false;
     if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
       if (jobsStart !== -1) return false;
       jobsStart = index;
