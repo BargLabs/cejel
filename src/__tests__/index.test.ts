@@ -485,13 +485,21 @@ describe('runWitanFreeCli (zero-config end-to-end)', () => {
     // "0.6.5" in place reproduces the 0.6.5 pin (76f03168...) byte for byte.
     // Re-pinned for 0.6.7: only the version bump reaches this fixture. Setting toolVersion back to
     // "0.6.6" in place reproduces the 0.6.6 pin (0c315be4...) byte for byte.
+    // Re-pinned for 0.6.8: only the version bump reaches this fixture (the 0.6.7 pin still held on
+    // the release candidate before the bump). Setting toolVersion back to "0.6.7" in place
+    // reproduces the 0.6.7 pin (b2c72a7b...) byte for byte.
     expect(createHash('sha256').update(firstReportJson).digest('hex')).toBe(
-      'b2c72a7bb80a65295497e3998a61f9ac401f149570f8ffd916d6aff0ac91993e',
+      'e2ac3b8e18db3b189c7b441a85cb168dffdd98be18b211e48fce8ff7f4a7ce98',
     );
     expect((firstReport as { rubricBehaviourFingerprint?: string }).rubricBehaviourFingerprint).toBe(
       'sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4',
     );
-    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.7');
+    expect((firstReport as { toolVersion?: string }).toolVersion).toBe('0.6.8');
+    const at067 = { ...firstReport, toolVersion: '0.6.7' } as typeof firstReport;
+    expect(
+      createHash('sha256').update(JSON.stringify(at067, null, 2)).digest('hex'),
+      'the 0.6.7 report bytes must be recoverable by resetting exactly the toolVersion field',
+    ).toBe('b2c72a7bb80a65295497e3998a61f9ac401f149570f8ffd916d6aff0ac91993e');
     const at066 = { ...firstReport, toolVersion: '0.6.6' } as typeof firstReport;
     expect(
       createHash('sha256').update(JSON.stringify(at066, null, 2)).digest('hex'),

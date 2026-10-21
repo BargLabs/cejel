@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -28,6 +28,13 @@ export interface FalseAssuranceFixture {
   /** Commit subjects, one per commit. Defaults to `commit <n>`. */
   readonly subjects?: readonly string[];
   readonly shallow?: boolean;
+  /**
+   * Tracked symlinks, committed with the first commit: link path -> a subdirectory made inside a
+   * fresh host directory outside the repository, which the link points at.
+   */
+  readonly symlinksToHostDirectory?: Readonly<Record<string, string>>;
+  /** Directories made in the working tree after the last commit, and never tracked. */
+  readonly untrackedDirectories?: readonly string[];
 }
 
 const PY_LIBRARY: Readonly<Record<string, string>> = {
@@ -814,6 +821,697 @@ FALSE_ASSURANCE_FIXTURES_REVIEW.push(
   },
 );
 
+// A fourth review, of #533's own fixes, reproduced these. The A4 cases must not claim that CI
+// requires a lockfile (the claim would be false), except the `review4-a4-claims-*` controls, which
+// must still claim it. Shell that YAML would read as a tag (`!`) or a flow mapping (`{`) is in a
+// `|` block, as a workflow would write it.
+const PY_LIBRARY_NO_LOCKFILE: Readonly<Record<string, string>> = {
+  'pyproject.toml': '[project]\nname = "pl"\nversion = "1.0.0"\ndependencies = ["requests>=2"]\n',
+  'src/pl/__init__.py': 'VALUE = 1\n',
+  'tests/test_pl.py': 'def test_value():\n    assert 1 == 1\n',
+  'README.md': '# pl\n',
+  LICENSE: 'MIT\n',
+};
+const NODE_WORKSPACE_PACKAGE = {
+  'packages/app/package.json': `${JSON.stringify({ name: 'app', version: '1.0.0', dependencies: { zod: '^3.0.0' } }, null, 2)}\n`,
+  'packages/app/index.js': 'export const app = 1;\n',
+};
+for (const [name, purpose, files] of [
+  // Finding 1: a guard behind a leading `(`, `{` or `!`, and the other shapes #533 newly claimed.
+  [
+    'review4-a4-guard-in-subshell',
+    'A `[` guard inside a subshell, `( [ -n "$FULL" ] && npm ci )`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( [ -n "$FULL" ] && npm ci )\n') },
+  ],
+  [
+    'review4-a4-test-guard-in-subshell',
+    'A `test` guard inside a subshell, `( test -n "$X" && npm ci )`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( test -n "$X" && npm ci )\n') },
+  ],
+  [
+    'review4-a4-guard-in-brace-group',
+    'A `[[` guard inside a brace group, `{ [[ -n "$FULL" ]] && npm ci; }`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          { [[ -n "$FULL" ]] && npm ci; }\n') },
+  ],
+  [
+    'review4-a4-negated-guard',
+    'A negated guard, `! [ -n "$SKIP" ] && npm ci`, is still a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          ! [ -n "$SKIP" ] && npm ci\n') },
+  ],
+  [
+    'review4-a4-negated-subshell-guard',
+    'Combined: `( ! test -f .skip && npm ci )`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( ! test -f .skip && npm ci )\n') },
+  ],
+  [
+    'review4-a4-arithmetic-guard',
+    'An arithmetic guard, `(( FULL )) && npm ci`, is a guard.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: (( FULL )) && npm ci\n') },
+  ],
+  [
+    'review4-a4-negated-npm-ci',
+    '`! npm ci` passes the step when `npm ci` fails: peeling `!` must not make it claimable.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          ! npm ci\n') },
+  ],
+  [
+    'review4-a4-set-plus-e-then-npm-test',
+    '`set +e` lets `npm ci` fail without failing the step, here followed by `npm test`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          set +e\n          npm ci\n          npm test\n') },
+  ],
+  [
+    'review4-a4-cd-inside-subshell',
+    '`( cd generated && npm ci )` leaves the checkout inside the subshell.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: ( cd generated && npm ci )\n') },
+  ],
+  // Finding 2: a directory or manifest passed as a flag that the inventory does not hold.
+  [
+    'review4-a4-npm-ci-prefix-outside',
+    '`npm ci --prefix generated` reads generated/package-lock.json, which the scan never saw.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci --prefix generated\n') },
+  ],
+  [
+    'review4-a4-npm-ci-prefix-equals-outside',
+    'As above, written `--prefix=generated`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci --prefix=generated\n') },
+  ],
+  [
+    'review4-a4-pnpm-dir-outside',
+    '`pnpm install --frozen-lockfile --dir generated`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: pnpm install --frozen-lockfile --dir generated\n') },
+  ],
+  [
+    'review4-a4-pnpm-short-dir-outside',
+    '`pnpm install --frozen-lockfile -C generated`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: pnpm install --frozen-lockfile -C generated\n') },
+  ],
+  [
+    'review4-a4-uv-sync-directory-outside',
+    '`uv sync --locked --directory generated`.',
+    { ...PY_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: uv sync --locked --directory generated\n') },
+  ],
+  [
+    'review4-a4-uv-run-project-outside',
+    '`uv run --locked --project generated pytest`.',
+    { ...PY_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: uv run --locked --project generated pytest\n') },
+  ],
+  [
+    'review4-a4-cargo-manifest-path-outside',
+    '`cargo test --locked --manifest-path generated/Cargo.toml` reads a manifest the scan never saw.',
+    { ...RUST_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cargo test --locked --manifest-path generated/Cargo.toml\n') },
+  ],
+  // Finding 5: each workflow-reader rule isolated, so deleting one fails a test.
+  [
+    'review4-a4-other-repository-checkout-at-root',
+    'Another repository checked out over the workspace root, with no working directory.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/checkout@v4\n        with:\n          repository: acme/app\n      - run: npm ci\n') },
+  ],
+  [
+    'review4-a4-artifact-downloaded-first',
+    'An artifact downloaded into the workspace before `npm ci`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/download-artifact@v4\n        with:\n          name: deps\n      - run: npm ci\n') },
+  ],
+  [
+    'review4-a4-run-key-outside-any-step',
+    'A `run:` key after the steps list ends is not inside any step, so it is not placed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('    container:\n      run: npm ci\n') },
+  ],
+  [
+    'review4-a4-run-key-inside-block-body',
+    'A `- run:` line inside a block body (a heredoc writing YAML) is shell text, not a step.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI("      - run: |\n          cat > generated.yml <<'EOF'\n          - run: npm ci\n          EOF\n") },
+  ],
+  [
+    'review4-a4-run-key-inside-action-script',
+    'A `run:` line inside a script passed to an action is that script’s text, not a step.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - uses: actions/github-script@v7\n        with:\n          script: |\n            run: npm ci\n') },
+  ],
+  [
+    'review4-a4-job-guard-after-steps',
+    'A job-level `if:` written after the job’s `steps:` still conditions every step.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm test\n  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm ci\n    if: false\n') },
+  ],
+  [
+    'review4-a4-steps-key-inside-block-body',
+    'A `steps:` line inside an earlier step’s block body must not hide the job’s own `if:`.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI("      - run: npm test\n  extra:\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          cat > x.yml <<'EOF'\n          steps:\n            - name: hi\n          EOF\n      - run: npm ci\n") },
+  ],
+  // Finding 3: which directories the checkout holds is read from the inventory, exact-case.
+  [
+    'review4-a4-cd-wrong-case',
+    '`cd SRC` where the inventory holds `src/`: a Linux runner has no SRC directory.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, 'src/util.js': 'export const u = 1;\n', '.github/workflows/ci.yml': PR_CI('      - run: cd SRC && npm ci\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#520', foundInReview: true, purpose, commits: [files] });
+}
+FALSE_ASSURANCE_FIXTURES_REVIEW.push(
+  {
+    name: 'review4-a4-working-directory-through-tracked-symlink',
+    issue: '#520',
+    foundInReview: true,
+    purpose:
+      'A working directory under a tracked symlink to a host directory is not in the checkout, whatever the scanning host holds.',
+    symlinksToHostDirectory: { vendor: 'pkg' },
+    commits: [{ ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n        working-directory: vendor/pkg\n') }],
+  },
+  {
+    name: 'review4-a4-working-directory-untracked-empty',
+    issue: '#520',
+    foundInReview: true,
+    purpose: 'An untracked empty directory on the scanning host is not in the checkout a runner makes.',
+    untrackedDirectories: ['build'],
+    commits: [{ ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci\n        working-directory: build\n') }],
+  },
+);
+// Controls: a directory the inventory holds is still followed. No file of the lockfile's name is
+// anywhere in the inventory, so none is in that directory either, and the claim stays true.
+for (const [name, purpose, files] of [
+  [
+    'review4-a4-claims-cd-into-tracked-directory',
+    '`cd src && npm ci` where the inventory holds `src/`: still claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, 'src/util.js': 'export const u = 1;\n', '.github/workflows/ci.yml': PR_CI('      - run: cd src && npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-prefix-into-tracked-directory',
+    '`npm ci --prefix packages/app` where the inventory holds packages/app/: still claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, ...NODE_WORKSPACE_PACKAGE, '.github/workflows/ci.yml': PR_CI('      - run: npm ci --prefix packages/app\n') },
+  ],
+  [
+    'review4-a4-claims-manifest-path-tracked',
+    '`cargo test --locked --manifest-path Cargo.toml`, a manifest the inventory holds: still claimed.',
+    { ...RUST_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cargo test --locked --manifest-path ./Cargo.toml\n') },
+  ],
+  [
+    'review4-a4-claims-block-indicator-with-comment',
+    'A `run: |` whose block indicator carries a comment is a block like any other: newly claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: | # install\n          npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-dash-line-in-earlier-block',
+    'A `- ` line inside a block scalar before `run:` is text, not a step boundary: newly claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - name: install\n        env:\n          NOTE: |\n            - a list line\n        run: npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-after-brace-group',
+    'A brace group with no guard (`{ echo start; }`) does not make a later `npm ci` conditional: still claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          { echo start; }\n          npm ci\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#520', foundInReview: true, purpose, commits: [files] });
+}
+// Finding 6 (#518): a hook that empties `items` and puts back nothing removes the suite, on one
+// line or two; a one-line reorder is still a reorder.
+for (const [name, purpose, hook] of [
+  [
+    'review4-a1-hook-empties-and-refills-nothing',
+    '`items.clear()` then `items.extend([])` leaves no test to run.',
+    '    items.clear()\n    items.extend([])\n',
+  ],
+  [
+    'review4-a1-hook-empties-and-refills-nothing-one-line',
+    '`items.clear(); items.extend([])` on one line leaves no test to run.',
+    '    items.clear(); items.extend([])\n',
+  ],
+  [
+    'review4-a1-hook-reorders-items-one-line',
+    '`items.clear(); items.extend(ordered)` on one line reorders the run; every test still runs.',
+    '    ordered = sorted(items, key=lambda item: item.name)\n    items.clear(); items.extend(ordered)\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': `def pytest_collection_modifyitems(session, config, items):\n${hook}` }],
+  });
+}
+
+// Cases two post-merge review passes of #521 (merged as f5ac02273) reproduced.
+
+/**
+ * A synthetic GitHub token shape inside a package-index URL, assembled from segments so this file
+ * never holds one contiguous credential-shaped literal. It must appear in no output.
+ */
+export const SYNTHETIC_INDEX_URL_TOKEN = ['ghp', 'FIXTUREonly0000abcdEFGH1234ijklMNOP1'].join('_');
+
+// Pass 2 finding 1 (#520, every rubric): A4 quoted every word between the subcommand and the flag.
+for (const [name, purpose, library, steps] of [
+  [
+    'review5-a4-credential-between-subcommand-and-flag',
+    'A credential in `--extra-index-url` between `uv sync` and `--locked` is never quoted: the note reads `uv sync … --locked`.',
+    PY_LIBRARY,
+    `      - run: uv sync --extra-index-url https://user:${SYNTHETIC_INDEX_URL_TOKEN}@pypi.example.com --locked\n      - run: uv run --locked pytest\n`,
+  ],
+  [
+    'review5-a4-credential-after-npm-ci',
+    'A credential after `npm ci` (a subcommand that needs no flag) is never quoted: the note reads `npm ci`.',
+    NODE_LIBRARY_NO_LOCKFILE,
+    `      - run: npm ci --registry=https://user:${SYNTHETIC_INDEX_URL_TOKEN}@npm.example.com/\n      - run: npm test\n`,
+  ],
+  [
+    'review5-a4-flag-value-not-quoted',
+    'A flag written with `=value` is quoted by its name only: the note reads `pnpm install … --frozen-lockfile`.',
+    NODE_LIBRARY_NO_LOCKFILE,
+    `      - run: pnpm install --reporter=append-only --frozen-lockfile=${SYNTHETIC_INDEX_URL_TOKEN}\n      - run: pnpm test\n`,
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#520',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...library, '.github/workflows/ci.yml': PR_CI(steps) }],
+  });
+}
+
+// Pass 2 finding 2 (#519): a pointer checked out with core.autocrlf=true has CRLF line endings.
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review5-a1-js-suite-as-crlf-lfs-pointers',
+  issue: '#519',
+  foundInReview: true,
+  purpose:
+    'Both test files are Git LFS pointers with CRLF line endings and there is no .gitattributes, as an autocrlf checkout leaves them.',
+  commits: [
+    JS_LIBRARY,
+    {
+      'test/index.js': lfsPointerFor(JS_TEST_INDEX).replace(/\n/g, '\r\n'),
+      'test/lite.js': lfsPointerFor(JS_TEST_LITE).replace(/\n/g, '\r\n'),
+    },
+  ],
+});
+
+// Pass 1 finding 1 (#518): a skip marker is claimed for every item only when it is applied to the
+// loop variable of a loop over `items`.
+for (const [name, purpose, conftest] of [
+  [
+    'review5-a1-hook-timeout-every-item-skip-one-by-id',
+    'A timeout on every item and a skip on one known-broken node id: not every test is skipped.',
+    'import pytest\n\nKNOWN_BROKEN = ["tests/test_cache.py::test_put"]\n\n\ndef pytest_collection_modifyitems(config, items):\n    for item in items:\n        item.add_marker(pytest.mark.timeout(30))\n    by_id = {item.nodeid: item for item in items}\n    for nodeid in KNOWN_BROKEN:\n        by_id[nodeid].add_marker(pytest.mark.skip(reason="known broken"))\n',
+  ],
+  [
+    'review5-a1-hook-timeout-every-item-skip-first',
+    'A timeout on every item and a skip on `items[0]` only: not every test is skipped.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.timeout(30))\n    items[0].add_marker(pytest.mark.skip(reason="flaky"))\n',
+  ],
+  [
+    'review5-a1-hook-skip-inside-nested-loop',
+    'The skip sits in a nested loop over a list that may be empty: not tied to every item.',
+    'import pytest\n\nMARKS = []\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        for _ in MARKS:\n            item.add_marker(pytest.mark.skip(reason="x"))\n',
+  ],
+  [
+    'review5-a1-hook-skip-every-item-inline',
+    'Corner, still claimed: `for item in items: item.add_marker(pytest.mark.skip(...))` on one line, its reason holding the word "for".',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    for item in items: item.add_marker(pytest.mark.skip(reason="disabled for now"))\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }],
+  });
+}
+
+// Pass 1 finding 2 (#518): a module-level skip is unconditional only when nothing else in the
+// module names pytestmark and the statement carries no condition on any line.
+const withModuleMark = (mark: string): Record<string, string> => ({
+  'tests/test_cache.py': `import os\nimport pytest\n\n${mark}\n\n${PY_LIBRARY['tests/test_cache.py']}`,
+  'tests/test_lru.py': `import os\nimport pytest\n\n${mark}\n\n${PY_LIBRARY['tests/test_lru.py']}`,
+});
+for (const [name, purpose, mark] of [
+  [
+    'review5-a1-pytestmark-reassigned-under-later-if',
+    'A skip later replaced inside an `if`: the module runs when the condition holds.',
+    'pytestmark = pytest.mark.skip(reason="needs DB")\nif os.environ.get("DB"):\n    pytestmark = []',
+  ],
+  [
+    'review5-a1-pytestmark-reassigned-later',
+    'A skip later replaced unconditionally: the module runs.',
+    'pytestmark = pytest.mark.skip(reason="needs DB")\npytestmark = []',
+  ],
+  [
+    'review5-a1-pytestmark-backslash-continuation',
+    'A `\\` continuation carries the condition onto the next line.',
+    'pytestmark = pytest.mark.skip(reason="needs DB") \\\n    if not os.environ.get("DB") else []',
+  ],
+  [
+    'review5-a1-pytestmark-bracketed-condition',
+    'A bracket carries the condition onto the next line.',
+    'pytestmark = [pytest.mark.skip(reason="needs DB")\n              ] if not os.environ.get("DB") else []',
+  ],
+  [
+    'review5-a1-pytestmark-skip-unconditional-with-hash-in-reason',
+    'Corner, still claimed: an unconditional skip whose reason holds a `#`.',
+    'pytestmark = pytest.mark.skip(reason="see issue #12")',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, withModuleMark(mark)],
+  });
+}
+
+// Pass 1 finding 3 (#517): a workflow is publish-only only when every step it runs is setup,
+// packaging or a publish.
+const PUSH_WORKFLOW = (steps: string, on = 'on:\n  push:\n    branches: [main]\n'): string =>
+  `name: release\n${on}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n${steps}`;
+const RUST_LIBRARY: Readonly<Record<string, string>> = {
+  'Cargo.toml': '[package]\nname = "tinycrate"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\nserde = "1"\n',
+  'src/lib.rs':
+    'pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn adds() {\n        assert_eq!(super::add(1, 2), 3);\n    }\n}\n',
+  'tests/it.rs': '#[test]\nfn it_adds() {\n    assert_eq!(tinycrate::add(1, 1), 2);\n}\n',
+  'README.md': '# tinycrate\n',
+  LICENSE: 'MIT\n',
+  '.github/workflows/ci.yml':
+    'name: ci\non:\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: cargo test\n',
+};
+for (const [name, purpose, files] of [
+  [
+    'review5-b3-bun-test-then-publish',
+    '(a) `bun test` then `bun publish` on every push: the test step keeps the workflow counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - uses: oven-sh/setup-bun@v2\n      - run: bun install\n      - run: bun test\n      - run: bun publish\n') },
+  ],
+  [
+    'review5-b3-pnpm-lint-typecheck-build-then-publish',
+    '(b) `pnpm run lint`, `typecheck` and `build`, then `pnpm publish`: verification keeps the workflow counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: pnpm install\n      - run: pnpm run lint\n      - run: pnpm run typecheck\n      - run: pnpm run build\n      - run: pnpm publish --no-git-checks\n') },
+  ],
+  [
+    'review5-b3-cargo-build-release',
+    '(c) `cargo build --release` and a GitHub release on tags: the build keeps the workflow counted, with B3 build category.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo build --release\n      - uses: softprops/action-gh-release@v2\n        with:\n          files: target/release/tinycrate\n', "on:\n  push:\n    tags: ['v*']\n") },
+  ],
+  [
+    'review5-b3-publish-word-only-in-comment',
+    '(d) `npm publish` only in a YAML comment, beside a bundle-size check: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/size.yml': PUSH_WORKFLOW('      # Not a release workflow: npm publish is done by hand.\n      - run: npx size-limit\n') },
+  ],
+  [
+    'review5-b3-docs-build-publish-word-in-comment',
+    '(d) A docs build whose only publish word is in a comment: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/docs.yml': PUSH_WORKFLOW('      # Releases are cut by hand: npm publish from a maintainer machine.\n      - run: npx typedoc --out site\n      - uses: actions/upload-pages-artifact@v3\n        with:\n          path: site\n') },
+  ],
+  [
+    'review5-b3-npm-publish-dry-run',
+    '(e) `npm publish --dry-run` publishes nothing; it checks the package: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/size.yml': PUSH_WORKFLOW('      - run: npm publish --dry-run\n') },
+  ],
+  [
+    'review5-b3-semantic-release-after-setup',
+    'Corner, still excluded: setup-node, `npm ci` and `npx semantic-release` on every push publish and verify nothing.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npx semantic-release\n        env:\n          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+
+// Review pass 1 of #553 (the fix for the #521 review): what v27 still claimed from shapes it could
+// not tie together or did not read.
+for (const [name, purpose, files] of [
+  [
+    'review6-b3-flow-mapping-run-step',
+    'A flow-mapping step `- { name: check, run: node check.js }` is not placed: the workflow stays counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - { name: check, run: node check.js }\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-flow-mapping-uses-step',
+    'A flow-mapping `uses` step is not placed: the workflow stays counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - { uses: some-org/run-checks@v1 }\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-quoted-run-key',
+    'A quoted `"run":` key is not placed: the workflow stays counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - "run": node check.js\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-rustup-run-cargo-build',
+    '`rustup run stable cargo build --release` runs a build: rustup is setup only for its toolchain subcommands.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: rustup run stable cargo build --release\n      - run: cargo publish\n') },
+  ],
+  [
+    'review6-b3-changesets-publish-input',
+    'changesets/action with a `publish:` input runs that input as a command: the workflow stays counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm ci\n      - uses: changesets/action@v1\n        with:\n          publish: npm run release\n') },
+  ],
+  [
+    'review6-b3-command-glued-to-echo',
+    '`echo ok&&node check.js` carries a command glued to an admitted word: the workflow stays counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: echo ok&&node check.js\n      - run: npm publish\n') },
+  ],
+  [
+    'review6-b3-changesets-without-command-inputs',
+    'Corner, still excluded: changesets/action with only a `title` input and a token, after `npm ci`.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm ci\n      - uses: changesets/action@v1\n        with:\n          title: Release\n        env:\n          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+for (const [name, purpose, conftest] of [
+  [
+    'review6-a1-hook-loop-in-nested-def',
+    'The every-item skip sits in a nested function the hook never calls.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    def _skip_all(reason):\n        for item in items:\n            item.add_marker(pytest.mark.skip(reason=reason))\n    config._skip_all = _skip_all\n',
+  ],
+  [
+    'review6-a1-hook-loop-in-zero-iteration-loop',
+    'The every-item skip sits inside `for _ in range(0):`, which never runs.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for _ in range(0):\n        for item in items:\n            item.add_marker(pytest.mark.skip(reason="never"))\n',
+  ],
+  [
+    'review6-a1-hook-redefined-later',
+    'A skipping hook redefined later in the same conftest.py by one that does nothing: Python keeps the last.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip(reason="wip"))\n\n\ndef pytest_collection_modifyitems(items):\n    pass\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }],
+  });
+}
+for (const [name, purpose, mark] of [
+  [
+    'review6-a1-pytestmark-skip-then-reassigned-same-line',
+    'A skip and a reassignment on one line (`pytestmark = pytest.mark.skip(...); pytestmark = []`).',
+    'pytestmark = pytest.mark.skip(reason="x"); pytestmark = []',
+  ],
+  [
+    'review6-a1-pytestmark-xfail-reason-names-skip',
+    'An `xfail` whose reason string names `pytest.mark.skip`.',
+    'pytestmark = pytest.mark.xfail(reason="flaky; was pytest.mark.skip before")',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, withModuleMark(mark)],
+  });
+}
+
+// The re-run of review pass 1 on #553: admitted commands that run code the repository configures,
+// environment bypasses, setup actions by name, and the hook's clear kind and other bindings.
+const jsWithScripts = (scripts: Record<string, string>): Record<string, string> => ({
+  ...JS_LIBRARY,
+  'check.js': 'process.exit(0);\n',
+  'package.json': `${JSON.stringify({ name: 'deq', version: '1.0.0', main: 'index.js', scripts: { test: 'uvu test', ...scripts }, devDependencies: { uvu: '^0.5.0' } }, null, 2)}\n`,
+});
+const NPM_CI_PUBLISH = '      - run: npm ci\n      - run: npm publish\n';
+for (const [name, purpose, files] of [
+  [
+    'review7-b3-prepublishonly-script',
+    '`npm publish` runs the package\'s `prepublishOnly` script, which runs a check: kept counted.',
+    { ...jsWithScripts({ prepublishOnly: 'node check.js' }), '.github/workflows/main.yml': PUSH_WORKFLOW(NPM_CI_PUBLISH) },
+  ],
+  [
+    'review7-b3-prepare-script',
+    '`npm ci` runs the package\'s `prepare` script: kept counted.',
+    { ...jsWithScripts({ prepare: 'node check.js' }), '.github/workflows/main.yml': PUSH_WORKFLOW(NPM_CI_PUBLISH) },
+  ],
+  [
+    'review7-b3-npmrc-present',
+    'A committed .npmrc can set a script shell or Node options for every npm command: kept counted.',
+    { ...JS_LIBRARY, '.npmrc': 'node-options=--require ./check.js\n', '.github/workflows/main.yml': PUSH_WORKFLOW(NPM_CI_PUBLISH) },
+  ],
+  [
+    'review7-b3-semantic-release-with-config',
+    'semantic-release runs configured plugins (`@semantic-release/exec` here): kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.releaserc.json': `${JSON.stringify({ plugins: [['@semantic-release/exec', { verifyConditionsCmd: 'node check.js' }]] })}\n`, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm ci\n      - run: npx semantic-release\n') },
+  ],
+  [
+    'review7-b3-goreleaser-cli-with-hooks',
+    'The goreleaser CLI runs the repository\'s `before.hooks`: kept counted.',
+    { ...JS_LIBRARY, '.goreleaser.yaml': 'before:\n  hooks:\n    - go vet ./...\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: goreleaser release --clean\n') },
+  ],
+  [
+    'review7-b3-cargo-publish-verifies',
+    '`cargo publish` without `--no-verify` builds the crate: kept counted.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish\n') },
+  ],
+  [
+    'review7-b3-cargo-publish-no-verify',
+    'Corner, still excluded: `cargo publish --no-verify` uploads without building.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo publish --no-verify\n') },
+  ],
+  [
+    'review7-b3-node-options-leading',
+    'A leading `NODE_OPTIONS=--require=./check.js` loads repository code into `npm publish`: kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: NODE_OPTIONS=--require=./check.js npm publish\n') },
+  ],
+  [
+    'review7-b3-node-options-exported',
+    '`export NODE_OPTIONS=...` before `npm publish`: kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: |\n          export NODE_OPTIONS=--require=./check.js\n          npm publish\n') },
+  ],
+  [
+    'review7-b3-echo-into-github-env',
+    '`echo ... >> $GITHUB_ENV` can set a code-loading variable for later steps: kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: echo NODE_OPTIONS=--require=./check.js >> $GITHUB_ENV\n      - run: npm publish\n') },
+  ],
+  [
+    'review7-b3-step-env-ld-preload',
+    'A step `env:` holding `LD_PRELOAD`: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm publish\n        env:\n          LD_PRELOAD: ./libcheck.so\n') },
+  ],
+  [
+    'review9-b3-step-env-ld-audit-twine',
+    'A step `env:` holding `LD_AUDIT` (glibc loads it like `LD_PRELOAD`) on an upload-only `twine upload`: kept counted.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: twine upload dist/*\n        env:\n          LD_AUDIT: ./libcheck.so\n') },
+  ],
+  [
+    'review7-b3-step-env-pythonpath-twine',
+    'A step `env:` holding `PYTHONPATH` on `twine upload`: kept counted.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: pip install twine\n      - run: twine upload dist/*\n        env:\n          PYTHONPATH: ./tools\n') },
+  ],
+  [
+    'review7-b3-python-build-runs-setup-py',
+    '`python -m build` runs the repository\'s setup.py: kept counted.',
+    { ...PY_LIBRARY, 'setup.py': 'import subprocess\nsubprocess.check_call(["python", "-m", "unittest"])\nfrom setuptools import setup\nsetup(name="cachelib")\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: pip install build twine\n      - run: python -m build\n      - run: twine upload dist/*\n') },
+  ],
+  [
+    'review7-b3-third-party-setup-action',
+    'A `*/setup-*` action from an owner Cejel does not name: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - uses: some-org/setup-and-verify@v1\n      - run: npm publish\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+for (const [name, purpose, conftest] of [
+  [
+    'review7-a1-hook-clear-in-nested-def',
+    '`items.clear()` sits in a nested function the hook never calls.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    def _drop_all():\n        items.clear()\n    config._drop_all = _drop_all\n',
+  ],
+  [
+    'review7-a1-hook-clear-in-zero-iteration-loop',
+    '`items.clear()` sits inside `for _ in range(0):`.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for _ in range(0):\n        items.clear()\n',
+  ],
+  [
+    'review7-a1-hook-clear-in-loop-over-other-iterable',
+    '`items.clear()` sits inside a loop over a configured list that may be empty.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    for reason in config.getini("drop_all_reasons"):\n        items.clear()\n',
+  ],
+  [
+    'review7-a1-hook-conditional-redefinition',
+    'The last top-level hook skips every item, but a conditional redefinition follows it.',
+    'import os\nimport pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip(reason="wip"))\n\n\nif os.environ.get("RUN_ALL"):\n    def pytest_collection_modifyitems(items):\n        pass\n',
+  ],
+  [
+    'review7-a1-hook-rebound-by-assignment',
+    'The hook name is rebound by an assignment after the def.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip(reason="wip"))\n\n\ndef _noop(items):\n    pass\n\n\npytest_collection_modifyitems = _noop\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }],
+  });
+}
+
+// The second re-run of review pass 1 on #553, and the coordinator's decision that followed: a
+// publish-only workflow only checks out, configures credentials and uploads an already-built
+// artifact; any install, build or package step keeps it counted.
+const PYPI_UPLOAD_STEPS =
+  '      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n          run-id: ${{ github.event.workflow_run.id }}\n          github-token: ${{ secrets.GITHUB_TOKEN }}\n      - uses: pypa/gh-action-pypi-publish@release/v1\n';
+const PYPI_UPLOAD_ONLY = (on: string, environment: string): string =>
+  `name: publish\n${on}jobs:\n  publish:\n    runs-on: ubuntu-latest\n${environment}    permissions:\n      id-token: write\n    steps:\n${PYPI_UPLOAD_STEPS}`;
+for (const [name, purpose, files] of [
+  [
+    'review8-b3-pypi-upload-only-gated',
+    'Control: a tag-triggered workflow behind an environment that downloads a built artifact and uploads it to PyPI.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '    environment: pypi\n') },
+  ],
+  [
+    'review8-b3-pypi-upload-only-ungated',
+    'Change: the same upload runs on every push to main with no environment. Still publish-only.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY('on:\n  push:\n    branches: [main]\n', '') },
+  ],
+  [
+    'review8-b3-twine-upload-only',
+    'Still publish-only: download a built artifact and `twine upload dist/*` with credentials in `env`.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n      - run: twine upload dist/*\n        env:\n          TWINE_USERNAME: __token__\n          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}\n') },
+  ],
+  [
+    'review8-b3-npm-publish-without-install',
+    'Still publish-only: setup-node with a registry, then `npm publish` of a package with no scripts that run on publish.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: actions/setup-node@v4\n        with:\n          registry-url: https://registry.npmjs.org\n      - run: npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+  [
+    'review8-b3-gh-release-upload',
+    'Still publish-only: download a built artifact and `gh release upload` it.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n      - run: gh release upload v1.0.0 dist/app.tgz\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n') },
+  ],
+  [
+    'review8-b3-binding-gyp-publish',
+    '(a) A root `binding.gyp`: npm builds the native addon implicitly. Kept counted.',
+    { ...JS_LIBRARY, 'binding.gyp': "{ 'targets': [{ 'target_name': 'addon', 'sources': ['addon.cc'] }] }\n", '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm publish\n') },
+  ],
+  [
+    'review8-b3-gypfile-publish',
+    '(a) `"gypfile": true` in package.json. Kept counted.',
+    { ...JS_LIBRARY, 'package.json': `${JSON.stringify({ name: 'deq', version: '1.0.0', main: 'index.js', gypfile: true, scripts: { test: 'uvu test' }, devDependencies: { uvu: '^0.5.0' } }, null, 2)}\n`, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: npm publish\n') },
+  ],
+  [
+    'review8-b3-pnpm-workspace-publish',
+    '(b) Workspaces declared in pnpm-workspace.yaml, whose members\' lifecycle scripts run. Kept counted.',
+    { ...JS_LIBRARY, 'pnpm-workspace.yaml': "packages:\n  - 'packages/*'\n", '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: pnpm publish --no-git-checks\n') },
+  ],
+  [
+    'review8-b3-uv-sync-path-source',
+    '(c) `uv sync` installs a local path source with a setup.py. Kept counted: no install is admitted.',
+    { ...PY_LIBRARY, 'pyproject.toml': `${PY_LIBRARY['pyproject.toml']}\n[tool.uv.sources]\nhelper = { path = "vendor/helper" }\n`, 'vendor/helper/setup.py': 'from setuptools import setup\nsetup(name="helper")\n', '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: uv sync\n      - run: uv publish\n') },
+  ],
+  [
+    'review8-b3-maturin-build',
+    '(d) A native build backend (maturin) under `python -m build`. Kept counted: no build is admitted.',
+    { ...PY_LIBRARY, 'pyproject.toml': `[build-system]\nrequires = ["maturin>=1.0"]\nbuild-backend = "maturin"\n\n${PY_LIBRARY['pyproject.toml']}`, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: python -m build\n      - run: twine upload dist/*\n') },
+  ],
+  [
+    'review8-b3-quoted-export-node-options',
+    '`export "NODE_OPTIONS=--require ./check.js"` before `npm publish`. Kept counted.',
+    { ...JS_LIBRARY, 'check.js': 'process.exit(0);\n', '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: |\n          export "NODE_OPTIONS=--require ./check.js"\n          npm publish\n') },
+  ],
+  [
+    'review8-b3-softprops-without-files',
+    'softprops/action-gh-release with no `files` uploads nothing. Kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: softprops/action-gh-release@v2\n        with:\n          name: Release\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,
@@ -839,6 +1537,14 @@ export function buildFalseAssuranceFixture(fixture: FalseAssuranceFixture): stri
       mkdirSync(dirname(fullPath), { recursive: true });
       writeFileSync(fullPath, contents, 'utf8');
     }
+    if (index === 0) {
+      for (const [link, subdirectory] of Object.entries(fixture.symlinksToHostDirectory ?? {})) {
+        const host = mkdtempSync(join(tmpdir(), 'cejel-false-assurance-host-'));
+        mkdirSync(join(host, subdirectory), { recursive: true });
+        mkdirSync(dirname(join(dir, link)), { recursive: true });
+        symlinkSync(host, join(dir, link));
+      }
+    }
     git(dir, ['add', '-A']);
     git(dir, [
       'commit',
@@ -849,6 +1555,9 @@ export function buildFalseAssuranceFixture(fixture: FalseAssuranceFixture): stri
       fixture.subjects?.[index] ?? `commit ${index}`,
     ]);
   });
+  for (const directory of fixture.untrackedDirectories ?? []) {
+    mkdirSync(join(dir, directory), { recursive: true });
+  }
   if (!fixture.shallow) return dir;
   const shallow = mkdtempSync(join(tmpdir(), `cejel-false-assurance-${fixture.name}-depth1-`));
   rmSync(shallow, { recursive: true, force: true });

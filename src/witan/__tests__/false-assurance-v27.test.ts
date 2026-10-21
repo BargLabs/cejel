@@ -5,8 +5,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
+import { buildWitanCliSummary } from '../../summary.js';
+import { renderTerminalCertificate } from '../../terminal.js';
+
 import { isGitLfsPointerText, readRepoTextPrefix, trackContentReads } from '../content-reads.js';
 import { SHALLOW_HISTORY_LIMITATION, SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
+import { renderWitanHtmlReport } from '../html.js';
 import { renderWitanMarkdownReport } from '../markdown.js';
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import {
@@ -16,6 +20,7 @@ import {
 } from '../rubric-version.js';
 import {
   FALSE_ASSURANCE_FIXTURES,
+  SYNTHETIC_INDEX_URL_TOKEN,
   buildFalseAssuranceFixture,
   falseAssuranceFixture,
   lfsPointerFor,
@@ -78,21 +83,22 @@ describe('#517 — a workflow that only publishes is not CI depth', () => {
     }
   });
 
-  it('v27: removing the human gate and running on every push does not raise B3', () => {
-    for (const [gated, ungated] of [
-      ['b3-pypi-publish-gated', 'b3-pypi-publish-ungated'],
-      ['b3-npm-publish-gated', 'b3-npm-publish-ungated'],
-    ] as const) {
-      const before = criterion(gated, V27, 'B3');
-      const after = criterion(ungated, V27, 'B3');
-      expect(after.score).toBe(before.score);
-      expect(metricValue(after, 'default_branch_ci_depth')).toBe(
-        metricValue(before, 'default_branch_ci_depth'),
-      );
-      expect(after.notes).toBe(
-        '1 workflow that only publishes, releases or deploys (no pull-request trigger and no verification command Cejel recognises) is not counted as CI verification: ' +
-          `${ungated.startsWith('b3-pypi') ? '.github/workflows/publish.yaml' : '.github/workflows/release.yml'}.`,
-      );
+  it('v27: removing the human gate from an upload-only workflow and running it on every push does not raise B3', () => {
+    const before = criterion('review8-b3-pypi-upload-only-gated', V27, 'B3');
+    const after = criterion('review8-b3-pypi-upload-only-ungated', V27, 'B3');
+    expect(after.score).toBe(before.score);
+    expect(metricValue(after, 'default_branch_ci_depth')).toBe(metricValue(before, 'default_branch_ci_depth'));
+    expect(after.notes).toBe(
+      '1 workflow that only publishes, releases or deploys (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) is not counted as CI verification: .github/workflows/publish.yml.',
+    );
+    expect(criterion('review8-b3-pypi-upload-only-ungated', V17, 'B3').score).toBeGreaterThan(
+      criterion('review8-b3-pypi-upload-only-gated', V17, 'B3').score,
+    );
+  });
+
+  it('v27: the issue\'s own repros build or install before they publish, so they stay counted (a recorded recall reduction)', () => {
+    for (const name of ['b3-pypi-publish-ungated', 'b3-npm-publish-ungated']) {
+      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
     }
   });
 
@@ -451,6 +457,376 @@ describe('third-review findings against the merged implementation stay fixed', (
     expect(read.value[0]).toBe(lfsPointerFor('<html></html>\n'));
     expect(read.summary.byReason.lfsPointer).toBe(1);
     expect(read.summary.skipped).toBe(1);
+  });
+});
+
+// Regression guards for what two post-merge reviews of #533's own fixes reproduced.
+describe('fourth-review findings against #533 stay fixed', () => {
+  const withheld = (name: string): void => {
+    for (const rubricVersion of [V17, V27]) {
+      const a4 = criterion(name, rubricVersion, 'A4');
+      expect(a4.notes ?? '', `${name}@${rubricVersion}`).not.toContain('which exits with an error');
+      expect(a4.evidence[0]?.path ?? '', `${name}@${rubricVersion}`).not.toBe('.github/workflows/ci.yml');
+      expect(metricValue(a4, 'lockfile_coverage'), `${name}@${rubricVersion}`).not.toBe(0);
+    }
+    expect(criterion(name, V27, 'A4'), name).toEqual(criterion(name, V17, 'A4'));
+  };
+
+  it('#520: a guard behind a leading (, { or !, an arithmetic guard, and set +e withhold the claim', () => {
+    for (const name of [
+      'review4-a4-guard-in-subshell',
+      'review4-a4-test-guard-in-subshell',
+      'review4-a4-guard-in-brace-group',
+      'review4-a4-negated-guard',
+      'review4-a4-negated-subshell-guard',
+      'review4-a4-arithmetic-guard',
+      'review4-a4-negated-npm-ci',
+      'review4-a4-set-plus-e-then-npm-test',
+      'review4-a4-cd-inside-subshell',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: a directory or manifest named by a flag that the inventory does not hold withholds the claim', () => {
+    for (const name of [
+      'review4-a4-npm-ci-prefix-outside',
+      'review4-a4-npm-ci-prefix-equals-outside',
+      'review4-a4-pnpm-dir-outside',
+      'review4-a4-pnpm-short-dir-outside',
+      'review4-a4-uv-sync-directory-outside',
+      'review4-a4-uv-run-project-outside',
+      'review4-a4-cargo-manifest-path-outside',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: checkout directories come from the inventory, never the scanning host', () => {
+    for (const name of [
+      'review4-a4-working-directory-through-tracked-symlink',
+      'review4-a4-working-directory-untracked-empty',
+      'review4-a4-cd-wrong-case',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: each workflow-reader rule withholds the claim on its own', () => {
+    for (const name of [
+      'review4-a4-other-repository-checkout-at-root',
+      'review4-a4-artifact-downloaded-first',
+      'review4-a4-run-key-outside-any-step',
+      'review4-a4-run-key-inside-block-body',
+      'review4-a4-run-key-inside-action-script',
+      'review4-a4-job-guard-after-steps',
+      'review4-a4-steps-key-inside-block-body',
+    ]) {
+      withheld(name);
+    }
+  });
+
+  it('#520: a directory or manifest the inventory holds is still followed; an unguarded brace group and block-scalar text are not guards or step boundaries', () => {
+    for (const [name, command, line] of [
+      ['review4-a4-claims-cd-into-tracked-directory', 'npm ci', 11],
+      ['review4-a4-claims-prefix-into-tracked-directory', 'npm ci', 11],
+      ['review4-a4-claims-manifest-path-tracked', 'cargo test --locked', 11],
+      ['review4-a4-claims-after-brace-group', 'npm ci', 13],
+      ['review4-a4-claims-block-indicator-with-comment', 'npm ci', 12],
+      ['review4-a4-claims-dash-line-in-earlier-block', 'npm ci', 15],
+    ] as const) {
+      const v17 = criterion(name, V17, 'A4');
+      expect(v17.notes ?? '', name).toContain(`runs \`${command}\``);
+      expect(v17.evidence[0]?.path, name).toBe('.github/workflows/ci.yml');
+      expect(v17.evidence[0]?.line, name).toBe(line);
+      expect(metricValue(criterion(name, V27, 'A4'), 'lockfile_coverage'), name).toBe(0);
+    }
+  });
+
+  it('#518: a hook that empties items and puts back nothing removes the suite, on one line or two', () => {
+    for (const name of [
+      'review4-a1-hook-empties-and-refills-nothing',
+      'review4-a1-hook-empties-and-refills-nothing-one-line',
+    ]) {
+      const a1 = criterion(name, V27, 'A1');
+      expect(
+        a1.findings.some(({ summary }) => summary.includes('removes every collected test')),
+        name,
+      ).toBe(true);
+      expect(metricValue(a1, 'non_hollow_test_share'), name).toBe(0);
+    }
+  });
+
+  it('#518: a one-line clear-and-extend reorders the run and is not read as removing it', () => {
+    const name = 'review4-a1-hook-reorders-items-one-line';
+    const a1 = criterion(name, V27, 'A1');
+    expect(a1.findings.some(({ summary }) => summary.startsWith('A pytest collection hook'))).toBe(false);
+    expect(metricValue(a1, 'non_hollow_test_share')).toBe(
+      metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+    );
+  });
+});
+
+// Regression guards for what two post-merge review passes of #521 (merged as f5ac02273) reproduced.
+describe('post-merge review findings against #521 stay fixed', () => {
+  const hookClaim = (score: WitanCriterionScore): boolean =>
+    score.findings.some(({ summary }) => summary.startsWith('A pytest collection hook'));
+
+  it('#520: no repository text between a subcommand and its flag reaches any output, under every rubric', () => {
+    for (const [name, command] of [
+      ['review5-a4-credential-between-subcommand-and-flag', 'uv sync … --locked'],
+      ['review5-a4-credential-after-npm-ci', 'npm ci'],
+      ['review5-a4-flag-value-not-quoted', 'pnpm install … --frozen-lockfile'],
+    ] as const) {
+      for (const rubricVersion of [V17, V27]) {
+        const scored = report(name, rubricVersion);
+        const a4 = criterion(name, rubricVersion, 'A4');
+        expect(a4.notes ?? '', `${name}@${rubricVersion}`).toContain(`runs \`${command}\` (`);
+        expect(a4.evidence[0]?.label, `${name}@${rubricVersion}`).toBe(
+          `CI step runs \`${command}\`, which needs ${command.startsWith('uv') ? 'uv.lock' : command.startsWith('npm') ? 'package-lock.json or npm-shrinkwrap.json' : 'pnpm-lock.yaml'}; the scanned inventory holds none`,
+        );
+        const outputs = {
+          'report.json': JSON.stringify(scored),
+          'summary.json': JSON.stringify(buildWitanCliSummary(scored)),
+          'certificate.html': renderWitanHtmlReport(scored),
+          'report.md': renderWitanMarkdownReport(scored),
+          terminal: renderTerminalCertificate(buildWitanCliSummary(scored), scored),
+        };
+        for (const [output, text] of Object.entries(outputs)) {
+          expect(text.includes(SYNTHETIC_INDEX_URL_TOKEN), `${name}@${rubricVersion} ${output}`).toBe(false);
+          expect(text.includes('example.com'), `${name}@${rubricVersion} ${output}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('#520: a command with no words before its flag is quoted exactly as before', () => {
+    const a4 = criterion('a4-uv-locked-lockfile-deleted', V17, 'A4');
+    expect(a4.notes).toContain('runs `uv run --locked` (');
+  });
+
+  it('#519: a pointer with CRLF line endings is a pointer, and nothing looser is', () => {
+    const crlf = (text: string): string => text.replace(/\n/g, '\r\n');
+    expect(isGitLfsPointerText(crlf(lfsPointerFor('test content\n')))).toBe(true);
+    expect(isGitLfsPointerText(crlf(lfsPointerFor('x')).replace(/\r\n$/, ''))).toBe(true);
+    // Mixed endings, a lone CR, and a CRLF text that is not a pointer stay as they were.
+    const mixed = lfsPointerFor('x').replace('\n', '\r\n');
+    expect(isGitLfsPointerText(mixed)).toBe(false);
+    expect(isGitLfsPointerText(lfsPointerFor('x').replace(/\n/g, '\r'))).toBe(false);
+    expect(isGitLfsPointerText(crlf(`# notes\n${lfsPointerFor('x')}`))).toBe(false);
+    expect(
+      isGitLfsPointerText(crlf(`version https://git-lfs.github.com/spec/v1\noid sha256:${'a'.repeat(63)}\nsize 12\n`)),
+    ).toBe(false);
+    expect(isGitLfsPointerText(crlf(`${lfsPointerFor('x')}${'padding\n'.repeat(200)}`))).toBe(false);
+  });
+
+  it('#519: CRLF pointers are counted under every rubric, and v27 abstains on them as on LF pointers', () => {
+    const name = 'review5-a1-js-suite-as-crlf-lfs-pointers';
+    for (const rubricVersion of [V17, WITAN_RUBRIC_VERSION_V26, V27]) {
+      expect(report(name, rubricVersion).contentReadSummary?.byReason.lfsPointer, rubricVersion).toBe(2);
+    }
+    const a1 = criterion(name, V27, 'A1');
+    expect(a1.status).toBe('insufficient_data');
+    expect(a1.score).toBe(0);
+    expect(criterion(name, V17, 'A1').status).toBe(criterion('a1-js-suite-as-lfs-pointers', V17, 'A1').status);
+  });
+
+  it('#518: a skip not applied to the loop variable of a loop over items is not read as skipping every test', () => {
+    for (const name of [
+      'review5-a1-hook-timeout-every-item-skip-one-by-id',
+      'review5-a1-hook-timeout-every-item-skip-first',
+      'review5-a1-hook-skip-inside-nested-loop',
+    ]) {
+      const v17 = criterion(name, V17, 'A1');
+      const v27 = criterion(name, V27, 'A1');
+      expect(hookClaim(v27), name).toBe(false);
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(metricValue(v17, 'non_hollow_test_share'));
+      expect(v27.status, name).toBe(v17.status);
+    }
+  });
+
+  it('#518: a skip applied to every item still claims, inline or as a block', () => {
+    for (const name of ['review5-a1-hook-skip-every-item-inline', 'a1-pytest-hook-skips-every-test']) {
+      const a1 = criterion(name, V27, 'A1');
+      expect(a1.findings.some(({ summary }) => summary.includes('marks every collected test skipped')), name).toBe(true);
+      expect(metricValue(a1, 'non_hollow_test_share'), name).toBe(0);
+    }
+  });
+
+  it('#518: pytestmark is not unconditional when reassigned later or continued onto a condition', () => {
+    for (const name of [
+      'review5-a1-pytestmark-reassigned-under-later-if',
+      'review5-a1-pytestmark-reassigned-later',
+      'review5-a1-pytestmark-backslash-continuation',
+      'review5-a1-pytestmark-bracketed-condition',
+    ]) {
+      const v17 = criterion(name, V17, 'A1');
+      const v27 = criterion(name, V27, 'A1');
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(metricValue(v17, 'non_hollow_test_share'));
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBeGreaterThan(0);
+    }
+    const kept = criterion('review5-a1-pytestmark-skip-unconditional-with-hash-in-reason', V27, 'A1');
+    expect(metricValue(kept, 'non_hollow_test_share')).toBe(0);
+  });
+
+  it('#517: a workflow that runs anything besides setup, packaging and a publish stays counted, and the note never calls it publish-only', () => {
+    for (const name of [
+      'review5-b3-bun-test-then-publish',
+      'review5-b3-pnpm-lint-typecheck-build-then-publish',
+      'review5-b3-cargo-build-release',
+      'review5-b3-publish-word-only-in-comment',
+      'review5-b3-docs-build-publish-word-in-comment',
+      'review5-b3-npm-publish-dry-run',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#517: cargo build keeps B3 its build category under v27', () => {
+    const b3 = criterion('review5-b3-cargo-build-release', V27, 'B3');
+    const depth = b3.metrics.find(({ name }) => name === 'ci_script_depth');
+    expect(depth?.presentation?.components?.find(({ label }) => label === 'repository CI command: build')?.count).toBe(1);
+  });
+
+  it('#517: npx semantic-release is not a publish Cejel admits (it runs configured plugins), so the workflow stays counted', () => {
+    // Changed by the re-run of review pass 1 on #553: this fixture was a publish-only corner.
+    const name = 'review5-b3-semantic-release-after-setup';
+    expect(criterion(name, V27, 'B3')).toEqual(criterion(name, V17, 'B3'));
+    expect(criterion(name, V27, 'B3').notes ?? '').not.toContain('only publish');
+  });
+});
+
+// Regression guards for what review pass 1 of #553 reproduced against its first version.
+describe('review findings against #553 stay fixed', () => {
+  it('#517: a step the reader cannot place, rustup run, changesets with a command input, or a command glued to an admitted word keeps the workflow counted', () => {
+    for (const name of [
+      'review6-b3-flow-mapping-run-step',
+      'review6-b3-flow-mapping-uses-step',
+      'review6-b3-quoted-run-key',
+      'review6-b3-rustup-run-cargo-build',
+      'review6-b3-changesets-publish-input',
+      'review6-b3-command-glued-to-echo',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#517: upload-only workflows, with permissions, with and env, are still publish-only', () => {
+    for (const [name, file] of [
+      ['review8-b3-pypi-upload-only-ungated', '.github/workflows/publish.yml'],
+      ['review8-b3-twine-upload-only', '.github/workflows/publish.yml'],
+      ['review8-b3-npm-publish-without-install', '.github/workflows/release.yml'],
+      ['review8-b3-gh-release-upload', '.github/workflows/release.yml'],
+      ['review7-b3-cargo-publish-no-verify', '.github/workflows/release.yml'],
+    ] as const) {
+      const notes = criterion(name, V27, 'B3').notes ?? '';
+      expect(notes, name).toContain('1 workflow that only publishes, releases or deploys');
+      expect(notes, name).toContain(file);
+    }
+  });
+
+  it('#518: a skip loop in a nested function or a loop that never runs, or a hook redefined later, makes no claim', () => {
+    for (const name of [
+      'review6-a1-hook-loop-in-nested-def',
+      'review6-a1-hook-loop-in-zero-iteration-loop',
+      'review6-a1-hook-redefined-later',
+    ]) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(
+        v27.findings.some(({ summary }) => summary.startsWith('A pytest collection hook')),
+        name,
+      ).toBe(false);
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
+    }
+  });
+
+  it('#518: pytestmark reassigned on the same line, or a skip named only in a string, is not unconditional', () => {
+    for (const name of [
+      'review6-a1-pytestmark-skip-then-reassigned-same-line',
+      'review6-a1-pytestmark-xfail-reason-names-skip',
+    ]) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBeGreaterThan(0);
+    }
+  });
+});
+
+// Regression guards for what the re-run of review pass 1 on #553 reproduced.
+describe('re-run review findings against #553 stay fixed', () => {
+  it('#517: a command that runs repository-configured code, a code-loading variable, or an unnamed setup action keeps the workflow counted', () => {
+    for (const name of [
+      'review7-b3-prepublishonly-script',
+      'review7-b3-prepare-script',
+      'review7-b3-npmrc-present',
+      'review7-b3-semantic-release-with-config',
+      'review7-b3-goreleaser-cli-with-hooks',
+      'review7-b3-cargo-publish-verifies',
+      'review7-b3-node-options-leading',
+      'review7-b3-node-options-exported',
+      'review7-b3-echo-into-github-env',
+      'review7-b3-step-env-ld-preload',
+      'review7-b3-step-env-pythonpath-twine',
+      'review9-b3-step-env-ld-audit-twine',
+      'review7-b3-python-build-runs-setup-py',
+      'review7-b3-third-party-setup-action',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#518: a clear in a nested function or a loop, or a hook name bound elsewhere, makes no claim', () => {
+    for (const name of [
+      'review7-a1-hook-clear-in-nested-def',
+      'review7-a1-hook-clear-in-zero-iteration-loop',
+      'review7-a1-hook-clear-in-loop-over-other-iterable',
+      'review7-a1-hook-conditional-redefinition',
+      'review7-a1-hook-rebound-by-assignment',
+    ]) {
+      const v27 = criterion(name, V27, 'A1');
+      expect(
+        v27.findings.some(({ summary }) => summary.startsWith('A pytest collection hook')),
+        name,
+      ).toBe(false);
+      expect(metricValue(v27, 'non_hollow_test_share'), name).toBe(
+        metricValue(criterion(name, V17, 'A1'), 'non_hollow_test_share'),
+      );
+    }
+  });
+});
+
+// Regression guards for the second re-run of review pass 1 on #553 and the narrower rule it led to.
+describe('publish-only means checkout, credentials and an upload of a built artifact', () => {
+  it('#517: native addons, pnpm workspaces, installs, builds, a quoted code-loading export, or a release with no files keep the workflow counted', () => {
+    for (const name of [
+      'review8-b3-binding-gyp-publish',
+      'review8-b3-gypfile-publish',
+      'review8-b3-pnpm-workspace-publish',
+      'review8-b3-uv-sync-path-source',
+      'review8-b3-maturin-build',
+      'review8-b3-quoted-export-node-options',
+      'review8-b3-softprops-without-files',
+    ]) {
+      const v27 = criterion(name, V27, 'B3');
+      expect(v27, name).toEqual(criterion(name, V17, 'B3'));
+      expect(v27.notes ?? '', name).not.toContain('only publish');
+    }
+  });
+
+  it('#517: a workflow that installs before it publishes, or uses changesets, is counted (recorded recall reductions)', () => {
+    for (const name of ['review6-b3-changesets-without-command-inputs', 'review5-b3-semantic-release-after-setup']) {
+      expect(criterion(name, V27, 'B3'), name).toEqual(criterion(name, V17, 'B3'));
+    }
   });
 });
 

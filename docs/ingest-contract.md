@@ -94,12 +94,14 @@ version may do; nothing in `1.0` changed.
 ```
 
 - `subject.repository`: optional string, the repository the producer read. Compared after
-  normalization to `host/path`, lowercase, without scheme, credentials, port or `.git`.
+  normalization to `host/path`, lowercase, without scheme, credentials, port or `.git`. A value
+  that does not normalize (an IP or single-label host, no path) is withheld, never recorded; see
+  [input binding](input-binding.md).
 - `subject.commit`: optional, 7 to 64 hexadecimal characters. A 40- or 64-character id is compared
   exactly with the scanned HEAD; a shorter one is compared as a prefix.
 - `producer.name` and `producer.version`: optional strings. `producer.name` defaults to `tool`.
 - `observedAt`: optional RFC 3339 date-time with an offset, the time the producer observed the
-  subject.
+  subject. A value whose UTC form falls outside years 0000-9999 is treated as not declared.
 
 These fields are read only from a document that declares minor `1` or later. Under `1.0` they were
 unknown fields a consumer had to ignore, so a `1.0` document carrying a field of the same name in

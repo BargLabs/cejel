@@ -150,6 +150,80 @@ const LONG_WORKFLOW_FIXTURE: Record<string, string> = {
   '.github/workflows/keys.yml': `${WORKFLOW_HEAD}${'        run: npm ci\n'.repeat(STEP_COUNT)}`,
 };
 
+// #520 (fourth review, of #533): the reader then rescanned each step's extent for a guard key and
+// each job's extent for a job guard, once per step and once per job, so its cost was the nesting
+// depth times the file size, not linear as #533 said: 990 nested `- run:` items padded to 511 KB
+// took 1.3 s per file under v17, and 16 such files 18.1 s. The flat shape above never nests. Each
+// workflow here is just under the content size limit; half nest list items, half nest `steps:`
+// keys (one job per level). `npm install` first means no step is claimed, so every file is read.
+const NESTED_LIMIT = 511_000;
+const NESTED_HEAD = 'name: ci\non: push\njobs:\n  t:\n    steps:\n      - run: npm install\n';
+function nestedWorkflow(levels: readonly string[], tailIndent: number): string {
+  const body = `${NESTED_HEAD}${levels.join('')}`;
+  const tail = `${' '.repeat(tailIndent)}x\n`;
+  return `${body}${tail.repeat(Math.max(0, Math.floor((NESTED_LIMIT - body.length) / tail.length)))}`;
+}
+const NESTED_ITEMS = 990;
+const NESTED_STEPS_KEYS = 490;
+const NESTED_ITEMS_WORKFLOW = nestedWorkflow(
+  Array.from({ length: NESTED_ITEMS }, (_, depth) => `${' '.repeat(6 + depth)}- run: npm ci\n`),
+  6 + NESTED_ITEMS + 2,
+);
+const NESTED_STEPS_KEYS_WORKFLOW = nestedWorkflow(
+  Array.from(
+    { length: NESTED_STEPS_KEYS },
+    (_, depth) => `${' '.repeat(6 + 2 * depth)}steps:\n${' '.repeat(7 + 2 * depth)}- run: npm ci\n`,
+  ),
+  6 + 2 * NESTED_STEPS_KEYS + 2,
+);
+const NESTED_WORKFLOW_FILES = 8;
+const NESTED_WORKFLOW_FIXTURE: Record<string, string> = {
+  'package.json': '{"name":"nested","version":"1.0.0","dependencies":{"zod":"^3.0.0"}}\n',
+  'index.js': 'export const a = 1;\n',
+  ...Object.fromEntries(
+    Array.from({ length: NESTED_WORKFLOW_FILES }, (_, index) => [
+      `.github/workflows/nested-${index}.yml`,
+      index % 2 === 0 ? NESTED_ITEMS_WORKFLOW : NESTED_STEPS_KEYS_WORKFLOW,
+    ]),
+  ),
+};
+
+// #520 (found while fixing the fourth review): #533 trimmed a `cd` target and a `working-directory`
+// value with `.replace(/\/+$/, '')`, which retries the slash run from every position in it, so a
+// run of slashes not at the end of the value is quadratic: a 480,000-slash value followed by one
+// letter took about 80 s per workflow on #533. Directory paths are now trimmed by a loop.
+const SLASH_RUN = `${'/'.repeat(LINE_BYTES)}a`;
+const SLASH_RUN_FIXTURE: Record<string, string> = {
+  'package.json': '{"name":"slashes","version":"1.0.0","dependencies":{"zod":"^3.0.0"}}\n',
+  'index.js': 'export const a = 1;\n',
+  '.github/workflows/cd.yml': `${WORKFLOW_HEAD}      - run: cd ${SLASH_RUN}\n`,
+  '.github/workflows/wd.yml': `${WORKFLOW_HEAD}      - run: npm ci\n        working-directory: ${SLASH_RUN}\n`,
+};
+
+// The readers the post-merge review of #521 added (v27): the publish-only step classifier, the
+// collection-hook loop tie, and the multi-line pytestmark reader. A run of 120,000 environment
+// assignments before `npm publish` took about 23 s when each was dropped with a fresh array slice.
+const PUBLISH_ONLY_ASSIGNMENTS = 'X=1 '.repeat(120_000);
+const PUBLISH_ONLY_RUNNER_FLAGS = '-y '.repeat(150_000);
+const NESTED_HOOK_LOOPS = Array.from({ length: 900 }, (_, depth) => `${' '.repeat(4 + depth)}for item in items:\n`).join('');
+const REVIEW_521_READER_FIXTURE: Record<string, string> = {
+  'package.json': '{"name":"readers","version":"1.0.0","dependencies":{"zod":"^3.0.0"}}\n',
+  'index.js': 'export const a = 1;\n',
+  'pyproject.toml': `[project]\nname = "readers"\nversion = "1.0.0"\ndependencies = []\n${'[tool.hatch.build.targets.wheelx\n'.repeat(14_000)}`,
+  'tests/test_a.py': `import pytest\npytestmark = pytest.mark.skip(\n${'(\n'.repeat(200_000)}def test_a():\n    assert 1\n`,
+  'tests/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n${NESTED_HOOK_LOOPS}`,
+  // Review of #553: an unclosed quote run of escaped quotes inside a `for item in items:` loop.
+  'tests/unclosed/conftest.py': `import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        x = '${"a\\'".repeat(160_000)}\n`,
+  '.github/workflows/assignments.yml': `${WORKFLOW_HEAD}      - run: ${PUBLISH_ONLY_ASSIGNMENTS}npm publish\n`,
+  '.github/workflows/runner-flags.yml': `${WORKFLOW_HEAD}      - run: npx ${PUBLISH_ONLY_RUNNER_FLAGS}semantic-release\n`,
+  // The repository read a publish-only workflow triggers (review of #553): the root manifest, for
+  // npm lifecycle scripts, when the workflow publishes with npm. The Python workflow is not
+  // admitted (a build), and its 14,000-line pyproject.toml is read by the other criteria.
+  '.github/workflows/package-check.yml': `${WORKFLOW_HEAD}      - run: npm publish\n`,
+  '.github/workflows/python-check.yml': `${WORKFLOW_HEAD}      - run: python -m build\n      - run: twine upload dist/x\n`,
+  'tests/bound/conftest.py': `def pytest_collection_modifyitems(items):\n${'    items.clear()\n'.repeat(28_000)}`,
+};
+
 describe('timing guards: the real scan finishes on pathological repository input', () => {
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
     'CI lines and a conftest whitespace run just under the content limit — %s',
@@ -164,6 +238,39 @@ describe('timing guards: the real scan finishes on pathological repository input
     'workflows of 24,000 steps in one job and 24,000 `run:` keys outside a list — %s',
     (rubric) => {
       const scan = scanInChild(makeRepo(LONG_WORKFLOW_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    `${NESTED_WORKFLOW_FILES} workflows just under the content limit, of ${NESTED_ITEMS} nested list items or ${NESTED_STEPS_KEYS} nested \`steps:\` keys — %s`,
+    (rubric) => {
+      expect(NESTED_ITEMS_WORKFLOW.length).toBeLessThan(512_000);
+      expect(NESTED_STEPS_KEYS_WORKFLOW.length).toBeLessThan(512_000);
+      expect(NESTED_STEPS_KEYS_WORKFLOW.length).toBeGreaterThan(500_000);
+      const scan = scanInChild(makeRepo(NESTED_WORKFLOW_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'a `cd` target and a `working-directory` of 480,000 slashes before a letter — %s',
+    (rubric) => {
+      const scan = scanInChild(makeRepo(SLASH_RUN_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'a publish step behind 120,000 assignments or 150,000 runner flags, 900 nested hook loops, an unclosed run of escaped quotes in a hook loop, and a 200,000-line pytestmark — %s',
+    (rubric) => {
+      for (const contents of Object.values(REVIEW_521_READER_FIXTURE)) {
+        expect(contents.length).toBeLessThan(512_000);
+      }
+      const scan = scanInChild(makeRepo(REVIEW_521_READER_FIXTURE), rubric);
       expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
     },
     KILL_AFTER_MS + 10_000,

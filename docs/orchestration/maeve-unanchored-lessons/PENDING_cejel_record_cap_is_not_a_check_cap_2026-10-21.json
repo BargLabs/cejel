@@ -1,0 +1,27 @@
+[
+  {
+    "statement": "A cap on what a record stores must never cap what is checked, and fields attached after a schema parse must be re-validated before writing. Cejel #525 (input binding, report format 1.7) merged unreviewed; two post-merge passes found: checks ran over only the 8 subjects kept for the record, so a foreign subject past the cap gave matched under --strict-ingest; an un-normalizable repository URL fell back to its raw text, writing userinfo credentials into report.json; inputBinding was attached after WitanReportSchema.parse, so expanded-year times and 384 records gave reports cejel verify rejected; and a plain-object lookup on an ingested ruleId (constructor) crashed every scan (src/witan/input-binding.ts, input-binding-presentation.ts, public-scan.ts at 1d0d4388d). Rules: compare over the full declared set, truncate only the record and count what was dropped; on normalization failure record nothing, never the raw value; validate the final artifact, not an intermediate.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "claim-hygiene",
+      "reviewer-error"
+    ],
+    "tags": [
+      "record-cap",
+      "check-coverage",
+      "credential-leak",
+      "schema-validation",
+      "prototype-lookup"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 547
+    }
+  }
+]

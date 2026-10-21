@@ -45,7 +45,9 @@ import {
 } from './content-reads.js';
 
 import {
+  WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
+  WITAN_B3_UNSHOWN_CHECK_PREFIX,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
   WITAN_AUTHENTICATED_A1_ABSENCE_SUMMARY,
@@ -83,6 +85,17 @@ import {
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
+import {
+  stripFromQueryOrFragment,
+  stripHashCommentAtStartOrAfterBlank,
+  stripTrailingCloseParentheses,
+  stripTrailingHashComment,
+  stripTrailingSlashes,
+  hasScheduleCronTrigger,
+  isShellScriptPath,
+  execOnTerminatorFreeLine,
+  firstVersionConstraint,
+} from './linear-strips.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
@@ -282,6 +295,9 @@ function wholesaleCriterionAbstention(
     metrics: [],
     insufficientData: true as const,
     ...(insufficientDataReason !== undefined ? { insufficientDataReason } : {}),
+    // What the collector read and set aside is still true of the content it did read. B3's names
+    // workflows in a count this abstention removes, so it goes with the count.
+    ...withoutCountDisclosures(signal.disclosures),
     notes:
       insufficientDataReason !== undefined
         ? 'Cejel abstained on this criterion because relevant repository content was declined under the repository content size limit or excluded from scanning by policy. This is a disclosed coverage limit, not a read failure, and does not affect the composite score.'
@@ -289,6 +305,11 @@ function wholesaleCriterionAbstention(
           ? 'Cejel abstained on this criterion because relevant files in this checkout are Git LFS pointers, so their content was not read. Fetch the LFS content (git lfs pull) and re-scan.'
           : 'Cejel abstained on this criterion because one or more relevant repository files could not be read. Resolve the content-read limitations and re-scan.',
   };
+}
+
+function withoutCountDisclosures(disclosures: readonly string[] | undefined): { disclosures?: string[] } {
+  const kept = (disclosures ?? []).filter((text) => !text.startsWith(WITAN_B3_UNSHOWN_CHECK_PREFIX));
+  return kept.length > 0 ? { disclosures: kept } : {};
 }
 
 /** Union of every skip reason recorded against a criterion, whether unattributed or signal-scoped. */
@@ -2209,7 +2230,7 @@ function collectA1TestIntegrityEvidence(
   // its result to nothing but an ephemeral CI artifact earns the warning.
   const scheduledHealthWorkflow = ciWorkflows.find(
     (file) =>
-      fileContains(repoPath, file, SCHEDULE_TRIGGER_PATTERN) &&
+      fileSatisfies(repoPath, file, hasScheduleCronTrigger) &&
       fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN) &&
       (!useV36Detectors ||
         SCHEDULED_HEALTH_PATH_PATTERN.test(file) ||
@@ -2552,10 +2573,11 @@ function collectA2IsolationEvidence(
   // of a finding that genuinely depends on file content (goal_cejel_v23_instrument_all_
   // criteria_2026-09-07) — an unreadable file here must abstain the committed-secret finding
   // and the secret_cleanliness metric, never silently report "clean" from a file it never saw.
-  const { committedSecret, ambiguousSecret, currentSecretFingerprintsByPath } =
+  const { committedSecret, ambiguousSecret, currentSecretFingerprintsByPath, placeholderSetAside } =
     withContentReadSignal('A2', 'secret_cleanliness', () => {
       let match_: { path: string; match: RealSecretAssignmentMatch } | undefined;
       let ambiguous_: { path: string; match: RealSecretAssignmentMatch } | undefined;
+      const setAsideFiles: PlaceholderSetAsideFile[] = [];
       for (const path of repoFiles) {
         // v24: the credential-specific path exemptions do not decide this scan. The shared
         // non-production/generated/vendor inventory rule (isAuthoredProductionPath) is unchanged
@@ -2576,6 +2598,7 @@ function collectA2IsolationEvidence(
         ) {
           continue;
         }
+        const setAside: PlaceholderSetAsideCount = { count: 0 };
         if (useV24SecretContentContext) {
           const classified = findV24ClassifiedSecretInFile(
             repoPath,
@@ -2583,7 +2606,9 @@ function collectA2IsolationEvidence(
             useV36Detectors,
             useV39Detectors,
             useV47Detectors,
+            setAside,
           );
+          if (setAside.count > 0) setAsideFiles.push({ path, count: setAside.count });
           if (!classified) continue;
           if (classified.classification === 'real') {
             match_ = { path, match: classified.match };
@@ -2599,7 +2624,9 @@ function collectA2IsolationEvidence(
           useV39Detectors,
           useV47Detectors,
           useV23PemPrivateKeyGrammar,
+          setAside,
         );
+        if (setAside.count > 0) setAsideFiles.push({ path, count: setAside.count });
         if (!found) continue;
         match_ = { path, match: found };
         break;
@@ -2631,6 +2658,9 @@ function collectA2IsolationEvidence(
         // unclassifiable value to withhold a metric a confirmed leak already decided.
         ambiguousSecret: match_ ? undefined : ambiguous_,
         currentSecretFingerprintsByPath: fingerprintsByPath,
+        // Only a scan that read every eligible file can say what it set aside; one that stopped at
+        // a confirmed secret did not, and the certificate already reports that secret.
+        placeholderSetAside: match_ ? [] : setAsideFiles,
       };
     });
   // Current-tree and ancestor-history evidence are independent propositions. A current secret
@@ -2712,10 +2742,13 @@ function collectA2IsolationEvidence(
     !hasConfirmedSecretFinding &&
     !cryptoHygiene.hasSurface
   ) {
-    return buildNotApplicableSignal(
-      'A2',
-      'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
-    );
+    return {
+      ...buildNotApplicableSignal(
+        'A2',
+        'No data layer (DB/ORM/migrations) or ratable secrets surface detected — A2 not applicable to this repo archetype. A ratable surface requires .env* files, .gitignore .env rule, committed/history .env path, or detected signing/HMAC/secret-comparison code; bare env reads (process.env / os.environ / std::env::) do not qualify.',
+      ),
+      ...placeholderSetAsideDisclosures(placeholderSetAside),
+    };
   }
 
   // Push at least one evidence anchor so evidenceCount > 0 after the full evidence-collection
@@ -2833,7 +2866,12 @@ function collectA2IsolationEvidence(
   if (gitignoreEnvFile) {
     withContentReadSignal('A2', 'env_handling_depth', () =>
       evidence.push(
-        evidenceForRelative(repoPath, gitignoreEnvFile, 'secret_scan', '.env files are gitignored'),
+        evidenceForRelative(
+          repoPath,
+          gitignoreEnvFile,
+          'secret_scan',
+          gitignoreEnvRuleLabel(repoFiles.filter(isCommittedEnvFormatPath)),
+        ),
       ),
     );
   }
@@ -3081,6 +3119,10 @@ function collectA2IsolationEvidence(
             isMultiTenant ? 0.25 : 0.7,
             'clean',
             'Credits absence of committed or recent-history secret findings in the static scan.',
+            undefined,
+            secretCleanliness === 1 && placeholderSetAside.length > 0
+              ? { condition: placeholderSetAsideCondition(placeholderSetAside) }
+              : undefined,
           ),
         ]),
     metric(
@@ -3175,7 +3217,40 @@ function collectA2IsolationEvidence(
         : []),
       ...(tenantIsolationUnsettled ? [WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE] : []),
     ].join(' '),
+    ...placeholderSetAsideDisclosures(placeholderSetAside),
   };
+}
+
+// A committed file in env format that is not a template: `.env`, `.env.<name>` or `<name>.env`.
+// The template rule is the widest one any rubric uses, so a template is never called a committed
+// env file. Presentation only (the gitignore citation below); A2's surface and metrics are
+// unchanged.
+function isCommittedEnvFormatPath(path: string): boolean {
+  const name = basename(path);
+  // Neither test covers the other: isEnvTemplatePath also knows `.dist` and the v47 translated
+  // suffixes but only as the final suffix of a `.env` name; the word test also catches
+  // `example.env` and `.env.example.local`, which isEnvTemplatePath does not.
+  return (
+    /^\.env(?:\..+)?$|.\.env$/i.test(name) &&
+    !isEnvTemplatePath(path, true) &&
+    !/(?:example|sample|template)/i.test(name)
+  );
+}
+
+// A .gitignore rule does not untrack a committed file, so ".env files are gitignored" is not cited
+// beside an env file the scanned tree still holds; the citation names that file instead. "Scanned
+// tree", not "committed": a scan without git walks the directory. Only the label changes: the
+// evidence pointer and the env_handling_depth component it supports stay.
+function gitignoreEnvRuleLabel(committedEnvFiles: readonly string[]): string {
+  const count = committedEnvFiles.length;
+  if (count === 0) return '.env files are gitignored';
+  const lead = `.gitignore has an .env rule, but the scanned tree includes ${count} env file${count === 1 ? '' : 's'}`;
+  for (let shown = Math.min(count, 2); shown > 0; shown -= 1) {
+    const more = count - shown;
+    const label = `${lead}: ${committedEnvFiles.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}`;
+    if (label.length <= EVIDENCE_LABEL_MAX_LENGTH) return label;
+  }
+  return lead;
 }
 
 interface CryptoHygieneSignal {
@@ -4080,15 +4155,22 @@ function collectA4DependencyEvidence(
   // everything the scan knows of: the inventory, the monorepo root, and the paths the file walk
   // withheld (a lockfile over the size limit is still committed). Lockfiles A4 does not count
   // (bun.lock, Gemfile.lock, ...) still satisfy the command that reads them.
-  const knownPaths = [
-    ...repoFiles,
-    ...(mono?.sharedFiles ?? []),
-    ...withheldRepoPaths().map(({ path }) => path),
-  ];
+  //
+  // Which directories the checkout holds is decided from the same inventory, never from the
+  // working tree: the scanned paths and the withheld paths, both relative to the scan root. A
+  // tracked symlink is a withheld path, never a directory; an untracked directory is not in the
+  // checkout a runner makes; and the comparison is exact-case, as on a Linux runner. The monorepo
+  // root's shared files are left out of this one set: they are relative to a different root, so
+  // they could only add directories this checkout may not hold.
+  const checkoutPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
+  const knownPaths = [...checkoutPaths, ...(mono?.sharedFiles ?? [])];
   const knownBasenames = new Set(knownPaths.map((path) => basename(path)));
   const findRequirement = () =>
-    findLockfileRequirement(repoPath, repoFiles.filter(isGitHubActionsWorkflow), (lockfiles) =>
-      lockfiles.some((name) => knownBasenames.has(name)),
+    findLockfileRequirement(
+      repoPath,
+      repoFiles.filter(isGitHubActionsWorkflow),
+      checkoutInventory(checkoutPaths),
+      (lockfiles) => lockfiles.some((name) => knownBasenames.has(name)),
     );
   const lockfileRequirement =
     hasLockfile || !manifest
@@ -4280,6 +4362,13 @@ interface LockfileRequiringCommand {
   readonly lockfiles: readonly string[];
   /** Subcommands that write the lockfile when run without one of `flags` (`npm install`, ...). */
   readonly generators: readonly string[];
+  /**
+   * Flags that point the command at another directory (`npm ci --prefix sub`). A short flag also
+   * takes its value glued on (`-Csub`).
+   */
+  readonly directoryFlags: readonly string[];
+  /** Flags that point the command at a manifest file in another directory (`--manifest-path`). */
+  readonly manifestFlags: readonly string[];
 }
 
 const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
@@ -4289,6 +4378,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: null,
     lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'],
     generators: ['install', 'i', 'add', 'update', 'up'],
+    directoryFlags: ['--prefix', '-C'],
+    manifestFlags: [],
   },
   {
     tool: 'pnpm',
@@ -4296,6 +4387,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--frozen-lockfile'],
     lockfiles: ['pnpm-lock.yaml'],
     generators: ['install', 'i', 'add', 'update', 'up'],
+    directoryFlags: ['--dir', '-C'],
+    manifestFlags: [],
   },
   {
     tool: 'uv',
@@ -4303,6 +4396,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--locked', '--frozen'],
     lockfiles: ['uv.lock'],
     generators: ['run', 'sync', 'lock', 'add'],
+    directoryFlags: ['--directory', '--project'],
+    manifestFlags: [],
   },
   {
     tool: 'cargo',
@@ -4310,6 +4405,8 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--locked', '--frozen'],
     lockfiles: ['Cargo.lock'],
     generators: ['build', 'test', 'check', 'clippy', 'doc', 'run', 'bench', 'generate-lockfile', 'update'],
+    directoryFlags: ['-C'],
+    manifestFlags: ['--manifest-path'],
   },
   {
     tool: 'poetry',
@@ -4317,12 +4414,15 @@ const LOCKFILE_REQUIRING_COMMANDS: readonly LockfileRequiringCommand[] = [
     flags: ['--lock'],
     lockfiles: ['poetry.lock'],
     generators: ['lock', 'install', 'add', 'update'],
+    directoryFlags: ['--directory', '-C', '--project', '-P'],
+    manifestFlags: [],
   },
 ];
 
 // Shell words that make a step's commands depend on something: a requirement inside such a step is
 // not stated by the repository unconditionally (`if [ -f package-lock.json ]; then npm ci; fi`).
-// Read only in command position: `npm test` and `cargo test --locked` are not conditionals.
+// Read only in command position, which is after any leading `(`, `{` or `!` (commandHead):
+// `npm test` and `cargo test --locked` are not conditionals, `( test -n "$X" && npm ci )` is.
 const CONDITIONAL_SHELL_WORDS = new Set([
   'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', '[', '[[', 'test', 'while', 'until', 'for',
   'do', 'done',
@@ -4370,22 +4470,76 @@ function shellCommands(line: string): string[][] {
   return commands.filter((command) => command.length > 0);
 }
 
-/** The command only when the tool is in command position (not an argument to echo, a heredoc, ...). */
+// Stands in for the words between a matched subcommand and its flag, which are never quoted.
+const OMITTED_COMMAND_WORDS_MARKER = '…';
+
+/**
+ * The command only when the tool is in command position (not an argument to echo, a heredoc, ...).
+ *
+ * What is returned is quoted in A4's note and evidence label under every rubric, so it is built
+ * from the rule's own words only: the tool, the subcommand and the flag's name, never repository
+ * text. Any words between the subcommand and the flag become OMITTED_COMMAND_WORDS_MARKER, and a
+ * flag's `=value` is dropped. Those words can carry a credential (`uv sync --extra-index-url
+ * https://user:token@host --locked`), and A4 has no redaction of its own.
+ */
 function matchLockfileRequiringCommand(
   words: readonly string[],
   rule: LockfileRequiringCommand,
 ): string | undefined {
   if (words[0] !== rule.tool) return undefined;
-  const subcommand = words[1];
-  if (subcommand === undefined || !rule.subcommands.includes(subcommand)) return undefined;
-  if (rule.flags === null) return [rule.tool, subcommand].join(' ');
+  const subcommand = rule.subcommands.find((candidate) => candidate === words[1]);
+  if (subcommand === undefined) return undefined;
+  if (rule.flags === null) return `${rule.tool} ${subcommand}`;
   const flags = rule.flags;
   // Flags after `--` belong to the program being run, not to the tool.
   const end = words.indexOf('--');
   const own = end === -1 ? words.slice(2) : words.slice(2, end);
-  const flagIndex = own.findIndex((word) => flags.includes(word.split('=')[0] ?? word));
-  if (flagIndex === -1) return undefined;
-  return [rule.tool, subcommand, ...own.slice(0, flagIndex + 1)].join(' ');
+  for (const [index, word] of own.entries()) {
+    const flag = flags.find((candidate) => candidate === (word.split('=')[0] ?? word));
+    if (flag === undefined) continue;
+    return `${rule.tool} ${subcommand}${index > 0 ? ` ${OMITTED_COMMAND_WORDS_MARKER}` : ''} ${flag}`;
+  }
+  return undefined;
+}
+
+/**
+ * A command's first word once leading `(`, `{` and `!` are peeled off (`( [ -n "$X" ] && npm ci )`,
+ * `{ test -f x && npm ci; }`), and the index its arguments start at. `inverted` is set by a `!` and
+ * by an arithmetic `((`: the exit status of what follows is negated or computed, not the command's.
+ * Plain character scanning, linear in the words.
+ */
+function commandHead(words: readonly string[]): {
+  readonly word: string;
+  readonly argsFrom: number;
+  readonly inverted: boolean;
+} {
+  let inverted = false;
+  for (let index = 0; index < words.length; index += 1) {
+    const raw = words[index] ?? '';
+    let lead = 0;
+    while (lead < raw.length && (raw[lead] === '(' || raw[lead] === '{' || raw[lead] === '!')) lead += 1;
+    const prefix = raw.slice(0, lead);
+    if (prefix.includes('!') || prefix.includes('((')) inverted = true;
+    if (lead < raw.length) return { word: raw.slice(lead), argsFrom: index + 1, inverted };
+  }
+  return { word: '', argsFrom: words.length, inverted };
+}
+
+/**
+ * True when a command makes what follows it depend on something (`if`, `[`, `test`, ... in command
+ * position, after any `(`, `{` or `!`), inverts an exit status (`!`, `((`), or lets a failing
+ * command pass the step (`set +e`, `set +o errexit`).
+ */
+function isConditionalShellCommand(words: readonly string[]): boolean {
+  const head = commandHead(words);
+  if (head.inverted || CONDITIONAL_SHELL_WORDS.has(head.word)) return true;
+  if (head.word !== 'set') return false;
+  const args = words.slice(head.argsFrom);
+  return args.some(
+    (arg, index) =>
+      (arg === '+o' && args[index + 1] === 'errexit') ||
+      (arg.length > 1 && arg.startsWith('+') && /^[A-Za-z]+$/.test(arg.slice(1)) && arg.includes('e')),
+  );
 }
 
 interface WorkflowRunStep {
@@ -4403,6 +4557,10 @@ const IF_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?if:/;
 const CONTINUE_ON_ERROR_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*(.*)$/;
 const STEPS_KEY_PATTERN = /^[ \t]*steps:[ \t]*$/;
 const LIST_ITEM_PATTERN = /^[ \t]*-[ \t]/;
+// A key whose value is a `|` or `>` block scalar, optionally followed by a comment. The key is a
+// run of characters up to the line's first `:`, so the match is linear in the line.
+const BLOCK_SCALAR_KEY_PATTERN = /^[ \t]*(?:-[ \t]+)?[^\s:#'"-][^:]*:[ \t]*[|>][-+0-9]*(?:[ \t]+(?:#.*)?)?$/;
+const BLOCK_SCALAR_VALUE_PATTERN = /^[|>][-+0-9]*$/;
 
 function lineIndent(line: string): number {
   return line.length - line.trimStart().length;
@@ -4417,23 +4575,44 @@ function isStepOrJobGuard(line: string): boolean {
   return value !== 'false';
 }
 
+/** The column a key starts at: `- run:` keys sit two columns inside their item's dash. */
+function workflowKeyIndent(line: string, indent: number): number {
+  return indent + (line.trimStart().startsWith('-') ? 2 : 0);
+}
+
 /**
- * For each line, the index of the next non-blank line whose indent is at most (`orEqual`) or
- * strictly below its own; `lines.length` where there is none. One pass with a stack.
+ * For each line, whether it is text inside a `|` / `>` block scalar: the shell of a `run:` body, a
+ * script passed to an action, a heredoc. Such a line is never read as a workflow key. One pass:
+ * each block is walked once, from its key to the first non-blank line no deeper than the key.
  */
-function nextDedentIndexes(lines: readonly string[], orEqual: boolean): number[] {
-  const next = new Array<number>(lines.length).fill(lines.length);
-  const open: number[] = [];
+function blockScalarBodyLines(lines: readonly string[], indents: readonly number[]): boolean[] {
+  const body = new Array<boolean>(lines.length).fill(false);
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
-    if (raw.trim() === '') continue;
-    const indent = lineIndent(raw);
-    while (open.length > 0) {
-      const top = open[open.length - 1] ?? 0;
-      const topIndent = lineIndent(lines[top] ?? '');
-      if (orEqual ? topIndent < indent : topIndent <= indent) break;
-      next[top] = index;
-      open.pop();
+    if (!BLOCK_SCALAR_KEY_PATTERN.test(raw)) continue;
+    const keyIndent = workflowKeyIndent(raw, indents[index] ?? 0);
+    let next = index + 1;
+    for (; next < lines.length; next += 1) {
+      if ((lines[next] ?? '').trim() !== '' && (indents[next] ?? 0) <= keyIndent) break;
+      body[next] = true;
+    }
+    index = next - 1;
+  }
+  return body;
+}
+
+/**
+ * For each structural line, the index of the next structural line whose indent is at most its own;
+ * `lines.length` where there is none. One pass with a stack of open lines.
+ */
+function nextAtOrBelowIndexes(structural: readonly boolean[], indents: readonly number[]): number[] {
+  const next = new Array<number>(structural.length).fill(structural.length);
+  const open: number[] = [];
+  for (let index = 0; index < structural.length; index += 1) {
+    if (!structural[index]) continue;
+    const indent = indents[index] ?? 0;
+    while (open.length > 0 && (indents[open[open.length - 1] ?? 0] ?? 0) >= indent) {
+      next[open.pop() ?? 0] = index;
     }
     open.push(index);
   }
@@ -4441,105 +4620,115 @@ function nextDedentIndexes(lines: readonly string[], orEqual: boolean): number[]
 }
 
 /**
+ * For each structural line, the least indent of a guard key in its extent: the line itself and
+ * every following line deeper than it, which is the extent `nextAtOrBelowIndexes` ends. The same
+ * stack pass: a line's least guard indent is folded into the line below it on the stack when it
+ * closes, so every line is visited once whatever the nesting depth.
+ */
+function leastGuardIndentWithin(
+  structural: readonly boolean[],
+  indents: readonly number[],
+  isGuard: readonly boolean[],
+): number[] {
+  const least = new Array<number>(structural.length).fill(Number.POSITIVE_INFINITY);
+  const open: number[] = [];
+  const close = (): void => {
+    const top = open.pop() ?? 0;
+    const below = open[open.length - 1];
+    if (below !== undefined) least[below] = Math.min(least[below] ?? 0, least[top] ?? 0);
+  };
+  for (let index = 0; index < structural.length; index += 1) {
+    if (!structural[index]) continue;
+    const indent = indents[index] ?? 0;
+    while (open.length > 0 && (indents[open[open.length - 1] ?? 0] ?? 0) >= indent) close();
+    if (isGuard[index]) least[index] = indent;
+    open.push(index);
+  }
+  while (open.length > 0) close();
+  return least;
+}
+
+/**
  * The `run:` steps of a GitHub Actions workflow, read by indentation: a one-line value, or a `|` /
  * `>` block. A step is conditional when an `if:` or `continue-on-error:` key sits in the step
- * itself or at its job's level. Anything the reader cannot place is not claimed from. Linear in
- * the file: each lookup below is a precomputed index or is computed once per step or job.
+ * itself or at its job's level. Text inside any block scalar is never read as a key. Anything the
+ * reader cannot place is not claimed from.
+ *
+ * Linear in the file whatever its nesting depth: each line is tested once for each pattern, and
+ * every per-step and per-job lookup is an index or set built by a single pass beforehand.
  */
 function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
   const lines = contents.split(/\r?\n/);
+  const indents = lines.map(lineIndent);
+  const inBlockScalar = blockScalarBodyLines(lines, indents);
+  // A line that can carry workflow structure: not blank, and not text inside a block scalar.
+  const structural = lines.map((raw, index) => !inBlockScalar[index] && raw.trim() !== '');
+  const isGuard = lines.map((raw, index) => (structural[index] ?? false) && isStepOrJobGuard(raw));
   const itemAtOrAbove = new Array<number>(lines.length);
   const stepsKeyAbove = new Array<number>(lines.length);
   const lessIndentedAbove = new Array<number>(lines.length);
   {
-    let lastItem = 0;
+    let lastItem = -1;
     let lastStepsKey = -1;
     const open: number[] = [];
     for (let index = 0; index < lines.length; index += 1) {
       const raw = lines[index] ?? '';
-      if (LIST_ITEM_PATTERN.test(raw)) lastItem = index;
+      if (structural[index] && LIST_ITEM_PATTERN.test(raw)) lastItem = index;
       itemAtOrAbove[index] = lastItem;
       stepsKeyAbove[index] = lastStepsKey;
-      if (STEPS_KEY_PATTERN.test(raw)) lastStepsKey = index;
-      if (raw.trim() === '') {
+      if (!structural[index]) {
         lessIndentedAbove[index] = -1;
         continue;
       }
-      const indent = lineIndent(raw);
-      while (open.length > 0 && lineIndent(lines[open[open.length - 1] ?? 0] ?? '') >= indent) {
-        open.pop();
-      }
+      if (STEPS_KEY_PATTERN.test(raw)) lastStepsKey = index;
+      const indent = indents[index] ?? 0;
+      while (open.length > 0 && (indents[open[open.length - 1] ?? 0] ?? 0) >= indent) open.pop();
       lessIndentedAbove[index] = open.length > 0 ? (open[open.length - 1] ?? -1) : -1;
       open.push(index);
     }
   }
-  const nextAtOrBelow = nextDedentIndexes(lines, true);
-  const nextBelow = nextDedentIndexes(lines, false);
-  // The least-indented guard key inside each step, by the step's first line.
-  const stepGuardIndent = new Map<number, number>();
-  // Whether a job carries a guard at its own key level, by `<header line>:<key indent>`.
-  const jobGuarded = new Map<string, boolean>();
+  const nextAtOrBelow = nextAtOrBelowIndexes(structural, indents);
+  const leastGuardIndent = leastGuardIndentWithin(structural, indents, isGuard);
+  // A job is guarded when a guard key sits at its `steps:` key's own indent, before or after
+  // `steps:`, under the same parent line: the lines between that parent and the job's end are all
+  // at least that deep, so a guard there has the same parent and indent as `steps:`.
+  const guardedJobs = new Set<string>();
+  for (let index = 0; index < lines.length; index += 1) {
+    if (isGuard[index]) guardedJobs.add(`${lessIndentedAbove[index] ?? -1}:${indents[index] ?? 0}`);
+  }
   const steps: WorkflowRunStep[] = [];
   for (let index = 0; index < lines.length; index += 1) {
-    const match = RUN_KEY_PATTERN.exec(lines[index] ?? '');
+    if (!structural[index]) continue;
+    const raw = lines[index] ?? '';
+    const match = execOnTerminatorFreeLine(RUN_KEY_PATTERN, raw);
     if (!match) continue;
-    const keyIndent = (match[1] ?? '').length + ((lines[index] ?? '').trimStart().startsWith('-') ? 2 : 0);
+    const keyIndent = workflowKeyIndent(raw, (match[1] ?? '').length);
     const value = (match[2] ?? '').trim();
     const body: { line: number; text: string }[] = [];
-    let lastBodyLine = index;
-    if (/^[|>][-+0-9]*$/.test(value)) {
-      for (let next = index + 1; next < lines.length; next += 1) {
-        const raw = lines[next] ?? '';
-        if (raw.trim() === '') continue;
-        if (lineIndent(raw) <= keyIndent) break;
-        body.push({ line: next + 1, text: raw });
-        lastBodyLine = next;
+    if (BLOCK_SCALAR_VALUE_PATTERN.test(beforeShellComment(value).trim())) {
+      for (let next = index + 1; next < lines.length && inBlockScalar[next]; next += 1) {
+        const text = lines[next] ?? '';
+        if (text.trim() !== '') body.push({ line: next + 1, text });
       }
     } else if (value !== '') {
       body.push({ line: index + 1, text: value.replace(/^(['"])(.*)\1$/, '$2') });
     }
     // The step: the nearest `- ` item at or above the key, to the next line no deeper than it. A
-    // key that is not inside that item's extent (malformed, or a mapping outside any list) is not
-    // placed, so nothing is claimed from it.
-    const stepStart = itemAtOrAbove[index] ?? 0;
-    const stepEnd = nextAtOrBelow[stepStart] ?? lines.length;
-    const placed = stepStart === index || stepEnd > index;
-    let guardIndent = stepGuardIndent.get(stepStart);
-    if (guardIndent === undefined) {
-      guardIndent = Number.POSITIVE_INFINITY;
-      for (let line = stepStart; line < stepEnd; line += 1) {
-        const raw = lines[line] ?? '';
-        if (isStepOrJobGuard(raw)) guardIndent = Math.min(guardIndent, lineIndent(raw));
-      }
-      stepGuardIndent.set(stepStart, guardIndent);
+    // key outside every item, or not inside the nearest item's extent (malformed, or a mapping
+    // outside any list), is not placed, so nothing is claimed from it.
+    const stepStart = itemAtOrAbove[index] ?? -1;
+    if (stepStart === -1) {
+      steps.push({ lines: body, conditional: true });
+      continue;
     }
-    const stepConditional = guardIndent <= keyIndent;
-    // The job: the mapping holding the nearest `steps:` key above the step. A guard key at that
-    // key's own indent, before or after `steps:`, conditions every step in the job.
-    let jobConditional = false;
+    const placed = stepStart === index || (nextAtOrBelow[stepStart] ?? lines.length) > index;
+    const stepConditional = (leastGuardIndent[stepStart] ?? Number.POSITIVE_INFINITY) <= keyIndent;
+    // The job: the mapping holding the nearest `steps:` key above the step.
     const stepsKey = stepsKeyAbove[stepStart] ?? -1;
-    if (stepsKey !== -1) {
-      const jobKeyIndent = lineIndent(lines[stepsKey] ?? '');
-      const header = lessIndentedAbove[stepsKey] ?? -1;
-      const cacheKey = `${header}:${jobKeyIndent}`;
-      const cached = jobGuarded.get(cacheKey);
-      if (cached !== undefined) {
-        jobConditional = cached;
-      } else {
-        const end = nextBelow[stepsKey] ?? lines.length;
-        for (let line = header + 1; line < end; line += 1) {
-          const raw = lines[line] ?? '';
-          if (lineIndent(raw) === jobKeyIndent && isStepOrJobGuard(raw)) {
-            jobConditional = true;
-            break;
-          }
-        }
-        jobGuarded.set(cacheKey, jobConditional);
-      }
-    }
+    const jobConditional =
+      stepsKey !== -1 &&
+      guardedJobs.has(`${lessIndentedAbove[stepsKey] ?? -1}:${indents[stepsKey] ?? 0}`);
     steps.push({ lines: body, conditional: !placed || stepConditional || jobConditional });
-    // A block body is shell text, not workflow keys: never read a `run:` inside it as a step.
-    index = lastBodyLine;
   }
   return steps;
 }
@@ -4547,24 +4736,91 @@ function githubActionsRunSteps(contents: string): WorkflowRunStep[] {
 const WORKFLOW_OTHER_REPOSITORY_PATTERN = /^[ \t]*(?:-[ \t]+)?repository:[ \t]*\S/;
 const WORKFLOW_DOWNLOAD_ARTIFACT_PATTERN = /^[ \t]*(?:-[ \t]+)?uses:[ \t]*['"]?actions\/download-artifact@/;
 const WORKFLOW_WORKING_DIRECTORY_PATTERN = /^[ \t]*(?:-[ \t]+)?working-directory:[ \t]*(.*)$/;
+// Characters a shell expands or a workflow interpolates: a path holding one is not read literally.
+const EXPANDED_PATH_PATTERN = /[$~`*?[\]{}'"\\]/;
 
-/** True when `path`, as written in a workflow, names a directory inside this checkout. */
-function isCheckoutDirectory(repoPath: string, path: string): boolean {
-  if (path === '' || /[$~`*?]/.test(path) || path.startsWith('/')) return false;
-  if (path.split('/').some((segment) => segment === '..')) return false;
-  try {
-    return lstatSync(join(repoPath, path)).isDirectory();
-  } catch {
-    return false;
+/** What the scanned inventory holds, relative to the scan root, exact-case. */
+interface CheckoutInventory {
+  readonly files: ReadonlySet<string>;
+  readonly directories: ReadonlySet<string>;
+}
+
+/**
+ * The files and directories of a checkout, from its inventory alone. A directory is held exactly
+ * when some inventoried path lies under it. Each path walks up its ancestors only until one is
+ * already known, so the set is built in time linear in the total length of the paths.
+ */
+function checkoutInventory(paths: readonly string[]): CheckoutInventory {
+  const directories = new Set<string>();
+  for (const path of paths) {
+    for (let end = path.lastIndexOf('/'); end > 0; end = path.lastIndexOf('/', end - 1)) {
+      const directory = path.slice(0, end);
+      if (directories.has(directory)) break;
+      directories.add(directory);
+    }
   }
+  return { files: new Set(paths), directories };
+}
+
+/** `path` as written in a workflow, without trailing slashes or a leading `./`; `undefined` if expanded. */
+function literalCheckoutPath(written: string): string | undefined {
+  let end = written.length;
+  while (end > 1 && written[end - 1] === '/') end -= 1;
+  let path = written.slice(0, end);
+  while (path.startsWith('./')) path = path.slice(2);
+  if (path === '' || path.startsWith('/') || EXPANDED_PATH_PATTERN.test(path)) return undefined;
+  return path;
+}
+
+/** True when `written`, as a workflow or shell writes it, names a directory the inventory holds. */
+function isCheckoutDirectory(inventory: CheckoutInventory, written: string): boolean {
+  const path = literalCheckoutPath(written);
+  return path !== undefined && (path === '.' || inventory.directories.has(path));
+}
+
+/** True when `written` names a file the inventory holds. */
+function isCheckoutFile(inventory: CheckoutInventory, written: string): boolean {
+  const path = literalCheckoutPath(written);
+  return path !== undefined && inventory.files.has(path);
+}
+
+/**
+ * False when the command points itself at a directory or manifest the inventory does not hold
+ * (`npm ci --prefix generated`, `cargo test --locked --manifest-path generated/Cargo.toml`): the
+ * lockfile it reads would then be one Cejel never saw. A flag with no value is not held either.
+ */
+function commandStaysInCheckout(
+  words: readonly string[],
+  rule: LockfileRequiringCommand,
+  inventory: CheckoutInventory,
+): boolean {
+  const end = words.indexOf('--');
+  const own = end === -1 ? words.slice(2) : words.slice(2, end);
+  const checks = [
+    [rule.directoryFlags, isCheckoutDirectory],
+    [rule.manifestFlags, isCheckoutFile],
+  ] as const;
+  for (const [index, word] of own.entries()) {
+    for (const [flags, holds] of checks) {
+      for (const flag of flags) {
+        let value: string;
+        if (word === flag) value = own[index + 1] ?? '';
+        else if (word.startsWith(`${flag}=`)) value = word.slice(flag.length + 1);
+        else if (!flag.startsWith('--') && word.startsWith(flag)) value = word.slice(flag.length);
+        else continue;
+        if (!holds(inventory, value)) return false;
+      }
+    }
+  }
+  return true;
 }
 
 /**
  * False when the workflow can put files in its workspace that the scanned tree does not hold:
- * another repository checked out, an artifact downloaded, or a working directory that is not a
- * directory of this checkout. A lockfile could then come from outside what Cejel read.
+ * another repository checked out, an artifact downloaded, or a working directory the inventory
+ * does not hold. A lockfile could then come from outside what Cejel read.
  */
-function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean {
+function workflowReadsOnlyThisTree(inventory: CheckoutInventory, contents: string): boolean {
   for (const raw of contents.split(/\r?\n/)) {
     if (WORKFLOW_OTHER_REPOSITORY_PATTERN.test(raw)) return false;
     if (WORKFLOW_DOWNLOAD_ARTIFACT_PATTERN.test(raw)) return false;
@@ -4572,10 +4828,8 @@ function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean 
     if (workingDirectory) {
       const value = beforeShellComment(workingDirectory[1] ?? '')
         .trim()
-        .replace(/^(['"])(.*)\1$/, '$2')
-        .replace(/\/+$/, '')
-        .replace(/^\.\//, '');
-      if (value !== '.' && !isCheckoutDirectory(repoPath, value)) return false;
+        .replace(/^(['"])(.*)\1$/, '$2');
+      if (!isCheckoutDirectory(inventory, value)) return false;
     }
   }
   return true;
@@ -4584,22 +4838,25 @@ function workflowReadsOnlyThisTree(repoPath: string, contents: string): boolean 
 /**
  * The first unconditional GitHub Actions step, in file order, whose command requires a lockfile
  * that `isSatisfied` says is absent. Cejel claims nothing about a step that is conditional or may
- * fail without failing its job, whose shell is conditional or contains a heredoc, or that changes
- * into a directory this checkout does not hold; nor about a workflow that can bring in files from
- * outside the scanned tree, or that also runs a command that writes or names that lockfile
- * (`npm install`, `uv run` without `--locked`, `cp ci/package-lock.json .`), which may create it
- * first. Linear in the workflow: what the workflow may generate is decided once per workflow.
+ * fail without failing its job, whose shell is conditional (in command position, after any `(`,
+ * `{` or `!`), inverts a status, turns off `errexit` or contains a heredoc, or that changes into a
+ * directory the inventory does not hold; nor about a command pointed by a flag at a directory or
+ * manifest the inventory does not hold; nor about a workflow that can bring in files from outside
+ * the scanned tree, or that also runs a command that writes or names that lockfile (`npm install`,
+ * `uv run` without `--locked`, `cp ci/package-lock.json .`), which may create it first. Linear in
+ * the workflow: what the workflow may generate is decided once per workflow.
  */
 function findLockfileRequirement(
   repoPath: string,
   workflows: readonly string[],
+  inventory: CheckoutInventory,
   isSatisfied: (lockfiles: readonly string[]) => boolean,
 ): LockfileRequirement | undefined {
   for (const file of workflows) {
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const contents = readRepoText(fullPath, 'utf8');
-    if (!workflowReadsOnlyThisTree(repoPath, contents)) continue;
+    if (!workflowReadsOnlyThisTree(inventory, contents)) continue;
     const steps = githubActionsRunSteps(contents);
     const commandsOf = (step: WorkflowRunStep) =>
       step.lines.flatMap(({ line, text }) => shellCommands(text).map((words) => ({ line, words })));
@@ -4621,19 +4878,26 @@ function findLockfileRequirement(
       const commands = stepCommands[stepIndex] ?? [];
       const shellIsConditional =
         step.lines.some(({ text }) => beforeShellComment(text).includes('<<')) ||
-        commands.some(({ words }) => CONDITIONAL_SHELL_WORDS.has(words[0] ?? '')) ||
+        commands.some(({ words }) => isConditionalShellCommand(words)) ||
         step.lines.some(({ text }) => /(^|[ \t])\|\|([ \t]|$)/.test(beforeShellComment(text)));
       if (shellIsConditional) continue;
-      const leavesCheckout = commands.some(
-        ({ words }) =>
-          DIRECTORY_CHANGE_COMMANDS.has(words[0] ?? '') &&
-          !isCheckoutDirectory(repoPath, (words[1] ?? '').replace(/\/+$/, '').replace(/^\.\//, '')),
-      );
+      const leavesCheckout = commands.some(({ words }) => {
+        const head = commandHead(words);
+        return (
+          DIRECTORY_CHANGE_COMMANDS.has(head.word) &&
+          !isCheckoutDirectory(inventory, words[head.argsFrom] ?? '')
+        );
+      });
       if (leavesCheckout) continue;
       for (const { line, words } of commands) {
         for (const rule of LOCKFILE_REQUIRING_COMMANDS) {
           const command = matchLockfileRequiringCommand(words, rule);
-          if (command === undefined || isSatisfied(rule.lockfiles) || mayBeGenerated.has(rule)) {
+          if (
+            command === undefined ||
+            isSatisfied(rule.lockfiles) ||
+            mayBeGenerated.has(rule) ||
+            !commandStaysInCheckout(words, rule, inventory)
+          ) {
             continue;
           }
           return { file, line, command: command.slice(0, 80), lockfiles: rule.lockfiles };
@@ -5001,15 +5265,21 @@ function collectB2PrTraceEvidence(
     (file) => /branch.*protection|review.*gate/i.test(file) || GITHUB_CODEOWNERS_PATH_PATTERN.test(file),
   );
   const citedWorkflows = workflows.slice(0, 3);
-  const workflowLabel = ciWorkflowCitationLabel(
-    'Pull-request CI workflow',
-    'counted',
-    workflows.length,
-    citedWorkflows.length,
-    unreadCiWorkflowReasons(() => true),
-  );
+  const unreadWorkflows = unreadCiWorkflowReasons(() => true);
+  const workflowLabel = (file: string) =>
+    fittedCiWorkflowCitationLabel(b2WorkflowCitationBaseLabels(repoPath, file), (baseLabel) =>
+      ciWorkflowCitationLabel(
+        baseLabel,
+        'counted',
+        workflows.length,
+        citedWorkflows.length,
+        unreadWorkflows,
+      ),
+    );
   const evidence = [
-    ...citedWorkflows.map((file) => evidenceForRelative(repoPath, file, 'ci_run', workflowLabel)),
+    ...citedWorkflows.map((file) =>
+      evidenceForRelative(repoPath, file, 'ci_run', workflowLabel(file)),
+    ),
     ...(prTemplate
       ? [evidenceForRelative(repoPath, prTemplate, 'pull_request', 'Pull request template')]
       : []),
@@ -5097,21 +5367,53 @@ function collectB3CiDisciplineEvidence(
   // counts toward neither depth metric. It stays in `workflows` for evidence and the read count,
   // so a repository whose only workflow publishes still reports B3, at depth 0. Every other rubric
   // counts it: making it run on every push raised B3.
+  // The repository files a publish-only reading may consult (package.json, setup.py, ...): this
+  // checkout's inventory with its withheld paths, read from the inventory and never the host. A
+  // monorepo root's workflows get none, so any command whose behaviour that root's files decide
+  // keeps them counted.
+  const knownPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
+  const ownInventory: PublishOnlyInventory = {
+    scanned: new Set(repoFiles),
+    known: new Set(knownPaths),
+    hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
+  };
   const countsAsCi = (root: string) => (file: string) =>
-    !useV27FalseAssuranceClosure || !isPublishOnlyWorkflow(root, file);
-  const defaultBranchCiCount = withContentReadSignal('B3', 'default_branch_ci_depth', () =>
-    workflows
-      .filter(countsAsCi(repoPath))
-      .filter((file) => workflowTargetsDefaultBranch(repoPath, file)).length +
-      (mono
+    !useV27FalseAssuranceClosure ||
+    !isPublishOnlyWorkflow(root, file, root === repoPath ? ownInventory : null);
+  const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
+    'B3',
+    'default_branch_ci_depth',
+    () => {
+      const counted = workflows
+        .filter(countsAsCi(repoPath))
+        .filter((file) => workflowTargetsDefaultBranch(repoPath, file));
+      const rootCounted = mono
         ? rootWorkflows
             .filter(countsAsCi(mono.root))
-            .filter((file) => workflowTargetsDefaultBranch(mono.root, file)).length
-        : 0),
+            .filter((file) => workflowTargetsDefaultBranch(mono.root, file))
+        : [];
+      return {
+        defaultBranchCiCount: counted.length + rootCounted.length,
+        defaultBranchCiWorkflows: counted,
+        rootDefaultBranchCiWorkflows: rootCounted,
+      };
+    },
+  );
+  // Presentation only: the counted workflows Cejel did not see run a check, the repository's own
+  // and a monorepo root's (named as such, since their paths are relative to that root).
+  const unshownCheckWorkflows = mergeB3UnshownCheckWorkflows(
+    findB3UnshownCheckWorkflows(repoPath, defaultBranchCiWorkflows),
+    mono
+      ? findB3UnshownCheckWorkflows(
+          mono.root,
+          rootDefaultBranchCiWorkflows,
+          (file) => `${file} at the monorepo root`,
+        )
+      : { printOnly: [] },
   );
   const publishOnlyWorkflows = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-        workflows.filter((file) => isPublishOnlyWorkflow(repoPath, file)),
+        workflows.filter((file) => isPublishOnlyWorkflow(repoPath, file, ownInventory)),
       )
     : [];
 
@@ -5277,51 +5579,901 @@ function collectB3CiDisciplineEvidence(
         'workflows',
         'Counts CI workflows that target pull requests or the default branch, up to 4.',
         'saturating_count',
+        b3UnshownCheckCount(unshownCheckWorkflows) > 0
+          ? { condition: b3UnshownCheckCondition(unshownCheckWorkflows) }
+          : undefined,
       ),
     ],
-    ...(publishOnlyWorkflows.length > 0
-      ? {
-          notes: `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger and no verification command Cejel recognises) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, 1000),
-        }
-      : {}),
+    ...(publishOnlyWorkflows.length > 0 ? { notes: b3PublishOnlyNote(publishOnlyWorkflows) } : {}),
+    ...b3UnshownCheckDisclosures(unshownCheckWorkflows),
   };
+}
+
+function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosures?: string[] } {
+  const sentence = b3UnshownCheckDisclosure(unshown, CRITERION_DISCLOSURE_MAX_LENGTH);
+  return sentence ? { disclosures: [sentence] } : {};
+}
+
+function b3PublishOnlyNote(publishOnlyWorkflows: readonly string[]): string {
+  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
 // vocabulary matched as a command or action name: package registry publishes, release creation,
 // image pushes, and deploy commands. Matching is by word, never by file or job name.
 const PUBLISH_OR_DEPLOY_STEP_PATTERN =
-  /\b(?:npm|pnpm|yarn|bun)[ \t]+(?:npm[ \t]+)?publish\b|\bpypa\/gh-action-pypi-publish\b|\btwine[ \t]+upload\b|\b(?:uv|poetry|flit|hatch|cargo)[ \t]+publish\b|\bgem[ \t]+push\b|\bgh[ \t]+release[ \t]+create\b|\bsoftprops\/action-gh-release\b|\bgoreleaser\b|\bsemantic-release\b|\bchangesets\/action\b|\bdocker[ \t]+(?:image[ \t]+)?push\b|\bdocker\/build-push-action\b|\b(?:vercel|netlify|flyctl|fly|firebase|serverless|wrangler)[ \t]+deploy\b|\bkubectl[ \t]+apply\b|\bhelm[ \t]+upgrade\b|\bterraform[ \t]+apply\b/i;
+  /\b(?:npm|pnpm|yarn|bun)[ \t]+(?:npm[ \t]+)?publish\b|\bpypa\/gh-action-pypi-publish\b|\btwine[ \t]+upload\b|\b(?:uv|poetry|flit|hatch|cargo)[ \t]+publish\b|\bgem[ \t]+push\b|\bgh[ \t]+release[ \t]+(?:create|upload)\b|\bsoftprops\/action-gh-release\b|\bgoreleaser\b|\bsemantic-release\b|\bchangesets\/action\b|\bdocker[ \t]+(?:image[ \t]+)?push\b|\bdocker\/build-push-action\b|\b(?:vercel|netlify|flyctl|fly|firebase|serverless|wrangler)[ \t]+deploy\b|\bkubectl[ \t]+apply\b|\bhelm[ \t]+upgrade\b|\bterraform[ \t]+apply\b/i;
 
 // Verification Cejel recognises beyond the B3 command categories, used only to keep a workflow
 // counted (#517): test runners invoked through a task runner or build tool, and pre-commit.
 const PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN =
   /\b(?:tox|nox|pre-commit|bazel[ \t]+test|gradlew?[ \t]+(?:test|check|build)|mvnw?[ \t]+(?:verify|test|package)|make[ \t]+(?:check|test)|just[ \t]+test|cargo[ \t]+(?:clippy|check|nextest)|turbo[ \t]+(?:run[ \t]+)?test)\b|[ \t]-r[ \t]+test\b|\brun[ \t]+test\b/i;
 // A pull-request (or merge-queue) trigger makes a workflow a pull-request gate whatever its steps.
-const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
+// One list feeds both v27's publish-only test (a word match) and B2's trigger label (a parsed key).
+// A literal, so the ReDoS guard reads it; disclosure-gaps.test.ts pins it to PULL_REQUEST_TRIGGERS.
+export const PULL_REQUEST_TRIGGERS = ['pull_request', 'pull_request_target', 'merge_group'] as const;
+export const PULL_REQUEST_TRIGGER_PATTERN = /\b(?:pull_request|pull_request_target|merge_group)\b/;
 // A job that calls a reusable workflow runs steps this file does not show.
 const REUSABLE_WORKFLOW_CALL_PATTERN = /^[ \t]*uses:[ \t]*\S*\.github\/workflows\//m;
 
 /**
- * True for a CI workflow whose job is to publish, release or deploy, and nothing else Cejel can
- * see: it has a step from PUBLISH_OR_DEPLOY_STEP_PATTERN, no pull-request trigger, no call to a
- * reusable workflow, and no test, lint, type-check or other recognised verification command. Any
- * doubt keeps the workflow counted: a workflow that verifies and then publishes is still CI, and
- * so is one whose verification Cejel does not recognise.
+ * True for a GitHub Actions workflow that only checks out, configures credentials and uploads an
+ * already-built artifact; any install, build or package step keeps it counted. Every condition
+ * must hold, and any doubt keeps the workflow counted:
+ *   - no pull-request trigger, no call to a reusable workflow, and no test, lint, type-check or
+ *     other recognised verification command anywhere in the file (a word match, so a mention in a
+ *     comment also keeps it counted);
+ *   - every line of the jobs section is placed by placedPublishWorkflowSteps;
+ *   - every `run:` command is credential configuration or an upload
+ *     (classifyPublishOnlyRunCommand), and every `uses:` step is a named setup action or an upload
+ *     action (classifyPublishOnlyUsesStep);
+ *   - at least one step uploads, and an npm-family publish only when the root manifest runs no
+ *     script (packageManifestRunsNoRepositoryCode).
  */
-function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
+function isPublishOnlyWorkflow(
+  repoPath: string,
+  file: string,
+  inventory: PublishOnlyInventory | null,
+): boolean {
+  if (!isGitHubActionsWorkflow(file)) return false;
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   const contents = readRepoText(fullPath, 'utf8');
-  return (
-    PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) &&
-    !PULL_REQUEST_TRIGGER_PATTERN.test(contents) &&
-    !REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) &&
-    !CI_TEST_COMMAND_PATTERN.test(contents) &&
-    !CI_LINT_COMMAND_PATTERN.test(contents) &&
-    !CI_TYPECHECK_COMMAND_PATTERN.test(contents) &&
-    !PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents)
-  );
+  if (
+    !PUBLISH_OR_DEPLOY_STEP_PATTERN.test(contents) ||
+    PULL_REQUEST_TRIGGER_PATTERN.test(contents) ||
+    REUSABLE_WORKFLOW_CALL_PATTERN.test(contents) ||
+    CI_TEST_COMMAND_PATTERN.test(contents) ||
+    CI_LINT_COMMAND_PATTERN.test(contents) ||
+    CI_TYPECHECK_COMMAND_PATTERN.test(contents) ||
+    PUBLISH_ONLY_EXTRA_VERIFICATION_PATTERN.test(contents) ||
+    YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)
+  ) {
+    return false;
+  }
+  // Every step comes from a reader that places every line of the jobs section or claims nothing.
+  const steps = placedPublishWorkflowSteps(contents);
+  if (steps === null) return false;
+  let publishes = false;
+  const needs = new Set<PublishOnlyRepositoryCheck>();
+  for (const step of steps) {
+    const classified =
+      step.uses !== undefined
+        ? { kind: classifyPublishOnlyUsesStep(step.uses, step.inputs) }
+        : classifyPublishOnlyRunLines(step.run ?? []);
+    if (classified.kind === 'other') return false;
+    if (classified.kind === 'publish') publishes = true;
+    for (const need of classified.needs ?? []) needs.add(need);
+  }
+  if (!publishes) return false;
+  // An npm-family publish runs the root package's scripts (`prepack`, `prepublishOnly`, `publish`,
+  // ...), so it is admitted only when that manifest is read and holds none.
+  if (needs.size > 0 && inventory === null) return false;
+  if (needs.has('package') && !packageManifestRunsNoRepositoryCode(repoPath, inventory as PublishOnlyInventory)) {
+    return false;
+  }
+  return true;
+}
+
+/** What a publish-only reading may consult: scanned paths, and every path known to exist. */
+interface PublishOnlyInventory {
+  readonly scanned: ReadonlySet<string>;
+  readonly known: ReadonlySet<string>;
+  /** Decided once per scan, so each workflow's check stays constant-time in the inventory. */
+  readonly hasYarnPlugins: boolean;
+}
+
+/** The repository configuration an admitted command runs code from. */
+type PublishOnlyRepositoryCheck = 'package';
+
+interface PublishOnlyClassification {
+  readonly kind: 'publish' | 'setup' | 'other';
+  readonly needs?: readonly PublishOnlyRepositoryCheck[];
+}
+
+/** A run step's shell lines, each command classified; 'other' as soon as one is. */
+function classifyPublishOnlyRunLines(lines: readonly string[]): PublishOnlyClassification {
+  let kind: 'publish' | 'setup' = 'setup';
+  const needs = new Set<PublishOnlyRepositoryCheck>();
+  for (const text of joinShellContinuationLines(lines)) {
+    for (const words of shellCommands(text)) {
+      const command = classifyPublishOnlyRunCommand(words);
+      if (command.kind === 'other') return { kind: 'other' };
+      if (command.kind === 'publish') kind = 'publish';
+      for (const need of command.needs ?? []) needs.add(need);
+    }
+  }
+  return { kind, needs: [...needs] };
+}
+
+// npm lifecycle scripts that `npm`, `pnpm`, `yarn` and `bun` installs and publishes run from the
+// package's own manifest.
+const PACKAGE_LIFECYCLE_SCRIPTS = [
+  'preinstall', 'install', 'postinstall', 'preprepare', 'prepare', 'postprepare', 'prepack',
+  'postpack', 'prepublish', 'prepublishOnly', 'publish', 'postpublish', 'dependencies',
+];
+// Files that configure a package manager to run repository code, or declare packages whose scripts
+// also run: a script shell or Node options (`.npmrc`), Yarn plugins and settings, a pnpm hook file,
+// Bun preloads, pnpm or Lerna workspaces, and a native addon (`binding.gyp`, built implicitly).
+const PACKAGE_MANAGER_CODE_CONFIG_FILES = [
+  '.npmrc', '.yarnrc', '.yarnrc.yml', '.pnpmfile.cjs', 'pnpmfile.js', 'bunfig.toml',
+  'pnpm-workspace.yaml', 'lerna.json', 'binding.gyp',
+];
+const PACKAGE_DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
+
+/**
+ * True only when the root package.json is scanned, parses, defines no lifecycle script, declares
+ * no workspaces, no `gypfile` and no local dependency (`file:`, `link:`, `workspace:`, `portal:`, a
+ * path), and none of PACKAGE_MANAGER_CODE_CONFIG_FILES exists. Anything else, including a
+ * package.json Cejel did not read, is doubt.
+ */
+function packageManifestRunsNoRepositoryCode(root: string, inventory: PublishOnlyInventory): boolean {
+  if (!inventory.scanned.has('package.json')) return false;
+  if (PACKAGE_MANAGER_CODE_CONFIG_FILES.some((file) => inventory.known.has(file))) return false;
+  if (inventory.hasYarnPlugins) return false;
+  const manifest = parseJsonObject(readRepoText(join(root, 'package.json'), 'utf8'));
+  if (!manifest || 'workspaces' in manifest || 'gypfile' in manifest) return false;
+  const scripts = manifest.scripts;
+  if (scripts !== undefined && !isRecord(scripts)) return false;
+  if (isRecord(scripts) && PACKAGE_LIFECYCLE_SCRIPTS.some((name) => name in scripts)) return false;
+  for (const field of PACKAGE_DEPENDENCY_FIELDS) {
+    const dependencies = manifest[field];
+    if (dependencies === undefined) continue;
+    if (!isRecord(dependencies)) return false;
+    for (const spec of Object.values(dependencies)) {
+      if (typeof spec !== 'string') return false;
+      if (/^(?:file|link|workspace|portal):|^\.{0,2}\//.test(spec.trim())) return false;
+    }
+  }
+  return true;
+}
+
+/** One step a publish-only reading placed: a `uses:` action with its input names, or run lines. */
+interface PlacedWorkflowStep {
+  readonly uses?: string;
+  readonly inputs: ReadonlySet<string>;
+  readonly run?: readonly string[];
+}
+
+// The keys a job of a publish-only workflow may hold, and those a step may hold. Anything else
+// (`strategy`, `container`, `services`, `defaults`, `if`, `shell`, `working-directory`,
+// `continue-on-error`, a quoted or capitalised key) is not placed.
+const PUBLISH_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'needs', 'permissions', 'environment', 'steps']);
+const PUBLISH_ONLY_JOB_MAPPING_KEYS = new Set(['permissions', 'environment']);
+const PUBLISH_ONLY_STEP_KEYS = new Set(['name', 'id', 'uses', 'run', 'with', 'env']);
+// A mapping entry under `with:`, `env:`, `permissions:` or `environment:`: a plain key and a
+// value. Matched against trimmed text only.
+const PLAIN_MAPPING_ENTRY_PATTERN = /^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]+([^]*))?$/;
+// `needs: [build, test]`: a flow sequence of plain job names, the one flow form placed.
+const NEEDS_FLOW_SEQUENCE_PATTERN = /^\[[ \t]*[A-Za-z0-9_-]+(?:[ \t]*,[ \t]*[A-Za-z0-9_-]+)*[ \t]*\]$/;
+
+/** A one-line scalar value that is not a flow collection, an anchor, an alias, a tag or a block. */
+function isPlainOneLineValue(value: string): boolean {
+  return value !== '' && !/^[[{&*|>!]/.test(value) && isOneLineScalar(value);
+}
+
+/**
+ * The steps of a GitHub Actions workflow, read with isPrintOnlyWorkflow's grammar widened to what
+ * a publish workflow holds, or null when any line of the jobs section is one the grammar does not
+ * place. The top level holds only the keys PRINT_ONLY_TOP_LEVEL_KEY_PATTERN names (no top-level
+ * `env` or `defaults`), and one `jobs:`. A job holds only PUBLISH_ONLY_JOB_KEYS, with
+ * `permissions` and `environment` as a one-line scalar or a one-level mapping of plain entries.
+ * A step holds only PUBLISH_ONLY_STEP_KEYS and exactly one of `uses` and `run`; `with` and `env`
+ * are one-level mappings of plain entries, a `with` value may be a `|`/`>` block, and an `env`
+ * key never loads code (CODE_LOADING_ENV_KEYS). A flow item, a quoted, capitalised or explicit
+ * key, a lone CR or other YAML line break, a plain value continued onto a deeper line, and a quoted
+ * `run:` value are not placed. Linear in the file.
+ */
+function placedPublishWorkflowSteps(contents: string): PlacedWorkflowStep[] | null {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return null;
+  const lines = contents.split(/\r?\n/);
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  let jobsStart = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
+    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return null;
+    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+      if (jobsStart !== -1) return null;
+      jobsStart = index;
+    }
+  }
+  if (jobsStart === -1) return null;
+  const steps: PlacedWorkflowStep[] = [];
+  let jobIndent = -1;
+  let keyIndent = -1;
+  let inSteps = false;
+  let stepKeyColumn = -1;
+  let step: { uses?: string; inputs: Set<string>; run?: string[] } | null = null;
+  // Lines deeper than `column`: shell text of a `run:` block, a continuation of a plain value
+  // (never placed), or the entries of a one-level mapping (with `textColumn` set while inside a
+  // `with` entry's `|`/`>` block, whose text is skipped).
+  let body:
+    | { kind: 'run'; column: number }
+    | { kind: 'plain'; column: number }
+    | { kind: 'mapping'; column: number; entryColumn: number; textColumn: number; owner: 'with' | 'env' | 'job' }
+    | null = null;
+  const openStep = () => step as { uses?: string; inputs: Set<string>; run?: string[] } | null;
+  const closeStep = (): boolean => {
+    if (step === null) return true;
+    const placed = step;
+    step = null;
+    if ((placed.uses === undefined) === (placed.run === undefined)) return false;
+    steps.push(placed);
+    return true;
+  };
+  for (let index = jobsStart + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (raw.trim() === '') continue;
+    const indent = lineIndent(raw);
+    if (body) {
+      if (indent > body.column) {
+        if (body.kind === 'plain') return null;
+        if (body.kind === 'run') {
+          openStep()?.run?.push(raw.trim());
+          continue;
+        }
+        // A one-level mapping: every entry at one column; deeper lines only inside a `with` block.
+        if (body.textColumn !== -1 && indent > body.textColumn) continue;
+        body.textColumn = -1;
+        if (!isContent(raw)) continue;
+        if (body.entryColumn === -1) body.entryColumn = indent;
+        if (indent !== body.entryColumn) return null;
+        const entry = PLAIN_MAPPING_ENTRY_PATTERN.exec(stripYamlComment(raw).trim());
+        if (!entry) return null;
+        const name = entry[1] ?? '';
+        const value = (entry[2] ?? '').trim();
+        if (body.owner === 'env' && isCodeLoadingEnvKey(name)) return null;
+        if (body.owner === 'with') {
+          openStep()?.inputs.add(name);
+          if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+            body.textColumn = indent;
+            continue;
+          }
+        }
+        if (!isPlainOneLineValue(value)) return null;
+        continue;
+      }
+      body = null;
+    }
+    if (!isContent(raw)) continue;
+    const text = stripYamlComment(raw).trimEnd();
+    if (indent === 0) break;
+    if (jobIndent === -1) jobIndent = indent;
+    if (indent < jobIndent) return null;
+    if (indent === jobIndent) {
+      if (!closeStep()) return null;
+      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return null;
+      keyIndent = -1;
+      inSteps = false;
+      continue;
+    }
+    if (keyIndent === -1) keyIndent = indent;
+    const isItem = /^[ \t]*-[ \t]+/.test(text);
+    if (indent < keyIndent) return null;
+    if (indent === keyIndent && !(inSteps && isItem)) {
+      if (!closeStep()) return null;
+      inSteps = false;
+      const key = UNQUOTED_KEY_PATTERN.exec(text.trim());
+      if (!key || !PUBLISH_ONLY_JOB_KEYS.has(key[1] ?? '')) return null;
+      const value = (key[2] ?? '').trim();
+      if (key[1] === 'steps') {
+        if (value !== '') return null;
+        inSteps = true;
+        continue;
+      }
+      if (value === '' && PUBLISH_ONLY_JOB_MAPPING_KEYS.has(key[1] ?? '')) {
+        body = { kind: 'mapping', column: indent, entryColumn: -1, textColumn: -1, owner: 'job' };
+        continue;
+      }
+      if (key[1] === 'needs' && NEEDS_FLOW_SEQUENCE_PATTERN.test(value)) continue;
+      if (!isPlainOneLineValue(value)) return null;
+      body = { kind: 'plain', column: indent };
+      continue;
+    }
+    if (!inSteps) return null;
+    let keyText = text;
+    let column = indent;
+    if (isItem) {
+      if (!closeStep()) return null;
+      const item = /^([ \t]*-[ \t]+)([^]*)$/.exec(text);
+      keyText = item?.[2] ?? '';
+      column = (item?.[1] ?? '').length;
+      stepKeyColumn = column;
+      step = { inputs: new Set<string>() };
+    } else if (indent !== stepKeyColumn || !step) {
+      return null;
+    }
+    const key = UNQUOTED_KEY_PATTERN.exec(keyText.trim());
+    if (!key || !PUBLISH_ONLY_STEP_KEYS.has(key[1] ?? '')) return null;
+    const value = (key[2] ?? '').trim();
+    const current: { uses?: string; inputs: Set<string>; run?: string[] } = step ?? { inputs: new Set<string>() };
+    if (key[1] === 'with' || key[1] === 'env') {
+      if (value !== '') return null;
+      body = { kind: 'mapping', column, entryColumn: -1, textColumn: -1, owner: key[1] };
+    } else if (key[1] === 'uses') {
+      if (current.uses !== undefined || !isPlainOneLineValue(value)) return null;
+      current.uses = value.replace(/^(['"])(.*)\1$/, '$2');
+      body = { kind: 'plain', column };
+    } else if (key[1] === 'run') {
+      if (current.run !== undefined) return null;
+      if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+        current.run = [];
+        body = { kind: 'run', column };
+      } else {
+        if (!isPlainOneLineValue(value) || /^["']/.test(value)) return null;
+        current.run = [value];
+        body = { kind: 'plain', column };
+      }
+    } else {
+      if (!isPlainOneLineValue(value)) return null;
+      body = { kind: 'plain', column };
+    }
+  }
+  if (!closeStep()) return null;
+  return steps;
+}
+
+/** A step body's lines with each `\`-continued line joined to the next, as the shell reads them. */
+function joinShellContinuationLines(lines: readonly string[]): string[] {
+  const joined: string[] = [];
+  let pending = '';
+  for (const line of lines) {
+    const code = beforeShellComment(line).trimEnd();
+    if (code.endsWith('\\')) {
+      pending += `${code.slice(0, -1)} `;
+      continue;
+    }
+    joined.push(`${pending}${line}`);
+    pending = '';
+  }
+  if (pending !== '') joined.push(pending);
+  return joined;
+}
+
+// Environment variables that make a shell, runtime or loader run code other than the step's own
+// command, or find another program in place of the one named (`PATH`). An assignment to one, on
+// a command line, after `export`, or under a step's `env:`, is doubt.
+const CODE_LOADING_ENV_KEYS = new Set([
+  'BASH_ENV', 'ENV', 'NODE_OPTIONS', 'LD_PRELOAD', 'LD_AUDIT', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'PYTHONSTARTUP',
+  'PERL5OPT', 'PERL5LIB', 'RUBYOPT', 'PATH', 'NPM_CONFIG_NODE_OPTIONS', 'NPM_CONFIG_SCRIPT_SHELL',
+]);
+
+// Both callers pass an unquoted identifier (a plain mapping key, or the name before `=` in an
+// assignment word), so no quote stripping is needed; the regex that did it was quadratic on quote
+// runs (review of #553).
+function isCodeLoadingEnvKey(name: string): boolean {
+  return CODE_LOADING_ENV_KEYS.has(name) || CODE_LOADING_ENV_KEYS.has(name.toUpperCase());
+}
+
+// npm-family flags that point a publish at another package or directory, whose manifest Cejel did
+// not read.
+const PACKAGE_TARGET_FLAGS = new Set([
+  '--prefix', '-C', '--dir', '--cwd', '--workspace', '-w', '--workspaces', '-ws', '--filter', '-F',
+  '-r', '--recursive', '--global', '-g',
+]);
+
+/** A flag's name without `=value`. */
+function flagName(word: string): string {
+  const equals = word.indexOf('=');
+  return equals === -1 ? word : word.slice(0, equals);
+}
+
+/** npm-family publish arguments that stay on the root package: flags only, none redirecting it. */
+function targetsRootPackageOnly(args: readonly string[]): boolean {
+  return args.every((word) => word.startsWith('-') && !PACKAGE_TARGET_FLAGS.has(flagName(word)));
+}
+
+// `npm config set <key>` keys that only point at a registry or hold its token.
+function isRegistryConfigKey(key: string): boolean {
+  return key.startsWith('//') || key === 'registry' || key.endsWith(':registry');
+}
+
+/**
+ * One shell command of a run step, in a workflow being tested as publish-only. A publish-only
+ * workflow only checks out, configures credentials and uploads an already-built artifact, so the
+ * admitted commands are exactly:
+ *   - credential or registry configuration: `npm`/`pnpm`/`yarn config set` of a registry or token
+ *     key ('setup'), and leading `NAME=value` credentials on an admitted command;
+ *   - uploads of an artifact already built ('publish'): `twine upload`, `uv publish` with no build
+ *     flag, `poetry publish` without `--build`, `gh release create`/`upload`,
+ *     `cargo publish --no-verify`, and npm/pnpm/yarn `publish` with no positional target or
+ *     package-redirecting flag, which runs the root package's scripts and so needs 'package'.
+ * Everything else is 'other' and keeps the workflow counted: any install, sync, build or package
+ * command, semantic-release, goreleaser, deploy CLIs, shell builtins, `--dry-run`, a code-loading
+ * variable assignment, and any separator, substitution or redirect glued inside a word.
+ */
+function classifyPublishOnlyRunCommand(input: readonly string[]): PublishOnlyClassification {
+  const other = { kind: 'other' } as const;
+  if (input.some((word) => /[`&|;<>]|\$\(/.test(word))) return other;
+  // Leading `NAME=value` assignments set the command's environment. Indexes, not repeated slices,
+  // so a long run of them stays linear.
+  let start = 0;
+  while (start < input.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(input[start] ?? '')) {
+    if (isCodeLoadingEnvKey(flagName(input[start] ?? ''))) return other;
+    start += 1;
+  }
+  if (start === input.length) return other;
+  const words = input.slice(start);
+  const [first = '', second = '', third = ''] = words;
+  if (words.some((word) => word.startsWith('--dry-run'))) return other;
+  switch (first) {
+    case 'npm':
+    case 'pnpm':
+    case 'yarn': {
+      if (second === 'config') {
+        return third === 'set' && isRegistryConfigKey(words[3] ?? '') && words.length <= 5 ? { kind: 'setup' } : other;
+      }
+      const publishFrom = second === 'publish' ? 2 : first === 'yarn' && second === 'npm' && third === 'publish' ? 3 : -1;
+      if (publishFrom === -1) return other;
+      return targetsRootPackageOnly(words.slice(publishFrom)) ? { kind: 'publish', needs: ['package'] } : other;
+    }
+    case 'twine':
+      return second === 'upload' ? { kind: 'publish' } : other;
+    case 'uv':
+      return second === 'publish' && !words.some((word) => word.includes('build')) ? { kind: 'publish' } : other;
+    case 'poetry':
+      return second === 'publish' && !words.some((word) => word.startsWith('--build')) ? { kind: 'publish' } : other;
+    case 'gh':
+      return second === 'release' && (third === 'create' || third === 'upload') ? { kind: 'publish' } : other;
+    case 'cargo':
+      // `cargo publish` builds the crate, running its build script, unless told not to verify.
+      return second === 'publish' && words.includes('--no-verify') && !words.includes('-n')
+        ? { kind: 'publish' }
+        : other;
+    default:
+      return other;
+  }
+}
+
+// `uses:` steps a publish-only workflow may hold besides its publish action, named exactly: checkout,
+// toolchain setup that installs nothing, caching, artifact transfer, and registry login. Each maps
+// to the inputs it may carry; any other input (a checkout of another repository or ref,
+// submodules, pnpm's own install) is doubt. `null` admits any input.
+const PUBLISH_ONLY_SETUP_ACTIONS: ReadonlyMap<string, readonly string[] | null> = new Map<
+  string,
+  readonly string[] | null
+>([
+  ['actions/checkout', ['fetch-depth', 'token', 'persist-credentials', 'fetch-tags', 'show-progress']],
+  ['actions/cache', null],
+  ['actions/upload-artifact', null],
+  ['actions/download-artifact', ['name', 'path', 'pattern', 'merge-multiple', 'run-id', 'github-token']],
+  ['actions/setup-node', null],
+  ['actions/setup-python', null],
+  ['actions/setup-go', null],
+  ['actions/setup-java', null],
+  ['actions/setup-dotnet', null],
+  ['astral-sh/setup-uv', null],
+  ['oven-sh/setup-bun', null],
+  ['pnpm/action-setup', ['version', 'package_json_file', 'dest', 'standalone']],
+  ['docker/login-action', null],
+]);
+
+/** One `uses:` value, in a workflow being tested as publish-only. */
+function classifyPublishOnlyUsesStep(
+  uses: string,
+  inputs: ReadonlySet<string>,
+): 'publish' | 'setup' | 'other' {
+  const at = uses.indexOf('@');
+  if (at === -1) return 'other';
+  const action = uses.slice(0, at);
+  // Uploads of an already-built artifact. softprops/action-gh-release counts only with `files`;
+  // without them it creates a release and uploads nothing.
+  if (action === 'pypa/gh-action-pypi-publish') return 'publish';
+  if (action === 'softprops/action-gh-release') return inputs.has('files') ? 'publish' : 'other';
+  if (!PUBLISH_ONLY_SETUP_ACTIONS.has(action)) return 'other';
+  const allowed = PUBLISH_ONLY_SETUP_ACTIONS.get(action);
+  return allowed === null || [...inputs].every((input) => (allowed ?? []).includes(input)) ? 'setup' : 'other';
+}
+
+// ---- B2 and B3 workflow disclosures, every rubric (presentation only) ------------------------
+// B2 cited every CI file as "Pull-request CI workflow" without reading its trigger, and B3's
+// PR-gate count credits a workflow on a `pull_request` token without checking that it runs a
+// check. Whether a `main`/`master` filter names a branch that exists is not disclosed: branch
+// state lies outside the scanned revision, and the report must reproduce from the revision alone. Which workflows count is a
+// scoring question, left to a prospective rubric. What changes here is what the certificate says
+// about the workflows it counted: B2 labels each cited file by its own trigger, and B3 names
+// counted workflows Cejel did not see run a check. Nothing here feeds a metric or a finding.
+
+const WORKFLOW_ON_KEY_PATTERN = /^(?:on|"on"|'on'|true):(?:[ \t]|$)/;
+const WORKFLOW_TRIGGER_NAME_PATTERN = /^[a-z_]+$/;
+
+// YAML breaks a line at a lone CR, and YAML 1.1 parsers at NEL; the readers split on LF and CRLF
+// only, so a workflow holding either (or LS/PS, which `.` does not match) is not placed.
+const YAML_LINE_BREAK_NOT_SPLIT_PATTERN = /\r(?!\n)|[\u0085\u2028\u2029]/;
+
+function stripYamlComment(text: string): string {
+  return text.replace(/(?:^|[ \t])#[^]*$/, '');
+}
+
+function unquoteYamlScalar(text: string): string {
+  return text.trim().replace(/^(['"])(.*)\1$/, '$2');
+}
+
+/** `[a, b]`, a bare scalar, or nothing; null for anything else (a flow mapping, an anchor). */
+function yamlInlineList(text: string): string[] | null {
+  const value = stripYamlComment(text).trim();
+  if (value === '') return [];
+  const flow = /^\[(.*)\]$/.exec(value);
+  if (flow) {
+    return (flow[1] ?? '')
+      .split(',')
+      .map(unquoteYamlScalar)
+      .filter((item) => item !== '');
+  }
+  return /^[{&*|>]/.test(value) ? null : [unquoteYamlScalar(value)];
+}
+
+/**
+ * The top-level `on:` trigger names of a GitHub Actions workflow, read by indentation. Null when
+ * there is no `on:` key or the reader cannot place what it holds; every caller then claims nothing
+ * about the file's triggers. A trigger's own settings (filters, types, cron lines) are skipped.
+ */
+export function githubWorkflowTriggers(contents: string): ReadonlySet<string> | null {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents)) return null;
+  const lines = contents.split(/\r?\n/);
+  const onIndex = lines.findIndex((line) => WORKFLOW_ON_KEY_PATTERN.test(line));
+  if (onIndex === -1) return null;
+  const onLine = lines[onIndex] ?? '';
+  const inline = yamlInlineList(onLine.slice(onLine.indexOf(':') + 1));
+  if (inline === null) return null;
+  const triggers = new Set<string>();
+  if (inline.length > 0) {
+    for (const name of inline) {
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
+    }
+    return triggers;
+  }
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  // YAML allows a block sequence at its parent key's own indent ("compact" form), so a list of
+  // trigger names may sit at column 0 under `on:`, and a trigger's own list may sit at that key's
+  // indent.
+  const firstIndex = lines.findIndex((line, index) => index > onIndex && isContent(line));
+  if (firstIndex !== -1 && /^-[ \t]/.test(lines[firstIndex] ?? '')) {
+    for (let index = firstIndex; index < lines.length; index += 1) {
+      const raw = lines[index] ?? '';
+      if (!isContent(raw)) continue;
+      const item = /^-[ \t]+([^]*)$/.exec(raw);
+      if (!item) break;
+      const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
+    }
+    return triggers.size > 0 ? triggers : null;
+  }
+  let triggerIndent = -1;
+  // True once a `name:` key is read at the trigger indent, false once a `- name` item is.
+  let mappingForm: boolean | null = null;
+  let inTrigger = false;
+  for (let index = onIndex + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw)) continue;
+    const indent = lineIndent(raw);
+    if (indent === 0) break;
+    if (triggerIndent === -1) triggerIndent = indent;
+    if (indent < triggerIndent) return null;
+    if (indent > triggerIndent) {
+      // A trigger's own settings; a deeper line under a `- name` item is not placed.
+      if (!inTrigger) return null;
+      continue;
+    }
+    const item = /^[ \t]*-[ \t]+([^]*)$/.exec(raw);
+    // A compact sequence under a trigger key (`schedule:` then `- cron: ...`) is that trigger's
+    // value, not another trigger.
+    if (item && mappingForm === true) continue;
+    if (item) {
+      mappingForm = false;
+      inTrigger = false;
+      const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.add(name);
+      continue;
+    }
+    if (mappingForm === false) return null;
+    mappingForm = true;
+    const key = /^[ \t]*([A-Za-z_]+):([^]*)$/.exec(raw);
+    if (!key || !WORKFLOW_TRIGGER_NAME_PATTERN.test(key[1] ?? '')) return null;
+    const rest = stripYamlComment(key[2] ?? '').trim();
+    // `push: {}` or `push: null` is an unfiltered trigger; anything else inline is not placed.
+    if (rest !== '' && rest !== '{}' && rest !== 'null' && rest !== '~') return null;
+    triggers.add(key[1] ?? '');
+    inTrigger = true;
+  }
+  return triggers.size > 0 ? triggers : null;
+}
+
+const PULL_REQUEST_TRIGGER_NAMES: ReadonlySet<string> = new Set(PULL_REQUEST_TRIGGERS);
+const PULL_REQUEST_CI_WORKFLOW_LABEL = 'Pull-request CI workflow';
+
+const WORKFLOW_WITHOUT_PULL_REQUEST_TRIGGER_LABEL = 'CI workflow with no pull-request trigger';
+const WORKFLOW_TRIGGER_NOT_READ_LABEL = 'CI workflow (trigger not read)';
+
+/**
+ * B2's citation labels for one CI file, from its own trigger, most specific first; B2 cites the
+ * first that fits the evidence label limit with its count suffix. A GitHub Actions workflow with a
+ * pull-request or merge-queue trigger keeps the label B2 always used; one without says so and
+ * names up to three of its triggers, then fewer, then none; any other CI file, or a workflow whose
+ * triggers Cejel could not read, is cited without a pull-request claim.
+ */
+function b2WorkflowCitationBaseLabels(repoPath: string, file: string): readonly string[] {
+  if (!/^\.github\/workflows\//.test(file)) return [WORKFLOW_TRIGGER_NOT_READ_LABEL];
+  const fullPath = join(repoPath, file);
+  // B3's two depth signals read every CI workflow; this presentation-only re-read is attributed to
+  // nothing, so it cannot make B2 abstain under any rubric.
+  const triggers = isRegularFile(fullPath)
+    ? githubWorkflowTriggers(withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8')))
+    : null;
+  if (!triggers) return [WORKFLOW_TRIGGER_NOT_READ_LABEL];
+  const names = [...triggers.keys()];
+  if (names.some((name) => PULL_REQUEST_TRIGGER_NAMES.has(name))) {
+    return [PULL_REQUEST_CI_WORKFLOW_LABEL];
+  }
+  const named = [3, 2, 1]
+    .filter((shown) => shown <= names.length)
+    .map(
+      (shown) =>
+        `${WORKFLOW_WITHOUT_PULL_REQUEST_TRIGGER_LABEL} (on: ${names.slice(0, shown).join(', ')}${names.length > shown ? ', ...' : ''})`,
+    );
+  return [...named, WORKFLOW_WITHOUT_PULL_REQUEST_TRIGGER_LABEL];
+}
+
+/** The first candidate whose full label fits; the last candidate is short enough to always fit. */
+function fittedCiWorkflowCitationLabel(
+  candidates: readonly string[],
+  label: (baseLabel: string) => string,
+): string {
+  for (const candidate of candidates) {
+    const full = label(candidate);
+    if (full.length <= EVIDENCE_LABEL_MAX_LENGTH) return full;
+  }
+  return label(candidates[candidates.length - 1] ?? WORKFLOW_TRIGGER_NOT_READ_LABEL);
+}
+
+// A run line that only prints or does nothing. Anything compound (a pipe, `&&`, `;`, a command
+// substitution, a redirect) or any other command is not claimed.
+const PRINT_ONLY_RUN_LINE_PATTERN = /^(?:(?:echo|printf)(?:[ \t][^|&;`$()<>\\]*)?|true|:|exit[ \t]+0)$/;
+const BLOCK_SCALAR_INDICATOR_PATTERN = /^[|>][-+0-9]*$/;
+const PRINT_ONLY_JOB_KEYS = new Set(['runs-on', 'name', 'timeout-minutes', 'steps']);
+// The top-level keys a print-only workflow may hold, written plain at column 0. `env` and
+// `defaults` reach every step; anything else (an anchor, a tag, a merge or alias key, another
+// spelling) is not placed.
+const PRINT_ONLY_TOP_LEVEL_KEY_PATTERN = /^(?:name|run-name|on|true|permissions|concurrency|jobs)[ \t]*:/;
+// A line that starts, after spaces and tabs, with any other blank (a byte-order mark, NBSP):
+// `trimStart` would count it as indent where YAML reads it as text.
+const OTHER_LEADING_BLANK_PATTERN = /^[ \t]*[\v\f\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]/m;
+const PRINT_ONLY_STEP_KEYS = new Set(['name', 'uses', 'run']);
+// Matched against trimmed text only; greedy, so a long run of spaces cannot backtrack.
+const UNQUOTED_KEY_PATTERN = /^([a-z][a-z-]*):(?:[ \t]+([^]*))?$/;
+const CHECKOUT_ACTION_PATTERN = /^actions\/checkout@[A-Za-z0-9._/-]+$/;
+
+/** One shell line that only prints: quotes balanced on the line, so none spans into the next. */
+function isPrintOnlyShellLine(text: string): boolean {
+  const command = text.trim();
+  // One quote kind per line, evenly counted: with no backslash allowed, that is a closed quote.
+  // Mixed kinds (`"'"'`) can leave one open, which a count cannot see.
+  const doubles = command.split('"').length - 1;
+  const singles = command.split("'").length - 1;
+  const balanced = (doubles === 0 || singles === 0) && doubles % 2 === 0 && singles % 2 === 0;
+  return balanced && PRINT_ONLY_RUN_LINE_PATTERN.test(command);
+}
+
+/** A one-line scalar: plain, or quoted and closed on the same line. */
+function isOneLineScalar(value: string): boolean {
+  const quote = value[0];
+  if (quote !== '"' && quote !== "'") return true;
+  return value.length > 1 && value.endsWith(quote);
+}
+
+/**
+ * True for a GitHub Actions workflow whose every step only prints text. This is a claim about
+ * every step, so it is made only when every line of the `jobs:` section fits a small grammar the
+ * reader fully places, and nothing else is in it: each job holds only `runs-on`, `name`,
+ * `timeout-minutes` and `steps`; each step holds only `name` and either
+ * `uses: actions/checkout@<ref>` or `run:`; every run line, one-line or in a `|`/`>` block,
+ * matches PRINT_ONLY_RUN_LINE_PATTERN with its quotes balanced on the line. Any other key (`env`,
+ * `shell`, `services`, `with`, `if`, a quoted or capitalised key, a top-level `env` or
+ * `defaults`), any flow collection, and any line the grammar does not place claim nothing.
+ */
+export function isPrintOnlyWorkflow(contents: string): boolean {
+  if (YAML_LINE_BREAK_NOT_SPLIT_PATTERN.test(contents) || OTHER_LEADING_BLANK_PATTERN.test(contents)) return false;
+  const lines = contents.split(/\r?\n/);
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  // Every top-level key, in any order, must be one the allowlist names, written plain; a second
+  // `jobs:` may be the one a parser keeps.
+  let jobsStart = -1;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (!isContent(raw) || /^[ \t]/.test(raw)) continue;
+    if (!PRINT_ONLY_TOP_LEVEL_KEY_PATTERN.test(raw)) return false;
+    if (/^jobs:[ \t]*$/.test(stripYamlComment(raw))) {
+      if (jobsStart !== -1) return false;
+      jobsStart = index;
+    }
+  }
+  if (jobsStart === -1) return false;
+  let jobIndent = -1;
+  let keyIndent = -1;
+  let inSteps = false;
+  let stepKeyColumn = -1;
+  let step: { run?: boolean; uses?: boolean } | null = null;
+  let body: { column: number; block: boolean } | null = null;
+  let runSteps = 0;
+  const closeStep = () => {
+    if (step && step.run && step.uses) return false;
+    if (step?.run) runSteps += 1;
+    step = null;
+    return true;
+  };
+  for (let index = jobsStart + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? '';
+    if (raw.trim() === '') continue;
+    const indent = lineIndent(raw);
+    if (body) {
+      if (indent > body.column) {
+        // A block body is shell text: a line is a comment only when it starts with `#`, and the
+        // balanced-quote rule means no quote is open from an earlier line.
+        if (!body.block) return false;
+        const text = raw.trim();
+        if (!text.startsWith('#') && !isPrintOnlyShellLine(text)) return false;
+        continue;
+      }
+      body = null;
+    }
+    if (!isContent(raw)) continue;
+    const text = stripYamlComment(raw).trimEnd();
+    // The next top-level key ends the jobs section; the scan above has read every one.
+    if (indent === 0) break;
+    if (jobIndent === -1) jobIndent = indent;
+    if (indent < jobIndent) return false;
+    if (indent === jobIndent) {
+      if (!closeStep()) return false;
+      if (!/^[ \t]*[A-Za-z_][A-Za-z0-9_-]*:[ \t]*$/.test(text)) return false;
+      keyIndent = -1;
+      inSteps = false;
+      continue;
+    }
+    if (keyIndent === -1) keyIndent = indent;
+    const isItem = /^[ \t]*-[ \t]+/.test(text);
+    if (indent < keyIndent) return false;
+    if (indent === keyIndent && !(inSteps && isItem)) {
+      if (!closeStep()) return false;
+      inSteps = false;
+      const key = UNQUOTED_KEY_PATTERN.exec(text.trim());
+      if (!key || !PRINT_ONLY_JOB_KEYS.has(key[1] ?? '')) return false;
+      const value = key[2] ?? '';
+      if (key[1] === 'steps') {
+        if (value !== '') return false;
+        inSteps = true;
+        continue;
+      }
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+      continue;
+    }
+    if (!inSteps) return false;
+    let keyText = text;
+    let column = indent;
+    if (isItem) {
+      if (!closeStep()) return false;
+      const item = /^([ \t]*-[ \t]+)([^]*)$/.exec(text);
+      keyText = item?.[2] ?? '';
+      column = (item?.[1] ?? '').length;
+      stepKeyColumn = column;
+      step = {};
+    } else if (indent !== stepKeyColumn || !step) {
+      return false;
+    }
+    const key = UNQUOTED_KEY_PATTERN.exec(keyText.trim());
+    if (!key || !PRINT_ONLY_STEP_KEYS.has(key[1] ?? '')) return false;
+    const value = key[2] ?? '';
+    const current: { run?: boolean; uses?: boolean } = step ?? {};
+    if (key[1] === 'name') {
+      if (value === '' || /^[[{&*|>!]/.test(value) || !isOneLineScalar(value)) return false;
+    } else if (key[1] === 'uses') {
+      if (current.uses || !CHECKOUT_ACTION_PATTERN.test(value)) return false;
+      current.uses = true;
+    } else {
+      if (current.run) return false;
+      current.run = true;
+      if (BLOCK_SCALAR_INDICATOR_PATTERN.test(value)) {
+        body = { column, block: true };
+      } else {
+        if (value === '' || !isPrintOnlyShellLine(value) || /^["']/.test(value)) return false;
+        // A plain value continued on a deeper line is not placed.
+        body = { column, block: false };
+      }
+    }
+  }
+  if (!closeStep()) return false;
+  return runSteps > 0;
+}
+
+export interface B3UnshownCheckWorkflows {
+  readonly printOnly: readonly string[];
+}
+
+/**
+ * B3: of the workflows default_branch_ci_depth counted, those Cejel did not see run a check. Reads
+ * only files that count already read.
+ */
+function findB3UnshownCheckWorkflows(
+  root: string,
+  counted: readonly string[],
+  describePath: (file: string) => string = (file) => file,
+): B3UnshownCheckWorkflows {
+  const printOnly: string[] = [];
+  for (const file of counted.filter((path) => /^\.github\/workflows\//.test(path))) {
+    const fullPath = join(root, file);
+    if (!isRegularFile(fullPath)) continue;
+    const contents = withoutContentReadAttribution(() => readRepoText(fullPath, 'utf8'));
+    if (isPrintOnlyWorkflow(contents)) printOnly.push(describePath(file));
+  }
+  return { printOnly };
+}
+
+function mergeB3UnshownCheckWorkflows(
+  own: B3UnshownCheckWorkflows,
+  root: B3UnshownCheckWorkflows,
+): B3UnshownCheckWorkflows {
+  return { printOnly: [...own.printOnly, ...root.printOnly] };
+}
+
+function b3UnshownCheckCount(unshown: B3UnshownCheckWorkflows): number {
+  return new Set(unshown.printOnly).size;
+}
+
+/**
+ * B3's disclosure, starting with WITAN_B3_UNSHOWN_CHECK_PREFIX; the certificate lists it under
+ * "What was not established". `budget` is the schema's room for one disclosure.
+ */
+export function b3UnshownCheckDisclosure(
+  unshown: B3UnshownCheckWorkflows,
+  budget = Number.POSITIVE_INFINITY,
+): string {
+  const count = b3UnshownCheckCount(unshown);
+  if (count === 0) return '';
+  const tail = ` The PR-gate CI workflow count still includes ${count === 1 ? 'it' : 'them'}.`;
+  const parts = (shown: number) => [
+    `${unshown.printOnly.slice(0, shown).join(', ')}${unshown.printOnly.length > shown ? ` and ${unshown.printOnly.length - shown} more` : ''} only print${unshown.printOnly.length === 1 ? 's' : ''} text`,
+  ];
+  for (let shown = 3; shown > 0; shown -= 1) {
+    const sentence = `${WITAN_B3_UNSHOWN_CHECK_PREFIX}${parts(shown).join('; ')}.${tail}`;
+    if (sentence.length <= budget) return sentence;
+  }
+  const countOnly = `${WITAN_B3_UNSHOWN_CHECK_PREFIX}${count} workflow${count === 1 ? '' : 's'}.${tail}`;
+  return countOnly.length <= budget ? countOnly : '';
+}
+
+/** The same fact for the default_branch_ci_depth metric line (schema maximum 240). */
+function b3UnshownCheckCondition(unshown: B3UnshownCheckWorkflows): string {
+  const count = b3UnshownCheckCount(unshown);
+  const files = unshown.printOnly.map((path) => `${basename(path)} only prints text`);
+  const lead = `includes ${count} not shown to run a check`;
+  for (let shown = Math.min(files.length, 3); shown > 0; shown -= 1) {
+    const condition = `${lead}: ${files.slice(0, shown).join('; ')}${files.length > shown ? '; ...' : ''}`;
+    if (condition.length <= METRIC_CONDITION_MAX_LENGTH) return condition;
+  }
+  return lead;
 }
 
 export function auditFreshnessCommitterYearFromGitResult(
@@ -5947,7 +7099,6 @@ const CI_TYPECHECK_COMMAND_PATTERN = /\b(tsc|mypy|pyright)\b/i;
 // suggests nightly health verification but lacks the shape (no schedule trigger or
 // test-run command) is not flagged at all
 // (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12).
-const SCHEDULE_TRIGGER_PATTERN = /(^|\n)\s*schedule:\s*\r?\n\s*-\s*cron:/;
 // Durable-publication markers: the workflow visibly does more than hand its result
 // to an ephemeral, access-gated CI artifact — it pushes a persisted, checkable
 // record (a public pages deploy, a commit back to the repo, a PR/issue comment).
@@ -7071,20 +8222,100 @@ function measureNonHollowTestShare(
 // A conftest.py is pytest's per-directory plugin: fixtures and hooks, never tests.
 const PYTEST_CONFTEST_PATTERN = /(^|\/)conftest\.py$/;
 // A module-level, unconditional skip of every test in the file: a top-level `pytestmark = ...`
-// statement on one line naming `pytest.mark.skip`, with or without arguments, alone or in a list.
-// `skipif`, and any `if` on that line (a conditional expression), is not unconditional.
+// statement whose first line names `pytest.mark.skip`, with or without arguments, alone or in a
+// list, and which is the only place the module names `pytestmark`. `skipif`, an `if` anywhere in
+// the statement (a conditional expression, on any line a bracket carries it onto), a `\`
+// continuation, and any other mention of `pytestmark` in the module (a later reassignment, one
+// inside an `if`, an `append`) are not unconditional.
 const PYTEST_MODULE_SKIP_MARK_PATTERN = /\bpytest\.mark\.skip\b(?!if)/;
-const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=/;
+const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=(?!=)/;
+// How many lines a bracketed `pytestmark = (...)` statement may span before Cejel stops reading it.
+const PYTEST_MODULE_SKIP_MAX_STATEMENT_LINES = 20;
+
+/**
+ * A line's code with its comment removed and each one-line string literal's contents blanked
+ * (`"..."` becomes `""`), so neither a `#` nor a bracket inside a string is read as code. A quote
+ * left open at the end of the line blanks the rest of it. Linear in the line.
+ */
+function pythonCodeOutsideStrings(line: string): string {
+  let code = '';
+  let quote = '';
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index] ?? '';
+    if (quote !== '') {
+      if (character === '\\') index += 1;
+      else if (character === quote) {
+        code += character;
+        quote = '';
+      }
+      continue;
+    }
+    if (character === '#') break;
+    if (character === '"' || character === "'") quote = character;
+    code += character;
+  }
+  return code;
+}
+
+const PYTEST_MARK_NAME_GLOBAL_PATTERN = /\bpytestmark\b/g;
+
+function countPytestMarkMentions(text: string): number {
+  return [...text.matchAll(PYTEST_MARK_NAME_GLOBAL_PATTERN)].length;
+}
+
+/** The change in bracket depth across code already free of strings and comments. */
+function pythonBracketDelta(code: string): number {
+  let depth = 0;
+  for (const character of code) {
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth -= 1;
+  }
+  return depth;
+}
 
 function hasUnconditionalPytestModuleSkip(file: string, contents: string): boolean {
   if (!/\.py$/.test(file)) return false;
-  for (const line of contents.split('\n')) {
-    if (!PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(line)) continue;
-    const code = stripPythonLineComment(line);
-    if (/\bif\b/.test(code)) continue;
-    if (PYTEST_MODULE_SKIP_MARK_PATTERN.test(code)) return true;
+  const lines = contents.split('\n');
+  // Every mention of `pytestmark` outside a comment, a string included, counted per occurrence so
+  // two statements on one line (`pytestmark = ...; pytestmark = []`) are two mentions.
+  let mentionCount = 0;
+  let start = -1;
+  for (const [index, line] of lines.entries()) {
+    const count = Math.max(
+      countPytestMarkMentions(stripPythonLineComment(line)),
+      countPytestMarkMentions(pythonCodeOutsideStrings(line)),
+    );
+    if (count > 0 && start === -1) start = index;
+    mentionCount += count;
   }
-  return false;
+  // One statement may name `pytestmark`; a second mention may undo or change it.
+  if (mentionCount !== 1) return false;
+  const first = lines[start] ?? '';
+  // The skip is named in code on the statement's first line, not inside a string (an `xfail`
+  // whose reason names `pytest.mark.skip`): a statement continued onto more lines is only ever
+  // read as fewer claims than its first line alone.
+  if (
+    !PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(first) ||
+    !PYTEST_MODULE_SKIP_MARK_PATTERN.test(pythonCodeOutsideStrings(first))
+  ) {
+    return false;
+  }
+  // The whole statement: the line, and the lines an open bracket carries it onto. Its text is
+  // read as before, up to each line's first `#` (a skip reason holding `if` still withholds the
+  // claim); its brackets are counted outside strings and comments.
+  const statement: string[] = [];
+  let depth = 0;
+  for (let index = start; index < lines.length; index += 1) {
+    if (statement.length === PYTEST_MODULE_SKIP_MAX_STATEMENT_LINES) return false;
+    const raw = (lines[index] ?? '').replace(/\r$/, '');
+    const code = pythonCodeOutsideStrings(raw);
+    if (/\\[ \t]*$/.test(code) || /\\[ \t]*$/.test(raw)) return false;
+    statement.push(stripPythonLineComment(raw));
+    depth += pythonBracketDelta(code);
+    if (depth <= 0) break;
+  }
+  if (depth > 0) return false;
+  return !/\bif\b/.test(statement.join('\n'));
 }
 
 /** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
@@ -7102,18 +8333,111 @@ function isGovernedPytestFile(skip: PytestRunWideSkip, file: string): boolean {
 // Only a hook defined at the top level of conftest.py is read: one defined inside an `if`, `try`
 // or other block exists only on some runs, so it is conditional too.
 const PYTEST_COLLECTION_HOOK_PATTERN = /^def[ \t]+pytest_collection_modifyitems[ \t]*\(/;
+const PYTEST_COLLECTION_HOOK_NAME = 'pytest_collection_modifyitems';
+const PYTEST_COLLECTION_HOOK_NAME_PATTERN = /\bpytest_collection_modifyitems\b/;
 // Inside the hook: any of these makes what it does depend on something, and Cejel then makes no
 // claim about it.
 const PYTEST_HOOK_CONDITIONAL_PATTERN =
   /^(?:if|elif|else|while|try|except|finally|with|match|case|return|break|continue|yield)\b|\bskipif\b|\bif\b/;
-const PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN = /\badd_marker\s*\(\s*pytest\.mark\.skip\b(?!if)/;
-const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+[A-Za-z_]\w*[ \t]+in[ \t]+items[ \t]*:/;
+// `for <name> in items:`, with any inline body after the colon in group 2.
+const PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN = /^for[ \t]+([A-Za-z_]\w*)[ \t]+in[ \t]+items[ \t]*:(.*)$/;
+// A statement that rebinds `items` itself, so a later loop over it may not cover every item.
+const PYTEST_HOOK_REBIND_ITEMS_PATTERN = /^(?:del[ \t]+)?items[ \t]*(?:[-+*/%&|^@]?=(?!=)|,|$)|\bitems[ \t]*:=/;
 const PYTEST_HOOK_CLEAR_ITEMS_PATTERN =
   /^(?:items\.clear\(\s*\)|items\[\s*:\s*\][ \t]*=[ \t]*\[\s*\]|del[ \t]+items\[\s*:\s*\])/;
 // Any statement that puts items back (`items.clear()` then `items.extend(ordered)` is how a hook
 // reorders the run): the list is not left empty, so the hook is not read as removing the suite.
 const PYTEST_HOOK_REFILL_ITEMS_PATTERN =
   /^items(?:[ \t]*\.[ \t]*(?:extend|append|insert)[ \t]*\(|[ \t]*\+=|[ \t]*\[[^\]]*\][ \t]*=(?!=))/;
+// ...except one that puts back an empty literal (`items.extend([])`, `items += ()`), which leaves
+// the list empty.
+const PYTEST_HOOK_EMPTY_REFILL_PATTERN =
+  /^items(?:[ \t]*\.[ \t]*extend[ \t]*\([ \t]*|[ \t]*\+=[ \t]*)(?:\[[ \t]*\]|\([ \t]*\))[ \t]*(?:\)[ \t]*)?$/;
+
+/**
+ * A hook body line's statements: split at `;` unless the line holds a quote, where a `;` may be
+ * inside a string and the line is kept whole.
+ */
+function pythonLineStatements(line: string): string[] {
+  if (!line.includes(';') || /['"]/.test(line)) return [line];
+  return line
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter((statement) => statement !== '');
+}
+
+/** One statement of a hook body, with the indent of the line it is on. */
+interface PythonHookStatement {
+  readonly indent: number;
+  readonly text: string;
+}
+
+// `<name>.add_marker(pytest.mark.skip...)`, with the receiver in group 1.
+const PYTEST_HOOK_SKIP_MARKER_PATTERN =
+  /^([A-Za-z_]\w*)[ \t]*\.[ \t]*add_marker[ \t]*\([ \t]*pytest\.mark\.skip\b(?!if)/;
+// The start of a statement that assigns to the name in group 1 (`x = `, `x += `, `x, y = `, `del x`).
+const PYTHON_ASSIGNMENT_TARGET_PATTERN = /^(?:del[ \t]+)?([A-Za-z_]\w*)[ \t]*(?:[-+*/%&|^@]?=(?!=)|,)/;
+const PYTHON_IDENTIFIER_PATTERN = /[A-Za-z_]\w*/g;
+
+/** True when `text` holds `name` as a whole identifier. Linear in `text`. */
+function containsPythonIdentifier(text: string, name: string): boolean {
+  for (const match of text.matchAll(PYTHON_IDENTIFIER_PATTERN)) if (match[0] === name) return true;
+  return false;
+}
+
+
+/**
+ * True when a statement may rebind `name`: an assignment to it, or a `for`, `as` or `:=` outside a
+ * string literal in a statement naming it.
+ */
+function mayRebindPythonName(text: string, name: string): boolean {
+  if (PYTHON_ASSIGNMENT_TARGET_PATTERN.exec(text)?.[1] === name) return true;
+  // One pass: string contents blanked, so a `for` or `as` in a skip reason is not read as code.
+  // (A regex alternation over quoted strings retried from every quote of an unclosed run.)
+  const code = pythonCodeOutsideStrings(text);
+  return /\bfor\b|\bas\b|:=/.test(code) && containsPythonIdentifier(code, name);
+}
+
+/**
+ * True when the hook body (already free of any conditional) holds, at its own first indent, a
+ * `for <name> in items:` loop whose own body, at its first level, adds a skip marker to `<name>`, and nothing in the
+ * loop rebinds `<name>` and nothing in the hook rebinds `items`. A skip and a loop that merely
+ * co-occur (a timeout on every item and a skip on one, `items[0].add_marker(...)`, a skip inside
+ * a nested loop or function) are not tied together, so nothing is claimed. Linear in the body
+ * for sibling loops; nested loops rescan only their own extent.
+ */
+function hookSkipsEveryItem(body: readonly PythonHookStatement[]): boolean {
+  if (body.some(({ text }) => PYTEST_HOOK_REBIND_ITEMS_PATTERN.test(text))) return false;
+  // The loop must run when the hook does: at the hook body's own first indent, not inside a nested
+  // function or another loop.
+  const hookIndent = body[0]?.indent;
+  const skips = (text: string, name: string): boolean =>
+    PYTEST_HOOK_SKIP_MARKER_PATTERN.exec(text)?.[1] === name;
+  for (let index = 0; index < body.length; index += 1) {
+    const statement = body[index] as PythonHookStatement;
+    if (statement.indent !== hookIndent) continue;
+    const loop = PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.exec(statement.text);
+    if (!loop) continue;
+    const name = loop[1] ?? '';
+    const inline = (loop[2] ?? '').trim();
+    if (inline !== '') {
+      if (skips(inline, name)) return true;
+      continue;
+    }
+    const childIndent = body[index + 1]?.indent;
+    if (childIndent === undefined || childIndent <= statement.indent) continue;
+    let skipped = false;
+    let rebound = false;
+    for (let inner = index + 1; inner < body.length; inner += 1) {
+      const { indent, text } = body[inner] as PythonHookStatement;
+      if (indent <= statement.indent) break;
+      if (mayRebindPythonName(text, name)) rebound = true;
+      if (indent === childIndent && skips(text, name)) skipped = true;
+    }
+    if (skipped && !rebound) return true;
+  }
+  return false;
+}
 
 interface PytestRunWideSkip {
   /** The conftest.py, repository-relative. */
@@ -7143,33 +8467,60 @@ function findPytestRunWideSkips(
     const fullPath = join(repoPath, file);
     if (!isRegularFile(fullPath)) continue;
     const lines = readRepoText(fullPath, 'utf8').split('\n');
+    // The module's hook is whatever the name is bound to last when it finishes executing. Of
+    // top-level `def` statements that is the last one; any other binding of the name (an indented
+    // or conditional `def`, an assignment, `del`, an import, or any other mention outside a
+    // whole-line comment, which Cejel does not try to rule out) may replace it, so then nothing is
+    // claimed.
+    let last = -1;
     for (let index = 0; index < lines.length; index += 1) {
-      if (!PYTEST_COLLECTION_HOOK_PATTERN.test(lines[index] ?? '')) continue;
-      const body: string[] = [];
+      const line = lines[index] ?? '';
+      if (PYTEST_COLLECTION_HOOK_PATTERN.test(line)) {
+        last = index;
+      } else if (
+        line.includes(PYTEST_COLLECTION_HOOK_NAME) &&
+        !line.trimStart().startsWith('#') &&
+        PYTEST_COLLECTION_HOOK_NAME_PATTERN.test(line)
+      ) {
+        last = -1;
+        break;
+      }
+    }
+    // At most one pass, over that last definition (a loop so `continue` withholds the claim).
+    for (let index = last; index !== -1; index = -1) {
+      const indented: PythonHookStatement[] = [];
       for (let next = index + 1; next < lines.length; next += 1) {
         const raw = lines[next] ?? '';
         const trimmed = raw.trim();
         if (trimmed === '' || trimmed.startsWith('#')) continue;
-        if (raw.length === raw.trimStart().length) break;
-        body.push(stripPythonLineComment(trimmed).trim());
+        const indent = raw.length - raw.trimStart().length;
+        if (indent === 0) break;
+        for (const text of pythonLineStatements(stripPythonLineComment(trimmed).trim())) {
+          indented.push({ indent, text });
+        }
       }
+      const body = indented.map(({ text }) => text);
       if (body.some((statement) => PYTEST_HOOK_CONDITIONAL_PATTERN.test(statement))) continue;
-      const clears = body.some((statement) => PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement));
+      // The clear must run when the hook does: at the hook body's own first indent, not inside a
+      // nested function or a loop that may run zero times.
+      const hookIndent = indented[0]?.indent;
+      const clears = indented.some(
+        ({ indent, text }) => indent === hookIndent && PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(text),
+      );
       const refills = body.some(
         (statement) =>
           !PYTEST_HOOK_CLEAR_ITEMS_PATTERN.test(statement) &&
+          !PYTEST_HOOK_EMPTY_REFILL_PATTERN.test(statement) &&
           PYTEST_HOOK_REFILL_ITEMS_PATTERN.test(statement),
       );
       const kind = clears && !refills
         ? ('clear' as const)
-        : body.some((statement) => PYTEST_HOOK_FOR_EVERY_ITEM_PATTERN.test(statement)) &&
-            body.some((statement) => PYTEST_HOOK_SKIP_EVERY_ITEM_PATTERN.test(statement))
+        : hookSkipsEveryItem(indented)
           ? ('skip' as const)
           : undefined;
       if (!kind) continue;
       const scope = dirname(file);
       found.push({ path: file, line: index + 1, scope: scope === '.' ? '' : scope, kind });
-      break;
     }
   }
   return found;
@@ -7410,10 +8761,10 @@ function readPyprojectDependencySpecs(path: string): DependencySpec[] {
         const dep = rawDep.replace(/["'\s]/g, '');
         if (!dep) continue;
         const nameMatch = /^([A-Za-z0-9][\w.-]*)/.exec(dep);
-        const versionMatch = /([><=~!^]+[\d.]+)/.exec(dep);
+        const versionConstraint = firstVersionConstraint(dep);
         const depName = nameMatch?.[1];
         if (depName) {
-          specs.push({ name: depName, version: versionMatch?.[1] ?? dep });
+          specs.push({ name: depName, version: versionConstraint ?? dep });
         }
       }
     }
@@ -8536,7 +9887,7 @@ function normaliseDeclaredClaimArtifactPath(candidate: string, baseDir: string):
   const joined = candidate.startsWith('/')
     ? posix.normalize(candidate.slice(1))
     : posix.normalize(posix.join(baseDir, candidate));
-  const path = joined.replace(/\/+$/, '');
+  const path = stripTrailingSlashes(joined);
   if (path === '' || path === '.' || path === '..' || path.startsWith('../') || path.startsWith('/')) {
     return null;
   }
@@ -8548,7 +9899,7 @@ function markdownLinkTarget(target: string): string | null {
   if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('#')) {
     return null;
   }
-  const withoutSuffix = target.replace(/[?#].*$/, '');
+  const withoutSuffix = stripFromQueryOrFragment(target);
   try {
     return decodeURIComponent(withoutSuffix);
   } catch {
@@ -8642,7 +9993,7 @@ function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDecla
     writeContinues = false;
   };
   contents.split(/\r?\n/).forEach((rawLine, index) => {
-    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    const line = stripHashCommentAtStartOrAfterBlank(rawLine);
     if (line.trim() === '') return;
     const indent = line.length - line.trimStart().length;
     if (
@@ -9702,7 +11053,7 @@ function reachableShellWrapper(
 ): string | undefined {
   const executable = basename(words[0] ?? '').toLowerCase();
   const candidate = /^(?:ba|da|k|z)?sh$/u.test(executable) ? words[1] : words[0];
-  if (!candidate || !/(?:^|\/)\.?[^\s]*\.sh$/i.test(candidate)) return undefined;
+  if (!candidate || !isShellScriptPath(candidate)) return undefined;
   const normalized = candidate.replace(/^\.\//u, '');
   if (normalized.startsWith('/') || normalized.split('/').includes('..')) return undefined;
   return repoFiles.has(normalized) ? normalized : undefined;
@@ -10857,7 +12208,7 @@ function readPnpmWorkspacePatterns(yamlPath: string): string[] | null {
 }
 
 function stripYamlLineComment(text: string): string {
-  return /^\s*#/.test(text) ? '' : text.replace(/\s+#.*$/, '');
+  return /^\s*#/.test(text) ? '' : stripTrailingHashComment(text);
 }
 
 function yamlScalar(raw: string): string | null {
@@ -10886,7 +12237,7 @@ export const WORKSPACE_GLOB_MAX_SEGMENTS = 32;
 export function workspaceGlobMatcher(pattern: string): ((dir: string) => boolean) | null {
   // Capped before any normalisation, so no regex below ever sees an unbounded pattern.
   if (pattern.length > WORKSPACE_GLOB_MAX_LENGTH) return null;
-  const normalised = pattern.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+  const normalised = stripTrailingSlashes(pattern.trim().replace(/^\.\//, ''));
   if (
     normalised === '' ||
     normalised.startsWith('/') ||
@@ -11059,7 +12410,7 @@ function countDelegatedCiSteps(root: string, workflows: readonly string[]): Dele
         continue;
       }
       if (!uses.startsWith('./') || /^\.\/\.github\/workflows\//.test(uses)) continue;
-      const directory = uses.slice(2).replace(/\/+$/u, '');
+      const directory = stripTrailingSlashes(uses.slice(2));
       if (directory.length === 0 || directory.split('/').includes('..')) continue;
       if (
         isRegularFile(join(root, directory, 'action.yml')) ||
@@ -11086,7 +12437,7 @@ function extractWorkflowUsesValues(contents: string): string[] {
     }
     const match = /^\s*(?:-\s*)?uses\s*:\s*(.*)$/u.exec(line);
     if (match) {
-      const value = (match[1] ?? '').replace(/\s+#.*$/u, '').trim();
+      const value = stripTrailingHashComment(match[1] ?? '').trim();
       const quoted = /^(?:"(.*)"|'(.*)')$/u.exec(value);
       values.push(quoted ? (quoted[1] ?? quoted[2] ?? '') : value);
       continue;
@@ -11456,7 +12807,7 @@ function stripUnbalancedShellParentheses(segment: string): string {
   const opens = segment.split('(').length - 1;
   const closes = segment.split(')').length - 1;
   if (opens > closes) return segment.replace(/^\(+\s*/u, '');
-  if (closes > opens) return segment.replace(/\s*\)+$/u, '');
+  if (closes > opens) return stripTrailingCloseParentheses(segment);
   return segment;
 }
 
@@ -11535,6 +12886,13 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   return pattern.test(readRepoText(fullPath, 'utf8'));
+}
+
+/** fileContains for a test that is not a regex (a linear scan in place of a quadratic pattern). */
+function fileSatisfies(repoPath: string, file: string, test: (contents: string) => boolean): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  return test(readRepoText(fullPath, 'utf8'));
 }
 
 // Same as fileContains, but strips comments before testing. Used wherever a match is credited as
@@ -11731,6 +13089,7 @@ function findCommittedSecretInFile(
   useV39Detectors = false,
   useV47Detectors = false,
   useV23PemPrivateKeyGrammar = false,
+  setAside?: PlaceholderSetAsideCount,
 ): RealSecretAssignmentMatch | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
@@ -11744,8 +13103,17 @@ function findCommittedSecretInFile(
     useV39Detectors,
     useV47Detectors,
   );
+  // The count rides on the detection pass. That pass stops only at a match, and a match ends the
+  // A2 scan, which then reports no set-aside values; otherwise it has seen every value.
   const secret = findRealSecretAssignment(secretScanContents, new Set(), {
     allowCredentialNamedDigest: useV36Detectors,
+    ...(setAside
+      ? {
+          observeValue: (value: string, outcome: V24ClassificationOutcome) => {
+            if (isPlaceholderSetAsideSecret(value, outcome)) setAside.count += 1;
+          },
+        }
+      : {}),
   });
   if (secret) return secret;
   if (useV23PemPrivateKeyGrammar) {
@@ -11778,6 +13146,7 @@ function findV24ClassifiedSecretInFile(
   useV36Detectors: boolean,
   useV39Detectors: boolean,
   useV47Detectors: boolean,
+  setAside?: PlaceholderSetAsideCount,
 ): V24ClassifiedCommittedSecret | null {
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return null;
@@ -11799,7 +13168,7 @@ function findV24ClassifiedSecretInFile(
   // evidence this mechanism exists to read.
   const rawLines = contents.split(/\r?\n/);
   const classifyFor =
-    (wanted: Exclude<V24SecretClassification, 'no_finding'>) =>
+    (wanted: Exclude<V24SecretClassification, 'no_finding'>, countSetAside = false) =>
     (value: string, identifier: string, line: number): V24ClassificationOutcome => {
       const outcome = classifyV24SecretShapedValue(
         value,
@@ -11808,6 +13177,12 @@ function findV24ClassifiedSecretInFile(
         rawLines,
         useV36Detectors,
       );
+      // Counted on the first pass only, from the classifier's own verdict: a value v24 reports as
+      // real or ambiguous is never also described as set aside. That pass sees every value unless
+      // it stops at a real one, which ends the A2 scan with no set-aside values reported.
+      if (countSetAside && setAside && isPlaceholderSetAsideSecret(value, outcome)) {
+        setAside.count += 1;
+      }
       return outcome.classification === wanted ? outcome : V24_NO_FINDING;
     };
 
@@ -11817,7 +13192,7 @@ function findV24ClassifiedSecretInFile(
   // extra linear scan and the cost of the flagging case is unchanged.
   const real = findRealSecretAssignment(secretScanContents, new Set(), {
     allowCredentialNamedDigest: useV36Detectors,
-    classifyValue: classifyFor('real'),
+    classifyValue: classifyFor('real', true),
   });
   if (real) return { match: real, classification: 'real' };
 
@@ -12044,6 +13419,8 @@ interface SecretAssignmentOptions {
    * rubric, so the legacy branch below is reached unchanged.
    */
   classifyValue?: (value: string, identifier: string, line: number) => V24ClassificationOutcome;
+  /** Sees every assignment value the pass reaches, with its verdict. Never changes the verdict. */
+  observeValue?: (value: string, outcome: V24ClassificationOutcome) => void;
 }
 
 function findRealSecretAssignment(
@@ -12125,6 +13502,7 @@ function findRealSecretAssignments(
                   isExplicitCredentialIdentifier(identifier)))
             ? V24_REAL
             : V24_NO_FINDING;
+        options.observeValue?.(value, outcome);
         if (outcome.classification !== 'no_finding') {
           const valueFingerprint = createHash('sha256').update(value).digest('hex');
           const characterClasses = [
@@ -12705,6 +14083,90 @@ export function isPlaceholderSecretValue(value: string): boolean {
     isSyntheticFixtureSecretValue(normalized) ||
     isFillerRunSecretValue(normalized)
   );
+}
+
+// A2 disclosure, every rubric. A value that has the shape of a credential (looksLikeSecretValue)
+// but that isPlaceholderSecretValue sets aside — the AWS documentation pair, for example, which
+// contains "EXAMPLE" — does not count against secret cleanliness. That is a precision choice and is
+// unchanged. Before this, it left no trace, so "clean" read as "nothing credential-shaped was
+// found". These values are now counted, by file, and named on the certificate. Nothing here feeds
+// a metric, a finding or an evidence pointer.
+interface PlaceholderSetAsideCount {
+  count: number;
+}
+
+/**
+ * A credential-shaped value the placeholder rule set aside: the scan reported nothing for it, it
+ * carries a placeholder marker, and without that marker it would read as a secret.
+ */
+function isPlaceholderSetAsideSecret(value: string, outcome: V24ClassificationOutcome): boolean {
+  return (
+    outcome.classification === 'no_finding' &&
+    isPlaceholderSecretValue(value) &&
+    looksLikeSecretValue(value)
+  );
+}
+
+export interface PlaceholderSetAsideFile {
+  readonly path: string;
+  readonly count: number;
+}
+
+const PLACEHOLDER_SET_ASIDE_PATHS_SHOWN = 3;
+
+function placeholderSetAsidePathList(files: readonly PlaceholderSetAsideFile[], shown: number): string {
+  const named = files.slice(0, shown).map((file) => file.path);
+  const more = files.length - named.length;
+  return more > 0 ? `${named.join(', ')} and ${more} more file${more === 1 ? '' : 's'}` : named.join(', ');
+}
+
+function placeholderSetAsideValues(files: readonly PlaceholderSetAsideFile[]): string {
+  const total = files.reduce((sum, file) => sum + file.count, 0);
+  return `${total} credential-shaped value${total === 1 ? '' : 's'}`;
+}
+
+/**
+ * A2's disclosure, which the certificate lists under "What was not established". It always starts
+ * with WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX. `budget` is the schema's room for one disclosure;
+ * paths are dropped to fit.
+ */
+export function placeholderSetAsideDisclosure(
+  files: readonly PlaceholderSetAsideFile[],
+  budget = Number.POSITIVE_INFINITY,
+): string {
+  const total = files.reduce((sum, file) => sum + file.count, 0);
+  const lead = `${WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX}${placeholderSetAsideValues(files)} as ${total === 1 ? 'a documentation placeholder because it contains' : 'documentation placeholders because they contain'} a placeholder marker such as "example", so ${total === 1 ? 'it was' : 'they were'} not counted against secret cleanliness or checked further`;
+  for (let shown = Math.min(files.length, PLACEHOLDER_SET_ASIDE_PATHS_SHOWN); shown > 0; shown -= 1) {
+    const sentence = `${lead}: ${placeholderSetAsidePathList(files, shown)}.`;
+    if (sentence.length <= budget) return sentence;
+  }
+  const countOnly = `${lead}, in ${files.length} file${files.length === 1 ? '' : 's'}.`;
+  return countOnly.length <= budget ? countOnly : '';
+}
+
+/** The same fact, short enough for the secret_cleanliness metric line (schema maximum 240). */
+function placeholderSetAsideCondition(files: readonly PlaceholderSetAsideFile[]): string {
+  const lead = `${placeholderSetAsideValues(files)} set aside as documentation placeholders, not counted`;
+  for (let shown = Math.min(files.length, PLACEHOLDER_SET_ASIDE_PATHS_SHOWN); shown > 0; shown -= 1) {
+    const condition = `${lead}: ${placeholderSetAsidePathList(files, shown)}`;
+    if (condition.length <= METRIC_CONDITION_MAX_LENGTH) return condition;
+  }
+  return `${lead} (${files.length} file${files.length === 1 ? '' : 's'})`;
+}
+
+// WitanCriterionMetric presentation `condition` maximum.
+const METRIC_CONDITION_MAX_LENGTH = 240;
+// WitanCriterionSignalPayload `notes` maximum.
+const CRITERION_NOTES_MAX_LENGTH = 1000;
+// WitanCriterionDisclosuresSchema's per-sentence maximum.
+const CRITERION_DISCLOSURE_MAX_LENGTH = 1000;
+
+function placeholderSetAsideDisclosures(
+  files: readonly PlaceholderSetAsideFile[],
+): { disclosures?: string[] } {
+  if (files.length === 0) return {};
+  const sentence = placeholderSetAsideDisclosure(files, CRITERION_DISCLOSURE_MAX_LENGTH);
+  return sentence ? { disclosures: [sentence] } : {};
 }
 
 // A doc placeholder often looks like a real token — a plausible prefix followed

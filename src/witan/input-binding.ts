@@ -7,7 +7,8 @@ import type {
   WitanInputBindingStatus,
 } from './schemas.js';
 
-import { sanitizePresentationLine } from '../presentation-safety.js';
+import { sanitizePresentationLine, stripTerminalControls } from '../presentation-safety.js';
+import { stripFromQueryOrFragment } from './linear-strips.js';
 
 // INPUT BINDING — is an ingested scanner document about the thing this certificate is about?
 //
@@ -38,6 +39,7 @@ export type IngestBindingPolicy = WitanInputBinding['policy'];
  */
 export const INGEST_FRESHNESS_WINDOW_SECONDS = 86_400;
 
+/** Recorded per input; every declared subject is still checked (see evaluateInputBindingRecord). */
 const MAX_IDENTITIES_PER_INPUT = 8;
 const MAX_PRODUCER_NAME_LENGTH = 120;
 const MAX_PRODUCER_VERSION_LENGTH = 80;
@@ -53,13 +55,25 @@ export interface IngestProducerIdentity {
 }
 
 export interface IngestSubjectIdentity {
+  /** Normalized `host/path`. Only ever a value normalizeRepositoryIdentity returned. */
   readonly repository?: string;
+  /**
+   * The input declared a repository Cejel could not normalize (an IP or single-label host, a URL
+   * with no path, a control character). The declared text is withheld, never recorded: it may
+   * carry credentials or terminal controls that normalization exists to drop. A withheld
+   * repository is never treated as the named subject repository.
+   */
+  readonly repositoryWithheld?: true;
   readonly commit?: string;
 }
 
 /** Identity a document's own format carries. Every field is optional: formats differ. */
 export interface IngestDocumentIdentity {
   readonly producers: readonly IngestProducerIdentity[];
+  /**
+   * EVERY distinct subject the document declares, uncapped, in declaration order. The binding
+   * checks run over all of them; only the record written to report.json is capped.
+   */
   readonly subjects: readonly IngestSubjectIdentity[];
   /** Earliest observation time the document states, as ISO 8601 UTC. */
   readonly observedAt?: string;
@@ -111,16 +125,21 @@ export function normalizeRepositoryIdentity(value: string): string | undefined {
     const slash = text.indexOf('/');
     if (at !== -1 && (slash === -1 || at < slash)) text = text.slice(at + 1);
   }
-  text = text.replace(/[?#].*$/, '');
+  text = stripFromQueryOrFragment(text);
   const [hostWithPort, ...pathParts] = text.split('/');
   const host = (hostWithPort ?? '').replace(/:\d+$/, '').toLowerCase();
+  // Empty segments, then every trailing `.git` and slash together, so that the output is a fixed
+  // point: `o/r/.git` and `o/r.git.git` reach `o/r` in one pass, never in two.
   const path = pathParts
     .filter((part) => part.length > 0)
     .join('/')
-    .replace(/\.git$/i, '')
+    .replace(/(?:\/|\.git)+$/i, '')
     .toLowerCase();
   if (!/^[a-z0-9.-]+\.[a-z]{2,}$|^localhost$/.test(host) || path.length === 0) return undefined;
   if (/[\p{Cc}\p{Cf}\s]/u.test(path)) return undefined;
+  // An `@` left in the path is userinfo the forms above did not recognize
+  // (`https://host:1234/<token>@gitlab.com/g/r`, `git@host:<token>@x/r`): refuse, so it is withheld.
+  if (path.includes('@')) return undefined;
   const normalized = `${host}/${path}`;
   return normalized.length <= MAX_REPOSITORY_LENGTH ? normalized : undefined;
 }
@@ -146,20 +165,59 @@ export function parseObservedAt(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-  if (dateOnly) {
-    const millis = Date.parse(`${trimmed}T23:59:59Z`);
-    return Number.isNaN(millis) ? undefined : new Date(millis).toISOString();
-  }
+  if (dateOnly) return plainIsoInstant(Date.parse(`${trimmed}T23:59:59Z`));
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed)) {
     return undefined;
   }
-  const millis = Date.parse(trimmed);
-  return Number.isNaN(millis) ? undefined : new Date(millis).toISOString();
+  return plainIsoInstant(Date.parse(trimmed));
 }
 
+const PLAIN_ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+/**
+ * An instant as ISO 8601 UTC, only when its year is a plain four digits (0000-9999) AFTER offset
+ * normalization. `9999-12-31T23:00:00-02:00` is year 10000 in UTC, which toISOString writes as an
+ * expanded year (`+010000-...`) that report.json's datetime fields reject; such a value is treated
+ * as absent, so a scan can never write a report its own verifier refuses. Undefined for NaN and for
+ * instants outside the Date range (where toISOString would throw).
+ */
+export function plainIsoInstant(millis: number): string | undefined {
+  if (!Number.isFinite(millis)) return undefined;
+  const date = new Date(millis);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const iso = date.toISOString();
+  return PLAIN_ISO_INSTANT.test(iso) ? iso : undefined;
+}
+
+/** The earliest instant, compared as instants (never as strings). */
 function earliest(values: readonly (string | undefined)[]): string | undefined {
-  const defined = values.filter((value): value is string => value !== undefined).sort();
-  return defined[0];
+  let best: string | undefined;
+  let bestMillis = Number.POSITIVE_INFINITY;
+  for (const value of values) {
+    if (value === undefined) continue;
+    const millis = Date.parse(value);
+    if (Number.isNaN(millis)) continue;
+    if (millis < bestMillis) {
+      best = value;
+      bestMillis = millis;
+    }
+  }
+  return best;
+}
+
+/** Distinct subjects in declaration order. Keyed, so a document with many entries stays linear. */
+class SubjectSet {
+  private readonly byKey = new Map<string, IngestSubjectIdentity>();
+  add(subject: IngestSubjectIdentity): void {
+    const key = JSON.stringify([subject.repository ?? null, subject.repositoryWithheld ?? false, subject.commit ?? null]);
+    if (!this.byKey.has(key)) this.byKey.set(key, subject);
+  }
+  get size(): number {
+    return this.byKey.size;
+  }
+  values(): IngestSubjectIdentity[] {
+    return [...this.byKey.values()];
+  }
 }
 
 function pushUnique<T>(items: T[], item: T): void {
@@ -168,15 +226,31 @@ function pushUnique<T>(items: T[], item: T): void {
   if (!items.some((existing) => JSON.stringify(existing) === key)) items.push(item);
 }
 
+/**
+ * A declared subject. The repository is recorded only in normalized form: a declared value that
+ * does not normalize is withheld (see IngestSubjectIdentity.repositoryWithheld), never recorded
+ * verbatim, because the verbatim text is exactly where URL userinfo credentials live.
+ */
 function subjectFrom(repository: unknown, commit: unknown): IngestSubjectIdentity | undefined {
+  // Declared means present: anything but undefined, null or a blank string. A declared value that
+  // is not a string (Scorecard `repo.name: {host, path}`, SARIF `repositoryUri: {uri}`) cannot be
+  // normalized, so it is withheld like an un-normalizable string, never silently read as absent.
+  const declaredRepository =
+    repository !== undefined &&
+    repository !== null &&
+    !(typeof repository === 'string' && repository.trim().length === 0);
   const normalizedRepository =
-    typeof repository === 'string' ? normalizeRepositoryIdentity(repository) : undefined;
-  const rawRepository =
-    normalizedRepository ?? boundedText(repository, MAX_REPOSITORY_LENGTH);
+    typeof repository === 'string' && declaredRepository
+      ? normalizeRepositoryIdentity(repository)
+      : undefined;
   const normalizedCommit = normalizeCommit(commit);
-  if (rawRepository === undefined && normalizedCommit === undefined) return undefined;
+  if (!declaredRepository && normalizedCommit === undefined) return undefined;
   return {
-    ...(rawRepository !== undefined ? { repository: rawRepository } : {}),
+    ...(normalizedRepository !== undefined
+      ? { repository: normalizedRepository }
+      : declaredRepository
+        ? { repositoryWithheld: true as const }
+        : {}),
     ...(normalizedCommit !== undefined ? { commit: normalizedCommit } : {}),
   };
 }
@@ -221,8 +295,9 @@ export function extractSarifIdentity(raw: unknown): IngestDocumentIdentity {
   const doc = asRecord(raw) ?? {};
   const runs = Array.isArray(doc.runs) ? doc.runs : [];
   const producers: IngestProducerIdentity[] = [];
-  const subjects: IngestSubjectIdentity[] = [];
+  const subjects = new SubjectSet();
   const times: (string | undefined)[] = [];
+  let runWithoutSubject = false;
   for (const rawRun of runs) {
     const run = asRecord(rawRun) ?? {};
     const driver = asRecord(asRecord(run.tool)?.driver) ?? {};
@@ -230,19 +305,32 @@ export function extractSarifIdentity(raw: unknown): IngestDocumentIdentity {
     const version = boundedText(driver.semanticVersion ?? driver.version, MAX_PRODUCER_VERSION_LENGTH);
     pushUnique(producers, { name, ...(version !== undefined ? { version } : {}) });
     const provenance = Array.isArray(run.versionControlProvenance) ? run.versionControlProvenance : [];
+    let runDeclaredSubject = false;
     for (const rawEntry of provenance) {
       const entry = asRecord(rawEntry) ?? {};
       const subject = subjectFrom(entry.repositoryUri, entry.revisionId);
-      if (subject) pushUnique(subjects, subject);
+      if (subject) {
+        subjects.add(subject);
+        runDeclaredSubject = true;
+      }
     }
+    if (!runDeclaredSubject) runWithoutSubject = true;
     const invocations = Array.isArray(run.invocations) ? run.invocations : [];
     for (const rawInvocation of invocations) {
       const invocation = asRecord(rawInvocation) ?? {};
       times.push(parseObservedAt(invocation.startTimeUtc), parseObservedAt(invocation.endTimeUtc));
     }
   }
+  // A run that declares no subject, beside runs that do, is recorded as an empty subject: its
+  // findings are about no declared revision, so the document is not wholly bound to one (see
+  // bindingStatusForChecks). A document in which no run declares anything keeps `subjects: []`.
+  if (runWithoutSubject && subjects.size > 0) subjects.add({});
   const observedAt = earliest(times);
-  return { producers, subjects, ...(observedAt !== undefined ? { observedAt } : {}) };
+  return {
+    producers,
+    subjects: subjects.values(),
+    ...(observedAt !== undefined ? { observedAt } : {}),
+  };
 }
 
 /** Assemble a generic-contract identity from the v1.1 fields the adapter already validated. */
@@ -267,18 +355,33 @@ export function genericIdentity(fields: {
 
 type CheckResult = WitanInputBindingRecord['checks'];
 
+function declaresRepository(subject: IngestSubjectIdentity): boolean {
+  return subject.repository !== undefined || subject.repositoryWithheld === true;
+}
+
 function checkRepository(
   subjects: readonly IngestSubjectIdentity[],
   scanned: ScannedSubject,
 ): CheckResult['repository'] {
-  const repositories = subjects
-    .map((subject) => subject.repository)
-    .filter((repository): repository is string => repository !== undefined);
-  if (repositories.length === 0) return 'absent';
+  const declared = subjects.filter(declaresRepository);
+  if (declared.length === 0) return 'absent';
   if (scanned.repository === undefined) return 'unverifiable';
-  return repositories.every((repository) => repository === scanned.repository)
+  // A withheld repository has no recorded value, so it can never equal the named one: an input
+  // whose declared repository Cejel cannot establish is not taken as the subject repository.
+  return declared.every((subject) => subject.repository === scanned.repository)
     ? 'matched'
     : 'mismatched';
+}
+
+/** True when this subject, on its own, disagrees with the scanned subject. */
+function subjectDisagrees(subject: IngestSubjectIdentity, scanned: ScannedSubject): boolean {
+  if (scanned.repository !== undefined && declaresRepository(subject)) {
+    if (subject.repository !== scanned.repository) return true;
+  }
+  if (scanned.commit !== undefined && subject.commit !== undefined) {
+    if (!commitMatches(subject.commit, scanned.commit)) return true;
+  }
+  return false;
 }
 
 function commitMatches(inputCommit: string, headSha: string): boolean {
@@ -321,13 +424,41 @@ function checkFreshness(
  * against, because the scanned directory has no git HEAD, is `unverifiable` rather than guessed
  * either way.
  */
-export function bindingStatusForChecks(checks: CheckResult): WitanInputBindingStatus {
+export function bindingStatusForChecks(
+  checks: CheckResult,
+  everySubjectDeclaresCommit = true,
+): WitanInputBindingStatus {
   if (checks.repository === 'mismatched') return 'mismatched-repository';
   if (checks.commit === 'mismatched') return 'mismatched-commit';
   if (checks.freshness === 'stale') return 'stale';
+  // Partially bound: every declared commit is HEAD, but some declared subject (a SARIF run with no
+  // provenance, or a provenance entry with no revisionId) names no commit. Its findings are bound
+  // to no revision, so the document as a whole is unbound, never matched.
+  if (checks.commit === 'matched' && !everySubjectDeclaresCommit) return 'unbound';
   if (checks.commit === 'matched') return 'matched';
   if (checks.commit === 'unverifiable') return 'unverifiable';
   return 'unbound';
+}
+
+/**
+ * The subjects written to report.json: all of them when they fit the cap, otherwise the first
+ * subjects that on their own disagree with the scanned subject, then those declaring no commit,
+ * then the rest, each group in declaration order. The checks have already seen every subject;
+ * this ordering only makes the recorded excerpt show what decided the status.
+ */
+function recordedSubjects(
+  subjects: readonly IngestSubjectIdentity[],
+  scanned: ScannedSubject,
+): { subjects: IngestSubjectIdentity[]; omitted: number } {
+  if (subjects.length <= MAX_IDENTITIES_PER_INPUT) return { subjects: [...subjects], omitted: 0 };
+  const rank = (subject: IngestSubjectIdentity): number =>
+    subjectDisagrees(subject, scanned) ? 0 : subject.commit === undefined ? 1 : 2;
+  const ordered = subjects
+    .map((subject, index) => ({ subject, index, rank: rank(subject) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .slice(0, MAX_IDENTITIES_PER_INPUT)
+    .map((entry) => entry.subject);
+  return { subjects: ordered, omitted: subjects.length - MAX_IDENTITIES_PER_INPUT };
 }
 
 export function evaluateInputBindingRecord(
@@ -335,21 +466,29 @@ export function evaluateInputBindingRecord(
   scanned: ScannedSubject,
   windowSeconds: number = INGEST_FRESHNESS_WINDOW_SECONDS,
 ): WitanInputBindingRecord {
+  // Every declared subject is checked, however many there are: a cap on what is recorded must
+  // never become a cap on what is compared.
+  const allSubjects = document.identity.subjects;
   const checks: CheckResult = {
-    repository: checkRepository(document.identity.subjects, scanned),
-    commit: checkCommit(document.identity.subjects, scanned),
+    repository: checkRepository(allSubjects, scanned),
+    commit: checkCommit(allSubjects, scanned),
     freshness: checkFreshness(document.identity.observedAt, scanned, windowSeconds),
   };
+  const recorded = recordedSubjects(allSubjects, scanned);
   return {
     sha256: document.sha256,
     format: document.format,
     provenance: document.provenance,
     producers: [...document.identity.producers],
-    subjects: [...document.identity.subjects],
+    subjects: recorded.subjects,
+    ...(recorded.omitted > 0 ? { subjectsOmitted: recorded.omitted } : {}),
     ...(document.identity.observedAt !== undefined
       ? { observedAt: document.identity.observedAt }
       : {}),
-    status: bindingStatusForChecks(checks),
+    status: bindingStatusForChecks(
+      checks,
+      allSubjects.every((subject) => subject.commit !== undefined),
+    ),
     checks,
     ...(document.duplicate !== undefined ? { duplicate: document.duplicate } : {}),
     scored: document.duplicate !== 'same-path',
@@ -402,11 +541,15 @@ export function strictIngestRefusalReasons(record: WitanInputBindingRecord): str
   return reasons;
 }
 
-function describeSubjects(subjects: readonly IngestSubjectIdentity[]): string {
-  if (subjects.length === 0) return 'no subject';
-  return subjects
-    .map((subject) => `${subject.repository ?? '?'}@${subject.commit ?? '?'}`)
+function describeSubjects(record: WitanInputBindingRecord): string {
+  if (record.subjects.length === 0) return 'no subject';
+  const listed = record.subjects
+    .map(
+      (subject) =>
+        `${subject.repository ?? (subject.repositoryWithheld ? '(repository withheld: not normalizable)' : '?')}@${subject.commit ?? '?'}`,
+    )
     .join(', ');
+  return record.subjectsOmitted ? `${listed} and ${record.subjectsOmitted} more` : listed;
 }
 
 /**
@@ -428,7 +571,9 @@ export function assertStrictIngestBinding(
     const reasons = strictIngestRefusalReasons(record);
     if (reasons.length === 0) continue;
     problems.push(
-      `  - ${document.displayPath} (sha256:${record.sha256.slice(0, 12)}, ${record.format}): ${reasons.join(', ')}; input subject ${describeSubjects(record.subjects)}${record.observedAt ? `, observed ${record.observedAt}` : ''}`,
+      // displayPath is the operator's or repository's own path text; a committed file name can
+      // carry terminal controls, and this message goes to stderr.
+      `  - ${stripTerminalControls(document.displayPath)} (sha256:${record.sha256.slice(0, 12)}, ${record.format}): ${reasons.join(', ')}; input subject ${describeSubjects(record)}${record.observedAt ? `, observed ${record.observedAt}` : ''}`,
     );
   }
   if (problems.length === 0) return;

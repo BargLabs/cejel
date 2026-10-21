@@ -1,0 +1,27 @@
+[
+  {
+    "statement": "A ReDoS guard built from fixed adversarial families proves only those shapes. Cejel's regex-redos-guard passed 734 literals, yet adding one family (a key, a 20,000-blank run, then a non-blank) exposed three quadratic regexes on repository text that had shipped through 0.6.7: /\\s+#.*$/ twice and /\\s*\\)+$/u, each retrying a blank run from every position (80,000 characters took 3-4 s). It was found only because a reviewer of PR 540 asked for a quote-and-backslash family. Rules: when adding a regex over untrusted text, add a guard family built from the characters its adjacent quantified classes share (blanks for \\s, the class itself for [^x]*), and prefer a linear scan (indexOf, trimEnd) to an unanchored quantified prefix.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "security",
+      "redos",
+      "reviewer-error"
+    ],
+    "tags": [
+      "redos",
+      "guard-coverage",
+      "regex",
+      "scan-stall",
+      "adversarial-family"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 549
+    }
+  }
+]

@@ -8,6 +8,7 @@ import {
   inputBindingHeadline,
 } from './witan/input-binding-presentation.js';
 import type { WitanReport } from './witan/index.js';
+import { stripTerminalControls } from './presentation-safety.js';
 import {
   buildRelyingPartySummary,
   buildVerdictExplanation,
@@ -54,14 +55,9 @@ export function renderMinScoreCoverageFailure(
   return `Cejel: cannot evaluate the required minimum ${minScore.toFixed(1)}/4.0 because fewer than half of the applicable dimensions were measured in at least one score (${formatCoverageSummary(coverage)}). Resolve the reported evidence gaps and re-scan.\n`;
 }
 
-/**
- * Removes C0 controls, DEL and C1 controls (U+0080-U+009F) from a repository- or ingest-derived
- * string before it reaches the terminal; a newline or tab inside the field becomes a space. The
- * visible text around a removed control is kept. Cejel's own text never passes through here.
- */
-export function stripTerminalControls(text: string): string {
-  return text.replace(/[\t\n]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
-}
+// Defined in the leaf presentation-safety module so the scan path (src/witan) can use the same
+// function without importing the terminal renderer; re-exported here for existing callers.
+export { stripTerminalControls } from './presentation-safety.js';
 
 /** Concise, human-readable terminal certificate for `npx @cejel/cejel .` — the full report lives
  * in the written HTML/JSON files; this is the at-a-glance summary. */
@@ -110,7 +106,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
       `Scope: ${relyingPartySummary.scope}`,
       `What was examined: ${stripTerminalControls(relyingPartySummary.examined)}`,
       `What was established: ${relyingPartySummary.established}`,
-      `What was not established: ${relyingPartySummary.notEstablished}`,
+      `What was not established: ${stripTerminalControls(relyingPartySummary.notEstablished)}`,
       `What to do next: ${relyingPartySummary.next}`,
       '',
     );
@@ -187,7 +183,7 @@ export function renderTerminalCertificate(summary: WitanCliSummary, report?: Wit
     lines.push('Measurements:');
     for (const measurement of measurements ?? []) {
       lines.push(
-        `  ${measurement.criterionId} — ${measurement.label}: ${measurement.value} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
+        `  ${measurement.criterionId} — ${measurement.label}: ${stripTerminalControls(measurement.value)} (weight ${measurement.weightPercent}% of ${measurement.criterionId})`,
       );
     }
     lines.push('');

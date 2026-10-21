@@ -1,4 +1,4 @@
-import type { WitanInputSignal, WitanReport } from './schemas.js';
+import { type WitanInputSignal, type WitanReport, WitanReportSchema } from './schemas.js';
 
 import { isWitanNoMeasurementAbstention } from './abstention.js';
 import { execGit } from './git-exec.js';
@@ -16,6 +16,7 @@ import {
   assertStrictIngestBinding,
   buildInputBinding,
   normalizeRepositoryIdentity,
+  plainIsoInstant,
 } from './input-binding.js';
 import {
   buildWitanInputFromRepo,
@@ -63,6 +64,8 @@ export interface PublicCejelScoreOptions {
 // and auto-discovered inputs; the finding limit applies before any parsed findings reach scoring.
 export const MAX_INGEST_DOCUMENTS = 128;
 export const MAX_RETAINED_INGEST_FINDINGS = 10_000;
+/** report.json's inputBinding.inputs bound (schemas.ts): every document plus one repeat each. */
+export const MAX_INPUT_BINDING_RECORDS = 2 * MAX_INGEST_DOCUMENTS;
 
 export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): WitanReport {
   // A present-but-unwired selector must fail closed, not fall through to whatever
@@ -107,19 +110,46 @@ export function scoreRepoWithPublicCejel(options: PublicCejelScoreOptions): Wita
   // disclosure, never a scoring input.
   const report: WitanReport = inputBinding ? { ...withHistory, inputBinding } : withHistory;
   if (report.verdict !== 'insufficient_source' || !isWitanNoMeasurementAbstention(report)) {
-    return report;
+    return assertReportVerifiable(report);
   }
 
   const contextualReason = explainNoMeasurementSourceCoverage(
     options.repoPath,
     report.rubricVersion,
   );
-  return contextualReason
-    ? {
-        ...report,
-        insufficientSourceReason: contextualReason,
-      }
-    : report;
+  return assertReportVerifiable(
+    contextualReason
+      ? {
+          ...report,
+          insufficientSourceReason: contextualReason,
+        }
+      : report,
+  );
+}
+
+/**
+ * The final report, checked against the schema `cejel verify` applies. createWitanReport parses
+ * what it builds, but historyLimitations, inputBinding and insufficientSourceReason are attached
+ * after that parse; without this check a scan could write a report its own verifier rejects.
+ * Validation only: the object returned is the one passed in (a parsed copy would reorder keys and
+ * change the report's bytes). A failure is a Cejel defect and fails the scan before anything is
+ * written, never a certificate that cannot be verified.
+ */
+export function assertReportVerifiable(report: WitanReport): WitanReport {
+  const result = WitanReportSchema.safeParse(report);
+  if (result.success) return report;
+  const issues = result.error.issues
+    .slice(0, 8)
+    .map((issue) => `  - ${issue.path.join('.') || '<root>'}: ${issue.message}`);
+  throw new Error(
+    [
+      'Cejel: the assembled report does not satisfy the report schema `cejel verify` applies; no certificate was written.',
+      ...issues,
+      ...(result.error.issues.length > issues.length
+        ? [`  ...and ${result.error.issues.length - issues.length} more.`]
+        : []),
+    ].join('\n'),
+  );
 }
 
 /**
@@ -136,8 +166,10 @@ export function readScannedSubject(
   if (subjectRepository !== undefined) {
     repository = normalizeRepositoryIdentity(subjectRepository);
     if (repository === undefined) {
+      // The value is not echoed: a clone URL that fails to normalize may still carry userinfo
+      // credentials, and may carry terminal controls. Its length is diagnostic and discloses nothing.
       throw new Error(
-        `Cejel: --subject-repository value is not a repository identity Cejel can compare: "${subjectRepository.slice(0, 200)}". Expected a form such as github.com/owner/repo or https://github.com/owner/repo.git.`,
+        `Cejel: --subject-repository value (${subjectRepository.length} characters, not echoed) is not a repository identity Cejel can compare. Expected a form such as github.com/owner/repo or https://github.com/owner/repo.git, with a DNS host name and a path.`,
       );
     }
   }
@@ -145,8 +177,11 @@ export function readScannedSubject(
   if (headSha) {
     const result = execGit(['show', '-s', '--format=%ct', 'HEAD'], { cwd: repoPath });
     const seconds = result.ok ? Number(result.stdout.trim()) : Number.NaN;
+    // A committer time outside years 0000-9999 (or outside the Date range, where toISOString
+    // throws) is treated as unknown: freshness is then unverifiable rather than a crash or an
+    // expanded-year datetime the report schema rejects.
     if (Number.isSafeInteger(seconds) && seconds >= 0) {
-      commitTime = new Date(seconds * 1000).toISOString();
+      commitTime = plainIsoInstant(seconds * 1000);
     }
   }
   return {
@@ -183,8 +218,10 @@ export function resolvePublicIngestInputs(
     displayPath: string;
     provenance: 'operator_supplied' | 'auto_discovered';
   }> = [];
-  // One record per distinct (path, provenance) repeat, so a path given a thousand times cannot
-  // grow the certificate past the document budget's bound.
+  // At most one repeat record per distinct path (the first repeat seen), so a path given a
+  // thousand times, or both with --ingest and through .cejel/inputs, cannot grow the record past
+  // the schema's bound: MAX_INGEST_DOCUMENTS documents plus one repeat each is
+  // MAX_INPUT_BINDING_RECORDS.
   const samePathRepeats = new Map<
     string,
     { file: string; displayPath: string; provenance: 'operator_supplied' | 'auto_discovered' }
@@ -196,9 +233,8 @@ export function resolvePublicIngestInputs(
   ): void => {
     const resolved = resolveIngestFilePath(file);
     if (seen.has(resolved)) {
-      const key = `${resolved}\u0000${provenance}`;
-      if (!samePathRepeats.has(key)) {
-        samePathRepeats.set(key, { file: resolved, displayPath: file, provenance });
+      if (!samePathRepeats.has(resolved)) {
+        samePathRepeats.set(resolved, { file: resolved, displayPath: file, provenance });
       }
       return;
     }

@@ -1,0 +1,77 @@
+[
+  {
+    "statement": "A collector that quotes repository text into a certificate must quote only its own words. Cejel PR 521 built A4's quoted CI command from every word between the tool and the matched flag, so a token in `uv sync --extra-index-url https://user:<token>@host --locked` reached report.json and certificate.html unredacted under the default rubric, while A2 redacted the same value in the same report. The same PR's v27 detectors made universal claims from co-occurrence: a pytest hook was read as skipping every test because a loop over items and a skip marker both appeared, and a workflow was called publish-only because Cejel did not recognise its verification. Rules: build quoted text from the rule's constants, never the matched input; tie a claim about every item structurally (the marker on the loop variable, every parsed step classified), and let any unclassified step withhold it.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "claim-hygiene",
+      "security"
+    ],
+    "tags": [
+      "credential-leak",
+      "quoted-command",
+      "universal-claim",
+      "co-occurrence",
+      "publish-only"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 553
+    }
+  },
+  {
+    "statement": "A fix for a universal claim can fail open the same way. Cejel PR 553 narrowed v27's \"only publishes\" rule to classify every step, but read steps with a recall-oriented reader that silently skips shapes it cannot place: a flow-mapping step, a quoted \"run\" key, \"rustup run ... cargo build\" admitted as setup, and changesets/action running a publish input still printed \"only publishes\". The fix's own string-blanking regex, an alternation over quoted strings, took 42.8 s on one 510 KB line of unclosed escaped quotes. Both were found by review, not by the fix's tests. Rules: a claim about every item reads with an allowlist grammar that refuses any line it does not place (the repo already had one in isPrintOnlyWorkflow); admit a wrapper command only by subcommand; and add a timing guard for every new scan over repository text before claiming it linear.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "claim-hygiene",
+      "performance"
+    ],
+    "tags": [
+      "fail-open",
+      "allowlist-grammar",
+      "universal-claim",
+      "redos",
+      "self-review"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 553
+    }
+  },
+  {
+    "statement": "An allowlist of \"harmless\" commands is only as strong as the configuration those commands read. In cejel PR 553, v27's publish-only rule admitted npm ci and npm publish as setup and publish, but both run the package's lifecycle scripts (prepublishOnly, prepare), and semantic-release, goreleaser, cargo publish and python -m build run plugins, hooks, build scripts or setup.py the repository configures; NODE_OPTIONS on the command line or in step env loads repository code into any of them. A third review found each by planting a check in that configuration. Reading that configuration did not converge either: a fourth review found binding.gyp, pnpm workspaces, path sources and native build backends. Rule: when a claim's safety depends on what admitted commands run, admit only commands that run nothing configurable (here: checkout, credentials, upload of a built artifact) and name each exactly.",
+    "scope": [
+      "repo:BargLabs/cejel",
+      "dev-task",
+      "false-assurance",
+      "claim-hygiene",
+      "reviewer-error"
+    ],
+    "tags": [
+      "allowlist",
+      "lifecycle-scripts",
+      "repository-configured-code",
+      "code-loading-env",
+      "universal-claim"
+    ],
+    "anchors": [],
+    "lastSeenAt": "2026-10-21T00:00:00.000Z",
+    "stagingVersion": 2,
+    "movesWhen": {
+      "kind": "pr-merged",
+      "repository": "BargLabs/cejel",
+      "number": 553
+    }
+  }
+]
