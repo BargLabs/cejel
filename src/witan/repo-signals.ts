@@ -5955,13 +5955,14 @@ function joinShellContinuationLines(lines: readonly string[]): string[] {
 // command, or find another program in place of the one named (`PATH`). An assignment to one, on
 // a command line, after `export`, or under a step's `env:`, is doubt.
 const CODE_LOADING_ENV_KEYS = new Set([
-  'BASH_ENV', 'ENV', 'NODE_OPTIONS', 'LD_PRELOAD', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'PYTHONSTARTUP',
+  'BASH_ENV', 'ENV', 'NODE_OPTIONS', 'LD_PRELOAD', 'LD_AUDIT', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'PYTHONSTARTUP',
   'PERL5OPT', 'PERL5LIB', 'RUBYOPT', 'PATH', 'NPM_CONFIG_NODE_OPTIONS', 'NPM_CONFIG_SCRIPT_SHELL',
 ]);
 
-function isCodeLoadingEnvKey(written: string): boolean {
-  // Quotes around a name (`export "NODE_OPTIONS=..."`) do not change which variable is set.
-  const name = written.replace(/^["']+/, '').replace(/["']+$/, '');
+// Both callers pass an unquoted identifier (a plain mapping key, or the name before `=` in an
+// assignment word), so no quote stripping is needed; the regex that did it was quadratic on quote
+// runs (review of #553).
+function isCodeLoadingEnvKey(name: string): boolean {
   return CODE_LOADING_ENV_KEYS.has(name) || CODE_LOADING_ENV_KEYS.has(name.toUpperCase());
 }
 

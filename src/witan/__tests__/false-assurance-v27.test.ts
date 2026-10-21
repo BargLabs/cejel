@@ -775,6 +775,7 @@ describe('re-run review findings against #553 stay fixed', () => {
       'review7-b3-echo-into-github-env',
       'review7-b3-step-env-ld-preload',
       'review7-b3-step-env-pythonpath-twine',
+      'review9-b3-step-env-ld-audit-twine',
       'review7-b3-python-build-runs-setup-py',
       'review7-b3-third-party-setup-action',
     ]) {

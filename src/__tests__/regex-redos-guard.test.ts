@@ -50,6 +50,8 @@ const families = [
   // A quote then a run of the character two adjacent classes share (review of #540: `"[^"]*\\[^"]*"`).
   { name: 'quote-backslashes', input: `"${'\\'.repeat(20_000)}` },
   { name: 'closed-quote-backslashes', input: `"${'\\a'.repeat(10_000)}"` },
+  // A quote run that does not reach the end: an unanchored `["']+$` retries it from every quote.
+  { name: 'quote-run-then-letter', input: `a${"'".repeat(20_000)}x` },
   // Unclosed quotes, each escaped by the backslash before it (review of #553: a quoted-string
   // alternation `'(?:[^'\\\n]|\\.)*'|"…"` retried from every quote of the run).
   { name: 'escaped-double-quotes-unclosed', input: '"\\'.repeat(10_000) },

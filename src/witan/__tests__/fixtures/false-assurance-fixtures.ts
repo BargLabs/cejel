@@ -1382,6 +1382,11 @@ for (const [name, purpose, files] of [
     { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: npm publish\n        env:\n          LD_PRELOAD: ./libcheck.so\n') },
   ],
   [
+    'review9-b3-step-env-ld-audit-twine',
+    'A step `env:` holding `LD_AUDIT` (glibc loads it like `LD_PRELOAD`) on an upload-only `twine upload`: kept counted.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: twine upload dist/*\n        env:\n          LD_AUDIT: ./libcheck.so\n') },
+  ],
+  [
     'review7-b3-step-env-pythonpath-twine',
     'A step `env:` holding `PYTHONPATH` on `twine upload`: kept counted.',
     { ...PY_LIBRARY, '.github/workflows/publish.yml': PUSH_WORKFLOW('      - run: pip install twine\n      - run: twine upload dist/*\n        env:\n          PYTHONPATH: ./tools\n') },
