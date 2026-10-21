@@ -1047,6 +1047,189 @@ for (const [name, purpose, hook] of [
   });
 }
 
+// Cases two post-merge review passes of #521 (merged as f5ac02273) reproduced.
+
+/**
+ * A synthetic GitHub token shape inside a package-index URL, assembled from segments so this file
+ * never holds one contiguous credential-shaped literal. It must appear in no output.
+ */
+export const SYNTHETIC_INDEX_URL_TOKEN = ['ghp', 'FIXTUREonly0000abcdEFGH1234ijklMNOP1'].join('_');
+
+// Pass 2 finding 1 (#520, every rubric): A4 quoted every word between the subcommand and the flag.
+for (const [name, purpose, library, steps] of [
+  [
+    'review5-a4-credential-between-subcommand-and-flag',
+    'A credential in `--extra-index-url` between `uv sync` and `--locked` is never quoted: the note reads `uv sync … --locked`.',
+    PY_LIBRARY,
+    `      - run: uv sync --extra-index-url https://user:${SYNTHETIC_INDEX_URL_TOKEN}@pypi.example.com --locked\n      - run: uv run --locked pytest\n`,
+  ],
+  [
+    'review5-a4-credential-after-npm-ci',
+    'A credential after `npm ci` (a subcommand that needs no flag) is never quoted: the note reads `npm ci`.',
+    NODE_LIBRARY_NO_LOCKFILE,
+    `      - run: npm ci --registry=https://user:${SYNTHETIC_INDEX_URL_TOKEN}@npm.example.com/\n      - run: npm test\n`,
+  ],
+  [
+    'review5-a4-flag-value-not-quoted',
+    'A flag written with `=value` is quoted by its name only: the note reads `pnpm install … --frozen-lockfile`.',
+    NODE_LIBRARY_NO_LOCKFILE,
+    `      - run: pnpm install --reporter=append-only --frozen-lockfile=${SYNTHETIC_INDEX_URL_TOKEN}\n      - run: pnpm test\n`,
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#520',
+    foundInReview: true,
+    purpose,
+    commits: [{ ...library, '.github/workflows/ci.yml': PR_CI(steps) }],
+  });
+}
+
+// Pass 2 finding 2 (#519): a pointer checked out with core.autocrlf=true has CRLF line endings.
+FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+  name: 'review5-a1-js-suite-as-crlf-lfs-pointers',
+  issue: '#519',
+  foundInReview: true,
+  purpose:
+    'Both test files are Git LFS pointers with CRLF line endings and there is no .gitattributes, as an autocrlf checkout leaves them.',
+  commits: [
+    JS_LIBRARY,
+    {
+      'test/index.js': lfsPointerFor(JS_TEST_INDEX).replace(/\n/g, '\r\n'),
+      'test/lite.js': lfsPointerFor(JS_TEST_LITE).replace(/\n/g, '\r\n'),
+    },
+  ],
+});
+
+// Pass 1 finding 1 (#518): a skip marker is claimed for every item only when it is applied to the
+// loop variable of a loop over `items`.
+for (const [name, purpose, conftest] of [
+  [
+    'review5-a1-hook-timeout-every-item-skip-one-by-id',
+    'A timeout on every item and a skip on one known-broken node id: not every test is skipped.',
+    'import pytest\n\nKNOWN_BROKEN = ["tests/test_cache.py::test_put"]\n\n\ndef pytest_collection_modifyitems(config, items):\n    for item in items:\n        item.add_marker(pytest.mark.timeout(30))\n    by_id = {item.nodeid: item for item in items}\n    for nodeid in KNOWN_BROKEN:\n        by_id[nodeid].add_marker(pytest.mark.skip(reason="known broken"))\n',
+  ],
+  [
+    'review5-a1-hook-timeout-every-item-skip-first',
+    'A timeout on every item and a skip on `items[0]` only: not every test is skipped.',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.timeout(30))\n    items[0].add_marker(pytest.mark.skip(reason="flaky"))\n',
+  ],
+  [
+    'review5-a1-hook-skip-inside-nested-loop',
+    'The skip sits in a nested loop over a list that may be empty: not tied to every item.',
+    'import pytest\n\nMARKS = []\n\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        for _ in MARKS:\n            item.add_marker(pytest.mark.skip(reason="x"))\n',
+  ],
+  [
+    'review5-a1-hook-skip-every-item-inline',
+    'Corner, still claimed: `for item in items: item.add_marker(pytest.mark.skip(...))` on one line, its reason holding the word "for".',
+    'import pytest\n\n\ndef pytest_collection_modifyitems(config, items):\n    for item in items: item.add_marker(pytest.mark.skip(reason="disabled for now"))\n',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, { 'tests/conftest.py': conftest }],
+  });
+}
+
+// Pass 1 finding 2 (#518): a module-level skip is unconditional only when nothing else in the
+// module names pytestmark and the statement carries no condition on any line.
+const withModuleMark = (mark: string): Record<string, string> => ({
+  'tests/test_cache.py': `import os\nimport pytest\n\n${mark}\n\n${PY_LIBRARY['tests/test_cache.py']}`,
+  'tests/test_lru.py': `import os\nimport pytest\n\n${mark}\n\n${PY_LIBRARY['tests/test_lru.py']}`,
+});
+for (const [name, purpose, mark] of [
+  [
+    'review5-a1-pytestmark-reassigned-under-later-if',
+    'A skip later replaced inside an `if`: the module runs when the condition holds.',
+    'pytestmark = pytest.mark.skip(reason="needs DB")\nif os.environ.get("DB"):\n    pytestmark = []',
+  ],
+  [
+    'review5-a1-pytestmark-reassigned-later',
+    'A skip later replaced unconditionally: the module runs.',
+    'pytestmark = pytest.mark.skip(reason="needs DB")\npytestmark = []',
+  ],
+  [
+    'review5-a1-pytestmark-backslash-continuation',
+    'A `\\` continuation carries the condition onto the next line.',
+    'pytestmark = pytest.mark.skip(reason="needs DB") \\\n    if not os.environ.get("DB") else []',
+  ],
+  [
+    'review5-a1-pytestmark-bracketed-condition',
+    'A bracket carries the condition onto the next line.',
+    'pytestmark = [pytest.mark.skip(reason="needs DB")\n              ] if not os.environ.get("DB") else []',
+  ],
+  [
+    'review5-a1-pytestmark-skip-unconditional-with-hash-in-reason',
+    'Corner, still claimed: an unconditional skip whose reason holds a `#`.',
+    'pytestmark = pytest.mark.skip(reason="see issue #12")',
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({
+    name,
+    issue: '#518',
+    foundInReview: true,
+    purpose,
+    commits: [PY_LIBRARY, withModuleMark(mark)],
+  });
+}
+
+// Pass 1 finding 3 (#517): a workflow is publish-only only when every step it runs is setup,
+// packaging or a publish.
+const PUSH_WORKFLOW = (steps: string, on = 'on:\n  push:\n    branches: [main]\n'): string =>
+  `name: release\n${on}jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n${steps}`;
+const RUST_LIBRARY: Readonly<Record<string, string>> = {
+  'Cargo.toml': '[package]\nname = "tinycrate"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\nserde = "1"\n',
+  'src/lib.rs':
+    'pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn adds() {\n        assert_eq!(super::add(1, 2), 3);\n    }\n}\n',
+  'tests/it.rs': '#[test]\nfn it_adds() {\n    assert_eq!(tinycrate::add(1, 1), 2);\n}\n',
+  'README.md': '# tinycrate\n',
+  LICENSE: 'MIT\n',
+  '.github/workflows/ci.yml':
+    'name: ci\non:\n  pull_request:\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: cargo test\n',
+};
+for (const [name, purpose, files] of [
+  [
+    'review5-b3-bun-test-then-publish',
+    '(a) `bun test` then `bun publish` on every push: the test step keeps the workflow counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - uses: oven-sh/setup-bun@v2\n      - run: bun install\n      - run: bun test\n      - run: bun publish\n') },
+  ],
+  [
+    'review5-b3-pnpm-lint-typecheck-build-then-publish',
+    '(b) `pnpm run lint`, `typecheck` and `build`, then `pnpm publish`: verification keeps the workflow counted.',
+    { ...JS_LIBRARY, '.github/workflows/main.yml': PUSH_WORKFLOW('      - run: pnpm install\n      - run: pnpm run lint\n      - run: pnpm run typecheck\n      - run: pnpm run build\n      - run: pnpm publish --no-git-checks\n') },
+  ],
+  [
+    'review5-b3-cargo-build-release',
+    '(c) `cargo build --release` and a GitHub release on tags: the build keeps the workflow counted, with B3 build category.',
+    { ...RUST_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - run: cargo build --release\n      - uses: softprops/action-gh-release@v2\n        with:\n          files: target/release/tinycrate\n', "on:\n  push:\n    tags: ['v*']\n") },
+  ],
+  [
+    'review5-b3-publish-word-only-in-comment',
+    '(d) `npm publish` only in a YAML comment, beside a bundle-size check: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/size.yml': PUSH_WORKFLOW('      # Not a release workflow: npm publish is done by hand.\n      - run: npx size-limit\n') },
+  ],
+  [
+    'review5-b3-docs-build-publish-word-in-comment',
+    '(d) A docs build whose only publish word is in a comment: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/docs.yml': PUSH_WORKFLOW('      # Releases are cut by hand: npm publish from a maintainer machine.\n      - run: npx typedoc --out site\n      - uses: actions/upload-pages-artifact@v3\n        with:\n          path: site\n') },
+  ],
+  [
+    'review5-b3-npm-publish-dry-run',
+    '(e) `npm publish --dry-run` publishes nothing; it checks the package: kept counted.',
+    { ...JS_LIBRARY, '.github/workflows/size.yml': PUSH_WORKFLOW('      - run: npm publish --dry-run\n') },
+  ],
+  [
+    'review5-b3-semantic-release-after-setup',
+    'Corner, still excluded: setup-node, `npm ci` and `npx semantic-release` on every push publish and verify nothing.',
+    { ...JS_LIBRARY, '.github/workflows/release.yml': PUSH_WORKFLOW('      - uses: actions/setup-node@v4\n      - run: npm ci\n      - run: npx semantic-release\n        env:\n          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}\n') },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [
   ...FALSE_ASSURANCE_FIXTURES_ISSUES,
   ...FALSE_ASSURANCE_FIXTURES_REVIEW,

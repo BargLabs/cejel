@@ -7979,10 +7979,11 @@ function measureNonHollowTestShare(
 // A conftest.py is pytest's per-directory plugin: fixtures and hooks, never tests.
 const PYTEST_CONFTEST_PATTERN = /(^|\/)conftest\.py$/;
 // A module-level, unconditional skip of every test in the file: a top-level `pytestmark = ...`
-// statement naming `pytest.mark.skip`, with or without arguments, alone or in a list, that is the
-// only place the module names `pytestmark`. `skipif`, an `if` anywhere in the statement (a
-// conditional expression), a `\` continuation, and any other mention of `pytestmark` in the
-// module (a later reassignment, one inside an `if`, an `append`) are not unconditional.
+// statement whose first line names `pytest.mark.skip`, with or without arguments, alone or in a
+// list, and which is the only place the module names `pytestmark`. `skipif`, an `if` anywhere in
+// the statement (a conditional expression, on any line a bracket carries it onto), a `\`
+// continuation, and any other mention of `pytestmark` in the module (a later reassignment, one
+// inside an `if`, an `append`) are not unconditional.
 const PYTEST_MODULE_SKIP_MARK_PATTERN = /\bpytest\.mark\.skip\b(?!if)/;
 const PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN = /^pytestmark[ \t]*=(?!=)/;
 const PYTEST_MARK_NAME_PATTERN = /\bpytestmark\b/;
@@ -8037,7 +8038,15 @@ function hasUnconditionalPytestModuleSkip(file: string, contents: string): boole
   // One statement may name `pytestmark`; a second mention may undo or change it.
   if (mentions.length !== 1) return false;
   const start = mentions[0] ?? 0;
-  if (!PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(lines[start] ?? '')) return false;
+  const first = lines[start] ?? '';
+  // The skip is named on the statement's first line, as before: a statement continued onto more
+  // lines is only ever read as fewer claims than its first line alone.
+  if (
+    !PYTEST_MODULE_SKIP_ASSIGNMENT_PATTERN.test(first) ||
+    !PYTEST_MODULE_SKIP_MARK_PATTERN.test(stripPythonLineComment(first))
+  ) {
+    return false;
+  }
   // The whole statement: the line, and the lines an open bracket carries it onto. Its text is
   // read as before, up to each line's first `#` (a skip reason holding `if` still withholds the
   // claim); its brackets are counted outside strings and comments.
@@ -8053,8 +8062,7 @@ function hasUnconditionalPytestModuleSkip(file: string, contents: string): boole
     if (depth <= 0) break;
   }
   if (depth > 0) return false;
-  const text = statement.join('\n');
-  return !/\bif\b/.test(text) && PYTEST_MODULE_SKIP_MARK_PATTERN.test(text);
+  return !/\bif\b/.test(statement.join('\n'));
 }
 
 /** The line up to its first `#` (a comment start, or a `#` in a string, which only shortens it). */
