@@ -50,6 +50,10 @@ const families = [
   // A quote then a run of the character two adjacent classes share (review of #540: `"[^"]*\\[^"]*"`).
   { name: 'quote-backslashes', input: `"${'\\'.repeat(20_000)}` },
   { name: 'closed-quote-backslashes', input: `"${'\\a'.repeat(10_000)}"` },
+  // Unclosed quotes, each escaped by the backslash before it (review of #553: a quoted-string
+  // alternation `'(?:[^'\\\n]|\\.)*'|"…"` retried from every quote of the run).
+  { name: 'escaped-double-quotes-unclosed', input: '"\\'.repeat(10_000) },
+  { name: 'escaped-single-quotes-unclosed', input: "'\\".repeat(10_000) },
 ];
 
 test('scan regex literals finish each adversarial family within 50 ms', () => {

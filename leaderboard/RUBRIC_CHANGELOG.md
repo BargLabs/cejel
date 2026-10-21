@@ -22,6 +22,216 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved
+
+**Status.** #521 merged without a recorded review pass. Two post-merge review passes, both AI
+(fresh-context subagents, not human), found five defects
+(https://github.com/BargLabs/cejel/pull/521#issuecomment-6323551442). This entry corrects all five,
+and what the two review passes of the fix itself (#553) then found in its first version.
+Two ship under every rubric and move no v17 score, status, metric value, finding count or
+fingerprint. Three ship only under `witan-rubric-v27-prospective-2026-10-19`.
+
+**v27 changed under its unchanged identifier.** v27 has not shipped: it is prospective, opt-in, and
+first ships in 0.6.8. Its identifier is kept because no released certificate carries it. Each
+change removes a place where v27 itself asserted more than it read, so v27 rises only toward v17,
+never above it. Its pinned fingerprint does not move: no behaviour-corpus fixture has any of these
+shapes. The default stays v17. **No holdout or calibration ran, and this entry makes no precision
+or recall claim.** Fixtures: `review5-*` in `src/witan/__tests__/fixtures/false-assurance-fixtures.ts`.
+
+**Every rubric (presentation under v17).**
+- **A4 printed a credential from a CI command (security).** The lockfile-requiring command quoted in
+  A4's note and evidence label was every word from the tool to the flag. A credential between them
+  appeared verbatim, for example `uv sync --extra-index-url https://user:<token>@host --locked`:
+  3 times in `report.json` and 4 times in `certificate.html`. A2 redacts the same kind of value in
+  the same report. The quoted command is now built from the rule's own words only: tool,
+  subcommand and the flag's name, with `…` where words were omitted (`uv sync … --locked`). A
+  flag's `=value` is never quoted. The `npm ci` path (no flag) already quoted only `npm ci`. No
+  other A4 or B3 label or note quotes repository command text: B2 and B3 labels name trigger names
+  (`[a-z_]+`), file paths and counts.
+- **A Git LFS pointer with CRLF line endings was not detected.** A pointer committed without
+  `.gitattributes` and checked out with `core.autocrlf=true` ends every line in CRLF. It is now
+  read as the LF pointer it was committed as, so the same commit is classified the same way on
+  every checkout. Text with any other mix of CR and LF is judged exactly as before. Under v17 this
+  adds the pointer to `contentReadSummary.byReason.lfsPointer` and A1's evidence label; no score,
+  status or metric moves. Under v27, A1 abstains on it as on an LF pointer.
+
+**v27 only.**
+- **A collection hook was read as skipping every test when a loop and a skip merely co-occurred.**
+  A hook that added a timeout to every item and skipped one known-broken test made A1 critical
+  (2.3 to 1.7), `non_hollow_test_share` 0, with the finding "marks every collected test skipped".
+  The `skip` kind is now claimed only when the hook body holds, at its own first indent,
+  `for <name> in items:` whose own first-level body calls `<name>.add_marker(pytest.mark.skip...)`,
+  with nothing in the loop rebinding `<name>` and nothing in the hook rebinding `items`. The
+  module's hook is whatever `pytest_collection_modifyitems` is bound to when the module finishes
+  executing: of top-level `def` statements that is the last one, which is the one read, but any
+  other binding (an indented or conditional `def`, an assignment, `del`, an import) can replace
+  it. So nothing is claimed when the name appears on any other line outside a whole-line comment.
+  `items[0].add_marker(...)`, a skip on another variable, a skip in a loop nested in another loop
+  (`for _ in range(0):`), and a loop inside a nested function are not claimed. The genuine
+  every-item skip, in block or one-line form, is still claimed. The `clear` kind (a hook that
+  empties `items`) follows the same rules: the clearing statement must sit at the hook body's own
+  first indent, so a clear in a nested function or in any loop is not claimed.
+- **`pytestmark` was judged from its first line only.** A module-level skip is now unconditional
+  only when the module names `pytestmark` exactly once, counted per occurrence so two statements
+  on one line count twice (a later reassignment, one inside an `if`, an `append`, or
+  `pytestmark = pytest.mark.skip(...); pytestmark = []`), no line of the statement holds an `if`
+  (including a line an open bracket carries it onto), and no line ends in a `\` continuation. The
+  skip must be named in code on the statement's first line, not only inside a string (an `xfail`
+  whose reason mentions `pytest.mark.skip`), so this only ever claims less than before.
+- **The publish-only rule fired beyond its stated evidence.** It excluded any workflow with a
+  publish word and no recognised verification word, contrary to its own rule that any doubt keeps
+  a workflow counted. **The rule is now: a publish-only workflow is one that only checks out,
+  configures credentials and uploads an already-built artifact; any install, build or package step
+  keeps it counted.** This replaces two earlier attempts in this change to admit setup and build
+  commands by reading the configuration they run (lifecycle scripts, build backends), which three
+  review passes showed cannot be made complete: `binding.gyp`, pnpm workspaces, uv and poetry path
+  sources, and native build backends each ran repository code past the reads.
+
+  In detail, every condition must hold, in addition to the earlier ones:
+  - every line of the jobs section is placed by `isPrintOnlyWorkflow`'s grammar, widened to a
+    publish workflow: the same top-level allowlist (no top-level `env` or `defaults`); job keys
+    `runs-on`, `name`, `timeout-minutes`, `needs` (a scalar or a flow list of plain names),
+    `permissions` and `environment` (a scalar or a one-level mapping), and `steps`; step keys
+    `name`, `id`, `uses`, `run`, and `with` and `env` as one-level mappings. A flow-mapping step,
+    a quoted, capitalised or explicit key, any other key, a lone CR, a plain value continued onto
+    a deeper line, and a quoted `run:` value are not placed;
+  - every `run:` command (comments dropped, `\` continuations joined, split at separators written
+    as separate words) is one of: `npm`/`pnpm`/`yarn config set` of a registry or token key;
+    `twine upload`; `uv publish` with no build flag; `poetry publish` without `--build`;
+    `gh release create` or `upload`; `cargo publish --no-verify`; or `npm`/`pnpm`/`yarn publish`
+    with no positional target or package-redirecting flag. Leading `NAME=value` credentials are
+    allowed; a code-loading variable is not;
+  - an npm-family publish also needs the root `package.json` to be scanned and parse, with no
+    lifecycle script (`preinstall`, `install`, `postinstall`, `pre`/`post`/`prepare`, `prepack`,
+    `postpack`, `prepublish`, `prepublishOnly`, `publish`, `postpublish`, `dependencies`), no
+    `workspaces`, no `gypfile` and no local dependency, and no `.npmrc`, `.yarnrc(.yml)`,
+    `.yarn/plugins/`, pnpmfile, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` or
+    `binding.gyp`, because publishing runs the package's scripts. Which files exist is read from
+    the scanned inventory and its withheld paths; a monorepo root's workflows get no such read,
+    so an npm-family publish there stays counted;
+  - every `uses:` step is `actions/checkout` (inputs `fetch-depth`, `token`,
+    `persist-credentials`, `fetch-tags` and `show-progress` only), `actions/cache`,
+    `actions/upload-artifact`, `actions/download-artifact` (inputs `name`, `path`, `pattern`,
+    `merge-multiple`, `run-id` and `github-token` only), `actions/setup-node`, `-python`, `-go`,
+    `-java` or `-dotnet`, `astral-sh/setup-uv`, `oven-sh/setup-bun`, `pnpm/action-setup` (without
+    `run_install`), `docker/login-action`, `pypa/gh-action-pypi-publish`, or
+    `softprops/action-gh-release` with a `files` input;
+  - at least one step uploads.
+
+  So every install, sync, build or package command keeps a workflow counted (`npm ci`/`install`,
+  `pnpm install`, `yarn`, `bun install`, `pip install`, `uv sync`/`build`, `python -m build`,
+  `poetry install`/`build`, `cargo build`, `npm pack`, `gem build`, ...), as do semantic-release,
+  goreleaser, the deploy CLIs, `docker push`, shell builtins (`echo`, `export`, `cd`, ...),
+  `--dry-run`, any redirect, substitution or separator glued inside a word, `changesets/action`,
+  and every action not named above. Code-loading variables, refused on a command line and in a
+  step `env:`, are `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `LD_PRELOAD`, `LD_LIBRARY_PATH`,
+  `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `PERL5LIB`, `RUBYOPT`, `PATH`,
+  `NPM_CONFIG_NODE_OPTIONS` and `NPM_CONFIG_SCRIPT_SHELL`, case-insensitive and with any quotes
+  around the name removed.
+
+  **A deliberate recall reduction.** #517's own repros (`b3-pypi-publish-ungated`, which runs
+  `pip install build` and `python -m build` before the upload, and `b3-npm-publish-ungated`, which
+  runs `npm install`) are now counted under v27, as under v17, and so are a changesets workflow
+  (`review6-b3-changesets-without-command-inputs`) and a semantic-release workflow
+  (`review5-b3-semantic-release-after-setup`). v27 now removes CI credit only from upload-only
+  workflows: `review8-b3-pypi-upload-only-ungated` (download a built artifact, upload with the
+  PyPI action) is not counted, and dropping its environment gate and running it on every push no
+  longer raises B3; nor do a `twine upload`, an `npm publish` with no install, a `gh release
+  upload`, or `cargo publish --no-verify`. `gh release upload`, added to the publish vocabulary
+  here, is a new v27 exclusion against the first v27 (`review8-b3-gh-release-upload`: B3 1.6 to
+  1.0, below v17's 1.6).
+
+  Each reviewer case is still counted: `bun test` then `bun publish`; `pnpm run lint`,
+  `typecheck` and `build` then `pnpm publish`; `cargo build --release` with a GitHub release,
+  which also regains B3's build category; a publish word only in a YAML comment; and
+  `npm publish --dry-run`. The B3 note now reads "no pull-request trigger, and every step Cejel
+  reads only checks out, sets up a toolchain, configures credentials or uploads an already-built
+  artifact". It never names a counted workflow.
+
+**Measured, release/0.6.8 (`fe4524773`) against this change.** Fixtures were built once from this
+change's definitions and scored by both scanners. Reports were compared byte for byte, with the
+repository path normalised.
+
+| Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
+|---|---|---|---|---|
+| Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
+| Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
+| Disclosure-gap fixtures (24) | 0 | 24 | 0 | 0 violations |
+| False-assurance fixtures, existing (87) | 0 | 87 | 2 (`b3-pypi-publish-ungated` and `b3-npm-publish-ungated` are now counted: the recorded recall reduction; 2 more `b3-*-publish-gated` reports differ in the B3 note's wording only) | 0 violations |
+| False-assurance fixtures, new `review5-*` (20) | 1 (`review5-a1-js-suite-as-crlf-lfs-pointers`: `contentReadSummary` gains 2 LFS pointers; no criterion moves) | 17 (3 differ: 2 `review5-a4-*` with the shortened command, and the CRLF pointers) | 14 (see below) | 0 violations |
+| False-assurance fixtures, new `review6-*` (12, from the review of #553) | 0 | 12 | 11 (see below) | 0 violations |
+| False-assurance fixtures, new `review7-*` (19, from the re-run of that review) | 0 | 19 | 18 (see below) | 0 violations |
+| False-assurance fixtures, new `review8-*` (12, from the second re-run and the narrower rule) | 0 | 12 | 8 (see below) | 0 violations |
+
+v27 moves on the new fixtures, before to after:
+- 1 CRLF pointer fixture: A1 critical 1.5 to insufficient_data 0; overall 1.8 to 1.4.
+- 3 `review5-a1-hook-*`: A1 critical 1.7 to verified 2.3, the v17 value; the hook finding is gone.
+- 4 `review5-a1-pytestmark-*`: A1 critical 1.7 to verified 2.3, the v17 value.
+- 6 `review5-b3-*`: B3 1.0 to 1.6 (5 fixtures, `default_branch_ci_depth` 1 to 2) or 1.0 to 1.5
+  (`cargo build`, `ci_script_depth` 1 to 2), each the v17 value.
+- 6 `review6-b3-*` (a flow-mapping `run` step, a flow-mapping `uses` step, a quoted `"run":` key,
+  `rustup run stable cargo build`, `changesets/action` with a `publish` input, `echo ok&&node
+  check.js`): B3 1.0 to 1.6, or 1.0 to 2.0 for `rustup run`, each the v17 value.
+- 3 `review6-a1-hook-*` (a loop in a nested function, a loop in `for _ in range(0):`, a hook
+  redefined later) and 2 `review6-a1-pytestmark-*` (reassigned on the same line, skip named only
+  in an `xfail` reason): A1 critical 1.7 to verified 2.3, the v17 value.
+- 13 `review7-b3-*` (`prepublishOnly` and `prepare` scripts, a committed `.npmrc`, semantic-release
+  with a config, the goreleaser CLI with hooks, `cargo publish` without `--no-verify`, a leading and
+  an exported `NODE_OPTIONS`, `echo ... >> $GITHUB_ENV`, step `env` with `LD_PRELOAD` or
+  `PYTHONPATH`, `python -m build` beside a `setup.py`, another owner's `setup-*` action): B3 1.0 to
+  1.6, the v17 value. `review7-b3-cargo-publish-no-verify` stays publish-only.
+- 5 `review7-a1-hook-*` (a clear in a nested function, in `for _ in range(0):` and in a loop over
+  another iterable; a conditional redefinition; a rebinding assignment): A1 critical 1.7 to
+  verified 2.3, the v17 value.
+- `review5-b3-semantic-release-after-setup` and `review6-b3-changesets-without-command-inputs`:
+  B3 1.0 to 1.6, the v17 value; now counted (the recorded recall reduction). The 13 `review7-b3-*`
+  above stay counted under the narrower rule; `review7-b3-cargo-publish-no-verify` stays
+  publish-only.
+- 7 `review8-b3-*` (a root `binding.gyp`, `"gypfile": true`, `pnpm-workspace.yaml`, `uv sync` with
+  a path source, a maturin build, a quoted `export "NODE_OPTIONS=..."`, softprops with no
+  `files`): B3 1.0 to 1.6, the v17 value.
+- `review8-b3-gh-release-upload`: B3 1.6 to 1.0, a new exclusion (see above); v17 stays 1.6.
+- `b3-pypi-publish-ungated` and `b3-npm-publish-ungated`: B3 1.0 to 1.6, the v17 value (the
+  recorded recall reduction).
+
+The other corners stay as they were: the one-line every-item skip, the unconditional skip whose
+reason holds `#`, and the genuine clear (`items.clear()` at the hook's own indent) are still
+claimed; and the upload-only positives (`review8-b3-pypi-upload-only-*`,
+`review8-b3-twine-upload-only`, `review8-b3-npm-publish-without-install`,
+`review8-b3-gh-release-upload`, `review7-b3-cargo-publish-no-verify`) are publish-only.
+
+Timing, scan only, one run each on the author's machine, on 18 hostile files just under the
+content size limit aimed at the new readers: sibling and 900-deep nested hook loops; long `for`/`as`
+lines and closed quoted lines; an unclosed run of escaped quotes in a hook loop (the second review's
+fixture); a 200,000-line bracketed `pytestmark`; many `pytestmark` lines; 24,000 publish-workflow
+steps; 9,000 jobs; a 30,000-line `run:` block and a 30,000-line `with:` block; a 24,000-line `\`
+chain; a long `uses:` value; long argument and assignment runs. Each took 0.09 s to 0.32 s under
+both rubrics. The root `package.json` read the publish-only check makes, and a 28,000-line clearing
+hook, are in the same child-process timing guard, which passes in 0.6 s. Two defects in the first version of this change were quadratic:
+- the step classifier dropped each leading `NAME=value` with a fresh array slice; 120,000
+  assignments before `npm publish` took 23.5 s under v27;
+- the hook loop's rebinding check blanked string literals with
+  `/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g`, which retried from every quote of an unclosed
+  run of escaped quotes. 510 KB inside a `for item in items:` loop took 42.8 s under v27, and
+  three such files took 117 s; found by the second review of #553.
+
+The first now walks an index and the second uses the one-pass quote scanner already written for
+`pytestmark` (0.12 s on the reviewer's fixture). A child-process timing guard in
+`scan-path-regex-bounds.test.ts` kills both earlier versions at 20 s, and two unclosed escaped-quote
+families in `regex-redos-guard.test.ts` time the old expression out at 50 ms.
+
+The public board was not re-scored. Under v17 these changes reach only A4's quoted command and the
+LFS pointer count. The preregistered 0.6.8 public confirmation
+(`docs/experiments/public-delta-0-6-8-2026-10-21/`) ran at `224f605ae`, before this change.
+
+**Fingerprints.** Unchanged. v17 stays
+`sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
+`sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
+
+**Not fixed.** A lockfile flag given an explicit false value (`pnpm install
+--frozen-lockfile=false`) is still read as requiring the lockfile. This predates #521 and is
+recorded on #546 with the other pre-existing shapes.
+
 ## 2026-10-21 — post-merge review of #533: the CI lockfile reader's own fixes corrected; no published score moved
 
 **Status.** #533 merged the third-review corrections without a review of its own. Two post-merge

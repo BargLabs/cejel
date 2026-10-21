@@ -19,9 +19,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.6.8] — 2026-10-21
 
 **Public corpus.** A preregistered confirmation scored the 23 public corpus repositories from
-full-history clones: under v17 at v0.6.7 and at the release candidate (`224f605ae`), which differs
-from this release only in version identity and records, with no change under `src/` outside tests;
-and under v27 at the candidate.
+full-history clones: under v17 at v0.6.7 and at the release candidate (`224f605ae`), and under v27
+at the candidate. The release changes `src/` after that candidate (#553, the post-merge review of
+#521): v17 presentation only (A4's quoted CI command, and Git LFS pointers with CRLF line endings
+counted as pointers), and v27 in the three places listed under Added.
 - Under v17, no score, status, metric value, finding count, placement or fingerprint moved. 17
   reports differ only in B2's evidence labels and A4's evidence and finding text.
 - Under v27, no composite and no criterion score was higher than under v17. v27 added no A2 or B2
@@ -33,6 +34,13 @@ v27 stays prospective and opt-in. This makes no precision, recall or calibration
 
 ### Security
 
+- **A4 could print a credential from a CI command (#553).** Under every rubric, including the
+  default, A4's note and evidence label quoted every word of a lockfile-requiring CI command up to
+  its flag. For `uv sync --extra-index-url https://user:<token>@host --locked`, the token appeared
+  in `report.json` and `certificate.html` unredacted. The quoted command is now built from Cejel's
+  own words only, the tool, the subcommand and the flag's name, with `…` where words were left out:
+  `uv sync … --locked`. A flag's `=value` is never quoted. Introduced in this release's #521, never
+  shipped. No score, status, metric value, finding count or fingerprint moves.
 - **Some repository lines could stall a scan.** Thirteen strip and match sites on repository and
   ingest text used regular expressions that retried from every position of a long run:
   - blanks before `#` or `)`: `/\s+#.*$/`, `/\s+#.*$/u`, `/\s*\)+$/u`;
@@ -81,9 +89,11 @@ v27 stays prospective and opt-in. This makes no precision, recall or calibration
 - **Certificates now say where they read less than they score (#519, #520).** Under every rubric,
   including the default: a file whose checkout holds a Git LFS pointer is counted in
   `contentReadSummary.byReason.lfsPointer` (report format 1.6) and labelled as a pointer in A1's
-  evidence; A4 no longer says a lockfile is "not required" when the repository's own CI requires
-  one, and cites the requiring line, or the manifest holding an unconstrained dependency, first. No
-  score, status or fingerprint moves.
+  evidence, including a pointer whose lines end in CRLF, as a `core.autocrlf=true` checkout leaves
+  it (#553); A4 no longer says a lockfile is "not required" when the repository's own CI requires
+  one, and cites the requiring line, or the manifest holding an unconstrained dependency, first.
+  A4 quotes the requiring command as tool, subcommand and flag only (see Security). No score,
+  status or fingerprint moves.
 - **The CI lockfile note is right in more cases, and the workflow reader is linear in its number
   of steps.** Under every rubric: the note fires for a step that also runs tests, for
   `cargo test --locked` and for CRLF workflows, and is withheld for `continue-on-error`, another
@@ -116,6 +126,34 @@ v27 stays prospective and opt-in. This makes no precision, recall or calibration
   not a test, LFS pointers abstain, a lockfile the repository's CI requires scores 0 when absent,
   and A2 and B2 abstain on shallow clones. No score rises against v17 on any recorded set. The
   default stays v17. See `leaderboard/RUBRIC_CHANGELOG.md`.
+  Corrected before first shipping, under the same identifier (#553), where v27 itself asserted
+  more than it read:
+  - a publish-only workflow is one that only checks out, configures credentials and uploads an
+    already-built artifact; any install, build or package step keeps it counted. Every line of
+    its jobs section must be placed by a strict reader (a flow-mapping step, a quoted or
+    capitalised key, or a key outside a short allowlist places nothing). Admitted uploads are
+    `twine upload`, `uv publish`, `poetry publish` without `--build`, `gh release create`/`upload`,
+    `cargo publish --no-verify`, the PyPI publish action, `softprops/action-gh-release` with
+    files, and an npm/pnpm/yarn `publish` only when the root `package.json` runs no script on
+    publish and no workspace, native-addon or package-manager configuration file exists.
+    Admitted setup is checkout, named toolchain, cache and artifact actions that install
+    nothing, `docker/login-action`, and registry configuration. **Recorded recall reduction:**
+    #517's own repros, which install or build before they publish, are now counted under v27,
+    as under v17, as are changesets and semantic-release workflows; v27 removes CI credit only
+    from upload-only workflows;
+  - a collection hook is read as skipping or removing every test only when it is the last
+    top-level definition, the hook name is bound nowhere else in the module, and the skip marker
+    is applied to the loop variable of a loop over `items`, or `items` is cleared, at the hook
+    body's own first indent; not when a loop and a skip merely co-occur, nor when the loop or the
+    clear sits in a nested function or another loop;
+  - a module-level `pytestmark` skip is unconditional only when the module names `pytestmark` once
+    (two statements on one line count twice), the skip is named in code rather than in a string,
+    and no line of the statement, including one reached by a bracket, holds an `if`; a `\`
+    continuation is never read as unconditional.
+
+  Each correction can only remove a v27-only reduction, so v27 still never scores above v17. The
+  CRLF pointer detection under Fixed also makes v27 abstain on such pointers, as it does on LF
+  ones, which can only lower it.
 - **Ingest: every ingested document is bound to its subject, and recorded (report format 1.7).**
   `report.json` gains `inputBinding`, present only when something was ingested: per document, the
   sha256 of its exact bytes, its format, the producer and subject its own format declares
