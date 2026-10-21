@@ -106,8 +106,8 @@ v27 moves on the new fixtures, before to after:
   (`cargo build`, `ci_script_depth` 1 to 2), each the v17 value.
 
 The two corners stay as they were: the one-line every-item skip and the unconditional skip whose
-reason holds `#` are still claimed, and setup, `npm ci` and `npx semantic-release` is still
-publish-only.
+reason holds `#` are still claimed, and setup, `npm ci` and `semantic-release` run through `npx` is
+still publish-only.
 
 Timing, scan only, one run each on the author's machine, on 13 hostile files just under the
 content size limit aimed at the new readers (sibling and 900-deep nested hook loops, long quoted
