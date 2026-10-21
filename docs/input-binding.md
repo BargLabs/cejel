@@ -50,7 +50,8 @@ no run declares a subject records `subjects: []` and is `unbound` as before.
   `--subject-repository`, an input's repository is recorded as `unverifiable`, and binding rests on
   the commit.
 - **A repository Cejel cannot normalize** (an IP address or single-label host, a host with a
-  trailing dot, a URL with no path) is never recorded: the declared text is where URL credentials
+  trailing dot, a URL with no path, a path that still holds an `@`, or a declared value that is not
+  a string, such as an object) is never recorded: the declared text is where URL credentials
   live. The subject records `repositoryWithheld: true` instead. With `--subject-repository`, a
   withheld repository counts as `mismatched` (it is not demonstrably the named repository) and is
   refused under `--strict-ingest`; without it, the repository check is `unverifiable`, as for any
