@@ -513,6 +513,50 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     'abb7bf9c4940cd36b64e50d2e873fb7455b9c47e6b345bd28471f7954bb9b7c0',
   'b3-echo-with-substitution@witan-rubric-v27-prospective-2026-10-19':
     '12c86dc26e1a2ff7f27a21674ff145bcd9fcb9146494b4217d2ad48b1a9f904b',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v17-2026-07-24':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v18-prospective-2026-07-25':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v19-prospective-2026-08-09':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v20-prospective-2026-08-10':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v21-prospective-2026-08-10':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v22-prospective-2026-08-10':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v23-prospective-2026-09-06':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v24-prospective-2026-09-15':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v25-prospective-2026-10-12':
+    '2b9abaac9436aaa6ddb4be420f79cd6734dfa3bb223acffaf969386bbf4196ae',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v26-prospective-2026-10-14':
+    '52f4fed8d3b6eb33268cc79ceb3f57bf6c1f61bd5dcda074e237670d5cdda327',
+  'b2b3-workflow-lfs-pointer@witan-rubric-v27-prospective-2026-10-19':
+    '663a5c8bfe0e81685277090c2eaa0381b8b0f36db3b8a67a7da74c3952373d99',
+  'b2b3-workflow-unreadable@witan-rubric-v17-2026-07-24':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v18-prospective-2026-07-25':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v19-prospective-2026-08-09':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v20-prospective-2026-08-10':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v21-prospective-2026-08-10':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v22-prospective-2026-08-10':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v23-prospective-2026-09-06':
+    '31303ccf7b35b1931383d82ceab0be8e2af3c75cda13062bdbeea95115f6d543',
+  'b2b3-workflow-unreadable@witan-rubric-v24-prospective-2026-09-15':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v25-prospective-2026-10-12':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
+  'b2b3-workflow-unreadable@witan-rubric-v26-prospective-2026-10-14':
+    '252d5bdd59b171bf6c19102f36ff406e8424009facc828780b4d5b7410db8434',
+  'b2b3-workflow-unreadable@witan-rubric-v27-prospective-2026-10-19':
+    '98d54d756fcba4ba1eea1d8b2e4ad1fd31b4bc38673508682c3adde6b3b14e3b',
   'b2-gitlab-ci@witan-rubric-v17-2026-07-24':
     'd3815e51c075e9bfc3f0d789e81b9a45f5e4f845bd800f9316d83698fbd524d7',
   'b2-gitlab-ci@witan-rubric-v18-prospective-2026-07-25':

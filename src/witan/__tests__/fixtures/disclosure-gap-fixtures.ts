@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { HERMETIC_GIT_ENV } from './behaviour-corpus.js';
+import { lfsPointerFor } from './false-assurance-fixtures.js';
 
 // DISCLOSURE-GAP FIXTURES: A2 placeholder set-aside and gitignore citation, B2 trigger labels,
 // B3 counted workflows not shown to run a check.
@@ -31,6 +32,8 @@ export interface DisclosureGapFixture {
   readonly extraBranches?: readonly string[];
   /** Check out HEAD detached, as a CI runner does. */
   readonly detached?: boolean;
+  /** Paths made unreadable (mode 000) after the commit. */
+  readonly unreadable?: readonly string[];
 }
 
 const GITIGNORE_ENV = '.env\nnode_modules\n';
@@ -193,6 +196,27 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
     },
   },
   {
+    name: 'b2b3-workflow-lfs-pointer',
+    purpose:
+      'A workflow whose checkout holds a Git LFS pointer. B2 now reads every cited workflow for its label; that read is attributed to nothing, so under v27 B2 must not abstain on the pointer (B3, which counts it, does). Pinned by the scoring-surface test.',
+    files: {
+      ...NODE_APP,
+      '.github/workflows/a-pointer.yml': lfsPointerFor(TEST_WORKFLOW),
+      '.github/workflows/test.yml': TEST_WORKFLOW,
+    },
+  },
+  {
+    name: 'b2b3-workflow-unreadable',
+    purpose:
+      'A workflow that cannot be read. B2 now reads every cited workflow for its label; that read is attributed to nothing, so B2 must not abstain on the read failure under any rubric. Pinned by the scoring-surface test.',
+    files: {
+      ...NODE_APP,
+      '.github/workflows/a-unreadable.yml': TEST_WORKFLOW,
+      '.github/workflows/test.yml': TEST_WORKFLOW,
+    },
+    unreadable: ['.github/workflows/a-unreadable.yml'],
+  },
+  {
     name: 'b2-gitlab-ci',
     purpose: 'A GitLab CI file: cited without a pull-request claim, since its trigger is not read.',
     files: {
@@ -221,6 +245,7 @@ export function buildDisclosureGapFixture(fixture: DisclosureGapFixture): string
   git(dir, ['commit', '--quiet', '--no-gpg-sign', '-m', 'initial commit']);
   for (const branch of fixture.extraBranches ?? []) git(dir, ['branch', branch]);
   if (fixture.detached) git(dir, ['checkout', '--quiet', '--detach']);
+  for (const relativePath of fixture.unreadable ?? []) chmodSync(join(dir, relativePath), 0o000);
   return dir;
 }
 
