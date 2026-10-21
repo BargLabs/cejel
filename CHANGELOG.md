@@ -36,7 +36,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `cd` inside a subshell; a directory or manifest passed as a flag that the scanned inventory does
   not hold (`npm ci --prefix`, `pnpm --dir`/`-C`, `uv --directory`/`--project`,
   `cargo --manifest-path`); and a `run:` or `steps:` line inside a block scalar (a heredoc, an
-  action's script), which is text, not a workflow key. Which directories the checkout holds is now
+  action's script), which is text, not a workflow key; for the same reason it now fires for a
+  `run: | # comment` block and past a `- ` line inside an earlier block. Which directories the checkout holds is now
   read from the scanned inventory, exact-case, never from the scanning host: a tracked symlink, a
   case-insensitive volume or an untracked empty directory no longer changes the certificate. The
   "linear" above held for flat workflows only: eight workflows of 990 nested items or 490 nested

@@ -58,6 +58,10 @@ holdout or calibration ran, and this entry makes no precision or recall claim.**
   to an action. That line is text, not a workflow key. Before, a `steps:` line in an earlier
   step's heredoc could detach a later step from its job's `if: false`.
 
+Reading block scalars as text also makes the note fire in two true shapes it missed. One is a
+`run: |` whose indicator carries a comment. The other is a step where a block scalar before
+`run:` holds a line starting with `- `, which was read as a step boundary.
+
 Which directories the checkout holds is decided from the scanned inventory: the scanned and
 withheld paths, exact-case. It is never decided from `lstat` on the working tree. Before, three
 things on the scanning host changed the certificate: a tracked symlink to a host directory, a
@@ -81,7 +85,7 @@ the repository path normalised.
 | Behaviour corpus (30) | 0 | 30 | 0 | 0 violations |
 | Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
 | False-assurance fixtures, existing (52) | 0 | 52 | 0 | 0 violations |
-| False-assurance fixtures, new `review4-*` (33) | 0 | 13 (the 20 that differ have the false note and citation withheld) | 22 (20 `review4-a4-*`: `lockfile_coverage` 0 to absent; 2 `review4-a1-*`: the hook finding) | 0 violations |
+| False-assurance fixtures, new `review4-*` (35) | 0 | 13 (of the 22 that differ, 20 have the false note and citation withheld and 2 gain a true one) | 24 (20 `review4-a4-*`: `lockfile_coverage` 0 to absent; 2 `review4-a4-claims-*`: absent to 0; 2 `review4-a1-*`: the hook finding) | 0 violations |
 
 The public board was not re-scored. Under v17 the reader feeds only A4's note and citation, so no
 v17 board score, status or rank can move. v27 board rows were not measured.

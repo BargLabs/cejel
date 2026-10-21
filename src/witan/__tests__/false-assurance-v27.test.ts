@@ -520,12 +520,14 @@ describe('fourth-review findings against #533 stay fixed', () => {
     }
   });
 
-  it('#520: a directory or manifest the inventory holds is still followed, and an unguarded brace group is not a guard', () => {
+  it('#520: a directory or manifest the inventory holds is still followed; an unguarded brace group and block-scalar text are not guards or step boundaries', () => {
     for (const [name, command, line] of [
       ['review4-a4-claims-cd-into-tracked-directory', 'npm ci', 11],
       ['review4-a4-claims-prefix-into-tracked-directory', 'npm ci', 11],
       ['review4-a4-claims-manifest-path-tracked', 'cargo test --locked', 11],
       ['review4-a4-claims-after-brace-group', 'npm ci', 13],
+      ['review4-a4-claims-block-indicator-with-comment', 'npm ci', 12],
+      ['review4-a4-claims-dash-line-in-earlier-block', 'npm ci', 15],
     ] as const) {
       const v17 = criterion(name, V17, 'A4');
       expect(v17.notes ?? '', name).toContain(`runs \`${command}\``);

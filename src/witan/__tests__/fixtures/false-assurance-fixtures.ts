@@ -1002,6 +1002,16 @@ for (const [name, purpose, files] of [
     { ...RUST_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: cargo test --locked --manifest-path ./Cargo.toml\n') },
   ],
   [
+    'review4-a4-claims-block-indicator-with-comment',
+    'A `run: |` whose block indicator carries a comment is a block like any other: newly claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: | # install\n          npm ci\n') },
+  ],
+  [
+    'review4-a4-claims-dash-line-in-earlier-block',
+    'A `- ` line inside a block scalar before `run:` is text, not a step boundary: newly claimed.',
+    { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - name: install\n        env:\n          NOTE: |\n            - a list line\n        run: npm ci\n') },
+  ],
+  [
     'review4-a4-claims-after-brace-group',
     'A brace group with no guard (`{ echo start; }`) does not make a later `npm ci` conditional: still claimed.',
     { ...NODE_LIBRARY_NO_LOCKFILE, '.github/workflows/ci.yml': PR_CI('      - run: |\n          { echo start; }\n          npm ci\n') },
