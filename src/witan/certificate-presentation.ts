@@ -1,7 +1,9 @@
 import {
+  WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX,
   WITAN_A2_TENANT_ISOLATION_UNSETTLED_DISCLOSURE,
   WITAN_A3_BUILD_STEP_UNSETTLED_DISCLOSURE,
   WITAN_A5_RECONCILIATION_UNSETTLED_DISCLOSURE,
+  WITAN_B3_UNSHOWN_CHECK_PREFIX,
 } from './abstention.js';
 import {
   LOW_CONFIDENCE_COVERAGE_THRESHOLD,
@@ -918,6 +920,28 @@ function settlingEvidenceDisclosures(report: WitanReport): string[] {
   ).map(({ sentence }) => sentence);
 }
 
+// Every rubric: the A2 sentence naming credential-shaped values set aside as documentation
+// placeholders. A2 writes it last in its notes, so it runs from the prefix to the end. It is lifted
+// whether A2 scored or was marked not applicable: either way the reader would otherwise see no
+// trace of a value Cejel read and set aside.
+function placeholderSetAsideDisclosures(report: WitanReport): string[] {
+  return trailingNotesSentence(report, 'A2', WITAN_A2_PLACEHOLDER_SET_ASIDE_PREFIX);
+}
+
+// Every rubric: the B3 sentence naming counted PR-gate workflows Cejel did not see run a check.
+// Written last in B3's notes; lifted only while B3 is scored, since only then does the count show.
+function unshownCheckWorkflowDisclosures(report: WitanReport): string[] {
+  const b3 = report.criteria.find((criterion) => criterion.id === 'B3');
+  if (!b3 || b3.status === 'not_applicable' || b3.status === 'insufficient_data') return [];
+  return trailingNotesSentence(report, 'B3', WITAN_B3_UNSHOWN_CHECK_PREFIX);
+}
+
+function trailingNotesSentence(report: WitanReport, criterionId: string, prefix: string): string[] {
+  const notes = report.criteria.find((criterion) => criterion.id === criterionId)?.notes;
+  const start = notes?.lastIndexOf(prefix) ?? -1;
+  return notes && start >= 0 ? [notes.slice(start)] : [];
+}
+
 // Uses the same all-criterion denominators as the summary box (formatDimensionsMeasuredSentence),
 // then names the not-applicable remainder, so "2 of 5" in the box and "5 of 5 that apply" here
 // visibly add up instead of reading as a contradiction.
@@ -998,6 +1022,8 @@ export function buildRelyingPartySummary(report: WitanReport): RelyingPartySumma
     );
   }
   gaps.push(...settlingEvidenceDisclosures(report));
+  gaps.push(...placeholderSetAsideDisclosures(report));
+  gaps.push(...unshownCheckWorkflowDisclosures(report));
   const withheldPathsSentence = buildWithheldPathsGapSentence(report);
   if (withheldPathsSentence !== undefined) {
     gaps.push(withheldPathsSentence);
