@@ -83,6 +83,15 @@ import {
   WITAN_RUBRIC_VERSION_V26,
   WITAN_RUBRIC_VERSION_V27,
 } from './rubric-version.js';
+import {
+  stripFromQueryOrFragment,
+  stripHashCommentAtStartOrAfterBlank,
+  stripTrailingCloseParentheses,
+  stripTrailingHashComment,
+  stripTrailingSlashes,
+  hasScheduleCronTrigger,
+  isShellScriptPath,
+} from './linear-strips.js';
 
 function usesV17DetectorClosure(rubricVersion: string): boolean {
   return (
@@ -2209,7 +2218,7 @@ function collectA1TestIntegrityEvidence(
   // its result to nothing but an ephemeral CI artifact earns the warning.
   const scheduledHealthWorkflow = ciWorkflows.find(
     (file) =>
-      fileContains(repoPath, file, SCHEDULE_TRIGGER_PATTERN) &&
+      fileSatisfies(repoPath, file, hasScheduleCronTrigger) &&
       fileContains(repoPath, file, CI_TEST_COMMAND_PATTERN) &&
       (!useV36Detectors ||
         SCHEDULED_HEALTH_PATH_PATTERN.test(file) ||
@@ -5324,9 +5333,6 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
   );
 }
 
-/** Exported for the equivalence and timing tests only. */
-export const linearStripsForTest = { stripTrailingHashComment, stripTrailingCloseParentheses };
-
 export function auditFreshnessCommitterYearFromGitResult(
   result: GitExecResult,
   scanLimitations: Set<string>,
@@ -5950,7 +5956,6 @@ const CI_TYPECHECK_COMMAND_PATTERN = /\b(tsc|mypy|pyright)\b/i;
 // suggests nightly health verification but lacks the shape (no schedule trigger or
 // test-run command) is not flagged at all
 // (goal_cejel_generalize_homefield_rule_and_rescore_protocol_2026-07-12).
-const SCHEDULE_TRIGGER_PATTERN = /(^|\n)\s*schedule:\s*\r?\n\s*-\s*cron:/;
 // Durable-publication markers: the workflow visibly does more than hand its result
 // to an ephemeral, access-gated CI artifact — it pushes a persisted, checkable
 // record (a public pages deploy, a commit back to the repo, a PR/issue comment).
@@ -8539,7 +8544,7 @@ function normaliseDeclaredClaimArtifactPath(candidate: string, baseDir: string):
   const joined = candidate.startsWith('/')
     ? posix.normalize(candidate.slice(1))
     : posix.normalize(posix.join(baseDir, candidate));
-  const path = joined.replace(/\/+$/, '');
+  const path = stripTrailingSlashes(joined);
   if (path === '' || path === '.' || path === '..' || path.startsWith('../') || path.startsWith('/')) {
     return null;
   }
@@ -8551,7 +8556,7 @@ function markdownLinkTarget(target: string): string | null {
   if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('#')) {
     return null;
   }
-  const withoutSuffix = target.replace(/[?#].*$/, '');
+  const withoutSuffix = stripFromQueryOrFragment(target);
   try {
     return decodeURIComponent(withoutSuffix);
   } catch {
@@ -8645,7 +8650,7 @@ function workflowClaimArtifactDeclarations(contents: string): ClaimArtifactDecla
     writeContinues = false;
   };
   contents.split(/\r?\n/).forEach((rawLine, index) => {
-    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    const line = stripHashCommentAtStartOrAfterBlank(rawLine);
     if (line.trim() === '') return;
     const indent = line.length - line.trimStart().length;
     if (
@@ -9705,7 +9710,7 @@ function reachableShellWrapper(
 ): string | undefined {
   const executable = basename(words[0] ?? '').toLowerCase();
   const candidate = /^(?:ba|da|k|z)?sh$/u.test(executable) ? words[1] : words[0];
-  if (!candidate || !/(?:^|\/)\.?[^\s]*\.sh$/i.test(candidate)) return undefined;
+  if (!candidate || !isShellScriptPath(candidate)) return undefined;
   const normalized = candidate.replace(/^\.\//u, '');
   if (normalized.startsWith('/') || normalized.split('/').includes('..')) return undefined;
   return repoFiles.has(normalized) ? normalized : undefined;
@@ -10859,37 +10864,6 @@ function readPnpmWorkspacePatterns(yamlPath: string): string[] | null {
   return patterns;
 }
 
-const LINE_TERMINATOR_PATTERN = /[\n\r\u2028\u2029]/;
-
-/**
- * `text.replace(/\s+#.*$/, '')` in linear time: drops the first whitespace run that is followed
- * by `#` and by no line terminator after it, with everything after the run. The regex form retries
- * its `\s+` from every position of a long blank run, which is quadratic on repository text.
- */
-function stripTrailingHashComment(text: string): string {
-  // `.*$` cannot cross a line terminator, so only a `#` after the last one can start the comment.
-  let lastTerminator = -1;
-  for (let index = text.length - 1; index >= 0; index -= 1) {
-    if (LINE_TERMINATOR_PATTERN.test(text[index] ?? '')) {
-      lastTerminator = index;
-      break;
-    }
-  }
-  for (let index = text.indexOf('#', lastTerminator + 1); index !== -1; index = text.indexOf('#', index + 1)) {
-    if (index === 0 || !/\s/.test(text[index - 1] ?? '')) continue;
-    return text.slice(0, index).trimEnd();
-  }
-  return text;
-}
-
-/** `segment.replace(/\s*\)+$/u, '')` in linear time: a trailing `)` run and the blanks before it. */
-function stripTrailingCloseParentheses(segment: string): string {
-  let end = segment.length;
-  while (end > 0 && segment[end - 1] === ')') end -= 1;
-  if (end === segment.length) return segment;
-  return segment.slice(0, end).trimEnd();
-}
-
 function stripYamlLineComment(text: string): string {
   return /^\s*#/.test(text) ? '' : stripTrailingHashComment(text);
 }
@@ -10920,7 +10894,7 @@ export const WORKSPACE_GLOB_MAX_SEGMENTS = 32;
 export function workspaceGlobMatcher(pattern: string): ((dir: string) => boolean) | null {
   // Capped before any normalisation, so no regex below ever sees an unbounded pattern.
   if (pattern.length > WORKSPACE_GLOB_MAX_LENGTH) return null;
-  const normalised = pattern.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+  const normalised = stripTrailingSlashes(pattern.trim().replace(/^\.\//, ''));
   if (
     normalised === '' ||
     normalised.startsWith('/') ||
@@ -11093,7 +11067,7 @@ function countDelegatedCiSteps(root: string, workflows: readonly string[]): Dele
         continue;
       }
       if (!uses.startsWith('./') || /^\.\/\.github\/workflows\//.test(uses)) continue;
-      const directory = uses.slice(2).replace(/\/+$/u, '');
+      const directory = stripTrailingSlashes(uses.slice(2));
       if (directory.length === 0 || directory.split('/').includes('..')) continue;
       if (
         isRegularFile(join(root, directory, 'action.yml')) ||
@@ -11569,6 +11543,13 @@ export function fileContains(repoPath: string, file: string, pattern: RegExp): b
   const fullPath = join(repoPath, file);
   if (!isRegularFile(fullPath)) return false;
   return pattern.test(readRepoText(fullPath, 'utf8'));
+}
+
+/** fileContains for a test that is not a regex (a linear scan in place of a quadratic pattern). */
+function fileSatisfies(repoPath: string, file: string, test: (contents: string) => boolean): boolean {
+  const fullPath = join(repoPath, file);
+  if (!isRegularFile(fullPath)) return false;
+  return test(readRepoText(fullPath, 'utf8'));
 }
 
 // Same as fileContains, but strips comments before testing. Used wherever a match is credited as
