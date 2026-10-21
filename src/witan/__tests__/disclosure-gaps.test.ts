@@ -322,6 +322,7 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     'b3-master-target-with-dispatch',
     'b3-master-target-depth-1-clone',
     'b3-master-target-single-branch-clone',
+    'b3-master-target-ci-fetch',
   ])('claims nothing for %s', (name) => {
     expect(criterion(name, 'B3').disclosures).toBeUndefined();
     expect(notEstablished(name)).not.toContain(WITAN_B3_UNSHOWN_CHECK_PREFIX);
@@ -853,6 +854,28 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
   'b3-master-target-single-branch-clone@witan-rubric-v27-prospective-2026-10-19':
     '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v17-2026-07-24':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v18-prospective-2026-07-25':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v19-prospective-2026-08-09':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v20-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v21-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v22-prospective-2026-08-10':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v23-prospective-2026-09-06':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v24-prospective-2026-09-15':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v25-prospective-2026-10-12':
+    '5898585a3aa445f208cecbaa7ffa54d198ecee5d59e96e24c765c652ec39b24c',
+  'b3-master-target-ci-fetch@witan-rubric-v26-prospective-2026-10-14':
+    '8f4f139c2a93336de130de1e99c26122ed684a05420393b9d3b167514d81d316',
+  'b3-master-target-ci-fetch@witan-rubric-v27-prospective-2026-10-19':
+    '087aca30f7590afba5d9c6004a72d3b9c42dcab71fd0df75aa0e0d1614978b44',
   'b3-monorepo-root-print-only@witan-rubric-v17-2026-07-24':
     'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
   'b3-monorepo-root-print-only@witan-rubric-v18-prospective-2026-07-25':

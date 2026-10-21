@@ -35,7 +35,7 @@ export interface DisclosureGapFixture {
   /** Paths made unreadable (mode 000) after the commit. Has no effect when tests run as root. */
   readonly unreadable?: readonly string[];
   /** Scan a clone of the committed repository instead of the repository itself. */
-  readonly clone?: 'full' | 'depth-1' | 'single-branch';
+  readonly clone?: 'full' | 'depth-1' | 'single-branch' | 'ci-fetch';
   /** Scan this subdirectory, as a monorepo sub-package. */
   readonly scanPath?: string;
 }
@@ -304,6 +304,14 @@ export const DISCLOSURE_GAP_FIXTURES: readonly DisclosureGapFixture[] = [
     clone: 'single-branch',
   },
   {
+    name: 'b3-master-target-ci-fetch',
+    purpose:
+      'Corner: a checkout built the way actions/checkout builds one: a remote with the full refs/heads/* refspec, then a depth-1 fetch of main alone onto a local main. The upstream has master; only the shallow test can tell, so nothing is claimed.',
+    files: { ...NODE_APP, '.github/workflows/security.yml': MASTER_ONLY_WORKFLOW },
+    extraBranches: ['master'],
+    clone: 'ci-fetch',
+  },
+  {
     name: 'b3-monorepo-root-print-only',
     purpose:
       'A sub-package scan whose monorepo root holds an echo-only pull-request workflow. B3 counts it and now names it as a root workflow.',
@@ -352,10 +360,19 @@ function cloneFixture(source: string, fixture: DisclosureGapFixture): string {
   const parent = mkdtempSync(join(tmpdir(), `cejel-disclosure-gap-${fixture.name}-clone-`));
   createdDirectories.push(parent);
   const target = join(parent, 'clone');
+  // file:// so --depth is honoured; a plain local path clone ignores it.
+  const url = `file://${source}`;
+  if (fixture.clone === 'ci-fetch') {
+    mkdirSync(target);
+    git(target, ['init', '--quiet']);
+    git(target, ['remote', 'add', 'origin', url]);
+    git(target, ['fetch', '--quiet', '--depth', '1', 'origin', '+refs/heads/main:refs/remotes/origin/main']);
+    git(target, ['checkout', '--quiet', '-B', 'main', 'refs/remotes/origin/main']);
+    return target;
+  }
   const options =
     fixture.clone === 'depth-1' ? ['--depth', '1'] : fixture.clone === 'single-branch' ? ['--single-branch'] : [];
-  // file:// so --depth is honoured; a plain local path clone ignores it.
-  git(parent, ['clone', '--quiet', ...options, `file://${source}`, target]);
+  git(parent, ['clone', '--quiet', ...options, url, target]);
   return target;
 }
 

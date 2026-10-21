@@ -39,10 +39,11 @@ scoring, left to a prospective rubric: #535 (B3 count), #536 (B3 lint and type-c
   sets aside is counted by file, using the same assignment grammar and the same file set as the
   current-tree scan. The AWS documentation pair is an example: it contains "EXAMPLE". Count and
   paths, never the value, appear on the secret-cleanliness metric line (`presentation.condition`),
-  as the last sentence of A2's notes (including a not-applicable reason) and under "What was not
-  established". Under v24 a value its classifier reports is never also described as set aside. A
-  scan that stopped at a confirmed secret names nothing, because it did not read the rest. The
-  placeholder rule itself is unchanged.
+  in A2's `criteria[].disclosures` (report format 1.8) whether A2 scored, abstained or was not
+  applicable, and under "What was not established". The count is taken inside the detection pass
+  (`observeValue`), not by a second scan. Under v24 a value its classifier reports is never also
+  described as set aside. A scan that stopped at a confirmed secret names nothing, because it did
+  not read the rest. The placeholder rule itself is unchanged.
 - A2: the evidence label ".env files are gitignored" is replaced, when the scanned tree includes a
   non-template env-format file (`.env`, `.env.<name>`, `<name>.env`), by one naming that file. A
   `.gitignore` rule does not untrack a committed file. The pointer and the `env_handling_depth`
@@ -50,17 +51,23 @@ scoring, left to a prospective rubric: #535 (B3 count), #536 (B3 lint and type-c
 - B2: each cited workflow is labelled by its own top-level `on:` triggers. One with a
   `pull_request`, `pull_request_target` or `merge_group` trigger keeps "Pull-request CI workflow".
   One without reads "CI workflow with no pull-request trigger (on: ...)". A non-GitHub CI file, or
-  a workflow whose triggers the reader cannot place, reads "CI workflow (trigger not read)". Which
-  files are cited and every count are unchanged. The re-read is attributed to no criterion
+  a workflow whose triggers the reader cannot place, reads "CI workflow (trigger not read)". The
+  label names three triggers, then two, one or none, whichever first fits the 180-character
+  evidence label limit with its count suffix. Which files are cited and every count are unchanged. The re-read is attributed to no criterion
   (`withoutContentReadAttribution`), so it cannot make B2 abstain.
 - B3: workflows that `default_branch_ci_depth` counted but that Cejel did not see run a check are
-  named on that metric line, in B3's notes and under "What was not established". There are two
-  shapes. One is a workflow whose every step only prints text, with no action other than
-  `actions/checkout`. The other is a workflow whose push and pull-request triggers name only
-  `master` (or only `main`) when the repository's default branch is the other one and no ref by the
-  named branch exists. The default branch is read from `origin/HEAD`, else from the checked-out
-  branch. A detached checkout with neither, as on a CI runner, claims nothing. The count is
-  unchanged.
+  named on that metric line, in B3's `criteria[].disclosures` and under "What was not
+  established", including a monorepo root's counted workflows ("at the monorepo root"). There are
+  two shapes. One is a workflow whose every step only prints text, with no action other than
+  `actions/checkout`. The other is a workflow whose every trigger is a push or pull-request trigger
+  with a branch filter, the filters together naming only `master` (or only `main`), when the
+  repository's default branch is the other one and no ref by the named branch exists. Any other
+  trigger (`schedule`, `workflow_dispatch`, `workflow_call` and the rest) claims nothing, since it
+  can run the workflow on the default branch. The default branch is read from `origin/HEAD`, else
+  from the checked-out branch. Nothing is claimed when neither can be read (a detached CI
+  checkout) or when the checkout may lack branches its remote has: a shallow clone, a remote whose
+  fetch refspecs do not map `refs/heads/*` (a single-branch clone), or a remote with no fetched
+  branch. Git runs only when some counted workflow has the second shape. The count is unchanged.
 
 **Measured, main (`1d0d4388d`) against this change.** Every report was compared by scoring-surface
 projection (`projectWitanScoringSurface`) and by full `report.json` bytes.
@@ -70,23 +77,46 @@ projection (`projectWitanScoringSurface`) and by full `report.json` bytes.
 | Behaviour corpus (30) | v17-v27 | 330 | 0 | 6 fixtures × 11 rubrics: B2 label on a workflow with no pull-request trigger; `workspace-package-scripts` also gains the B3 note (its CI runs only `echo ok`) |
 | False-assurance fixtures (52) | v17-v27 | 572 | 0 | 5 fixtures × 11 rubrics, B2 label |
 | Calibration anchors (5) | v17-v27 | 55 | 0 | not comparable: the fixtures are not hermetic, so head shas differ between runs |
-| New fixtures (15, `disclosure-gap-fixtures.ts`) | v17-v27 | 165 | 0 | 8 fixtures, the intended disclosures; every control and corner is byte-identical |
+| New fixtures (24, `disclosure-gap-fixtures.ts`) | v17-v27 | 264 | 0 | 12 fixtures, the intended disclosures; all 12 controls and corners are byte-identical, including the schedule, dispatch, depth-1, single-branch and CI-style shallow fetch corners |
 | Public board, 23 public rows at their pinned commits, depth 1 | v17 | 23 | 0 | 16 rows, B2 labels only (for example react `compiler_prereleases.yml`, "on: workflow_call"; vue `close-cant-reproduce-issues.yml`, "on: schedule"; cejel `publish-distribution.yml`, "on: workflow_dispatch") |
-| The demo repository at its scanned commit | v17 | 1 | 0 | A2 set-aside and citation, B2 manual-dispatch label, B3 names the echo-only and master-only workflows; the base digest reproduced the digest recorded for 0.6.7 |
+| The demo repository at its scanned commit | v17 | 1 | 0 | A2 set-aside and citation, B2 manual-dispatch label, B3 names the echo-only and master-only workflows; the base digest reproduced the digest recorded for 0.6.7. The scanned clone is full (not shallow, `refs/heads/*` refspec), and its remote has no `master` branch, so the master-only sentence is true there |
 
 No board row has a set-aside value or a committed env file beside a `.gitignore` rule, and no board
-row gets the B3 note: the board fetches detached, so no default branch is read. The private board
-row was not run. `src/witan/__tests__/disclosure-gaps.test.ts` pins each new fixture's scoring
-surface under every selectable rubric to main's value. Two `v17-scoring-surface-golden.test.ts`
-report hashes moved, because their CI is `on: [push]`. Restoring exactly the old B2 label
-recovers the previous pins byte for byte.
+row gets the B3 note: the board fetches detached and at depth 1, so no default branch is read. The
+private board row was not run. `src/witan/__tests__/disclosure-gaps.test.ts` pins each new
+fixture's scoring surface under every selectable rubric to main's value (fixtures needing a
+read-denied file are skipped when tests run as root, where `chmod 000` denies nothing). Two
+`v17-scoring-surface-golden.test.ts` report hashes moved, because their CI is `on: [push]`.
+Restoring exactly the old B2 label recovers the previous pins byte for byte.
+
+**Found in review of #540.** Three defects added by this change, all fixed before merge:
+- **The new label could crash a scan.** It had no length cap. A workflow whose trigger names made it
+  exceed 180 characters failed `WitanReportSchema` and the whole scan exited 1 (reproduced with a
+  170-character trigger name). The label now drops trigger names to fit.
+- **"Runs only on master" ignored other triggers.** A workflow confined to `master` by its push and
+  pull-request filters but also on `schedule` or `workflow_dispatch` does run on `main`. The claim
+  now requires every trigger to be a filtered push or pull-request trigger.
+- **"No master branch" was read from incomplete clones.** A `--depth 1` or `--single-branch` clone
+  holds only the default branch even when `master` exists upstream (reproduced). So does a checkout
+  built as `actions/checkout` builds one: a full `refs/heads/*` refspec, then a depth-1 fetch of one
+  branch. The claim now requires a complete checkout, as above.
+
+The review also moved the sentences out of `notes` into `criteria[].disclosures`, which fixes #539
+(a partial or wholesale abstention rewrote the notes and dropped them) and stops a not-applicable
+A2 printing the sentence twice. Report format moves to 1.8; a report with no disclosure is
+byte-identical to 1.7.
 
 **Found while measuring.** The first trigger reader did not read YAML compact sequences: a filter
 list at its key's indent (ripgrep `ci.yml`) and a trigger list at column 0 (cobra `labeler.yml`).
 It cited both as "trigger not read". Both are fixed and pinned by unit tests.
 
 **Mutations.** Dropping the credential-shape requirement fails one test; dropping the "no ref by
-that name" check fails five. Dropping the attribution guard on the B2 and B3 re-reads fails
+that name" check fails five. After review, each new guard was removed in turn and each removal
+fails at least one test: the other-trigger guard (2: schedule, dispatch), the shallow guard (1:
+CI-style fetch), the refspec guard (1: single-branch), the whole completeness check (2), the label
+fit (2: the label test, and the pinned scan that no longer completes), keeping disclosures through
+a wholesale abstention (1: #539), the set-aside count inside the detection pass (5), and naming
+monorepo-root workflows (1). Dropping the attribution guard on the B2 and B3 re-reads fails
 nothing. Cejel already attributes a skipped CI-workflow path to B2 and B3 by path, so the guard is
 redundant with existing behaviour. It is kept as the documented pattern for presentation-only
 reads, and the LFS-pointer and unreadable-workflow fixtures pin the scoring surface either way.
@@ -95,9 +125,8 @@ reads, and the LFS-pointer and unreadable-workflow fixtures pin the scoring surf
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`, v27 stays
 `sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0`.
 
-**Not fixed.** The unnamed "excluded by extension" entry (#538). A partial abstention rewrites a
-criterion's notes and drops these sentences, though the metric-line form remains while the metric
-is scored (#539).
+**Not fixed.** The unnamed "excluded by extension" entry (#538). A workflow file can still be read
+more than once per scan by B2 and B3 under different read attributions (#541).
 
 ## 2026-10-20 — third review of the v27 closure: eight corrections; no published score moved
 
