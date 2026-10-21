@@ -3215,12 +3215,13 @@ function isCommittedEnvFormatPath(path: string): boolean {
 }
 
 // A .gitignore rule does not untrack a committed file, so ".env files are gitignored" is not cited
-// beside a committed env file the tree still holds; the citation names that file instead. Only the
-// label changes: the evidence pointer and the env_handling_depth component it supports stay.
+// beside an env file the scanned tree still holds; the citation names that file instead. "Scanned
+// tree", not "committed": a scan without git walks the directory. Only the label changes: the
+// evidence pointer and the env_handling_depth component it supports stay.
 function gitignoreEnvRuleLabel(committedEnvFiles: readonly string[]): string {
   const count = committedEnvFiles.length;
   if (count === 0) return '.env files are gitignored';
-  const lead = `.gitignore has an .env rule, but the tree commits ${count} env file${count === 1 ? '' : 's'}`;
+  const lead = `.gitignore has an .env rule, but the scanned tree includes ${count} env file${count === 1 ? '' : 's'}`;
   for (let shown = Math.min(count, 2); shown > 0; shown -= 1) {
     const more = count - shown;
     const label = `${lead}: ${committedEnvFiles.slice(0, shown).join(', ')}${more > 0 ? ` and ${more} more` : ''}`;
@@ -5415,7 +5416,7 @@ function isPublishOnlyWorkflow(repoPath: string, file: string): boolean {
 // counted workflows Cejel did not see run a check. Nothing here feeds a metric or a finding.
 
 /** A trigger's `branches:` filter: none, a list of literal names, or one Cejel did not read. */
-type WorkflowBranchFilter =
+export type WorkflowBranchFilter =
   | { readonly kind: 'none' }
   | { readonly kind: 'names'; readonly names: readonly string[] }
   | { readonly kind: 'unread' };
@@ -5450,7 +5451,7 @@ function yamlInlineList(text: string): string[] | null {
  * trigger's `branches:` filter. Null when there is no `on:` key or the reader cannot place what it
  * holds; every caller then claims nothing about the file's triggers.
  */
-function githubWorkflowTriggers(contents: string): Map<string, WorkflowBranchFilter> | null {
+export function githubWorkflowTriggers(contents: string): Map<string, WorkflowBranchFilter> | null {
   const lines = contents.split(/\r?\n/);
   const onIndex = lines.findIndex((line) => WORKFLOW_ON_KEY_PATTERN.test(line));
   if (onIndex === -1) return null;
@@ -5465,7 +5466,26 @@ function githubWorkflowTriggers(contents: string): Map<string, WorkflowBranchFil
     }
     return triggers;
   }
+  const isContent = (line: string) => line.trim() !== '' && !line.trimStart().startsWith('#');
+  // YAML allows a block sequence at its parent key's own indent ("compact" form), so a list of
+  // trigger names may sit at column 0 under `on:`, and a trigger's or a filter's list may sit at
+  // that key's indent.
+  const firstIndex = lines.findIndex((line, index) => index > onIndex && isContent(line));
+  if (firstIndex !== -1 && /^-[ \t]/.test(lines[firstIndex] ?? '')) {
+    for (let index = firstIndex; index < lines.length; index += 1) {
+      const raw = lines[index] ?? '';
+      if (!isContent(raw)) continue;
+      const item = /^-[ \t]+(.*)$/.exec(raw);
+      if (!item) break;
+      const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
+      if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
+      triggers.set(name, { kind: 'none' });
+    }
+    return triggers.size > 0 ? triggers : null;
+  }
   let triggerIndent = -1;
+  // True once a `name:` key is read at the trigger indent, false once a `- name` item is.
+  let mappingForm: boolean | null = null;
   let current: { name: string; filter: WorkflowBranchFilter } | null = null;
   let branchesIndent = -1;
   const close = () => {
@@ -5475,20 +5495,26 @@ function githubWorkflowTriggers(contents: string): Map<string, WorkflowBranchFil
   };
   for (let index = onIndex + 1; index < lines.length; index += 1) {
     const raw = lines[index] ?? '';
-    if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue;
+    if (!isContent(raw)) continue;
     const indent = lineIndent(raw);
     if (indent === 0) break;
     if (triggerIndent === -1) triggerIndent = indent;
     if (indent < triggerIndent) return null;
     if (indent === triggerIndent) {
-      close();
       const item = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
+      // A compact sequence under a trigger key (`schedule:` then `- cron: ...`) is that trigger's
+      // value, not another trigger.
+      if (item && mappingForm === true) continue;
+      close();
       if (item) {
+        mappingForm = false;
         const name = unquoteYamlScalar(stripYamlComment(item[1] ?? ''));
         if (!WORKFLOW_TRIGGER_NAME_PATTERN.test(name)) return null;
         triggers.set(name, { kind: 'none' });
         continue;
       }
+      if (mappingForm === false) return null;
+      mappingForm = true;
       const key = /^[ \t]*([A-Za-z_]+):(.*)$/.exec(raw);
       if (!key || !WORKFLOW_TRIGGER_NAME_PATTERN.test(key[1] ?? '')) return null;
       const rest = stripYamlComment(key[2] ?? '').trim();
@@ -5499,7 +5525,10 @@ function githubWorkflowTriggers(contents: string): Map<string, WorkflowBranchFil
     }
     if (!current) return null;
     const active: { name: string; filter: WorkflowBranchFilter } = current;
-    if (branchesIndent !== -1 && indent > branchesIndent) {
+    if (
+      branchesIndent !== -1 &&
+      (indent > branchesIndent || (indent === branchesIndent && LIST_ITEM_PATTERN.test(raw)))
+    ) {
       const item = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
       if (!item || active.filter.kind !== 'names') {
         active.filter = { kind: 'unread' };

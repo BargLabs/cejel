@@ -10,6 +10,7 @@ import { buildRelyingPartySummary, formatCertificateMetricValue } from '../certi
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
 import {
   b3UnshownCheckDisclosure,
+  githubWorkflowTriggers,
   placeholderSetAsideDisclosure,
 } from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
@@ -147,7 +148,7 @@ describe('A2: the gitignore citation does not contradict a committed env file', 
       'a2-unmarked-pair-in-committed-env-file',
     ]) {
       expect(labels(name, 'A2')).toContain(
-        '.gitignore has an .env rule, but the tree commits 1 env file: config/dev.env',
+        '.gitignore has an .env rule, but the scanned tree includes 1 env file: config/dev.env',
       );
       expect(labels(name, 'A2')).not.toContain('.env files are gitignored');
     }
@@ -181,6 +182,49 @@ describe('B2: each cited workflow is labelled by its own trigger', () => {
 
   it('cites a non-GitHub CI file without a pull-request claim', () => {
     expect(labels('b2-gitlab-ci', 'B2')).toContain('CI workflow (trigger not read)');
+  });
+});
+
+describe('the workflow trigger reader', () => {
+  const read = (contents: string) => {
+    const triggers = githubWorkflowTriggers(contents);
+    return triggers ? Object.fromEntries(triggers) : null;
+  };
+  const none = { kind: 'none' };
+
+  it.each([
+    ['a scalar', 'on: push\n', { push: none }],
+    ['a flow list', 'on: [push, pull_request] # both\n', { push: none, pull_request: none }],
+    ['a quoted key', '"on":\n  pull_request:\n', { pull_request: none }],
+    ['a YAML 1.1 true key', 'true:\n  workflow_dispatch:\n', { workflow_dispatch: none }],
+    [
+      'inline and block branch filters',
+      'on:\n  push:\n    branches: [main, "release"]\n  pull_request:\n    branches:\n      - master\n',
+      { push: { kind: 'names', names: ['main', 'release'] }, pull_request: { kind: 'names', names: ['master'] } },
+    ],
+    [
+      'compact sequences under a trigger and a filter',
+      "on:\n  pull_request:\n  push:\n    branches:\n    - master\n  schedule:\n  - cron: '00 01 * * *'\n\npermissions:\n  contents: read\n",
+      { pull_request: none, push: { kind: 'names', names: ['master'] }, schedule: none },
+    ],
+    ['a compact list at column 0', 'on:\n- pull_request_target\n\npermissions:\n  contents: read\n', { pull_request_target: none }],
+    ['an indented list', 'on:\n  - push\n  - workflow_dispatch\n', { push: none, workflow_dispatch: none }],
+    [
+      'an ignore list it does not evaluate',
+      'on:\n  push:\n    branches-ignore: [gh-pages]\n',
+      { push: { kind: 'unread' } },
+    ],
+  ])('reads %s', (_shape, contents, expected) => {
+    expect(read(contents)).toEqual(expected);
+  });
+
+  it.each([
+    ['no on: key', 'name: ci\njobs: {}\n'],
+    ['a flow mapping', 'on: {push: {branches: [main]}}\n'],
+    ['an anchor', 'on: &triggers\n  push:\n'],
+    ['an inline trigger value', 'on:\n  push: main\n'],
+  ])('claims nothing for %s', (_shape, contents) => {
+    expect(read(contents)).toBeNull();
   });
 });
 

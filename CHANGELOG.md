@@ -18,6 +18,24 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A "clean" secrets result and the CI citations now say what Cejel set aside or did not check.**
+  Under every rubric, including the default:
+  - A2 names credential-shaped values it read and then set aside as documentation placeholders
+    (for example the AWS documentation key pair, which contains "EXAMPLE"), by count and path. The
+    names appear on the secret-cleanliness line, in A2's notes and under "What was not established".
+    No value is printed, and the placeholder rule itself is unchanged.
+  - A2 no longer cites ".env files are gitignored" beside a committed env file. A `.gitignore` rule
+    does not untrack a committed file, so the citation names the file instead.
+  - B2 labels each cited workflow by its own trigger. A workflow with no pull-request trigger is no
+    longer called "Pull-request CI workflow", and a non-GitHub CI file is cited as "trigger not
+    read".
+  - B3 names workflows its PR-gate count includes that Cejel did not see run a check: one whose
+    only steps print text, and one confined to `master` when the repository's default branch is
+    `main` and no `master` ref exists. The count is unchanged.
+
+  No score, status, metric value, finding count or fingerprint moves. Changing which values or
+  workflows count is left to a prospective rubric (#535, #536, #537).
+
 - **Certificates now say where they read less than they score (#519, #520).** Under every rubric,
   including the default: a file whose checkout holds a Git LFS pointer is counted in
   `contentReadSummary.byReason.lfsPointer` (report format 1.6) and labelled as a pointer in A1's
