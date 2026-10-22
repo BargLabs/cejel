@@ -142,8 +142,8 @@ describes v27's public scores, but not its fingerprint.
 **Timing.** B2 and B3 now each run the shared predicate over every CI workflow, and B3 decides once
 for both depth metrics. The child-process timing guard in `scan-path-regex-bounds.test.ts` scans a
 print-only workflow of 24,000 steps beside an upload-only workflow of 3,300 step pairs, each just
-under the content size limit, under v17 and v27. Run alone, it takes 0.7 s to 0.8 s against a 2 s
-budget. A version with four of each made the file's other guards miss their budget when the full
+under the content size limit, under v17 and v27. Run alone, the test takes 0.4 s to 0.5 s wall time, child start-up included,
+against a 2 s scan budget. A version with four of each made the file's other guards miss their budget when the full
 suite ran in parallel (they passed with it skipped), so it was cut to one of each. On a scratch
 fixture of eight of each, one run on the author's machine, a scan took 1.19 s under v27 and 0.97 s
 under v17. Before this change v27 took 1.46 s, because B3 ran the publish-only reader three times
