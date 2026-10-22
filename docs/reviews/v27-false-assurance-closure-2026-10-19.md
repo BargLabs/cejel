@@ -397,24 +397,33 @@ only checks out and prints (`isPrintOnlyWorkflow`, #540's reader) is not credite
 - B2's `pr_trace_primitives` loses that workflow's CI component (#527);
 - B3's `ci_script_depth` and `default_branch_ci_depth` do not count it (#535, the no-check half).
 
-Both readers are allowlists that refuse any line they cannot place, so doubt keeps the credit.
-Notes describe what Cejel read and never say that a workflow runs no check. v17 and every other
-rubric are unchanged. The measured tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22):
-- 14 fixture rows move down and none rises against v17;
+A reader admits a workflow only when every line of its jobs section fits its grammar, every job's
+`runs-on` names a GitHub-hosted Ubuntu or macOS runner (bash, #564), and every step is on its
+allowlist. Anything else keeps the credit. The certificate names uncredited workflows under "What was
+not established", and no sentence says that a workflow runs no check. v17's scores and fingerprint
+are unchanged. Its only change is that the #540 disclosure no longer misnames pwsh or self-hosted
+workflows as print-only (#564). v18-v26 rest on gating and their unchanged fingerprints. The
+measured tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22):
+- 15 fixture rows score below v17 and none above;
 - no public row moves;
 - v27's fingerprint moves from `sha256:fb4edfa0…` to
   `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`.
 
 **This is a new candidate.** The ruling's last condition paragraph applies: "Any later change to
-v27's scoring makes a new candidate and resets conditions 1, 2, 4 and 5." Conditions 1, 2, 4 and 5
-are reset for the fingerprint above. A release carrying an earlier v27 fingerprint does not count
+v27's scoring makes a new candidate and resets conditions 1, 2, 4 and 5." The candidate is the fingerprint
+above plus #562's merge commit, which is recorded after merge (#563). Conditions 1, 2, 4 and 5 are
+reset for it. #562 moves neither `b3-master-target-*` surface pin. PR #560 touches the same records;
+whichever of the two lands second reconciles them. A release carrying an earlier v27 fingerprint does not count
 toward condition 1 for this one.
 
 **Condition 3 is met for the no-check half only.** #535 also names a workflow confined to a branch
 the repository does not have. That half is not changed, and fixture
 `b3-master-confined-workflow-on-main-still-counted` pins it as open. The reason is reproducibility.
-Deciding it needs the default branch or the branch list, which is ref state. The attestation binds
-`repo.headSha` and the report digest (`src/witan/attestation.ts`), not refs. #540 already removed a
+Deciding it needs the default branch or the branch list, which is ref state. The attestation's only
+repository revision is `repo.headSha` (`src/witan/attestation.ts`), and ref state is not a function
+of it. Reading `origin/HEAD` offline, as #535 suggested, either makes the same commit score
+differently with different refs (unless the value is bound, option 2 below) or, abstaining when it is
+unreadable, removes credit on most checkouts (like option 3). #540 already removed a
 sentence read from refs because `cejel issue` then refused honest reproductions of the same commit.
 
 No rule decidable from the commit's tree was found that removes only false credit. Two candidates

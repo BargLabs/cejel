@@ -19,20 +19,38 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **Prospective v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535).**
-  This meets condition 3 of the accepted ruling on #526. Under
-  `witan-rubric-v27-prospective-2026-10-19` only, a workflow whose every step only checks out and
-  prints, or that only uploads an already-built artifact, earns no B2 PR-trace credit and counts
-  toward neither B3 depth metric. One predicate decides this for both criteria, built from the
-  existing allowlist readers (`isPublishOnlyWorkflow`, `isPrintOnlyWorkflow`), and any step a reader
-  cannot place keeps the credit. The notes describe what Cejel read: a print-only workflow is "not
-  shown to run a check", and a publish-only one keeps #517's sentence. Neither says a workflow runs
-  no check. Scores can only fall. On the fixtures, 14 rows move down and none rises against v17. No
-  public row moves. v17's reports are byte-identical on every fixture and public row measured, and
-  every other rubric's behaviour fingerprint is unchanged. v27's behaviour fingerprint
-  moves to `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`, which makes
-  this a new v27 candidate. The branch half of #535 (a workflow confined to a branch the repository
-  may not have) is left open, because the attestation does not bind branch state. Measured options
-  are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22). The default stays v17.
+  This meets the no-check half of condition 3 of the accepted ruling on #526. Under
+  `witan-rubric-v27-prospective-2026-10-19` only, two kinds of workflow earn no B2 PR-trace credit
+  and count toward neither B3 depth metric: one whose every step only checks out, prints or does
+  nothing, and one that only uploads an already-built artifact.
+  - One predicate decides this for both criteria. It is built from the existing allowlist readers
+    (`isPublishOnlyWorkflow`, `isPrintOnlyWorkflow`), which admit a workflow only when every line
+    fits their grammar, every job runs on a GitHub-hosted Ubuntu or macOS runner, and every step is
+    on their allowlist. Anything else keeps the credit.
+  - The certificate lists the uncredited workflows under "What was not established". B2's component
+    reads "credited CI workflow", so a zero never reads as "missing: CI workflow". No sentence says
+    a workflow runs no check.
+  - Against v17, scores only fall. On the fixtures, 15 rows are below v17 and none above. No public
+    row moves.
+  - v17's scores, statuses, metrics and fingerprint do not move. v18-v26 rest on gating and their
+    unchanged fingerprints.
+  - v27's behaviour fingerprint moves to
+    `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. That fingerprint plus
+    the merge commit, recorded after merge (#563), is a new v27 candidate.
+  - The branch half of #535 (a workflow confined to a branch the repository may not have) is left
+    open, because branch state is not a function of the attested revision. Measured options are in
+    `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22). The default stays v17.
+
+### Fixed
+
+- **The print-only workflow reader assumed bash (#564, every rubric).** It admitted any runner and
+  judged `echo`/`printf` arguments by a bash metacharacter blocklist. On a Windows runner, pwsh runs
+  `echo @{suite=./run-tests.ps1}` by evaluating the hashtable, which runs the repository's script.
+  Even so, the #540 disclosure called the workflow "only prints text" under the default rubric. Now
+  both the print-only and the publish-only readers claim only when every job runs on a GitHub-hosted
+  Ubuntu or macOS runner, and print arguments come from a character allowlist inert in every shell.
+  Outside v27 this removes false disclosures only, and no score, status, metric or fingerprint
+  moves. Fixtures `review10-*` pin it.
 
 ## [0.6.8] — 2026-10-22
 

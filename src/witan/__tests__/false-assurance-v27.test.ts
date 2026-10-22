@@ -945,7 +945,7 @@ describe('#535 — B3 does not count a workflow not shown to run a check', () =>
   });
 
   // The branch half of #535 is not decided: which branches exist is ref state, which the
-  // attestation does not bind (it binds repo.headSha). Pinned here so a change to it is deliberate.
+  // attestation's only repository revision, repo.headSha, does not determine. Pinned so a change is deliberate.
   it('open: a workflow confined to master in a repository whose only branch is main is still counted under v27', () => {
     const b3 = criterion('b3-master-confined-workflow-on-main-still-counted', V27, 'B3');
     expect(metricValue(b3, 'default_branch_ci_depth')).toBe(1);

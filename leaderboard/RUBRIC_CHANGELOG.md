@@ -22,77 +22,130 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
-## 2026-10-22 — v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535); no published score moved
+## 2026-10-22 — v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535 no-check half); the print-only reader assumed bash (#564, every rubric); no published score moved
 
 **Why.** The operator accepted the 2026-10-21 ruling on #526 on 2026-10-22. Its condition 3 reads:
 "#527 and #535 are fixed in v27 before the candidate is pinned. B2 and B3 stop crediting workflows
-that run no check." This entry is that fix. It changes `witan-rubric-v27-prospective-2026-10-19`
-only. v17's reports are byte-identical on every fixture and public row measured below, and every
-other rubric's behaviour fingerprint is unchanged. v27 stays
-prospective and opt-in, and the default stays v17. **No holdout or calibration ran, and this entry
-makes no precision or recall claim.** Because v27's scoring changed, this is a new v27 candidate,
-identified by the fingerprint below (`docs/reviews/v27-false-assurance-closure-2026-10-19.md`,
-"Addition (2026-10-22)").
+that run no check." This entry fixes the no-check half of condition 3: #527 in full and #535's
+no-check half. The branch half of #535 is not changed (below). The scoring change is in
+`witan-rubric-v27-prospective-2026-10-19` only. v17 was measured: no v17 score, status, metric or
+fingerprint moved, and v17's reports are byte-identical on every fixture and public row except five
+#564 fixtures, which lose the false #540 disclosure (below). v18-v26 were not byte-measured. They rest
+on gating (every scoring change is behind the v27 flag, and the #564 reader change reaches them only
+through the presentation-only #540 disclosure) and on their unchanged behaviour fingerprints. v27
+stays prospective and opt-in, and the default stays v17. **No holdout or calibration ran, and this
+entry makes no precision or recall claim.**
+
+**This is a new v27 candidate.** Under the ruling, a candidate is a v27 behaviour identified by its
+`rubricBehaviourFingerprint` at a named commit. Here that is the fingerprint below plus #562's merge
+commit, which is recorded after merge (#563). PR #560 (#556 and partial clones) touches the same
+records. Whichever of #560 and #562 lands second reconciles them. #562 moves neither
+`b3-master-target-*` surface pin.
 
 **What v27 now does.** One predicate decides, for B2 and for B3, whether a CI workflow is credited.
-It is not credited when either of the two existing allowlist readers places every line of its jobs
-section and admits every step:
+It is not credited when one of the two existing allowlist readers admits it:
 - **publish-only** (`isPublishOnlyWorkflow`, #517 as narrowed in #553): no pull-request trigger, and
   every step only checks out, sets up a toolchain, configures credentials or uploads an
   already-built artifact;
 - **print-only** (`isPrintOnlyWorkflow`, the #540 reader): every step only checks out the
-  repository or prints (`echo`, `printf`, `true`, `:`, `exit 0`), whatever the triggers. This covers
-  every workflow the #540 disclosure names.
+  repository, prints text or does nothing (`echo`, `printf`, `true`, `:`, `exit 0`), whatever the
+  triggers. This covers every workflow the #540 disclosure names.
 
-Each reader refuses any line it cannot place, and admits only commands that run no
-repository-configured code, so any doubt keeps the credit. Under v27:
-- **B2 (#527).** `pr_trace_primitives`' CI component counts credited workflows only. Uncredited
-  workflows are still cited, labelled "CI workflow not shown to run a check (not counted)", so B2
-  still reports, at 0 where nothing else is credited, and stays in the composite. A workflow B2
-  cannot read is a read failure of B2, which then abstains at 0.
+A reader admits a workflow only when all of the following hold. Anything else keeps the credit.
+- Every line of the jobs section fits the reader's grammar.
+- Every job's `runs-on` names a GitHub-hosted Ubuntu or macOS runner, whose `run` shell is bash
+  (#564).
+- Every step is on the reader's allowlist, which admits only commands that run no
+  repository-configured code. Print arguments are drawn from a character allowlist inert in every
+  shell (#564).
+
+Under v27:
+- **B2 (#527).** `pr_trace_primitives`' CI component counts credited workflows only. When any
+  workflow is not credited, that component is labelled "credited CI workflow" and the metric carries
+  the condition "N CI workflow file(s) not shown to run a check … not counted". So a certificate
+  never prints "missing: CI workflow" for a repository that has one. Uncredited workflows are still
+  cited, labelled "CI workflow not shown to run a check (not counted)", so B2 still reports, at 0
+  where nothing else is credited, and stays in the composite. A workflow B2 cannot read is a read
+  failure of B2, which then abstains at 0.
 - **B3 (#535, no-check half).** Uncredited workflows count toward neither `ci_script_depth` nor
   `default_branch_ci_depth`. So a printed word such as `echo "pytest skipped"` no longer earns a CI
-  test command. #517 already did this for publish-only workflows. The #540 disclosure ("The PR-gate
-  CI workflow count still includes it") no longer appears under v27, because the count no longer
-  includes them.
-- **Wording.** The notes describe what Cejel read, and neither says that a workflow runs no check.
-  A print-only workflow is "not shown to run a check (every step Cejel reads only checks out the
-  repository or prints text)". A publish-only workflow keeps #517's sentence, so with only
-  publish-only workflows B3's note is unchanged. B2's note has the same sentences, ending "is not
-  counted as a PR-trace CI workflow". Notes are built from Cejel's own words plus workflow paths,
-  never from workflow text.
+  test command. #517 already did this for publish-only workflows. `default_branch_ci_depth` carries
+  the same kind of condition.
+- **What the certificate says.** The #540 disclosure ("The PR-gate CI workflow count still includes
+  it") gives way to a v27 disclosure on each criterion, listed under "What was not established"
+  while the criterion is scored. Examples: "B2 did not count CI workflows Cejel did not see run a
+  check: <path> only checks out the repository, prints text or does nothing", and the same for B3.
+  The criterion notes carry the same facts. The glossary entries for "PR trace basic checks" and
+  "PR-gate CI workflow count" describe v27's rule. Every sentence is built from Cejel's own words
+  plus workflow paths, never from workflow text. None says that a workflow runs no check.
+
+**#564, every rubric (presentation only outside v27).** Before this change the print-only reader
+did not look at the runner, and judged print arguments with a bash metacharacter blocklist. On a
+Windows runner the default shell is pwsh, where `echo @{suite=./run-tests.ps1}` evaluates a
+hashtable and runs the repository's script. A self-hosted runner can run any shell. So:
+- **Under v17**, the #540 disclosure called such a workflow "only prints text". That is false.
+- **Under v27 before this fix**, B2 and B3 withdrew its credit, a false assertion of absence.
+
+The reader now claims only under the runner gate and argument allowlist above. The publish-only
+reader had the same bash assumption, because it reads `run:` words as bash does. It is pinned the
+same way. Under v17 the effect is five fewer disclosures on the new fixtures. No score, status,
+metric or fingerprint moves, since the fingerprint projection excludes disclosures. Fixtures
+`review10-*` pin the three reported variants:
+- `windows-latest` with `echo @{suite=./run-tests.ps1}`;
+- `windows-2022` with `echo @{r=pytest}`;
+- `self-hosted` with `printf @{r=pytest}`.
+
+Other `review10-*` fixtures pin a `${{ matrix.os }}` runner, `echo a=b`, upload-only workflows on
+Windows and self-hosted runners, and an inert Ubuntu control. The jobs-key detector also reads
+`jobs :` as `jobs` now. Before, a second jobs key written that way after a print-only one went unread.
 
 **The branch half of #535 is not changed.** A workflow confined to a branch the repository may not
-have (`master` where the default is `main`) is still counted. Deciding it needs the repository's
-default branch or its branch list. Both are ref state, and the attestation binds only
-`repo.headSha`, which is the commit. #540 removed a sentence read from refs because it made
-`cejel issue` refuse honest reproductions. No rule found decides it from the commit's tree. Two
-were measured on the 23 public rows below, under v27 at this change:
+have (`master` where the default is `main`) is still counted. Deciding it needs the default branch
+or the branch list, which is ref state. The attestation binds the report digest, rubric version,
+product slug, URL, tool version, outcome, signal provenance and one repository revision,
+`repo.headSha`. Ref state is not a function of that commit. #540 removed a sentence read from refs
+because `cejel issue` then refused honest reproductions.
+
+#535 itself suggested reading `origin/HEAD` offline and abstaining when it cannot be read. That
+reduces to the options below:
+- **Read but not bound:** the same commit scores differently with different refs, #540's defect,
+  unless the value is bound (option 2 in the closure review).
+- **Abstain when unreadable:** most checkouts, including CI runners', hold no `origin/HEAD`, so this
+  removes credit almost everywhere (like option 3).
+
+No rule decidable from the commit's tree was found that removes only false credit. Two were measured
+on the 23 public rows, under v27. The measurement ran at `665598093`; no public workflow is uncredited
+there or at this change, so the counts carry over.
 
 | Option (measured, not shipped) | Rows whose PR-gate count moved | Composites lowered | What it removes |
 |---|---|---|---|
-| Credit only workflows with an unfiltered pull-request trigger (drop every branch-filtered credit) | 16 | 8 (overall down by 0.2 to 0.3 on 7; esbuild conditional to at_risk) | Every `branches: [main]` gate, which is the common correct form |
-| Drop a workflow whose branch filters name `master` and not `main` | 3 (fastapi 9 to 6, express 4 to 2, guava 2 to 0) | 2 (express overall 3.1 to 2.9, guava 1.9 to 1.6) | True credit: all three repositories' default branch is `master` (read from their clones' `origin/HEAD`, for this measurement only) |
+| Credit only workflows with an unfiltered pull-request trigger (drop every branch-filtered credit) | 16 | Overall falls on 8 rows, by 0.1 to 0.3 (vue, svelte, express, esbuild, pydantic, zod, scorecard, guava). esbuild, one of the 8, also moves conditional → at_risk. requests' process score falls 3.4 → 3.3 | Every `branches: [main]` gate, which is the common correct form |
+| Drop a workflow whose branch filters name `master` and not `main` | 3 (fastapi 9 → 6, express 4 → 2, guava 2 → 0) | 2 (express overall 3.1 → 2.9, guava 1.9 → 1.6) | True credit: all three repositories' default branch is `master` (read from their clones' `origin/HEAD`, for this measurement only) |
 
 The second option would make a false assertion of absence on 3 of 23 public rows, and the first
 drops credit on most rows. Neither is shipped. Fixture
-`b3-master-confined-workflow-on-main-still-counted` pins the open behaviour under v27. Options for
-the operator are in the closure review's 2026-10-22 addition.
+`b3-master-confined-workflow-on-main-still-counted` pins the open behaviour, and a test shows that
+the same commit scores the same under v17 and v27 whatever refs the checkout holds. The test adds
+or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
+detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected. Options for the
+operator are in the closure review's 2026-10-22 addition.
 
-**Measured, release/0.6.8 (`8deafad9f`) against this change.** Fixtures were built once from this
-change's definitions and scored by both scanners. The public rows are the 0.6.8 confirmation's
-full-history clones (copy-on-write copies, with identity checked before and after each scan). This
-is not a preregistered run.
+**Measured, release/0.6.8 (`8deafad9f`) against this change (`9a6e20816`).** Fixtures were built once
+from this change's definitions and scored by both scanners. The public rows are the 0.6.8
+confirmation's full-history clones (copy-on-write copies, with identity checked before and after
+each scan). This is not a preregistered run.
 
 | Set | v17: scoring-surface moves | v17: reports byte-identical | v27: scoring-surface moves | v27 no-rise against v17 |
 |---|---|---|---|---|
 | Behaviour corpus (30) | 0 | 30 | 1 (`workspace-package-scripts`) | 0 violations |
 | Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
 | Disclosure-gap fixtures (24) | 0 | 24 | 2 (the two print-only fixtures) | 0 violations |
-| False-assurance fixtures (161, 10 new) | 0 | 161 | 11 (5 new, 6 existing upload-only) | 0 violations |
+| False-assurance fixtures (169, 18 new) | 0 | 164 (5 `review10-*` lose the false #540 disclosure) | 14 (6 new down, 6 existing upload-only down, 2 `review10-upload-only-*` back up to v17's value) | 0 violations |
 | Public corpus (23, full history) | 0 | 23 | 0 | 0 violations |
 
-v27, before to after, for every row that moved. No other row moved.
+v27, before to after, for every row that moved. No other row moved. The two `review10-upload-only-*`
+rows rise to exactly v17's value. Before #564, v27's publish-only reader claimed them on a Windows or
+self-hosted runner, so v27 scored them below v17 on a false assertion. Against v17 nothing rises.
 
 | Set | Row | Verdict | Overall | Process | Criteria | B2 CI credit | B3 PR-gate count | B3 CI depth |
 |---|---|---|---|---|---|---|---|---|
@@ -104,6 +157,9 @@ v27, before to after, for every row that moved. No other row moved.
 | false-assurance | b3-print-only-echo-names-a-test-command | unverified | 1.4 → 0.8 | 1.3 → 0 | B2 warning 1.6 → critical 0; B3 verified 1 → critical 0 | 1 → 0 | 1 → 0 | 1 → 0 |
 | false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 | 1 → 0 | 1 → 0 | 0 |
 | false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 | 2 → 1 | 2 → 1 | 1 |
+| false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 | 1 → 0 | 1 → 0 | 0 |
+| false-assurance | review10-upload-only-self-hosted-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review10-upload-only-windows-runner | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.1 → 1.7 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-gh-release-upload | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-npm-publish-without-install | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
@@ -111,7 +167,7 @@ v27, before to after, for every row that moved. No other row moved.
 | false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 
-v17 to v27 at this change, for the same rows (the property part 2 of the rule asks for):
+v17 to v27 at this change, for every row where they differ (the property part 2 of the rule asks for):
 
 | Set | Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
 |---|---|---|---|---|---|---|
@@ -123,6 +179,7 @@ v17 to v27 at this change, for the same rows (the property part 2 of the rule as
 | false-assurance | b3-print-only-echo-names-a-test-command | unverified | 1.4 → 0.8 | 1.5 | 1.3 → 0 | B2 warning 1.6 → critical 0; B3 verified 1 → critical 0 |
 | false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
 | false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
 | false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.3 → 1.7 | 2.1 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 | false-assurance | review8-b3-gh-release-upload | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 | false-assurance | review8-b3-npm-publish-without-install | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
@@ -131,31 +188,37 @@ v17 to v27 at this change, for the same rows (the property part 2 of the rule as
 | false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 
 The corpus specimen `workspace-package-scripts` is a real instance: its only workflow is
-`actions/checkout` and `echo ok`. Every other moved row is a fixture built for #517, #527 or #535.
+`actions/checkout` and `echo ok` on `ubuntu-latest`. Every other moved row is a fixture built for
+#517, #527, #535 or #564.
 
 **Public corpus.** No public row moved under v27 or v17. On the 23 rows no workflow is publish-only
-or print-only as the two readers define them, so no B2 or B3 credit changed. v17's reports are
-byte-identical. v27's reports differ only in `rubricBehaviourFingerprint`. The v27 table of the 0.6.8
-confirmation (`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`) therefore still
-describes v27's public scores, but not its fingerprint.
+or print-only as the two readers define them, so no B2 or B3 credit changed and no disclosure was
+added or removed. v17's reports are byte-identical. v27's reports differ only in
+`rubricBehaviourFingerprint`. The v27 table of the 0.6.8 confirmation
+(`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`) therefore still describes v27's public
+scores, but not its fingerprint.
 
 **Timing.** B2 and B3 now each run the shared predicate over every CI workflow, and B3 decides once
 for both depth metrics. The child-process timing guard in `scan-path-regex-bounds.test.ts` scans a
 print-only workflow of 24,000 steps beside an upload-only workflow of 3,300 step pairs, each just
-under the content size limit, under v17 and v27. Run alone, the test takes 0.4 s to 0.5 s wall time, child start-up included,
-against a 2 s scan budget. A version with four of each made the file's other guards miss their budget when the full
-suite ran in parallel (they passed with it skipped), so it was cut to one of each. On a scratch
-fixture of eight of each, one run on the author's machine, a scan took 1.19 s under v27 and 0.97 s
-under v17. Before this change v27 took 1.46 s, because B3 ran the publish-only reader three times
-per workflow. No regular expression over repository text was added.
+under the content size limit, under v17 and v27. It also asserts that both readers classified both
+files in full, so an early bail-out fails it. Run alone, the test takes 0.4 s to 0.5 s wall time,
+child start-up included, against a 2 s scan budget. A version with four of each made the file's
+other guards miss their budget when the full suite ran in parallel (they passed with it skipped),
+so it was cut to one of each. On a scratch fixture of eight of each, in one run on one machine, a
+scan took 1.19 s under v27 and 0.97 s under v17. Before this change v27 took 1.46 s, because B3 ran
+the publish-only reader three times per workflow. No regular expression over repository text was
+added beyond the anchored, single-pass runner and argument patterns.
 
 **Fingerprints.** v17 stays
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 moves from
 `sha256:fb4edfa0bdf0d8153af3f84a4b72d4eab6da3fd6e0b2e3e494cea9542ded45a0` to
 `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. The B2 and B3
 components and the `workspace-package-scripts` report component moved, measured from the corpus.
-The fixture corpus did not change. If 0.6.8 ships before this change, its v27 certificates carry the
-earlier fingerprint and remain distinguishable by it.
+The fixture corpus did not change. The review fixes (#564, labels, disclosures) did not move it
+again. If 0.6.8 is released before this change, its v27 certificates carry the earlier fingerprint
+and remain distinguishable by it. If this change lands first, no released certificate carries the
+earlier one.
 
 ## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved
 
