@@ -61,6 +61,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     unread because its name contains control characters (before, a value kept under such a name
     never reached the scan). Under v27 A2 abstains at 0 in both cases; under every other rubric A2
     keeps its scoring and, where it is not applicable, says so. Neither adds a scan limitation.
+    Counting both as read failures is the operator's third decision of 2026-10-22 ("for adr-0001
+    add them", recorded on #526 and in ADR-0001).
 - **A file name could decide how a failed git read was classified (#560 review).** Under every
   rubric, Cejel classified a failed git command from text that included Node's error message,
   which repeats the whole command line, and A2's history reads put repository paths on that line

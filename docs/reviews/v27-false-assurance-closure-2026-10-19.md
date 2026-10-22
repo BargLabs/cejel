@@ -433,7 +433,12 @@ Cejel's own size or time limits on a complete clone?" and replied "1" (#526,
 hit counts as a failed read, A2 abstains at 0, the history secret scan's 5,000-blob cap counts as an
 incomplete read too, and the cause is fixed by streaming those reads (#567). ADR-0001 records both
 decisions in its dated section "Operator ruling (2026-10-22, second)", which supersedes the "does
-not cover that case (#556)" sentence for v27 once this change lands.
+not cover that case (#556)" sentence for v27 once this change lands. #560's review round 4 then
+added two causes: a credential- or `.env`-shaped history path left unread because its name contains
+control characters, and git itself unavailable while a `.git` entry is visible (#568). The operator
+extended the read-failure ruling to both, in the words "for adr-0001 add them" (#526,
+[comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)), recorded
+in ADR-0001's section "Operator ruling (2026-10-22, third)".
 
 **What it adds to "Why every v27 movement can only lower a score".** That table lists the
 abstention path and not the not-applicable gate, and its #442 row covers shallow clones only. A

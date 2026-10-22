@@ -151,8 +151,9 @@ scanning host". Tests: `git-failure-classification-560.test.ts`, `a2-history-pat
 The operator directed these fixes on 2026-10-22, and in a third ADR-0001 ruling the same day
 ("for adr-0001 add them") extended the read-failure treatment to the two new causes (a
 control-character path, git unavailable), alongside a shallow clone, a failed history read, Cejel's
-own output and time limits and the 5,000-file cap. The control-character limitation's wording,
-which calls every such path credential-shaped, is #570.
+own output and time limits and the 5,000-file cap (#526,
+[comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)). The
+control-character limitation's wording, which calls every such path credential-shaped, is #569.
 
 **B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
 subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads
@@ -330,7 +331,9 @@ uncounted), or a scan without git.
 
 **Classification.** Under v27 this changes scoring, so it makes a new v27 candidate (dated
 addition to `docs/reviews/v27-false-assurance-closure-2026-10-19.md`). Under every other rubric it
-is presentation only. No holdout or calibration ran, and this entry makes no precision or recall
+is presentation only, except round 4's git-failure classification, which can add a v17 scan
+limitation where a failed history read was dropped before (the v17 badge is then unrated and
+`--min-score` refuses). No holdout or calibration ran, and this entry makes no precision or recall
 claim. Tests: `src/witan/__tests__/shallow-a2-applicability-556.test.ts`.
 
 ## 2026-10-21 — post-merge review of #521: v27 corrected before first shipping, and A4 stops quoting CI command arguments; no published score moved

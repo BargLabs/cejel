@@ -295,8 +295,9 @@ composite.
 ## Operator ruling (2026-10-22, third): two further causes from #560's review are covered
 
 Recorded by an AI agent (Claude Opus 5.5, Claude Code) on `fix/560-review-findings`, at the
-operator's instruction in the agent's session. The text above is unchanged apart from the Status
-line.
+operator's instruction. The operator's decision is recorded on #526
+([comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)). The
+text above is unchanged apart from the Status line.
 
 **The question.** Review round 4 of #560 added two causes of an incomplete read of the commit history
 that the rulings above do not name:
@@ -316,5 +317,5 @@ and is scored.
 
 **What it does not change.** v17 and v18-v26 do not abstain for either cause. Where A2 is marked not
 applicable, a sentence among A2's disclosures names the cause. A control-character path keeps its
-existing scan limitation (whose wording is #570); git being unavailable adds none. The ruling
+existing scan limitation (whose wording is #569); git being unavailable adds none. The ruling
 decides nothing about any other systematic limit.
