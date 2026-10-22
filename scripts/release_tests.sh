@@ -125,11 +125,22 @@ case "$1 $2" in
     exit 0 ;;
   "release create"|"release edit") exit 0 ;;
   "run list")
+    # Like GitHub's filtered listing on a bad moment: the first N publish-npm.yml listings
+    # ($S/runlist_empty) answer []. Scoped to that workflow so no other stage's lookup absorbs them.
+    if [ -s "$S/runlist_empty" ] && [ "$(cat "$S/runlist_empty")" -gt 0 ] && [[ " $* " == *" publish-npm.yml "* ]]; then
+      echo $(( $(cat "$S/runlist_empty") - 1 )) >"$S/runlist_empty"; echo '[]' >"$S/rl.empty"; emit "$S/rl.empty"; exit 0
+    fi
     # Like real gh: --event narrows the list to runs of that trigger.
     ev=""; for ((i=0; i<${#args[@]}; i++)); do [ "${args[$i]}" = "--event" ] && ev="${args[$((i+1))]}"; done
     if [ -n "$ev" ]; then jq --arg e "$ev" '[.[]|select(.event==$e)]' "$S/runlist.json" >"$S/rl.filtered"; emit "$S/rl.filtered"
     else emit "$S/runlist.json"; fi ;;
   "run view")
+    # $S/runlog_plan_<id>: one outcome per log read of run <id>, consumed in order: "ok", or "fail"
+    # (gh exits 1 with an error on stderr). Lets a test fail exactly the read it targets.
+    if [ "$want_log" = 1 ] && [ -s "$S/runlog_plan_$3" ]; then
+      step="$(head -1 "$S/runlog_plan_$3")"; tail -n +2 "$S/runlog_plan_$3" >"$S/plan.tmp"; mv "$S/plan.tmp" "$S/runlog_plan_$3"
+      [ "$step" = fail ] && { echo "HTTP 502: simulated log read failure" >&2; exit 1; }
+    fi
     if [ "$want_log" = 1 ]; then
       # A per-run log keeps the default log's two header lines (npm publish line, sigstore URL).
       if [ -f "$S/runlog_$3.txt" ]; then head -2 "$S/runlog.txt"; cat "$S/runlog_$3.txt"; else cat "$S/runlog.txt"; fi
@@ -283,6 +294,45 @@ S="$TEST_TMP/s6"; new_state "$S"; echo "$NPM_NONE" >"$S/npm.json"; rm -f "$S/oci
 run_release "$S" "yes"
 [ "$RC" != 0 ] && has "still has no $V" && has "+ @cejel/cejel@$V"; check "poll window exhausted: refuse and quote the log's + line" $? "rc=$RC: $OUT"
 grep -q 'verify_only=true' "$S/calls.log" && grep -q 'verify_only=false' "$S/calls.log"; check "poll: verify-only dispatched before the publish" $? "$(cat "$S/calls.log")"
+
+# 6b. a resume after publishing: the filtered run listing answers [] twice, then the runs. The
+# publish run is still found (stage 7 reads the '+' line), as on 2026-10-22's 0.6.8 resume.
+S="$TEST_TMP/s6b"; new_state "$S"; echo 2 >"$S/runlist_empty"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "stage 7 (npm-publish): already done"; check "empty run listing: retried, publish run found, stage 7 done" $? "rc=$RC: $OUT"
+! has "no successful publish-npm run"; check "empty run listing: no false refusal at stage 7" $? "$OUT"
+
+# 6c. stage 7's publish-run lookup reads each run's log: the first two reads of the publish run fail,
+# then succeed. The '+' line is still found and stage 7 reads as done.
+S="$TEST_TMP/s6c"; new_state "$S"; printf 'fail\nfail\nok\nok\n' >"$S/runlog_plan_12345678901"
+run_release "$S" "" --dry-run
+[ "$RC" = 0 ] && has "stage 7 (npm-publish): already done"; check "failed log reads: retried, '+' line found, stage 7 done" $? "rc=$RC: $OUT"
+
+# 6d. the lookup's read succeeds, then every read in finish_npm fails: a REFUSE naming the unreadable
+# log, not a bare exit.
+S="$TEST_TMP/s6d"; new_state "$S"; printf 'ok\nfail\nfail\nfail\nfail\nfail\n' >"$S/runlog_plan_12345678901"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "could not read run 12345678901's log" && has "simulated log read failure"
+check "unreadable log in finish_npm: refuses with its cause and gh's stderr" $? "rc=$RC: $OUT"
+
+# 6e. permanent absence: every publish-npm listing stays empty. Stage 7 refuses with the try count,
+# prints a retry line per retry, and lists exactly RELEASE_RUN_LIST_TRIES times (default 5).
+S="$TEST_TMP/s6e"; new_state "$S"; echo 999 >"$S/runlist_empty"
+run_release "$S" "" --dry-run
+[ "$RC" != 0 ] && has "REFUSE" && has "after 5 tries" && has "run listing stayed empty or gh failed"
+check "permanent absence: stage 7 refuses naming the tries and the cause" $? "rc=$RC: $OUT"
+[ "$(grep -c '^gh run list --workflow publish-npm.yml' "$S/calls.log")" = 5 ]
+check "permanent absence: exactly 5 publish-npm listings" $? "$(grep '^gh run list' "$S/calls.log")"
+[ "$(grep -c 'publish-npm.yml run listing on v0.4.11 empty or gh failed; retry' <<<"$OUT")" = 4 ] && has "retry 5/5"
+check "permanent absence: one retry line per retry (4, ending 5/5)" $? "$OUT"
+
+# 6f. RELEASE_RUN_LIST_TRIES must be a whole number of at least 1: 0 and a word are refused.
+for bad in 0 abc; do
+  S="$TEST_TMP/s6f-$bad"; new_state "$S"
+  OUT="$(FAKE_STATE="$S" PATH="$BIN:$PATH" RELEASE_SKIP_VALIDATE=1 RELEASE_RUN_LIST_TRIES="$bad" bash "$TARGET" "$V" --dry-run 2>&1)"; RC=$?
+  [ "$RC" != 0 ] && has "RELEASE_RUN_LIST_TRIES must be a whole number of at least 1 (got '$bad')"
+  check "RELEASE_RUN_LIST_TRIES=$bad is refused" $? "rc=$RC: $OUT"
+done
 
 # 7. confirmation: anything but the literal yes stops before the irreversible action.
 S="$TEST_TMP/s7"; new_state "$S"; echo "$NPM_NONE" >"$S/npm.json"; rm -f "$S/oci_digest"
