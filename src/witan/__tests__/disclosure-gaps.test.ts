@@ -355,6 +355,24 @@ describe('B3: counted PR-gate workflows not shown to run a check are named', () 
     );
   });
 
+  // v27 (#535): the workflows this disclosure names are not counted, so the disclosure goes and
+  // B3's note says why, naming a root workflow as such.
+  it('v27: stops counting the print-only workflows instead of disclosing them', () => {
+    const v27 = 'witan-rubric-v27-prospective-2026-10-19';
+    const planted = criterion('b2b3-planted-workflows', 'B3', v27);
+    expect(planted.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(2);
+    expect(planted.disclosures).toBeUndefined();
+    expect(planted.notes).toBe(
+      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository or prints text) is not counted as CI verification: .github/workflows/e2e.yml.',
+    );
+    const root = criterion('b3-monorepo-root-print-only', 'B3', v27);
+    expect(root.metrics.find((metric) => metric.name === 'default_branch_ci_depth')?.value).toBe(1);
+    expect(root.disclosures).toBeUndefined();
+    expect(root.notes).toBe(
+      '1 workflow not shown to run a check (every step Cejel reads only checks out the repository or prints text) is not counted as CI verification: .github/workflows/e2e.yml at the monorepo root.',
+    );
+  });
+
   it.each([
     'b2b3-control-pr-workflows',
     'b3-master-target-with-master-branch',

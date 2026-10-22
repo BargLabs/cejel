@@ -5600,7 +5600,18 @@ function collectB3CiDisciplineEvidence(
           : undefined,
       ),
     ],
-    ...(uncreditedWorkflows.size > 0 ? { notes: b3UncreditedWorkflowsNote(uncreditedWorkflows) } : {}),
+    ...(uncreditedWorkflows.size + uncreditedRootWorkflows.size > 0
+      ? {
+          notes: b3UncreditedWorkflowsNote(
+            new Map([
+              ...uncreditedWorkflows,
+              ...[...uncreditedRootWorkflows].map(
+                ([file, reason]) => [`${file} at the monorepo root`, reason] as const,
+              ),
+            ]),
+          ),
+        }
+      : {}),
     ...b3UnshownCheckDisclosures(unshownCheckWorkflows),
   };
 }
