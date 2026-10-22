@@ -490,6 +490,18 @@ clone and no failed history read. The fingerprint therefore does not tell #562's
 combined one; the combined candidate is `sha256:6e03aa1b…` at this change's merge commit, recorded
 after merge (#563).
 
+**Merge commits (recorded 2026-10-22, #563).**
+- #562 merged as `80d4fdb553382b985b549429e92f9e0fff930c8a` (2026-10-22T14:15:09Z). v27's pinned
+  fingerprint in `src/witan/rubric-fingerprint.ts` there is
+  `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`.
+- #560 merged on top of it as `44cb9ee80d800ae80904455877682d220a692eec` (2026-10-22T16:54:26Z),
+  the only first-parent commit between the two. The pin there is unchanged.
+- CI passed on `44cb9ee80`, including `src/witan/__tests__/rubric-behaviour-fingerprint.test.ts`,
+  which checks the pin.
+
+The combined v27 candidate is `sha256:6e03aa1b…` at `44cb9ee80`. Conditions 1, 2, 4 and 5 restart
+from that commit. A later change to v27's scoring makes another candidate.
+
 **Condition 6 and ADR-0001.** This abstention is new in scope relative to the operator's
 condition-6 ruling recorded in #554 (merged as `74b3af581`), which says that ruling "does not cover
 that case (#556)". On 2026-10-22 the operator confirmed that ADR-0001's read-failure ruling extends
