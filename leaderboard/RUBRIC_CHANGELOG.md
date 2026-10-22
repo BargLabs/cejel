@@ -190,6 +190,15 @@ is now recognised by the message's start, anchored at the start of the line, whi
 reach; the code lists git's full set of no-repository messages. The scan completes again under v17
 and v27, as on `main`, so no report changes against `main` here.
 
+Only git's first "fatal: " line is classified, since git dies after printing it. A repository path
+holding a line break could otherwise, inside a message where git prints the path unquoted ("fatal:
+bad object <commit>:<path>"), start a second line read as "not a git repository". Every git call
+Cejel makes was checked for repository paths in its arguments: the historical blob read, the gitlink
+check and the per-path log take only history paths that passed the control-character skip (a line
+break is a control character); the ignore-rule check takes the scan target's own path; the others
+take no path. A history path holding a line break and a git message is tested: it is counted under
+the control-character rule and never read.
+
 Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
 against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
 byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read
