@@ -25,6 +25,7 @@ import {
   falseAssuranceFixture,
   lfsPointerFor,
 } from './fixtures/false-assurance-fixtures.js';
+import { checkNoRise } from './v27-no-rise.js';
 
 // #517, #518, #519, #520, #442: places where a v17 certificate asserted more than Cejel read.
 // Synthetic fixtures only (fixtures/false-assurance-fixtures.ts), built from each issue's repro.
@@ -852,33 +853,30 @@ describe('v27 keeps every collector critical finding v17 reports', () => {
 });
 
 // The property that admits v27: every movement against v17 removes an assurance. A criterion may
-// lose score, become more severe, or abstain; a composite may fall. Nothing may rise.
-const SEVERITY: Readonly<Record<string, number>> = { verified: 0, info: 1, warning: 2, critical: 3 };
-
+// lose score, become more severe, or abstain as a read failure kept in the composite at 0; a
+// composite may fall. Nothing may rise, nothing v17 left unscored may be scored, and no scored
+// composite may become null (v27-no-rise.ts; #531 items a and b). The same property runs over
+// generated shapes in false-assurance-v27-generated.test.ts (#531 item c).
 describe('no score, status or composite rises from v17 to v27 on any fixture', () => {
   for (const fixture of FALSE_ASSURANCE_FIXTURES) {
     it(fixture.name, () => {
-      const before = report(fixture.name, V17);
-      const after = report(fixture.name, V27);
-      for (const key of ['overallScore', 'codeTrustScore', 'processTrustScore'] as const) {
-        if (before[key] !== null && after[key] !== null) {
-          expect(after[key] as number, key).toBeLessThanOrEqual(before[key] as number);
-        }
-      }
-      for (const v17 of before.criteria) {
-        const v27 = after.criteria.find(({ id }) => id === v17.id);
-        expect(v27, v17.id).toBeDefined();
-        if (!v27) continue;
-        expect(v27.score, `${v17.id} score`).toBeLessThanOrEqual(v17.score);
-        if (v27.status === 'insufficient_data') continue;
-        if (v17.status === 'not_applicable' || v17.status === 'insufficient_data') {
-          expect(v27.status, v17.id).toBe(v17.status);
-          continue;
-        }
-        expect(SEVERITY[v27.status] ?? -1, `${v17.id} status`).toBeGreaterThanOrEqual(
-          SEVERITY[v17.status] ?? 99,
-        );
-      }
+      expect(checkNoRise(report(fixture.name, V17), report(fixture.name, V27)).problems).toEqual([]);
     });
   }
+
+  it('#442: the shallow-clone abstentions are read failures kept in the denominator at 0', () => {
+    const result = checkNoRise(report('history-shallow-clone', V17), report('history-shallow-clone', V27));
+    expect(result.introducedAbstentions).toEqual([
+      { id: 'A2', kind: 'shallow-history', denominator: 'kept' },
+      { id: 'B2', kind: 'shallow-history', denominator: 'kept' },
+    ]);
+  });
+
+  it('#519: the LFS pointer abstention is a read failure kept in the denominator at 0', () => {
+    const result = checkNoRise(
+      report('a1-js-suite-as-lfs-pointers', V17),
+      report('a1-js-suite-as-lfs-pointers', V27),
+    );
+    expect(result.introducedAbstentions).toEqual([{ id: 'A1', kind: 'content-read', denominator: 'kept' }]);
+  });
 });
