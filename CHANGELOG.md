@@ -81,7 +81,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   original plan's pins was set aside when `main` moved; it is disclosed there and not used. The
   merged tree differs from that run's candidate, `5b154064a`, only outside the scan path: in the
   experiment records, in this entry and its `leaderboard/RUBRIC_CHANGELOG.md` entry (2026-10-22,
-  #567), and in two fixtures added to the paging test after review.
+  #567), in fixtures added to the paging test after review, and in a lesson seed.
 - **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
   earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
   when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those

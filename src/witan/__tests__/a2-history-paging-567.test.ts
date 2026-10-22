@@ -27,7 +27,12 @@ const MAX_BATCH = 4;
 // 'whole-only' (#572 review, M2): only the whole-history calls report the output limit; the paged
 // rev-list and the 1,000-commit batches run for real, so a fixture longer than one rev-list page
 // (50,000 commits) exercises paging across a page boundary.
-const mode = { current: 'real' as 'real' | 'limited' | 'one-commit-too-big' | 'whole-only', bigCommit: '' };
+// 'tree-only' (#572 review, pass 1 L1): react's real path. `rev-list HEAD` and both logs run for
+// real; only the tree enumeration overflows, whole or in a batch of more than MAX_BATCH commits.
+const mode = {
+  current: 'real' as 'real' | 'limited' | 'one-commit-too-big' | 'whole-only' | 'tree-only',
+  bigCommit: '',
+};
 const overflow = { ok: false as const, reason: 'buffer_exceeded' as const };
 
 vi.mock('../git-exec.js', async (importOriginal) => {
@@ -35,6 +40,11 @@ vi.mock('../git-exec.js', async (importOriginal) => {
   return {
     ...actual,
     execGit: (argv: readonly string[], options: Parameters<typeof actual.execGit>[1]) => {
+      if (mode.current === 'tree-only') {
+        const commits = (options.input ?? '').split('\n').filter((line) => line !== '');
+        if (argv[0] === 'diff-tree' && argv.includes('--stdin') && commits.length > MAX_BATCH) return overflow;
+        return actual.execGit(argv, options);
+      }
       if (mode.current !== 'real') {
         const wholeHistory =
           (argv[0] === 'rev-list' && argv.length === 2 && argv[1] === 'HEAD') ||
@@ -204,11 +214,15 @@ describe('#572 review: every batched path is the only source of some finding', (
       const unlimited = scoreAt(repo, V17);
       expect(a2(unlimited).status).toBe('critical');
       expect(a2(unlimited).findings.some(({ summary }) => /git history/i.test(summary))).toBe(true);
-      mode.current = 'limited';
-      const batched = scoreAt(repo, V17);
-      expect(batched.scanLimitations ?? []).toEqual([]);
-      expect(projectWitanScoringSurface(batched)).toEqual(projectWitanScoringSurface(unlimited));
-      expect(a2(batched).findings).toEqual(a2(unlimited).findings);
+      // 'limited': every whole-history read overflows. 'tree-only': react's path, where rev-list
+      // succeeds and only the tree enumeration overflows.
+      for (const limitedMode of ['limited', 'tree-only'] as const) {
+        mode.current = limitedMode;
+        const batched = scoreAt(repo, V17);
+        expect(batched.scanLimitations ?? [], limitedMode).toEqual([]);
+        expect(projectWitanScoringSurface(batched), limitedMode).toEqual(projectWitanScoringSurface(unlimited));
+        expect(a2(batched).findings, limitedMode).toEqual(a2(unlimited).findings);
+      }
     } finally {
       mode.current = 'real';
       rmSync(root, { recursive: true, force: true });

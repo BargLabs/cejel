@@ -69,8 +69,8 @@ successor preregistration `5450b687f` (baseline `75c951e40`, candidate `5b154064
 The original preregistration (`09f017229`, at the old pins) was scored once before `main` moved.
 The successor discloses that run as a pre-plan deviation; its outputs are not used. The merged tree
 differs from the candidate only outside the scan path: the experiment records, this entry, its
-`CHANGELOG.md` entry, and two fixtures added to the paging test after review. The run makes no
-precision or recall claim.
+`CHANGELOG.md` entry, fixtures added to the paging test after review, and a lesson seed. The run
+makes no precision or recall claim.
 
 Tests: `src/witan/__tests__/a2-history-paging-567.test.ts`.
 
