@@ -328,8 +328,11 @@ export function lostFindings(before: WitanReport, after: WitanReport): string[] 
           (FINDING_SEVERITY[candidate.severity] ?? 0) >= (FINDING_SEVERITY[finding.severity] ?? 99),
       );
       if (!kept) {
+        const v27Same = (v27?.findings ?? []).filter(({ summary }) => summary === finding.summary);
         lost.push(
-          `${v17.id}: ${finding.severity} "${finding.summary}" at ${evidenceIdentity(finding)} is absent, less severe or re-cited under v27`,
+          `${v17.id}: ${finding.severity} "${finding.summary}" at ${evidenceIdentity(finding)} is absent, less severe or re-cited under v27 (v27 has: ${
+            v27Same.map((candidate) => `${candidate.severity} at ${evidenceIdentity(candidate)}`).join('; ') || 'no finding with this summary'
+          })`,
         );
       }
     }
@@ -349,7 +352,12 @@ export function lostCriticalFindings(before: WitanReport, after: WitanReport): s
     const critical = v27?.findings.filter(({ severity }) => severity === 'critical') ?? [];
     for (const finding of own) {
       if (!critical.some((candidate) => sameFinding(candidate, finding))) {
-        lost.push(`${v17.id}: ${finding.summary} at ${evidenceIdentity(finding)}`);
+        const v27Same = (v27?.findings ?? []).filter(({ summary }) => summary === finding.summary);
+        lost.push(
+          `${v17.id}: critical "${finding.summary}" at ${evidenceIdentity(finding)} (v27 has: ${
+            v27Same.map((candidate) => `${candidate.severity} at ${evidenceIdentity(candidate)}`).join('; ') || 'no finding with this summary'
+          })`,
+        );
       }
     }
   }

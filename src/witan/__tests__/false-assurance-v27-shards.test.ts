@@ -31,6 +31,10 @@ describe('the generated no-rise shards are all present and run', () => {
   it('the shard suite registers every shape with a plain describe and it: no skip, only, todo, condition or early return', () => {
     const suite = code(readFileSync(join(directory, 'v27-no-rise-generated-suite.ts'), 'utf8'));
     expect(suite.match(/\.\s*(skip|only|todo|skipIf|runIf|fails|concurrent)\b|\b(skipIf|runIf)\s*\(/g) ?? []).toEqual([]);
+    // describe and it are vitest's own, imported once and never renamed, rebound or indexed.
+    expect(suite).toContain("import { describe, expect, it } from 'vitest';\n");
+    expect(suite.match(/\bfrom 'vitest'/g) ?? []).toHaveLength(1);
+    expect(suite.match(/\b(const|let|var|function|class)\s+(describe|it|test)\b|\bas\s+(describe|it|test)\b|\b(describe|it|test)\s*\[/g) ?? []).toEqual([]);
     const start = suite.indexOf('export function describeGeneratedNoRiseShard(index: number): void {');
     const call = suite.indexOf('\n  describe(`generated shapes, shard ${index + 1} of ${NO_RISE_SHARDS}:', start);
     expect(start).toBeGreaterThan(-1);
@@ -41,6 +45,7 @@ describe('the generated no-rise shards are all present and run', () => {
     // shard's shapes, and the liveness record.
     expect(preamble.match(/\bif\s*\(/g) ?? []).toEqual(['if (']);
     expect(preamble).toContain('if (index === 0) describeGenerator();');
+    expect(preamble).toContain('\n  const shapes: NoRiseShape[] = noRiseShard(ALL_SHAPES, index, NO_RISE_SHARDS);\n');
     // Each shape's test is a plain it(name, ...).
     expect(suite).toContain('\n      it(name, () => {');
   });

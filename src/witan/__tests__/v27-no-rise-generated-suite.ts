@@ -50,6 +50,11 @@ export function noRiseShardFileText(n: number): string {
 
 const ALL_SHAPES = generateNoRiseShapes();
 
+/** A failure message: the shape, then the first five problems in full, one per line. */
+function record(name: string, problems: readonly string[]): string {
+  return [name, ...problems.slice(0, 5), ...(problems.length > 5 ? [`… and ${problems.length - 5} more`] : [])].join('\n');
+}
+
 function score(repoPath: string, rubricVersion: string): WitanReport {
   return scoreRepoWithPublicCejel({
     repoPath,
@@ -122,20 +127,28 @@ export function describeGeneratedNoRiseShard(index: number): void {
     workflowsScored: new Set<string>(),
     shallowShapes: 0,
     compositesFallen: 0,
+    // The names of the shape tests whose bodies ran, checked after the describe against an
+    // independent recomputation of the shard, so a filter or skip cannot drop shapes silently.
+    ran: [] as string[],
   };
 
   describe(`generated shapes, shard ${index + 1} of ${NO_RISE_SHARDS}: no score, status, composite or finding rises or is lost from v17 to v27`, () => {
     for (const shape of shapes) {
       const name = shapeName(shape);
       it(name, () => {
+        seen.ran.push(name);
         const { repoPath, cleanup } = buildNoRiseShape(shape);
         try {
           const before = score(repoPath, WITAN_RUBRIC_VERSION_V17);
           const after = score(repoPath, WITAN_RUBRIC_VERSION_V27);
           const result = checkNoRise(before, after);
-          expect(result.problems, name).toEqual([]);
-          expect(lostFindings(before, after), name).toEqual([]);
-          expect(lostCriticalFindings(before, after), name).toEqual([]);
+          // Each failure message carries the first findings in full (criterion, summary, both
+          // pointers), so a failure that does not reproduce still leaves a record (#574).
+          expect(result.problems, record(name, result.problems)).toEqual([]);
+          const lost = lostFindings(before, after);
+          expect(lost, record(name, lost)).toEqual([]);
+          const lostCritical = lostCriticalFindings(before, after);
+          expect(lostCritical, record(name, lostCritical)).toEqual([]);
           if (shape.history === 'shallow') {
             seen.shallowShapes += 1;
             // The shape is live: v27 abstains on B2 wherever v17 scored it, and on A2 wherever v17
@@ -190,5 +203,13 @@ export function describeGeneratedNoRiseShard(index: number): void {
       expect(seen.compositesFallen).toBeGreaterThan(0);
       expect(seen.abstentions.filter((a) => a.denominator === 'not-kept' || a.denominator === 'unchecked')).toEqual([]);
     });
+  });
+
+  // Outside the describe, so skipping or filtering it, or any shape in it, leaves this to fail: the
+  // shapes that ran must be exactly the shard, recomputed here from the generator.
+  it(`shard ${index + 1} of ${NO_RISE_SHARDS}: every shape the shard holds ran, and nothing else`, () => {
+    const expected = noRiseShard(generateNoRiseShapes(), index, NO_RISE_SHARDS).map(shapeName);
+    expect(expected.length).toBeGreaterThan(0);
+    expect([...seen.ran].sort()).toEqual([...expected].sort());
   });
 }

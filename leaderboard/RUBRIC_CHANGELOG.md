@@ -750,10 +750,16 @@ after two review passes on #558.
   disguised index, a comment, a skip, a condition, or a raised shard count without a new file
   therefore fails instead of silently dropping shapes. Two backstops cover what the shard files
   cannot show:
-  - the suite module may contain no `.skip`, `.only`, `.todo`, `skipIf`, `runIf`, condition or
-    early return before its describe;
+  - the suite module may contain no `.skip`, `.only`, `.todo`, `skipIf` or `runIf`. It must import
+    `describe` and `it` from vitest once, without renaming, rebinding or indexing them. Before its
+    describe it may have no early return and no condition other than describing the generator in
+    shard 0, and its line choosing the shard's shapes is pinned exactly;
   - vitest itself is asked (`createVitest(...).getTestFilepaths()` on `vitest.config.ts`) whether
     every shard file is collected, so an include or exclude change that drops one fails.
+
+  Each shard also records the name of every shape test whose body ran. A test outside the shard's
+  describe then requires that set to equal the shard recomputed from the generator, so a filter, a
+  skip or an aliased skip that drops shapes fails at run time.
 
 The checker is `src/witan/__tests__/v27-no-rise.ts`, and the curated test and the generated suite
 both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, run as
@@ -775,7 +781,12 @@ alone: `regex-redos-guard` (50 ms per family) once, and `scan-path-regex-bounds`
 budget) in four runs, up to 5 of its tests at 2.1-3.8 s. Neither reads the files #558 changes. The
 machine also carried other sessions' load at the time (load average 10-21 on 18 cores). With only
 the six shards running beside it, `scan-path-regex-bounds` passed. How much of the miss is #558's
-added CPU (about 600 CPU-seconds per run) is not separated.
+added CPU (about 600 CPU-seconds per run) is not separated. One reviewer's run of a subset checker also
+reported 100 lost findings that did not reproduce. That is now #574: scanner evidence may depend
+on load, possibly through git timeouts. Until #574 is investigated, a `lostFindings` mismatch that
+does not reproduce when its shape is run alone is to be treated as #574 (or #561), not as a v27
+defect. Failure messages now carry the first five failing findings in full (criterion, summary,
+the v17 pointer and the v27 pointers), so such a failure leaves a record.
 
 ## 2026-10-15 — v26 item 8: A3's build or type-check finding fires on settling evidence only (v26 alone); no repository moved
 
