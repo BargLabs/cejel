@@ -172,27 +172,30 @@ function stderrText(error: unknown): string {
   return typeof stderr === 'string' ? stderr : Buffer.isBuffer(stderr) ? stderr.toString('utf8') : '';
 }
 
-// git's own diagnostics that mean "there is no usable repository or revision here". Matched only
-// against git's diagnostic lines (each starting "fatal: " or "error: "), with every single-quoted
-// span emptied first: git quotes the paths and arguments it names, and those come from the
-// repository. The one quoted argument that matters, 'HEAD', is matched exactly, before emptying.
+// git's own diagnostics that mean "there is no usable repository or revision here", each matched as
+// git's literal message: anchored at the start of a stderr line and, wherever git could print a path
+// or argument after it, to the end of the line too. git prints some arguments unquoted (for example
+// "fatal: bad object <commit>:<path>"), so no pattern may skip over text with ".*" to reach a phrase
+// further along the line: a repository path containing the phrase would then match (#560). The
+// paths Cejel passes to git never contain a line break (history paths with control characters are
+// never read), so a path cannot start a line of its own.
 const GIT_NO_REPOSITORY_DIAGNOSTICS: readonly RegExp[] = [
-  /^(?:fatal|error): not a git repository\b/i,
-  /^(?:fatal|error): not in a git directory\b/i,
-  /^(?:fatal|error): .*\bnot inside a work tree\b/i,
-  /^fatal: this operation must be run in a work tree$/i,
-  /^fatal: your current branch '' does not have any commits yet\b/i,
-  /^fatal: needed a single revision\b/i,
+  /^fatal: not a git repository \(or any (?:of the parent directories\): \.git$|parent up to mount point\b)/,
+  /^fatal: not in a git directory$/,
+  /^fatal: this operation must be run in a work tree$/,
+  /^fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree\.$/,
+  /^fatal: needed a single revision$/i,
 ];
-const GIT_UNKNOWN_HEAD_DIAGNOSTIC = /^fatal: ambiguous argument 'HEAD': unknown revision\b/i;
+// The unborn-branch message names the branch, which a repository can choose, so that one name is
+// emptied before the exact match.
+const GIT_UNBORN_BRANCH_DIAGNOSTIC = /^fatal: your current branch '' does not have any commits yet$/;
 
 function isNoRepositoryDiagnostic(stderr: string): boolean {
   for (const rawLine of stderr.split('\n')) {
     const line = rawLine.trimEnd();
-    if (!/^(?:fatal|error): /i.test(line)) continue;
-    if (GIT_UNKNOWN_HEAD_DIAGNOSTIC.test(line)) return true;
-    const unquoted = line.replace(/'[^'\n]*'/g, "''");
-    if (GIT_NO_REPOSITORY_DIAGNOSTICS.some((pattern) => pattern.test(unquoted))) return true;
+    if (GIT_NO_REPOSITORY_DIAGNOSTICS.some((pattern) => pattern.test(line))) return true;
+    const branchEmptied = line.replace(/^(fatal: your current branch )'[^'\n]*'/, "$1''");
+    if (GIT_UNBORN_BRANCH_DIAGNOSTIC.test(branchEmptied)) return true;
   }
   return false;
 }
