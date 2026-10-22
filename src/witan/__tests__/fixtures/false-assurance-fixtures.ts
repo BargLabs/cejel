@@ -1579,7 +1579,7 @@ for (const [name, issue, purpose, files] of [
   [
     'b3-master-confined-workflow-on-main-still-counted',
     '#535',
-    'Open (branch half of #535, not changed): a workflow confined to master in a repository whose only branch is main. Which branches exist is not bound by the attestation, so v27 still counts it.',
+    'Branch half of #535, ruled out of condition 3 by the operator on 2026-10-22: a workflow confined to master in a repository whose only branch is main. Which branches exist is ref state, not a function of the attested revision, so v27 still counts it.',
     { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/security.yml': MASTER_CONFINED_WORKFLOW },
   ],
 ] as const) {

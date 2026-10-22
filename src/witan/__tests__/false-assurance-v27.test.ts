@@ -944,9 +944,10 @@ describe('#535 — B3 does not count a workflow not shown to run a check', () =>
     }
   });
 
-  // The branch half of #535 is not decided: which branches exist is ref state, which the
-  // attestation's only repository revision, repo.headSha, does not determine. Pinned so a change is deliberate.
-  it('open: a workflow confined to master in a repository whose only branch is main is still counted under v27', () => {
+  // The branch half of #535, ruled out of condition 3 by the operator on 2026-10-22 (#526, #535):
+  // which branches exist is ref state, which the attestation's only repository revision,
+  // repo.headSha, does not determine. Pinned so a change is deliberate.
+  it('ruled out: a workflow confined to master in a repository whose only branch is main is still counted under v27', () => {
     const b3 = criterion('b3-master-confined-workflow-on-main-still-counted', V27, 'B3');
     expect(metricValue(b3, 'default_branch_ci_depth')).toBe(1);
     expect(b3).toEqual(criterion('b3-master-confined-workflow-on-main-still-counted', V17, 'B3'));

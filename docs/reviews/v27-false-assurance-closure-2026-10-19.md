@@ -416,35 +416,31 @@ reset for it. #562 moves neither `b3-master-target-*` surface pin. PR #560 touch
 whichever of the two lands second reconciles them. A release carrying an earlier v27 fingerprint does not count
 toward condition 1 for this one.
 
-**Condition 3 is met for the no-check half only.** #535 also names a workflow confined to a branch
-the repository does not have. That half is not changed, and fixture
-`b3-master-confined-workflow-on-main-still-counted` pins it as open. The reason is reproducibility.
-Deciding it needs the default branch or the branch list, which is ref state. The attestation's only
-repository revision is `repo.headSha` (`src/witan/attestation.ts`), and ref state is not a function
-of it. Reading `origin/HEAD` offline, as #535 suggested, either makes the same commit score
-differently with different refs (unless the value is bound, option 2 below) or, abstaining when it is
-unreadable, removes credit on most checkouts (like option 3). #540 already removed a
-sentence read from refs because `cejel issue` then refused honest reproductions of the same commit.
+**Condition 3 is met by the no-check half. The operator ruled the branch half out of it on
+2026-10-22.** #535 also names a workflow confined to a branch the repository does not have. That
+half is not changed. Fixture `b3-master-confined-workflow-on-main-still-counted` pins the behaviour
+the operator ruled on.
 
-No rule decidable from the commit's tree was found that removes only false credit. Two candidates
-were measured on the 23 public rows, under v27:
+**The operator's decision.** The operator's words, relayed on #526
+([comment](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983)) and #535 ([comment](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)), were "yes to both recommendations". The
+recommendation on this point was to rule the branch half out of condition 3. The other options were
+declined: binding the default branch in the report, and dropping all branch-filtered credit. The
+optional ref-free disclosure offered with the recommendation was not separately approved and is not
+added. #535's comment records that the question can be revisited if the default branch is ever bound
+in the report and attestation (a format change).
+
+**The reasoning offered for that recommendation** (the author's, not the operator's). Deciding the
+branch half needs the default branch or the branch list, which is ref state. The attestation's only
+repository revision is `repo.headSha` (`src/witan/attestation.ts`), and ref state is not a function
+of it. Reading `origin/HEAD` offline, as #535 suggested, has one of two outcomes:
+- the same commit scores differently with different refs, unless the value is bound in the report;
+- abstaining when the value cannot be read removes credit on most checkouts.
+
+#540 already removed a sentence read from refs because `cejel issue` then refused honest
+reproductions of the same commit. No rule decidable from the commit's tree was found that removes
+only false credit. Two candidates were measured on the 23 public rows, under v27:
 - **Credit only workflows with an unfiltered pull-request trigger.** 16 rows' PR-gate counts move
   and 8 composites fall. It drops every `branches: [main]` gate, which is usually correct.
 - **Drop a workflow whose filters name `master` and not `main`.** 3 rows move (fastapi, express,
   guava), and all three repositories' default branch is `master`. Every removal would be a false
   assertion.
-
-**Options for the operator** (decision needed before condition 3 can be called met in full):
-1. **Rule the branch half out of condition 3.** Optionally add, under every rubric, a
-   presentation-only disclosure decidable from the tree: B3 counted workflows whose triggers are
-   confined to named branches, and Cejel did not read which branches exist. This removes no credit
-   and needs no ref state.
-2. **Bind the default branch.** Record it in `report.json`, from an explicit flag or `origin/HEAD`,
-   and bind it in the attestation predicate, so a reproduction must supply the same value. v27
-   could then uncredit a branch-filtered workflow whose filter does not admit the bound branch, and
-   keep v17's behaviour when none is bound. This is a format change, and its scope is the
-   operator's to set.
-3. **Drop every branch-filtered credit.** This is the first measured candidate above. Not
-   recommended: it removes true credit on most rows.
-
-The second measured candidate is excluded because it makes false assertions.

@@ -19,7 +19,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **Prospective v27: B2 and B3 stop crediting CI workflows not shown to run a check (#527, #535).**
-  This meets the no-check half of condition 3 of the accepted ruling on #526. Under
+  This meets condition 3 of the accepted ruling on #526 through its no-check half. On 2026-10-22
+  the operator ruled the branch half out of condition 3 ("yes to both recommendations", recorded on
+  #526 and #535). Under
   `witan-rubric-v27-prospective-2026-10-19` only, two kinds of workflow earn no B2 PR-trace credit
   and count toward neither B3 depth metric: one whose every step only checks out, prints or does
   nothing, and one that only uploads an already-built artifact.
@@ -37,9 +39,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - v27's behaviour fingerprint moves to
     `sha256:6e03aa1bf63a31c5ec58a68cb49fb8ef571ba233cf79059a311ec55aecea5bb3`. That fingerprint plus
     the merge commit, recorded after merge (#563), is a new v27 candidate.
-  - The branch half of #535 (a workflow confined to a branch the repository may not have) is left
-    open, because branch state is not a function of the attested revision. Measured options are in
-    `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22). The default stays v17.
+  - The branch half of #535 (a workflow confined to a branch the repository may not have) is not
+    changed. Branch state is not a function of the attested revision, and the operator ruled it out
+    of condition 3. The measurement behind that is in `leaderboard/RUBRIC_CHANGELOG.md`
+    (2026-10-22). The default stays v17.
 
 ### Fixed
 

@@ -27,7 +27,9 @@ section, which this changelog continues.
 **Why.** The operator accepted the 2026-10-21 ruling on #526 on 2026-10-22. Its condition 3 reads:
 "#527 and #535 are fixed in v27 before the candidate is pinned. B2 and B3 stop crediting workflows
 that run no check." This entry fixes the no-check half of condition 3: #527 in full and #535's
-no-check half. The branch half of #535 is not changed (below). The scoring change is in
+no-check half. On 2026-10-22 the operator ruled the branch half of #535 out of condition 3, so this
+change meets condition 3. The operator's words were "yes to both recommendations" ([#526](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983),
+[#535](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)). The branch half is not changed (below). The scoring change is in
 `witan-rubric-v27-prospective-2026-10-19` only. v17 was measured: no v17 score, status, metric or
 fingerprint moved, and v17's reports are byte-identical on every fixture and public row except five
 #564 fixtures, which lose the false #540 disclosure (below). v18-v26 were not byte-measured. They rest
@@ -99,7 +101,11 @@ Other `review10-*` fixtures pin a `${{ matrix.os }}` runner, `echo a=b`, upload-
 Windows and self-hosted runners, and an inert Ubuntu control. The jobs-key detector also reads
 `jobs :` as `jobs` now. Before, a second jobs key written that way after a print-only one went unread.
 
-**The branch half of #535 is not changed.** A workflow confined to a branch the repository may not
+**The branch half of #535 is not changed, and the operator ruled it out of condition 3 on
+2026-10-22** ([#526](https://github.com/BargLabs/cejel/issues/526#issuecomment-6336750983), [#535](https://github.com/BargLabs/cejel/issues/535#issuecomment-6336751428)). The recommendation the operator accepted was to rule
+it out. Binding the default branch in the report and dropping all branch-filtered credit were
+declined, and no ref-free disclosure is added. What follows is the author's reasoning and
+measurement behind that recommendation. A workflow confined to a branch the repository may not
 have (`master` where the default is `main`) is still counted. Deciding it needs the default branch
 or the branch list, which is ref state. The attestation binds the report digest, rubric version,
 product slug, URL, tool version, outcome, signal provenance and one repository revision,
@@ -109,9 +115,9 @@ because `cejel issue` then refused honest reproductions.
 #535 itself suggested reading `origin/HEAD` offline and abstaining when it cannot be read. That
 reduces to the options below:
 - **Read but not bound:** the same commit scores differently with different refs, #540's defect,
-  unless the value is bound (option 2 in the closure review).
+  unless the value is bound in the report (declined).
 - **Abstain when unreadable:** most checkouts, including CI runners', hold no `origin/HEAD`, so this
-  removes credit almost everywhere (like option 3).
+  removes credit almost everywhere (like dropping all branch-filtered credit, also declined).
 
 No rule decidable from the commit's tree was found that removes only false credit. Two were measured
 on the 23 public rows, under v27. The measurement ran at `665598093`; no public workflow is uncredited
@@ -124,11 +130,10 @@ there or at this change, so the counts carry over.
 
 The second option would make a false assertion of absence on 3 of 23 public rows, and the first
 drops credit on most rows. Neither is shipped. Fixture
-`b3-master-confined-workflow-on-main-still-counted` pins the open behaviour, and a test shows that
+`b3-master-confined-workflow-on-main-still-counted` pins the behaviour the operator ruled on, and a test shows that
 the same commit scores the same under v17 and v27 whatever refs the checkout holds. The test adds
 or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
-detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected. Options for the
-operator are in the closure review's 2026-10-22 addition.
+detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected.
 
 **Measured, release/0.6.8 (`8deafad9f`) against this change (`9a6e20816`).** Fixtures were built once
 from this change's definitions and scored by both scanners. The public rows are the 0.6.8
