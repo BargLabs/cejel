@@ -88,5 +88,26 @@ describe('#569: the control-character limitation calls a path credential-shaped 
     expect(scoreAt(repo, WITAN_RUBRIC_VERSION_V23).scanLimitations).toEqual([CREDENTIAL_SHAPED]);
     expect(scoreAt(repo, WITAN_RUBRIC_VERSION_V17).scanLimitations).toEqual([OTHER]);
   });
+
+  // #571 review round 2: every reader words a path by one shared rule, so a path met by several
+  // readers gets one sentence. An .env path under a hard-excluded directory is .env-shaped (the
+  // .env-path read uses it) though the history scan's own rule excludes the directory.
+  it('one sentence per path whichever readers meet it: an .env path under vendor/, added and deleted', () => {
+    const added = repoWith('control-character-vendor-env', { 'vendor/x\b/.env': 'X=1\n' });
+    const deleted = cloneShallowA2Origin(
+      buildA2HistoryOrigin('control-character-vendor-env-deleted', [
+        { write: base },
+        { write: { 'vendor/x\b/.env': 'X=1\n' } },
+        { remove: ['vendor/x\b/.env'] },
+        { write: { 'README.md': '# c\n' } },
+      ]),
+      'full',
+    );
+    for (const repo of [added, deleted]) {
+      for (const rubricVersion of [WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V23, WITAN_RUBRIC_VERSION_V27]) {
+        expect(scoreAt(repo, rubricVersion).scanLimitations, rubricVersion).toEqual([CREDENTIAL_SHAPED]);
+      }
+    }
+  });
 });
 

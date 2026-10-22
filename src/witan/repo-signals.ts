@@ -14326,23 +14326,40 @@ function isExpectedHistoryAbsence(
 }
 
 /**
+ * #569: the one definition of "credential-shaped" for the control-character limitation's wording,
+ * shared by all three history readers so a path gets the same sentence whichever reader meets it:
+ * an `.env`-shaped path, or a path the rubric's own history rules count as credential-shaped
+ * (isCredentialHistoryPath with the rubric's flags; under v23 that includes key-shaped JSON).
+ */
+function controlCharacterPathIsCredentialShaped(
+  path: string,
+  useV36Detectors: boolean,
+  useV23PemPrivateKeyGrammar: boolean,
+): boolean {
+  return (
+    /(?:^|\/)\.env(?:\.|$)/i.test(path) ||
+    isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar)
+  );
+}
+
+/**
  * #560: a history path with control characters in its name is left unread and named in the scan
- * limitations. When the path is one the read would otherwise have used (`candidate`), A2's recorder
- * also counts it as an incomplete read. #569: the limitation calls the path credential-shaped only
- * when `credentialShaped` says so, and every caller decides that with the rubric's own history
- * rules (isCredentialHistoryPath with the rubric's flags; under v23 that includes key-shaped JSON),
- * the same decision the history scan makes, so the sentence never contradicts the scan.
+ * limitations. When the path is one the reader would otherwise have used (`candidate`), A2's
+ * recorder also counts it as an incomplete read. #569: the sentence is chosen by
+ * controlCharacterPathIsCredentialShaped, the same for every reader.
  */
 function skipControlCharacterHistoryPath(
   scanLimitations: Set<string>,
+  path: string,
   candidate: boolean,
-  credentialShaped: boolean,
+  useV36Detectors: boolean,
+  useV23PemPrivateKeyGrammar: boolean,
 ): void {
   if (candidate && scanLimitations instanceof HistoryReadRecorder) {
     scanLimitations.controlCharacterCandidate = true;
   }
   scanLimitations.add(
-    credentialShaped
+    controlCharacterPathIsCredentialShaped(path, useV36Detectors, useV23PemPrivateKeyGrammar)
       ? CONTROL_CHARACTER_HISTORY_PATH_LIMITATION
       : CONTROL_CHARACTER_HISTORY_OTHER_PATH_LIMITATION,
   );
@@ -14613,8 +14630,10 @@ function readCredentialHistoryEntries(
         if (/[\u0000-\u001f\u007f]/.test(path)) {
           skipControlCharacterHistoryPath(
             scanLimitations,
+            path,
             isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
-            isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+            useV36Detectors,
+            useV23PemPrivateKeyGrammar,
           );
           continue;
         }
@@ -14692,8 +14711,10 @@ function readDeletedCredentialHistoryPaths(
     if (/[\u0000-\u001f\u007f]/.test(path)) {
       skipControlCharacterHistoryPath(
         scanLimitations,
+        path,
         isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
-        isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+        useV36Detectors,
+        useV23PemPrivateKeyGrammar,
       );
       continue;
     }
@@ -15350,13 +15371,13 @@ function hasEnvPathInGitHistory(
   return output.split('\0').some((rawPath) => {
     const path = rawPath.startsWith('\n') ? rawPath.slice(1) : rawPath;
     if (/[\u0000-\u001f\u007f]/.test(path)) {
-      // Counted when this read would have used it (an .env path); worded with the rubric's own
-      // history rules, like the history scan's reads (#569).
-      const envShaped = /(?:^|\/)\.env(?:\.|$)/i.test(path);
+      // Counted when this read would have used it (an .env path); worded by the shared rule (#569).
       skipControlCharacterHistoryPath(
         scanLimitations,
-        envShaped,
-        envShaped || isCredentialHistoryPath(path, useV36Detectors, useV23PemPrivateKeyGrammar),
+        path,
+        /(?:^|\/)\.env(?:\.|$)/i.test(path),
+        useV36Detectors,
+        useV23PemPrivateKeyGrammar,
       );
       return false;
     }
