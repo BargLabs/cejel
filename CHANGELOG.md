@@ -67,10 +67,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   every rubric, a path in git history whose name contains control characters is left unread, and
   the scan limitation said "Git history contained a credential-shaped pathname with control
   characters" whatever the path was. On the public row axios the only such path is
-  `\bMIGRATION_GUIDE.md`, which is not credential-shaped. That sentence is now kept for a path the
-  rubric's own history rules count as credential-shaped (under `witan-rubric-v23-prospective` that
-  includes key-shaped JSON such as `service-account.json`), or an `.env`-shaped path; any other such
-  path gets "Git history contained a pathname with control characters that is not
+  `\bMIGRATION_GUIDE.md`, which is not credential-shaped. That sentence is now kept for a path whose
+  name is credential-shaped under the rubric's own history grammar, wherever it sits (under
+  `witan-rubric-v23-prospective` that includes key-shaped JSON such as `service-account.json`), or
+  an `.env`-shaped path; any other such path gets "Git history contained a pathname with control characters that is not
   credential-shaped. Cejel did not read that path in its history scans." Both are scan limitations,
   so a report with either is gated as before (an unrated v17 badge, and `--min-score` refuses). No
   score moves under any rubric. On the 23 public rows under v17, v23 and v27, only axios's

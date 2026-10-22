@@ -32,15 +32,20 @@ every such path, credential-shaped or not. On the public row axios the only such
 `\bMIGRATION_GUIDE.md` (a backspace before the name), so axios's v17 and v27 reports stated something
 false. Found while fixing #560's review findings.
 
-**Change, every rubric (presentation only).** The sentence above is kept for a path that the
-rubric's own history rules count as credential-shaped, the same decision the history scan makes
-(each of the three readers passes the rubric's flags; under `witan-rubric-v23-prospective-2026-09-06`
-that includes key-shaped JSON such as `service-account.json`, under the other rubrics it does not),
-and for an `.env`-shaped path met by the `.env`-path read. Any other such path gets "Git history
+**Change, every rubric (presentation only).** One rule, shared by all three readers, chooses the
+sentence: the path is `.env`-shaped, or its name is credential-shaped under the rubric's own history
+grammar (the name-shape half of `isCredentialHistoryPath`, with the rubric's flags; under
+`witan-rubric-v23-prospective-2026-09-06` that includes key-shaped JSON such as
+`service-account.json`, under the other rubrics it does not). The hard-excluded-directory rule is
+not applied to the wording: a path in `node_modules/` named `secret.key` has a credential-shaped
+name, and "not credential-shaped" would say otherwise; when in doubt the rule errs toward the
+credential-shaped sentence. Such a path keeps the sentence above; any other gets "Git history
 contained a pathname with control characters that is not credential-shaped. Cejel did not read that
-path in its history scans." The first version of this change chose the wording with the rules'
-defaults and so called a v23 key-shaped JSON path "not credential-shaped" while the v23 scanner
-treated it as a credential candidate; both review passes on #571 (AI reviewers) found it. Both
+path in its history scans." The two #571 review passes (AI reviewers) found three faults in earlier
+versions of this change: the wording used the grammar's defaults, so a v23 key-shaped JSON path was
+called "not credential-shaped"; the readers used different rules, so `vendor/x<BS>/.env` got both
+sentences; and the hard-excluded-directory rule made `node_modules/a<TAB>b/secret.key` "not
+credential-shaped". Each has a test. Both
 are scan limitations, so the v17 badge stays unrated and `--min-score` still refuses wherever one
 appears; dropping the limitation for such paths was not chosen, because it would change those
 outcomes. A2's incomplete-read rule (#560) is unchanged: it counts only a credential- or
@@ -49,13 +54,16 @@ outcomes. A2's incomplete-read rule (#560) is unchanged: it counts only a creden
 **Measured.** Informally, not a preregistered run: the 23 public rows were scanned with the CLI
 under v17 (the default), v23 and v27, at `main` `c9d341d5f` and at this change, on the 0.6.8
 confirmation's full-history, unfiltered clones, each at its corpus commit and clean before and
-after. 66 of 69 `report.json` pairs are byte-identical; axios differs under each of the three
-rubrics in exactly the one scan-limitation line. No score, status, metric value, finding count,
-verdict, badge rating or fingerprint moves. The method, the clone pins and the sha256 of every report
-are in `docs/experiments/limitation-wording-569-2026-10-22/byte-identity.json`.
+after, each scan into a fresh output directory, all 138 exiting 0. 66 of 69 `report.json` pairs are
+byte-identical; axios differs under each of the three rubrics in exactly the one scan-limitation
+line. Two independent grounds agree: a NUL-safe walk of every path in each clone's history finds a
+control-character path only in axios (`\bMIGRATION_GUIDE.md`), and the review passes reproduced the
+difference and the hashes. No score, status, metric value, finding count, verdict, badge rating or
+fingerprint moves. The method, both scanner commits, the clone pins, each scan's exit code and the
+sha256 of every report are in `docs/experiments/limitation-wording-569-2026-10-22/byte-identity.json`.
 
-Tests: `src/witan/__tests__/history-control-character-limitation-569.test.ts` (including an added and
-a deleted key-shaped JSON path under v23 against v17 and v27).
+Tests: `src/witan/__tests__/history-control-character-limitation-569.test.ts` (12 tests, including
+the three review faults above, each path yielding exactly one sentence).
 
 ## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
 
