@@ -5264,17 +5264,31 @@ function collectB2PrTraceEvidence(
   const branchProtectionDoc = repoFiles.find(
     (file) => /branch.*protection|review.*gate/i.test(file) || GITHUB_CODEOWNERS_PATH_PATTERN.test(file),
   );
+  // v27 (#527): a CI workflow Cejel does not see run a check earns no PR-trace credit. The same
+  // predicate decides B3's counts (uncreditedCiWorkflowReason), so the two criteria cannot disagree
+  // about a workflow. Every rubric other than v27 reads nothing here and credits every CI file. A
+  // workflow that cannot be read counts as a read failure of B2, which then abstains at 0.
+  const uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
+    ? withContentReadSignal('B2', 'pr_trace_primitives', () =>
+        uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+      )
+    : new Map();
+  const creditedWorkflowCount = workflows.length - uncredited.size;
   const citedWorkflows = workflows.slice(0, 3);
   const unreadWorkflows = unreadCiWorkflowReasons(() => true);
   const workflowLabel = (file: string) =>
-    fittedCiWorkflowCitationLabel(b2WorkflowCitationBaseLabels(repoPath, file), (baseLabel) =>
-      ciWorkflowCitationLabel(
-        baseLabel,
-        'counted',
-        workflows.length,
-        citedWorkflows.length,
-        unreadWorkflows,
-      ),
+    fittedCiWorkflowCitationLabel(
+      uncredited.has(file)
+        ? [B2_UNCREDITED_CI_WORKFLOW_LABEL]
+        : b2WorkflowCitationBaseLabels(repoPath, file),
+      (baseLabel) =>
+        ciWorkflowCitationLabel(
+          baseLabel,
+          useV27FalseAssuranceClosure ? 'read' : 'counted',
+          workflows.length,
+          citedWorkflows.length,
+          unreadWorkflows,
+        ),
     );
   const evidence = [
     ...citedWorkflows.map((file) =>
@@ -5319,7 +5333,7 @@ function collectB2PrTraceEvidence(
       metric(
         'pr_trace_primitives',
         'PR trace basic checks',
-        workflows.length + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0),
+        creditedWorkflowCount + (prTemplate ? 1 : 0) + (branchProtectionDoc ? 1 : 0),
         2,
         0.8,
         'signals',
@@ -5327,7 +5341,7 @@ function collectB2PrTraceEvidence(
         'saturating_count',
         {
           components: [
-            { label: 'CI workflow', count: workflows.length },
+            { label: 'CI workflow', count: creditedWorkflowCount },
             { label: 'pull-request template', count: prTemplate ? 1 : 0 },
             { label: 'review-gate record', count: branchProtectionDoc ? 1 : 0 },
           ],
@@ -5347,6 +5361,9 @@ function collectB2PrTraceEvidence(
         'Uses bounded git history as a deterministic proxy for PR outcome traceability.',
       ),
     ],
+    ...(uncredited.size > 0
+      ? { notes: uncreditedCiWorkflowNote(uncredited, 'a PR-trace CI workflow') }
+      : {}),
   };
 }
 
@@ -5363,23 +5380,17 @@ function collectB3CiDisciplineEvidence(
   const workflow = workflows[0];
   // CI workflows at the MONOREPO ROOT gate this sub-package's PRs too — count them.
   const rootWorkflows = mono ? mono.sharedFiles.filter(isCiWorkflow) : [];
-  // v27 (#517): a workflow that only publishes, releases or deploys is not CI verification, so it
+  // v27 (#517, #535): a workflow Cejel does not see run a check (one that only publishes, releases
+  // or deploys, or one whose every step only checks out and prints) is not CI verification, so it
   // counts toward neither depth metric. It stays in `workflows` for evidence and the read count,
   // so a repository whose only workflow publishes still reports B3, at depth 0. Every other rubric
-  // counts it: making it run on every push raised B3.
-  // The repository files a publish-only reading may consult (package.json, setup.py, ...): this
-  // checkout's inventory with its withheld paths, read from the inventory and never the host. A
-  // monorepo root's workflows get none, so any command whose behaviour that root's files decide
-  // keeps them counted.
-  const knownPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
-  const ownInventory: PublishOnlyInventory = {
-    scanned: new Set(repoFiles),
-    known: new Set(knownPaths),
-    hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
-  };
+  // counts it: making it run on every push raised B3. B2 uses the same predicate (#527).
+  // A monorepo root's workflows get no inventory, so any command whose behaviour that root's files
+  // decide keeps them counted.
+  const ownInventory = ownPublishOnlyInventory(repoFiles);
   const countsAsCi = (root: string) => (file: string) =>
     !useV27FalseAssuranceClosure ||
-    !isPublishOnlyWorkflow(root, file, root === repoPath ? ownInventory : null);
+    uncreditedCiWorkflowReason(root, file, root === repoPath ? ownInventory : null) === null;
   const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
     'B3',
     'default_branch_ci_depth',
@@ -5411,11 +5422,11 @@ function collectB3CiDisciplineEvidence(
         )
       : { printOnly: [] },
   );
-  const publishOnlyWorkflows = useV27FalseAssuranceClosure
+  const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
     ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-        workflows.filter((file) => isPublishOnlyWorkflow(repoPath, file, ownInventory)),
+        uncreditedCiWorkflows(repoPath, workflows, ownInventory),
       )
-    : [];
+    : new Map();
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -5584,7 +5595,7 @@ function collectB3CiDisciplineEvidence(
           : undefined,
       ),
     ],
-    ...(publishOnlyWorkflows.length > 0 ? { notes: b3PublishOnlyNote(publishOnlyWorkflows) } : {}),
+    ...(uncreditedWorkflows.size > 0 ? { notes: b3UncreditedWorkflowsNote(uncreditedWorkflows) } : {}),
     ...b3UnshownCheckDisclosures(unshownCheckWorkflows),
   };
 }
@@ -5594,8 +5605,95 @@ function b3UnshownCheckDisclosures(unshown: B3UnshownCheckWorkflows): { disclosu
   return sentence ? { disclosures: [sentence] } : {};
 }
 
-function b3PublishOnlyNote(publishOnlyWorkflows: readonly string[]): string {
-  return `${publishOnlyWorkflows.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnlyWorkflows.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnlyWorkflows.length === 1 ? 'is' : 'are'} not counted as CI verification: ${publishOnlyWorkflows.slice(0, 4).join(', ')}${publishOnlyWorkflows.length > 4 ? ', ...' : ''}.`.slice(0, CRITERION_NOTES_MAX_LENGTH);
+/**
+ * v27 (#517, #527, #535): why Cejel does not credit a CI workflow as running a check, or null when
+ * it credits it. B2 and B3 both decide credit with this one predicate. Each reason is a claim about
+ * every step, made by an allowlist reader that refuses any line it cannot place and admits only
+ * commands that run no repository-configured code (isPublishOnlyWorkflow, isPrintOnlyWorkflow); any
+ * doubt returns null and the workflow keeps its credit. The predicate only removes credit, and is
+ * stated to a reader as "not shown to run a check", never as a claim that the workflow runs none.
+ * A print-only file is recognised wherever B3's #540 disclosure names one, so under v27 every
+ * workflow that disclosure would name is uncredited instead.
+ */
+function uncreditedCiWorkflowReason(
+  root: string,
+  file: string,
+  inventory: PublishOnlyInventory | null,
+): UncreditedCiWorkflowReason | null {
+  if (isPublishOnlyWorkflow(root, file, inventory)) return 'publish_only';
+  if (!/^\.github\/workflows\//.test(file)) return null;
+  const fullPath = join(root, file);
+  if (!isRegularFile(fullPath)) return null;
+  return isPrintOnlyWorkflow(readRepoText(fullPath, 'utf8')) ? 'print_only' : null;
+}
+
+type UncreditedCiWorkflowReason = 'publish_only' | 'print_only';
+
+/** The uncredited workflows among `workflows`, in their order, with each one's reason. */
+function uncreditedCiWorkflows(
+  root: string,
+  workflows: readonly string[],
+  inventory: PublishOnlyInventory | null,
+): Map<string, UncreditedCiWorkflowReason> {
+  const uncredited = new Map<string, UncreditedCiWorkflowReason>();
+  for (const file of workflows) {
+    const reason = uncreditedCiWorkflowReason(root, file, inventory);
+    if (reason) uncredited.set(file, reason);
+  }
+  return uncredited;
+}
+
+/**
+ * The repository files a publish-only reading may consult (package.json, setup.py, ...): this
+ * checkout's inventory with its withheld paths, read from the inventory and never the host.
+ */
+function ownPublishOnlyInventory(repoFiles: readonly string[]): PublishOnlyInventory {
+  const knownPaths = [...repoFiles, ...withheldRepoPaths().map(({ path }) => path)];
+  return {
+    scanned: new Set(repoFiles),
+    known: new Set(knownPaths),
+    hasYarnPlugins: knownPaths.some((path) => path.startsWith('.yarn/plugins/')),
+  };
+}
+
+const B2_UNCREDITED_CI_WORKFLOW_LABEL = 'CI workflow not shown to run a check (not counted)';
+
+function b3UncreditedWorkflowsNote(uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>): string {
+  return uncreditedCiWorkflowNote(uncredited, 'CI verification');
+}
+
+/**
+ * One sentence per reason, in the collector's own words. Workflow paths are listed, up to four per
+ * reason, then fewer, then none, so the note fits CRITERION_NOTES_MAX_LENGTH whole. With only
+ * publish-only workflows and `CI verification`, this is v27's #517 sentence unchanged.
+ */
+function uncreditedCiWorkflowNote(
+  uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>,
+  notCountedAs: string,
+): string {
+  const of = (reason: UncreditedCiWorkflowReason) =>
+    [...uncredited].filter(([, why]) => why === reason).map(([file]) => file);
+  const publishOnly = of('publish_only');
+  const printOnly = of('print_only');
+  const listed = (files: readonly string[], shown: number) =>
+    shown === 0 ? '' : `: ${files.slice(0, shown).join(', ')}${files.length > shown ? ', ...' : ''}`;
+  const sentences = (shown: number) => [
+    ...(publishOnly.length > 0
+      ? [
+          `${publishOnly.length === 1 ? '1 workflow that only publishes, releases or deploys' : `${publishOnly.length} workflows that only publish, release or deploy`} (no pull-request trigger, and every step Cejel reads only checks out, sets up a toolchain, configures credentials or uploads an already-built artifact) ${publishOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(publishOnly, shown)}.`,
+        ]
+      : []),
+    ...(printOnly.length > 0
+      ? [
+          `${printOnly.length === 1 ? '1 workflow' : `${printOnly.length} workflows`} not shown to run a check (every step Cejel reads only checks out the repository or prints text) ${printOnly.length === 1 ? 'is' : 'are'} not counted as ${notCountedAs}${listed(printOnly, shown)}.`,
+        ]
+      : []),
+  ].join(' ');
+  for (const shown of [4, 3, 2, 1]) {
+    const note = sentences(shown);
+    if (note.length <= CRITERION_NOTES_MAX_LENGTH) return note;
+  }
+  return sentences(0);
 }
 
 // v27 (#517). A step that ships an artifact or changes a running environment, from a bounded
