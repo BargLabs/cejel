@@ -54,9 +54,11 @@ Stable in report format v1:
   the sentence and the scoring are unchanged. Since #556, A2's v27 abstention also covers a shallow
   clone where A2 would otherwise be marked not applicable, and the v27 sentence says so. Under v27 A2
   also abstains when one of its history reads failed (on a partial clone, for example) or its
-  history secret scan stopped at its 5,000-file cap; that is stated in A2's note, and a failed git
-  read also in `scanLimitations` (the cap is named in the note and A2's disclosure, not in the scan
-  limitations), not in this field.
+  history secret scan stopped at its 5,000-file cap, or it left a credential- or `.env`-shaped
+  history path unread for control characters in its name, or git itself could not be run in a
+  repository (#560); that is stated in A2's note, a failed git read also in `scanLimitations`, and
+  a control-character path in its existing scan limitation (the cap and git being unavailable are
+  named in the note and A2's disclosure, not in the scan limitations), not in this field.
 - Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
   when the checkout held at least one Git LFS pointer in place of a file's content, and summed
   into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
@@ -95,9 +97,11 @@ Stable in report format v1:
   placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
   see run a check. A2 also states when it was marked not applicable after an incomplete read of the
   commit history (#556): the clone is shallow, one of its reads of earlier commits failed (the scan
-  limitations name each; a read that stopped at one of Cejel's own limits is named as such), or the
+  limitations name each; a read that stopped at one of Cejel's own limits is named as such), the
   history secret scan stopped at its 5,000-file cap (named in the sentence, not in the scan
-  limitations).
+  limitations), a credential- or `.env`-shaped history path was left unread because its name
+  contains control characters (its existing scan limitation says so), or git itself could not be
+  run while a `.git` entry is visible (named in the sentence, not in the scan limitations).
   That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
   move no score, status or metric under any rubric. Absent when there is nothing to disclose; the

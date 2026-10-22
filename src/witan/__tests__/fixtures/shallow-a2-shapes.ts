@@ -226,6 +226,11 @@ export function buildA2HistoryOrigin(
 /** The synthetic Stripe-shaped key, for corners built with buildA2HistoryOrigin. */
 export const SHALLOW_A2_SYNTHETIC_SECRET_LINE = `STRIPE_SECRET_KEY=${SYNTHETIC_STRIPE_KEY}\n`;
 
+/** Runs git in a fixture directory with the fixture's fixed identity, dates and settings. */
+export function fixtureGit(cwd: string, ...args: string[]): string {
+  return git(cwd, ...args);
+}
+
 export function removeShallowA2Fixtures(): void {
   for (const root of createdRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 }
