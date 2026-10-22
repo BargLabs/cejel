@@ -126,9 +126,11 @@ criterion that was out of the composite, or scored above 0, now counts at 0.
   finding (reviewer's repro: overall 1.9 to 2.1, code_trust 2.3 to 2.7). `secrets/timeout.txt` or
   `secrets/maxBuffer.txt` made the same failure read as one of Cejel's own limits, with the advice
   that a re-scan would not lift it. Classification now reads only the spawn error code (ENOENT,
-  ENOBUFS or ERR_CHILD_PROCESS_STDIO_MAXBUFFER, ETIMEDOUT) and git's own diagnostic lines, each
-  starting "fatal: " or "error: ", with every quoted span removed before matching; a bare SIGTERM
-  is no longer called a timeout. This applies to every git call Cejel makes, under every rubric.
+  ENOBUFS or ERR_CHILD_PROCESS_STDIO_MAXBUFFER, ETIMEDOUT) and git's own "no repository" messages,
+  each matched as git's exact text from the start of a stderr line (to its end wherever git could
+  print a path after it); a bare SIGTERM is no longer called a timeout. Round 4's first version
+  emptied quoted spans and then matched one phrase anywhere later in the line, which an unquoted
+  path still reached (round 5, below). This applies to every git call Cejel makes, under every rubric.
   It can change a v17 report only where a git read already failed: such a failure, dropped before
   because a path on the command line named a git message, now appears in `scanLimitations`, which
   leaves the v17 badge unrated and makes `--min-score` refuse; and a limitation that named a
@@ -154,6 +156,34 @@ control-character path, git unavailable), alongside a shallow clone, a failed hi
 own output and time limits and the 5,000-file cap (#526,
 [comment 6341266476](https://github.com/BargLabs/cejel/issues/526#issuecomment-6341266476)). The
 control-character limitation's wording, which calls every such path credential-shaped, is #569.
+
+**Review round 5 (#560 review pass 1 on `cf7fde7ac`, an AI reviewer).**
+- **F1, classification.** git prints a missing object's path unquoted ("fatal: bad object
+  <commit>:<path>"), and the round-4 pattern for "not inside a work tree" matched that phrase
+  anywhere later in the line. A deleted `.env` holding a secret, under a directory named `not
+  inside a work tree`, with its blob gone, was dropped as an expected absence: no scan limitation,
+  no abstention, A2 a warning (overall 0.7) above the intact repository's critical (0.4), under v17
+  and v27. Every "no repository" pattern now matches git's exact message from the start of the line
+  (that phrase is not one of git's messages, so it is gone); a missing object under a directory
+  named after each recognised message is tested.
+- **F2, submodules.** A gitlink (mode 160000) at a credential-shaped path was read as a file; the
+  read always failed, so a complete clone with a submodule at, say, `config/secrets` reported
+  "historical blob read failed" under every rubric (as `main` did) and, since round 4, abstained
+  under v27 and disclosed an incomplete read under the other rubrics, all falsely. When a
+  historical read fails, Cejel now checks that commit's entry (`git diff-tree --raw`) and skips a
+  gitlink without counting it. Other reads are unchanged. **v17 report change:** for such a
+  repository the "historical blob read failed" scan limitation disappears; if it was the only one,
+  the v17 badge becomes rated and `--min-score` applies.
+- **F3, tests.** The `.git` visibility check behind #568 is tested directly: from a subdirectory,
+  through a worktree's or submodule's `.git` file, with no `.git` entry, and stopping at the
+  discovery ceiling of a confined scan.
+
+Tests: `a2-history-round5-560.test.ts`, `git-metadata-visibility-560.test.ts`.
+
+Round 5 was measured like round 4 (below): the 23 public rows under v17 and v27 with round 5's code,
+against round 4's (`cf7fde7ac`), on the same clean, pinned clones. All 46 `report.json` pairs are
+byte-identical; no row has a gitlink at a credential-shaped path in its history, or a failed read
+whose path names a git message.
 
 **B2 checked for the same class.** B2's history read (`readRecentCommits`, `git log` of commit
 subjects) needs commits only, which shallow and partial clones both hold, so a partial clone reads

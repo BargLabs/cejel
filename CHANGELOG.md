@@ -71,11 +71,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Cejel does not report: no scan limitation, no abstention, and A2 not applicable above the
   complete clone's critical finding. A name containing "timeout" or "maxBuffer" made the same
   failure read as one of Cejel's own limits. Classification now uses only Node's error code and
-  git's own diagnostic lines, with any quoted path removed; a bare SIGTERM is no longer called a
-  timeout. **This can change a v17 report:** where such a read failed, the failure now appears in
-  `scanLimitations`, which leaves the v17 badge unrated and makes `--min-score` refuse, and a
-  limitation that named a timeout or output limit because of a path now says the read failed. On
-  the 23 public rows nothing changes (see `leaderboard/RUBRIC_CHANGELOG.md`, 2026-10-22).
+  git's own "no repository" messages, each matched as git's exact text from the start of a line,
+  so a path git prints after a message (quoted, or unquoted as in "fatal: bad object
+  <commit>:<path>") cannot match; a bare SIGTERM is no longer called a timeout. **This can change a
+  v17 report:** where such a read failed, the failure now appears in `scanLimitations`, which leaves
+  the v17 badge unrated and makes `--min-score` refuse, and a limitation that named a timeout or
+  output limit because of a path now says the read failed. On the 23 public rows nothing changes
+  (see `leaderboard/RUBRIC_CHANGELOG.md`, 2026-10-22).
+- **A submodule at a credential-shaped path counted as a failed history read (#560 review).**
+  Under every rubric, A2's history secret scan tried to read a submodule entry (a gitlink) at a
+  path such as `config/secrets` as a file. A gitlink has no content in the repository, so the read
+  always failed and was reported as "historical blob read failed"; since #560 it also made v27's
+  A2 abstain and the other rubrics disclose an incomplete read, on a complete clone. A gitlink is
+  now recognised and skipped. **This can change a v17 report:** for such a repository the
+  "historical blob read failed" scan limitation disappears, and if it was the only one, the v17
+  badge becomes rated and `--min-score` applies.
 
 ## [0.6.8] — 2026-10-22
 
