@@ -33,6 +33,21 @@ import { type IntroducedAbstention, checkNoRise, lostCriticalFindings, lostFindi
 
 export const NO_RISE_SHARDS = 6;
 
+/**
+ * The exact text of shard file n (1-based), false-assurance-v27-generated-<n>.test.ts. The shard
+ * guard (false-assurance-v27-shards.test.ts) requires each file to equal it byte for byte, so a
+ * comment, an expression, a skip or a condition in a shard file fails instead of dropping shapes.
+ */
+export function noRiseShardFileText(n: number): string {
+  return [
+    "import { describeGeneratedNoRiseShard } from './v27-no-rise-generated-suite.js';",
+    '',
+    `// #531: shard ${n} of the generated v27 no-rise shapes; see v27-no-rise-generated-suite.ts.`,
+    `describeGeneratedNoRiseShard(${n - 1});`,
+    '',
+  ].join('\n');
+}
+
 const ALL_SHAPES = generateNoRiseShapes();
 
 function score(repoPath: string, rubricVersion: string): WitanReport {

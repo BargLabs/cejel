@@ -712,9 +712,12 @@ after two review passes on #558.
   - A1's "Test suite files are present" finding where v27 measures a test-to-source ratio of 0
     (the only test-shaped files were conftest.py, #518).
 
-  One re-citation is allowed: a non-critical finding that v17 anchors to a conftest.py may be
-  anchored under v27 to a file that is not a conftest.py, with the same summary and evidence kind.
-  v27 does not cite conftest.py as test evidence (#518).
+  One re-citation is allowed, and only this one. A1's finding "Test suite files are present, …" at
+  severity `info`, which v17 anchors to a `conftest.py` with evidence kind `test_run`, may be
+  anchored by v27 to a different file. Under v27 it must still be `info` and `test_run`, and the new
+  file must be one A1's own test-file predicate (`findConcreteTestFiles` under v27) counts as a
+  test file. v27 does not cite conftest.py as test evidence (#518). No other finding may change its
+  pointer.
 - **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 1,563
   repositories:
   - **The full product, every combination that takes effect:** 7 test-directory names (including
@@ -741,9 +744,10 @@ after two review passes on #558.
   - every abstention kind seen on every criterion must have at least one case where the composite
     arithmetic shows it held in the denominator.
 
-  `false-assurance-v27-shards.test.ts` requires exactly six shard files, with file n registering
-  shard n − 1 exactly once. A missing file, a duplicated index, or a raised shard count without a
-  new file therefore fails instead of silently dropping shapes.
+  `false-assurance-v27-shards.test.ts` requires exactly six shard files, each equal byte for byte
+  to a fixed template that registers shard n − 1 in file n. A missing file, a duplicated or
+  disguised index, a comment, a skip, a condition, or a raised shard count without a new file
+  therefore fails instead of silently dropping shapes.
 
 The checker is `src/witan/__tests__/v27-no-rise.ts`, and the curated test and the generated suite
 both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, run as

@@ -1,6 +1,8 @@
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
+import { findConcreteTestFiles } from '../repo-signals.js';
+import { WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 
 // THE NO-RISE PROPERTY (#531), shared by the curated and the generated v27 tests.
 //
@@ -246,6 +248,16 @@ type Finding = WitanCriterionScore['findings'][number];
 const CONFTEST_PATH = /(^|\/)conftest\.py$/;
 
 /**
+ * Whether v27's own A1 collector counts `path` as a test file: findConcreteTestFiles, the predicate
+ * A1 uses, under v27 (which leaves conftest.py out). No repository is read for a path that is not
+ * C++ source, and a C++ path is never accepted here, so the check is purely by name.
+ */
+function isV27TestFile(path: string | undefined): boolean {
+  if (path === undefined || CONFTEST_PATH.test(path) || /\.(cpp|cc|cxx)$/.test(path)) return false;
+  return findConcreteTestFiles('', [path], WITAN_RUBRIC_VERSION_V27).length === 1;
+}
+
+/**
  * What a finding points at: kind, path, line, url and content hash, never the label (wording). A
  * collector's summary is generic ("Secret-shaped value appears committed ..."); the file it is about
  * is named only here, so a finding re-cited to another file is a different finding.
@@ -276,10 +288,11 @@ function sameFinding(a: Finding, b: Finding): boolean {
  *     0: the only test-shaped files were conftest.py, which v27 does not count as tests (#518), so
  *     the finding's premise is false under v27.
  *
- * One re-citation is allowed: a non-critical finding v17 anchors to a conftest.py may be anchored
- * by v27, with the same summary, evidence kind and at least the same severity, to a file that is
- * not a conftest.py, since v27 does not cite conftest.py as test evidence (#518). A critical
- * finding keeps its pointer exactly (lostCriticalFindings).
+ * One re-citation is allowed, exactly: A1's info finding "Test suite files are present, ..." that
+ * v17 anchors (kind test_run) to a conftest.py may be anchored by v27, still info and kind test_run,
+ * to a file the collector's own predicate (findConcreteTestFiles under v27) counts as a test file,
+ * since v27 does not cite conftest.py as test evidence (#518). Nothing else may change its pointer;
+ * a critical finding never does (lostCriticalFindings).
  */
 export function lostFindings(before: WitanReport, after: WitanReport): string[] {
   const lost: string[] = [];
@@ -301,12 +314,15 @@ export function lostFindings(before: WitanReport, after: WitanReport): string[] 
         continue;
       }
       const reCitedFromConftest = (candidate: Finding): boolean =>
-        finding.severity !== 'critical' &&
+        v17.id === 'A1' &&
+        finding.summary.startsWith('Test suite files are present') &&
+        finding.severity === 'info' &&
+        finding.evidence.kind === 'test_run' &&
         CONFTEST_PATH.test(finding.evidence.path ?? '') &&
         candidate.summary === finding.summary &&
-        candidate.evidence.kind === finding.evidence.kind &&
-        candidate.evidence.path !== undefined &&
-        !CONFTEST_PATH.test(candidate.evidence.path);
+        candidate.severity === 'info' &&
+        candidate.evidence.kind === 'test_run' &&
+        isV27TestFile(candidate.evidence.path);
       const kept = v27?.findings.some(
         (candidate) =>
           (sameFinding(candidate, finding) || reCitedFromConftest(candidate)) &&
