@@ -1,11 +1,11 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { scoreRepoWithPublicCejel } from '../public-scan.js';
+import { probeA2EnvPathHistoryRead } from '../repo-signals.js';
 import { projectWitanScoringSurface } from '../rubric-fingerprint.js';
 import { WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
@@ -14,6 +14,7 @@ import {
   buildShallowA2Origin,
   cloneShallowA2Origin,
   fixtureGit,
+  fixtureGitWithInput,
   removeShallowA2Fixtures,
 } from './fixtures/shallow-a2-shapes.js';
 
@@ -34,33 +35,43 @@ const mode = {
   bigCommit: '',
 };
 const overflow = { ok: false as const, reason: 'buffer_exceeded' as const };
+// Every successful read that took commit ids on stdin, in call order (#572 review): the commits the
+// batches of one reader received, concatenated, must be the rev-list order exactly. That pins the
+// batch order and catches a commit dropped from a batch, which the scoring surface cannot show.
+const stdinReads: { argv: readonly string[]; commits: string[] }[] = [];
+const commitsOnStdin = (input: string | undefined): string[] => (input ?? '').split('\n').filter((line) => line !== '');
 
 vi.mock('../git-exec.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../git-exec.js')>();
+  const respond = (argv: readonly string[], options: Parameters<typeof actual.execGit>[1]) => {
+    if (mode.current === 'tree-only') {
+      const commits = (options.input ?? '').split('\n').filter((line) => line !== '');
+      if (argv[0] === 'diff-tree' && argv.includes('--stdin') && commits.length > MAX_BATCH) return overflow;
+      return actual.execGit(argv, options);
+    }
+    if (mode.current !== 'real') {
+      const wholeHistory =
+        (argv[0] === 'rev-list' && argv.length === 2 && argv[1] === 'HEAD') ||
+        (argv[0] === 'log' && argv.includes('HEAD') && argv.includes('--name-only'));
+      if (wholeHistory) return overflow;
+      if (mode.current === 'whole-only') return actual.execGit(argv, options);
+      const readsCommitsOnStdin = argv.includes('--stdin');
+      if (readsCommitsOnStdin) {
+        const commits = (options.input ?? '').split('\n').filter((line) => line !== '');
+        if (commits.length > MAX_BATCH) return overflow;
+        if (mode.current === 'one-commit-too-big' && commits.includes(mode.bigCommit) && argv[0] === 'diff-tree') {
+          return overflow;
+        }
+      }
+    }
+    return actual.execGit(argv, options);
+  };
   return {
     ...actual,
     execGit: (argv: readonly string[], options: Parameters<typeof actual.execGit>[1]) => {
-      if (mode.current === 'tree-only') {
-        const commits = (options.input ?? '').split('\n').filter((line) => line !== '');
-        if (argv[0] === 'diff-tree' && argv.includes('--stdin') && commits.length > MAX_BATCH) return overflow;
-        return actual.execGit(argv, options);
-      }
-      if (mode.current !== 'real') {
-        const wholeHistory =
-          (argv[0] === 'rev-list' && argv.length === 2 && argv[1] === 'HEAD') ||
-          (argv[0] === 'log' && argv.includes('HEAD') && argv.includes('--name-only'));
-        if (wholeHistory) return overflow;
-        if (mode.current === 'whole-only') return actual.execGit(argv, options);
-        const readsCommitsOnStdin = argv.includes('--stdin');
-        if (readsCommitsOnStdin) {
-          const commits = (options.input ?? '').split('\n').filter((line) => line !== '');
-          if (commits.length > MAX_BATCH) return overflow;
-          if (mode.current === 'one-commit-too-big' && commits.includes(mode.bigCommit) && argv[0] === 'diff-tree') {
-            return overflow;
-          }
-        }
-      }
-      return actual.execGit(argv, options);
+      const result = respond(argv, options);
+      if (result.ok && argv.includes('--stdin')) stdinReads.push({ argv, commits: commitsOnStdin(options.input) });
+      return result;
     },
   };
 });
@@ -75,6 +86,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   mode.current = 'real';
+  stdinReads.length = 0;
 });
 
 afterAll(() => {
@@ -128,9 +140,44 @@ describe("#567: a whole-history read that stops at Cejel's own output limit is r
   });
 });
 
-// #572 review (pass 2, M2): two of the batched paths had no fixture that depended on them alone.
+// #572 review: each batched path is the only source of some finding, and the batches are read in
+// order. The fixtures run git through the shared helper's isolated config (no global or system
+// config, fixed identity and dates).
 describe('#572 review: every batched path is the only source of some finding', () => {
-  const S_ = { secretLine: 'stripe_secret_key = "sk_live_' + 'FIXTUREonly0000abcdEFGH1234ijklMNOP"\n' };
+  const SECRET_LINE = 'stripe_secret_key = "sk_live_' + 'FIXTUREonly0000abcdEFGH1234ijklMNOP"\n';
+  const PLACEHOLDER_LINE = 'stripe_secret_key = "REPLACE_ME"\n';
+  const roots: string[] = [];
+  afterAll(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  });
+
+  const newRepo = (prefix: string): string => {
+    const root = mkdtempSync(join(tmpdir(), prefix));
+    roots.push(root);
+    fixtureGit(root, 'init', '--quiet', 'repo');
+    return join(root, 'repo');
+  };
+  const put = (repo: string, path: string, text: string): void => {
+    mkdirSync(dirname(join(repo, path)), { recursive: true });
+    writeFileSync(join(repo, path), text);
+  };
+  const commitAll = (repo: string, message: string): void => {
+    fixtureGit(repo, 'add', '-A');
+    fixtureGit(repo, 'commit', '--quiet', '-m', message);
+  };
+  const revisions = (repo: string, count: number, label: string): void => {
+    for (let index = 1; index <= count; index += 1) {
+      put(repo, 'src/a.js', `export const a = '${label}-${index}';\n`);
+      commitAll(repo, `${label} ${index}`);
+    }
+  };
+  // fixtureGitWithInput has the larger output buffer that 50,002 commit ids need.
+  const revList = (repo: string): string[] => fixtureGitWithInput(repo, '', 'rev-list', 'HEAD').split('\n');
+  const isTreeEnumeration = (argv: readonly string[]) => argv[0] === 'diff-tree' && argv.includes('--diff-filter=AM');
+  const isDeletedPathLog = (argv: readonly string[]) => argv[0] === 'log' && argv.includes('--diff-filter=D');
+  const isEnvPathLog = (argv: readonly string[]) => argv[0] === 'log' && argv.includes('--diff-filter=AM');
+  const batched = (reader: (argv: readonly string[]) => boolean): string[] =>
+    stdinReads.filter(({ argv }) => reader(argv)).flatMap(({ commits }) => commits);
 
   // A history longer than one rev-list page. fast-import writes 50,002 commits in a few seconds. In
   // rev-list order (newest first) the root is index 50,001; index 50,000, the first commit of the
@@ -139,94 +186,118 @@ describe('#572 review: every batched path is the only source of some finding', (
   // the secret, so a page read that stops after the first page, or skips a commit at the boundary,
   // loses the finding.
   it('a rev-list page boundary: the finding lives only in the first commit of the second page', () => {
-    const root = mkdtempSync(join(tmpdir(), 'cejel-paging-boundary-'));
-    try {
-      const repo = join(root, 'repo');
-      execFileSync('git', ['init', '--quiet', '-b', 'main', repo]);
-      const who = 'Fixture <fixture@example.invalid> 1767225600 +0000';
-      const lines: string[] = [];
-      const blob = (mark: number, text: string) => lines.push('blob', `mark :${mark}`, `data ${Buffer.byteLength(text)}`, text);
-      blob(1, '{"name":"boundary","version":"1.0.0"}\n');
-      blob(2, 'export const a = 1;\n');
-      blob(3, S_.secretLine);
-      blob(4, 'stripe_secret_key = "REPLACE_ME"\n');
-      const commit = (mark: number, from: number | null, ops: string[]) => {
-        lines.push('commit refs/heads/main', `mark :${mark}`, `author ${who}`, `committer ${who}`, 'data 2', 'c');
-        if (from !== null) lines.push(`from :${from}`);
-        lines.push(...ops, '');
-      };
-      commit(10, null, ['M 100644 :1 package.json', 'M 100644 :2 src/a.js']);
-      commit(11, 10, ['M 100644 :3 config/app.secret.txt']);
-      commit(12, 11, ['M 100644 :4 config/app.secret.txt']);
-      let previous = 12;
-      for (let index = 1; index < 50_000; index += 1) {
-        commit(12 + index, previous, []);
-        previous = 12 + index;
-      }
-      execFileSync('git', ['fast-import', '--quiet'], { cwd: repo, input: lines.join('\n') + '\n', maxBuffer: 1 << 26 });
-      execFileSync('git', ['reset', '--quiet', '--hard', 'main'], { cwd: repo });
-      expect(execFileSync('git', ['rev-list', '--count', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()).toBe('50002');
-      const secretCommit = execFileSync('git', ['rev-list', '--max-count=1', '--skip=50000', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
-      expect(execFileSync('git', ['show', `${secretCommit}:config/app.secret.txt`], { cwd: repo, encoding: 'utf8' })).toBe(S_.secretLine);
-
-      mode.current = 'real';
-      const unlimited = scoreAt(repo, V17);
-      expect(a2(unlimited).status).toBe('critical');
-      mode.current = 'whole-only';
-      const paged = scoreAt(repo, V17);
-      expect(paged.scanLimitations ?? []).toEqual([]);
-      expect(projectWitanScoringSurface(paged)).toEqual(projectWitanScoringSurface(unlimited));
-      expect(a2(paged).findings).toEqual(a2(unlimited).findings);
-    } finally {
-      mode.current = 'real';
-      rmSync(root, { recursive: true, force: true });
+    const repo = newRepo('cejel-paging-boundary-');
+    const who = 'Fixture <fixture@example.invalid> 1767225600 +0000';
+    const lines: string[] = [];
+    const blob = (mark: number, text: string) => lines.push('blob', `mark :${mark}`, `data ${Buffer.byteLength(text)}`, text);
+    blob(1, '{"name":"boundary","version":"1.0.0"}\n');
+    blob(2, 'export const a = 1;\n');
+    blob(3, SECRET_LINE);
+    blob(4, PLACEHOLDER_LINE);
+    const commit = (mark: number, from: number | null, ops: string[]) => {
+      lines.push('commit refs/heads/main', `mark :${mark}`, `author ${who}`, `committer ${who}`, 'data 2', 'c');
+      if (from !== null) lines.push(`from :${from}`);
+      lines.push(...ops, '');
+    };
+    commit(10, null, ['M 100644 :1 package.json', 'M 100644 :2 src/a.js']);
+    commit(11, 10, ['M 100644 :3 config/app.secret.txt']);
+    commit(12, 11, ['M 100644 :4 config/app.secret.txt']);
+    let previous = 12;
+    for (let index = 1; index < 50_000; index += 1) {
+      commit(12 + index, previous, []);
+      previous = 12 + index;
     }
+    fixtureGitWithInput(repo, `${lines.join('\n')}\n`, 'fast-import', '--quiet');
+    fixtureGit(repo, 'reset', '--quiet', '--hard', 'main');
+    expect(fixtureGit(repo, 'rev-list', '--count', 'HEAD')).toBe('50002');
+    const secretCommit = fixtureGit(repo, 'rev-list', '--max-count=1', '--skip=50000', 'HEAD');
+    expect(fixtureGit(repo, 'show', `${secretCommit}:config/app.secret.txt`)).toBe(SECRET_LINE.trim());
+
+    mode.current = 'real';
+    const unlimited = scoreAt(repo, V17);
+    expect(a2(unlimited).status).toBe('critical');
+    mode.current = 'whole-only';
+    stdinReads.length = 0;
+    const paged = scoreAt(repo, V17);
+    expect(paged.scanLimitations ?? []).toEqual([]);
+    expect(projectWitanScoringSurface(paged)).toEqual(projectWitanScoringSurface(unlimited));
+    expect(a2(paged).findings).toEqual(a2(unlimited).findings);
+    expect(batched(isTreeEnumeration)).toEqual(revList(repo));
   }, 180_000);
 
   // A secret that only the tree enumeration can supply: a credential-named file added with a secret
   // and then edited to a placeholder, never deleted. The current tree holds no secret, the
   // deleted-path read never lists the file, and the oldest commits fall in the last batches.
-  it('the tree enumeration alone supplies the finding, across batches', () => {
-    const root = mkdtempSync(join(tmpdir(), 'cejel-paging-tree-only-'));
-    try {
-      const repo = join(root, 'repo');
-      execFileSync('git', ['init', '--quiet', '-b', 'main', repo]);
-      const git = (...args: string[]) =>
-        execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', ...args], {
-          cwd: repo,
-          encoding: 'utf8',
-          env: { ...process.env, GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' },
-        });
-      const write = (path: string, text: string) => execFileSync('sh', ['-c', 'mkdir -p "$(dirname "$1")" && printf %s "$2" > "$1"', 'sh', join(repo, path), text]);
-      write('package.json', '{"name":"tree-only","version":"1.0.0"}\n');
-      write('src/a.js', 'export const a = 1;\n');
-      git('add', '-A'); git('commit', '--quiet', '-m', 'base');
-      write('config/app.secret.txt', S_.secretLine);
-      git('add', '-A'); git('commit', '--quiet', '-m', 'add');
-      write('config/app.secret.txt', 'stripe_secret_key = "REPLACE_ME"\n');
-      git('add', '-A'); git('commit', '--quiet', '-m', 'placeholder');
-      for (let index = 1; index <= 14; index += 1) {
-        write('src/a.js', `export const a = ${index + 1};\n`);
-        git('commit', '--quiet', '-am', `revision ${index}`);
-      }
+  it('the tree enumeration alone supplies the finding, across batches read in order', () => {
+    const repo = newRepo('cejel-paging-tree-only-');
+    put(repo, 'package.json', '{"name":"tree-only","version":"1.0.0"}\n');
+    put(repo, 'src/a.js', 'export const a = 1;\n');
+    commitAll(repo, 'base');
+    put(repo, 'config/app.secret.txt', SECRET_LINE);
+    commitAll(repo, 'add');
+    put(repo, 'config/app.secret.txt', PLACEHOLDER_LINE);
+    commitAll(repo, 'placeholder');
+    revisions(repo, 14, 'revision');
+    const order = revList(repo);
 
-      mode.current = 'real';
-      const unlimited = scoreAt(repo, V17);
-      expect(a2(unlimited).status).toBe('critical');
-      expect(a2(unlimited).findings.some(({ summary }) => /git history/i.test(summary))).toBe(true);
-      // 'limited': every whole-history read overflows. 'tree-only': react's path, where rev-list
-      // succeeds and only the tree enumeration overflows.
-      for (const limitedMode of ['limited', 'tree-only'] as const) {
-        mode.current = limitedMode;
-        const batched = scoreAt(repo, V17);
-        expect(batched.scanLimitations ?? [], limitedMode).toEqual([]);
-        expect(projectWitanScoringSurface(batched), limitedMode).toEqual(projectWitanScoringSurface(unlimited));
-        expect(a2(batched).findings, limitedMode).toEqual(a2(unlimited).findings);
+    mode.current = 'real';
+    const unlimited = scoreAt(repo, V17);
+    expect(a2(unlimited).status).toBe('critical');
+    expect(a2(unlimited).findings.some(({ summary }) => /git history/i.test(summary))).toBe(true);
+    // 'limited': every whole-history read overflows. 'tree-only': react's path, where rev-list
+    // succeeds and only the tree enumeration overflows.
+    for (const limitedMode of ['limited', 'tree-only'] as const) {
+      mode.current = limitedMode;
+      stdinReads.length = 0;
+      const batchedReport = scoreAt(repo, V17);
+      expect(batchedReport.scanLimitations ?? [], limitedMode).toEqual([]);
+      expect(projectWitanScoringSurface(batchedReport), limitedMode).toEqual(projectWitanScoringSurface(unlimited));
+      expect(a2(batchedReport).findings, limitedMode).toEqual(a2(unlimited).findings);
+      expect(batched(isTreeEnumeration), limitedMode).toEqual(order);
+      expect(stdinReads.filter(({ argv }) => isTreeEnumeration(argv)).length, limitedMode).toBeGreaterThan(1);
+      if (limitedMode === 'limited') {
+        expect(batched(isDeletedPathLog)).toEqual(order);
+        expect(batched(isEnvPathLog)).toEqual(order);
+      } else {
+        expect(batched(isDeletedPathLog)).toEqual([]);
+        expect(batched(isEnvPathLog)).toEqual([]);
       }
-    } finally {
-      mode.current = 'real';
-      rmSync(root, { recursive: true, force: true });
     }
   }, 120_000);
-});
 
+  // The .env read stops at the first batch that lists a .env path. Here the only .env sits in a
+  // middle batch, with batches after it that list none, so a read that ignored the stop, or kept
+  // only the last batch's answer, would report no .env in history.
+  it('the .env history read finds a .env in a middle batch and stops there', () => {
+    const repo = newRepo('cejel-paging-env-middle-');
+    put(repo, 'package.json', '{"name":"env-middle","version":"1.0.0"}\n');
+    put(repo, 'src/a.js', 'export const a = 1;\n');
+    commitAll(repo, 'base');
+    revisions(repo, 10, 'early');
+    put(repo, '.env', 'DEBUG=true\n');
+    commitAll(repo, 'add .env');
+    fixtureGit(repo, 'rm', '--quiet', '.env');
+    commitAll(repo, 'remove .env');
+    revisions(repo, 5, 'late');
+    const order = revList(repo);
+    const envCommit = fixtureGit(repo, 'log', '--format=%H', '--diff-filter=A', '--', '.env');
+    const envIndex = order.indexOf(envCommit);
+    expect(envIndex).toBeGreaterThan(MAX_BATCH);
+    expect(envIndex).toBeLessThan(order.length - MAX_BATCH);
+
+    mode.current = 'real';
+    expect(probeA2EnvPathHistoryRead(repo)).toMatchObject({ found: true, limitations: [] });
+    const unlimited = scoreAt(repo, V17);
+    mode.current = 'limited';
+    stdinReads.length = 0;
+    expect(probeA2EnvPathHistoryRead(repo)).toMatchObject({ found: true, limitations: [] });
+    const envBatches = stdinReads.filter(({ argv }) => isEnvPathLog(argv));
+    expect(envBatches.length).toBeGreaterThan(1);
+    expect(envBatches.at(-1)?.commits).toContain(envCommit);
+    expect(batched(isEnvPathLog)).toEqual(order.slice(0, batched(isEnvPathLog).length));
+    expect(batched(isEnvPathLog).length).toBeLessThan(order.length);
+    const batchedReport = scoreAt(repo, V17);
+    expect(batchedReport.scanLimitations ?? []).toEqual([]);
+    expect(projectWitanScoringSurface(batchedReport)).toEqual(projectWitanScoringSurface(unlimited));
+  }, 120_000);
+});
