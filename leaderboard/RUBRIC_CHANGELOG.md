@@ -140,12 +140,14 @@ confirmation (`docs/experiments/public-delta-0-6-8-successor-2026-10-21/`) there
 describes v27's public scores, but not its fingerprint.
 
 **Timing.** B2 and B3 now each run the shared predicate over every CI workflow, and B3 decides once
-for both depth metrics. A scan of four print-only workflows of 24,000 steps and four upload-only
-workflows of 3,300 step pairs, each just under the content size limit, is in the child-process
-timing guard in `scan-path-regex-bounds.test.ts`. With eight of each it took 1.19 s under v27 and
-0.97 s under v17 on the author's machine. Before this change v27 took 1.46 s, because B3 ran the
-publish-only reader three times per workflow. No regular expression over repository text was
-added.
+for both depth metrics. The child-process timing guard in `scan-path-regex-bounds.test.ts` scans a
+print-only workflow of 24,000 steps beside an upload-only workflow of 3,300 step pairs, each just
+under the content size limit, under v17 and v27. Run alone, it takes 0.7 s to 0.8 s against a 2 s
+budget. A version with four of each made the file's other guards miss their budget when the full
+suite ran in parallel (they passed with it skipped), so it was cut to one of each. On a scratch
+fixture of eight of each, one run on the author's machine, a scan took 1.19 s under v27 and 0.97 s
+under v17. Before this change v27 took 1.46 s, because B3 ran the publish-only reader three times
+per workflow. No regular expression over repository text was added.
 
 **Fingerprints.** v17 stays
 `sha256:5cd48f8c642300ae8736a09d4a24ce3a4f8885f6e099b5f27f99d950e0c944b4`. v27 moves from
