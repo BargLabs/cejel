@@ -224,7 +224,37 @@ const REVIEW_521_READER_FIXTURE: Record<string, string> = {
   'tests/bound/conftest.py': `def pytest_collection_modifyitems(items):\n${'    items.clear()\n'.repeat(28_000)}`,
 };
 
+// #527 and #535 (v27): B2 and B3 each run the shared uncredited-workflow predicate (publish-only
+// reader, then print-only reader) over every CI workflow, B3 once for both depth metrics. Four
+// print-only workflows of 24,000 steps and four upload-only workflows of 3,300 upload-and-download step pairs, each
+// just under the content limit, are read that way under v27.
+const PRINT_ONLY_LONG_WORKFLOW = `name: e2e\non:\n  pull_request:\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n${'      - run: echo a\n'.repeat(24_000)}`;
+const UPLOAD_ONLY_LONG_WORKFLOW = `name: publish\non:\n  push:\n    tags: ['*']\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    permissions:\n      id-token: write\n    steps:\n${'      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist\n      - uses: pypa/gh-action-pypi-publish@release/v1\n'.repeat(3_300)}`;
+const UNCREDITED_WORKFLOW_FIXTURE: Record<string, string> = {
+  'pyproject.toml': '[project]\nname = "uncredited"\nversion = "1.0.0"\ndependencies = []\n',
+  'src/uncredited/__init__.py': 'def f():\n    return 1\n',
+  ...Object.fromEntries(
+    Array.from({ length: 4 }, (_, index) => [
+      [`.github/workflows/print-${index}.yml`, PRINT_ONLY_LONG_WORKFLOW],
+      [`.github/workflows/upload-${index}.yml`, UPLOAD_ONLY_LONG_WORKFLOW],
+    ]).flat(),
+  ),
+};
+
 describe('timing guards: the real scan finishes on pathological repository input', () => {
+  it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
+    'eight print-only and upload-only workflows just under the content limit, read by B2 and B3 (#527, #535) — %s',
+    (rubric) => {
+      expect(PRINT_ONLY_LONG_WORKFLOW.length).toBeLessThan(512_000);
+      expect(PRINT_ONLY_LONG_WORKFLOW.length).toBeGreaterThan(450_000);
+      expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeLessThan(512_000);
+      expect(UPLOAD_ONLY_LONG_WORKFLOW.length).toBeGreaterThan(450_000);
+      const scan = scanInChild(makeRepo(UNCREDITED_WORKFLOW_FIXTURE), rubric);
+      expect(scan.elapsedMs).toBeLessThan(SCAN_BUDGET_MS);
+    },
+    KILL_AFTER_MS + 10_000,
+  );
+
   it.each([WITAN_RUBRIC_VERSION_V17, WITAN_RUBRIC_VERSION_V27])(
     'CI lines and a conftest whitespace run just under the content limit — %s',
     (rubric) => {

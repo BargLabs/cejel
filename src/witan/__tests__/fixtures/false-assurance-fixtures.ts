@@ -19,7 +19,7 @@ import { HERMETIC_GIT_ENV } from './behaviour-corpus.js';
 
 export interface FalseAssuranceFixture {
   readonly name: string;
-  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442';
+  readonly issue: '#517' | '#518' | '#519' | '#520' | '#442' | '#527' | '#535';
   /** Set for a case an adversarial review of #521 found against the first implementation. */
   readonly foundInReview?: true;
   readonly purpose: string;
@@ -1510,6 +1510,80 @@ for (const [name, purpose, files] of [
   ],
 ] as const) {
   FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue: '#517', foundInReview: true, purpose, commits: [files] });
+}
+
+// #527 and #535 (2026-10-22): B2 and B3 credited CI workflows that run no check Cejel can see. A
+// workflow that only publishes (upload-only, as #553 narrowed it) or whose every step only checks
+// out and prints is not credited under v27 by either criterion. Control/change pairs on PY_LIBRARY,
+// whose own ci.yml runs pytest on pull requests and pushes to main.
+const { '.github/workflows/ci.yml': _pyLibraryCi, ...PY_LIBRARY_WITHOUT_CI } = PY_LIBRARY;
+const PRINT_ONLY_PR_WORKFLOW = (echo: string): string =>
+  `name: e2e\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\njobs:\n  e2e:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ${echo}\n`;
+const MASTER_CONFINED_WORKFLOW =
+  'name: security\non:\n  push:\n    branches: [master]\n  pull_request:\n    branches:\n      - master\njobs:\n  audit:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: pip-audit\n';
+for (const [name, issue, purpose, files] of [
+  [
+    'b2-publish-only-is-the-only-workflow',
+    '#527',
+    'Change: the only CI workflow downloads a built artifact and uploads it to PyPI on tags. v17 credits it as a PR-trace CI workflow.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '    environment: pypi\n') },
+  ],
+  [
+    'b2-publish-only-beside-test-workflow',
+    '#527',
+    'Change: the same upload-only workflow beside a workflow that runs pytest. v17 counts two CI workflows for B2.',
+    { ...PY_LIBRARY, '.github/workflows/publish.yml': PYPI_UPLOAD_ONLY("on:\n  push:\n    tags: ['*']\n", '    environment: pypi\n') },
+  ],
+  [
+    'b2-test-workflow-only',
+    '#527',
+    'Control: the pytest workflow alone. B2 credits one CI workflow under every rubric.',
+    { ...PY_LIBRARY },
+  ],
+  [
+    'b2-test-then-upload-stays-credited',
+    '#527',
+    'Corner: a workflow that runs pytest and then uploads is credited by B2 and B3 under v27.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/ci.yml': PUSH_WORKFLOW('      - run: pip install pytest\n      - run: pytest\n      - run: twine upload dist/*\n', 'on:\n  push:\n    branches: [main]\n  pull_request:\n') },
+  ],
+  [
+    'b3-print-only-pr-workflow-beside-tests',
+    '#535',
+    "Change: #535's repro. A pull-request workflow whose only step prints \"e2e skipped\", beside the pytest workflow. v17 counts both for B3's PR-gate count and for B2.",
+    { ...PY_LIBRARY, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo "e2e skipped"') },
+  ],
+  [
+    'b3-print-only-is-the-only-workflow',
+    '#535',
+    'Change: the only CI workflow is the print-only pull-request workflow.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo "e2e skipped"') },
+  ],
+  [
+    'b3-print-only-echo-names-a-test-command',
+    '#535',
+    'Change: the only workflow prints "pytest skipped". v17 credits a CI test command for the word pytest in the printed text.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo "pytest skipped"') },
+  ],
+  [
+    'b3-echo-then-unplaced-action-stays-credited',
+    '#535',
+    'Corner: a print step beside an action the print-only reader does not place. Not shown to only print, so credited.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('echo start\n      - uses: org/run-e2e@v1') },
+  ],
+  [
+    'b3-echo-in-a-run-block-with-a-test-stays-credited',
+    '#535',
+    'Corner: a run block that prints and then runs pytest. Credited.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/e2e.yml': PRINT_ONLY_PR_WORKFLOW('|\n          echo start\n          pytest') },
+  ],
+  [
+    'b3-master-confined-workflow-on-main-still-counted',
+    '#535',
+    'Open (branch half of #535, not changed): a workflow confined to master in a repository whose only branch is main. Which branches exist is not bound by the attestation, so v27 still counts it.',
+    { ...PY_LIBRARY_WITHOUT_CI, '.github/workflows/security.yml': MASTER_CONFINED_WORKFLOW },
+  ],
+] as const) {
+  FALSE_ASSURANCE_FIXTURES_REVIEW.push({ name, issue, purpose, commits: [files] });
 }
 
 export const FALSE_ASSURANCE_FIXTURES: readonly FalseAssuranceFixture[] = [

@@ -675,8 +675,11 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     '9abd0b3001b65a4f8d77e3ff1d009cc9a5b4d40109dfa1cb117989119dd99697',
   'b2b3-planted-workflows@witan-rubric-v26-prospective-2026-10-14':
     'd36a15cabb651e6ee00d01a50edd62de230097c186f38f22b235a734281a44e0',
+  // Re-captured 2026-10-22 for #535, v27 only: v27 stops counting the print-only workflow these
+  // disclosures name (B3 default_branch_ci_depth 3 to 2, B2 pr_trace_primitives 4 to 3). Every
+  // other rubric's pin, and every other fixture's, is unchanged.
   'b2b3-planted-workflows@witan-rubric-v27-prospective-2026-10-19':
-    '9abd0b3001b65a4f8d77e3ff1d009cc9a5b4d40109dfa1cb117989119dd99697',
+    '947f74848f4727112e41b8576640f950cfd12fe1ddc7a9c141a505073ab20e63',
   'b2b3-control-pr-workflows@witan-rubric-v17-2026-07-24':
     'bb36e73518c7e570fcf31f4d5de8ee792f32eac0118594631f28feb09201eccc',
   'b2b3-control-pr-workflows@witan-rubric-v18-prospective-2026-07-25':
@@ -1049,6 +1052,8 @@ const SCORING_SURFACE_PINS: Readonly<Record<string, string>> = {
     'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
   'b3-monorepo-root-print-only@witan-rubric-v26-prospective-2026-10-14':
     'dbc5b7c625981fd7810e9995da0387d73c510fac2423e771a301aedf55e5b989',
+  // Re-captured 2026-10-22 for #535, v27 only: the monorepo root's print-only workflow is not
+  // counted (B3 default_branch_ci_depth 2 to 1).
   'b3-monorepo-root-print-only@witan-rubric-v27-prospective-2026-10-19':
-    'c5a11cff205543bded3bbdd684d7364168df3db26d71af52885cc9f6f4e3b042',
+    '110945e1c299996652f7d9ff82e8894de6207bedd0afc2e15238d5102667294b',
 };

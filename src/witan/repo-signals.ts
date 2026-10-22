@@ -5387,20 +5387,30 @@ function collectB3CiDisciplineEvidence(
   // counts it: making it run on every push raised B3. B2 uses the same predicate (#527).
   // A monorepo root's workflows get no inventory, so any command whose behaviour that root's files
   // decide keeps them counted.
-  const ownInventory = ownPublishOnlyInventory(repoFiles);
-  const countsAsCi = (root: string) => (file: string) =>
-    !useV27FalseAssuranceClosure ||
-    uncreditedCiWorkflowReason(root, file, root === repoPath ? ownInventory : null) === null;
+  // Decided once per workflow, under both depth signals, since each depends on the reading.
+  const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
+    ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+        uncreditedCiWorkflows(repoPath, workflows, ownPublishOnlyInventory(repoFiles)),
+      )
+    : new Map();
+  const uncreditedRootWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> =
+    useV27FalseAssuranceClosure && mono
+      ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
+          uncreditedCiWorkflows(mono.root, rootWorkflows, null),
+        )
+      : new Map();
+  const countsAsCi = (uncredited: ReadonlyMap<string, UncreditedCiWorkflowReason>) => (file: string) =>
+    !uncredited.has(file);
   const { defaultBranchCiCount, defaultBranchCiWorkflows, rootDefaultBranchCiWorkflows } = withContentReadSignal(
     'B3',
     'default_branch_ci_depth',
     () => {
       const counted = workflows
-        .filter(countsAsCi(repoPath))
+        .filter(countsAsCi(uncreditedWorkflows))
         .filter((file) => workflowTargetsDefaultBranch(repoPath, file));
       const rootCounted = mono
         ? rootWorkflows
-            .filter(countsAsCi(mono.root))
+            .filter(countsAsCi(uncreditedRootWorkflows))
             .filter((file) => workflowTargetsDefaultBranch(mono.root, file))
         : [];
       return {
@@ -5422,11 +5432,6 @@ function collectB3CiDisciplineEvidence(
         )
       : { printOnly: [] },
   );
-  const uncreditedWorkflows: ReadonlyMap<string, UncreditedCiWorkflowReason> = useV27FalseAssuranceClosure
-    ? withContentReadSignals('B3', ['ci_script_depth', 'default_branch_ci_depth'], () =>
-        uncreditedCiWorkflows(repoPath, workflows, ownInventory),
-      )
-    : new Map();
 
   if (packageJson && scripts.has('test')) {
     evidence.push(evidenceForRelative(repoPath, packageJson, 'test_run', 'Test script'));
@@ -5532,12 +5537,12 @@ function collectB3CiDisciplineEvidence(
     'ci_script_depth',
     () => ({
       repoCategoryHits: CI_COMMAND_CATEGORIES.map((pattern) =>
-        workflows.filter(countsAsCi(repoPath)).some((file) => fileContains(repoPath, file, pattern)),
+        workflows.filter(countsAsCi(uncreditedWorkflows)).some((file) => fileContains(repoPath, file, pattern)),
       ),
       rootCategoryHits: mono
         ? CI_COMMAND_CATEGORIES.map((pattern) =>
             rootWorkflows
-              .filter(countsAsCi(mono.root))
+              .filter(countsAsCi(uncreditedRootWorkflows))
               .some((file) => fileContains(mono.root, file, pattern)),
           )
         : [],
