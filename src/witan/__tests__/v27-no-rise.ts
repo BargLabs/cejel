@@ -241,29 +241,58 @@ export function checkNoRise(before: WitanReport, after: WitanReport): NoRiseResu
 
 const FINDING_SEVERITY: Readonly<Record<string, number>> = { info: 1, warning: 2, critical: 3 };
 
+type Finding = WitanCriterionScore['findings'][number];
+
+const CONFTEST_PATH = /(^|\/)conftest\.py$/;
+
+/**
+ * What a finding points at: kind, path, line, url and content hash, never the label (wording). A
+ * collector's summary is generic ("Secret-shaped value appears committed ..."); the file it is about
+ * is named only here, so a finding re-cited to another file is a different finding.
+ */
+export function evidenceIdentity(finding: Finding): string {
+  const { kind, path, line, url, contentHash } = finding.evidence;
+  return JSON.stringify([kind, path ?? null, line ?? null, url ?? null, contentHash ?? null]);
+}
+
+function sameFinding(a: Finding, b: Finding): boolean {
+  return a.summary === b.summary && evidenceIdentity(a) === evidenceIdentity(b);
+}
+
 /**
  * v27 abstains; it does not hide. Every finding v17 reports is still reported under v27, on the
- * same criterion, with the same summary and the same or a higher severity. The removals v27 makes
- * by rule, each because the finding stated more than Cejel read:
+ * same criterion, with the same summary, the same evidence pointer (evidenceIdentity) and the same
+ * or a higher severity. The removals v27 makes by rule, each because the finding stated more than
+ * Cejel read:
  *
  *   - a metric-derived summary ("<id> metric-derived score is ...") restates the score, so it
  *     changes whenever the score falls; the score itself is checked by checkNoRise;
- *   - a criterion that abstains as a read failure under v27 (checkNoRise's (a)) reports nothing it
- *     derived from the content it did not read. A critical finding is never removed this way:
- *     v27 keeps a collector's critical finding through an LFS abstention, and A2 does not abstain
- *     on a shallow clone while one stands;
+ *   - a criterion that abstains under v27 as a recognised read failure (READ_FAILURE_CLASSES,
+ *     checked here, not assumed from checkNoRise) reports nothing it derived from the content it
+ *     did not read. A critical finding is never removed this way: v27 keeps a collector's critical
+ *     finding through an LFS abstention, and A2 does not abstain on a shallow clone while one
+ *     stands;
  *   - A1's "Test suite files are present, ..." finding, where v27 measures a test_to_source_ratio of
  *     0: the only test-shaped files were conftest.py, which v27 does not count as tests (#518), so
  *     the finding's premise is false under v27.
+ *
+ * One re-citation is allowed: a non-critical finding v17 anchors to a conftest.py may be anchored
+ * by v27, with the same summary, evidence kind and at least the same severity, to a file that is
+ * not a conftest.py, since v27 does not cite conftest.py as test evidence (#518). A critical
+ * finding keeps its pointer exactly (lostCriticalFindings).
  */
 export function lostFindings(before: WitanReport, after: WitanReport): string[] {
   const lost: string[] = [];
   for (const v17 of before.criteria) {
     const v27 = after.criteria.find(({ id }) => id === v17.id);
-    const abstained = v27?.status === 'insufficient_data' && v17.status !== 'insufficient_data';
+    const abstainedAsReadFailure =
+      v27 !== undefined &&
+      v27.status === 'insufficient_data' &&
+      v17.status !== 'insufficient_data' &&
+      READ_FAILURE_CLASSES.some(({ recognises }) => recognises(after, v27));
     for (const finding of v17.findings) {
       if (finding.summary.includes('metric-derived score')) continue;
-      if (abstained && finding.severity !== 'critical') continue;
+      if (abstainedAsReadFailure && finding.severity !== 'critical') continue;
       if (
         v17.id === 'A1' &&
         finding.summary.startsWith('Test suite files are present') &&
@@ -271,18 +300,29 @@ export function lostFindings(before: WitanReport, after: WitanReport): string[] 
       ) {
         continue;
       }
+      const reCitedFromConftest = (candidate: Finding): boolean =>
+        finding.severity !== 'critical' &&
+        CONFTEST_PATH.test(finding.evidence.path ?? '') &&
+        candidate.summary === finding.summary &&
+        candidate.evidence.kind === finding.evidence.kind &&
+        candidate.evidence.path !== undefined &&
+        !CONFTEST_PATH.test(candidate.evidence.path);
       const kept = v27?.findings.some(
-        ({ summary, severity }) =>
-          summary === finding.summary &&
-          (FINDING_SEVERITY[severity] ?? 0) >= (FINDING_SEVERITY[finding.severity] ?? 99),
+        (candidate) =>
+          (sameFinding(candidate, finding) || reCitedFromConftest(candidate)) &&
+          (FINDING_SEVERITY[candidate.severity] ?? 0) >= (FINDING_SEVERITY[finding.severity] ?? 99),
       );
-      if (!kept) lost.push(`${v17.id}: ${finding.severity} "${finding.summary}" is absent or less severe under v27`);
+      if (!kept) {
+        lost.push(
+          `${v17.id}: ${finding.severity} "${finding.summary}" at ${evidenceIdentity(finding)} is absent, less severe or re-cited under v27`,
+        );
+      }
     }
   }
   return lost;
 }
 
-/** The critical findings v17 reports that v27 does not report as critical with the same summary. */
+/** The critical findings v17 reports that v27 does not report as critical with the same summary and evidence. */
 export function lostCriticalFindings(before: WitanReport, after: WitanReport): string[] {
   const lost: string[] = [];
   for (const v17 of before.criteria) {
@@ -291,8 +331,12 @@ export function lostCriticalFindings(before: WitanReport, after: WitanReport): s
     );
     if (own.length === 0) continue;
     const v27 = after.criteria.find(({ id }) => id === v17.id);
-    const kept = new Set(v27?.findings.filter(({ severity }) => severity === 'critical').map(({ summary }) => summary) ?? []);
-    for (const { summary } of own) if (!kept.has(summary)) lost.push(`${v17.id}: ${summary}`);
+    const critical = v27?.findings.filter(({ severity }) => severity === 'critical') ?? [];
+    for (const finding of own) {
+      if (!critical.some((candidate) => sameFinding(candidate, finding))) {
+        lost.push(`${v17.id}: ${finding.summary} at ${evidenceIdentity(finding)}`);
+      }
+    }
   }
   return lost;
 }

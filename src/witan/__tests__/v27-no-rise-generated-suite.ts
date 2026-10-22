@@ -71,6 +71,17 @@ function describeGenerator(): void {
       }
     });
 
+    it('holds every workflow shape and line ending readable on full history (each shard checks B2 and B3 were scored there)', () => {
+      for (const workflow of DIMENSION_VALUES.workflow.filter((value) => value !== 'none')) {
+        for (const lineEndings of DIMENSION_VALUES.lineEndings) {
+          expect(
+            ALL_SHAPES.some((shape) => shape.workflow === workflow && shape.lineEndings === lineEndings && shape.history === 'full' && shape.lfs !== 'workflow'),
+            `${workflow} ${lineEndings}`,
+          ).toBe(true);
+        }
+      }
+    });
+
     it('is deterministic, and the shards partition it', () => {
       expect(generateNoRiseShapes().map(shapeName)).toEqual(ALL_SHAPES.map(shapeName));
       const sharded = Array.from({ length: NO_RISE_SHARDS }, (_, index) => noRiseShard(ALL_SHAPES, index, NO_RISE_SHARDS)).flat();
@@ -90,6 +101,10 @@ export function describeGeneratedNoRiseShard(index: number): void {
     fallen: new Map<string, number>(),
     abstentions: [] as (IntroducedAbstention & { shape: string })[],
     a1ScoredUnderV27: new Set<string>(),
+    // Workflow x line-ending combinations held by a full-history shape whose workflows are read
+    // (not LFS pointers), and those among them where v27 scored both B2 and B3.
+    readableWorkflows: new Set<string>(),
+    workflowsScored: new Set<string>(),
     shallowShapes: 0,
     compositesFallen: 0,
   };
@@ -118,6 +133,15 @@ export function describeGeneratedNoRiseShard(index: number): void {
               expect(v27.status, `${id} ${name}`).toBe('insufficient_data');
             }
           }
+          if (shape.history === 'full' && shape.workflow !== 'none' && shape.lfs !== 'workflow') {
+            const key = `${shape.workflow}|${shape.lineEndings}`;
+            seen.readableWorkflows.add(key);
+            const scored = (id: string): boolean => {
+              const status = after.criteria.find((criterion) => criterion.id === id)!.status;
+              return status !== 'insufficient_data' && status !== 'not_applicable';
+            };
+            if (scored('B2') && scored('B3')) seen.workflowsScored.add(key);
+          }
           const a1 = after.criteria.find((criterion) => criterion.id === 'A1')!;
           if (a1.status !== 'insufficient_data' && a1.status !== 'not_applicable') seen.a1ScoredUnderV27.add(coreKey(shape));
           for (const id of result.fallenCriteria) seen.fallen.set(id, (seen.fallen.get(id) ?? 0) + 1);
@@ -134,6 +158,9 @@ export function describeGeneratedNoRiseShard(index: number): void {
       // coverage measured on what the scorer read, not on the shapes' labels.
       const keys = [...new Set(shapes.map(coreKey))];
       expect(keys.filter((key) => !seen.a1ScoredUnderV27.has(key))).toEqual([]);
+      // Every workflow shape and line ending held readable on full history had B2 and B3 scored at
+      // least once, so a CRLF or other workflow shape v27 cannot parse does not pass vacuously.
+      expect([...seen.readableWorkflows].filter((key) => !seen.workflowsScored.has(key))).toEqual([]);
       // Every kind of abstention seen on every criterion is, somewhere, one the composite arithmetic
       // shows held in the denominator.
       const pairs = [...new Set(seen.abstentions.map((a) => `${a.kind} ${a.id}`))];
