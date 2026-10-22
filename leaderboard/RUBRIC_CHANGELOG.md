@@ -686,14 +686,14 @@ after two review passes on #558.
   abstentions it holds, each at 0, so the check requires every introduced abstention on top of
   those v17's composite holds. For criteria that are `insufficient_data` under both rubrics this is
   lenient: they are counted as the fewest that v17's composite is consistent with.
-  **Interaction with #560.** #560 adds a third v27 read failure: A2 abstains when Cejel's reads of
-  earlier commits do not all complete. The causes include a git error, a timeout and an output
-  limit, and, by operator decision, Cejel's own size and time limits and its 5,000-blob history
-  cap. #560 also makes shallow A2 abstain where v17 says not applicable, and it edits
-  `false-assurance-v27.test.ts` (the #442 sentence). Whichever of #558 and #560 lands second must:
-  - add the failed-history class to the table, recognised by the note prefix
-    `WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX` and the `scanLimitations` entry ending "Cejel
-    continued with reduced Git history evidence.", never by the note alone;
+  **Interaction with #560.** #560 adds a third v27 read failure: A2 abstains after an incomplete
+  read of the repository's commit history. It also makes shallow A2 abstain where v17 says not
+  applicable, and it edits `false-assurance-v27.test.ts` (the #442 sentence). #560 is still
+  changing which causes count and what report evidence identifies each, so they are not restated
+  here. The source of truth is the comment in #560's `src/witan/abstention.ts`. Whichever of #558
+  and #560 lands second must:
+  - add that class to `READ_FAILURE_CLASSES` from that comment, keyed on report evidence beyond the
+    note itself;
   - rerun all six generated shards and the curated test on the merged code.
 
   Until then the checker reports those abstentions as unrecognised.
@@ -714,10 +714,11 @@ after two review passes on #558.
 
   One re-citation is allowed, and only this one. A1's finding "Test suite files are present, …" at
   severity `info`, which v17 anchors to a `conftest.py` with evidence kind `test_run`, may be
-  anchored by v27 to a different file. Under v27 it must still be `info` and `test_run`, and the new
-  file must be one A1's own test-file predicate (`findConcreteTestFiles` under v27) counts as a
-  test file. v27 does not cite conftest.py as test evidence (#518). No other finding may change its
-  pointer.
+  anchored by v27 to a pointer v17 already holds, and only that pointer. It is the first "Detected
+  test file" entry in v17's own A1 evidence that is not a conftest.py, with the same kind, label,
+  path, line and content hash, and the finding must still be `info`. So v27 can only re-cite to a
+  file v17 read and cited, at the position and content v17 recorded. v27 does not cite conftest.py
+  as test evidence (#518). No other finding may change its pointer.
 - **(c) Generated shapes.** `src/witan/__tests__/fixtures/v27-norise-shapes.ts` generates 1,563
   repositories:
   - **The full product, every combination that takes effect:** 7 test-directory names (including
@@ -747,7 +748,12 @@ after two review passes on #558.
   `false-assurance-v27-shards.test.ts` requires exactly six shard files, each equal byte for byte
   to a fixed template that registers shard n − 1 in file n. A missing file, a duplicated or
   disguised index, a comment, a skip, a condition, or a raised shard count without a new file
-  therefore fails instead of silently dropping shapes.
+  therefore fails instead of silently dropping shapes. Two backstops cover what the shard files
+  cannot show:
+  - the suite module may contain no `.skip`, `.only`, `.todo`, `skipIf`, `runIf`, condition or
+    early return before its describe;
+  - vitest itself is asked (`createVitest(...).getTestFilepaths()` on `vitest.config.ts`) whether
+    every shard file is collected, so an include or exclude change that drops one fails.
 
 The checker is `src/witan/__tests__/v27-no-rise.ts`, and the curated test and the generated suite
 both use it. The suite is `src/witan/__tests__/v27-no-rise-generated-suite.ts`, run as

@@ -1,8 +1,6 @@
 import type { WitanCriterionScore, WitanReport } from '../schemas.js';
 
 import { SHALLOW_HISTORY_V27_ABSTENTION } from '../history-depth.js';
-import { findConcreteTestFiles } from '../repo-signals.js';
-import { WITAN_RUBRIC_VERSION_V27 } from '../rubric-version.js';
 
 // THE NO-RISE PROPERTY (#531), shared by the curated and the generated v27 tests.
 //
@@ -116,10 +114,11 @@ function shallowAbstention(report: WitanReport, criterion: WitanCriterionScore):
  * The read-failure abstentions v27 makes, each recognised from the report alone. An abstention v27
  * introduces must match one; anything else is self-imposed. Extend by adding a class here, keyed on
  * evidence the report carries beyond the criterion's own note (a note alone can be written by any
- * code path). Known pending class: #560's failed-history abstention of A2 (a git error, timeout or
- * output limit while reading earlier commits). Whichever of #558 and #560 lands second adds it,
- * recognised by the note prefix WITAN_V27_A2_FAILED_HISTORY_NOTE_PREFIX AND the scanLimitations
- * entry ending "Cejel continued with reduced Git history evidence.", never by the note alone.
+ * code path). Known pending class: #560's abstention of A2 after an incomplete read of the
+ * repository's commit history. Its causes and the report evidence that identifies each are still
+ * changing on #560; the source of truth is the comment in #560's src/witan/abstention.ts.
+ * Whichever of #558 and #560 lands second integrates the class from that comment, keyed on report
+ * evidence beyond the note itself, and reruns all six generated shards and the curated test.
  */
 export const READ_FAILURE_CLASSES = [
   { kind: 'shallow-history', recognises: shallowAbstention },
@@ -248,22 +247,16 @@ type Finding = WitanCriterionScore['findings'][number];
 const CONFTEST_PATH = /(^|\/)conftest\.py$/;
 
 /**
- * Whether v27's own A1 collector counts `path` as a test file: findConcreteTestFiles, the predicate
- * A1 uses, under v27 (which leaves conftest.py out). No repository is read for a path that is not
- * C++ source, and a C++ path is never accepted here, so the check is purely by name.
- */
-function isV27TestFile(path: string | undefined): boolean {
-  if (path === undefined || CONFTEST_PATH.test(path) || /\.(cpp|cc|cxx)$/.test(path)) return false;
-  return findConcreteTestFiles('', [path], WITAN_RUBRIC_VERSION_V27).length === 1;
-}
-
-/**
  * What a finding points at: kind, path, line, url and content hash, never the label (wording). A
  * collector's summary is generic ("Secret-shaped value appears committed ..."); the file it is about
  * is named only here, so a finding re-cited to another file is a different finding.
  */
 export function evidenceIdentity(finding: Finding): string {
-  const { kind, path, line, url, contentHash } = finding.evidence;
+  return pointerIdentity(finding.evidence);
+}
+
+function pointerIdentity(pointer: Finding['evidence']): string {
+  const { kind, path, line, url, contentHash } = pointer;
   return JSON.stringify([kind, path ?? null, line ?? null, url ?? null, contentHash ?? null]);
 }
 
@@ -289,10 +282,11 @@ function sameFinding(a: Finding, b: Finding): boolean {
  *     the finding's premise is false under v27.
  *
  * One re-citation is allowed, exactly: A1's info finding "Test suite files are present, ..." that
- * v17 anchors (kind test_run) to a conftest.py may be anchored by v27, still info and kind test_run,
- * to a file the collector's own predicate (findConcreteTestFiles under v27) counts as a test file,
- * since v27 does not cite conftest.py as test evidence (#518). Nothing else may change its pointer;
- * a critical finding never does (lostCriticalFindings).
+ * v17 anchors (kind test_run) to a conftest.py may be anchored by v27, still info, to the pointer
+ * v17's own A1 evidence already holds for the first detected test file that is not a conftest.py:
+ * the same kind, label, path, line and content hash, so v27 can only re-cite to a file v17 read and
+ * cited, at the position and content v17 recorded. v27 does not cite conftest.py as test evidence
+ * (#518). Nothing else may change its pointer; a critical finding never does (lostCriticalFindings).
  */
 export function lostFindings(before: WitanReport, after: WitanReport): string[] {
   const lost: string[] = [];
@@ -313,16 +307,21 @@ export function lostFindings(before: WitanReport, after: WitanReport): string[] 
       ) {
         continue;
       }
+      const pinned = v17.evidence.find(
+        (pointer) =>
+          pointer.kind === 'test_run' && pointer.label === 'Detected test file' && !CONFTEST_PATH.test(pointer.path ?? ''),
+      );
       const reCitedFromConftest = (candidate: Finding): boolean =>
         v17.id === 'A1' &&
         finding.summary.startsWith('Test suite files are present') &&
         finding.severity === 'info' &&
         finding.evidence.kind === 'test_run' &&
         CONFTEST_PATH.test(finding.evidence.path ?? '') &&
+        pinned !== undefined &&
         candidate.summary === finding.summary &&
         candidate.severity === 'info' &&
-        candidate.evidence.kind === 'test_run' &&
-        isV27TestFile(candidate.evidence.path);
+        candidate.evidence.label === pinned.label &&
+        evidenceIdentity(candidate) === pointerIdentity(pinned);
       const kept = v27?.findings.some(
         (candidate) =>
           (sameFinding(candidate, finding) || reCitedFromConftest(candidate)) &&
