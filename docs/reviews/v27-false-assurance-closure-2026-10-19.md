@@ -401,7 +401,7 @@ A reader admits a workflow only when every line of its jobs section fits its gra
 `runs-on` is a documented GitHub-hosted Ubuntu or macOS label (an exact list, bash, #564), every
 step is on its allowlist, and arguments use only characters inert in every shell. A publish-only
 workflow also needs known flags only, globs only in file operands, credential variables only and no
-committed Cargo configuration. Anything else keeps the credit. The certificate names uncredited workflows under "What was not established", and no
+committed Cargo, rustup, Poetry or uv configuration. Anything else keeps the credit. The certificate names uncredited workflows under "What was not established", and no
 sentence says that a workflow runs no check. v17's scores, statuses, metrics and fingerprint are
 unchanged. v17 output changes in two places:
 - **`report.json`:** on a repository whose workflow the old reader alone called print-only (for
@@ -411,7 +411,7 @@ unchanged. v17 output changes in two places:
 
 v18-v26 rest on gating and their unchanged fingerprints. The
 measured tables are in `leaderboard/RUBRIC_CHANGELOG.md` (2026-10-22):
-- this change moves 28 fixture rows, 15 to below v17's value and 13 back to exactly v17's value, and
+- this change moves 35 fixture rows, 17 to below v17's value and 18 back to exactly v17's value, and
   no fixture is above v17;
 - no public row moves (informal, not a preregistered run);
 - v27's fingerprint moves from `sha256:fb4edfa0…` to

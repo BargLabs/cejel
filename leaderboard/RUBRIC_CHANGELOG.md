@@ -85,17 +85,33 @@ A reader admits a workflow only when all of the following hold. Anything else ke
   runs), `CARGO_HOME` and `XDG_CONFIG_HOME`.
 - `cargo publish --no-verify` is refused when the inventory holds any `.cargo/config` or
   `.cargo/config.toml`, which can name a credential provider cargo executes.
-- Audit of the other publishers' repository configuration:
-  - npm-family: the existing guards refuse `.npmrc`, Yarn and pnpm configuration, workspaces and
-    lifecycle scripts.
-  - twine: reads `.pypirc` from the home directory, and `--config-file` is not an admitted flag.
-  - uv and poetry: `publish` reads only endpoints and credentials from the project's configuration.
-  - gh: reads only the user's configuration, and `XDG_CONFIG_HOME` and `GH_CONFIG_DIR` are not
-    admitted.
+- `cargo publish` is also refused when the inventory holds `rust-toolchain` or
+  `rust-toolchain.toml`. `poetry publish` is refused on any root `.poetry/` path, a `poetry.toml`,
+  or Poetry plugin requirements in `pyproject.toml`. `uv publish` is refused on any `uv.toml` or a
+  `[tool.uv]` table (round 4).
 
-**The `*`, environment and Cargo gaps already existed in 0.6.8's v27 B3** (#553's publish-only rule).
-They are fixed here for both criteria. Fixtures `review12-*` pin each shape. Each keeps its credit,
-and in each v27 had scored B3 below v17 on a false "only publishes".
+**What each admitted publisher reads from the repository that could run code, and how it is
+handled.** "Docs" means the tool's documentation, "review" means a review pass on #562 reported it
+with source references, and "not verified" means the author did not check the tool's source in this
+change.
+
+| Publisher | Repository files or settings that could run code | Handling | Basis |
+|---|---|---|---|
+| npm, pnpm, yarn `publish` | Root `package.json` lifecycle scripts (`prepublishOnly`, `prepack`, `publish`, ...), `workspaces`, `gypfile` or `binding.gyp`, local dependencies; `.npmrc` (`script-shell`, `node-options`), `.yarnrc`, `.yarnrc.yml`, `.yarn/plugins/`, `.pnpmfile.cjs`, `pnpmfile.js`, `bunfig.toml`, `pnpm-workspace.yaml`, `lerna.json` | Refused when present (#553's guards, unchanged). Flags that redirect the package are not on the allowlist | Docs, and #553's review rounds. Not re-verified from source here |
+| `twine upload` | `.pypirc` is read from the home directory, not the repository; `--config-file` | `--config-file` is not admitted; the home directory is not repository content. Python start-up paths (`PYTHONPATH`, `PYTHONUSERBASE`, `PYTHONHOME`) are not admitted variables | Docs. Not verified from source |
+| `uv publish` | `uv.toml`, `[tool.uv]` in `pyproject.toml` (keyring providers, index configuration) | Refused when present | Not verified from source that publish runs nothing these settings name, so refused conservatively |
+| `poetry publish` | Project plugins: `.poetry/plugins` is added with `addsitedir()` before any command, so a `.pth` there runs; `poetry.toml`; plugin requirements in `pyproject.toml` | Refused when present. `--no-plugins` is not relied on | Review (Poetry's `Application._run` → `_load_plugins` → `PluginManager.add_project_plugin_path`, reproduced by the reviewer). Other `[tool.poetry]` settings were not verified to be inert for `publish` |
+| `gh release create`/`upload` | Only the user's configuration directory; extensions are installed per user | `GH_CONFIG_DIR` and `XDG_CONFIG_HOME` are not admitted variables | Docs. Not verified from source |
+| `cargo publish --no-verify` | `.cargo/config` and `.cargo/config.toml` in the directory or any parent (credential provider, aliases, build settings); `rust-toolchain` or `rust-toolchain.toml` (rustup resolves the `cargo` proxy, possibly from a custom path); `build.rs` is not run with `--no-verify` | Refused when either kind of file is present; `--config` and the `CARGO_*`/`RUSTUP_*` home variables are not admitted | Docs. Not verified from source |
+
+Setup actions (`actions/setup-node` and the others PUBLISH_ONLY_SETUP_ACTIONS names) were not
+re-audited in this change.
+
+**The `*`, environment, Cargo, rustup, Poetry and uv gaps already existed in 0.6.8's v27 B3**
+(#553's publish-only rule). They are fixed here for both criteria. Fixtures `review12-*` and
+`review13-*` pin each shape. Each keeps its credit, and in each v27 had scored B3 below v17 on a
+false "only publishes". The `review13-poetry-publish-control` and `review13-uv-publish-control`
+fixtures, which have no tool configuration, stay publish-only.
 
 Under v27:
 - **B2 (#527).** `pr_trace_primitives`' CI component counts credited workflows only. When any
@@ -176,7 +192,7 @@ the same commit scores the same under v17 and v27 whatever refs the checkout hol
 or deletes a `master` branch, renames `main`, points `origin/HEAD` at `main` or `master`, and
 detaches HEAD. It fails when a rule that reads `refs/heads/master` is injected.
 
-**Measured, release/0.6.8 (`8deafad9f`) against this change (`5b0ba925b`; `cb4837e80` changes only glossary wording).** Fixtures were built once
+**Measured, release/0.6.8 (`8deafad9f`) against this change (`82855c537`).** Fixtures were built once
 from this change's definitions and scored by both scanners. The public rows are the 0.6.8
 confirmation's full-history clones (copy-on-write copies, with identity checked before and after
 each scan). This is not a preregistered run.
@@ -186,15 +202,17 @@ each scan). This is not a preregistered run.
 | Behaviour corpus (30) | 0 | 30 | 1 (`workspace-package-scripts`) | 0 violations |
 | Calibration anchors (5) | 0 | 5 | 0 | 0 violations |
 | Disclosure-gap fixtures (24) | 0 | 24 | 2 (the two print-only fixtures) | 0 violations |
-| False-assurance fixtures (182, 31 new) | 0 | 176 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 25 (6 new down, 6 existing upload-only down, 13 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument` and 10 `review12-*`) | 0 violations |
+| False-assurance fixtures (189, 38 new) | 0 | 183 (6 `review10/11-print-only-*` lose the false #540 disclosure) | 32 (8 new down, 6 existing upload-only down, 18 back up to exactly v17's value: 2 `review10-upload-only-*`, `review11-twine-upload-pwsh-hashtable-argument`, 10 `review12-*` and 5 `review13-*`) | 0 violations |
 | Public corpus (23, full history) | 0 | 23 | 0 | 0 violations |
 
-**This change moves 28 fixture rows: 15 to below v17's value and 13 back to exactly v17's value.
-No fixture is above v17.** Across all 241 fixtures, 54 have a v27 overall score below v17's. Most of
-those come from earlier v27 changes. The 13 rows that rise are the two `review10-upload-only-*` rows,
-`review11-twine-upload-pwsh-hashtable-argument` and the ten `review12-*` rows. v27's publish-only
+**This change moves 35 fixture rows: 17 to below v17's value and 18 back to exactly v17's value.
+No fixture is above v17.** Across all 248 fixtures, 56 have a v27 overall score below v17's. Most of
+those come from earlier v27 changes. The 18 rows that rise are the two `review10-upload-only-*` rows,
+`review11-twine-upload-pwsh-hashtable-argument`, the ten `review12-*` rows and the five non-control
+`review13-*` rows. v27's publish-only
 reader used to claim each of them, on a Windows or self-hosted runner, with a pwsh hashtable
-argument, or with a glob, unlisted variable or Cargo configuration that runs repository code. So v27
+argument, or with a glob, unlisted variable, or Cargo, rustup, Poetry or uv configuration that runs (or may
+run) repository code. So v27
 scored them below v17 on a false assertion.
 
 v27, before to after, for every row this change moves:
@@ -223,6 +241,13 @@ v27, before to after, for every row this change moves:
 | false-assurance | review12-twine-pythonuserbase-variable | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review12-twine-upload-flag-glob | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review12-yarn-publish-glob-flag | at_risk → conditional | 2.3 → 2.5 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-poetry-publish-control | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review13-uv-publish-control | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
+| false-assurance | review13-poetry-project-plugin-pth | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-poetry-requires-plugins | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-rust-toolchain-toml | at_risk | 2.1 → 2.3 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-uv-pyproject-table | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
+| false-assurance | review13-uv-toml-committed | at_risk | 1.8 → 2 | 2.1 → 2.4 | B3 verified 1 → verified 1.6 (v17's value) | 2 | 1 → 2 | 1 |
 | false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.1 → 1.7 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-gh-release-upload | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-npm-publish-without-install | at_risk | 2.3 → 1.9 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
@@ -230,7 +255,7 @@ v27, before to after, for every row this change moves:
 | false-assurance | review8-b3-pypi-upload-only-ungated | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 | false-assurance | review8-b3-twine-upload-only | at_risk → unverified | 1.8 → 1.4 | 2.1 → 1.3 | B2 warning 3.2 → warning 1.6 | 2 → 1 | 1 | 1 |
 
-v17 to v27 at this change, for every row this change moves to below v17 (the other 13 now equal v17):
+v17 to v27 at this change, for every row this change moves to below v17 (the other 18 now equal v17):
 
 | Set | Row | Verdict | Overall | Code | Process | Criteria that moved, v17 → v27 |
 |---|---|---|---|---|---|---|
@@ -243,6 +268,8 @@ v17 to v27 at this change, for every row this change moves to below v17 (the oth
 | false-assurance | b3-print-only-is-the-only-workflow | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
 | false-assurance | b3-print-only-pr-workflow-beside-tests | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 | false-assurance | review10-print-only-ubuntu-inert-text | unverified | 1.3 → 0.7 | 1.4 | 1.1 → 0 | B2 warning 1.6 → critical 0; B3 warning 0.6 → critical 0 |
+| false-assurance | review13-poetry-publish-control | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
+| false-assurance | review13-uv-publish-control | at_risk → unverified | 2 → 1.4 | 1.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 | false-assurance | review7-b3-cargo-publish-no-verify | at_risk | 2.3 → 1.7 | 2.1 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 | false-assurance | review8-b3-gh-release-upload | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |
 | false-assurance | review8-b3-npm-publish-without-install | conditional → at_risk | 2.5 → 1.9 | 2.5 | 2.4 → 1.3 | B2 warning 3.2 → warning 1.6; B3 verified 1.6 → verified 1 |

@@ -36,8 +36,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a workflow runs no check.
   - The publish-only reader also admits only each publisher's known flags, globs only in file
     operands after a directory, credential environment variables from an allowlist, and no
-    committed Cargo configuration. Each of these gaps already existed in 0.6.8's v27 B3 (#553).
-  - This change moves 28 fixture rows: 15 to below v17's value and 13 back to exactly v17's value.
+    committed Cargo, rustup, Poetry or uv configuration. Each of these gaps already existed in
+    0.6.8's v27 B3 (#553).
+  - This change moves 35 fixture rows: 17 to below v17's value and 18 back to exactly v17's value.
     No fixture is above v17. No public row moves (informal, not a preregistered run).
   - v17's scores, statuses, metrics and fingerprint do not move. v17 `report.json` is byte-identical
     apart from the #564 fix below. v17 certificates (Markdown, HTML, terminal) change on every
