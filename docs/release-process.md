@@ -46,25 +46,23 @@ the version and requires 14 of 14. **A release is complete only when stage 13 pa
 refuses because the tap bump or the site record is not done yet, finish them and re-run with
 `--from 13`.
 
-**Stage 7's empty run listings and unreadable run logs are retried (2026-10-22).** GitHub's run
+**Empty run listings and unreadable run logs are retried (2026-10-22, #579 and #581).** GitHub's run
 listing filtered by `--branch` and `--status` can answer with an empty list for runs that finished
 hours earlier: on 2026-10-22 a `--from 13` resume of 0.6.8 refused at stage 7 ("no successful
 publish-npm run on v0.6.8 has a '+ @cejel/cejel@0.6.8' log line") although run 39755971745 carries
-that line. The driver now retries an empty or failed `gh run list` for a workflow's successful runs
-on the tag (stage 7's publish-run lookup, and `latest_success_run` at stages 4 and 9), and a failed
-or empty `gh run view --log` in stage 7's lookups only (`npm_log_plus_line` and `finish_npm`), up to
-`RELEASE_RUN_LIST_TRIES` times (default 5, a whole number of at least 1, else it refuses),
-`RELEASE_RUN_FIND_SLEEP` seconds apart (default 3), printing one line per retry on stderr. The
-currency reads at stages 11 and 13 (`currency_read`) do not retry. An unreadable log refuses at
-stage 11 as "reported 0 surfaces", which is the wrong cause. At stage 13 it stops the driver with no
-REFUSE line. After its last try a lookup passes on `gh`'s stderr. Stage
-7's refusal does not name the single cause: it says "after N tries" and lists the three possible
-ones (the listing stayed empty, `gh` failed, or no run's log carries the line), and the retry lines
-above it show which one happened. Wall time, when nothing ever answers: up to 12 s more for each
-listing lookup; stage 7 with log retries up to about 84 s in theory (61 s was observed with five
-runs whose logs could not be read, as when logs have expired); a whole resume about 108 s, plus the
-time to download logs. The silent exit in `currency_read`, naming the actual cause, and tests for
-the stage 4 and 9 retries are tracked in #581.
+that line. The driver retries an empty or failed `gh run list` for a workflow's successful runs on
+the tag (stage 7's publish-run lookup, and `latest_success_run` at stages 4 and 9), and a failed or
+empty `gh run view --log` in stage 7's lookups and in the currency reads at stages 11 and 13
+(`currency_read`), up to `RELEASE_RUN_LIST_TRIES` times (default 5, a whole number of at least 1,
+else it refuses), `RELEASE_RUN_FIND_SLEEP` seconds apart (default 3), printing one line per retry on
+stderr. After its last try a lookup passes on `gh`'s stderr. Stage 7's refusal names the cause that
+happened: the publish-npm listing stayed empty or `gh` failed after N tries, or, of the runs listed,
+how many had a log that could not be read and how many had a log without the line. An unreadable
+currency log refuses at stages 11 and 13 as "could not read currency run N's log after N tries".
+Wall time, when nothing ever answers: up to 12 s more for each listing lookup or log read; stage 7
+with log retries up to about 84 s in theory (61 s was observed with five runs whose logs could not
+be read, as when logs have expired); a whole resume about 108 s, plus the time to download logs and
+up to 12 s more for each unreadable currency log.
 
 The sections below stay authoritative; the script references them and does not restate them.
 
