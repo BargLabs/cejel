@@ -40,8 +40,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     not-applicable and scoring paths alike, as a read failure kept in the composite at 0.
     Composites can only fall. v27's shallow-clone sentence in `historyLimitations` no longer says
     that a not-applicable criterion stays not applicable, and states exactly which abstentions
-    count as 0. If 0.6.8 is released before this change, its v27 certificates of such clones
-    report A2 not applicable or a warning. No behaviour fingerprint moves, because the behaviour
+    count as 0. v0.6.8, released at `74b3af581`, predates this change: its v27 certificates of
+    such clones report A2 not applicable or a warning. No behaviour fingerprint moves, because the behaviour
     corpus has no such clone. On a complete clone whose history reads complete, nothing changes
     under any rubric. A complete clone can still fail a history read: re-scoring the 0.6.8
     confirmation's 23 full-history clones (informally, not a preregistered run) leaves every v17

@@ -109,9 +109,10 @@ subjects) needs commits only, which shallow and partial clones both hold, so a p
 its whole window. A failed read throws and ends the scan; it cannot score B2 higher. v27's
 shallow-clone B2 abstention (#442) is unchanged.
 
-**v27's identifier.** v27 is in the 0.6.8 release content, prospective and opt-in. If 0.6.8 is
-released before this change, its v27 certificates of such clones report A2 not applicable (shallow,
-treeless) or a warning (blobless); later builds report the abstention under the same identifier.
+**v27's identifier.** v27 shipped, prospective and opt-in, in v0.6.8 (tagged at `74b3af581`), which
+predates this change. Its v27 certificates of such clones report A2 not applicable (shallow,
+treeless) or a warning (blobless); builds with this change report the abstention under the same
+identifier.
 The operator directed the #556 fix on 2026-10-22. Keeping the identifier is consistent with the
 accepted #526 ruling, under which a change to v27's scoring makes a new candidate; it was not a
 separate operator decision. Because no behaviour fingerprint moves (below), the candidate is named

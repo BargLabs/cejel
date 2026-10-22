@@ -53,8 +53,10 @@ Stable in report format v1:
   collectors themselves abstain on a shallow clone, and the sentence says so; under v17 and v18-v26
   the sentence and the scoring are unchanged. Since #556, A2's v27 abstention also covers a shallow
   clone where A2 would otherwise be marked not applicable, and the v27 sentence says so. Under v27 A2
-  also abstains when one of its history reads failed (on a partial clone, for example); that is
-  stated in A2's note and the failed read in `scanLimitations`, not in this field.
+  also abstains when one of its history reads failed (on a partial clone, for example) or its
+  history secret scan stopped at its 5,000-file cap; that is stated in A2's note, and a failed git
+  read also in `scanLimitations` (the cap is named in the note and A2's disclosure, not in the scan
+  limitations), not in this field.
 - Git LFS pointers: `contentReadSummary.byReason.lfsPointer` (report format 1.6), present only
   when the checkout held at least one Git LFS pointer in place of a file's content, and summed
   into `skipped`. Under every rubric it is a count: it names content Cejel did not read. Under
@@ -92,8 +94,10 @@ Stable in report format v1:
   what it is counted for. A2 names credential-shaped values it set aside as documentation
   placeholders (by count and path, never the value); B3 names counted PR-gate workflows it did not
   see run a check. A2 also states when it was marked not applicable after an incomplete read of the
-  commit history (#556): the clone is shallow, or one of its reads of earlier commits failed (the
-  scan limitations name each; a read that stopped at one of Cejel's own limits is named as such).
+  commit history (#556): the clone is shallow, one of its reads of earlier commits failed (the scan
+  limitations name each; a read that stopped at one of Cejel's own limits is named as such), or the
+  history secret scan stopped at its 5,000-file cap (named in the sentence, not in the scan
+  limitations).
   That decision rests in part on those reads. The certificate lists them under "What was not established". They are kept
   apart from `notes` so that an abstention or a merge that rewrites the notes cannot drop them. They
   move no score, status or metric under any rubric. Absent when there is nothing to disclose; the
