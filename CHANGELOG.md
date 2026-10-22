@@ -63,6 +63,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   in every shell. Outside v27 the only effect is in `report.json` and on its certificate: a repository whose workflow the
   old reader alone called print-only loses that false disclosure. No score, status, metric or
   fingerprint moves. Fixtures `review10-*` and `review11-*` pin it.
+- **A scan limitation called any path with control characters "credential-shaped" (#569).** Under
+  every rubric, a path in git history whose name contains control characters is left unread, and
+  the scan limitation said "Git history contained a credential-shaped pathname with control
+  characters" whatever the path was. On the public row axios the only such path is
+  `\bMIGRATION_GUIDE.md`, which is not credential-shaped. That sentence is now kept for credential-
+  or `.env`-shaped paths; any other such path gets "Git history contained a pathname with control
+  characters that is not credential-shaped. Cejel did not read that path in its history scans."
+  Both are scan limitations, so a report with either is gated as before (an unrated v17 badge, and
+  `--min-score` refuses). No score moves under any rubric. On the 23 public rows only axios's
+  `report.json` changes, in that one line, under v17 and v27.
 - **Incomplete history could take A2 out of the score, or score it higher (#556).** A2 reads
   earlier commits for `.env` files and credential-shaped values, and is marked not applicable only
   when that finds nothing and the tree holds no secrets or data surface. On a shallow clone those

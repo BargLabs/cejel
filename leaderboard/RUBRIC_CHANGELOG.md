@@ -22,6 +22,32 @@ repository is not a standard, it is a rumor with a number attached — see this 
 README, "The public leaderboard: what we redact, what we exclude, and where we were wrong"
 section, which this changelog continues.
 
+## 2026-10-22 — #569: the control-character scan limitation calls a path credential-shaped only when it is; no score moved; axios's report changes in one line
+
+**Defect.** Three history reads (the `.env`-path `git log`, the `diff-tree` enumeration and the
+deleted-path `git log`) leave out a path whose name contains control characters, and each added the
+scan limitation "Git history contained a credential-shaped pathname with control characters. Cejel
+omitted that path from historical blob inspection and continued with reduced history evidence." for
+every such path, credential-shaped or not. On the public row axios the only such path is
+`\bMIGRATION_GUIDE.md` (a backspace before the name), so axios's v17 and v27 reports stated something
+false. Found while fixing #560's review findings.
+
+**Change, every rubric (presentation only).** The sentence above is kept for a credential- or
+`.env`-shaped path. Any other such path gets "Git history contained a pathname with control
+characters that is not credential-shaped. Cejel did not read that path in its history scans." Both
+are scan limitations, so the v17 badge stays unrated and `--min-score` still refuses wherever one
+appears; dropping the limitation for such paths was not chosen, because it would change those
+outcomes. A2's incomplete-read rule (#560) is unchanged: it counts only a credential- or
+`.env`-shaped path.
+
+**Measured.** Informally, not a preregistered run: the 23 public rows were scanned with the CLI's
+defaults under v17 and v27, before and after this change, on the 0.6.8 confirmation's full-history
+clones (clean and at their pinned commits before and after). 44 of 46 `report.json` pairs are
+byte-identical; axios differs under v17 and v27 in exactly the one scan-limitation line. No score,
+status, metric value, finding count, verdict, badge rating or fingerprint moves.
+
+Tests: `src/witan/__tests__/history-control-character-limitation-569.test.ts`.
+
 ## 2026-10-22 — #556: an incomplete read of the commit history no longer takes A2 out of the composite or lets it score higher under v27; every rubric says when A2's applicability was decided from one; no v17 score moved; one v27 row of the 0.6.8 confirmation moves
 
 **Defect.** A2 reads commit history in two places: an `.env` path in `git log HEAD`, and the
