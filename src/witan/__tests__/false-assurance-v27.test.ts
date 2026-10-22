@@ -1069,7 +1069,7 @@ describe('the v27 glossary sentences state the conditions the readers apply', ()
     for (const term of ['PR trace basic checks', 'PR-gate CI workflow count (automated build/test pipeline)']) {
       const entry = CERTIFICATE_GLOSSARY.find((candidate) => candidate.term === term);
       expect(entry?.definition, term).toContain('for a workflow with no pull-request trigger, as only uploading an already-built artifact');
-      expect(entry?.definition, term).toContain('only when every job's runs-on names a documented GitHub-hosted Ubuntu or macOS runner label');
+      expect(entry?.definition, term).toContain('only when the runs-on value of every job names a documented GitHub-hosted Ubuntu or macOS runner label');
     }
   });
 });
